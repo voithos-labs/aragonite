@@ -48,7 +48,45 @@ answer both, ordered by **risk first, validation before freeze**.
    | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
    | **Decorations + a public rect API** | Search already _is_ a decoration engine with one hardcoded client — exposing it is a barrel decision over tested code, not an invention. A source is a **pure `doc → Range[]`**, memoized on change — _not_ a mapped-forward state field (§ Pre-freeze plugin direction decisions). The rect API unblocks decorations, selection toolbars and trigger popups at once; without it even a _consumer_ cannot build a selection toolbar. Pulled from 1.2. |
 
-2. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
+2. **Enforcement-hardening program — climb the ladder before external code binds.**
+
+   The 2026-07 audit's two dominant bug classes — sibling-path parity (one rule enforced at N−1
+   of N entry paths) and offset arithmetic done outside the shared walk — are held today by dev
+   guards, prose, and review: the ladder's bottom rungs. This program climbs the load-bearing
+   contracts to types while the climb is still cheap. Two of the four passes are
+   **breaking-if-deferred** (the freeze criterion for pre-1.0 work), and all four are contracts a
+   new consumer should inherit from the compiler, not from `culture.md`:
+
+   1. **Branded coordinate spaces.** Raw offset, ambient-inclusive DOM-text offset,
+      editor-relative X, viewport X, cell index, and doc-absolute path vs scope-local index are
+      all `number` today — which is why every offset bug in the audit was arithmetic mixing them.
+      Brand them (zero runtime cost), minted only by their single-home modules
+      (`cursor/widget-offset.ts`, the commit scope factories) — G1.16's class climbs from guarded
+      to unrepresentable. The public doors (rects, decorations) keep `number` signatures and
+      brand at the boundary: consumer DX unchanged, internal arithmetic protected. Scheduled
+      **before** presentation modes deliberately — rung 3 is the heaviest caret/offset churn
+      left and should happen under compile-time protection, not ahead of it.
+   2. **The closure matrix becomes a type and an executable battery.** Registration grows a
+      required closure block — every cross-cutting system answered with an implementation, an
+      inherit-default, or an explicit not-supported — so a blank matrix cell is a compile error,
+      not an unasked question (the 0.9.18 lesson, made unrepresentable). The `aragonite/testing`
+      container conformance kit generalizes so registering a kind _enrolls_ it in a generic
+      behavioral battery (focus walk, selection/search paint, clipboard round-trip): a matrix row
+      is executed, not declared. Required registration fields are breaking-if-deferred, and the
+      battery must precede the clean-room run, which probes the third-party testing story.
+   3. **Readonly-by-layer CST views.** The mutable node type stays visible only inside
+      `tree-operations/` and the commit ceremony; components and the entire plugin surface
+      receive deep-readonly views, so writing through a shared or stale reference (G1.9's
+      perimeter) becomes a type error for most of the codebase. Breaking-if-deferred on the
+      public surface — a consumer who binds mutable types at 1.0 breaks when they tighten.
+   4. **Sibling-path parity lints.** Where a funnel can't exist yet, the parity rule ships as a
+      source-scan guard (the `invariants/lint/` pattern): "every entry path matching X routes
+      through Y" fails the day path N+1 is born instead of at the next audit. The
+      caret-edge/destructive-key dispatch — three sibling seams as of the decorations work — is
+      deliberately _not_ consolidated here: it hands to presentation modes rung 3 as that batch's
+      opening move, one churn of one layer.
+
+3. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
    defaults to Live Preview and reveals syntax for the element _under the cursor_. Always-visible
    styled source is a power-user aesthetic; a consumer evaluating aragonite against Obsidian sees
    markers everywhere and bounces before reaching the good part. Styled source stays the editing
@@ -56,14 +94,17 @@ answer both, ordered by **risk first, validation before freeze**.
    built in order:
 
    1. **Reading mode** — markers hidden, widgets rendered, read-only. Built through public surfaces
-      only, as a consumer would; shipped as a showcase toggle by item 5.
+      only, as a consumer would; shipped as a showcase toggle by item 6.
    2. **Block-granular** — unfocused blocks hide markers, the focused block shows source. The
       editable-leaf render-primary swap generalized to built-in prose kinds. The stepping stone: it
       builds the marker-island rendering and the presentation-mode seam rung 3 refines.
    3. **Inline-granular** — the target. Marker islands + reveal-on-caret-proximity (the shipped
       reveal kernel with a caret-containment trigger) + caret-affinity semantics (the one genuinely
       new piece; prior art: ProseMirror stored marks). Block-granular alone is not the Obsidian
-      feel — clicking into a paragraph should not turn the whole paragraph raw.
+      feel — clicking into a paragraph should not turn the whole paragraph raw. Opening move:
+      consolidate the caret-edge/destructive-key dispatch into declarative edge policies (three
+      sibling seams as of the decorations work) before adding reveal semantics — never a fourth
+      seam.
 
    **The reason this is pre-1.0 is the contract, not the feature.** A plugin has no way to learn
    what presentation mode it is in, so a plugin authored against a marker-always 1.0 renders wrong
@@ -72,7 +113,7 @@ answer both, ordered by **risk first, validation before freeze**.
    policy, edge entry). Building it after the freeze is the dangerous order; a paper litmus cannot
    validate it, because a shape with no consumer cannot be validated.
 
-3. **Limestone internal integration** — the last unchecked box in the validation list above and
+4. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. The
    integration code lives in limestone; what belongs here is running it before the freeze and
@@ -83,7 +124,7 @@ answer both, ordered by **risk first, validation before freeze**.
    chafes in practice, the 1.2 reference-fleet packaging decision pulls forward — leaning
    package subpaths (`aragonite/plugins/<name>`) over separate npm packages: one version, one
    tarball, exports-map encapsulation already proven.
-4. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+5. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story item 1
    ships, not just authoring discoverability. The first
@@ -94,7 +135,7 @@ answer both, ordered by **risk first, validation before freeze**.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-5. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
+6. **Demo polish — the pitch, last** — the `?plugins=1` showcase seed exists; promote it into
    the real showcase route (every block kind + every reference plugin — the fixture dogfoods
    stay off it, `src/routes/test/plugins/README.md` — theme and prop toggles, polished debug
    panel). This is the "surpass Obsidian" argument made visible. It also owns **route
@@ -104,11 +145,11 @@ answer both, ordered by **risk first, validation before freeze**.
    human page in a machine tree. The reference-plugin aesthetic decision is made and shipped
    (restrained gutter-rail chrome on the showcased admonitions/details; chrome remains the
    plugin author's call) — the showcase inherits it; demo polish extends the same restraint to
-   whatever it adds. The showcase **surfaces item 2's presentation modes as toggles** — reading
+   whatever it adds. The showcase **surfaces item 3's presentation modes as toggles** — reading
    mode and block-granular live preview beside styled source — so the first impression is not
    markers-everywhere, and the freeze litmus "the contract must not preclude a rendered reading
    mode" becomes a working proof instead of a paper check.
-6. **Freeze cut at release** — in order:
+7. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -156,9 +197,14 @@ answer both, ordered by **risk first, validation before freeze**.
      childless opaque container — otherwise the decoration API ships with a hole the
      ecosystem inherits.
    - **Freeze litmus (presentation mode)**: a plugin block, editable leaf, and inline widget must
-     each be able to learn the current presentation mode and render for it. Item 2 builds all three
+     each be able to learn the current presentation mode and render for it. Item 3 builds all three
      rungs, so this is verified by a real consumer rather than on paper — which is the point: rung 3
      is what proves the inline and caret contracts survive marker islands and caret affinity.
+   - **Freeze litmus (enforcement hardening)**: item 2 shipped whole — registration's closure
+     block is required-complete (a required field added post-1.0 is a breaking change), public
+     plugin-surface document/node types are readonly views, and coordinate brands are minted only
+     by their single-home modules with the public doors keeping `number`. Verified by the
+     re-audit's enforcement pass, not assumed.
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
 
@@ -202,7 +248,7 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   highest-leverage lever for plugin _quality_: derived content, linked edits, auto-fix, structural
   guards. **Decided: yes, post-1.0.** No pre-freeze dogfood driver needs it, and the ceremony is
   internal (plugins never bind its shape), so the hook stays additive. Direction fixed now so 1.0
-  doesn't foreclose it; the item-4 commit-seam litmus guards it; designed-ahead in
+  doesn't foreclose it; the freeze cut's commit-seam litmus guards it; designed-ahead in
   `plugin-contract.md` § Target shapes. Invariant enforcement stays editor-owned — this augments a
   commit, it does not bypass the invariants.
 - **First-class plugin paste** — the paste-surface mechanism is built and used internally by the
@@ -251,7 +297,7 @@ Settles what only an integrated surface can settle:
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
 
-_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 2.)_
+_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 3.)_
 
 ### 1.2 — Plugin DX + deferred generalizations
 
