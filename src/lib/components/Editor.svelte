@@ -326,7 +326,11 @@
 		if (!editorEl) return null;
 		const directWrapper = editorEl.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
 		if (directWrapper) {
-			return directWrapper.querySelector(':scope > :not(.selection-overlay)') as HTMLElement | null;
+			// Overlays render after the component; decoration badges render before it.
+			// Exclude both so the first match is the block content itself.
+			return directWrapper.querySelector(
+				':scope > :not(.selection-overlay):not(.decoration-badge)'
+			) as HTMLElement | null;
 		}
 		if (path.length < 3) return null;
 		const tablePath = path.slice(0, -2);
