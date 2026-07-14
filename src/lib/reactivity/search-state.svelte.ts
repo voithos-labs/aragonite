@@ -193,12 +193,17 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			const m = matches[activeIndex];
 			if (!m) return;
 			const n = await deps.replace.replaceOne(m, replacement);
+			// The edit-epoch bump is deferred, so an invalidate-only refresh would
+			// hit the memo and republish the pre-replace matches; rescan first so
+			// the memo hit maps the fresh set.
+			rescan();
 			refresh();
 			replacedCount = n;
 		},
 		async replaceAll() {
 			if (!matches.length) return;
 			const n = await deps.replace.replaceAll(matches, replacement);
+			rescan();
 			refresh();
 			replacedCount = n;
 		}

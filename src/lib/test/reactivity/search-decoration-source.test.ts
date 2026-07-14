@@ -2,10 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../reactivity/decoration-state.svelte';
 import { createSearchState } from '../../reactivity/search-state.svelte';
+import type { Match } from '../../search/document-scan';
 
-const stubReplace = { replaceOne: async () => 0, replaceAll: async () => 0 };
+interface ReplaceStub {
+	replaceOne(m: Match, text: string): Promise<number>;
+	replaceAll(ms: Match[], text: string): Promise<number>;
+}
 
-function makeHarness(source: string) {
+const stubReplace: ReplaceStub = { replaceOne: async () => 0, replaceAll: async () => 0 };
+
+function makeHarness(source: string, replace: ReplaceStub = stubReplace) {
 	const doc = parse(source);
 	let scans = 0;
 	const engine = createDecorationEngine({ getDoc: () => doc });
@@ -16,7 +22,7 @@ function makeHarness(source: string) {
 			return doc;
 		},
 		decorations: engine,
-		replace: stubReplace,
+		replace,
 		reveal: async () => null,
 		onClose: () => {}
 	});
@@ -72,6 +78,43 @@ describe('search as decoration source', () => {
 		engine.notifyEdit();
 		expect(state.matches).toHaveLength(2);
 		expect(engine.marksForPath([0])).toHaveLength(2);
+	});
+
+	// Replace mutates the doc but the memo key (epoch + query + options) is
+	// unchanged until the deferred edit notification, so an invalidate-only
+	// refresh serves the pre-replace matches from a memo hit. The replace path
+	// must rescan before it invalidates so `matches` reflects the new document
+	// synchronously after the await — the headless (no-handle) path always did.
+	it('replaceCurrent refreshes matches synchronously on the bar-open path', async () => {
+		const { doc, state } = makeHarness('cat cat\n', {
+			replaceOne: async (_m, text) => {
+				doc.children[0].raw = doc.children[0].raw.replace('cat', text);
+				return 1;
+			},
+			replaceAll: async () => 0
+		});
+		state.open();
+		state.setReplacement('dog');
+		state.setQuery('cat');
+		expect(state.matches).toHaveLength(2);
+		await state.replaceCurrent();
+		expect(state.matches).toHaveLength(1);
+	});
+
+	it('replaceAll refreshes matches synchronously on the bar-open path', async () => {
+		const { doc, state } = makeHarness('cat cat\n', {
+			replaceOne: async () => 0,
+			replaceAll: async (_ms, text) => {
+				doc.children[0].raw = doc.children[0].raw.replaceAll('cat', text);
+				return 2;
+			}
+		});
+		state.open();
+		state.setReplacement('dog');
+		state.setQuery('cat');
+		expect(state.matches).toHaveLength(2);
+		await state.replaceAll();
+		expect(state.matches).toHaveLength(0);
 	});
 
 	it('close clears the published marks', () => {
