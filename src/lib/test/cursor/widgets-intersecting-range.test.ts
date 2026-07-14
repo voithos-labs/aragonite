@@ -93,6 +93,19 @@ describe('widgetsIntersectingRange', () => {
 		expect(widgetsIntersectingRange(el, 0, 10)).toEqual([]);
 	});
 
+	// A widget decoration island spans 0 bytes: it is a [data-inline-widget] with
+	// data-source-start === data-source-end. Selection cover-rects deliberately skip
+	// it (0 bytes ⇒ nothing selected) — recorded here so nobody "fixes" the guard.
+	it('ignores a zero-length decoration widget island', () => {
+		const island = document.createElement('span');
+		island.setAttribute('data-inline-widget', '');
+		island.setAttribute('data-decoration-island', '');
+		island.setAttribute('data-source-start', '4');
+		island.setAttribute('data-source-end', '4');
+		el.append(document.createTextNode('abcd'), island, document.createTextNode('efgh'));
+		expect(widgetsIntersectingRange(el, 0, 8)).toEqual([]);
+	});
+
 	it('returns nothing for a widget-free container', () => {
 		el.append(document.createTextNode('plain text'));
 		expect(widgetsIntersectingRange(el, 0, 5)).toEqual([]);
