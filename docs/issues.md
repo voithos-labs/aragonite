@@ -28,6 +28,24 @@ editing semantics in cells then ride the same wire-up as the cell reveal gap bel
 already lag the prose surface on widget interaction, so island rendering folds into that
 same cell-surface parity pass rather than shipping render support without editing rules.
 
+### Selection snapshot collapses single-block ranges to the focus caret
+
+**Severity:** minor (consumer API gap; the geometry is reachable via the native Range)
+**Files:** `src/lib/selection/native-bridge.ts` (`readCurrentSelection`),
+`src/lib/selection/primitives.ts` (`EditorSelection`)
+
+`getSelection()` (and the `selectionChange` payload) reports a single-block range as a
+collapsed point: `readCurrentSelection` reads only the focus block's cursor offset, so
+anchor === focus whenever both endpoints share a block. A consumer therefore cannot obtain
+`(start, end)` raw offsets to feed `rangeRects` for the most common selection shape — the
+roadmap's "selection-toolbar kit" claim is incomplete for single-block. The demo toolbar
+(`src/routes/test/editor/SelectionToolbar.svelte`) works around it with the native
+`window.getSelection()` Range, which is honest consumer-side but bypasses the editor's own
+offset semantics.
+
+**Fix direction:** additive range fields on the `EditorSelection` payload (payload growth is
+additive under the freeze rules) — decided as a pre-freeze refinement.
+
 ### Same-cell multi-match paints stacked rects instead of one collapsed rect
 
 **Severity:** minor (visual; table cells only)
