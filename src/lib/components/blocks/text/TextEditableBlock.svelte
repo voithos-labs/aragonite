@@ -15,6 +15,7 @@
 		CONTAINER_EDIT_KEY,
 		CONTROLLER_KEY,
 		BROKEN_IMAGE_URLS_KEY,
+		DECORATIONS_KEY,
 		DOC_KEY,
 		EDITOR_EVENTS_KEY,
 		EDITOR_LIFETIME_KEY,
@@ -42,6 +43,9 @@
 		type ResolveLinkUrl
 	} from '../../../editor-keys';
 	import type { ReorderAction } from '../../../editor-actions/reorder-action';
+	import type { IndexedDecoration } from '../../../decorations/buckets';
+	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+	import type { DecorationEngine } from '../../../reactivity/decoration-state.svelte';
 	import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -127,6 +131,10 @@
 	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
+	// Absent in bare unit harnesses; the constant fallback keeps the zero-cost
+	// render path (an empty island set never enters the render key).
+	const decorationEngine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
+	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	// True while an inline-widget's `$…$` source is revealed for editing: the edit
@@ -288,6 +296,9 @@
 		},
 		get linkSignature(): string {
 			return linkRef?.signature ?? '';
+		},
+		get islands() {
+			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
 		brokenUrlCache,
 		reportRenderError: (error) =>

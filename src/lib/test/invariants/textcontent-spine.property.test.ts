@@ -5,6 +5,11 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { rawTextOfNode } from '../../cursor/widget-offset';
+import type { IndexedDecoration } from '../../decorations/buckets';
+import { applyIslandDecorations } from '../../decorations/island-dom';
+import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
+import { mountDecorationWidget } from '../../decorations/widget-dom';
 import { arbInlineSource } from './arbitraries';
 
 // G2.4: the rendered DOM's textContent reproduces the source bytes. Every char
@@ -98,5 +103,43 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 		container.appendChild(renderInlineNodes(nodes, source));
 		expect(container.textContent).toBe(expectedWithWidgetsRemoved(source, nodes));
 		expect(container.textContent).toBe('ab');
+	});
+});
+
+// Decoration islands are atomic widgets too: a widget island spans 0 bytes, a
+// replace island's data-source span carries the bytes it displaced. The spine
+// invariant generalizes to the walk-summed raw (text + data-source spans)
+// reproducing the source for arbitrary island placements — boundaries landing
+// inside markers, code spans, links, or mid-astral-pair included.
+describe('G2.4 textContent spine (decoration islands)', () => {
+	const opts = { mountWidget: mountDecorationWidget };
+	const widget = (offset: number): IndexedDecoration<WidgetDecoration> => ({
+		index: 0,
+		dec: {
+			type: 'widget',
+			path: [0],
+			offset,
+			widget: { buildDom: () => document.createElement('span') }
+		}
+	});
+	const replace = (start: number, end: number): IndexedDecoration<ReplaceDecoration> => ({
+		index: 1,
+		dec: { type: 'replace', path: [0], start, end }
+	});
+
+	it('arbitrary widget + replace islands keep the walk-summed raw byte-exact', () => {
+		fc.assert(
+			fc.property(arbInlineSource, fc.nat(), fc.nat(), fc.nat(), (source, a, b, c) => {
+				const container = renderToContainer(parseInline(source, 0, source.length), source);
+				const offset = a % (source.length + 1);
+				const lo = b % (source.length + 1);
+				const hi = c % (source.length + 1);
+				const islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [widget(offset)];
+				if (lo !== hi) islands.push(replace(Math.min(lo, hi), Math.max(lo, hi)));
+				applyIslandDecorations(container, source, islands, opts);
+				expect(rawTextOfNode(container, source)).toBe(source);
+			}),
+			PARAMS
+		);
 	});
 });
