@@ -14,39 +14,29 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20), and the **context
-spine** closed most of the extension-surface gap (0.9.21). Two risks remain: **validation
-depth** — one clean-room run deep, every consumer since in-repo and same-day — and the
-**decoration gap**, the one plugin class the platform still cannot express. The items below
-answer both, ordered by **risk first, validation before freeze**.
+The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20), the **context
+spine** closed most of the extension-surface gap (0.9.21), and the **decoration gap** — the
+one plugin class the platform could not express — is answered, pending ship (item 1). The
+remaining risk is **validation depth**: one clean-room run deep, every consumer since in-repo
+and same-day. The items below are ordered by **risk first, validation before freeze**.
 
-1. **Extension-surface completion — the missing half of the platform.**
+1. **Extension-surface completion — complete, pending ship.**
 
-   aragonite has a NodeView system and no Decoration system. CodeMirror 6, ProseMirror and Obsidian
-   all rest on two primitives — **decorations** (annotate content you do not own) and **plugin-local
-   state**. aragonite exposes a third instead: "own a kind and render it", which it does better than
-   the field, since plugin content is genuinely editable and byte-lossless where Obsidian's
-   codeblock plugins render read-only HTML. That is the moat.
+   The platform's missing half — **decorations** (annotate content you do not own) and the
+   **public rect API** they bottleneck on — is built and validated; this entry moves to the
+   changelog in the ship commit. What shipped: pure per-instance decoration sources over four
+   types (mark, widget island, replace island, block), the geometry surface on both the consumer
+   and plugin doors, search migrated onto the engine as its first client, dogfood consumers for
+   every type plus the selection-toolbar consumer recipe, defined island caret/delete semantics,
+   the closure-matrix rows, and a standing source under the simulation oracles. The contract
+   lives in `docs/design/plugin-contract.md`; the recipes in the guides; the ledgered remainders
+   (islands-in-cells, single-block selection ranges, same-cell dedupe, sim gestures) in
+   `docs/issues.md`.
 
-   Of the field's two, **plugin-local state is not a gap** — this architecture genuinely does not
-   need one (§ Pre-freeze plugin direction decisions). **Decorations are.** Everything that owns no
-   syntax has no home: spellcheck, AI ghost text, inline comments, collab cursors, task badges,
-   backlink highlights.
-
-   Grounding — Obsidian's most-installed plugins: roughly half are app-shell (limestone's, § The two
-   plugin systems). Of those touching the editing surface, over half need document mutation and
-   nearly half need decorations; a custom block kind — the one thing aragonite has — is third.
-
-   The **context spine** — `setup(ctx)`, the per-instance `EditorContext` (document, identity,
-   events, options), a plugin-facing global command, `BlockCommandContext.editor`, the block
-   component's `document` prop, per-instance options, and the height-oracle descriptor field —
-   shipped in 0.9.21 (see `docs/changelog.md`). One gap remains, and it is additive: **the freeze
-   is safe, but not complete.** Build what an in-repo consumer validates; pin the shape of what it
-   cannot.
-
-   | Gap                                 | Why it matters                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-   | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | **Decorations + a public rect API** | Search already _is_ a decoration engine with one hardcoded client — exposing it is a barrel decision over tested code, not an invention. A source is a **pure `doc → Range[]`**, memoized on change — _not_ a mapped-forward state field (§ Pre-freeze plugin direction decisions). The rect API unblocks decorations, selection toolbars and trigger popups at once; without it even a _consumer_ cannot build a selection toolbar. Pulled from 1.2. |
+   The validation posture this settled, recorded as doctrine: **interfaces ship at industry
+   breadth pre-freeze; validation is added test consumers, never trimmed scope.** A surface
+   without an in-repo consumer gets one written for it — a dogfood is validation, not a
+   gatekeeper — and the surface is never narrowed to what today's consumers happen to exercise.
 
 2. **Demo groundwork — route legibility + first-party plugin packaging.**
 
