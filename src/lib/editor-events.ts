@@ -30,12 +30,13 @@ export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number)
 export type SelectionChangeEvent = EditorSelection | null;
 
 export interface EditorError {
-	origin: 'subscriber' | 'render' | 'commit' | 'command';
+	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration';
 	error: unknown;
 	/**
 	 * Origin-specific context: block path for render, op kind + event path for
-	 * commit, and the block kind + command id (+ owning plugin, when recorded) for
-	 * a contained plugin block-command throw.
+	 * commit, the block kind + command id (+ owning plugin, when recorded) for a
+	 * contained plugin block-command throw, and the source name for a decoration
+	 * provide that threw.
 	 */
 	context?: {
 		path?: number[];
@@ -43,6 +44,7 @@ export interface EditorError {
 		kind?: AnyBlockKind;
 		command?: string;
 		plugin?: string;
+		source?: string;
 	};
 }
 

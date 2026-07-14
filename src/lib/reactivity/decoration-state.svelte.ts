@@ -14,6 +14,8 @@ import type {
 	ReplaceDecoration,
 	WidgetDecoration
 } from '../decorations/types';
+import { assertInvariant } from '../invariants/assert';
+import { isCommitInProgress } from '../invariants/commit-scope';
 
 const EMPTY_MARKS: IndexedDecoration<MarkDecoration>[] = [];
 const EMPTY_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
@@ -77,6 +79,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	}
 
 	function runAll(): void {
+		assertNotInCommit();
 		for (const slot of slots) runSlot(slot);
 	}
 
@@ -113,6 +116,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			return slots.length;
 		},
 		notifyEdit() {
+			assertNotInCommit();
 			editEpoch++;
 			runAll();
 		},
@@ -146,4 +150,17 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 
 function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
 	return dec.type === 'widget' ? dec.offset : dec.start;
+}
+
+// A re-run inside the commit ceremony would let a source read a half-applied tree.
+// The edit subscriber defers notifyEdit a tick past the edit event to stay clear.
+function assertNotInCommit(): void {
+	assertInvariant('decoration-run-in-commit', () =>
+		isCommitInProgress()
+			? {
+					code: 'decoration-run-in-commit',
+					message: 'decoration engine re-ran inside the commit ceremony'
+				}
+			: null
+	);
 }
