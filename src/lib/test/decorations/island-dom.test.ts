@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { applyIslandDecorations, type ApplyIslandsOpts } from '$lib/decorations/island-dom';
+import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import { mountDecorationWidget } from '$lib/decorations/widget-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
@@ -123,4 +124,61 @@ describe('applyIslandDecorations', () => {
 		expect(frag.querySelectorAll('[data-decoration-island]').length).toBe(0);
 		expect(frag.textContent).toBe(raw);
 	});
+});
+
+// A nonzero-span atomic widget (image / `<br>`): a [data-inline-widget] span
+// carrying its raw bytes via data-source-* while contributing 0 textContent.
+function buildWithAtomicWidget(
+	raw: string,
+	widgetStart: number,
+	widgetEnd: number
+): DocumentFragment {
+	const frag = document.createDocumentFragment();
+	frag.appendChild(document.createTextNode(raw.slice(0, widgetStart)));
+	const widget = document.createElement('span');
+	widget.dataset.inlineWidget = '';
+	widget.dataset.sourceStart = String(widgetStart);
+	widget.dataset.sourceEnd = String(widgetEnd);
+	widget.setAttribute('contenteditable', 'false');
+	frag.appendChild(widget);
+	frag.appendChild(document.createTextNode(raw.slice(widgetEnd)));
+	return frag;
+}
+
+// A text-position range can't split an atomic widget, so a replace boundary
+// strictly inside one snaps outward to whole-element coverage. This is the sole
+// guard for that branch: the island property's descending pass never places a
+// nonzero-span widget before a later boundary, and its corpus emits no widgets.
+describe('replace boundary inside an atomic widget snaps outward', () => {
+	let warnSpy: ReturnType<typeof vi.spyOn>;
+	beforeEach(() => {
+		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
+	});
+	afterEach(() => {
+		warnSpy.mockRestore();
+		resetEditorEnv();
+	});
+
+	const raw = 'abIMAGEcd'; // 'ab' + widget over raw[2,7)='IMAGE' + 'cd'
+	const cases = [
+		{ name: 'start boundary snaps to the widget start', span: [4, 9], snapped: [2, 9] },
+		{ name: 'end boundary snaps to the widget end', span: [0, 4], snapped: [0, 7] }
+	] as const;
+
+	for (const { name, span, snapped } of cases) {
+		it(name, () => {
+			const frag = buildWithAtomicWidget(raw, 2, 7);
+			applyIslandDecorations(frag, raw, [idx(replaceRange(span[0], span[1]))], opts);
+			const island = frag.querySelector('[data-decoration-island]')!;
+			expect(island.getAttribute('data-source-start')).toBe(String(snapped[0]));
+			expect(island.getAttribute('data-source-end')).toBe(String(snapped[1]));
+			expect(walkRawText(frag, raw)).toBe(raw);
+			expect(warnSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					`snapped ${span[0]}..${span[1]} outward to ${snapped[0]}..${snapped[1]}`
+				)
+			);
+		});
+	}
 });
