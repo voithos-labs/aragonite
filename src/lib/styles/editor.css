@@ -113,6 +113,12 @@
 	cursor: pointer;
 }
 
+/* Block-decoration badge wrapper — non-editable chrome prepended to the host;
+   the source's widget supplies the content, the consumer positions it. */
+:where(.editor) .decoration-badge {
+	user-select: none;
+}
+
 :where(.editor) .md-image-widget {
 	display: block;
 	/* Shrink-wrap so the widget matches the image, not its line-box. */
