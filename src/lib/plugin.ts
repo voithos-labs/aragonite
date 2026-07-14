@@ -119,6 +119,10 @@ export type { CstNode } from './core/nodes';
 // Typed plugin metadata: store/read a plugin kind's own shape without casting
 // through the built-in `BlockMetadata` union at the call site.
 export { setPluginMetadata, getPluginMetadata } from './core/nodes';
+// The content span within a block's raw, syntax markers excluded (a heading's
+// `#` prefix, a setext underline) — the offsets a marker-reading plugin slices.
+export { getContentRange } from './core/inline';
+export type { ContentRange } from './core/inline';
 
 // ── Idempotent-registration probes ─────────────────────────────────────────────
 // The register-once registries throw on duplicate; a plugin re-registers safely

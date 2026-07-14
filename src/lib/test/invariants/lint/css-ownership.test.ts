@@ -32,6 +32,13 @@ const OWNED_TOKEN =
 const HOST_TOKEN = /^--(?:color|radius)-[a-z0-9-]+$/;
 const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 
+// Bundled plugins own private token palettes (admonitions' --adm-*), guarded by
+// plugin-css-ownership.test.ts — those are off-family here by design. This exclusion
+// is scoped to the family-membership check ALONE: plugins stay under the owned-token
+// completeness (G4.6c) and host-fallback (G4.6b) guards, which they pass, so a shipped
+// plugin reading a fallback-less --color-* still fails G4.6b.
+const isPluginSource = (relPath: string): boolean => relPath.startsWith('src/lib/plugins/');
+
 function editorCssSurfaces(): Array<{ rel: string; text: string }> {
 	return [
 		...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
@@ -110,6 +117,7 @@ describe('G4.6 CSS ownership — every token read belongs to a declared family',
 	it('no var() read falls outside the owned and host families', () => {
 		const offenders: string[] = [];
 		for (const f of editorCssSurfaces()) {
+			if (isPluginSource(f.rel)) continue;
 			for (const m of f.text.matchAll(ANY_READ)) {
 				if (!OWNED_TOKEN.test(m[1]) && !HOST_TOKEN.test(m[1])) {
 					offenders.push(`${m[1]} in ${f.rel}`);

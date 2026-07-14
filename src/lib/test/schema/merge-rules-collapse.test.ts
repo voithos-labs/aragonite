@@ -4,7 +4,7 @@ import { findMergeTarget } from '../../schema/merge-rules';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { registerDetailsKind } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { CstNode } from '../../core/nodes';
 

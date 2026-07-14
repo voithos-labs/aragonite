@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
-import { admonitionsPlugin } from '../../../routes/test/plugins/admonitions/index';
-import { convertGithubAlertsInDocument } from '../../../routes/test/plugins/admonitions/convert-document';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);

@@ -8,7 +8,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { registerDetailsKind } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeEditorActionsDeps,
 	makeStickyColumn,

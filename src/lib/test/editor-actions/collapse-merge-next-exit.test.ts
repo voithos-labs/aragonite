@@ -6,7 +6,7 @@ import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { registerDetailsKind } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeEditorActionsDeps,
 	makeStickyColumn,

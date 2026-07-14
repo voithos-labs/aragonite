@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { mergeListItemIntoPrevious } from '../../tree-operations';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { registerDetailsKind } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 
 // Backspace-at-start-of-list-item merge semantics: flat merges, nested-sublist

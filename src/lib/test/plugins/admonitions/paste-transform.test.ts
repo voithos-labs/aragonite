@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { githubAlertsPasteTransform } from '../../../routes/test/plugins/admonitions/convert-document';
+import { githubAlertsPasteTransform } from '$lib/plugins/admonitions/convert-document';
 
 // Only the paste-transform wrapper contract lives here: the probe short-circuit,
 // the null-on-nothing-changed decline, and idempotence. Conversion correctness

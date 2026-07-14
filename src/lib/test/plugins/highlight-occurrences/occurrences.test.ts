@@ -7,7 +7,7 @@ import {
 	OCCURRENCE_CLASS,
 	occurrenceMarks,
 	wordAt
-} from '../../../routes/test/plugins/highlight-occurrences/occurrences';
+} from '$lib/plugins/highlight-occurrences/occurrences';
 
 function caret(path: number[], offset: number, cellCoordinate?: boolean): EditorSelection {
 	const point = cellCoordinate ? { path, offset, cellCoordinate } : { path, offset };

@@ -232,7 +232,7 @@ direction into the post-1.0 clipboard/hook generalization with the container-exi
 ### `<details>` chrome rebuild normalizes CRLF line ends to `\n`
 
 **Severity:** minor
-**Files:** `src/routes/test/plugins/details/details-kind.ts` (`rebuildDetailsRaw`)
+**Files:** `src/lib/plugins/details/details-kind.ts` (`rebuildDetailsRaw`)
 
 The `:::` directive path now threads the authored line ending through metadata, so a post-edit
 rebuild of a CRLF-authored directive, callout, or admonition reproduces `\r\n` on its opener and

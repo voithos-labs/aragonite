@@ -11,9 +11,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src/routes/test/plugins');
 const OUT = join(ROOT, 'examples/consumer/src/plugins');
 
+// admonitions + details ship in-package (aragonite/plugins/*), so the consumer
+// route imports those subpaths directly — only the not-yet-packaged plugins sync.
 const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte'],
-	details: ['details-kind.ts', 'register.ts', 'DetailsBlock.svelte'],
 	// The whole plugin crosses: MathInline on the component-widget path,
 	// BlockMath on the editable-leaf tier (createEditableLeaf). katex is a
 	// consumer devDependency.
@@ -23,16 +24,6 @@ const MANIFEST = {
 		'MathInline.svelte',
 		'BlockMath.svelte',
 		'register.ts'
-	],
-	// index.ts crosses too: registering the component is behind installAdmonitions(),
-	// so the consumer route imports the barrel, not register.ts alone.
-	admonitions: [
-		'kinds.ts',
-		'register.ts',
-		'AdmonitionBlock.svelte',
-		'gh-alert.ts',
-		'convert-document.ts',
-		'index.ts'
 	],
 	// harness-renderer.ts stays repo-side: the renderer is injected, so the
 	// consumer supplies its own engine wiring.

@@ -7,7 +7,7 @@ import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfac
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { augmentBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '../../../routes/test/plugins/details/details-kind';
+import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
 // A cross-block copy whose END lands inside a container's reserved chrome (title/
