@@ -38,5 +38,10 @@ showcased.
   resolved by classification, not deletion.
 - `memo/` — a `%%` plain editable leaf; the only plain-mode `createEditableLeaf`
   consumer, driven by the editable-leaf e2e.
+- `fold/` — `[>…<]` ranges fold to a clickable `…` replace island; pins
+  `ReplaceDecoration.widget`, native interactivity inside an island, and the
+  islands-in-cells gap (docs/issues.md). Seed-gated.
+- `block-badge/` — class + badge widget on every heading host; pins
+  `BlockDecoration.badge` incl. survival across windowing. Seed-gated.
 
 `staggered/` is the route fixture for the staggered plugin-mount spec.
