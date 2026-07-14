@@ -33,8 +33,8 @@ Every `!` commit records one line in its body: **what test should have caught th
 ```
 ! (editor) enter at content offset 0 splits instead of no-op or corrupting
 
-- ...
-- miss-analysis: the dispatch core's unit test pinned the no-op as correct
+& ...
+& miss-analysis: the dispatch core's unit test pinned the no-op as correct
   while no entry-level test drove a real enter at offset 0; the opener-side
   fence boundary was never modeled though its closer twin was
 ```
