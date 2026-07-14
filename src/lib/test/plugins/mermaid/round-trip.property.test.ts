@@ -4,10 +4,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import {
-	registerMermaidKind,
-	type MermaidMetadata
-} from '../../../routes/test/plugins/mermaid/mermaid-kind';
+import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
 
 // Adversarial fence-shape generator for the master invariant
 // serialize(parse(src)) === src, run in BOTH install states (uninstall safety is

@@ -7,17 +7,16 @@
 </script>
 
 <script lang="ts">
-	// Render-primary block math: a `$$…$$` leaf showing its KaTeX display render
-	// by default, revealing the raw source in a contenteditable on focus/click,
+	// Render-primary block math: a `$$…$$` leaf showing its injected-renderer display
+	// output by default, revealing the raw source in a contenteditable on focus/click,
 	// re-rendering on blur. All editing behavior (caret, IME, undo, cross-block
 	// selection, commit) lives in `createEditableLeaf`; this component owns the
-	// render↔source swap visuals and the KaTeX view.
+	// render↔source swap visuals — the engine is injected through the `math-renderer` seam.
 	import { createEditableLeaf, type BlockComponent, type CstNode } from '$lib/plugin';
-	import { createMemoizedRenderer, katexRenderer } from './math-renderer';
+	import { renderDisplayMath } from './math-renderer';
 
 	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
 
-	const render = createMemoizedRenderer(katexRenderer);
 	const mountId = nextMountId++;
 	let renderCount = 0;
 
@@ -44,7 +43,7 @@
 		}
 	});
 
-	// KaTeX renders the inner formula: the fence stripped and surrounding blank
+	// The renderer takes the inner formula: the fence stripped and surrounding blank
 	// lines trimmed (a bare `$$` multi-line fence has its content on later lines).
 	function mathInner(fenced: string): string {
 		let inner = fenced;
@@ -55,12 +54,12 @@
 
 	// ── View rendering ──────────────────────────────────────────────────────────
 
-	// Rendered view: KaTeX display of the current source. Re-run on every mount of
+	// Rendered view: display render of the current source. Re-run on every mount of
 	// the render div (revealed → false recreates it) and on any source change; the
-	// memoized renderer clones a cached node, so re-rendering the same formula is cheap.
+	// document-wide memo clones a cached node, so re-rendering the same formula is cheap.
 	$effect(() => {
 		if (revealed || !renderEl) return;
-		renderEl.replaceChildren(render(mathInner(leaf.sourceText), { display: true }).dom);
+		renderEl.replaceChildren(renderDisplayMath(mathInner(leaf.sourceText)).dom);
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
 	});

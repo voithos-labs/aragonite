@@ -8,7 +8,7 @@ import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
-import { registerMathInline, MATH_INLINE } from '../../../routes/test/plugins/latex/latex-kind';
+import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 
 // The atomic-island wrapper the render layer's portal builder stamps around a
 // component widget, with interior text that is NOT the source bytes — modelling

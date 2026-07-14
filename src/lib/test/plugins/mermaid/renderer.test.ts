@@ -4,7 +4,7 @@ import {
 	hasMermaidRenderer,
 	renderMermaid,
 	MERMAID_MEMO_CAP
-} from '../../../routes/test/plugins/mermaid/mermaid-renderer';
+} from '$lib/plugins/mermaid/mermaid-renderer';
 
 // The renderer is module-global; leave it unset for the suite's other files.
 afterEach(() => setMermaidRenderer(null));

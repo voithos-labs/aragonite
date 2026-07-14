@@ -15,7 +15,9 @@ A bundled plugin imports only the public authoring barrel (`$lib/plugin`) — no
 
 ## Renderer adapter
 
-An engine-bearing plugin splits its core from its heavy dependency: the core stays engine-free and the engine wiring lives in a `renderer.ts` reached through a `/renderer` subpath, so a consumer opts into the dependency (or supplies its own). latex (katex) and mermaid arrive in the next batch; the boundary lint already reserves each `renderer.ts` its declared engine.
+An engine-bearing plugin splits its core from its heavy dependency: the core stays engine-free and the engine wiring lives in a `renderer.ts` reached through a `/renderer` subpath, so a consumer opts into the dependency (or supplies its own). latex (katex) and mermaid ship this way. Each engine is an _optional_ peerDependency and the core carries no default renderer, so importing `aragonite/plugins/<name>` pulls no engine; the boundary lint reserves each `renderer.ts` its declared engine and fails a core file that imports one.
+
+latex's adapter also imports `katex/dist/katex.min.css`, so `./dist/plugins/latex/renderer.js` is listed in the package `sideEffects` — without it a bundler drops the stylesheet.
 
 ## Test layout
 

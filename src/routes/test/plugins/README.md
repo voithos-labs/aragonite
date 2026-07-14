@@ -7,14 +7,10 @@ reference plugins not yet packaged. Two roles, kept distinct:
 ## Reference plugins
 
 Consumer-realistic extensions: what the `?plugins=1` showcase on `/test/editor`
-installs, and the shapes plugin authors should copy. The already-bundled
-reference plugins (admonitions, details, highlight-occurrences) live in
-`src/lib/plugins/`; the rest still stage here:
+installs, and the shapes plugin authors should copy. The bundled reference plugins
+(admonitions, details, latex, mermaid, toc, highlight-occurrences) now live in
+`src/lib/plugins/`; what still stages here is seed-gated only:
 
-- `latex/` — inline `$…$` component widget + `$$…$$` block math (the editable-leaf
-  render-primary validator).
-- `mermaid/` — fence-claiming opaque container; the render-primary recipe for
-  blocks that render as a picture.
 - `ghost-text/` — one component-widget island at the focused paragraph's end;
   the reference shape for in-flow widget decorations and their byte-safety.
   Seed-gated, not showcased.

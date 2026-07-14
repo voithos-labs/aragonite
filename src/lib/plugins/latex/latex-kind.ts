@@ -1,8 +1,8 @@
 /**
- * The first-party LaTeX extension's recognizers and widgets: inline `$…$` math
- * (recognizer + plugin inline kind + KaTeX live widget) and block `$$…$$` display
- * math (a source-holding leaf kind + block opener). Dev/e2e harness only — kept
- * out of `src/lib` so `svelte-package` never pulls `katex` into `dist/`.
+ * The LaTeX plugin's recognizers and widgets: inline `$…$` math (recognizer +
+ * plugin inline kind + live widget) and block `$$…$$` display math (a source-holding
+ * leaf kind + block opener). Engine-free — the render engine is injected through the
+ * `math-renderer` seam, never imported here.
  *
  * Recognition is gated on registration: with no extension loaded neither the
  * inline `$` trigger nor the block `$$` opener exists, so parsing stays
@@ -22,7 +22,6 @@ import {
 	type InlineNode,
 	type CstNode
 } from '$lib/plugin';
-import { katexRenderer, setInlineMathRenderer, type MathRenderer } from './math-renderer';
 import MathInline from './MathInline.svelte';
 
 export const MATH_INLINE = 'math';
@@ -61,16 +60,14 @@ function recognizeMath(
 
 // ── Registration ─────────────────────────────────────────────────────────────
 
-export function registerMathInline(renderer: MathRenderer = katexRenderer): void {
+export function registerMathInline(): void {
 	// Keyed on the declared-inline-kind registry, not a module-local latch: the same
 	// test reset that clears the inline syntax/widget registries this guards also
 	// clears this key, so a reset → re-register re-runs the whole inline path cleanly.
+	// The renderer is wired separately through the module seam (`setMathRenderer`),
+	// so registration itself stays engine-free.
 	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
-	// The engine travels by module (MathInline reads it) — the frozen props channel
-	// carries no renderer. Set before the component ever mounts.
-	setInlineMathRenderer(renderer);
-
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,

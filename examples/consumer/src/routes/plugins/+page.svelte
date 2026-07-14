@@ -2,14 +2,25 @@
 	import { calloutPlugin } from '../../plugins/callout/register';
 	import { detailsPlugin } from 'aragonite/plugins/details';
 	import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
-	import { latexPlugin } from '../../plugins/latex/register';
+	import { latexPlugin } from 'aragonite/plugins/latex';
+	import { katexRenderer } from 'aragonite/plugins/latex/renderer';
+	import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 
 	// Module scope so the factories run once per process, not once per (SSR) render —
 	// a re-render minting fresh same-name plugins would trip installPlugins' first-wins
 	// dev-warn. The prop installs before the Editor parses `source`, so the seed
 	// resolves to plugin kinds; callout/admonitions turn the `:::name` grammar on, so
-	// `:::mystery` still renders as the generic directive fallback.
-	const plugins = [calloutPlugin(), detailsPlugin(), admonitionsPlugin(), latexPlugin()];
+	// `:::mystery` still renders as the generic directive fallback. latex wires the
+	// katex adapter (a consumer devDependency); mermaid installs WITHOUT a renderer —
+	// the consumer has no mermaid engine, so its block renders its code statically,
+	// exercising the packaged plugin's no-engine fallback from outside the repo.
+	const plugins = [
+		calloutPlugin(),
+		detailsPlugin(),
+		admonitionsPlugin(),
+		latexPlugin({ renderer: katexRenderer }),
+		mermaidPlugin()
+	];
 </script>
 
 <script lang="ts">
@@ -35,6 +46,11 @@
 		':::tip Consumer tip',
 		'Admonition body',
 		':::',
+		'',
+		'```mermaid',
+		'graph TD',
+		'  A --> B',
+		'```',
 		'',
 		':::mystery',
 		'Unregistered directive body',
