@@ -75,6 +75,11 @@ kill it:
 - When you find one violation, **enumerate all siblings before fixing any** — the instance you
   found is rarely alone.
 - Prefer moving the rule into the seam and deleting the call-site copies over adding copy N+1.
+- A diff that adds an entry path gets one standing review question: **can the rule move into the
+  seam instead of being carried?** Carrying is the exception and says why.
+- Where the funnel can't be built yet, mint the parity rule as a source-scan guard
+  (`invariants/lint/`): "every entry path matching X routes through Y" fails the day path N+1 is
+  born, instead of at the next audit.
 
 ## Fixing bugs
 
