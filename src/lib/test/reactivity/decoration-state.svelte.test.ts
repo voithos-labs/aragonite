@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../reactivity/decoration-state.svelte';
+import { configureEditorEnv, resetEditorEnv } from '../../env';
 import type { Decoration, DecorationWidgetSpec } from '../../decorations/types';
 
 const doc = parse('one\n\ntwo\n');
@@ -181,5 +182,69 @@ describe('createDecorationEngine', () => {
 		expect(engine.sourceCount).toBe(2);
 		a.dispose();
 		expect(engine.sourceCount).toBe(1);
+	});
+});
+
+// [0] paragraph (prose), [1] thematicBreak, [2] fencedCode — the last two render no
+// inline pass, so an island targeting them never appears. The engine flags that at
+// the source seam so the author isn't left guessing why nothing rendered.
+const mixedDoc = parse('para\n\n---\n\n```\ncode\n```\n');
+
+describe('non-prose island dev-warn', () => {
+	let warnSpy: ReturnType<typeof vi.spyOn>;
+	beforeEach(() => {
+		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
+	});
+	afterEach(() => {
+		warnSpy.mockRestore();
+		resetEditorEnv();
+	});
+
+	function makeMixedEngine() {
+		return createDecorationEngine({ getDoc: () => mixedDoc });
+	}
+
+	it('warns naming the source, kind, and path when a widget island targets a non-prose block', () => {
+		makeMixedEngine().addSource({ name: 'w', provide: () => [widget([1], 0)] });
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"source 'w' places a widget island on a non-prose thematicBreak block"
+			),
+			{ path: [1] }
+		);
+	});
+
+	it('warns for a replace island on a fenced code block', () => {
+		makeMixedEngine().addSource({ name: 'r', provide: () => [replace([2], 0, 1)] });
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining('places a replace island on a non-prose fencedCode block'),
+			{ path: [2] }
+		);
+	});
+
+	it('stays silent for islands on a prose block and for mark/block decorations anywhere', () => {
+		makeMixedEngine().addSource({
+			name: 'ok',
+			provide: () => [
+				widget([0], 0),
+				replace([0], 0, 1),
+				mark([1]),
+				{ type: 'block', path: [2], class: 'b' }
+			]
+		});
+		expect(warnSpy).not.toHaveBeenCalled();
+	});
+
+	it('warns once per source+kind, not per island or per re-run', () => {
+		const engine = makeMixedEngine();
+		const handle = engine.addSource({
+			name: 'w',
+			provide: () => [widget([1], 0), replace([1], 0, 1)] // two islands, same non-prose kind
+		});
+		expect(warnSpy).toHaveBeenCalledTimes(1);
+		handle.invalidate();
+		engine.notifyEdit();
+		expect(warnSpy).toHaveBeenCalledTimes(1); // subsequent runs stay quiet
 	});
 });
