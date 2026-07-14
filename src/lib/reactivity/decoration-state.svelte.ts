@@ -16,6 +16,9 @@ import type {
 } from '../decorations/types';
 import { assertInvariant } from '../invariants/assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
+import { isProseKind } from '../core/inline';
+import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { devWarn } from '../dev-warn';
 
 const EMPTY_MARKS: IndexedDecoration<MarkDecoration>[] = [];
 const EMPTY_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
@@ -51,6 +54,9 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	// mid-list never staleness-shifts a surviving handle.
 	const slots: SourceSlot[] = [];
 	const names = new Set<string>();
+	// DEV: source+kind combinations already flagged for targeting a non-prose block
+	// with an island — warn once each, never per run.
+	const warnedNonProseIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
 	// Plain counter — bumped only by notifyEdit, never a $derived dependency, so an
 	// invalidate() that reads it can't schedule a reactive recompute of the buckets.
@@ -70,12 +76,34 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			deps.onSourceError?.(slot.source.name, error);
 			return; // keep the slot's prior decorations — a throw never blanks the view
 		}
+		warnNonProseIslands(slot.source.name, next);
 		// Idle-source guard: an empty→empty re-run must not reassign `results`, or every
 		// keystroke would republish the derived buckets for sources that never emit.
 		if (results[i].length === 0 && next.length === 0) return;
 		const copy = results.slice();
 		copy[i] = next;
 		results = copy;
+	}
+
+	// Only the prose render branch applies islands, so a widget/replace targeting a
+	// non-prose block (code, thematic break) silently no-ops. Flag it at the source
+	// seam rather than leaving the author to wonder why nothing rendered.
+	function warnNonProseIslands(sourceName: string, decs: Decoration[]): void {
+		if (!import.meta.env.DEV) return;
+		const doc = deps.getDoc();
+		for (const dec of decs) {
+			if (dec.type !== 'widget' && dec.type !== 'replace') continue;
+			const node = nodeAt(doc, dec.path);
+			if (!node || !isBlockNode(node) || isProseKind(node.kind)) continue;
+			const key = `${sourceName}\0${node.kind}`;
+			if (warnedNonProseIslands.has(key)) continue;
+			warnedNonProseIslands.add(key);
+			devWarn(
+				'decorations',
+				`source '${sourceName}' places a ${dec.type} island on a non-prose ${node.kind} block; islands render only in prose blocks`,
+				{ path: dec.path }
+			);
+		}
 	}
 
 	function runAll(): void {
