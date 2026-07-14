@@ -2,6 +2,59 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.22 — Decorations + the public rect API: the extension surface completes
+
+Decorations — view-only annotations over content a plugin does not own — were the one plugin
+class the platform could not express, and the **public rect API** they bottleneck on had no
+consumer door either. Both ship here, and **search migrates onto the decoration engine as its
+first client** — proving the surface against a built-in before any plugin binds it. This closes
+the last extension-surface gap; what remains before the freeze is validation depth.
+
+- **The engine.** A decoration source is a pure `doc → Decoration[]`, memoized — no state API,
+  nothing to map forward (positions are `(path, offset)` into a CST re-derived every edit). One
+  edit epoch splits the two invalidation reasons: `notifyEdit` bumps the epoch and re-runs every
+  source (the document changed), while a source handle's `invalidate()` re-runs just that source
+  without the bump (its own state changed) — so a memoized source distinguishes "rescan" from
+  "cheap remap". Each source runs contained: a throw keeps its prior decorations and surfaces as
+  an attributed error, never blanking the view. **G1.23** forbids a source running inside the
+  commit ceremony — it would read a half-published tree — so the re-run defers a tick past the
+  edit event.
+- **Four types, tiered paint.** `mark` (a positioned overlay per visual line, carrying the
+  source's class), `widget` and `replace` **islands** (in-flow, applied in the prose render
+  path), and `block` (whole-block). A mark whose range crosses dimmed markers, soft wraps, or
+  ambient spans splits into one rect per fragment through the partial-rect measurement — the same
+  geometry the rect API exposes.
+- **Island editing semantics.** An in-flow widget or replace island defines caret and delete
+  behavior at its boundaries (the atomic-boundary pin); an island that targets a non-prose block
+  dev-warns at the source seam instead of silently rendering nothing.
+- **The public rect facet, on both doors.** Consumer-side `editor.getRects()` and plugin-side
+  `editor.rects` (from the `onEditor` context) return viewport-space geometry: a block's box, an
+  inline range's rects, and the partial-rect split — the geometry a suggest popup or a selection
+  toolbar needs, previously locked inside the cursor layer.
+- **Search as client #1.** The find bar now rides an `editor:search` decoration source instead
+  of the bespoke `MatchOverlay`, which is retired; the per-ancestor match-bucket read and the
+  other memo behaviors it depended on are pinned as regression guards on the shared engine path.
+- **The childless-opaque paint gap, closed.** A childless opaque container (mermaid) scanned no
+  decorations and painted none — its endpoint box was invisible to the partial-rect walk; both
+  the scan and the paint now include it, so a decoration over such a block lands.
+- **Consumers, one per validated surface.** Dogfood sources for every type — highlight-occurrences
+  (mark), block-badge (block), fold (island) — plus the selection-toolbar **consumer recipe**
+  built through the public doors only, and the standing simulation source now asserted live. Each
+  pins a type or a door end to end.
+- **Guardrails.** An adversarial round-trip **property** proves a decoration never changes a byte
+  of the source (reaching snap-outward ranges and ambient classes); **G1.23** and the **perf
+  ceilings** hold the zero-keystroke-cost default — no source registered means no per-edit work —
+  and cap the per-edit source cost.
+- **Barrel + ledger.** The `Decoration` union, `DecorationSource` / `DecorationSourceHandle` /
+  `DecorationRegistry`, and `EditorRects` join the public barrel and the plugin subpath. The honest
+  remainders — islands inside table cells, single-block selection ranges, same-cell match dedupe,
+  and simulation gestures for decorations — are ledgered in `docs/issues.md`.
+
+**Posture shift, recorded as doctrine:** interfaces ship at industry breadth pre-freeze;
+validation is added test consumers, never trimmed scope. A surface without an in-repo consumer
+gets one written for it — a dogfood is validation, not a gatekeeper — and the surface is never
+narrowed to what today's consumers happen to exercise.
+
 ### 0.9.21 — The plugin context spine: per-instance editor handle
 
 `setup()` took no arguments and ran once per process, so a plugin could reach no editor: no
