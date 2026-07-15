@@ -18,7 +18,6 @@ import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { rebuildListRaw, rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
-import type { CstNode } from '../core/nodes';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export interface ReorderAction {

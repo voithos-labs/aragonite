@@ -3,7 +3,7 @@ import { isValidPluginName } from './plugin-name';
 // Type-only: the runtime edge already runs editor-events → plugin-install
 // (pluginKindOwner). A value import back would close a schema→root cycle, so the
 // EditorContext view of the event surface stays a compile-time reference only.
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import type { EditorEvents } from '../editor-events';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
@@ -34,7 +34,7 @@ export type OnEditorCallback<Options = unknown> = (
 export type EditorEventSubscriptions = Pick<EditorEvents, 'on'>;
 export interface EditorContext<Options = unknown> {
 	readonly editorId: string;
-	readonly document: Document; // getter-backed, live
+	readonly document: DocumentView; // getter-backed, live; mutation goes through commits
 	readonly events: EditorEventSubscriptions;
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;

@@ -5,7 +5,7 @@
  * included) — the coordinate space mark decorations consume.
  */
 
-import type { CstNode, Document, MarkDecoration, EditorSelection } from '$lib/plugin';
+import type { DocumentView, MarkDecoration, NodeView, EditorSelection } from '$lib/plugin';
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';
 
@@ -35,7 +35,7 @@ export function wordAt(text: string, offset: number): WordSpan | null {
 }
 
 export function occurrenceMarks(
-	doc: Document,
+	doc: DocumentView,
 	selection: EditorSelection | null
 ): MarkDecoration[] {
 	if (!selection) return [];
@@ -61,9 +61,9 @@ export function occurrenceMarks(
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-function leafAt(doc: Document, path: number[]): CstNode | null {
-	let children: CstNode[] | undefined = doc.children;
-	let node: CstNode | null = null;
+function leafAt(doc: DocumentView, path: number[]): NodeView | null {
+	let children: readonly NodeView[] | undefined = doc.children;
+	let node: NodeView | null = null;
 	for (const index of path) {
 		node = children?.[index] ?? null;
 		if (!node) return null;
@@ -73,9 +73,9 @@ function leafAt(doc: Document, path: number[]): CstNode | null {
 }
 
 function forEachLeaf(
-	children: CstNode[],
+	children: readonly NodeView[],
 	path: number[],
-	visit: (node: CstNode, path: number[]) => void
+	visit: (node: NodeView, path: number[]) => void
 ): void {
 	for (let i = 0; i < children.length; i++) {
 		const node = children[i];

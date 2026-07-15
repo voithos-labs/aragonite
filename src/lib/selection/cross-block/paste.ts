@@ -6,7 +6,7 @@
 
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
-import type { CstNode, Document } from '../../core/nodes';
+import type { Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { normalizeLineEndings } from '../../core/lines';

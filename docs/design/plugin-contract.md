@@ -284,7 +284,19 @@ The boundary, condensed; the invariant catalog (`docs/design/invariants.md`) is 
 
 A plugin **may**: register kinds/components/openers (once — duplicates throw); declare `rebuildRaw` and have the commit ceremony invoke it; build containers and chrome through the factories; store primitive per-node metadata; commit metadata through the sanctioned update path; mint its own block-commands and contribute per-kind keymaps over the command vocabulary; render as an unknown kind and degrade safely.
 
-A plugin **may not**: treat its DOM as authoritative or mutate the tree from the view layer (boundary events flow up; the CST wins); write bytes through node references captured before a commit (copy-on-write); pass reactive CST state by value across module boundaries (getters only); invent merge-role/unwrap/container-contract values (closed enums); silently override a built-in or another plugin's registration.
+A plugin **may not**: treat its DOM as authoritative or mutate the tree from the view layer (type-enforced since the readonly views: plugin-visible node types are deep-readonly on bytes; boundary events flow up; the CST wins); write bytes through node references captured before a commit (copy-on-write); pass reactive CST state by value across module boundaries (getters only); invent merge-role/unwrap/container-contract values (closed enums); silently override a built-in or another plugin's registration.
+
+### Who gets which type
+
+The rule: a surface that **reads** hands out a view (`NodeView` / `DocumentView`, bytes-readonly); a surface that **constructs, owns, or writes** keeps the mutable `CstNode` / `Document`. A freshly parsed document is owned, and mutable feeds view-typed parameters for free (covariance) — there is no conversion step and no sanctioned view→mutable door on the plugin surface: mutation of the live tree goes through commits (`rebuildRaw`, metadata updates, commands).
+
+| Surface                                                                                                                | Type    |
+| ---------------------------------------------------------------------------------------------------------------------- | ------- |
+| Component props (`node`, `document`), `EditorContext.document`, `DecorationSource.provide` doc                         | view    |
+| Descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`)                              | view    |
+| Command / widget-editing contexts (`BlockCommandContext.node`, `InlineWidgetEditingContext.node`), `getPluginMetadata` | view    |
+| `parse` result, opener / directive-factory products, `chromeChild`                                                     | mutable |
+| Write hooks (`rebuildRaw`, `setPluginMetadata`) — the ceremony hands them owned nodes                                  | mutable |
 
 Most of the boundary is enforced by **shape** (the factories never expose raw context keys or mutation handles) and the rest by **dev-mode invariants** that tree-shake out of production — so plugin development against a production build gets no signal. **Develop plugins against a dev build.**
 
@@ -330,6 +342,7 @@ Persistent version history (post-v1 app-infra) needs `EditEvent` to distinguish 
 
 The contract's load-bearing rules are guarded by the invariant catalog (`docs/design/invariants.md`):
 
+- The view types (`core/node-views.ts`): every plugin-visible read surface is bytes-readonly at compile time, and the G4.13 door lint keeps view→mutable casts confined to `tree-operations/` + the commit ceremony.
 - Opener coherence at bootstrap over the live registry, and kind-table completeness at bootstrap.
 - Keymap coherence over the live registries — a plugin keymap's command ids validate against the minted `PluginCommandId`s (the earlier built-ins-only gap is closed) — and a container's `reservedChrome` declaration gets bootstrap coherence.
 - Closure-block coherence (G1.24): the required `closure` block agrees with the rest of the descriptor at bootstrap, and each declared `conformanceFixture` parses to its kind.

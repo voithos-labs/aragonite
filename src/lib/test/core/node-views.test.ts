@@ -24,6 +24,10 @@ export function compileTimePins(node: NodeView, doc: DocumentView): void {
 	node.children?.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 	// @ts-expect-error metadata is serialized-byte-derived — readonly on a view
 	node.metadata = undefined;
+	// @ts-expect-error innerPrefix is serialized bytes — readonly on a view
+	node.innerPrefix = '> ';
+	// @ts-expect-error innerSuffix is serialized bytes — readonly on a view
+	node.innerSuffix = '\n';
 	// @ts-expect-error the document's children array is readonly on a view
 	doc.children = [];
 	// The bookkeeping carve-out MUST keep compiling — G1.9 is bytes-scoped.
