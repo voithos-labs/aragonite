@@ -2,6 +2,8 @@ import type { Document, CstNode } from '../core/nodes';
 import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CompiledMatcher } from './matcher';
 
+/** `start`/`end` are raw offsets into the matched block's own raw (public
+ *  surface, so they stay `number`; DOM entry points mint). */
 export interface Match {
 	path: number[];
 	start: number;

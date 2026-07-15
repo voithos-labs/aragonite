@@ -25,6 +25,7 @@
 import type { BlockEditActions } from '../../../action-contracts';
 import type { CstNode } from '../../../core/nodes';
 import { trimTrailingLineEnding } from '../../../core/lines';
+import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 
 interface IslandSpan {
@@ -38,7 +39,7 @@ export interface DecorationIslandKeysDeps {
 	get index(): number;
 	getEl: () => HTMLElement | null;
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
-	getRawSelection: () => { start: number; end: number } | null;
+	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	blockEdit: BlockEditActions;
 	setPendingCursor: (offset: number | null) => void;
 }
@@ -46,7 +47,7 @@ export interface DecorationIslandKeysDeps {
 export interface DecorationIslandKeys {
 	/** Backspace/Delete/typing while the caret sits against — or a native selection
 	 *  wraps — a decoration island. Returns whether the event was consumed. */
-	handleKeydown(e: KeyboardEvent, caretOffset: number | null): boolean;
+	handleKeydown(e: KeyboardEvent, caretOffset: RawOffset | null): boolean;
 }
 
 export function createDecorationIslandKeys(deps: DecorationIslandKeysDeps): DecorationIslandKeys {
@@ -88,7 +89,7 @@ export function createDecorationIslandKeys(deps: DecorationIslandKeysDeps): Deco
 		return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
 	}
 
-	function handleKeydown(e: KeyboardEvent, caretOffset: number | null): boolean {
+	function handleKeydown(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		// Modifier chords (Ctrl/Alt/Cmd word-delete and shortcuts) stay native —
 		// the island rules own only the plain edge presses.
 		const hasModifier = e.ctrlKey || e.metaKey || e.altKey;

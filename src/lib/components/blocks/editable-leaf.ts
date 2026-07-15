@@ -259,7 +259,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		pasteCoordinator,
 		getFocusOffset: () => {
 			const el = deps.getEl();
-			return el ? getSelectionFocusOffset(el) : null;
+			const offset = el ? getSelectionFocusOffset(el) : null;
+			return offset === null ? null : asRawOffset(offset);
 		},
 		getTextLen: () => (deps.getEl()?.textContent ?? '').length,
 		readText: () => deps.getEl()?.textContent ?? '',

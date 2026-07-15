@@ -3,9 +3,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import {
-	createRangeAtRawOffsets,
-	findRawOffsetTarget,
-	rawOffsetAtNode,
+	createRangeAtDomTextOffsets,
+	findDomTextOffsetTarget,
+	domTextOffsetAtNode,
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
@@ -91,7 +91,7 @@ function depsFor(el: HTMLElement, ambientPrefix = '') {
 /** Raw offset of the live collapsed caret, in ambient-included walk space. */
 function caretRaw(el: HTMLElement): number {
 	const range = window.getSelection()!.getRangeAt(0);
-	return rawOffsetAtNode(el, range.startContainer, range.startOffset);
+	return domTextOffsetAtNode(el, range.startContainer, range.startOffset);
 }
 
 describe('source-reveal — caret-landing model (ambient = 0)', () => {
@@ -110,9 +110,9 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 		// The justification for reveal: with the widget rendered, a request for an
 		// interior source position (start+2) resolves to the trailing EDGE, never
 		// the interior glyph. An atomic widget yields only raw SRC_START or SRC_END.
-		const pos = findRawOffsetTarget(el, asDomTextOffset(SRC_START + 2));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(SRC_START + 2));
 		expect(pos).not.toBeNull();
-		expect(rawOffsetAtNode(el, pos!.node, pos!.offset)).toBe(SRC_END);
+		expect(domTextOffsetAtNode(el, pos!.node, pos!.offset)).toBe(SRC_END);
 	});
 
 	it('reveal(offset) swaps to editable source and lands the caret at the requested interior offset', async () => {
@@ -234,24 +234,28 @@ describe('source-reveal — highest-risk edges', () => {
 		// Rendered: a selection reaching from the outside text ("a ") toward an
 		// interior source glyph can only reach the widget's trailing EDGE — the
 		// opaque island has no interior to land in.
-		const rendered = createRangeAtRawOffsets(
+		const rendered = createRangeAtDomTextOffsets(
 			el,
 			asDomTextOffset(0),
 			asDomTextOffset(SRC_START + 2)
 		)!;
-		expect(rawOffsetAtNode(el, rendered.startContainer, rendered.startOffset)).toBe(0);
-		expect(rawOffsetAtNode(el, rendered.endContainer, rendered.endOffset)).toBe(SRC_END);
+		expect(domTextOffsetAtNode(el, rendered.startContainer, rendered.startOffset)).toBe(0);
+		expect(domTextOffsetAtNode(el, rendered.endContainer, rendered.endOffset)).toBe(SRC_END);
 
 		// Revealed: the same cross-boundary selection now reaches the interior
 		// glyph, its start still anchored in the outside text — the boundary is
 		// crossed through the one shared offset walk, not a second coordinate space.
 		await reveal.reveal();
-		const across = createRangeAtRawOffsets(el, asDomTextOffset(0), asDomTextOffset(SRC_START + 2))!;
+		const across = createRangeAtDomTextOffsets(
+			el,
+			asDomTextOffset(0),
+			asDomTextOffset(SRC_START + 2)
+		)!;
 		const sel = window.getSelection()!;
 		sel.removeAllRanges();
 		sel.addRange(across);
-		expect(rawOffsetAtNode(el, across.startContainer, across.startOffset)).toBe(0);
-		expect(rawOffsetAtNode(el, across.endContainer, across.endOffset)).toBe(SRC_START + 2);
+		expect(domTextOffsetAtNode(el, across.startContainer, across.startOffset)).toBe(0);
+		expect(domTextOffsetAtNode(el, across.endContainer, across.endOffset)).toBe(SRC_START + 2);
 		expect(rawTextOfNode(el, BLOCK_RAW).slice(0, SRC_START + 2)).toBe('a $x');
 	});
 

@@ -10,7 +10,7 @@ import type { CstNode } from '$lib/core/nodes';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
 import { trimTrailingLineEnding } from '$lib/core/lines';
-import { rawOffsetAtNode } from '$lib/cursor/widget-offset';
+import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -141,7 +141,7 @@ describe('text-render island wiring', () => {
 		const after = window.getSelection()!;
 		expect(after.focusNode).not.toBeNull();
 		expect(el.contains(after.focusNode)).toBe(true);
-		expect(rawOffsetAtNode(el, after.focusNode!, after.focusOffset)).toBe(7);
+		expect(domTextOffsetAtNode(el, after.focusNode!, after.focusOffset)).toBe(7);
 	});
 
 	it("an island widget's own <br> does not satisfy the empty block's caret anchor", () => {

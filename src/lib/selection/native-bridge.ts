@@ -12,8 +12,8 @@ import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { comparePaths } from './path-math';
-import { asRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
-import { createRangeAtRawOffsets, rawOffsetAtNode } from '../cursor/widget-offset';
+import { asRawOffset, toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
+import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
@@ -30,10 +30,10 @@ export function readNativeCaretInBlock(
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
-	const content = rawOffsetAtNode(blockEl, range.startContainer, range.startOffset);
+	const content = domTextOffsetAtNode(blockEl, range.startContainer, range.startOffset);
 	return {
 		path: path.slice(),
-		offset: Math.max(0, content - ambientLengthOf(blockEl))
+		offset: toClampedRawOffset(content, ambientLengthOf(blockEl))
 	};
 }
 
@@ -51,7 +51,7 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	const ambient = ambientLengthOf(blockEl);
 	if (ambient > 0 && point.offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
 	const target = toDomTextOffset(asRawOffset(point.offset), ambient);
-	const range = createRangeAtRawOffsets(blockEl, target, target);
+	const range = createRangeAtDomTextOffsets(blockEl, target, target);
 	if (!range) return;
 	const sel = window.getSelection();
 	sel?.removeAllRanges();
@@ -64,7 +64,7 @@ export function applySingleBlockRange(
 	endOffset: number
 ): void {
 	const ambient = ambientLengthOf(blockEl);
-	const range = createRangeAtRawOffsets(
+	const range = createRangeAtDomTextOffsets(
 		blockEl,
 		toDomTextOffset(asRawOffset(startOffset), ambient),
 		toDomTextOffset(asRawOffset(endOffset), ambient)
@@ -213,12 +213,12 @@ export function offsetFromViewportPoint(
 		}
 	).caretRangeFromPoint?.(clientX, clientY);
 	if (rangeFromPoint && blockEl.contains(rangeFromPoint.startContainer)) {
-		const content = rawOffsetAtNode(
+		const content = domTextOffsetAtNode(
 			blockEl,
 			rangeFromPoint.startContainer,
 			rangeFromPoint.startOffset
 		);
-		return Math.max(0, content - ambient);
+		return toClampedRawOffset(content, ambient);
 	}
 	const posFromPoint = (
 		doc as Document & {
@@ -229,8 +229,8 @@ export function offsetFromViewportPoint(
 		}
 	).caretPositionFromPoint?.(clientX, clientY);
 	if (posFromPoint && blockEl.contains(posFromPoint.offsetNode)) {
-		const content = rawOffsetAtNode(blockEl, posFromPoint.offsetNode, posFromPoint.offset);
-		return Math.max(0, content - ambient);
+		const content = domTextOffsetAtNode(blockEl, posFromPoint.offsetNode, posFromPoint.offset);
+		return toClampedRawOffset(content, ambient);
 	}
 	return null;
 }

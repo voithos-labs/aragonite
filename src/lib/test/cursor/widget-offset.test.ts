@@ -2,13 +2,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
-	containerRawLength,
-	findRawOffsetTarget,
-	rawOffsetAtNode,
+	containerDomTextLength,
+	findDomTextOffsetTarget,
+	domTextOffsetAtNode,
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-describe('findRawOffsetTarget — widget boundary placement', () => {
+describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	let el: HTMLElement;
 
 	beforeEach(() => {
@@ -39,7 +39,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const trailing = sentinel();
 		el.append(w, trailing);
 
-		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		// Caret should land inside the trailing sentinel, not at parent + idx+1.
 		// Otherwise Chromium drops beforeinput at this position.
@@ -53,7 +53,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const w = widget(0, 10);
 		el.append(leading, w);
 
-		const pos = findRawOffsetTarget(el, asDomTextOffset(0));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(0));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(leading);
 		expect(pos!.offset).toBe(0);
@@ -66,7 +66,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const w2 = widget(10, 20);
 		el.append(w1, between, w2);
 
-		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		// Should land inside the inter-sentinel (text-node), not at parent boundary.
 		expect(pos!.node).toBe(between);
@@ -78,7 +78,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const w = widget(0, 10);
 		el.appendChild(w);
 
-		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(el);
 		expect(pos!.offset).toBe(1);
@@ -90,7 +90,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const trailText = document.createTextNode(' trail');
 		el.append(w, trailText);
 
-		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(trailText);
 		expect(pos!.offset).toBe(0);
@@ -103,22 +103,22 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const text = document.createTextNode('hello');
 		el.appendChild(text);
 
-		const pos = findRawOffsetTarget(el, asDomTextOffset(Number.MAX_SAFE_INTEGER));
+		const pos = findDomTextOffsetTarget(el, asDomTextOffset(Number.MAX_SAFE_INTEGER));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(text);
 		expect(pos!.offset).toBe('hello'.length);
 	});
 
-	it('rawOffsetAtNode reads zero from sentinel positions (preserves text-content invariants)', () => {
+	it('domTextOffsetAtNode reads zero from sentinel positions (preserves text-content invariants)', () => {
 		const leading = sentinel();
 		const w = widget(0, 10);
 		const trailing = sentinel();
 		el.append(leading, w, trailing);
 
 		// Caret in trailing sentinel at offset 0 corresponds to raw 10 (after widget).
-		expect(rawOffsetAtNode(el, trailing, 0)).toBe(10);
+		expect(domTextOffsetAtNode(el, trailing, 0)).toBe(10);
 		// Caret in leading sentinel at offset 0 corresponds to raw 0.
-		expect(rawOffsetAtNode(el, leading, 0)).toBe(0);
+		expect(domTextOffsetAtNode(el, leading, 0)).toBe(0);
 	});
 });
 
@@ -133,6 +133,6 @@ describe('malformed widget source range', () => {
 
 		expect(rawTextOfNode(w, '0123456789')).toBe('');
 		expect(rawTextOfNode(el, '0123456789')).toBe('ab');
-		expect(containerRawLength(el)).toBe(2);
+		expect(containerDomTextLength(el)).toBe(2);
 	});
 });

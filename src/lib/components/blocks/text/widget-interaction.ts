@@ -25,8 +25,13 @@ import {
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { asRawOffset, toDomTextOffset } from '../../../cursor/coordinate-spaces';
-import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
+import {
+	asRawOffset,
+	toClampedRawOffset,
+	toDomTextOffset,
+	type RawOffset
+} from '../../../cursor/coordinate-spaces';
+import { domTextOffsetAtNode, createRangeAtDomTextOffsets } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import { caretIsInTextContent } from './click-snap-guard';
 import {
@@ -76,7 +81,7 @@ export interface WidgetInteraction {
 	 *  far boundary atomically. */
 	handleShiftArrowIntoWidget(e: KeyboardEvent): boolean;
 	/** Plain Arrow/Delete/typing while the caret sits against a widget edge. */
-	handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: number | null): boolean;
+	handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: RawOffset | null): boolean;
 	/** Cross-block edge landing: a reveal-capable widget at the near edge opens its
 	 *  source reveal; any other widget is selected (image overlay). Returns whether
 	 *  an edge widget was entered. */
@@ -218,7 +223,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const editedDisplay = deps.readRawText();
 		const caretAfter =
 			el && sourceNode
-				? Math.max(0, rawOffsetAtNode(el, sourceNode, sourceNode.length) - deps.getAmbientLength())
+				? toClampedRawOffset(
+						domTextOffsetAtNode(el, sourceNode, sourceNode.length),
+						deps.getAmbientLength()
+					)
 				: revealWidgetEnd;
 		activeReveal = null;
 		activeSourceNode = null;
@@ -278,10 +286,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el.contains(anchorNode) || !el.contains(focusNode)) return false;
 		if (activeSourceNode.contains(anchorNode) || activeSourceNode.contains(focusNode)) return false;
 		const ambient = deps.getAmbientLength();
-		const sourceStart = Math.max(0, rawOffsetAtNode(el, activeSourceNode, 0) - ambient);
+		const sourceStart = toClampedRawOffset(domTextOffsetAtNode(el, activeSourceNode, 0), ambient);
 		const sourceEnd = sourceStart + activeSourceNode.length;
-		const anchorOff = Math.max(0, rawOffsetAtNode(el, anchorNode, sel.anchorOffset) - ambient);
-		const focusOff = Math.max(0, rawOffsetAtNode(el, focusNode, sel.focusOffset) - ambient);
+		const anchorOff = toClampedRawOffset(
+			domTextOffsetAtNode(el, anchorNode, sel.anchorOffset),
+			ambient
+		);
+		const focusOff = toClampedRawOffset(
+			domTextOffsetAtNode(el, focusNode, sel.focusOffset),
+			ambient
+		);
 		const inSource = (o: number) => o >= sourceStart && o <= sourceEnd;
 		return !inSource(anchorOff) && !inSource(focusOff);
 	}
@@ -359,7 +373,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const revealedStart =
 				activeSourceNode === null
 					? Number.POSITIVE_INFINITY
-					: Math.max(0, rawOffsetAtNode(el, activeSourceNode, 0) - deps.getAmbientLength());
+					: toClampedRawOffset(
+							domTextOffsetAtNode(el, activeSourceNode, 0),
+							deps.getAmbientLength()
+						);
 			const rawBefore = deps.node.raw.length;
 			if (deps.readRawText() === revealOriginalDisplay) {
 				foldRevealNoEdit();
@@ -549,7 +566,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 	}
 
-	function handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: number | null): boolean {
+	function handleWidgetAtCursorKeydown(
+		e: KeyboardEvent,
+		effectiveOffset: RawOffset | null
+	): boolean {
 		if (activeReveal) return false;
 		if (effectiveOffset === null) return false;
 		const node = deps.node;
@@ -649,8 +669,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el) return null;
 		const sel = window.getSelection();
 		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-		const focus = Math.max(0, content - deps.getAmbientLength());
+		const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		const focus = toClampedRawOffset(content, deps.getAmbientLength());
 		for (const inline of inlinesOf(deps.node)) {
 			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
@@ -669,7 +689,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0) return;
 		const target = toDomTextOffset(asRawOffset(rawOffset), deps.getAmbientLength());
-		const range = createRangeAtRawOffsets(el, target, target);
+		const range = createRangeAtDomTextOffsets(el, target, target);
 		if (!range) return;
 		sel.extend(range.endContainer, range.endOffset);
 	}

@@ -7,6 +7,7 @@ import {
 	asEditorX,
 	asRawOffset,
 	asViewportX,
+	toClampedRawOffset,
 	toDomTextOffset,
 	toEditorX,
 	toRawOffset,
@@ -14,11 +15,17 @@ import {
 	type DomTextOffset,
 	type RawOffset
 } from '../../cursor/coordinate-spaces';
+import type { CursorBackend, EditableSurfaceDeps } from '../../components/blocks/editable-surface';
 
 describe('coordinate-space conversions', () => {
 	it('raw ↔ dom-text adds/subtracts the ambient length', () => {
 		expect(toDomTextOffset(asRawOffset(5), 2)).toBe(7);
 		expect(toRawOffset(asDomTextOffset(7), 2)).toBe(5);
+	});
+
+	it('clamped raw conversion subtracts, clamping marker-interior positions to 0', () => {
+		expect(toClampedRawOffset(asDomTextOffset(7), 2)).toBe(5);
+		expect(toClampedRawOffset(asDomTextOffset(1), 2)).toBe(0);
 	});
 
 	it('editor ↔ viewport X adds/subtracts the editor left', () => {
@@ -49,5 +56,25 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		toDomTextOffset(asEditorX(10), 0);
 
 		expect(raw + 1).toBe(4);
+	});
+
+	// Assignment-shaped (never invoked) so the pins are runtime-free; call-site
+	// checking would be bivariance-exempt on methods, assignment is not.
+	it('the editable-surface seam rejects wrong-space offsets', () => {
+		type SetRawArg = Parameters<CursorBackend['setRaw']>[0];
+
+		// @ts-expect-error a walk-space offset cannot enter the raw-space backend
+		const domTextIntoRaw: SetRawArg = asDomTextOffset(3);
+		void domTextIntoRaw;
+
+		// @ts-expect-error a pixel X cannot enter the raw-space backend
+		const editorXIntoRaw: SetRawArg = asEditorX(3);
+		void editorXIntoRaw;
+
+		// @ts-expect-error the focus-offset reader returns raw, not walk-space, offsets
+		const focusRead: EditableSurfaceDeps['getFocusOffset'] = () => asDomTextOffset(3);
+		void focusRead;
+
+		expect(asRawOffset(3) satisfies SetRawArg).toBe(3);
 	});
 });

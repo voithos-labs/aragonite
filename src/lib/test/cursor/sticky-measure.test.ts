@@ -6,7 +6,7 @@
 // (startContainer, startOffset) so the SUT's real candidate scan, line-probe,
 // and nearest-X selection run against the injected geometry. Only the browser
 // primitives are stubbed; the SUT's own helpers (getOffsetRect,
-// findRawOffsetTarget) run for real.
+// findDomTextOffsetTarget) run for real.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset, asEditorX } from '../../cursor/coordinate-spaces';
