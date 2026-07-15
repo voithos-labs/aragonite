@@ -87,6 +87,8 @@ Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts
 | `renderImagesAsWidgets` | Opting out of image widgets                                                   |
 | `foreignDragHitTest`    | Custom drop-target geometry                                                   |
 
+The required `closure` block is the kind's answer to each cross-cutting editor system — one `ClosureCell` per column, `implemented` (name the mechanism in `via`), `inherit-default` (the generic ceremony, nothing kind-specific), or `not-supported` (name the degradation). It stops a kind shipping silently closed under a subsystem nobody asked about. [`docs/guide/plugin-guide.md`](../guide/plugin-guide.md) § "The closure block" walks the columns and the two bootstrap coherence rules (G1.24); [`docs/design/plugin-contract.md`](../design/plugin-contract.md) § "The tier × subsystem closure matrix" is the full row-by-tier reference.
+
 Container kinds declare their container-only fields as one `container` group: required `contract` and `rebuildRaw` (implementations in `schema/container-rebuilders.ts`), optional `reservedChrome`, `containerPaste`, and `unwrapRole` (the Backspace-at-start strategy — see `editor-actions/unwrap-strategies.ts`). `isContainer` is derived from the group's presence, so a leaf carrying container fields won't compile.
 
 ### 2. The component
