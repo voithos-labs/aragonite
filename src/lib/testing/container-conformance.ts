@@ -75,13 +75,23 @@ import {
 	stubBlockEdit,
 	stubStickyColumn
 } from './headless-actions';
+import {
+	assert,
+	assertExemptionDocumented,
+	assertIndices,
+	assertIs,
+	fail,
+	findFirstOfKind,
+	firstChildOfKind,
+	nodeAtPath,
+	pathPassesThroughKind,
+	type ConformanceCoverage
+} from './conformance-core';
+
+// The container-structural cells' test imports these two through this module.
+export { assertExemptionDocumented, type ConformanceCoverage };
 
 // ── Profile ──────────────────────────────────────────────────────────────────
-
-export type ConformanceCoverage =
-	| { mode: 'assert' }
-	| { mode: 'exempt'; reason: string }
-	| { mode: 'boundary'; reason: string };
 
 /**
  * `containerChain` is a doc-rooted path of container indices from the doc root
@@ -179,81 +189,6 @@ export async function runContainerConformance(
 		throw new Error(`container conformance failed for "${kind}":\n  - ${failures.join('\n  - ')}`);
 	}
 	return { kind, cells };
-}
-
-// ── Assertions ───────────────────────────────────────────────────────────────
-
-function fail(message: string): never {
-	throw new Error(message);
-}
-
-function assert(condition: unknown, message: string): asserts condition {
-	if (!condition) fail(message);
-}
-
-function assertIs(actual: unknown, expected: unknown, message: string): void {
-	if (!Object.is(actual, expected)) {
-		fail(`${message} — expected ${show(expected)}, got ${show(actual)}`);
-	}
-}
-
-function assertIndices(
-	actual: readonly number[],
-	expected: readonly number[],
-	message: string
-): void {
-	if (actual.length !== expected.length || actual.some((v, i) => v !== expected[i])) {
-		fail(`${message} — expected [${expected}], got [${actual}]`);
-	}
-}
-
-function show(value: unknown): string {
-	return typeof value === 'string' ? JSON.stringify(value) : String(value);
-}
-
-/** An EXEMPT/BOUNDARY cell must carry a substantive reason — visible, never a silent skip. */
-export function assertExemptionDocumented(cell: ConformanceCoverage, label: string): void {
-	if (cell.mode === 'assert') {
-		fail(`assertExemptionDocumented called on an 'assert' cell: ${label}`);
-	}
-	assert(cell.reason.length > 20, `${label} ${cell.mode} reason is documented`);
-}
-
-// ── Shared helpers ───────────────────────────────────────────────────────────
-
-function firstChildOfKind(source: string, kind: AnyBlockKind): CstNode {
-	const node = parse(source).children[0];
-	assertIs(node.kind, kind, `sample's first child is "${kind}"`);
-	assert(node.children, 'sample container has children');
-	return node;
-}
-
-function nodeAtPath(root: Document | CstNode, path: number[]): CstNode {
-	let cur: Document | CstNode = root;
-	for (const i of path) {
-		assert(cur.children, 'path step has children');
-		cur = cur.children[i];
-	}
-	return cur as CstNode;
-}
-
-/** First node of `kind` in a pre-order walk (the kind may be nested below the root). */
-function findFirstOfKind(root: Document | CstNode, kind: AnyBlockKind): CstNode | null {
-	for (const child of root.children ?? []) {
-		if (child.kind === kind) return child;
-		const found = findFirstOfKind(child, kind);
-		if (found) return found;
-	}
-	return null;
-}
-
-function pathPassesThroughKind(doc: Document, leafPath: number[], kind: AnyBlockKind): boolean {
-	let cur: Document | CstNode = doc;
-	for (let depth = 0; depth < leafPath.length - 1; depth++) {
-		cur = cur.children![leafPath[depth]];
-		if ((cur as CstNode).kind === kind) return true;
-	}
-	return false;
 }
 
 // ── (a) local-index addressing ───────────────────────────────────────────────
