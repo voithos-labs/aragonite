@@ -42,7 +42,40 @@ const FIXTURE_UNREACHABLE = new Set(['admonition']);
 
 const WALK_LIMIT = 30;
 
+// Every column test iterates whatever the bridge returns, so a kind silently
+// dropped from enrollment (a lost fixture, a broken registrar) would vanish
+// green. Subset, not equality: new kinds enroll without touching this floor.
+const ENROLLMENT_FLOOR = [
+	'paragraph',
+	'heading',
+	'table',
+	'blockquote',
+	'mermaid',
+	'mathBlock',
+	'toc',
+	'note'
+];
+
+// ── Enrollment ────────────────────────────────────────────────────────────────
+
+test('enrollment covers the known-kind floor', async ({ page }) => {
+	const plugins = new PluginsPage(page);
+	await plugins.gotoPlugins();
+	const kinds: string[] = await page.evaluate(() =>
+		(window as any).__test.getConformanceEntries().map((e: SweepEntry) => e.kind)
+	);
+	const missing = ENROLLMENT_FLOOR.filter((k) => !kinds.includes(k));
+	expect(missing, 'kinds dropped from sweep enrollment').toEqual([]);
+});
+
 // ── Locate ──────────────────────────────────────────────────────────────────
+
+// Every load gets a unique leading-trivia prefix: the harness's setSource writes a
+// `source` $state, and a same-value write is a Svelte no-op — with two kinds sharing
+// a byte-identical fixture doc (table/tableRow), a prior iteration's typed mutation
+// would otherwise survive into the next kind's run. Blank lines are lossless
+// leadingTrivia: no block, no searchable text, block indices unchanged.
+let loadSeq = 0;
 
 // Load `BEFORE \n\n <fixture> \n\n AFTER` and resolve the fixture block. The kind is
 // sought only among the MIDDLE blocks (indices 1 .. len-2): `paragraph`'s fixture is
@@ -52,14 +85,17 @@ async function loadAndLocate(
 	plugins: PluginsPage,
 	entry: SweepEntry
 ): Promise<{ topIndex: number | null; afterIndex: number }> {
-	const doc = `${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
+	const doc = `${'\n'.repeat(loadSeq++)}${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
 	await page.evaluate((d) => (window as any).__test.setSource(d), doc);
+	// Exact-source settle (loadContent's pattern): every sweep document carries both
+	// fillers, so an includes() predicate is satisfiable by the PRIOR kind's stale
+	// document. serialize() normalizes trailing whitespace; compare trimmed forms.
 	await page.waitForFunction(
-		() => {
-			const s = (window as any).__test.getSource() as string;
-			return s.includes('top filler') && s.includes('end filler');
+		(expected) => {
+			const actual = (window as any).__test.getSource() as string;
+			return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
 		},
-		null,
+		doc,
 		{ timeout: 3000, polling: 16 }
 	);
 	await plugins.waitForRenderFlush();
