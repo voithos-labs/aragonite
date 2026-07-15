@@ -35,7 +35,9 @@ Each rule names its incident. These are the ways this codebase actually gets cor
 - **Snapshot-shared nodes are read-only on their serialized bytes (G1.9)** — copy-path-on-write
   before any byte write; the commit ceremony owns this and hands mutations an owned view.
   Never write through a node reference captured before the commit. A DEV integrity oracle
-  catches violations at the offending commit, not at the undo that exposes them.
+  catches violations at the offending commit, not at the undo that exposes them. Type-enforced
+  since 0.9.24: readers hold bytes-readonly views (`core/node-views.ts`, G3.8) and the unshare
+  seam is the only way back to mutable (G4.13); the oracle stays the runtime belt.
 - **Reactive state crosses module boundaries as getters, never values.** A value read
   snapshots at effect-run time AND registers the state as a dependency — the original re-init
   effect wiped unrelated work on every mutation. Same trap inside `afterTick` callbacks: read
@@ -52,10 +54,14 @@ Each rule names its incident. These are the ways this codebase actually gets cor
   Commit event/snapshot paths are doc-absolute, minted by the scope factories
   (`block-edit-scope.ts`), asserted by G1.16 — never compose paths in a caller. Both seams
   exist because the call-site versions missed sites: two of the three 2026-07 corruption
-  Criticals were entry paths that skipped a wrap five siblings carried.
+  Criticals were entry paths that skipped a wrap five siblings carried. Since 0.9.24 the
+  factory mints carry the `DocPath` brand; G1.16 stays the runtime belt for the op families
+  that still compose paths legitimately.
 - **DOM ↔ raw offset translation has one home** (`cursor/widget-offset.ts`, plus the ambient
   helpers). Offset arithmetic duplicated anywhere else will disagree with it eventually —
   every offset bug in the audit traced to arithmetic done outside the shared walk.
+  Type-enforced since 0.9.24: the coordinate spaces are branded (G3.7, minted only at their
+  single homes, G4.15) — cross-space arithmetic no longer compiles.
 - **Registries are code, not state.** Register-once, throw-on-duplicate, no unregister
   (`customElements` model). Test isolation goes through the reset affordances; dev HMR of a
   registration module needs a page reload. This reaches the public API: a plugin author's suite
