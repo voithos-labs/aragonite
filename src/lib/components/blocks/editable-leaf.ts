@@ -62,6 +62,7 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
 import {
 	createRangeFromOffsets,
 	setCursorOffset,
@@ -209,18 +210,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getAmbientLength: () => 0,
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
 		isInputSuppressed: () => mode === 'render-primary',
+		// A zero-ambient, widget-free leaf: its DOM-text space IS its raw space,
+		// so the backend door-mints across the two brands.
 		backend: {
 			getRaw: () => {
 				const el = deps.getEl();
-				return el ? (getCursorOffset(el) ?? null) : null;
+				const offset = el ? getCursorOffset(el) : null;
+				return offset === null ? null : asRawOffset(offset);
 			},
 			setRaw: (offset) => {
 				const el = deps.getEl();
-				if (el) setCursorOffset(el, offset);
+				if (el) setCursorOffset(el, asDomTextOffset(offset));
 			},
 			buildRange: (start, end) => {
 				const el = deps.getEl();
-				return el ? createRangeFromOffsets(el, start, end) : null;
+				return el ? createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end)) : null;
 			}
 		},
 		getMyPath: () => deps.path,
@@ -371,7 +375,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			anchorTrailingNewline(el);
 			// Restore only under a live caret — an external rewrite (undo,
 			// structural replace) must not steal focus.
-			if (pending !== null && document.activeElement === el) setCursorOffset(el, pending);
+			if (pending !== null && document.activeElement === el) {
+				setCursorOffset(el, asDomTextOffset(pending));
+			}
 		}
 	}
 
@@ -386,7 +392,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const offset = getCursorOffset(el) ?? text.length;
 		el.textContent = text.slice(0, offset) + '\n' + text.slice(offset);
 		anchorTrailingNewline(el);
-		setCursorOffset(el, offset + 1);
+		setCursorOffset(el, asDomTextOffset(offset + 1));
 	}
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {

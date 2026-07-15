@@ -5,6 +5,15 @@
  */
 
 import type { StickyColumnDirection } from '../block-component';
+import {
+	asDomTextOffset,
+	asViewportX,
+	toEditorX,
+	toViewportX,
+	type DomTextOffset,
+	type EditorX,
+	type ViewportX
+} from './coordinate-spaces';
 import { containerRawLength, findRawOffsetTarget } from './widget-offset';
 
 // A candidate counts as "on the probe line" when its rect overlaps the line band
@@ -12,30 +21,30 @@ import { containerRawLength, findRawOffsetTarget } from './widget-offset';
 // descender variation, narrow enough to exclude the neighbouring line.
 const LINE_BAND_TOLERANCE = 0.5;
 
-export function getCurrentCursorEditorRelativeX(el: HTMLElement): number | null {
+export function getCurrentCursorEditorRelativeX(el: HTMLElement): EditorX | null {
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
 
-	let viewportX: number | null = null;
+	let viewportX: ViewportX | null = null;
 	const rects = range.getClientRects();
 	if (rects.length > 0 && rects[0].height > 0) {
-		viewportX = rects[0].left;
+		viewportX = asViewportX(rects[0].left);
 	}
 	if (viewportX === null) {
 		const br = range.getBoundingClientRect();
-		if (br.height > 0 || br.width > 0) viewportX = br.left;
+		if (br.height > 0 || br.width > 0) viewportX = asViewportX(br.left);
 	}
 	if (viewportX === null) {
-		viewportX = el.getBoundingClientRect().left;
+		viewportX = asViewportX(el.getBoundingClientRect().left);
 	}
 
 	const editor = el.closest('.editor') as HTMLElement | null;
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
-	return viewportX - editorLeft;
+	return toEditorX(viewportX, editorLeft);
 }
 
-export function getOffsetRect(container: HTMLElement, offset: number): DOMRect | null {
+export function getOffsetRect(container: HTMLElement, offset: DomTextOffset): DOMRect | null {
 	const pos = findRawOffsetTarget(container, offset);
 	if (!pos) return null;
 	const range = document.createRange();
@@ -64,16 +73,16 @@ export function getOffsetRect(container: HTMLElement, offset: number): DOMRect |
  */
 export function findOffsetNearestX(
 	container: HTMLElement,
-	editorRelativeX: number,
+	editorRelativeX: EditorX,
 	from: StickyColumnDirection,
-	minOffset = 0
-): number {
+	minOffset: DomTextOffset = asDomTextOffset(0)
+): DomTextOffset {
 	const totalLen = containerRawLength(container);
 	if (totalLen <= minOffset) return minOffset;
 
 	const editor = container.closest('.editor') as HTMLElement | null;
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
-	const targetViewportX = editorRelativeX + editorLeft;
+	const targetViewportX = toViewportX(editorRelativeX, editorLeft);
 
 	// Sticky-from-above lands on the FIRST visual line, sticky-from-below on the
 	// LAST, so only offsets near that edge can be the answer. Walk inward from the
@@ -83,11 +92,11 @@ export function findOffsetNearestX(
 	// (BiDi makes per-line left values non-monotonic); only its range is bounded.
 	const forward = from === 'above';
 	const STOP_AFTER_LINES = 3;
-	const candidates: { offset: number; rect: DOMRect }[] = [];
+	const candidates: { offset: DomTextOffset; rect: DOMRect }[] = [];
 	let edgeExtreme = forward ? Infinity : -Infinity; // min top (above) / max bottom (below)
 	let lineH = 0;
 	for (let k = 0; k <= totalLen - minOffset; k++) {
-		const offset = forward ? minOffset + k : totalLen - k;
+		const offset = asDomTextOffset(forward ? minOffset + k : totalLen - k);
 		const rect = getOffsetRect(container, offset);
 		if (!rect) continue;
 		if (lineH === 0) lineH = Math.max(1, rect.bottom - rect.top);

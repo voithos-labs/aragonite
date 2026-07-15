@@ -25,6 +25,7 @@ import {
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
+import { asRawOffset, toDomTextOffset } from '../../../cursor/coordinate-spaces';
 import { rawOffsetAtNode, createRangeAtRawOffsets } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import { caretIsInTextContent } from './click-snap-guard';
@@ -453,7 +454,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				deps.widgetSelection.clear();
 				await deps.focusActions.moveFocus(deps.index - 1, 'end');
 			} else {
-				deps.cursor.setRaw(widget.start);
+				deps.cursor.setRaw(asRawOffset(widget.start));
 				deps.widgetSelection.clear();
 			}
 			return true;
@@ -464,7 +465,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				deps.widgetSelection.clear();
 				await deps.focusActions.moveFocus(deps.index + 1, 'start');
 			} else {
-				deps.cursor.setRaw(widget.end);
+				deps.cursor.setRaw(asRawOffset(widget.end));
 				deps.widgetSelection.clear();
 			}
 			return true;
@@ -486,7 +487,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			deps.cursor.setRaw(widget.end);
+			deps.cursor.setRaw(asRawOffset(widget.end));
 			deps.widgetSelection.clear();
 			return true;
 		}
@@ -624,7 +625,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const rect = widget.getBoundingClientRect();
 			if (clickX > rect.right) {
 				el.focus();
-				deps.cursor.setRaw(inline.end);
+				deps.cursor.setRaw(asRawOffset(inline.end));
 				// `setRaw`'s walker may have landed the caret in a trailing text
 				// node — in that case native renders, no synthetic needed.
 				if (!caretIsInTextContent(el, window.getSelection())) {
@@ -634,7 +635,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 			if (clickX < rect.left) {
 				el.focus();
-				deps.cursor.setRaw(inline.start);
+				deps.cursor.setRaw(asRawOffset(inline.start));
 				if (!caretIsInTextContent(el, window.getSelection())) {
 					deps.setSnapTarget(inline.start);
 				}
@@ -667,7 +668,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el) return;
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0) return;
-		const target = deps.getAmbientLength() + rawOffset;
+		const target = toDomTextOffset(asRawOffset(rawOffset), deps.getAmbientLength());
 		const range = createRangeAtRawOffsets(el, target, target);
 		if (!range) return;
 		sel.extend(range.endContainer, range.endOffset);

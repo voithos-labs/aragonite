@@ -20,6 +20,7 @@ import {
 } from '../keyboard-extend';
 import { cellEndpointDeepPath } from '../table-endpoint-snap';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -221,7 +222,8 @@ function selectFirstPressContent(el: HTMLElement): void {
 
 	if (ambient && textLen > ambientLen) {
 		if (!placeCaretAfterAmbientSpan(el)) return;
-		const endRange = createRangeFromOffsets(el, textLen, textLen);
+		// textLen counts the full textContent (marker included) — a DomTextOffset by construction.
+		const endRange = createRangeFromOffsets(el, asDomTextOffset(textLen), asDomTextOffset(textLen));
 		if (endRange) {
 			window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
 		}

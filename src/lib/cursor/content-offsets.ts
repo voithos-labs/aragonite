@@ -1,11 +1,17 @@
 /**
  * Cursor / range / selection helpers for contenteditable text surfaces.
+ * Offsets count DOM text characters ambient-inclusively (`Range.toString()`
+ * does not skip contenteditable=false islands), so they are `DomTextOffset`.
+ * Consumers are zero-ambient, widget-free surfaces (code, plugin leaves, table
+ * cells) where the space coincides numerically with raw.
  */
+
+import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 
 export function createRangeFromOffsets(
 	container: HTMLElement,
-	start: number,
-	end: number
+	start: DomTextOffset,
+	end: DomTextOffset
 ): Range | null {
 	const range = document.createRange();
 	let charCount = 0;
@@ -61,7 +67,7 @@ export function createRangeFromOffsets(
 	return range;
 }
 
-export function setCursorOffset(container: HTMLElement, offset: number): void {
+export function setCursorOffset(container: HTMLElement, offset: DomTextOffset): void {
 	const range = createRangeFromOffsets(container, offset, offset);
 	if (!range) return;
 	const sel = window.getSelection();
@@ -76,22 +82,22 @@ export function setCursorOffset(container: HTMLElement, offset: number): void {
  * unreliable when ranges cross them; `Range.toString()` on a prefix range
  * does not skip, so all readers funnel through this helper.
  */
-function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number): number {
+function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number): DomTextOffset {
 	const preRange = document.createRange();
 	preRange.selectNodeContents(container);
 	try {
 		preRange.setEnd(node, offset);
 	} catch {
-		return 0;
+		return asDomTextOffset(0);
 	}
-	return preRange.toString().length;
+	return asDomTextOffset(preRange.toString().length);
 }
 
 /**
  * Returns the range START (anchor for forward selections). For the moving
  * endpoint during Shift+Arrow extension, use `getSelectionFocusOffset`.
  */
-export function getCursorOffset(container: HTMLElement): number | null {
+export function getCursorOffset(container: HTMLElement): DomTextOffset | null {
 	if (document.activeElement !== container) return null;
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
@@ -104,7 +110,7 @@ export function getCursorOffset(container: HTMLElement): number | null {
  * when the user has extended a selection). Used by Shift+Arrow boundary
  * checks to decide whether the next extension crosses a block boundary.
  */
-export function getSelectionFocusOffset(container: HTMLElement): number | null {
+export function getSelectionFocusOffset(container: HTMLElement): DomTextOffset | null {
 	if (document.activeElement !== container) return null;
 	const sel = window.getSelection();
 	if (!sel || sel.focusNode === null) return null;
@@ -112,7 +118,9 @@ export function getSelectionFocusOffset(container: HTMLElement): number | null {
 	return nodeOffsetToContent(container, sel.focusNode, sel.focusOffset);
 }
 
-export function getSelectionOffsets(container: HTMLElement): { start: number; end: number } | null {
+export function getSelectionOffsets(
+	container: HTMLElement
+): { start: DomTextOffset; end: DomTextOffset } | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
 	const range = sel.getRangeAt(0);

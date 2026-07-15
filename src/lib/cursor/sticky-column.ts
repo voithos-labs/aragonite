@@ -24,24 +24,26 @@
  *    lives in the landing helper.
  */
 
+import type { EditorX } from './coordinate-spaces';
+
 export interface StickyColumnState {
-	get(): number | null;
+	get(): EditorX | null;
 
 	/**
 	 * Idempotent — no-op if already set. That's what preserves the original
 	 * intent through within-block clamping. Also no-op for non-finite input.
 	 */
-	capture(x: number): void;
+	capture(x: EditorX): void;
 
 	reset(): void;
 }
 
 export function createStickyColumnState(): StickyColumnState {
-	let stickyX: number | null = null;
+	let stickyX: EditorX | null = null;
 
 	return {
 		get: () => stickyX,
-		capture: (x: number) => {
+		capture: (x: EditorX) => {
 			if (stickyX !== null) return;
 			if (!Number.isFinite(x)) return;
 			stickyX = x;

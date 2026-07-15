@@ -53,6 +53,7 @@
 		containerRawLength,
 		createRangeAtRawOffsets
 	} from '../../../cursor/widget-offset';
+	import { asRawOffset, toDomTextOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
@@ -141,7 +142,8 @@
 		backend: {
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
-			buildRange: (start, end) => createRangeAtRawOffsets(el!, start, end)
+			buildRange: (start, end) =>
+				createRangeAtRawOffsets(el!, toDomTextOffset(start, 0), toDomTextOffset(end, 0))
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -282,7 +284,7 @@
 			// Restore only while this cell still owns focus — an unguarded restore
 			// would yank the global selection back into a blurred cell. Mirrors the
 			// activeElement guards in TextEditableBlock and CodeBlock.
-			if (document.activeElement === el) cursor.setRaw(pendingCursorOffset);
+			if (document.activeElement === el) cursor.setRaw(asRawOffset(pendingCursorOffset));
 			pendingCursorOffset = null;
 		}
 	});

@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { consumeStickyLanding } from '../../editor-actions/focus/focus-landing';
 import { CURSOR_END } from '../../block-component';
+import { asEditorX } from '../../cursor/coordinate-spaces';
 import { createStickyColumnState, type StickyColumnState } from '../../cursor/sticky-column';
 import { mockRef } from '../harness/editor-actions';
 
 function capturedSticky(x: number): StickyColumnState {
 	const sticky = createStickyColumnState();
-	sticky.capture(x);
+	sticky.capture(asEditorX(x));
 	return sticky;
 }
 
