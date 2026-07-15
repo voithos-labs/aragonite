@@ -23,7 +23,10 @@
  *
  * A browser- or e2e-only cell is `boundary`: the next batch's browser sweep runs
  * it. A `not-supported` cell with no generic degradation is `exempt`, carrying
- * its declared reason. Runner-agnostic — plain `Error`s, no runner import.
+ * its declared reason. A profile's custom check is honored ONLY where the cell is
+ * declared `implemented`; on any other mode it contradicts the declaration and the
+ * run fails, so reverting a profiled cell's mode cannot silence its guard.
+ * Runner-agnostic — plain `Error`s, no runner import.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -126,8 +129,11 @@ export async function runKindConformance(
 		try {
 			const custom = profile.cells?.[column]?.check;
 			const result = custom
-				? await runCustomCheck(kind, column, custom, ctx)
+				? await runCustomCheck(kind, column, cell, custom, ctx)
 				: await executeCell(column, cell, kind, descriptor, ctx);
+			if (result.status === 'exempt') {
+				assert(result.detail.length > 20, `${kind} ${column} exempt reason is documented`);
+			}
 			cells.push({ column, mode: cell.mode, ...result });
 		} catch (error) {
 			failures.push(`${column}: ${(error as Error).message}`);
@@ -156,9 +162,23 @@ type CellResult = { status: KindCellStatus; detail: string };
 async function runCustomCheck(
 	kind: AnyBlockKind,
 	column: ClosureColumn,
+	cell: ClosureCell,
 	check: KindCellCheck['check'],
 	ctx: KindCellContext | null
 ): Promise<CellResult> {
+	// A profile custom check is the seam for an `implemented` cell whose mechanism
+	// the generic executor cannot observe (table's rectangular copy). On any other
+	// declared mode it is a contradiction: the cell claims the default ceremony
+	// (`inherit-default`) or structural absence (`not-supported`), yet a bespoke
+	// check overrides — silencing the declared-mode executor. Refusing it here is
+	// what makes reverting a profiled cell off `implemented`, with the profile left
+	// intact (the 0.9.24 `table.clipboard` incident), go red rather than stay green.
+	if (cell.mode !== 'implemented') {
+		fail(
+			`profile supplies a "${column}" check for "${kind}", but its declared mode is ` +
+				`"${cell.mode}" — a custom check is only valid on an 'implemented' cell`
+		);
+	}
 	if (!ctx) {
 		fail(
 			`profile supplies a "${column}" check but "${kind}" has no conformanceFixture to run it over`
