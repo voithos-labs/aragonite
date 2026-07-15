@@ -43,7 +43,7 @@ test.describe('debug panel', () => {
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 	});
 
-	test('all six sections render in document order and CST body is populated', async () => {
+	test('all seven sections render in document order and CST body is populated', async () => {
 		await editor.page.keyboard.press(toggleKey());
 
 		const titles = await editor.page
@@ -55,7 +55,8 @@ test.describe('debug panel', () => {
 			'Selection',
 			'Undo stack',
 			'Inline tree (focused block)',
-			'Operations log'
+			'Operations log',
+			'Interaction trace'
 		]);
 
 		// CST tree is expanded by default — body must contain block [0].
@@ -89,6 +90,7 @@ test.describe('debug panel', () => {
 		expect(clip).toContain('### CST');
 		expect(clip).toContain('### Raw source');
 		expect(clip).toContain('### Operations log');
+		expect(clip).toContain('### Interaction trace');
 	});
 
 	test('inline tree populates when user clicks block FIRST, then expands the section', async () => {
@@ -133,6 +135,48 @@ test.describe('debug panel', () => {
 			'.debug-section[data-section-title="Selection"] .debug-section-body'
 		);
 		await expect(body).toContainText('[3]');
+	});
+
+	test('interaction trace records a rebuild on typing, with no composition entries', async () => {
+		await editor.clickBlock(0);
+		await editor.page.evaluate(() => (window as any).__test.trace.enable());
+		await editor.page.keyboard.type('z');
+
+		// The rebuild lands a reactive tick after the keystroke resolves — poll, don't
+		// snapshot synchronously.
+		await editor.page.waitForFunction(() =>
+			(window as any).__test.trace
+				.snapshot()
+				.some(
+					(e: { site: string; kind: string }) => e.site === 'text-render' && e.kind === 'rebuild'
+				)
+		);
+
+		const snap = await editor.page.evaluate(
+			() => (window as any).__test.trace.snapshot() as { site: string; kind: string }[]
+		);
+		expect(snap.some((e) => e.site === 'text-render' && e.kind === 'rebuild')).toBe(true);
+		// Plain keystrokes are not IME composition.
+		expect(snap.some((e) => e.site === 'composition')).toBe(false);
+	});
+
+	test('serializeDiagnostics excludes the document by default, includes it only on opt-in', async () => {
+		// A distinctive token that can only reach the report via the Source section —
+		// the trace/ops/selection sections carry offsets and counts, never raw text.
+		await editor.loadContent('PRIVATEZZ token in the document body\n');
+
+		const byDefault = await editor.page.evaluate(() =>
+			(window as any).__test.serializeDiagnostics()
+		);
+		// The privacy pin lives at the door's `?? false` default, not the builder.
+		expect(byDefault).toContain('## Selection');
+		expect(byDefault).not.toContain('PRIVATEZZ');
+
+		const optedIn = await editor.page.evaluate(() =>
+			(window as any).__test.serializeDiagnostics({ includeSource: true })
+		);
+		expect(optedIn).toContain('## Source');
+		expect(optedIn).toContain('PRIVATEZZ');
 	});
 
 	test('hotkey with focus in the editor toggles panel without inserting a character', async () => {

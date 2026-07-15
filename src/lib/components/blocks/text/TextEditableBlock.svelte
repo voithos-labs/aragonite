@@ -87,6 +87,10 @@
 		markKeystrokeStart,
 		markKeystrokeSettle
 	} from '../../../perf/instruments';
+	import {
+		tracePendingCursorSet,
+		tracePendingCursorConsume
+	} from '../../../debug/interaction-trace';
 
 	let {
 		node,
@@ -152,6 +156,14 @@
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
 
+	// One funnel for every pending-cursor write, tagged with its source so the
+	// interaction trace names which gesture set the restore. The consume half lives
+	// in the render effect (applied vs skipped-on-focus-loss).
+	function setPendingCursorOffset(offset: number | null, source: string): void {
+		tracePendingCursorSet(source, offset);
+		pendingCursorOffset = offset;
+	}
+
 	const ambientLength = $derived(ambientPrefixText.length);
 
 	const cursor = createAmbientCursorIO({
@@ -184,9 +196,7 @@
 		setPreEditOffset: (offset) => {
 			preEditOffset = offset;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -240,9 +250,7 @@
 		pasteCoordinator,
 		getDoc,
 		widgetSelection,
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
 		get linkRef() {
 			return linkRef;
 		}
@@ -269,9 +277,7 @@
 		setSnapTarget: (offset) => {
 			lastSnapTargetOffset = offset;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'widget'),
 		readRawText: () => readRawText(),
 		setRevealing: (value) => {
 			revealing = value;
@@ -292,9 +298,7 @@
 		getEl: () => el ?? null,
 		getRawSelection: () => cursor.getRawSelection(),
 		blockEdit,
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		}
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'island')
 	});
 
 	const textRender = createTextRender({
@@ -369,7 +373,7 @@
 			case 'block.hardBreak': {
 				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset);
-				pendingCursorOffset = caretOffset;
+				setPendingCursorOffset(caretOffset, 'hard-break');
 				return true;
 			}
 			case 'block.insertTab': {
@@ -378,7 +382,7 @@
 				// A literal tab, because the browser default moves focus out of the editor.
 				const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset);
-				pendingCursorOffset = caretOffset;
+				setPendingCursorOffset(caretOffset, 'insert-tab');
 				return true;
 			}
 			case 'block.mergePrev':
@@ -403,7 +407,7 @@
 				const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
 				const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
-				pendingCursorOffset = caretOffset;
+				setPendingCursorOffset(caretOffset, 'heading-cycle');
 				return true;
 			}
 			case 'block.moveUp':
@@ -450,7 +454,9 @@
 			// (revealed source persisted as focus leaves) also sets a pending offset;
 			// without this guard the restore would yank the global selection back into
 			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
-			if (document.activeElement === el) cursor.setRaw(asRawOffset(pendingCursorOffset));
+			const applied = document.activeElement === el;
+			if (applied) cursor.setRaw(asRawOffset(pendingCursorOffset));
+			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
 		markKeystrokeSettle();
@@ -589,7 +595,7 @@
 					const display = getDisplayText();
 					const newDisplay = display.slice(0, range.start) + display.slice(range.end);
 					blockEdit.updateBlockContent(index, newDisplay + '\n', range.start, range.start);
-					pendingCursorOffset = range.start;
+					setPendingCursorOffset(range.start, 'ambient-delete');
 				}
 				return;
 			}

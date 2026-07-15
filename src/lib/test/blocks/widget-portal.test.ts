@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createWidgetPool, type WidgetPoolAdapter } from '$lib/components/blocks/widget-portal';
 import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
+import {
+	enableInteractionTrace,
+	disableInteractionTrace,
+	resetInteractionTrace,
+	interactionTraceSnapshot
+} from '$lib/debug/interaction-trace';
 
 // The pool churn-proofs component widgets under the editor's rebuild-everything-
 // per-keystroke render: a rebuild pass re-acquires by `${kind} ${source}` key,
@@ -206,5 +212,46 @@ describe('createWidgetPool — create failure', () => {
 		pool.beginPass();
 		expect(pool.acquire(KIND, at(0, 5), '$x$')).toBeNull();
 		pool.sweep();
+	});
+});
+
+describe('createWidgetPool — interaction-trace pass record', () => {
+	afterEach(() => {
+		disableInteractionTrace();
+		resetInteractionTrace();
+	});
+
+	it('records one pass entry per sweep carrying adopt/build/destroy counts', () => {
+		const { adapter } = fakeAdapter();
+		const pool = createWidgetPool(adapter);
+		resetInteractionTrace();
+		enableInteractionTrace();
+
+		// Pass 1: two fresh builds, nothing adopted or destroyed.
+		pool.beginPass();
+		pool.acquire(KIND, at(0, 5), '$a$');
+		pool.acquire(KIND, at(6, 11), '$b$');
+		pool.sweep();
+
+		// Pass 2: adopt $a$, let $b$ fall out (destroyed).
+		pool.beginPass();
+		pool.acquire(KIND, at(0, 5), '$a$');
+		pool.sweep();
+
+		const passes = interactionTraceSnapshot().filter((e) => e.site === 'widget-pool');
+		expect(passes.map((e) => e.detail)).toEqual([
+			{ adopt: 0, build: 2, destroyed: 0 },
+			{ adopt: 1, build: 0, destroyed: 1 }
+		]);
+	});
+
+	it('records nothing while the trace is disabled', () => {
+		const { adapter } = fakeAdapter();
+		const pool = createWidgetPool(adapter);
+		resetInteractionTrace();
+		pool.beginPass();
+		pool.acquire(KIND, at(0, 5), '$a$');
+		pool.sweep();
+		expect(interactionTraceSnapshot()).toHaveLength(0);
 	});
 });

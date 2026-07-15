@@ -73,6 +73,7 @@ import { handleSharedKeydown } from '../../selection/shared-keydown';
 import { createEditableSurface } from './editable-surface';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { createSourceReveal } from '../../cursor/reveal-source';
+import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
@@ -290,7 +291,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		getAmbientLength: () => 0,
 		isRevealed,
-		showSource: () => deps.setRevealed?.(true),
+		// The one point block source is shown — the kernel calls it only when not
+		// already revealed, so it fires once per open.
+		showSource: () => {
+			traceRevealOpen('leaf');
+			deps.setRevealed?.(true);
+		},
 		showRendered: () => deps.setRevealed?.(false)
 	});
 
@@ -308,6 +314,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// A cross-block selection sweeping through keeps the source revealed so its
 		// rects measure real text; it folds when the selection clears.
 		if (selection.isCrossBlock) return;
+		// Only wired to onFocusOut — the block leaf folds on blur, never Escape-cancel.
+		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();
 		deps.setRevealed!(false); // reactive re-render of the edited source
 		if (edited === sourceText()) return; // pure view toggle, nothing for the CST
