@@ -23,6 +23,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
@@ -40,8 +41,12 @@ export type NodeParent = { children: CstNode[] };
 
 // ── Path resolution ──
 
-export function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
-	let cur: CstNode | Document = doc;
+// Overloaded rather than view-only so a mutable document yields mutable nodes:
+// a walk cannot introduce sharing, so the input's writability is the output's.
+export function nodeAt(doc: Document, path: number[]): CstNode | Document | null;
+export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentView | null;
+export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentView | null {
+	let cur: NodeView | DocumentView = doc;
 	for (const idx of path) {
 		if (!cur.children || idx >= cur.children.length) return null;
 		cur = cur.children[idx];
@@ -49,12 +54,22 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 	return cur;
 }
 
+/** `nodeAt` pre-narrowed through `isBlockNode`: null when the path resolves to the document root or nothing. */
+export function blockNodeAt(doc: Document, path: number[]): CstNode | null;
+export function blockNodeAt(doc: DocumentView, path: number[]): NodeView | null;
+export function blockNodeAt(doc: DocumentView, path: number[]): NodeView | null {
+	const node = nodeAt(doc, path);
+	return node !== null && isBlockNode(node) ? node : null;
+}
+
 /**
  * Narrow a `nodeAt` result to `CstNode`. Structural, not kind-based: a plugin
  * may mint `'document'` as a block kind, so `kind` no longer discriminates
  * `CstNode` from `Document` — only `Document` lacks `raw`.
  */
-export function isBlockNode(node: CstNode | Document): node is CstNode {
+export function isBlockNode(node: CstNode | Document): node is CstNode;
+export function isBlockNode(node: NodeView | DocumentView): node is NodeView;
+export function isBlockNode(node: NodeView | DocumentView): boolean {
 	return 'raw' in node;
 }
 
@@ -287,7 +302,7 @@ export function updateNodeContent(
  * clamps to the last block's end.
  */
 export function focusTargetInReplacement(
-	nodes: CstNode[],
+	nodes: readonly NodeView[],
 	offset: number
 ): { index: number; offset: number } {
 	let pos = 0;

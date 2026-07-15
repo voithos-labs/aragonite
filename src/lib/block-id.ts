@@ -1,14 +1,16 @@
-import type { CstNode } from './core/nodes';
+import type { NodeView } from './core/node-views';
 
 export function generateBlockId(): string {
 	return crypto.randomUUID();
 }
 
-export function assignIds(children: CstNode[]): string[] {
+// View-typed: one id per slot, content never read — and `childIds` is the
+// bytes-view carve-out, legal to write even on a snapshot-shared node.
+export function assignIds(children: readonly NodeView[]): string[] {
 	return children.map(() => generateBlockId());
 }
 
-export function freshChildIds(children: CstNode[]): string[] {
+export function freshChildIds(children: readonly NodeView[]): string[] {
 	return assignIds(children);
 }
 
@@ -17,7 +19,7 @@ export function freshChildIds(children: CstNode[]): string[] {
  * is spliced into the live tree: a reused container component reads `childIds` in
  * its keyed-each synchronously, so a missing array surfaces as `undefined` keys.
  */
-export function assignChildIdsDeep(node: CstNode): void {
+export function assignChildIdsDeep(node: NodeView): void {
 	if (node.children && node.children.length > 0 && !node.childIds) {
 		node.childIds = assignIds(node.children);
 	}

@@ -184,7 +184,7 @@ To add a widget kind, register it in the inline-widget registry so recognition i
 
 ## 7. CST mutability and reactive state
 
-The CST is mutable plain objects — no class hierarchy, no `readonly` fields, no immutable→mutable conversion step. The parser produces mutable nodes; the editor mutates them in place; `serialize()` reads `raw` only, and is structurally typed, so it works on any object of the right shape.
+The CST is mutable plain objects — no class hierarchy. The parser produces mutable nodes; the editor mutates them in place; `serialize()` reads `raw` only, and is structurally typed over readonly fields, so it works on any object of the right shape — including the bytes-readonly node views (`core/node-views.ts`) that readers outside the mutation layers hold, whose only sanctioned view→mutable doors are the unshare/clone seam and the commit ceremony's owned scope views.
 
 - `parse(source)` yields a mutable `Document`. The editor works with those nodes directly — no wrapping, no cloning on load.
 - Re-parse runs `parse()` on the block's `raw` and transfers the result into the existing tree — in place when the text stays one block, splicing when it becomes several.

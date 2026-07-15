@@ -4,9 +4,11 @@
  */
 
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
+import { cloneMetadata } from '../clone';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
 import { freshChildIds } from '../../block-id';
@@ -20,7 +22,7 @@ import { freshChildIds } from '../../block-id';
  * the caller needs to preserve originals.
  */
 export function assembleListHalf(
-	template: CstNode,
+	template: NodeView,
 	items: CstNode[],
 	startNumber: number
 ): CstNode {
@@ -28,7 +30,7 @@ export function assembleListHalf(
 		kind: 'list',
 		leadingTrivia: '',
 		raw: '',
-		metadata: template.metadata ? { ...template.metadata } : { ordered: false },
+		metadata: template.metadata ? cloneMetadata(template.metadata) : { ordered: false },
 		children: items,
 		childIds: freshChildIds(items),
 		innerPrefix: template.innerPrefix ?? '',
@@ -56,12 +58,12 @@ export function assembleListHalf(
  * provided children. `children` are placed verbatim — clone before passing
  * if they are still referenced from the source tree.
  */
-export function buildListItemWithContent(template: CstNode, children: CstNode[]): CstNode {
+export function buildListItemWithContent(template: NodeView, children: CstNode[]): CstNode {
 	const item: CstNode = {
 		kind: 'listItem',
 		leadingTrivia: '',
 		raw: '',
-		metadata: template.metadata ? { ...template.metadata } : { marker: '- ' },
+		metadata: template.metadata ? cloneMetadata(template.metadata) : { marker: '- ' },
 		innerPrefix: template.innerPrefix ?? '',
 		children,
 		childIds: freshChildIds(children),
@@ -115,7 +117,7 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 // ── Marker helpers ───────────────────────────────────────────────────────────
 
 /** Read an item's marker as an integer base, defaulting to 1 for non-numeric markers. */
-export function orderedBaseOf(item: CstNode | undefined): number {
+export function orderedBaseOf(item: NodeView | undefined): number {
 	if (!item) return 1;
 	const marker = metadataOf(item, 'listItem')?.marker ?? '';
 	const n = parseInt(marker, 10);
@@ -126,7 +128,7 @@ export function orderedBaseOf(item: CstNode | undefined): number {
  * Read the punctuation suffix (`. ` or `) `) from a list's first item.
  * Defaults to `. ` when the list is empty or the first item lacks a marker.
  */
-export function readOrderedSuffix(list: CstNode): string {
+export function readOrderedSuffix(list: NodeView): string {
 	const first = list.children?.[0];
 	if (!first) return '. ';
 	const marker = metadataOf(first, 'listItem')?.marker ?? '1. ';

@@ -3,8 +3,10 @@
  */
 
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
+import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
@@ -30,7 +32,7 @@ import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
  * prefixes) is preserved.
  */
 export function collectCrossBlockText(
-	doc: Document,
+	doc: DocumentView,
 	anchor: SelectionPoint,
 	focus: SelectionPoint
 ): string {
@@ -50,8 +52,8 @@ export function collectCrossBlockText(
 		return emitTablePortion(startNode, start.offset, end.offset);
 	}
 
-	const startRaw = 'raw' in startNode ? (startNode as CstNode).raw : '';
-	const endRaw = 'raw' in endNode ? (endNode as CstNode).raw : '';
+	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
+	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
 	let effectiveStartPath = start.path;
 	let startTail: string;
@@ -120,9 +122,8 @@ export function collectCrossBlockText(
 		if (collectedContainers.some((cp) => isStrictAncestorOf(cp, path))) continue;
 
 		const node = nodeAt(doc, path);
-		if (!node || !('raw' in node)) continue;
-		const lead = 'leadingTrivia' in node ? (node as CstNode).leadingTrivia : '';
-		middle += lead + (node as CstNode).raw;
+		if (!node || !isBlockNode(node)) continue;
+		middle += node.leadingTrivia + node.raw;
 
 		if (node.children && node.children.length > 0) {
 			collectedContainers.push(path);
@@ -133,8 +134,8 @@ export function collectCrossBlockText(
 	let endLead = '';
 	if (!pathsEqual(effectiveStartPath, effectiveEndPath)) {
 		const endNode = nodeAt(doc, effectiveEndPath);
-		if (endNode && 'leadingTrivia' in endNode) {
-			endLead = (endNode as CstNode).leadingTrivia;
+		if (endNode && isBlockNode(endNode)) {
+			endLead = endNode.leadingTrivia;
 		}
 	}
 
@@ -149,7 +150,7 @@ export function collectCrossBlockText(
  * row-rectangular by GFM constraint; emit `[startRow..endRow] × all columns`.
  */
 function emitTablePortion(
-	table: CstNode,
+	table: NodeView,
 	startCellIdx: number,
 	endCellIdxExclusive: number
 ): string {
@@ -175,19 +176,19 @@ function emitTablePortion(
  * single multi-line block.
  */
 function startPartialWithContainerMarker(
-	doc: Document,
+	doc: DocumentView,
 	start: SelectionPoint,
 	startRaw: string
 ): string | null {
 	const parentPath = start.path.slice(0, -1);
 	const parent = nodeAt(doc, parentPath);
-	if (!parent || !('children' in parent) || !parent.children) return null;
+	if (!parent || !isBlockNode(parent) || !parent.children) return null;
 	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
 
 	if (parent.children.length !== 1) return null;
 	if (start.path[start.path.length - 1] !== 0) return null;
 
-	const parentRaw = (parent as CstNode).raw;
+	const parentRaw = parent.raw;
 	if (!parentRaw.endsWith(startRaw)) return null;
 
 	const prefix = parentRaw.slice(0, parentRaw.length - startRaw.length);
@@ -201,13 +202,13 @@ function startPartialWithContainerMarker(
  * container isn't eligible; callers fall back to the plain leaf slice.
  */
 function endPartialWithContainerMarker(
-	doc: Document,
+	doc: DocumentView,
 	end: SelectionPoint,
 	endRaw: string
 ): string | null {
 	const parentPath = end.path.slice(0, -1);
 	const parent = nodeAt(doc, parentPath);
-	if (!parent || !('children' in parent) || !parent.children) return null;
+	if (!parent || !isBlockNode(parent) || !parent.children) return null;
 	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
 
 	// Prefix recovery requires the leaf be the sole child — otherwise earlier
@@ -215,7 +216,7 @@ function endPartialWithContainerMarker(
 	if (parent.children.length !== 1) return null;
 	if (end.path[end.path.length - 1] !== 0) return null;
 
-	const parentRaw = (parent as CstNode).raw;
+	const parentRaw = parent.raw;
 	if (!parentRaw.endsWith(endRaw)) return null;
 
 	const prefix = parentRaw.slice(0, parentRaw.length - endRaw.length);
@@ -241,7 +242,7 @@ function endPartialWithContainerMarker(
  * through the clipboard path into the document.
  */
 function endChromeContainerBytes(
-	doc: Document,
+	doc: DocumentView,
 	end: SelectionPoint,
 	endRaw: string,
 	endOffset: number
@@ -257,7 +258,7 @@ function endChromeContainerBytes(
 		kind: parent.kind,
 		leadingTrivia: '',
 		raw: '',
-		metadata: parent.metadata ? { ...parent.metadata } : parent.metadata,
+		metadata: parent.metadata ? cloneMetadata(parent.metadata) : undefined,
 		innerPrefix: '',
 		innerSuffix: '',
 		children: [
@@ -278,7 +279,7 @@ function endChromeContainerBytes(
  * is safe only while each child is the first; end-side, only while last.
  */
 function promoteToContainer(
-	doc: Document,
+	doc: DocumentView,
 	leafPath: number[],
 	otherPath: number[],
 	side: 'start' | 'end'
@@ -302,6 +303,6 @@ function promoteToContainer(
 
 	if (!bestPath || bestPath.length <= lcaDepth) return null;
 	const node = nodeAt(doc, bestPath);
-	if (!node || !('raw' in node)) return null;
-	return { path: bestPath, raw: (node as CstNode).raw };
+	if (!node || !isBlockNode(node)) return null;
+	return { path: bestPath, raw: node.raw };
 }

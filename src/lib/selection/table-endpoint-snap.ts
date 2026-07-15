@@ -21,7 +21,7 @@
  * rectangular sub-cell selection inside one table is intentionally preserved.
  */
 
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint } from './primitives';
@@ -39,7 +39,7 @@ import { comparePaths } from './path-math';
  * entry paths need not call it themselves.
  */
 export function normalizeTableEndpoint(
-	doc: Document,
+	doc: DocumentView,
 	path: number[],
 	offset: number
 ): SelectionPoint {
@@ -65,7 +65,7 @@ export function normalizeTableEndpoint(
  * reach the off-window cell. Null for non-cell-coordinate points (the path is
  * already the leaf).
  */
-export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): number[] | null {
+export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	if (!point.cellCoordinate) return null;
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
@@ -75,7 +75,7 @@ export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): numb
 }
 
 export function snapCrossBlockTableEndpoints(
-	doc: Document,
+	doc: DocumentView,
 	start: SelectionPoint,
 	end: SelectionPoint
 ): { start: SelectionPoint; end: SelectionPoint } {
@@ -86,7 +86,11 @@ export function snapCrossBlockTableEndpoints(
 	};
 }
 
-function snapEndpoint(doc: Document, point: SelectionPoint, side: 'start' | 'end'): SelectionPoint {
+function snapEndpoint(
+	doc: DocumentView,
+	point: SelectionPoint,
+	side: 'start' | 'end'
+): SelectionPoint {
 	if (!point.cellCoordinate) return point;
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return point;

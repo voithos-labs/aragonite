@@ -13,7 +13,7 @@
 
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
-import { nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { rebuildListRaw, rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { expectStateForNode } from '../reactivity/state-registry';
@@ -46,7 +46,8 @@ export function createReorderAction(
 			return;
 		}
 
-		const parent = nodeAt(deps.doc, unit.parentPath) as CstNode;
+		const parent = blockNodeAt(deps.doc, unit.parentPath);
+		if (!parent) return;
 		const state = expectStateForNode(parent);
 		await controller.commitContainerStructural({
 			containerNode: parent,

@@ -6,7 +6,7 @@
 		FocusActions
 	} from '../../../action-contracts';
 	import type { BlockComponent } from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -41,7 +41,7 @@
 		onOpenRowMenu,
 		onRowGripPointerDown
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		id: string;
 		rowIdx: number;

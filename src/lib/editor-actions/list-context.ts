@@ -8,6 +8,7 @@
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
 import { FOCUS_LAST_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import {
@@ -34,7 +35,7 @@ import { expectStateForNode } from '../reactivity/state-registry';
 
 export interface ListContextDeps {
 	get index(): number;
-	get node(): CstNode;
+	get node(): NodeView;
 	get path(): number[];
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
@@ -248,7 +249,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 		async promoteNestedItem(
 			parentItemIdx: number,
-			nestedListNode: CstNode,
+			nestedListNode: NodeView,
 			nestedItemIdx: number
 		): Promise<void> {
 			const node = deps.node;

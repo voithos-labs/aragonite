@@ -3,6 +3,7 @@
  */
 
 import type { CstNode, InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import { displayLength } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import type { LinkReferenceResolver } from './link-reference-resolver';
@@ -20,7 +21,7 @@ export interface ContentRange {
  * Content range within a prose block's raw. Defaults to the full display
  * range; block kinds with markers (e.g. headings) override via descriptor.
  */
-export function getContentRange(node: CstNode): ContentRange {
+export function getContentRange(node: NodeView): ContentRange {
 	const d = getBlockKindDescriptor(node.kind);
 	if (d.getContentRange) return d.getContentRange(node);
 	return { start: 0, end: displayLength(node.raw) };
@@ -36,7 +37,7 @@ export function isProseKind(kind: CstNode['kind']): boolean {
  * (inline-cache.ts) calls it on a miss.
  */
 export function computeInlineContent(
-	node: CstNode,
+	node: NodeView,
 	resolver?: LinkReferenceResolver
 ): InlineNode[] {
 	recordInlineCompute();

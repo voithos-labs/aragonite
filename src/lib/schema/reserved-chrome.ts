@@ -1,4 +1,5 @@
 import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 
 /**
@@ -14,7 +15,7 @@ export function reservedChromeKindOf(containerKind: AnyBlockKind): AnyBlockKind 
 }
 
 /** True when `childIndex` is the reserved chrome slot (index 0) of a chrome-declaring container. */
-export function isReservedChromeChild(container: CstNode, childIndex: number): boolean {
+export function isReservedChromeChild(container: NodeView, childIndex: number): boolean {
 	return childIndex === 0 && reservedChromeKindOf(container.kind) !== undefined;
 }
 
@@ -22,7 +23,7 @@ export function isReservedChromeChild(container: CstNode, childIndex: number): b
  * True only when the node's kind declares a `reservedChrome.isCollapsed` probe
  * and it reports this node collapsed. Kinds without a probe are never collapsed.
  */
-export function isCollapsedContainer(node: CstNode): boolean {
+export function isCollapsedContainer(node: NodeView): boolean {
 	const probe = tryGetBlockKindDescriptor(node.kind)?.reservedChrome?.isCollapsed;
 	return probe !== undefined && probe(node);
 }

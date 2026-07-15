@@ -5,7 +5,7 @@
 
 import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
-import { nodeAt } from '../../../tree-operations/node-ops';
+import { blockNodeAt } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
@@ -73,7 +73,7 @@ export const tableCellPasteSurface: PasteSurface = {
 async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput): Promise<void> {
 	const tablePath = input.targetPath.slice(0, -2);
 	const rowIdx = input.targetPath[input.targetPath.length - 2];
-	const table = nodeAt(input.doc, tablePath) as CstNode | null;
+	const table = blockNodeAt(input.doc, tablePath);
 	// Malformed path: swallow the paste.
 	if (!table || table.kind !== 'table') return;
 

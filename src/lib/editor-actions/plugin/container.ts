@@ -20,6 +20,7 @@ import type {
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import type { BlockComponent } from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import { displayLength } from '../../core/lines';
@@ -69,7 +70,7 @@ import {
  * not be the sole child).
  */
 export interface ContainerBlockDeps {
-	get node(): CstNode;
+	get node(): NodeView;
 	get index(): number;
 	get path(): number[];
 	getBoxEl(): HTMLElement | undefined;
@@ -114,7 +115,7 @@ export interface ContainerBlockDeps {
  * fixed point — it can no longer silently rewrite the public contract.
  */
 export interface ContainerBlockListProps {
-	children: CstNode[];
+	children: readonly NodeView[];
 	blockIds: string[];
 	setRef: (i: number, r: BlockComponent | undefined) => void;
 	getRef: (i: number) => BlockComponent | undefined;
@@ -177,7 +178,7 @@ export interface ContainerBlock {
  */
 export function composeCollapseProbe(
 	explicit: (() => boolean) | undefined,
-	getNode: () => CstNode
+	getNode: () => NodeView
 ): () => boolean {
 	if (!explicit) return () => isCollapsedContainer(getNode());
 	return () => {

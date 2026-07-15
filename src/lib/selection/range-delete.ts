@@ -12,10 +12,11 @@ import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
+	ensureUnsharedNode,
 	ensureUnsharedPath,
 	rebuildUnsharedAncestry,
 	rebuildUnsharedChain
@@ -58,13 +59,13 @@ export function rangeDelete(
 	end: SelectionPoint,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startBlock = nodeAt(doc, start.path);
-	const endBlock = nodeAt(doc, end.path);
+	const startBlock = blockNodeAt(doc, start.path);
+	const endBlock = blockNodeAt(doc, end.path);
 	if (!startBlock || !endBlock) {
-		throw new Error('rangeDelete: start or end path does not resolve to a node');
+		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
-	if (involvesTable(startBlock as CstNode, endBlock as CstNode)) {
+	if (involvesTable(startBlock, endBlock)) {
 		return tableAwareRangeDelete(doc, start, end, sharing);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
@@ -72,8 +73,8 @@ export function rangeDelete(
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-	const startRaw = (startBlock as CstNode).raw;
-	const endRaw = (endBlock as CstNode).raw;
+	const startRaw = startBlock.raw;
+	const endRaw = endBlock.raw;
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 	const mergedRaw = startRaw.slice(0, startOffset) + endRaw.slice(endOffset);
@@ -81,7 +82,9 @@ export function rangeDelete(
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
 		const chain = ensureUnsharedPath(doc, start.path, sharing);
-		const owned = chain[chain.length - 1] ?? (startBlock as CstNode);
+		// start.path resolved above, so the chain reaches the leaf; the fallback
+		// still routes through the unshare seam, never a raw capture.
+		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		owned.raw = mergedRaw;
 		rebuildUnsharedChain(chain, sharing);
 		return {

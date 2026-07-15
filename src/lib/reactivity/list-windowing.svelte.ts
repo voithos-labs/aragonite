@@ -13,10 +13,11 @@ import { createBlockWindow, type BlockWindow, type WindowResult } from './block-
 import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 
 export interface ListWindowingDeps {
 	oracle: HeightOracle;
-	getChildren: () => CstNode[];
+	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
 	/** This scope's own list element — its top within the scroll content maps root scrollTop to local. */
 	getListEl: () => HTMLElement | null;

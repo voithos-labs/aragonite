@@ -21,7 +21,6 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { BlockComponent, StickyColumnDirection } from '../../block-component';
-import type { CstNode } from '../../core/nodes';
 import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';

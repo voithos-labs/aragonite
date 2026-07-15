@@ -16,7 +16,7 @@ import { applyCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathsEqual } from '../path-math';
 import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
@@ -142,7 +142,7 @@ async function replaceTableWithPaste(
 	if (parsed.children.length === 0) return;
 	const blocks = materializeBlankLines(parsed.children);
 
-	const tableNode = nodeAt(doc, tablePath) as CstNode | null;
+	const tableNode = blockNodeAt(doc, tablePath);
 	if (!tableNode) return;
 	const replacement = normalizeReplacementTrivia(tableNode, blocks);
 	for (const node of replacement) ensureEditableContainers(node);

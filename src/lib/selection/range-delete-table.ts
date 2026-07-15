@@ -20,8 +20,9 @@ import {
 	pathHasPrefix,
 	pathsEqual
 } from './path-math';
-import { nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
 import {
+	ensureUnsharedNode,
 	ensureUnsharedPath,
 	ensureUnsharedSubtree,
 	rebuildOwnedContainer,
@@ -95,10 +96,10 @@ export function tableAwareRangeDelete(
 	// Own both endpoint spines (and table subtrees — cell raws, row splices,
 	// and header promotion all write at depth) before any capture or mutation.
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
-	const startBlock = startChain[startChain.length - 1] ?? (nodeAt(doc, start.path) as CstNode);
+	const startBlock = startChain[startChain.length - 1] ?? ownedEndpoint(doc, start.path, sharing);
 	const endBlock = sameBlock
 		? startBlock
-		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? (nodeAt(doc, end.path) as CstNode));
+		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? ownedEndpoint(doc, end.path, sharing));
 	if (startBlock.kind === 'table') ensureUnsharedSubtree(startBlock, sharing);
 	if (!sameBlock && endBlock.kind === 'table') ensureUnsharedSubtree(endBlock, sharing);
 
@@ -112,6 +113,17 @@ export function tableAwareRangeDelete(
 		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing);
 	}
 	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing);
+}
+
+/**
+ * Owned fallback for an endpoint whose unshare chain came back short — routes
+ * through the unshare seam, never a raw live-tree capture. The dispatcher
+ * resolved both endpoints, so a miss here is a genuine caller bug.
+ */
+function ownedEndpoint(doc: Document, path: number[], sharing: SharingState): CstNode {
+	const node = blockNodeAt(doc, path);
+	if (!node) throw new Error('rangeDelete(table): endpoint path does not resolve to a block node');
+	return ensureUnsharedNode(node, sharing);
 }
 
 // ── Same-block: whole-table or partial-table intra-table ───────────────────
@@ -389,7 +401,7 @@ function deleteFromTableIntoProse(
 		// Re-read through the tree (design rule 5): the raw replacement node is
 		// proxy-wrapped by the live $state doc, so the identity search below
 		// would miss the stored copy.
-		tailNode = nodeAt(doc, end.path) as CstNode;
+		tailNode = blockNodeAt(doc, end.path);
 	}
 	clearChrome(plan);
 	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);

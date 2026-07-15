@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
-	import type { CstNode } from '../core/nodes';
+	import type { NodeView } from '../core/node-views';
 	import type { BlockDecoration } from '../decorations/types';
 	import { mountDecorationWidget } from '../decorations/widget-dom';
 	import type { EditorEvents } from '../editor-events';
@@ -35,7 +35,7 @@
 		getRef,
 		reorderable = false
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		id: string;
 		parentPath?: number[];

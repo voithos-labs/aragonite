@@ -12,7 +12,7 @@
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import { emitCommandError, type EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -92,7 +92,7 @@
 		setRef,
 		getRef
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
 		rowIdx: number;

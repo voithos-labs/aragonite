@@ -1,4 +1,5 @@
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
@@ -272,7 +273,7 @@ export function checkReservedChromeSlot(node: CstNode): InvariantViolation | nul
  * of primitives; a nested object or array-of-objects would be shared by
  * reference with the snapshot and corrupt undo.
  */
-export function checkCloneSafeMetadata(node: CstNode): InvariantViolation | null {
+export function checkCloneSafeMetadata(node: NodeView): InvariantViolation | null {
 	if (!node.metadata) return null;
 
 	for (const [field, value] of Object.entries(node.metadata)) {

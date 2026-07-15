@@ -127,10 +127,10 @@ async function runCrossBlockDelete(
 
 	if (options?.tableCoverageDelete && isPureTopLevel && samePath) {
 		const block = nodeAt(doc, start.path);
-		if (block && (block as CstNode).kind === 'table') {
+		if (block && isBlockNode(block) && block.kind === 'table') {
 			const handled = await maybeCommitTableCoverageDelete(
 				ctx,
-				block as CstNode,
+				block,
 				start,
 				end,
 				options,
@@ -195,7 +195,13 @@ async function commitPureTopLevelDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (topLevelChildren) => {
-			const proxyDoc = { children: topLevelChildren } as Document;
+			// Honest literal: rangeDelete only walks children; prefix/suffix are inert here.
+			const proxyDoc: Document = {
+				kind: 'document',
+				prefix: '',
+				children: topLevelChildren,
+				suffix: ''
+			};
 			const beforeLen = topLevelChildren.length;
 			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing);
 			collapsedCaret = result.collapsedCaret;

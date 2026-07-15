@@ -4,7 +4,7 @@
  * predicates live in `./path-math`.
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { comparePaths, isPathBetween } from './path-math';
 import {
 	asCellIndex,
@@ -100,12 +100,12 @@ export function normalize(selection: EditorSelection): {
  * Every block path strictly between `start` and `end` in document order
  * (exclusive of both endpoints). Walks every nesting level.
  */
-export function walkBetween(doc: Document, start: number[], end: number[]): number[][] {
+export function walkBetween(doc: DocumentView, start: number[], end: number[]): number[][] {
 	if (comparePaths(start, end) >= 0) return [];
 
 	const result: number[][] = [];
 
-	function visit(node: CstNode | Document, path: number[]): void {
+	function visit(node: NodeView | DocumentView, path: number[]): void {
 		if (isPathBetween(path, start, end)) {
 			result.push([...path]);
 		}

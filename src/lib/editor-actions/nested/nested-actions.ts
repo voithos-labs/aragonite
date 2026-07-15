@@ -14,6 +14,7 @@ import type {
 	ListContext
 } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../invariants/assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
@@ -30,7 +31,7 @@ export interface NestedActionsBundle {
 
 export interface NestedActionsDeps {
 	index: number;
-	node: CstNode;
+	node: NodeView;
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;

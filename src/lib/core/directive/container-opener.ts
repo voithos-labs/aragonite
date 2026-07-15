@@ -13,7 +13,7 @@ import { declaredPluginKind } from '../../schema/plugin-kind';
 import { setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parse } from '../parser';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
-import { resolveDirective, type ParsedDirective } from './registry';
+import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
 
 export function registerDirectiveOpeners(): void {
@@ -36,7 +36,8 @@ export function registerDirectiveOpeners(): void {
 
 			if (fence.tier === 'leaf') {
 				const def = resolveDirective('leaf', fence.name);
-				if (def?.fromDirective) {
+				const factory = resolveBlockDirectiveFactory('leaf', fence.name);
+				if (factory) {
 					const parsed: ParsedDirective = {
 						fence,
 						body: undefined,
@@ -46,7 +47,7 @@ export function registerDirectiveOpeners(): void {
 						closerNewline: false,
 						lineEnding
 					};
-					return { node: def.fromDirective(parsed) as CstNode, nextIndex: ctx.index + 1 };
+					return { node: factory(parsed), nextIndex: ctx.index + 1 };
 				}
 				// A leaf re-derives its content range from `node.raw`, so a generic leaf
 				// needs no metadata; a kind-only registration just restamps the kind.
@@ -84,8 +85,8 @@ export function registerDirectiveOpeners(): void {
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
 
-			const def = resolveDirective('container', fence.name);
-			if (def?.fromDirective) {
+			const factory = resolveBlockDirectiveFactory('container', fence.name);
+			if (factory) {
 				const parsed: ParsedDirective = {
 					fence,
 					body,
@@ -95,7 +96,7 @@ export function registerDirectiveOpeners(): void {
 					closerNewline,
 					lineEnding
 				};
-				return { node: def.fromDirective(parsed) as CstNode, nextIndex: closerIdx + 1 };
+				return { node: factory(parsed), nextIndex: closerIdx + 1 };
 			}
 
 			const node: CstNode = {

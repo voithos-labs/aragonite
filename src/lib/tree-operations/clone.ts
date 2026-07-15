@@ -1,10 +1,12 @@
 import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 
 // ── Document ────────────────────────────────────────────────────────────────
 
-export function cloneDocument(doc: Document): Document {
+// A deep clone of a view is a fully owned mutable tree — the clone door (core/node-views.ts).
+export function cloneDocument(doc: DocumentView): Document {
 	return {
 		kind: 'document',
 		prefix: doc.prefix,
@@ -15,7 +17,7 @@ export function cloneDocument(doc: Document): Document {
 
 // ── Node ────────────────────────────────────────────────────────────────────
 
-export function cloneNode(node: CstNode): CstNode {
+export function cloneNode(node: NodeView): CstNode {
 	const cloned: CstNode = {
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
@@ -42,7 +44,7 @@ export function cloneNode(node: CstNode): CstNode {
 // the snapshot. Metadata is one level deep across all kinds today: primitives,
 // strings, and at most one array (TableMetadata.alignments).
 export function cloneMetadata(
-	meta: NonNullable<CstNode['metadata']>
+	meta: NonNullable<NodeView['metadata']>
 ): NonNullable<CstNode['metadata']> {
 	const out: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(meta)) {

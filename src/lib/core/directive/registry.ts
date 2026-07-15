@@ -67,6 +67,19 @@ export function resolveDirective(
 	return definitions.get(keyOf(tier, name));
 }
 
+/**
+ * Block-tier factory, pre-narrowed: a 'leaf'/'container' factory constructs a
+ * block node by the registration contract above, so the union narrowing lives
+ * here at the registry choke point instead of a cast per opener call site.
+ */
+export function resolveBlockDirectiveFactory(
+	tier: 'leaf' | 'container',
+	name: string
+): ((parsed: ParsedDirective) => CstNode) | undefined {
+	const factory = definitions.get(keyOf(tier, name))?.fromDirective;
+	return factory as ((parsed: ParsedDirective) => CstNode) | undefined;
+}
+
 export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolean {
 	return definitions.has(keyOf(tier, name));
 }

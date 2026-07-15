@@ -5,7 +5,7 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
 import { CURSOR_END } from '../block-component';
@@ -274,7 +274,8 @@ function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
 function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
-		const node = nodeAt(doc, cur);
+		// Annotated: overload resolution + the `cur` reassignment below otherwise cycle inference.
+		const node: CstNode | Document | null = nodeAt(doc, cur);
 		if (!node) return null;
 		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
 		cur = [...cur, node.children.length - 1];

@@ -12,6 +12,7 @@
 
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { BlockComponent } from '../block-component';
@@ -47,7 +48,8 @@ export interface ScopeCommitArgs {
 }
 
 export interface CommitScope {
-	children(): CstNode[];
+	/** Read accessor — mutation happens through the commit's owned view, never this. */
+	children(): readonly NodeView[];
 	refAt(i: number): BlockComponent | undefined;
 	/** Empty replaceBlock emits `delete` (container) vs `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;

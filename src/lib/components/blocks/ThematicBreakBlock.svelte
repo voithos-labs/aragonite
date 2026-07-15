@@ -2,7 +2,7 @@
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
-	import type { CstNode } from '../../core/nodes';
+	import type { NodeView } from '../../core/node-views';
 	import { emitCommandError, type EditorEvents } from '../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -26,7 +26,7 @@
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
 	import { displayLength } from '../../core/lines';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);

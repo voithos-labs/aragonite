@@ -13,8 +13,15 @@
  *
  * Callers live in editor-actions/ and selection/ — the layers that know paths;
  * tree-operations stays path-free internally.
+ *
+ * This seam is the ONE sanctioned view→mutable door (core/node-views.ts):
+ * inputs accept readonly views, returns are owned mutable nodes — the runtime
+ * unshare is precisely what makes the byte write legal. The casts below are
+ * that door; nowhere outside this seam and the commit ceremony may strip a
+ * view back to `CstNode`.
  */
 import type { CstNode } from '../core/nodes';
+import type { NodeParentView, NodeView } from '../core/node-views';
 import type { SharingState } from './sharing';
 import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
@@ -23,9 +30,11 @@ import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
 
-function copyNode(node: CstNode, sharing: SharingState): CstNode {
-	const copy: CstNode = { ...node };
-	if (node.children) copy.children = [...node.children];
+function copyNode(node: NodeView, sharing: SharingState): CstNode {
+	// The door: the copy is freshly owned; its children still alias shared
+	// subtrees, which the shallow-unshare contract already states.
+	const copy = { ...node } as CstNode;
+	if (node.children) copy.children = [...node.children] as CstNode[];
 	if (node.childIds) copy.childIds = [...node.childIds];
 	if (node.metadata) {
 		assertInvariant('clone-safe-metadata', () => checkCloneSafeMetadata(node));
@@ -43,12 +52,14 @@ function copyNode(node: CstNode, sharing: SharingState): CstNode {
  * copy — either way the caller owns the array, so the splice is safe.
  */
 export function ensureUnsharedPath(
-	root: NodeParent,
+	root: NodeParentView,
 	path: number[],
 	sharing: SharingState
 ): CstNode[] {
 	const chain: CstNode[] = [];
-	let parentChildren = root.children;
+	// The door (file header): the root is the live document or a ceremony-owned
+	// array, so its children array is writable by contract.
+	let parentChildren = root.children as CstNode[];
 	for (const index of path) {
 		let node = parentChildren[index];
 		assertInvariant('unshare-path-in-range', () =>
@@ -85,10 +96,12 @@ export function ensureUnsharedChild(
 /**
  * Standalone copy for a node being MOVED out of a parent the snapshot keeps
  * (the caller attaches the returned copy; the original stays in the old
- * parent's shared children array untouched).
+ * parent's shared children array untouched). An unshared input passes through
+ * as-is — the door (file header): unshared means live-tree-owned, so the
+ * mutable return is what the runtime check just proved.
  */
-export function ensureUnsharedNode(node: CstNode, sharing: SharingState): CstNode {
-	return sharing.isShared(node) ? copyNode(node, sharing) : node;
+export function ensureUnsharedNode(node: NodeView, sharing: SharingState): CstNode {
+	return sharing.isShared(node) ? copyNode(node, sharing) : (node as CstNode);
 }
 
 /** Unshare every direct child of an owned parent (e.g. table rows before a whole-table rebuild). */

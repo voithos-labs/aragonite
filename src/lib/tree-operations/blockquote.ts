@@ -1,5 +1,6 @@
 import type { CstNode } from '../core/nodes';
-import { cloneNode } from './clone';
+import type { NodeView } from '../core/node-views';
+import { cloneMetadata, cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { freshChildIds } from '../block-id';
 
@@ -8,7 +9,7 @@ import { freshChildIds } from '../block-id';
  * Returns [liftedChild] or [liftedChild, remainingBlockquote]. Input is not
  * mutated; returned blocks are fresh clones.
  */
-export function unwrapFirstChildFromBlockquote(blockquote: CstNode): CstNode[] {
+export function unwrapFirstChildFromBlockquote(blockquote: NodeView): CstNode[] {
 	if (
 		blockquote.kind !== 'blockquote' ||
 		!blockquote.children ||
@@ -34,7 +35,7 @@ export function unwrapFirstChildFromBlockquote(blockquote: CstNode): CstNode[] {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: '',
-		metadata: blockquote.metadata ? { ...blockquote.metadata } : undefined,
+		metadata: blockquote.metadata ? cloneMetadata(blockquote.metadata) : undefined,
 		children: remainingChildren,
 		childIds: freshChildIds(remainingChildren),
 		innerPrefix: blockquote.innerPrefix ?? '',

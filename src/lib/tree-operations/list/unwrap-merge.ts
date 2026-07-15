@@ -6,6 +6,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import type { SharingState } from '../sharing';
 import { cloneNode } from '../clone';
@@ -24,7 +25,7 @@ import { pushChild } from '../children';
  * parent list (with matching-type sub-list items prepended and ordered
  * markers renumbered). Input is not mutated.
  */
-export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
+export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}

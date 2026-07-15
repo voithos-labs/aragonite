@@ -9,7 +9,7 @@
  */
 
 import type { AmbientPrefix } from '../../../block-component';
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { computeInlineContent, getContentRange, isProseKind } from '../../../core/inline';
@@ -30,7 +30,7 @@ import { createSvelteWidgetPool } from '../widget-portal';
 
 export interface TextRenderDeps {
 	get el(): HTMLElement | null;
-	get node(): CstNode;
+	get node(): NodeView;
 	get ambientPrefix(): AmbientPrefix;
 	get ambientPrefixText(): string;
 	getDisplayText: () => string;

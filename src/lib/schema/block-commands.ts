@@ -11,7 +11,8 @@
  * block-commands → command-id → commands` cycles); `commands.ts` supplies only the
  * global registry and the chord→binding resolvers this file reads.
  */
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import {
 	mintCommandId,
 	__resetMintedCommandIdsForTests,
@@ -31,7 +32,8 @@ import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { EditorContext } from './plugin-install';
 
 export interface BlockCommandContext {
-	node: CstNode;
+	/** Read context — a bytes-readonly view; metadata edits go through `updateMetadata`. */
+	node: NodeView;
 	arg: unknown;
 	updateMetadata(patch: Record<string, unknown>): void;
 	/**
