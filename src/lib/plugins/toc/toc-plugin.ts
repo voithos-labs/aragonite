@@ -49,7 +49,10 @@ export function registerTocBlock(): void {
 				mode: 'implemented',
 				via: 'measurePartialRects (raw offsets) while the source is revealed'
 			},
-			searchPaint: { mode: 'implemented', via: 'source raw scanned; matches painted as marks' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'source raw scanned and navigable; the rendered widget carries no measurable text node, so a match is counted but not painted (docs/issues.md, browser-sweep finding)'
+			},
 			reorder: {
 				mode: 'implemented',
 				via: 'whole-block drag reorder through the parent BlockList'

@@ -6,10 +6,15 @@ import { findBlockPathForElement } from '$lib/selection/path-lookup';
 import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
-import type { BlockKind, CstNode } from '$lib/core/nodes';
+import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
 import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { registerBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor,
+	registerBlockKind,
+	tryGetBlockKindDescriptor
+} from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
 import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
@@ -123,6 +128,76 @@ export function liveSelectionText(editor: EditorInstance | undefined): string {
 	return lines.join('\n');
 }
 
+// ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
+
+// The three closure columns the headless battery records as `boundary` — their
+// mechanisms are mounted-DOM-only, so the browser sweep executes them per kind.
+interface ConformanceSweepEntry {
+	kind: string;
+	fixture: string;
+	// A token drawn from the fixture's first text leaf: present in the block,
+	// absent from the neighbour paragraphs the sweep sandwiches it between, so a
+	// search match over it is attributable to this block. Null when the block
+	// carries no searchable text (e.g. a thematic break).
+	token: string | null;
+	cells: {
+		focus: { mode: string };
+		selectionPaint: { mode: string };
+		searchPaint: { mode: string };
+	};
+}
+
+function firstNodeOfKind(node: CstNode | Document, kind: string): CstNode | null {
+	if ('kind' in node && node.kind === kind) return node as CstNode;
+	for (const child of node.children ?? []) {
+		const found = firstNodeOfKind(child, kind);
+		if (found) return found;
+	}
+	return null;
+}
+
+// A search token from the first text-bearing LEAF of the subtree, not the node's
+// own raw: a container's opener syntax (`:::note`, `> `) is chrome the search
+// never scans, so a token drawn from it would never paint. Descend to a child
+// block whose raw is real searchable content.
+function firstTextLeafToken(node: CstNode): string | null {
+	if (node.children && node.children.length > 0) {
+		for (const child of node.children) {
+			const token = firstTextLeafToken(child);
+			if (token) return token;
+		}
+		return null;
+	}
+	return node.raw.match(/[A-Za-z0-9]+/)?.[0] ?? null;
+}
+
+// Live registry → one row per kind that declares a conformanceFixture. A kind is
+// enrolled the moment it registers with a fixture; a chrome/context-dependent
+// kind (no fixture) never appears. Parses in the ROUTE's registry, so a fixture
+// shadowed by another plugin's directive (admonition's `:::note` under the
+// co-registered callout) resolves to no node of the kind and carries a null token
+// — the sweep records that reachability gap rather than the bridge hiding it.
+function collectConformanceEntries(): ConformanceSweepEntry[] {
+	const entries: ConformanceSweepEntry[] = [];
+	for (const kind of getAllRegisteredKinds()) {
+		const descriptor = getBlockKindDescriptor(kind);
+		const fixture = descriptor.conformanceFixture;
+		if (fixture === undefined) continue;
+		const node = firstNodeOfKind(parse(fixture), kind);
+		entries.push({
+			kind,
+			fixture,
+			token: node ? firstTextLeafToken(node) : null,
+			cells: {
+				focus: { mode: descriptor.closure.focus.mode },
+				selectionPaint: { mode: descriptor.closure.selectionPaint.mode },
+				searchPaint: { mode: descriptor.closure.searchPaint.mode }
+			}
+		});
+	}
+	return entries;
+}
+
 // ── window.__test probe surface (backs the e2e suite) ──────────────────────
 
 type ProbeRect = { top: number; left: number; width: number; height: number } | null;
@@ -178,6 +253,10 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			container.children = [...(container.children ?? [])];
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
+		// Live conformance-sweep rows: every registered kind with a fixture and its
+		// three DOM-column closure modes. The browser sweep consumes this via
+		// page.evaluate and runs each row headfully.
+		getConformanceEntries: (): ConformanceSweepEntry[] => collectConformanceEntries(),
 		// Force a top-level block to a kind with a descriptor but NO registered
 		// component, so it reaches BlockHost's no-component branch. Exercises the
 		// visible-raw fallback (a kind outside ALL_BLOCK_KINDS, so it doesn't
