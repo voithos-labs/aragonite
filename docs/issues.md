@@ -241,14 +241,29 @@ reveal transition asserts (G1.26) in place, an illegal reveal interleaving now f
 with no invariant fire narrows the cause to legal-state geometry (the visual-line read),
 not a reveal-machine interleave.
 
-### IME composition sequences can't be driven in tests
+### IME composition lacks a simulation gesture
 
-**Severity:** minor (test gap)
-**Files:** `src/lib/components/blocks/code/CodeBlock.svelte`, `src/lib/components/blocks/text/` (composition handlers)
+**Severity:** minor (test coverage; both composition harnesses shipped 0.9.25)
+**Files:** `src/lib/e2e/simulation/gestures/` (no composition gesture)
 
-The `insertLineBreak` composition gate (and the IME rules generally) can't be exercised — neither the unit harness nor Playwright drives `compositionstart`/`compositionend` sequences today. A minimal composition harness (synthetic composition events at the handler level, or CDP IME simulation) would let the IME contract be pinned directly instead of by analogy to sibling guards.
+The composition harness pins the IME contract at the handler level
+(`test/blocks/editable-surface-composition*.test.ts`) and through real browser sequences
+(`e2e/tests/ime-composition.spec.ts` — CDP `Input.imeSetComposition`), but the note-taking
+simulation still types ASCII only. A composition gesture needs the CDP session threaded
+into the gesture set on the "perform, settle, resync" pattern — bounded design work, not
+trivially assembled, so it ledgers here per "new feature class → new simulation gesture".
 
-**Target:** pre-1.0 roadmap item 1 (inline-layer observability) — the harness is its third deliverable.
+### G1.27 may false-fire on Safari's duplicate compositionend
+
+**Severity:** watch (no field report yet; Chromium-only test coverage)
+**Files:** `src/lib/components/blocks/editable-surface.ts` (`onCompositionEnd`),
+`src/lib/invariants/inline-transitions.ts` (`checkCompositionEndPaired`)
+
+Safari has shipped duplicate `compositionend` fires per composition (WebKit 218603 among
+others). The second end would reach G1.27 with `composing` already cleared and warn on a
+legal-if-buggy browser sequence. If a field report shows it, relax the predicate from
+per-window pairing to once-per-focus: track "saw a start since this element gained focus"
+and fire only when even that is absent — the wired-end-without-start bug it exists to catch.
 
 ## Plugin containers
 
