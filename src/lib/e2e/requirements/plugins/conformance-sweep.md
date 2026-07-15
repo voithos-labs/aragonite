@@ -29,4 +29,6 @@ behavioural suite; the per-kind specs keep owning depth.
 ## Enrolment and reachability
 
 - Every registered kind with a `conformanceFixture` is swept.
+- Enrollment covers a known-kind floor (paragraph, heading, table, blockquote, mermaid, mathBlock, toc, note): a kind silently dropped from the bridge fails the floor instead of vanishing from the column tests. The floor is a subset assertion — new kinds enroll without touching it.
+- Loading each kind's document settles on exact source equality, not a substring probe — every sweep document carries both filler paragraphs, so a substring wait is satisfiable by the previous kind's stale document.
 - `admonition` is unreachable on this route: its `:::note` fixture is shadowed by the co-registered callout dogfood (which claims `:::note` first), so no admonition node mounts; the callout `note` entry sweeps the same container-directive behaviours. Any other unreachable kind is a regression.

@@ -16,7 +16,6 @@ import type {
 import type { BlockComponent } from '../../block-component';
 import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
 import type { SelectionState } from '../selection-state.svelte';
-import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
