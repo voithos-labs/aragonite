@@ -19,7 +19,6 @@ import type {
 	FocusActions,
 	MoveFocusOptions
 } from '../../action-contracts';
-import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { BlockComponent } from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';

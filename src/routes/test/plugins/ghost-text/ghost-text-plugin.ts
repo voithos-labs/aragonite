@@ -2,12 +2,17 @@
 // component widget at the focused paragraph's end, moved by invalidating on
 // selectionChange. Its e2e battery is the byte-safety proof — typing near the
 // island never captures the ghost text into getSource().
-import { definePlugin, trimTrailingLineEnding, type CstNode, type Document } from '$lib/plugin';
+import {
+	definePlugin,
+	trimTrailingLineEnding,
+	type DocumentView,
+	type NodeView
+} from '$lib/plugin';
 import GhostText from './GhostText.svelte';
 
-function nodeAt(doc: Document, path: number[]): CstNode | null {
-	let children: CstNode[] | undefined = doc.children;
-	let node: CstNode | null = null;
+function nodeAt(doc: DocumentView, path: number[]): NodeView | null {
+	let children: readonly NodeView[] | undefined = doc.children;
+	let node: NodeView | null = null;
 	for (const index of path) {
 		node = children?.[index] ?? null;
 		if (!node) return null;

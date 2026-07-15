@@ -6,7 +6,6 @@
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';

@@ -5,7 +5,7 @@
  * range `replace`, and a whole-block `block` treatment.
  */
 
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 
 export interface MarkDecoration {
 	type: 'mark';
@@ -54,7 +54,10 @@ export interface ProvideContext {
 }
 export interface DecorationSource {
 	name: string; // per-instance unique; duplicate addSource throws
-	provide(doc: Document, ctx: ProvideContext): Decoration[]; // pure over doc + ctx + the source's own state
+	// Pure over doc + ctx + the source's own state. Property (not method) syntax
+	// on purpose: params check contravariantly, so an implementation annotating
+	// the mutable Document is a compile error — sources read through the view.
+	provide: (doc: DocumentView, ctx: ProvideContext) => Decoration[];
 }
 export interface DecorationSourceHandle {
 	/** Synchronous by contract: decorations and buckets reflect the new result

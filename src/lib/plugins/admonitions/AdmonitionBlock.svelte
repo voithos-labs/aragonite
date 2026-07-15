@@ -12,11 +12,11 @@
 		getPluginMetadata,
 		trimTrailingLineEnding,
 		type ContainerBlockComponent,
-		type CstNode
+		type NodeView
 	} from '$lib/plugin';
 	import { ADMONITION_KINDS, capitalize, type AdmonitionMetadata } from './kinds';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({

@@ -12,8 +12,8 @@
 		createEditableLeaf,
 		getContentRange,
 		type BlockComponent,
-		type CstNode,
-		type Document
+		type DocumentView,
+		type NodeView
 	} from '$lib/plugin';
 
 	let {
@@ -22,10 +22,10 @@
 		myPath = [],
 		document
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
-		document?: Document;
+		document?: DocumentView;
 	} = $props();
 
 	let sourceEl: HTMLDivElement | undefined = $state();

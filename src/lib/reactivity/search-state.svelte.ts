@@ -1,4 +1,3 @@
-import type { Document } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import { compileMatcher } from '../search/matcher';
 import { scanDocument, type Match } from '../search/document-scan';
@@ -71,7 +70,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	// commits and would serve stale matches while typing. notifyEdit bumps the
 	// epoch (edit → miss → rescan); invalidate leaves it (navigation → hit →
 	// active-class remap only).
-	function provide(_doc: Document, ctx: ProvideContext): MarkDecoration[] {
+	function provide(_doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
 		const { caseSensitive, wholeWord, regex } = options;
 		scanMemo(`${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`, () => {
 			rescan();

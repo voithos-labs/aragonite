@@ -11,12 +11,12 @@
 		trimTrailingLineEnding,
 		normalizeLineEndings,
 		type ContainerBlockComponent,
-		type CstNode
+		type NodeView
 	} from '$lib/plugin';
 	import { type MermaidMetadata } from './mermaid-kind';
 	import { hasMermaidRenderer, renderMermaid, type MermaidRenderResult } from './mermaid-renderer';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 

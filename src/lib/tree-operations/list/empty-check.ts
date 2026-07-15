@@ -1,4 +1,3 @@
-import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 
 /**

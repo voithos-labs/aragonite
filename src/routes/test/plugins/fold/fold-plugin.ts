@@ -2,7 +2,7 @@
 // leaf raws fold to a clickable `…` island (interactive DOM inside an island is
 // native), and the click reopens the range through invalidate(). Folded bytes
 // live only in the CST — the island stands for them in the DOM.
-import { definePlugin, type CstNode, type Decoration, type Document } from '$lib/plugin';
+import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
 
 const OPEN = '[>';
 const CLOSE = '<]';
@@ -55,12 +55,12 @@ function keyOf(range: FoldRange): string {
 	return `${range.path.join('.')}:${range.start}`;
 }
 
-function findFoldRanges(doc: Document): FoldRange[] {
+function findFoldRanges(doc: DocumentView): FoldRange[] {
 	const ranges: FoldRange[] = [];
 	walk(doc.children, []);
 	return ranges;
 
-	function walk(children: CstNode[], path: number[]): void {
+	function walk(children: readonly NodeView[], path: number[]): void {
 		children.forEach((node, i) => {
 			const childPath = [...path, i];
 			if (node.children) {

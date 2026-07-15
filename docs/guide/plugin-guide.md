@@ -67,14 +67,14 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 
 `setup` runs once per process, but a plugin often needs to react to _each editor_ — recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that seam: it registers a callback fired once per mounted `<Editor>`, handed that instance's **`EditorContext`**.
 
-| Field         | What it gives you                                                                        |
-| ------------- | ---------------------------------------------------------------------------------------- |
-| `editorId`    | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state        |
-| `document`    | A live getter for the root document (read-only; the tree is the editor's to mutate)      |
-| `events`      | The subscribe-only event view — `events.on('edit', …)` returns a disposer                |
-| `options`     | The options this editor passed, typed when you write `definePlugin<Options>` (see below) |
-| `decorations` | This editor's decoration registry — register a source ([Decorations](#decorations))      |
-| `rects`       | This editor's viewport-space geometry reads — block box, range rects, caret, reveal      |
+| Field         | What it gives you                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `editorId`    | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state           |
+| `document`    | A live getter for the root document — a `DocumentView`, read-only by type ([views](#views)) |
+| `events`      | The subscribe-only event view — `events.on('edit', …)` returns a disposer                   |
+| `options`     | The options this editor passed, typed when you write `definePlugin<Options>` (see below)    |
+| `decorations` | This editor's decoration registry — register a source ([Decorations](#decorations))         |
+| `rects`       | This editor's viewport-space geometry reads — block box, range rects, caret, reveal         |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is **synchronous-only** — call `onEditor` from `setup`, not from a later callback.
 
@@ -129,6 +129,14 @@ Two editors share one process-global registration but may still run different op
 `definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast.
 
 **The anti-pattern.** Do not hold per-instance config in the plugin factory's closure — `wordCountPlugin({ live: false })` looks like it configures the instance, but a plugin installs **once per process**, so only the first editor's factory value ever takes effect and the second is silently ignored. The discriminator: _would two editors ever want different values?_ If yes, it is per-instance — pass it through the prop entry and read `editor.options`. If no (a render engine, a shared parser), the factory argument is correct.
+
+## Views
+
+Every surface that hands a plugin a node to **read** types it as a view — `NodeView` for a block node, `DocumentView` for the root. A view is deep-readonly on the serialized bytes (`raw`, `kind`, `metadata`, trivia, children structure), so "never mutate the tree from the view layer" is compiler-enforced: a byte write through a view is a compile error, not a dev-mode warning. Views arrive on `BlockComponentProps.node` / `document`, `EditorContext.document`, a `DecorationSource`'s `provide(document, …)`, the descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`), and the command contexts.
+
+`CstNode` and `Document` stay the shapes a plugin **constructs and owns**: an opener or directive factory builds a `CstNode`, and `rebuildRaw` receives one to write — the ceremony hands it an owned node, which is exactly when byte writes are legal. A document you parsed yourself is mutable and feeds every view-typed parameter with no conversion.
+
+Mutating the **live** tree goes through the sanctioned commit paths — `updateOwnMetadata`, block commands, `rebuildRaw` — never through a view. Do not cast a view back to `CstNode`: the readonly type is the editor's snapshot-aliasing invariant stated at the surface, and the cast reopens the corruption class it closed.
 
 ## Walkthrough: a directive container end-to-end
 
@@ -305,10 +313,10 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 		BlockList,
 		createContainerBlock,
 		type ContainerBlockComponent,
-		type CstNode
+		type NodeView
 	} from 'aragonite/plugin';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
@@ -458,11 +466,10 @@ A block component gets its own node — but a table-of-contents block needs the 
 
 ```svelte
 <script lang="ts">
-	import { getContentRange } from 'aragonite'; // main barrel — see the note below
-	import type { Document } from 'aragonite/plugin';
+	import { getContentRange, type DocumentView } from 'aragonite/plugin';
 
 	// A component receives its own node too; this block needs only the document.
-	let { document }: { document?: Document } = $props();
+	let { document }: { document?: DocumentView } = $props();
 
 	// A $derived over the prop subscribes to the CST proxy, so editing a heading
 	// above re-runs this and the list updates live.
@@ -481,7 +488,7 @@ A block component gets its own node — but a table-of-contents block needs the 
 </nav>
 ```
 
-`document` is **read-only** — deriving a view is the whole point; mutation stays a commit-ceremony concern. Note the barrel split: `getContentRange` is imported from the **main `aragonite` barrel**, not `aragonite/plugin` — it is a CST-inspection utility a consumer uses too, so it lives on the embedding surface, and the plugin barrel deliberately does not re-export it.
+`document` is a **`DocumentView`** — read-only by type ([Views](#views)); deriving from it is the whole point, and mutation stays a commit-ceremony concern.
 
 ## Opener priority
 
@@ -536,7 +543,7 @@ setup(ctx) {
 }
 ```
 
-`provide` returns an array of decorations and is **pure over the document plus your own state** — the editor re-runs it after every document edit, and the render layer applies whatever it returns. There is no decoration set to map forward through changes: positions are `(path, offset)` addresses into the current tree, recomputed each run. When your _own_ state changes instead (an option toggled, the selection moved, an async result arrived), call `handle.invalidate()` to re-run just your source.
+`provide` receives the document as a `DocumentView` ([Views](#views)) and is **pure over it plus your own state** — the editor re-runs it after every document edit, and the render layer applies whatever it returns. There is no decoration set to map forward through changes: positions are `(path, offset)` addresses into the current tree, recomputed each run. When your _own_ state changes instead (an option toggled, the selection moved, an async result arrived), call `handle.invalidate()` to re-run just your source.
 
 **Two contracts to build against:**
 
@@ -643,7 +650,7 @@ A plugin **may**:
 
 A plugin **may not**:
 
-- Treat its DOM as authoritative, or mutate the tree from the view layer — boundary events flow up, and the tree always wins.
+- Treat its DOM as authoritative, or mutate the tree from the view layer — boundary events flow up, and the tree always wins. Type-enforced since the readonly views: every plugin-visible node type is deep-readonly on its bytes ([Views](#views)).
 - Write bytes through a node reference captured before an edit — after any change, read the node back from the tree; the old reference is stale.
 - Pass reactive tree state by value across a module boundary — hand it through getters only.
 - Invent merge-role, unwrap, or container-contract values — those are closed sets.
@@ -873,6 +880,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node metadata without casting                         |
 | `getContentRange`, `ContentRange`        | The content span within a block's raw, syntax markers excluded (heading `#`, setext underline) |
 | `CstNode`                                | The tree-node shape your factory builds and your `rebuildRaw` mutates                          |
+| `NodeView`, `DocumentView`               | The bytes-readonly views every read surface hands you ([Views](#views))                        |
 
 **Idempotence probes**
 

@@ -1,4 +1,4 @@
-import type { AnyBlockKind, CstNode } from '../core/nodes';
+import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 
