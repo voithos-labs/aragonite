@@ -39,6 +39,7 @@ import {
 	traceRevealFold,
 	type RevealFoldReason
 } from '../../../debug/interaction-trace';
+import { assertInvariant } from '../../../invariants/assert';
 import { caretIsInTextContent } from './click-snap-guard';
 import {
 	widgetAtCursor,
@@ -145,6 +146,17 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// not be mistaken for an escape.
 	let revealSettling = false;
 
+	// Every fold entry below is module-private and pre-guarded by all of its
+	// callers, so a fold arriving with no active reveal means a new caller skipped
+	// the guard (the sibling-path parity class) or the machine's flag leaked (G1.26).
+	function assertFoldTargetsActiveReveal(entry: string): void {
+		assertInvariant('reveal-transition', () =>
+			activeReveal
+				? null
+				: { code: 'fold-without-reveal', message: `${entry} with no active reveal` }
+		);
+	}
+
 	function restoreRenderedWidget(): void {
 		if (activeSourceNode === null || revealedWidget === null) return;
 		activeSourceNode.replaceWith(revealedWidget);
@@ -157,6 +169,17 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		caretBefore: number,
 		atSourceOffset = 0
 	): Promise<void> {
+		// The settle window spans only microtasks plus the synchronous focus
+		// dispatch, so no user gesture can land inside it — a re-entry here is a
+		// synchronous call from within the settle chain itself (G1.26).
+		assertInvariant('reveal-transition', () =>
+			revealSettling
+				? {
+						code: 'start-during-settle',
+						message: 'startReveal re-entered inside the reveal settle window'
+					}
+				: null
+		);
 		if (activeReveal) return;
 		traceRevealOpen('inline');
 		const start = widget.start;
@@ -219,6 +242,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// the revealed source node's live position so an edit to the surrounding prose
 	// shifts it correctly (a length delta off the widget's old end would not).
 	function commitReveal(reason: RevealFoldReason = 'commit'): void {
+		assertFoldTargetsActiveReveal('commitReveal');
 		if (!activeReveal) return;
 		// Sibling of editable-leaf's `commitReveal`: a cross-block selection sweeping
 		// through keeps the source revealed so its rects measure real text, not a
@@ -261,6 +285,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// Cancel: discard the ephemeral edit, imperatively rebuilding the original
 	// widget from the untouched raw (CST-free view toggle — no undo entry).
 	async function cancelReveal(): Promise<void> {
+		assertFoldTargetsActiveReveal('cancelReveal');
 		if (!activeReveal) return;
 		traceRevealFold('cancel');
 		const reveal = activeReveal;
@@ -273,6 +298,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// write no caret — the escaping click owns the caret, and the kernel commit's
 	// trailing-edge placement would hijack it.
 	function foldRevealNoEdit(reason: RevealFoldReason = 'no-edit'): void {
+		assertFoldTargetsActiveReveal('foldRevealNoEdit');
 		if (!activeReveal) return;
 		traceRevealFold(reason);
 		activeReveal = null;

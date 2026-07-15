@@ -235,7 +235,11 @@ blur bails instead of folding) are unit-covered by the interaction factory's cro
 bail case.
 
 **Fix direction:** reproduce by bisecting the battery's spec set in front of this file to
-find the state carrier, then pin the keyboard-extend geometry read it perturbs.
+find the state carrier, then pin the keyboard-extend geometry read it perturbs. With the
+reveal transition asserts (G1.26) in place, an illegal reveal interleaving now fires
+`invariant:reveal-transition` at the breaking transition — a reproduction that times out
+with no invariant fire narrows the cause to legal-state geometry (the visual-line read),
+not a reveal-machine interleave.
 
 ### IME composition sequences can't be driven in tests
 

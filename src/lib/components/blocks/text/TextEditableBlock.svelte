@@ -454,6 +454,8 @@
 			// (revealed source persisted as focus leaves) also sets a pending offset;
 			// without this guard the restore would yank the global selection back into
 			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
+			// The clear below runs in BOTH arms: a skipped restore is dropped, never
+			// re-armed, so a stale offset can't fire on a later unrelated render.
 			const applied = document.activeElement === el;
 			if (applied) cursor.setRaw(asRawOffset(pendingCursorOffset));
 			tracePendingCursorConsume(pendingCursorOffset, applied);

@@ -56,11 +56,14 @@
  * PRECONDITION: `source.length === sourceEnd - sourceStart`. The source's raw
  * length equals its source-text length, so every raw offset OUTSIDE it is stable
  * across the swap and the walk stays consistent (revealing never mutates raw).
+ * Asserted at reveal entry on the `invariant:reveal-transition` channel (G1.26).
  */
 
 import { tick } from 'svelte';
 import { asRawOffset, toDomTextOffset } from './coordinate-spaces';
 import { createRangeAtDomTextOffsets } from './widget-offset';
+import { assertInvariant } from '../invariants/assert';
+import { checkRevealSourceLength } from '../invariants/inline-transitions';
 
 export interface SourceRevealDeps {
 	/** The block's contenteditable host — where the offset walk runs. Null while a
@@ -103,6 +106,9 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	}
 
 	async function reveal(atSourceOffset = 0): Promise<void> {
+		assertInvariant('reveal-transition', () =>
+			checkRevealSourceLength(deps.source.length, deps.sourceStart, deps.sourceEnd)
+		);
 		if (!deps.isRevealed()) deps.showSource();
 		if (!deps.isRevealed()) return; // swap declined (island not in the DOM)
 		await tick();
