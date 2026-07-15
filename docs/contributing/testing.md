@@ -157,6 +157,8 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 **Marker prefixes count toward block text.** Headings and list items render their markers as dimmed spans inside the contenteditable, and `getBlockText(i)` returns the full text including the marker.
 
+**Driving IME composition.** Two complementary halves. For handler-level contract pins (the composing gate, the end funnel, offset capture), use the unit harness — `test/harness/editable-surface.ts` drives the real surface skeleton with synthetic event calls, simulating the IME's writes by assigning `el.textContent` before firing the end. For browser event ORDER and full wiring, drive real sequences in e2e via CDP: `page.context().newCDPSession(page)`, then `Input.imeSetComposition` per update and `Input.insertText` to commit — see `tests/ime-composition.spec.ts`. Mid-composition there is no source change to settle on; settle on the composed text arriving in the focused element's DOM instead.
+
 ## Conformance harness (commonmark.js differ)
 
 `src/lib/test/conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note. Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
