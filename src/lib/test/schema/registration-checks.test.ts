@@ -257,3 +257,26 @@ describe('reservedChrome coherence at the flush', () => {
 		});
 	});
 });
+
+// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; this
+// proves the flush actually invokes it (G1.24 wiring). Dropping the
+// report('closure-coherence', …) line would silently disable the guard while
+// every predicate test still passes — the sibling-path parity trap.
+describe('closure coherence at the flush', () => {
+	it('flags a registered kind whose closure is incoherent with its descriptor', () => {
+		const kind = declarePluginKind('incoherent-closure');
+		// not-mergeable + mergeBackspace inherit-default → G1.24 rule (b).
+		registerBlockKind(kind, {
+			...leaf,
+			closure: { ...testClosure, mergeBackspace: { mode: 'inherit-default' } }
+		});
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('closure-coherence')).toHaveLength(1);
+		expect(byTag('closure-coherence')[0].violation.detail).toMatchObject({
+			kind: 'incoherent-closure',
+			column: 'mergeBackspace'
+		});
+	});
+});
