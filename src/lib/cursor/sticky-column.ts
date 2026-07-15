@@ -25,6 +25,11 @@
  */
 
 import type { EditorX } from './coordinate-spaces';
+import {
+	isInteractionTraceEnabled,
+	traceStickyCapture,
+	traceStickyReset
+} from '../debug/interaction-trace';
 
 export interface StickyColumnState {
 	get(): EditorX | null;
@@ -47,8 +52,12 @@ export function createStickyColumnState(): StickyColumnState {
 			if (stickyX !== null) return;
 			if (!Number.isFinite(x)) return;
 			stickyX = x;
+			traceStickyCapture(x);
 		},
+		// Record only a real clear: reset fires on nearly every keystroke, so the
+		// enabled gate short-circuits before the state read (advisor's honest-one-check).
 		reset: () => {
+			if (isInteractionTraceEnabled() && stickyX !== null) traceStickyReset();
 			stickyX = null;
 		}
 	};

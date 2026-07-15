@@ -27,7 +27,8 @@ describe('panel-state persistence', () => {
 				selection: true,
 				undo: false,
 				inline: true,
-				opsLog: true
+				opsLog: true,
+				trace: false
 			},
 			width: 560
 		};

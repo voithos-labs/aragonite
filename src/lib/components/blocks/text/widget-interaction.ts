@@ -34,6 +34,11 @@ import {
 } from '../../../cursor/coordinate-spaces';
 import { domTextOffsetAtNode, createRangeAtDomTextOffsets } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
+import {
+	traceRevealOpen,
+	traceRevealFold,
+	type RevealFoldReason
+} from '../../../debug/interaction-trace';
 import { caretIsInTextContent } from './click-snap-guard';
 import {
 	widgetAtCursor,
@@ -153,6 +158,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		atSourceOffset = 0
 	): Promise<void> {
 		if (activeReveal) return;
+		traceRevealOpen('inline');
 		const start = widget.start;
 		const end = widget.end;
 		const source = deps.node.raw.slice(start, end);
@@ -212,13 +218,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// for serialize/undo. The caret lands on the math's new trailing edge, read from
 	// the revealed source node's live position so an edit to the surrounding prose
 	// shifts it correctly (a length delta off the widget's old end would not).
-	function commitReveal(): void {
+	function commitReveal(reason: RevealFoldReason = 'commit'): void {
 		if (!activeReveal) return;
 		// Sibling of editable-leaf's `commitReveal`: a cross-block selection sweeping
 		// through keeps the source revealed so its rects measure real text, not a
 		// folded island — folding now would strand a selection endpoint anchored in
 		// the source text node.
 		if (deps.isCrossBlock()) return;
+		traceRevealFold(reason);
 		const el = deps.getEl();
 		const sourceNode = activeSourceNode;
 		const editedDisplay = deps.readRawText();
@@ -255,6 +262,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// widget from the untouched raw (CST-free view toggle — no undo entry).
 	async function cancelReveal(): Promise<void> {
 		if (!activeReveal) return;
+		traceRevealFold('cancel');
 		const reveal = activeReveal;
 		activeReveal = null;
 		deps.setRevealing(false);
@@ -264,8 +272,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// Click-away fold for an UNEDITED reveal: restore the widget synchronously and
 	// write no caret — the escaping click owns the caret, and the kernel commit's
 	// trailing-edge placement would hijack it.
-	function foldRevealNoEdit(): void {
+	function foldRevealNoEdit(reason: RevealFoldReason = 'no-edit'): void {
 		if (!activeReveal) return;
+		traceRevealFold(reason);
 		activeReveal = null;
 		deps.setRevealing(false);
 		restoreRenderedWidget();
@@ -322,10 +331,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 			if (!selectionEscapedSource()) return;
 			if (deps.readRawText() === revealOriginalDisplay) {
-				foldRevealNoEdit();
+				foldRevealNoEdit('selection-escape');
 				return;
 			}
-			commitReveal();
+			commitReveal('selection-escape');
 		})();
 	}
 
@@ -419,7 +428,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	function commitRevealOnBlur(): void {
-		if (activeReveal) commitReveal();
+		if (activeReveal) commitReveal('blur');
 	}
 
 	function isVerticallyTransparent(): boolean {

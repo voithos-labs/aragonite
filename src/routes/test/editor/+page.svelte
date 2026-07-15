@@ -3,7 +3,14 @@
 	import { Editor } from '$lib';
 	import { parse } from '$lib/core/parser';
 	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
-	import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
+	import {
+		dumpTree,
+		dumpUndoStack,
+		dumpInlineTree,
+		dumpOperationsLog,
+		dumpInteractionTrace
+	} from '$lib/debug/inspect';
+	import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
 	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
@@ -144,6 +151,12 @@
 			getOpsLog={() => {
 				const log = editor?.__test?.getOperationsLog?.();
 				return log ? dumpOperationsLog(log) : '';
+			}}
+			getTrace={() => {
+				// Module-global trace; refreshed on the shared panelTick. The section's
+				// expand arms the recorder (DebugPanel.toggleTrace).
+				void panelTick;
+				return dumpInteractionTrace(interactionTraceSnapshot());
 			}}
 			opsLogTick={panelTick}
 		/>

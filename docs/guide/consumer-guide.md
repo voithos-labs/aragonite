@@ -22,7 +22,7 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 ## The five things to know
 
 1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It is not two-way bound.
-2. **`bind:this` is the read surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`.
+2. **`bind:this` is the read surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()`.
 3. **Theming is CSS custom properties** on the editor's own root. Nothing lands on `:root`.
 4. **Plugins are process-global**, installed once at mount. Two editors share one grammar, never any state.
 5. **`editor.__test.*` is not part of the contract.** It is internal and will move.
@@ -57,19 +57,21 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 | **CST utilities**      | `parse` / `serialize` for round-tripping Markdown outside the component; `parseInline`, `getContentRange`, `isProseKind` for inspecting a block's inline content and editable range                                                                                                                                                              |
 | **Node types**         | `CstNode`, `Document`, the block-kind and inline-node unions, and the per-kind metadata shapes — the vocabulary for reading a parsed document. `NodeView` / `DocumentView` are their bytes-readonly views: every editor surface that hands you a node to read types it as a view, so mutating the live tree is a compile error, not a convention |
 | **Events**             | `EditorEvents` and the three payload types the observer surface emits                                                                                                                                                                                                                                                                            |
+| **Diagnostics**        | `EditorDiagnostics` (what `getDiagnostics()` returns) and `InteractionTraceEntry` — the field-report door (see [Diagnostics](#diagnostics))                                                                                                                                                                                                      |
 
 ### The component contract
 
 `<Editor>` is controlled-by-prop-at-mount, read imperatively.
 
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
-- **`bind:this`** exposes six methods:
+- **`bind:this`** exposes seven methods:
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies.
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
   - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).
   - **`getDecorations()`** — register a view-only annotation source, no plugin needed (same section).
+  - **`getDiagnostics()`** — the field-report door: arm the interaction trace and serialize an attachable bug report (see [Diagnostics](#diagnostics)).
 
 ## Behavior / policy props
 
@@ -241,6 +243,22 @@ The payload envelopes — read the source types for the per-op arms, which chang
 - **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command` and `context` carries the block path or op kind when known (and, for a `command` throw, the block kind, command id, and owning plugin).
 
 `on(name, cb)` returns a disposer; call it to unsubscribe. Events fire synchronously from their emission sites. **Handlers must not mutate the document** — reentrant edits are not supported.
+
+## Diagnostics
+
+`getDiagnostics()` returns the field-report door. The editor's hardest bugs live in the inline layer, where every state is transient — spans rebuild on each keystroke, so cursor moves, reveal open/fold, widget-pool churn, and IME composition are gone by the time a report is read. The **interaction trace** is a ring buffer that records those transitions as they happen. It ships **default-off**, behind one cheap check per recorder, so arming it is your call.
+
+The workflow when a user hits an inline glitch: **reproduce → serialize → attach.**
+
+1. `enableTrace()` — arm the recorder (once, e.g. behind a "report a bug" affordance).
+2. Reproduce the glitch.
+3. `serializeDiagnostics()` — returns a fenced-markdown snapshot (timestamp, the trace tail, the recent operations, the selection) to drop straight into a bug ticket.
+
+`traceSnapshot()` returns the raw `InteractionTraceEntry[]` if you'd rather format it yourself; `disableTrace()` / `isTraceEnabled()` round out the switch.
+
+**The document is excluded by default.** `serializeDiagnostics()` never includes the document source unless you pass `{ includeSource: true }` — a field report must not leak a user's content. Opt in only when the bytes are part of the repro and the user has consented.
+
+The door grows by adding methods to the same object, never a second door — future diagnostics arrive as more fields on `EditorDiagnostics`.
 
 ## Search
 

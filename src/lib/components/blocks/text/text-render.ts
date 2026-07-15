@@ -23,6 +23,13 @@ import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/t
 import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '../../../dev-warn';
 import { recordIslandRebuild } from '../../../perf/instruments';
+import {
+	isInteractionTraceEnabled,
+	traceRebuild,
+	traceCursorCapture,
+	traceCursorRestore,
+	traceIslandsApplied
+} from '../../../debug/interaction-trace';
 import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
@@ -78,6 +85,23 @@ const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
 	d.type === 'widget'
 		? `w:${d.offset}:${d.side ?? 'after'}`
 		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
+
+// The five NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
+// trailing segment islandRenderKeyPart contributes (absent ⇒ no fifth part).
+const RENDER_KEY_SEGMENTS = ['ambient', 'raw', 'ref', 'imgPolicy', 'islands'] as const;
+
+/** Which renderKey segment(s) differ between two keys — the interaction trace's
+ *  rebuild cause. Pure over the key format so the recorder never learns the NUL
+ *  layout and the decomposition is directly testable. */
+export function renderKeySegmentDiff(prev: string, next: string): string {
+	const a = prev.split('\0');
+	const b = next.split('\0');
+	const changed: string[] = [];
+	for (let i = 0; i < RENDER_KEY_SEGMENTS.length; i++) {
+		if ((a[i] ?? '') !== (b[i] ?? '')) changed.push(RENDER_KEY_SEGMENTS[i]);
+	}
+	return changed.join(',') || '(none)';
+}
 
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
@@ -162,7 +186,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (!document.activeElement || !el.contains(document.activeElement)) return null;
 		const sel = window.getSelection();
 		if (!sel?.focusNode || !el.contains(sel.focusNode)) return null;
-		return domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		const walk = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		traceCursorCapture(walk);
+		return walk;
 	}
 
 	function restoreCaret(el: HTMLElement, walkOffset: DomTextOffset): void {
@@ -171,6 +197,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
 		sel?.addRange(range);
+		traceCursorRestore(walkOffset);
 	}
 
 	function render(opts?: { forceRebuild?: boolean }): void {
@@ -195,6 +222,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
+			// Detail assembly (the segment diff) allocates, so it stays behind the gate.
+			if (isInteractionTraceEnabled())
+				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
 			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
 			const caretWalkOffset = captureCaretIfFocused(el);
 			// Bracket the rebuild: portal widgets acquired during the build are adopted
@@ -209,7 +239,10 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
 			});
-			if (islands.length > 0) recordIslandRebuild();
+			if (islands.length > 0) {
+				recordIslandRebuild();
+				traceIslandsApplied(islands.length);
+			}
 			widgetPool.sweep();
 			if (caretWalkOffset !== null) restoreCaret(el, caretWalkOffset);
 			lastRenderedKey = renderKey;

@@ -42,6 +42,7 @@ import {
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
+import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 
 /**
  * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).
@@ -245,6 +246,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
+		traceCompositionStart();
 		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
 		deps.setPreEditOffset(deps.backend.getRaw() ?? 0);
 		crossBlock.handleCompositionStart();
@@ -252,6 +254,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function onCompositionEnd(): void {
+		traceCompositionEnd();
 		deps.setComposing(false);
 		onInput();
 	}

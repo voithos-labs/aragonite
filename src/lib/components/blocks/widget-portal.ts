@@ -15,6 +15,7 @@
 import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
+import { tracePoolPass } from '../../debug/interaction-trace';
 
 // ── Pure pool ─────────────────────────────────────────────────────────────────
 
@@ -53,8 +54,13 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	// Multiset per `${kind} ${source}` key: two identical sources in one block are
 	// two entries in one bucket, each adopted at most once per pass.
 	const buckets = new Map<string, PoolEntry<H>[]>();
+	// Per-pass adopt/build tallies for the interaction trace, recorded at sweep.
+	let passAdopt = 0;
+	let passBuild = 0;
 
 	function beginPass(): void {
+		passAdopt = 0;
+		passBuild = 0;
 		for (const bucket of buckets.values()) {
 			for (const entry of bucket) entry.adopted = false;
 		}
@@ -66,6 +72,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 		const reused = bucket?.find((entry) => !entry.adopted);
 		if (reused) {
 			reused.adopted = true;
+			passAdopt++;
 			// The source (and so the rendered body) is identical by key; only the
 			// widget's position in the block may have shifted, so re-stamp the offsets
 			// the cursor/selection machinery reads.
@@ -76,6 +83,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 		}
 		const handle = adapter.create(kind, inline, source);
 		if (handle === null) return null;
+		passBuild++;
 		const entry: PoolEntry<H> = { handle, adopted: true };
 		if (bucket) bucket.push(entry);
 		else buckets.set(key, [entry]);
@@ -83,6 +91,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	}
 
 	function sweep(): void {
+		let destroyed = 0;
 		for (const [key, bucket] of [...buckets]) {
 			const survivors: PoolEntry<H>[] = [];
 			for (const entry of bucket) {
@@ -91,11 +100,13 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 					survivors.push(entry);
 				} else {
 					adapter.destroy(entry.handle);
+					destroyed++;
 				}
 			}
 			if (survivors.length) buckets.set(key, survivors);
 			else buckets.delete(key);
 		}
+		tracePoolPass(passAdopt, passBuild, destroyed);
 	}
 
 	function dispose(): void {
