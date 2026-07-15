@@ -8,6 +8,7 @@ import {
 } from '../../schema/block-kind-descriptor';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 describe('block-kind-descriptor registry', () => {
 	it('has a descriptor for every BlockKind', () => {
@@ -177,6 +178,7 @@ describe('blockFocus — whole-block-focus opt-in', () => {
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			blockFocus: 'whole-block'
 		});
 		expect(getBlockKindDescriptor(kind).blockFocus).toBe('whole-block');
@@ -188,6 +190,7 @@ describe('blockFocus — whole-block-focus opt-in', () => {
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			blockFocus: 'whole-block',
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});

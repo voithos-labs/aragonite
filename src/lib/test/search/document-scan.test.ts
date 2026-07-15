@@ -6,6 +6,7 @@ import { scanDocument } from '$lib/search/document-scan';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 const matcherFor = (q: string) => {
 	const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
@@ -66,12 +67,14 @@ describe('scanDocument — childless opaque containers', () => {
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			container
 		});
 		registerBlockKind(artifact, {
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,
+			closure: testClosure,
 			container
 		});
 	});

@@ -26,6 +26,7 @@ import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/past
 import { getInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import { stripComments } from '../invariants/lint/scan-source';
+import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind } from '$lib/plugin';
 
 // Registers one thing through each public register-once entry the aggregate must
@@ -35,7 +36,12 @@ import type { AnyBlockKind } from '$lib/plugin';
 function installProbePlugin(): void {
 	const block = declarePluginKind('probe-block');
 	const inline = declarePluginInlineKind('probe-inline');
-	registerBlockKind(block, { mergeRole: 'not-mergeable', editable: false, supportsInline: false });
+	registerBlockKind(block, {
+		mergeRole: 'not-mergeable',
+		editable: false,
+		supportsInline: false,
+		closure: testClosure
+	});
 	registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false });
 	registerBlockCommand(block, 'probe.cmd', () => true);
 	registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' });

@@ -5,6 +5,7 @@ import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 
@@ -85,6 +86,7 @@ describe('ensureEditableContainers — whole-block-focus kinds stay childless', 
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			blockFocus: 'whole-block',
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});

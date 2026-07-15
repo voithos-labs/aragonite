@@ -19,6 +19,7 @@ import {
 	checkOpenerRegistry,
 	checkKeymapCoherence,
 	checkReservedChromeCoherence,
+	checkClosureCoherence,
 	checkLateOpenerRegistration
 } from '../invariants/registry';
 import { tryGetBlockKindDescriptor, getAllRegisteredKinds } from './block-kind-descriptor';
@@ -57,10 +58,22 @@ const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
 		};
 	});
 
+const closureEntries = (kinds: readonly AnyBlockKind[]) =>
+	kinds
+		.map((kind) => ({ kind, d: tryGetBlockKindDescriptor(kind) }))
+		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
+		.map(({ kind, d }) => ({
+			kind,
+			notMergeable: d.mergeRole === 'not-mergeable',
+			hasContainerContract: d.containerContract !== undefined,
+			roundTripMode: d.closure.roundTrip.mode,
+			mergeBackspaceMode: d.closure.mergeBackspace.mode
+		}));
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18). First call sweeps the
+ * Run the registry coherence checks (G1.2/10/11/17/18/24). First call sweeps the
  * whole world — bootstrap semantics; later calls validate only the kinds
  * registered since the previous flush, plus opener coherence over the full
  * registry (a new opener's priority collision is inherently cross-entry).
@@ -88,6 +101,7 @@ export function flushPendingRegistrationChecks(
 	report('reserved-chrome-coherence', () =>
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
+	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
 	}

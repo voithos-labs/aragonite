@@ -84,6 +84,21 @@ export function devProbePlugin(): EditorPlugin {
 						firstChildBackspace: 'lift-first-child',
 						middleChildBackspace: 'default-merge'
 					}
+				},
+				conformanceFixture: ':::devprobe\n\nbody\n\n:::\n',
+				closure: {
+					roundTrip: { mode: 'implemented', via: 'container contract=opaque — rebuildDevProbeRaw' },
+					focus: { mode: 'implemented', via: 'focus walks into the first body child' },
+					mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+					selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
+					searchPaint: {
+						mode: 'implemented',
+						via: 'children are real blocks — search descends and paints'
+					},
+					reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+					undo: { mode: 'inherit-default' },
+					clipboard: { mode: 'inherit-default' },
+					simOracle: { mode: 'implemented', via: 'dev-guard e2e under the [invariant:] watcher' }
 				}
 			});
 

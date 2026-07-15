@@ -9,6 +9,7 @@ import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '$lib/core/nodes';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
@@ -183,12 +184,14 @@ describe('reorder action — plugin (opaque) container declines', () => {
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			contextDependentKind: true
 		});
 		registerBlockKind(containerKind, {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chromeKind } }
 		});
 		const container: CstNode = {

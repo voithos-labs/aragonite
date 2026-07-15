@@ -18,6 +18,7 @@ import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import { testClosure } from '$lib/test/support/closure';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
@@ -25,13 +26,15 @@ const container: BlockKindRegistration = {
 	mergeRole: 'container',
 	editable: true,
 	supportsInline: false,
+	closure: testClosure,
 	container: containerGroup
 };
 
 const leaf: BlockKindRegistration = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false
+	supportsInline: false,
+	closure: testClosure
 };
 
 const withChrome = (title: AnyBlockKind): BlockKindRegistration => ({

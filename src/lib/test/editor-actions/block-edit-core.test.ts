@@ -8,6 +8,7 @@ import { parse } from '$lib/core/parser';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 function leaf(raw: string): CstNode {
 	return parse(raw).children[0];
@@ -191,6 +192,7 @@ describe('block-edit core — whole-block-focus fallback', () => {
 			mergeRole: 'not-mergeable',
 			editable,
 			supportsInline: false,
+			closure: testClosure,
 			blockFocus: 'whole-block'
 		});
 		return { kind, leadingTrivia: '', raw: 'diagram\n', children: [] };

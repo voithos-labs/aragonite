@@ -8,6 +8,7 @@ import {
 } from '../../schema/block-component-registry';
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 const fakeComponent = (() => {}) as unknown as Parameters<typeof defineBlockComponent>[0];
 
@@ -28,7 +29,8 @@ describe('registration probes', () => {
 		registerBlockKind(declarePluginKind('probeKind'), {
 			mergeRole: 'not-mergeable',
 			editable: false,
-			supportsInline: false
+			supportsInline: false,
+			closure: testClosure
 		});
 		expect(isBlockKindRegistered('probeKind')).toBe(true);
 	});
