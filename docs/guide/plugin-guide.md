@@ -687,6 +687,20 @@ Reset **then** re-install — the reset only empties the registries. It clears e
 
 Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state — the undo stack, the selection, and the live document are yours to set up. The function is test-only and throws if called outside a detected test environment; detection is Vitest-specific.
 
+### The conformance battery — registering a kind enrolls it
+
+`runKindConformance(kind)` executes the headless half of your kind's `closure` block. It derives one cell per cross-cutting system from the block and your `conformanceFixture`, and runs the part that needs no browser now: it round-trips the fixture (and, for a container, checks `rebuildRaw` is deterministic), holds Backspace-merge eligibility to your `mergeRole`, confirms an `inherit-default` clipboard copies as a plain byte slice, checks one structural op is one undo entry, and asserts a `not-supported` search cell genuinely finds nothing. Cells whose mechanism only exists in the browser — focus, selection and search paint, reorder, the simulation oracle — are recorded `boundary`, run by the e2e sweep rather than stubbed green.
+
+```
+import { runKindConformance } from 'aragonite/testing';
+
+it('my kind conforms', async () => {
+	await runKindConformance(declaredPluginKind(MY_KIND));
+});
+```
+
+It resolves with a per-cell report and throws naming every failed cell — so a `conformanceFixture` that stops parsing to your kind, or a closure cell that lies about a mechanism the runner can observe, fails the moment you register it. Where a cell claims a mechanism the runner cannot reach generically (a kind-specific copy, say), supply a check for it: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })` — `ctx` hands you the parsed fixture and the kind's node.
+
 ### Conformance-testing a container
 
 If your plugin registers a **container** kind, `aragonite/testing` also publishes the harness the built-in containers are held to — the same checks, pointed at your kind. It is the fastest way to find out whether your container behaves like a first-class one:

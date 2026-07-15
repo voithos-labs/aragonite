@@ -88,3 +88,17 @@ export type {
 	ContainerConformanceReport,
 	LocalIndexFixture
 } from './testing/container-conformance';
+
+// ── Generic per-kind conformance battery ─────────────────────────────────────
+// Registering a kind enrolls its headless closure cells; the browser sweep runs
+// the browser-only cells.
+
+export { runKindConformance, checkCopyIsRawByteSlice } from './testing/kind-conformance';
+export type {
+	KindCellCheck,
+	KindCellContext,
+	KindCellReport,
+	KindCellStatus,
+	KindConformanceProfile,
+	KindConformanceReport
+} from './testing/kind-conformance';
