@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+	asCellIndex,
 	asDomTextOffset,
 	asEditorX,
 	asRawOffset,
@@ -12,6 +13,7 @@ import {
 	toEditorX,
 	toRawOffset,
 	toViewportX,
+	type CellIndex,
 	type DomTextOffset,
 	type RawOffset
 } from '../../cursor/coordinate-spaces';
@@ -58,6 +60,18 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		expect(raw + 1).toBe(4);
 	});
 
+	it('a cell index and a raw offset are distinct spaces', () => {
+		// @ts-expect-error a cell index is not a raw offset
+		const intoRaw: RawOffset = asCellIndex(3);
+		void intoRaw;
+
+		// @ts-expect-error a raw offset is not a cell index
+		const intoCell: CellIndex = asRawOffset(3);
+		void intoCell;
+
+		expect(asCellIndex(3) + 1).toBe(4);
+	});
+
 	// Assignment-shaped (never invoked) so the pins are runtime-free; call-site
 	// checking would be bivariance-exempt on methods, assignment is not.
 	it('the editable-surface seam rejects wrong-space offsets', () => {
@@ -70,6 +84,10 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		// @ts-expect-error a pixel X cannot enter the raw-space backend
 		const editorXIntoRaw: SetRawArg = asEditorX(3);
 		void editorXIntoRaw;
+
+		// @ts-expect-error a cell index cannot enter the raw-space backend
+		const cellIntoRaw: SetRawArg = asCellIndex(3);
+		void cellIntoRaw;
 
 		// @ts-expect-error the focus-offset reader returns raw, not walk-space, offsets
 		const focusRead: EditableSurfaceDeps['getFocusOffset'] = () => asDomTextOffset(3);

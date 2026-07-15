@@ -515,7 +515,7 @@
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (rowCount === 0) return;
 		const targetRow = from === 'above' ? 0 : rowCount - 1;
-		const colIdx = columnNearestX(x, collectColumnRects());
+		const colIdx = columnNearestX(asEditorX(x), collectColumnRects());
 		internalStickyColumn = colIdx;
 		focusCell(targetRow, colIdx, 'start');
 	}
@@ -601,6 +601,8 @@
 			selection?.isCustomRendered && !!anchor && !!focus && pathsEqual(anchor.path, focus.path);
 
 		if (isRectangular) {
+			// Same-path intra-table rectangle: cell offsets are context-established
+			// (same table, unflagged), so read directly.
 			const aRow = Math.floor(anchor.offset / columnCount);
 			const aCol = anchor.offset % columnCount;
 			const fRow = Math.floor(focus.offset / columnCount);

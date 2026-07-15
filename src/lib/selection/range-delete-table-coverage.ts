@@ -37,6 +37,9 @@ export async function maybeCommitTableCoverageDelete(
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
+	// Same-path intra-table selection: the endpoints' cell offsets are
+	// context-established (same table, unflagged), so they read directly — the
+	// cellIndexOf flag-guard is for cross-block table endpoints only.
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
 	if (coverage.kind === 'cells') return null;

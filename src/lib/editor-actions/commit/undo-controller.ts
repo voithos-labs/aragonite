@@ -12,7 +12,7 @@ import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../../selection/native-bridge';
-import { pathsEqual } from '../../selection/path-math';
+import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../invariants/assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { nodeAt } from '../../tree-operations/node-ops';
@@ -243,10 +243,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (import.meta.env.DEV) {
 			// Pre-mutate: both declared coordinates must be doc-absolute — a
 			// scope-local index leaking in fails here, not at some distant undo.
+			// The mint gates the guard's DocPath entry; invariants stays a runtime
+			// leaf, so the number[]→DocPath mint lives here at the commit ceremony.
 			assertCommitPaths(
 				deps.doc,
-				args.snapshot === 'skip' ? null : args.snapshot.path,
-				args.op?.eventPath ?? null
+				args.snapshot === 'skip' ? null : asDocPath(args.snapshot.path),
+				args.op?.eventPath ? asDocPath(args.op.eventPath) : null
 			);
 		}
 

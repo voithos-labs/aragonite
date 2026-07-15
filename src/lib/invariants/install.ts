@@ -5,6 +5,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import type { DocPath } from '../selection/path-math';
 import { assertInvariant } from './assert';
 import { checkCommitPathAddressable } from './commit-paths';
 import { flushPendingRegistrationChecks } from '../schema/registration-checks';
@@ -42,8 +43,8 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
  */
 export function assertCommitPaths(
 	doc: Document,
-	snapshotPath: number[] | null,
-	eventPath: number[] | null
+	snapshotPath: DocPath | null,
+	eventPath: DocPath | null
 ): void {
 	if (snapshotPath) {
 		assertInvariant('commit-path-dialect', () =>

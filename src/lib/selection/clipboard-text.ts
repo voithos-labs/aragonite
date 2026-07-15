@@ -6,7 +6,7 @@ import type { SelectionPoint } from './primitives';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
-import { walkBetween, normalize, assertCharOffset } from './primitives';
+import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
 import { displayLength } from '../core/lines';
@@ -43,6 +43,9 @@ export function collectCrossBlockText(
 	// On a table, offsets index half-open cell ranges (see `SelectionPoint`),
 	// not character positions; the three table branches below route through
 	// emitTablePortion so the generic raw.slice paths don't return garbage.
+	// Same-path intra-table copy: the endpoints' cell offsets are context-
+	// established (same table, unflagged), so they read directly. The cross-block
+	// table branches below carry the flag and use cellIndexOf.
 	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {
 		return emitTablePortion(startNode, start.offset, end.offset);
 	}
@@ -56,9 +59,13 @@ export function collectCrossBlockText(
 		const tableNode = startNode;
 		const colCount = metadataOf(tableNode, 'table').columnCount;
 		const allCellsCount = tableNode.children!.length * colCount;
-		startTail = emitTablePortion(tableNode, start.offset, allCellsCount);
+		startTail = emitTablePortion(
+			tableNode,
+			cellIndexOf(start, 'collectCrossBlockText:startTable'),
+			allCellsCount
+		);
 	} else {
-		const startOffset = assertCharOffset(start, 'collectCrossBlockText:start');
+		const startOffset = charOffsetOf(start, 'collectCrossBlockText:start');
 		if (startOffset === 0 && start.path.length > 1) {
 			const promoted = promoteToContainer(doc, start.path, end.path, 'start');
 			if (promoted) {
@@ -78,11 +85,11 @@ export function collectCrossBlockText(
 	let effectiveEndPath = end.path;
 	let endHead: string;
 	if (isBlockNode(endNode) && endNode.kind === 'table') {
-		// Snapped end.offset is the inclusive last cell of its row; emitTablePortion
+		// Snapped end cell is the inclusive last cell of its row; emitTablePortion
 		// takes an exclusive end. +1 makes the captured rows match the delete.
-		endHead = emitTablePortion(endNode, 0, end.offset + 1);
+		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);
 	} else {
-		const endOffset = assertCharOffset(end, 'collectCrossBlockText:end');
+		const endOffset = charOffsetOf(end, 'collectCrossBlockText:end');
 		const chromeBytes = endOffset > 0 ? endChromeContainerBytes(doc, end, endRaw, endOffset) : null;
 		if (chromeBytes !== null) {
 			endHead = chromeBytes;
@@ -184,7 +191,7 @@ function startPartialWithContainerMarker(
 	if (!parentRaw.endsWith(startRaw)) return null;
 
 	const prefix = parentRaw.slice(0, parentRaw.length - startRaw.length);
-	return prefix + startRaw.slice(start.offset);
+	return prefix + startRaw.slice(charOffsetOf(start, 'startPartialWithContainerMarker'));
 }
 
 /**
@@ -212,7 +219,7 @@ function endPartialWithContainerMarker(
 	if (!parentRaw.endsWith(endRaw)) return null;
 
 	const prefix = parentRaw.slice(0, parentRaw.length - endRaw.length);
-	return prefix + endRaw.slice(0, end.offset);
+	return prefix + endRaw.slice(0, charOffsetOf(end, 'endPartialWithContainerMarker'));
 }
 
 /**

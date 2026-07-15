@@ -32,8 +32,8 @@ import type { SelectionState } from '../../selection/selection-state.svelte';
 import {
 	asEditorX,
 	asRawOffset,
+	toClampedRawOffset,
 	toDomTextOffset,
-	toRawOffset,
 	type RawOffset
 } from '../../cursor/coordinate-spaces';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
@@ -186,7 +186,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
 		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
 		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
-		deps.backend.setRaw(asRawOffset(Math.max(0, toRawOffset(walkOffset, ambientLength))));
+		deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
 	}
 
 	function getCursorOffset(): number | null {

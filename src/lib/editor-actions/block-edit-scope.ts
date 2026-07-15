@@ -4,8 +4,10 @@
  * `commitStructural`) and a container edit (commits to a nested children
  * array via `commitContainer`): the commit ceremony, child addressing, refs,
  * and the unshare primitive. Both factories are the SINGLE mint point for the
- * commit args' doc-absolute paths (snapshot restore + event target) — the
- * core hands over local indices only.
+ * commit args' doc-absolute paths (snapshot restore + event target), minted as
+ * `DocPath` — the core hands over local indices only. The commit-arg path
+ * fields are plain `number[]`, so the brand decays into them; the runtime
+ * G1.16 guard re-checks the dialect at the commit seam.
  */
 
 import type { OpDescriptor } from '../schema/operations';
@@ -14,6 +16,7 @@ import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
+import { asDocPath, extendDocPath } from '../selection/path-math';
 import type { EditorActionsDeps, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -64,14 +67,16 @@ export function createTopLevelScope(
 		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
 			return controller.commitStructural({
 				snapshot:
-					snapshot === 'skip' ? 'skip' : { path: [snapshot.index], offset: snapshot.offset },
+					snapshot === 'skip'
+						? 'skip'
+						: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
 				mutate: (children) =>
 					mutate({
 						children,
 						sharing: deps.sharing,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
-				op: { ...op, eventPath: [eventTarget] },
+				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				afterTick,
 				discardIfNoop
 			});
@@ -94,14 +99,14 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 				snapshot:
 					snapshot === 'skip'
 						? 'skip'
-						: { path: [...deps.path, snapshot.index], offset: snapshot.offset },
+						: { path: extendDocPath(deps.path, snapshot.index), offset: snapshot.offset },
 				mutate: (scope) =>
 					mutate({
 						children: scope.children,
 						sharing: scope.sharing,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
-				op: { ...op, eventPath: [...deps.path, eventTarget] },
+				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },
 				afterTick,
 				discardIfNoop
 			});
