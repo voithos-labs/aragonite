@@ -13,7 +13,7 @@ import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
-import { walkBetween, assertCharOffset } from './primitives';
+import { walkBetween, charOffsetOf } from './primitives';
 import {
 	comparePaths,
 	isPathSubtreeBetween,
@@ -63,8 +63,8 @@ export function chromeAwareRangeDelete(
 	end: SelectionPoint,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startOffset = assertCharOffset(start, 'chromeAwareRangeDelete:start');
-	const endOffset = assertCharOffset(end, 'chromeAwareRangeDelete:end');
+	const startOffset = charOffsetOf(start, 'chromeAwareRangeDelete:start');
+	const endOffset = charOffsetOf(end, 'chromeAwareRangeDelete:end');
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
 	const endConsumed =

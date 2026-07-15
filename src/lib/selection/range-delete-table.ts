@@ -10,7 +10,7 @@ import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
-import { walkBetween, assertCharOffset } from './primitives';
+import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
@@ -126,6 +126,10 @@ function deleteWithinTable(
 	table: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	// Same-path intra-table endpoints: cell-ness is context-established (same
+	// path + table node), NOT flagged, so these read `.offset` directly — routing
+	// them through cellIndexOf would warn spuriously. The cross-block cases below
+	// carry the flag and do use the accessor.
 	clearRectangularCells(table, start.offset, end.offset);
 	rebuildUnsharedAncestry(doc, start.path, sharing);
 
@@ -274,10 +278,8 @@ function deleteFromProseIntoTable(
 	table: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startHead = startBlock.raw.slice(
-		0,
-		assertCharOffset(start, 'deleteFromProseIntoTable:start')
-	);
+	const startChar = charOffsetOf(start, 'deleteFromProseIntoTable:start');
+	const startHead = startBlock.raw.slice(0, startChar);
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	let truncatedReplacement: CstNode[] | null = null;
@@ -286,9 +288,13 @@ function deleteFromProseIntoTable(
 		for (const node of truncatedReplacement) sharing.stamp(node);
 	}
 
-	// end.offset is the whole-row-snapped inclusive last cell; deleteCellsAndCollapse
+	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse
 	// takes an exclusive end, so clearing the same rows the clipboard copied needs +1.
-	const { result, splice } = deleteCellsAndCollapse(table, 0, end.offset + 1);
+	const { result, splice } = deleteCellsAndCollapse(
+		table,
+		0,
+		cellIndexOf(end, 'deleteFromProseIntoTable:end') + 1
+	);
 
 	const wall = resolveEndWall(doc, start, end, result === 'tableEmpty');
 	const plan = collectDeletionPlan(
@@ -320,7 +326,7 @@ function deleteFromProseIntoTable(
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset },
+		collapsedCaret: { path: start.path.slice(), offset: startChar },
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
@@ -335,9 +341,10 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
 		table,
-		start.offset,
+		startCell,
 		totalCellCount(table)
 	);
 
@@ -348,7 +355,7 @@ function deleteFromTableIntoProse(
 	let tailReplacement: CstNode[] | null = null;
 	let endTail = '';
 	if (!consumed) {
-		endTail = endBlock.raw.slice(assertCharOffset(end, 'deleteFromTableIntoProse:end'));
+		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
 		if (!endIsChrome) {
 			tailReplacement = reparseWithFallback(
 				endTail || lineEndingOf(endBlock.raw),
@@ -406,7 +413,7 @@ function deleteFromTableIntoProse(
 			? tailPath
 				? { path: tailPath, offset: 0 }
 				: caretNearestSurvivor(doc, start.path, sharing)
-			: survivingAnchorCellCaret(table, start.path, start.offset);
+			: survivingAnchorCellCaret(table, start.path, startCell);
 
 	return {
 		newDoc: doc,
@@ -454,16 +461,17 @@ function deleteAcrossTwoTables(
 	endTable: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
 		startTable,
-		start.offset,
+		startCell,
 		totalCellCount(startTable)
 	);
-	// end.offset is the whole-row-snapped inclusive last cell; +1 for the exclusive end.
+	// The snapped end cell is the whole-row inclusive last cell; +1 for the exclusive end.
 	const { result: endResult, splice: endSplice } = deleteCellsAndCollapse(
 		endTable,
 		0,
-		end.offset + 1
+		cellIndexOf(end, 'deleteAcrossTwoTables:end') + 1
 	);
 
 	const wall = resolveEndWall(doc, start, end, endResult === 'tableEmpty');
@@ -493,7 +501,7 @@ function deleteAcrossTwoTables(
 	let collapsedCaret: SelectionPoint;
 	if (startResult === 'tableSurvives') {
 		// Start table keeps its slot (deletions are all at or after start.path).
-		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, start.offset);
+		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, startCell);
 	} else if (endTablePath) {
 		// Start emptied → its block removed and the end table shifted. Land in
 		// its first surviving cell (row 0, col 0).

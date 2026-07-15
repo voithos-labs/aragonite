@@ -9,8 +9,12 @@
  * - Everything else moves between spaces through the named conversions below —
  *   the inter-space arithmetic has exactly one home per direction.
  * - Public API doors (BlockComponent methods, action contracts) keep `number`
- *   and mint once at entry. `asRawOffset|asDomTextOffset|asEditorX|asViewportX`
+ *   and mint once at entry. `asRawOffset|asDomTextOffset|asEditorX|asViewportX|asCellIndex`
  *   greps to every door; the coordinate-brand-mints lint holds that list closed.
+ *
+ * `DocPath` (the doc-absolute path brand) is an array, not a number, so it lives
+ * with the path arithmetic in `selection/path-math.ts` rather than here — the
+ * lint tracks its mint from that home.
  *
  * CURSOR_END rides through public doors as a plain number and is deliberately
  * laundered into RawOffset by the door mint: the offset walkers clamp any
@@ -91,4 +95,8 @@ export function asEditorX(n: number): EditorX {
 
 export function asViewportX(n: number): ViewportX {
 	return n as ViewportX;
+}
+
+export function asCellIndex(n: number): CellIndex {
+	return n as CellIndex;
 }

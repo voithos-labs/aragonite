@@ -2,30 +2,43 @@
  * Coordinate-space brand mints stay enumerable (`docs/contributing/culture.md`
  * § "offset arithmetic has one home"). Two rules over editor source:
  *
- * 1. A bare `as <Brand>` cast exists only in `cursor/coordinate-spaces.ts` —
- *    the conversion and mint bodies. Everywhere else calls a mint function.
+ * 1. A bare `as <Brand>` cast exists only in its brand's home module — the
+ *    numeric spaces in `cursor/coordinate-spaces.ts`, the `DocPath` path brand
+ *    in `selection/path-math.ts`. Everywhere else calls a mint function.
  * 2. An `as<Brand>(…)` mint call exists only in the space home modules and the
- *    declared public-door files below, so every boundary cast stays findable
- *    by reading one list.
+ *    declared door files below, so every boundary cast stays findable by
+ *    reading one list.
  *
  * Named conversion calls (`toRawOffset`, `toDomTextOffset`, `toEditorX`,
- * `toViewportX`) are the sanctioned inter-space arithmetic and are
- * unrestricted.
+ * `toViewportX`) and the `extendDocPath` compose helper are the sanctioned
+ * inter-space arithmetic and are unrestricted.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
 
-const BRAND_HOME = 'src/lib/cursor/coordinate-spaces.ts';
+const COORDINATE_HOME = 'src/lib/cursor/coordinate-spaces.ts';
+const DOCPATH_HOME = 'src/lib/selection/path-math.ts';
+
+/** Where each brand's bare `as <Brand>` cast (its mint body) is allowed to live. */
+const BRAND_CAST_HOME: Record<string, string> = {
+	RawOffset: COORDINATE_HOME,
+	DomTextOffset: COORDINATE_HOME,
+	EditorX: COORDINATE_HOME,
+	ViewportX: COORDINATE_HOME,
+	CellIndex: COORDINATE_HOME,
+	DocPath: DOCPATH_HOME
+};
 
 /**
  * Files permitted to call an `as*` boundary mint, each with the reason the
- * plain number it launders cannot be branded yet. Adding a mint call anywhere
+ * plain value it launders cannot be branded yet. Adding a mint call anywhere
  * else trips this guard; a new entry here is a new declared door and should be
  * reviewed as one.
  */
 const MINT_ALLOWLIST: Record<string, string> = {
-	[BRAND_HOME]: 'the mint definitions themselves',
+	[COORDINATE_HOME]: 'the numeric-space mint definitions themselves',
+	[DOCPATH_HOME]: 'DocPath home — the doc-absolute path mint + extend helper',
 
 	// ── Space homes ───────────────────────────────────────────────────────────
 	'src/lib/cursor/widget-offset.ts': 'DomTextOffset home — the walk mints its returns',
@@ -33,6 +46,14 @@ const MINT_ALLOWLIST: Record<string, string> = {
 	'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
 	'src/lib/ambient/ambient-cursor.ts':
 		'RawOffset home — the ambient seam mints raw from walk space',
+	'src/lib/selection/table-endpoint-snap.ts':
+		'CellIndex home — row-major cell index minted from table geometry',
+	'src/lib/selection/primitives.ts':
+		'SelectionPoint accessors mint RawOffset/CellIndex for the char/cell branch reads',
+	'src/lib/editor-actions/block-edit-scope.ts':
+		"DocPath mint home — the scope factories mint the commit args' doc-absolute paths",
+	'src/lib/editor-actions/commit/undo-controller.ts':
+		'DocPath mint at the commit ceremony, gating the G1.16 guard entry',
 
 	// ── Public doors (number-typed surfaces minting at entry) ─────────────────
 	'src/lib/components/blocks/editable-surface.ts':
@@ -56,12 +77,13 @@ const MINT_ALLOWLIST: Record<string, string> = {
 	'src/lib/decorations/island-dom.ts': 'decoration model offsets (unbranded) enter the walk'
 };
 
-const BRAND_CAST_RE = /\bas\s+(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex)\b/;
-const MINT_CALL_RE = /\bas(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex)\s*\(/;
+const BRAND_CAST_RE = /\bas\s+(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex|DocPath)\b/;
+const MINT_CALL_RE = /\bas(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex|DocPath)\s*\(/;
 
 interface BrandHit {
 	relPath: string;
 	token: string;
+	brand: string;
 }
 
 function findHits(re: RegExp, relPath: string, code: string): BrandHit[] {
@@ -69,7 +91,7 @@ function findHits(re: RegExp, relPath: string, code: string): BrandHit[] {
 	const hits: BrandHit[] = [];
 	let m: RegExpExecArray | null;
 	while ((m = global.exec(code)) !== null) {
-		hits.push({ relPath, token: m[0] });
+		hits.push({ relPath, token: m[0], brand: m[1] });
 	}
 	return hits;
 }
@@ -81,10 +103,10 @@ describe('coordinate-space brand mints stay at their declared doors', () => {
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('every bare `as <Brand>` cast lives in coordinate-spaces.ts', () => {
+	it("every bare `as <Brand>` cast lives in its brand's home module", () => {
 		const violations = sources
 			.flatMap((f) => findHits(BRAND_CAST_RE, f.relPath, f.code))
-			.filter((hit) => hit.relPath !== BRAND_HOME);
+			.filter((hit) => hit.relPath !== BRAND_CAST_HOME[hit.brand]);
 		expect(violations).toEqual([]);
 	});
 
@@ -106,18 +128,20 @@ describe('coordinate-space brand mints stay at their declared doors', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
+	const ALL_BRANDS = ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex', 'DocPath'];
+
 	it('matcher flags a bare brand cast for each brand', () => {
-		for (const brand of ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex']) {
+		for (const brand of ALL_BRANDS) {
 			expect(findHits(BRAND_CAST_RE, 'synthetic.ts', `const x = n as ${brand};`)).toEqual([
-				{ relPath: 'synthetic.ts', token: `as ${brand}` }
+				{ relPath: 'synthetic.ts', token: `as ${brand}`, brand }
 			]);
 		}
 	});
 
 	it('matcher flags a mint call for each brand', () => {
-		for (const brand of ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex']) {
+		for (const brand of ALL_BRANDS) {
 			expect(findHits(MINT_CALL_RE, 'synthetic.ts', `f(as${brand}(3));`)).toEqual([
-				{ relPath: 'synthetic.ts', token: `as${brand}(` }
+				{ relPath: 'synthetic.ts', token: `as${brand}(`, brand }
 			]);
 		}
 	});
@@ -125,7 +149,9 @@ describe('coordinate-space brand mints stay at their declared doors', () => {
 	it('matcher ignores type positions, longer identifiers, and conversions', () => {
 		const benign =
 			'import { toRawOffset, type RawOffset } from "./coordinate-spaces";\n' +
+			'import { extendDocPath, type DocPath } from "./path-math";\n' +
 			'const a: RawOffset = toRawOffset(b, 2);\n' +
+			'const p: DocPath = extendDocPath(parent, 0);\n' +
 			'const c = x as RawOffsetLike;\n' +
 			'asRawOffsetFixture(3);';
 		expect(findHits(BRAND_CAST_RE, 'synthetic.ts', benign)).toEqual([]);
