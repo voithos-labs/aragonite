@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import {
+	resetPluginPlatformForTests,
+	runContainerConformance,
+	runKindConformance,
+	checkCopyIsRawByteSlice
+} from '$lib/testing';
 import {
 	declarePluginKind,
 	declarePluginInlineKind,
@@ -90,6 +95,18 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		} finally {
 			resetEditorEnv();
 		}
+	});
+});
+
+// ── Published conformance surface ───────────────────────────────────────────────
+// The seams a third-party suite imports from `aragonite/testing`. A rename or a
+// dropped re-export fails to resolve here rather than in a downstream author's suite.
+
+describe('aragonite/testing conformance surface', () => {
+	it('publishes both conformance runners and the byte-slice guard', () => {
+		expect(typeof runContainerConformance).toBe('function');
+		expect(typeof runKindConformance).toBe('function');
+		expect(typeof checkCopyIsRawByteSlice).toBe('function');
 	});
 });
 
