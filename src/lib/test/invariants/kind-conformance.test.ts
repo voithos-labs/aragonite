@@ -56,10 +56,11 @@ describe('kind conformance — a fixtured kind produces green generic cells', ()
 		executed('undo');
 	});
 
-	// The false-cell guard: table declares `clipboard: implemented`, so its cell
-	// must EXECUTE a real mechanism (the profile's rect-copy check) rather than sit
-	// boundary — an implemented clipboard with no exercised mechanism is exactly the
-	// gap that let `table.clipboard: inherit-default` ship unchallenged.
+	// table declares `clipboard: implemented`, so its cell EXECUTES the profile's
+	// rect-copy check rather than sitting boundary. The runner refuses a profile
+	// check on a non-`implemented` cell, so reverting the mode to `inherit-default`
+	// (profile left intact — the 0.9.24 incident) makes this run THROW, not merely
+	// downgrade — pinned by the mode-contradiction guard below.
 	it('table clipboard executes its rectangular-copy mechanism', async () => {
 		const report = await runKindConformance('table', BUILTIN_KIND_PROFILES.table);
 		expect(report.cells.find((c) => c.column === 'clipboard')?.status).toBe('executed');
@@ -91,5 +92,26 @@ describe('kind conformance — byte-slice clipboard executor is the false-cell g
 	it('passes for a prose leaf whose copy is a true byte slice', () => {
 		const fixture = getBlockKindDescriptor('paragraph').conformanceFixture!;
 		expect(() => checkCopyIsRawByteSlice('paragraph', fixture)).not.toThrow();
+	});
+});
+
+// ── Regression: a profile check may only cover an `implemented` cell ──────────
+// Miss-analysis: the batch first shipped with the profiled path bypassing the
+// declared mode — a custom check ran as `executed` no matter what the cell declared.
+// So reverting `table.clipboard` from `implemented` to `inherit-default` (the exact
+// 0.9.24 incident) left the rect-copy check running and the suite green: the declared
+// mode went unverified. No test bit — the review's mutation probe found the hole. The
+// runner now refuses a custom check on any cell not declared `implemented`, so a mode
+// revert with the profile intact throws. This standing test pins that guard for the
+// whole CLASS — any profiled cell reverted off `implemented`, not just table.clipboard.
+
+describe('kind conformance — a profile check is refused on a non-implemented cell', () => {
+	it('rejects a custom check declared over an inherit-default cell', async () => {
+		// paragraph.clipboard is inherit-default; a profile clipboard check contradicts
+		// it — the same contradiction a reverted table.clipboard now raises against its
+		// profile, without the sweep re-asserting each cell's mode.
+		await expect(
+			runKindConformance('paragraph', { cells: { clipboard: { check: () => {} } } })
+		).rejects.toThrow(/custom check is only valid on an 'implemented' cell/);
 	});
 });
