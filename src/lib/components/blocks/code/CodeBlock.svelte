@@ -7,7 +7,7 @@
 		HistoryActions
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import { emitCommandError, type EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -72,7 +72,7 @@
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const controller = getContext<UndoController>(CONTROLLER_KEY);

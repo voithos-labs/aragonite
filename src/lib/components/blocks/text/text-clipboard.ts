@@ -5,7 +5,7 @@
  */
 
 import type { BlockEditActions } from '../../../action-contracts';
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import type { DocumentGetter, LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -20,7 +20,7 @@ import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cros
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
 export interface TextClipboardDeps {
-	get node(): CstNode;
+	get node(): NodeView;
 	get index(): number;
 	get myPath(): number[];
 	cursor: AmbientCursorIO;

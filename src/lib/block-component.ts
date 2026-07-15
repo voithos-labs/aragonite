@@ -4,7 +4,7 @@
  * block components produce and consume.
  */
 
-import type { CstNode, Document } from './core/nodes';
+import type { DocumentView, NodeView } from './core/node-views';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -73,13 +73,13 @@ export type AmbientPrefix = string | { text: string; interactive?: AmbientIntera
  * but a leaf that drops `ambientPrefix` visually deletes its markers.
  */
 export interface BlockComponentProps {
-	node: CstNode;
+	/** Bytes-readonly view (G1.9): components render the CST; mutation routes through actions. */
+	node: NodeView;
 	index: number;
 	myPath: number[];
 	ambientPrefix: AmbientPrefix;
-	/** The root document (read-only by contract) — single-document derived state
-	 *  is the editor's own boundary; mutation stays a commit-ceremony concern. */
-	document?: Document;
+	/** The root document, readonly by type — mutation stays a commit-ceremony concern. */
+	document?: DocumentView;
 }
 
 // ── BlockComponent ─────────────────────────────────────────────────────────

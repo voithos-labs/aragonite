@@ -1,4 +1,5 @@
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { cloneNode } from '../clone';
 import { assembleListHalf, orderedBaseOf } from './list-builders';
@@ -14,7 +15,7 @@ import { assembleListHalf, orderedBaseOf } from './list-builders';
  * the focus target. Input is not mutated.
  */
 export function buildExitReplacement(
-	list: CstNode,
+	list: NodeView,
 	itemIndex: number
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	const items = list.children ?? [];

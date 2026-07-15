@@ -46,7 +46,7 @@ export type TableMenuItem =
 export function tableMenuItems(
 	target: { rowIdx?: number; colIdx?: number },
 	dims: { rowCount: number; colCount: number },
-	alignments: TableAlignment[],
+	alignments: readonly TableAlignment[],
 	// Present only for a cell right-click (both axes); drives the clipboard group,
 	// which grip menus never show.
 	clipboard?: { hasSelection: boolean }
@@ -114,7 +114,7 @@ function rowGroup(rowIdx: number, rowCount: number): TableMenuItem[] {
 function columnGroup(
 	colIdx: number,
 	colCount: number,
-	alignments: TableAlignment[]
+	alignments: readonly TableAlignment[]
 ): TableMenuItem[] {
 	return [
 		{

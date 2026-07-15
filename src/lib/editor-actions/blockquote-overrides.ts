@@ -7,6 +7,7 @@
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -15,7 +16,7 @@ import type { UndoController } from './deps';
 
 export interface BlockquoteOverridesDeps {
 	get index(): number;
-	get node(): CstNode;
+	get node(): NodeView;
 	get path(): number[];
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;

@@ -10,11 +10,11 @@
  * as not-transparent, so an unparsed block degrades to "land on it".
  */
 
-import type { CstNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import { getInlineContent } from './inline-cache';
 import { isInlineWidget } from './inline-widgets';
 
-export function isVerticallyTransparentNode(node: CstNode | null | undefined): boolean {
+export function isVerticallyTransparentNode(node: NodeView | null | undefined): boolean {
 	if (!node) return false;
 	// Table kinds are never transparent: a cell is a grid-column landing, and images
 	// render there as alt text, not as skippable widgets. Without this gate the

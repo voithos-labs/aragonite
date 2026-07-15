@@ -12,7 +12,7 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -62,7 +62,7 @@
 		index,
 		myPath
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath: number[];
 	} = $props();

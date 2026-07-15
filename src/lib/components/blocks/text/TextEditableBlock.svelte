@@ -7,7 +7,7 @@
 		HistoryActions
 	} from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
-	import type { CstNode, Document } from '../../../core/nodes';
+	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import { emitCommandError, type EditorEvents } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -95,7 +95,7 @@
 		blockClass = 'paragraph-block',
 		ambientPrefix = ''
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
 		blockClass?: string;
@@ -103,7 +103,7 @@
 		// Accepted for BlockComponentProps parity — BlockHost passes `document` to
 		// every block uniformly; this surface reads the doc from DOC_KEY, so the prop
 		// stays unbound (binding it would shadow the global `document` used below).
-		document?: Document;
+		document?: DocumentView;
 	} = $props();
 
 	const ambientPrefixText = $derived(

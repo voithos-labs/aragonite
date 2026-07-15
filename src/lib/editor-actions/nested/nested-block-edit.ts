@@ -144,11 +144,13 @@ export function createNestedBlockEdit(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
-			// Preview on a shallow clone of the target child — the only node
-			// performUpdate reads — to pick between structural (kind-changing)
-			// commit and routine typing path. Live tree is not mutated here —
-			// the chosen branch runs the real mutation below.
-			const preview = performUpdate({ children: [{ ...deps.node.children[innerIndex] }] }, 0, text);
+			// Preview on a minimal probe (kind + raw are all performUpdate reads)
+			// to pick between structural (kind-changing) commit and routine typing
+			// path. Live tree is not mutated here — the chosen branch runs the
+			// real mutation below.
+			const child = deps.node.children[innerIndex];
+			const probe = { kind: child.kind, leadingTrivia: child.leadingTrivia, raw: child.raw };
+			const preview = performUpdate({ children: [probe] }, 0, text);
 
 			const leafPath = [...deps.path, innerIndex];
 

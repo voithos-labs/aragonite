@@ -4,7 +4,7 @@
  *   fragment.textContent === trimTrailingLineEnding(node.raw)
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
@@ -18,7 +18,7 @@ export interface FencedCodeSlice {
 	infoString: string;
 }
 
-export function sliceFencedCode(node: CstNode): FencedCodeSlice {
+export function sliceFencedCode(node: NodeView): FencedCodeSlice {
 	const meta = metadataOf(node, 'fencedCode');
 	const raw = node.raw;
 
@@ -192,7 +192,7 @@ function renderCloserLine(slice: FencedCodeSlice): DocumentFragment {
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
-export function renderCodeBlock(node: CstNode): DocumentFragment {
+export function renderCodeBlock(node: NodeView): DocumentFragment {
 	const slice = sliceFencedCode(node);
 	const meta = metadataOf(node, 'fencedCode');
 	const frag = document.createDocumentFragment();

@@ -9,7 +9,8 @@
  */
 
 import type { Component } from 'svelte';
-import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
+import type { AnyInlineKind, InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 
 /**
@@ -41,7 +42,8 @@ export interface InlineWidgetEditingPolicy {
 
 /** What a widget kind's key handler is given about the selected widget instance. */
 export interface InlineWidgetEditingContext {
-	node: CstNode;
+	/** Read context — a bytes-readonly view; edits go through `updateContent`. */
+	node: NodeView;
 	inline: InlineNode;
 	widgetStart: number;
 	widgetEnd: number;

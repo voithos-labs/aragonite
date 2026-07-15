@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
-	import type { CstNode } from '../core/nodes';
+	import type { NodeView } from '../core/node-views';
 	import type { WindowResult } from '../reactivity/block-window.svelte';
 	import { sliceWindow } from '../reactivity/window-slice';
 	import BlockHost from './BlockHost.svelte';
@@ -20,7 +20,7 @@
 		window: win = undefined,
 		reorderable = false
 	}: {
-		children: CstNode[];
+		children: readonly NodeView[];
 		blockIds: string[];
 		setRef: (i: number, r: BlockComponent | undefined) => void;
 		getRef: (i: number) => BlockComponent | undefined;

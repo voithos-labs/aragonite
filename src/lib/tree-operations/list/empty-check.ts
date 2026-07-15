@@ -1,4 +1,5 @@
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 
 /**
  * A list item is "user-empty" when every leaf descendant's raw is blank.
@@ -6,7 +7,7 @@ import type { CstNode } from '../../core/nodes';
  * dropped trailing content (extra paragraphs, nested lists) when the first
  * paragraph happened to be empty.
  */
-export function isItemUserEmpty(item: CstNode): boolean {
+export function isItemUserEmpty(item: NodeView): boolean {
 	if (!item.children || item.children.length === 0) return true;
 	for (const child of item.children) {
 		if (child.children && child.children.length > 0) {

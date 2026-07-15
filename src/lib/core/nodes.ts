@@ -3,6 +3,8 @@
  * hierarchy. See docs/design/syntax-tree.md for the design spec.
  */
 
+import type { BytesView, NodeView } from './node-views';
+
 // ── Node Kinds ──────────────────────────────────────────────────────────────
 
 export type LeafBlockKind =
@@ -148,10 +150,19 @@ export interface BlockMetadataByKind {
  * `BlockMetadata` union and the flat-node model can't discriminate it by `kind`
  * (kind stays reassignable), so reading a specific kind's metadata needs a cast.
  * This is the one place that cast lives; the `kind` argument selects the return
- * interface. Pass the kind you've already established for `node`.
+ * interface. Pass the kind you've already established for `node`. A readonly
+ * view yields a readonly metadata view — reads stay legal, writes don't.
  */
 export function metadataOf<K extends keyof BlockMetadataByKind>(
 	node: CstNode,
+	kind: K
+): BlockMetadataByKind[K];
+export function metadataOf<K extends keyof BlockMetadataByKind>(
+	node: NodeView,
+	kind: K
+): BytesView<BlockMetadataByKind[K]>;
+export function metadataOf<K extends keyof BlockMetadataByKind>(
+	node: NodeView,
 	kind: K
 ): BlockMetadataByKind[K] {
 	void kind;
@@ -169,7 +180,7 @@ export function setPluginMetadata<T>(node: CstNode, data: T): void {
 	node.metadata = data as unknown as BlockMetadata;
 }
 
-export function getPluginMetadata<T>(node: CstNode): T | undefined {
+export function getPluginMetadata<T>(node: NodeView): T | undefined {
 	return node.metadata as unknown as T | undefined;
 }
 

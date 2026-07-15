@@ -4,7 +4,8 @@
  */
 
 import type { Component } from 'svelte';
-import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
+import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import type { BlockComponent, BlockComponentProps } from '../block-component';
 
 export interface BlockComponentEntry {
@@ -16,7 +17,7 @@ export interface BlockComponentEntry {
 	 * holds — this just surfaces it to Svelte's dynamic-component typing.
 	 */
 	component: Component<Record<string, unknown>, BlockComponent>;
-	extraProps?: (node: CstNode) => Record<string, unknown>;
+	extraProps?: (node: NodeView) => Record<string, unknown>;
 }
 
 /**
@@ -32,7 +33,7 @@ export function defineBlockComponent<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
 >(
 	component: Component<P, BlockComponent>,
-	extraProps?: (node: CstNode) => Record<string, unknown>
+	extraProps?: (node: NodeView) => Record<string, unknown>
 ): BlockComponentEntry {
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }

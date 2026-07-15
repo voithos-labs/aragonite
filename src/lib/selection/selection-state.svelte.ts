@@ -5,7 +5,7 @@
  * selection.
  */
 
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import { nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint, SelectionDragStart } from './primitives';
 import { normalize } from './primitives';
@@ -29,7 +29,7 @@ export interface SelectionStateOptions {
 	 * only exercise cross-block semantics — `isCustomRendered` then mirrors
 	 * `isCrossBlock`.
 	 */
-	getDoc?: () => Document;
+	getDoc?: () => DocumentView;
 }
 
 export function createSelectionState(options?: SelectionStateOptions): SelectionState {
@@ -70,7 +70,7 @@ class SelectionStateImpl implements SelectionState {
 	#dragStart: SelectionDragStart = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
-	#getDoc?: () => Document;
+	#getDoc?: () => DocumentView;
 
 	constructor(options?: SelectionStateOptions) {
 		this.#onChange = options?.onChange;

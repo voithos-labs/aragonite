@@ -8,6 +8,7 @@
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode, TableAlignment } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -62,7 +63,7 @@ export function tableColumnReorderTarget(
 }
 
 export interface TableMutationsContextDeps {
-	get node(): CstNode;
+	get node(): NodeView;
 	get myPath(): readonly number[];
 	get rowsState(): BlockListState;
 	get focusedCell(): { rowIdx: number; colIdx: number } | null;

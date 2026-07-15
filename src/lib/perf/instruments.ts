@@ -6,7 +6,7 @@
  * non-profiling dev runs pay one boolean check per record call. Internal —
  * never exported from the editor barrel.
  */
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
@@ -170,7 +170,7 @@ export function markKeystrokeSettle(): void {
  * is prefix + Σ(leadingTrivia + raw) + suffix. Counts UTF-16 code units —
  * exact vs `serialize().length`, approximate vs on-disk bytes for non-ASCII.
  */
-export function docByteLength(doc: Document): number {
+export function docByteLength(doc: DocumentView): number {
 	let length = doc.prefix.length + doc.suffix.length;
 	for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
 	return length;

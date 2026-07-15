@@ -23,7 +23,7 @@
  */
 
 import type { BlockEditActions } from '../../../action-contracts';
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import type { RawOffset } from '../../../cursor/coordinate-spaces';
 import { recordIslandKeyScan } from '../../../perf/instruments';
@@ -35,7 +35,7 @@ interface IslandSpan {
 }
 
 export interface DecorationIslandKeysDeps {
-	get node(): CstNode;
+	get node(): NodeView;
 	get index(): number;
 	getEl: () => HTMLElement | null;
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */

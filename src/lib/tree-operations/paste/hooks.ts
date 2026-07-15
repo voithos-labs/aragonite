@@ -6,6 +6,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
 import {
@@ -84,7 +85,7 @@ export function defaultStructuralHook(
  * last node as before.
  */
 export function pastedContentFocusIndex(
-	node: CstNode,
+	node: NodeView,
 	offset: number,
 	preDelete: PasteRange | undefined,
 	replacementLength: number

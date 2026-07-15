@@ -1,4 +1,5 @@
 import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import { compileMatcher } from '../search/matcher';
 import { scanDocument, type Match } from '../search/document-scan';
 import { pathKey } from '../decorations/buckets';
@@ -26,7 +27,7 @@ export interface IndexedMatch {
 }
 
 interface SearchDeps {
-	getDoc: () => Document;
+	getDoc: () => DocumentView;
 	/** Highlights ship as mark decorations under source 'editor:search' —
 	 *  registered on open, disposed on close, so a closed bar costs nothing. */
 	decorations: DecorationRegistry;
