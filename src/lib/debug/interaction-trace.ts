@@ -54,7 +54,7 @@ export function isInteractionTraceEnabled(): boolean {
 	return enabled;
 }
 
-/** Empty the buffer without touching the enabled flag — test isolation + the door. */
+/** Empty the buffer without touching the enabled flag — test isolation. */
 export function resetInteractionTrace(): void {
 	buf = [];
 }

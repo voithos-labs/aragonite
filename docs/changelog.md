@@ -2,6 +2,47 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.25 — Inline observability: the flight recorder before the field reports
+
+The inline layer's per-keystroke rebuilds make every inline state transient — cursor
+capture/restore, reveal open/fold, widget-pool adopt/sweep, IME composition, island
+application — so a field report used to arrive after the state that produced it was gone.
+This milestone makes the layer observable, asserts its state machines, and pins the
+composition contract directly. Built now, deliberately, before the two events that multiply
+the exposure: presentation modes (which multiply the inline state machines) and the limestone
+integration (the first external field-report source).
+
+- **The interaction trace.** A ring buffer of inline-layer transitions
+  (`debug/interaction-trace.ts`): rebuild + which render-key segment changed, cursor
+  capture/restore/pending, reveal open/fold + reason, pool adopt/build/sweep counts,
+  composition start/end, island applications, sticky capture/reset. Ships in production
+  **default-off behind one boolean per site** — the perf-instruments discipline without the
+  DEV strip — so a real app can arm it; disabled cost is one boolean check (perf-suite-pinned,
+  byte-identical behavior). Trace entries carry primitives only — never document text.
+- **Two doors.** The debug panel gains an Inline trace section riding Copy-all; consumers get
+  `getDiagnostics()` on the editor instance — trace enable/snapshot plus
+  `serializeDiagnostics()`, the attachable fenced-markdown field report (document source
+  excluded by default; `includeSource: true` is the consumer's explicit call). A field report
+  becomes: reproduce, copy, paste. The trace is process-global (two editors interleave) —
+  recorded, revisited with the reveal mount-waiter keying at the freeze cut.
+- **Transition assertions (G1.25–G1.27).** The pool bracket becomes explicit and asserted
+  (acquire outside a beginPass/sweep bracket, unbalanced brackets), reveal transitions assert
+  their illegal interleavings (fold during the settle window; the kernel precondition speaks
+  on the invariant channel), and the composition window asserts end-without-start — all on
+  the `invariant:` channel every e2e spec and the simulation already police. The
+  pending-cursor machine ships NO assert, by proof: the render effect clears it
+  unconditionally in both arms — the leak state is unrepresentable. Left-silent paths are
+  recorded with evidence; a defensive bail on a legal transient stays silent by rule. The
+  ledgered battery-order reveal flake now has a diagnosis channel: a reproduction names its
+  illegal interleaving instead of surfacing three layers away as a caret mystery.
+- **The IME composition harness** — the ledgered gap closes. Handler-level unit contract
+  (real editable-surface handlers, synthetic composition sequences, faked DOM readback): no
+  CST sync mid-composition, one commit at end, one undo entry, CodeBlock's `insertLineBreak`
+  gate both sides. Real-browser CDP sequence (`Input.imeSetComposition`, listener-verified
+  compositionstart/end — not an insertText degenerate) over paragraph, code block, and table
+  cell, undo included, deterministic under repeat. Safari's duplicate-compositionend quirk is
+  ledgered with a relax path; the composition sim gesture is ledgered pending.
+
 ### 0.9.24 — Enforcement hardening: the load-bearing contracts climb to types
 
 The 2026-07 audit's two dominant bug classes — sibling-path parity and offset arithmetic
