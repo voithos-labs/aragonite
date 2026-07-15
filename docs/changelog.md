@@ -2,6 +2,55 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.24 — Enforcement hardening: the load-bearing contracts climb to types
+
+The 2026-07 audit's two dominant bug classes — sibling-path parity and offset arithmetic
+outside the shared walk — were held by dev guards, prose, and review. This milestone climbs
+them to the compiler while the climb is cheap, before external code binds: a new consumer now
+inherits the contracts from types, not from `culture.md`.
+
+- **Branded coordinate spaces (G3.7).** Raw offset, ambient-inclusive DOM-text offset,
+  editor-relative X, viewport X, cell index, and doc-absolute path are distinct branded types
+  (`cursor/coordinate-spaces.ts`), minted only by their single-home modules; inter-space
+  conversion is a named function with one home per direction; public doors keep `number` and
+  brand once at the boundary, policed by a mint lint (G4.15). The pass corrected the space
+  model itself: the widget-offset walk is marker-_inclusive_ — it speaks DOM-text offsets, and
+  raw offsets mint at the ambient seam; the design doc had it backwards, and the brands now
+  make the true model unrepresentable to violate. `SelectionPoint`'s dual-space `offset` reads
+  through space-split accessors; the selection overlay's endpoint decode branches honestly by
+  space. `DocPath` is deliberately narrow (the scope factories + the G1.16 entry are branded;
+  op-family composers stay `number[]` with the runtime guard as the belt — ledgered).
+- **The closure matrix is a required type and an executable battery.** Registration carries a
+  `closure` block answering all nine cross-cutting systems (implemented / inherit-default /
+  not-supported) — a blank cell is a compile error, G1.24 cross-checks cells against the
+  descriptor, and a `conformanceFixture` rides the declaration. The `aragonite/testing` kit
+  generalized: registering a kind ENROLLS it — headless cells (round-trip, merge, clipboard,
+  undo) execute at the unit gate, a profile custom check is refused on a cell not declared
+  `implemented` (so a bare mode revert bites), and the bundled lockstep anchors on the plugins
+  directory listing. A browser sweep executes the three mounted-DOM columns (focus walk,
+  selection paint, search paint) per registered kind from the live registry. The audit-then-
+  execute sequence earned its keep immediately: the declared-vs-real audit caught a false
+  table clipboard cell (a real rectangular sub-table copy path had been declared
+  inherit-default), the sweep ledgered two render-primary search-paint gaps (mathBlock, toc)
+  as two-sided ratchets, and the sweep's exact-source settle fix exposed that the tableRow
+  rows had been silently sweeping the previous kind's document (the harness's same-value
+  `setSource` is a `$state` no-op — each load now varies leading trivia).
+- **Readonly-by-layer CST views (G3.8).** `NodeView`/`DocumentView` are bytes-scoped
+  deep-readonly views — exactly G1.9 as a type: serialized bytes readonly, the
+  `childIds`/`ownerEpoch` bookkeeping writable. Components, the decorations engine, and the
+  entire plugin surface (`EditorContext.document`, `DecorationSource.provide`,
+  `BlockComponentProps`, descriptor read hooks) read through views; constructors and writers
+  (`parse`, `tryOpen`, `rebuildRaw`, the factories) keep the mutable type; the only
+  view→mutable door is the unshare seam plus the commit ceremony, policed by a door lint
+  (G4.13) and an annotation-parity lint (G4.14). Every in-repo consumer compiled unchanged —
+  the byte-write discipline was already clean; it is now a compile-time guarantee, with the
+  DEV integrity oracle kept as the runtime belt.
+- **Sibling-path parity lints (G4.10–G4.12).** Source-scan guards where funnels can't exist
+  yet: plugin pack surface (every `src/lib/plugins/<name>` has exports-map + verify-pack
+  entries), paste-transform two-site parity (a clipboard→parse route born without the pipeline
+  fails at birth), and caret-edge destructive-key seam parity (no unguarded fourth seam;
+  consolidation stays presentation-modes work).
+
 ### 0.9.23 — Demo groundwork: bundled plugins ship as package subpaths; `/` is the showcase
 
 The structural half of demo polish, pulled forward so everything after it lands into final

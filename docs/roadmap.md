@@ -18,50 +18,14 @@ The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20), the *
 spine** closed most of the extension-surface gap (0.9.21), the **decoration gap** — the
 one plugin class the platform could not express — closed in 0.9.22, and the **demo/packaging
 groundwork** landed in 0.9.23 (bundled plugins as `aragonite/plugins/<name>` subpaths; `/` is
-the showcase shell). The remaining risk is **validation depth**: one clean-room run deep,
-every consumer since in-repo and same-day. The items below are ordered by **risk first,
-validation before freeze**.
+the showcase shell), and the **enforcement-hardening program** shipped in 0.9.24 (branded
+coordinate spaces, the closure matrix as a required registration field + executable battery,
+bytes-readonly node views, and the parity-lint family — the audit's two dominant bug classes
+climbed from guards and prose to the compiler). The remaining risk is **validation depth**:
+one clean-room run deep, every consumer since in-repo and same-day. The items below are
+ordered by **risk first, validation before freeze**.
 
-1. **Enforcement-hardening program — climb the ladder before external code binds.**
-
-   The 2026-07 audit's two dominant bug classes — sibling-path parity (one rule enforced at N−1
-   of N entry paths) and offset arithmetic done outside the shared walk — are held today by dev
-   guards, prose, and review: the ladder's bottom rungs. This program climbs the load-bearing
-   contracts to types while the climb is still cheap. Two of the four passes are
-   **breaking-if-deferred** (the freeze criterion for pre-1.0 work), and all four are contracts a
-   new consumer should inherit from the compiler, not from `culture.md`:
-
-   1. **Branded coordinate spaces.** Raw offset, ambient-inclusive DOM-text offset,
-      editor-relative X, viewport X, cell index, and doc-absolute path vs scope-local index are
-      all `number` today — which is why every offset bug in the audit was arithmetic mixing them.
-      Brand them (zero runtime cost), minted only by their single-home modules
-      (`cursor/widget-offset.ts`, the commit scope factories) — G1.16's class climbs from guarded
-      to unrepresentable. The public doors (rects, decorations) keep `number` signatures and
-      brand at the boundary: consumer DX unchanged, internal arithmetic protected. Scheduled
-      **before** presentation modes deliberately — rung 3 is the heaviest caret/offset churn
-      left and should happen under compile-time protection, not ahead of it.
-   2. **The closure matrix runs as an executable battery.** The required closure block has landed:
-      registration answers every cross-cutting system with an implementation, an inherit-default, or
-      an explicit not-supported, so a blank matrix cell is a compile error (a required registration
-      field is breaking-if-deferred) and G1.24 cross-checks the cells against the descriptor — the
-      0.9.18 lesson, made unrepresentable. What remains is _execution_: the `aragonite/testing`
-      container conformance kit generalizes so registering a kind _enrolls_ it in a generic
-      behavioral battery (focus walk, selection/search paint, clipboard round-trip) — a matrix row
-      run, not declared. The battery must precede the clean-room run, which probes the third-party
-      testing story.
-   3. **Readonly-by-layer CST views.** The mutable node type stays visible only inside
-      `tree-operations/` and the commit ceremony; components and the entire plugin surface
-      receive deep-readonly views, so writing through a shared or stale reference (G1.9's
-      perimeter) becomes a type error for most of the codebase. Breaking-if-deferred on the
-      public surface — a consumer who binds mutable types at 1.0 breaks when they tighten.
-   4. **Sibling-path parity lints.** Where a funnel can't exist yet, the parity rule ships as a
-      source-scan guard (the `invariants/lint/` pattern): "every entry path matching X routes
-      through Y" fails the day path N+1 is born instead of at the next audit. The
-      caret-edge/destructive-key dispatch — three sibling seams as of the decorations work — is
-      deliberately _not_ consolidated here: it hands to presentation modes rung 3 as that batch's
-      opening move, one churn of one layer.
-
-2. **Inline-layer observability — the flight recorder before the field reports.**
+1. **Inline-layer observability — the flight recorder before the field reports.**
 
    The inline layer is where the editor's hardest bugs live and where a field report is least
    reconstructible: per-keystroke span rebuilds make every inline state transient (cursor
@@ -96,7 +60,7 @@ validation before freeze**.
    shrinks: the recorder ships, the assertions ride rung 3's opening move, the harness stays
    ledgered.
 
-3. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
+2. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
    defaults to Live Preview and reveals syntax for the element _under the cursor_. Always-visible
    styled source is a power-user aesthetic; a consumer evaluating aragonite against Obsidian sees
    markers everywhere and bounces before reaching the good part. Styled source stays the editing
@@ -104,7 +68,7 @@ validation before freeze**.
    built in order:
 
    1. **Reading mode** — markers hidden, widgets rendered, read-only. Built through public surfaces
-      only, as a consumer would; shipped as a showcase toggle by item 6.
+      only, as a consumer would; shipped as a showcase toggle by item 5.
    2. **Block-granular** — unfocused blocks hide markers, the focused block shows source. The
       editable-leaf render-primary swap generalized to built-in prose kinds. The stepping stone: it
       builds the marker-island rendering and the presentation-mode seam rung 3 refines.
@@ -123,20 +87,20 @@ validation before freeze**.
    policy, edge entry). Building it after the freeze is the dangerous order; a paper litmus cannot
    validate it, because a shape with no consumer cannot be validated.
 
-4. **Limestone internal integration** — the last unchecked box in the validation list above and
+3. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
-   also exercises item 2's field-report workflow (trace + copy-all → attached diagnostics) end
+   also exercises item 1's field-report workflow (trace + copy-all → attached diagnostics) end
    to end, as the first consumer that will actually file one. The
    integration code lives in limestone; what belongs here is running it before the freeze and
    landing its findings while they are still cheap. Additive API needs it surfaces ship as
    pre-freeze refinements. The first-party plugin distribution question is settled
    (0.9.23): the integration consumes the bundled plugins as `aragonite/plugins/<name>` subpath
    exports directly — the copy-source sync pattern never enters the picture.
-5. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+4. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
-   writing tests for their plugin**, so the run probes the third-party testing story item 1
-   ships, not just authoring discoverability. The first
+   writing tests for their plugin**, so the run probes the third-party testing story the
+   conformance battery ships (0.9.24), not just authoring discoverability. The first
    run validated container/chrome discoverability; nothing has third-party-validated the unit,
    transforms, portal widgets, or the leaf tier. One support question is the benchmark. The
    subject should exercise **editable-leaf plain mode** — its only consumer today is the
@@ -144,17 +108,17 @@ validation before freeze**.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-6. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
+5. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
    full pitch: every block kind + every bundled plugin — fixtures stay off it
    (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
    is the "surpass Obsidian" argument made visible. The reference-plugin aesthetic decision is
    made and shipped (restrained gutter-rail chrome on the showcased admonitions/details; chrome
    remains the plugin author's call) — the showcase inherits it; demo polish extends the same
-   restraint to whatever it adds. The showcase **surfaces item 3's presentation modes as
+   restraint to whatever it adds. The showcase **surfaces item 2's presentation modes as
    toggles** — reading mode and block-granular live preview beside styled source — so the first
    impression is not markers-everywhere, and the freeze litmus "the contract must not preclude
    a rendered reading mode" becomes a working proof instead of a paper check.
-7. **Freeze cut at release** — in order:
+6. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -205,7 +169,7 @@ validation before freeze**.
      each be able to learn the current presentation mode and render for it. Item 4 builds all three
      rungs, so this is verified by a real consumer rather than on paper — which is the point: rung 3
      is what proves the inline and caret contracts survive marker islands and caret affinity.
-   - **Freeze litmus (enforcement hardening)**: item 1 shipped whole — registration's closure
+   - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
      by their single-home modules with the public doors keeping `number`. Verified by the
@@ -294,8 +258,8 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   process-global, so an override is global and last-writer-wins — the collision tax every
   surveyed ecosystem paid. The supported replacement path is **grammar-level**: a plugin kind
   claims the syntax ahead of the built-in on the opener priority ladder (the mermaid precedent —
-  uninstall-safe by decline), owns its own closure-matrix row, and — once item 1's conformance
-  battery lands — proves it by enrollment. An executable code block is this pattern verbatim:
+  uninstall-safe by decline), owns its own closure-matrix row, and — with the conformance
+  battery (0.9.24) — proves it by enrollment. An executable code block is this pattern verbatim:
   claim the fence, render the run surface, keep the bytes. If post-1.0 demand shows genuine need
   for in-place replacement, Plugin System II is its home — after the battery exists to make "you
   own what you replace" checkable.
@@ -326,7 +290,7 @@ Settles what only an integrated surface can settle:
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
 
-_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 3.)_
+_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 2.)_
 
 ### 1.2 — Plugin DX + deferred generalizations
 
