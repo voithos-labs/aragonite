@@ -1,4 +1,4 @@
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import type { EditEvent } from '../editor-events';
 import { nodeAt } from '../tree-operations/node-ops';
 
@@ -17,7 +17,7 @@ import { nodeAt } from '../tree-operations/node-ops';
  * Net: typing in an ordinary paragraph never walks the doc, even in a
  * definition-dense document.
  */
-export function lrdMapCouldChange(doc: Document, event: EditEvent): boolean {
+export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean {
 	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
 	return nodeAt(doc, event.path)?.kind === 'linkReferenceDefinition';
 }

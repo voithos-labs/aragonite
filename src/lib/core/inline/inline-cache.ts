@@ -5,7 +5,8 @@
  * a reactive read+write here would re-introduce the keyed-`{#each}` corruption
  * that invariant G4.2 guards against.
  */
-import type { CstNode, InlineNode } from '../nodes';
+import type { InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { computeInlineContent, isProseKind } from './index';
 
@@ -15,10 +16,10 @@ interface CacheEntry {
 	content: InlineNode[];
 }
 
-const cache = new WeakMap<CstNode, CacheEntry>();
+const cache = new WeakMap<NodeView, CacheEntry>();
 
 export function getInlineContent(
-	node: CstNode,
+	node: NodeView,
 	resolver?: LinkReferenceResolver,
 	signature = ''
 ): InlineNode[] {

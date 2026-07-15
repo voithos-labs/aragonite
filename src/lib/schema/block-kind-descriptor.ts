@@ -1,4 +1,5 @@
 import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
@@ -99,7 +100,7 @@ export interface BlockKindDescriptor {
 		 * collapsed. Collapse-aware walks (e.g. the Backspace merge walker) stop
 		 * at the chrome leaf instead of reaching into the clamped-out body.
 		 */
-		isCollapsed?: (node: CstNode) => boolean;
+		isCollapsed?: (node: NodeView) => boolean;
 	};
 	/**
 	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
@@ -137,7 +138,7 @@ export interface BlockKindDescriptor {
 	 * kinds whose markers occupy a prefix of `raw` implement this to skip
 	 * markers; otherwise the default (start=0, end=displayLength) is used.
 	 */
-	getContentRange?: (node: CstNode) => { start: number; end: number };
+	getContentRange?: (node: NodeView) => { start: number; end: number };
 	/**
 	 * Recompute `raw` from children + container metadata. Container kinds
 	 * declare this at registration (implementations in
@@ -158,7 +159,7 @@ export interface BlockKindDescriptor {
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
 	/** O(1) content-height estimate in px for virtual rendering — no subtree walk.
 	 *  The oracle adds block chrome; the measured cache still supersedes. */
-	estimateHeight?: (node: CstNode, env: { width: number }) => number;
+	estimateHeight?: (node: NodeView, env: { width: number }) => number;
 }
 
 /**
@@ -215,7 +216,7 @@ export type BlockKindAugmentation = Partial<Omit<BlockKindRegistration, 'contain
 // ── Content-range helpers (used by built-in registrations) ─────────────────
 
 // Headings carry a `# ` prefix that is not part of the editable text.
-function headingContentRange(node: CstNode): { start: number; end: number } {
+function headingContentRange(node: NodeView): { start: number; end: number } {
 	const raw = node.raw;
 	const displayEnd = displayLength(raw);
 	let i = 0;
@@ -226,7 +227,7 @@ function headingContentRange(node: CstNode): { start: number; end: number } {
 }
 
 // Setext headings carry a trailing underline line that is structural, not content.
-function setextHeadingContentRange(node: CstNode): { start: number; end: number } {
+function setextHeadingContentRange(node: NodeView): { start: number; end: number } {
 	const raw = node.raw;
 	const end = displayLength(raw);
 	const underlineStart = raw.lastIndexOf('\n', end - 1);
@@ -237,7 +238,7 @@ function setextHeadingContentRange(node: CstNode): { start: number; end: number 
 }
 
 // Cells have no markers; the entire raw is content.
-function tableCellContentRange(node: CstNode): { start: number; end: number } {
+function tableCellContentRange(node: NodeView): { start: number; end: number } {
 	return { start: 0, end: displayLength(node.raw) };
 }
 

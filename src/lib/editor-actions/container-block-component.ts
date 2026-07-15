@@ -13,6 +13,7 @@ import {
 } from './focus/focus-dispatch';
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import { devWarn } from '../dev-warn';
 
@@ -76,7 +77,7 @@ export interface ContainerBlockComponentDeps {
 	readonly nodeChildrenLength: number;
 	/** The container's CST node, for the pure-data transparency test — works
 	 *  off-window where `innerBlockRefs` is sparse (VR-6). */
-	readonly node: CstNode;
+	readonly node: NodeView;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	readonly revealChild?: (index: number) => Promise<void>;
 	/** True iff `index` is in this scope's current window; lets the reveal degrade

@@ -33,7 +33,7 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
-import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import {
 	BLOCK_EDIT_KEY,
 	BLOCK_EL_LOOKUP_KEY,
@@ -91,7 +91,7 @@ export type EditableLeafMode = 'plain' | 'render-primary';
  * undo replacement is observed, never snapshotted.
  */
 export interface EditableLeafDeps {
-	get node(): CstNode;
+	get node(): NodeView;
 	get index(): number;
 	get path(): number[];
 	/** The source contenteditable; null while unmounted (render-primary's rendered view). */

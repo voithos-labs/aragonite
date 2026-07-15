@@ -1,4 +1,4 @@
-import type { Document, CstNode } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CompiledMatcher } from './matcher';
 
@@ -14,12 +14,12 @@ export interface Match {
 // A childless opaque container (e.g. a diagram block) has no leaves to carry its
 // text — its own raw is the only carrier, so it matches like a leaf. Strip/grid
 // containers stay walk-only even when empty: their raw is marker syntax.
-const scansOwnRaw = (node: CstNode, desc: BlockKindDescriptor): boolean =>
+const scansOwnRaw = (node: NodeView, desc: BlockKindDescriptor): boolean =>
 	desc.containerContract === 'opaque' && (node.children?.length ?? 0) === 0;
 
-export function scanDocument(doc: Document, matcher: CompiledMatcher): Match[] {
+export function scanDocument(doc: DocumentView, matcher: CompiledMatcher): Match[] {
 	const out: Match[] = [];
-	const walk = (nodes: CstNode[], prefix: number[]): void => {
+	const walk = (nodes: readonly NodeView[], prefix: number[]): void => {
 		nodes.forEach((node, i) => {
 			const path = [...prefix, i];
 			const desc = getBlockKindDescriptor(node.kind);

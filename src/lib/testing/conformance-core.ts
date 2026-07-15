@@ -79,7 +79,8 @@ export function nodeAtPath(root: Document | CstNode, path: number[]): CstNode {
 		assert(cur.children, 'path step has children');
 		cur = cur.children[i];
 	}
-	return cur as CstNode;
+	assert('raw' in cur, 'path resolves to a block node');
+	return cur;
 }
 
 /** First node of `kind` in a pre-order walk (the kind may be nested below the root). */
@@ -111,7 +112,7 @@ export function pathPassesThroughKind(
 	let cur: Document | CstNode = doc;
 	for (let depth = 0; depth < leafPath.length - 1; depth++) {
 		cur = cur.children![leafPath[depth]];
-		if ((cur as CstNode).kind === kind) return true;
+		if (cur.kind === kind) return true;
 	}
 	return false;
 }

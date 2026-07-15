@@ -11,13 +11,13 @@
  * raw without the trailing line ending). Mirrors `code-fence-exit.ts`.
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import { sliceFencedCode } from './code-renderer';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export interface FenceBoundaryInput {
-	node: CstNode;
+	node: NodeView;
 	offset: number;
 	/** True when the user pressed Delete (forward) rather than Backspace. */
 	forward: boolean;
@@ -73,7 +73,7 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
  * the opener text is left alone: splicing after the full fence+info string is
  * already safe and keeps its caret-on-the-new-line behavior.
  */
-export function clampEnterOffsetToBody(node: CstNode, offset: number): number {
+export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 	const openerLine = sliceFencedCode(node).openerLine;
 	const openerTextEnd = openerLine.endsWith('\n') ? openerLine.length - 1 : openerLine.length;
 	return offset < openerTextEnd ? openerLine.length : offset;

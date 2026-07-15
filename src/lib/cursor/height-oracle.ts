@@ -5,7 +5,7 @@
  * on mount, supersede estimates and are keyed by stable block id, so structural
  * index shifts and undo don't invalidate them.
  */
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
@@ -26,11 +26,11 @@ export interface HeightOracleOptions {
 }
 
 export interface HeightOracle {
-	estimate(node: CstNode, width: number): number;
+	estimate(node: NodeView, width: number): number;
 	measured(id: string): number | undefined;
 	recordMeasured(id: string, height: number): void;
 	/** measured(id) ?? estimate(node, width). */
-	height(id: string, node: CstNode, width: number): number;
+	height(id: string, node: NodeView, width: number): number;
 	/** Drop measured heights (call on container width change — wrap depends on width). */
 	invalidateWidth(): void;
 	clear(): void;
@@ -66,7 +66,7 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		return total;
 	}
 
-	function estimate(node: CstNode, width: number): number {
+	function estimate(node: NodeView, width: number): number {
 		// A collapsed container mounts only its chrome row; its body lives in `raw`
 		// but never renders, so estimating from full `raw` over-counts it several-
 		// fold. One chrome line + block chrome is the tight estimate, matching what

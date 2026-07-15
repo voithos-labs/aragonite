@@ -13,7 +13,8 @@
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
-import type { AnyInlineKind, CstNode, InlineNode } from '../../../core/nodes';
+import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -44,7 +45,7 @@ import {
 } from './widget-adjacency';
 
 export interface WidgetInteractionDeps {
-	get node(): CstNode;
+	get node(): NodeView;
 	get index(): number;
 	get myPath(): number[];
 	getEl: () => HTMLElement | null;
@@ -106,7 +107,7 @@ export interface WidgetInteraction {
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
 	// Resolver-aware so widget detection matches the render path's view — a
 	// mismatch around reference-style image widgets breaks cursor/clipboard.
-	function inlinesOf(node: CstNode): InlineNode[] {
+	function inlinesOf(node: NodeView): InlineNode[] {
 		return getInlineContent(node, deps.linkRef?.current, deps.linkRef?.signature ?? '');
 	}
 

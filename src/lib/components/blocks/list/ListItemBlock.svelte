@@ -7,7 +7,7 @@
 		ListContext
 	} from '../../../action-contracts';
 	import type { BlockComponent } from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
@@ -46,7 +46,7 @@
 		setRef,
 		getRef
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
 		setRef?: (i: number, r: BlockComponent | undefined) => void;

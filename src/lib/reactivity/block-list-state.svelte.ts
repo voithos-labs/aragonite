@@ -9,7 +9,7 @@
 
 import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
 
@@ -20,9 +20,10 @@ export interface BlockListState {
 
 /**
  * `getNode` must be a live getter — by-value would freeze on the initial node
- * and miss undo's deep-clone reassignment.
+ * and miss undo's deep-clone reassignment. A view suffices: the only writes
+ * here target `childIds`, the bytes-view carve-out.
  */
-export function createBlockListState(getNode: () => CstNode): BlockListState {
+export function createBlockListState(getNode: () => NodeView): BlockListState {
 	const initialNode = getNode();
 	if (!initialNode.childIds) {
 		initialNode.childIds = assignIds(initialNode.children ?? []);

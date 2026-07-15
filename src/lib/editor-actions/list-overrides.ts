@@ -8,6 +8,7 @@
 
 import type { BlockEditActions, ContainerEditActions, UndoEntryMode } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { deleteNode as performDelete, normalizeReplacementTrivia } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -18,7 +19,7 @@ import type { NestedActionsOverrideFactory } from './nested/nested-actions';
 
 export interface ListOverridesDeps {
 	get index(): number;
-	get node(): CstNode;
+	get node(): NodeView;
 	get path(): number[];
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;

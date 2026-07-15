@@ -6,8 +6,9 @@
 
 import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { CstNode, Document } from '../../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
+import { isBlockNode } from '../../tree-operations/node-ops';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import {
@@ -200,14 +201,16 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	return false;
 }
 
-function kindOfPath(path: number[], doc: Document): CstNode['kind'] {
-	let node: CstNode = doc as unknown as CstNode;
+/** Deepest resolvable node's kind; an empty/unresolvable path reads the document root's own kind. */
+function kindOfPath(path: number[], doc: Document): AnyBlockKind {
+	let node: CstNode | Document = doc;
 	for (const i of path) {
-		const child = node.children?.[i];
+		const child: CstNode | undefined = node.children?.[i];
 		if (!child) break;
 		node = child;
 	}
-	return node.kind;
+	// The root's 'document' kind is outside AnyBlockKind; dispatch treats it as an unknown kind.
+	return isBlockNode(node) ? node.kind : (node.kind as AnyBlockKind);
 }
 
 /**

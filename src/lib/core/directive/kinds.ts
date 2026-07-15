@@ -18,6 +18,7 @@ import {
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import { displayLength, trimTrailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
 import { registerInlineWidgetKind } from '../inline/inline-widgets';
@@ -153,7 +154,7 @@ const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 // that follows it. Mirrors the heading marker-range mechanism for this non-prose
 // leaf. A raw that no longer opens a fence (an edit broke `::name`) reparses to a
 // paragraph before this is consulted, so the null branch is a defensive floor.
-function directiveLeafContentRange(node: CstNode): { start: number; end: number } {
+function directiveLeafContentRange(node: NodeView): { start: number; end: number } {
 	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
 	const start = fence ? fence.colonCount + fence.name.length : 0;
 	return { start, end: displayLength(node.raw) };

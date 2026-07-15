@@ -6,15 +6,18 @@
  * single-block update path (ids/refs reactivity, op:'input' emission).
  */
 
-import type { CstNode } from '../../core/nodes';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { MultiScopeTarget } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { nodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt } from '../../tree-operations/node-ops';
 import { applyCollapsedCaret } from '../native-bridge';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import {
+	ensureUnsharedNode,
+	ensureUnsharedPath,
+	rebuildUnsharedChain
+} from '../../tree-operations/unshare';
 import { getStateForNode } from '../../reactivity/state-registry';
 
 export async function handleCrossBlockTypeReplace(
@@ -37,8 +40,8 @@ export async function handleCrossBlockTypeReplace(
 	}
 
 	const doc = ctx.getDoc();
-	const targetNode = nodeAt(doc, caret.path) as CstNode | null;
-	if (!targetNode || !('raw' in targetNode)) {
+	const targetNode = blockNodeAt(doc, caret.path);
+	if (!targetNode) {
 		applyCaretAtPath(ctx, caret);
 		return true;
 	}
@@ -61,7 +64,9 @@ export async function handleCrossBlockTypeReplace(
 			const sharing = scopeView.sharing;
 			const charOffset = charOffsetOf(caret, 'cross-block-type-replace:slice');
 			const chain = ensureUnsharedPath(doc, caret.path, sharing);
-			const owned = chain[chain.length - 1] ?? targetNode;
+			// caret.path resolved above, so the chain reaches the leaf; the
+			// fallback still routes through the unshare seam, never a raw capture.
+			const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
 			owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
 			rebuildUnsharedChain(chain, sharing);
 			return [{ op: 'noop' }];
@@ -97,14 +102,14 @@ function applyCaretAtPath(
 function resolveTypedCharScope(
 	ctx: CrossBlockDispatchContext,
 	leafPath: number[]
-): { node: CstNode; state: BlockListState; path: number[] } | null {
+): MultiScopeTarget | null {
 	if (leafPath.length === 1) {
 		return ctx.controller.getDocScope();
 	}
 	const doc = ctx.getDoc();
 	for (let depth = leafPath.length - 1; depth >= 1; depth--) {
 		const ancestorPath = leafPath.slice(0, depth);
-		const ancestor = nodeAt(doc, ancestorPath) as CstNode | null;
+		const ancestor = blockNodeAt(doc, ancestorPath);
 		if (!ancestor) continue;
 		const state = getStateForNode(ancestor);
 		if (state) return { node: ancestor, state, path: ancestorPath };

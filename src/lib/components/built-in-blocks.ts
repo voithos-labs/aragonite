@@ -6,7 +6,7 @@
  * downstream imports — registration is a top-of-DAG wire-up.
  */
 
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import {
 	defineBlockComponent,
@@ -26,7 +26,7 @@ import TableBlock from './blocks/table/TableBlock.svelte';
 import { tableCellPasteSurface } from './blocks/table/table-cell-paste';
 import { tableDragHitTest } from './blocks/table/table-drag-hit-test';
 
-function headingExtraProps(node: CstNode): Record<string, unknown> {
+function headingExtraProps(node: NodeView): Record<string, unknown> {
 	const level = metadataOf(node, 'heading')?.level ?? 1;
 	return { blockClass: `heading-${level}` };
 }

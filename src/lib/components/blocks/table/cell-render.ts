@@ -5,7 +5,8 @@
  * save/restore that touches $state; this factory owns the imperative build.
  */
 
-import type { CstNode, InlineNode } from '../../../core/nodes';
+import type { InlineNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
@@ -15,7 +16,7 @@ import { createSvelteWidgetPool } from '../widget-portal';
 
 export interface CellRenderDeps {
 	get el(): HTMLElement | null;
-	get node(): CstNode;
+	get node(): NodeView;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	resolveLinkUrl: ResolveLinkUrl;
 	/** A widget component's synchronous mount throw is routed here — the editor's

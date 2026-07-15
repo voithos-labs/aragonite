@@ -368,7 +368,7 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 	let cur: Document | CstNode = doc;
 	for (let depth = 0; depth < leafPath.length - 1; depth++) {
 		cur = cur.children![leafPath[depth]];
-		ancestors.push(cur as CstNode);
+		ancestors.push(cur);
 	}
 	// Outermost-first: each ancestor rebuilt before its descendants are fresh.
 	for (const a of ancestors) rebuildContainerRawIfContainer(a);

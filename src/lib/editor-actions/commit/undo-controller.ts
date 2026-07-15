@@ -7,6 +7,7 @@
 import { tick } from 'svelte';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import type { EditorSelection } from '../../selection/primitives';
 import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
@@ -458,7 +459,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	function prepareScopeView(s: MultiScopeTarget): PreparedScope {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
-		const owned = isDoc ? s.node : (chain[chain.length - 1] ?? s.node);
+		// The ceremony's view→mutable door (core/node-views.ts): the unshared
+		// chain owns the scope node; the doc scope owns the root by construction.
+		const owned = isDoc ? (s.node as CstNode) : (chain[chain.length - 1] ?? (s.node as CstNode));
 		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
 		const refs = [...s.state.innerBlockRefs];
 		// Distinct copies: `ids`/`refs` above are mutated in place by
@@ -602,7 +605,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * an LCA at doc level can include it.
 	 */
 	function getDocScope(): MultiScopeTarget {
-		return { node: deps.doc as unknown as CstNode, path: [], state: createDocScopeAdapter() };
+		return { node: deps.doc as unknown as NodeView, path: [], state: createDocScopeAdapter() };
 	}
 
 	// ── State capture / checkpoint control ──────────────────────────────────

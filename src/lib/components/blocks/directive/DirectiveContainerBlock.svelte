@@ -4,10 +4,11 @@
 	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
 	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
 	// (a document should feel like a document, not a pile of blocks).
-	import { BlockList, createContainerBlock, getPluginMetadata, type CstNode } from '$lib/plugin';
+	import { BlockList, createContainerBlock, getPluginMetadata } from '$lib/plugin';
+	import type { NodeView } from '$lib/core/node-views';
 	import type { DirectiveContainerMetadata } from '$lib/core/directive/kinds';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 

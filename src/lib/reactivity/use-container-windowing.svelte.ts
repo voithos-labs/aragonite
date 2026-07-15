@@ -15,6 +15,7 @@ import {
 import type { HeightOracle } from '../cursor/height-oracle';
 import type { RevealAnchorState } from '../cursor/reveal-anchor';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
@@ -22,7 +23,7 @@ export interface ContainerWindowingOpts {
 	getIndex: () => number;
 	/** This scope's path; the leaf-channel depth is its length. `[]` at the root. */
 	getParentPath: () => number[];
-	getChildren: () => CstNode[];
+	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
 	/** The content-origin element that scrolls WITH this scope's children (inner `.block-list` / `.list-block` / `.table-block`). Never the viewport. */
 	getListEl: () => HTMLElement | null;

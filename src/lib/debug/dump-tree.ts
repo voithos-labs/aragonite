@@ -1,4 +1,4 @@
-import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 
 export interface DumpTreeOptions {
 	maxRawChars?: number;
@@ -12,7 +12,7 @@ const DEFAULTS: Required<DumpTreeOptions> = {
 	includeInline: false
 };
 
-export function dumpTree(doc: Document, opts: DumpTreeOptions = {}): string {
+export function dumpTree(doc: DocumentView, opts: DumpTreeOptions = {}): string {
 	const options = { ...DEFAULTS, ...opts };
 	if (!doc.children || doc.children.length === 0) return '';
 	const lines: string[] = [];
@@ -23,7 +23,7 @@ export function dumpTree(doc: Document, opts: DumpTreeOptions = {}): string {
 }
 
 function renderNode(
-	node: CstNode,
+	node: NodeView,
 	index: number,
 	depth: number,
 	lines: string[],
@@ -70,7 +70,7 @@ function renderNode(
 	}
 }
 
-function formatMetadata(node: CstNode, opts: Required<DumpTreeOptions>): string {
+function formatMetadata(node: NodeView, opts: Required<DumpTreeOptions>): string {
 	const m = node.metadata;
 	if (!m) return '';
 	const frags: string[] = [];

@@ -1,6 +1,8 @@
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { CstNode, Document, InlineNode } from '../../core/nodes';
+import type { DocumentView, NodeView } from '../../core/node-views';
+import { isBlockNode } from '../../tree-operations/node-ops';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
 import { ensureUnsharedChild, ensureUnsharedPath } from '../../tree-operations/unshare';
 import { expectStateForNode } from '../../reactivity/state-registry';
@@ -21,10 +23,10 @@ export interface ImageEditCommitterDeps {
 }
 
 export interface SelectedImageFields {
-	paragraph: CstNode;
+	paragraph: NodeView;
 	image: InlineNode;
 	widgetEl: HTMLElement | null;
-	parent: { children?: CstNode[] };
+	parent: DocumentView | NodeView;
 }
 
 export interface ImageEditCommitter {
@@ -47,13 +49,14 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
 
 	function resolvePathToParagraph(path: number[]): {
-		paragraph: CstNode;
-		parent: { children?: CstNode[] };
+		paragraph: NodeView;
+		parent: DocumentView | NodeView;
 	} | null {
 		if (path.length === 0) return null;
-		let parent: { children?: CstNode[] } = getDoc();
+		let parent: DocumentView | NodeView = getDoc();
 		for (let i = 0; i < path.length - 1; i++) {
-			const next = parent.children?.[path[i]];
+			// Annotated: the `parent` reassignment otherwise cycles inference.
+			const next: NodeView | undefined = parent.children?.[path[i]];
 			if (!next) return null;
 			parent = next;
 		}
@@ -62,7 +65,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		return { paragraph, parent };
 	}
 
-	function findImageInParagraph(para: CstNode, sourceStart: number): InlineNode | null {
+	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
 		// Resolver-aware so a reference-style image resolves the same way the render
 		// path saw it — otherwise the widget the user clicked has no match here.
 		// Flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
@@ -129,7 +132,9 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			return;
 		}
 
-		const containerNode = resolved.parent as CstNode;
+		const containerNode = resolved.parent;
+		// paragraphPath.length > 1, so the parent is a container node, never the root.
+		if (!isBlockNode(containerNode)) return;
 		await controller.commitContainerStructural({
 			containerNode,
 			path: paragraphPath.slice(0, -1),

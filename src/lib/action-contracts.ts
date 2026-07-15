@@ -5,6 +5,7 @@
  */
 
 import type { CstNode, TableAlignment } from './core/nodes';
+import type { NodeView } from './core/node-views';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
@@ -146,7 +147,8 @@ export interface ContainerScope {
 // definition instead of each redeclaring it.
 
 export interface MultiScopeTarget {
-	node: CstNode;
+	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
+	node: NodeView;
 	state: {
 		innerBlockIds: string[];
 		innerBlockRefs: (BlockComponent | undefined)[];
@@ -181,7 +183,8 @@ export interface CommitStructuralArgs {
 }
 
 export interface CommitContainerStructuralArgs {
-	containerNode: CstNode;
+	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
+	containerNode: NodeView;
 	/** Doc-absolute path of `containerNode` — the spine the primitive unshares + rebuilds. */
 	path: number[];
 	state: {
@@ -269,10 +272,11 @@ export interface ListContext {
 	 * new sibling item. Emits exactly one undo snapshot and one edit event.
 	 */
 	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
-	/** Promote a nested list item to the parent list level. Called on the PARENT list's context. */
+	/** Promote a nested list item to the parent list level. Called on the PARENT list's context.
+	 *  `nestedListNode` is scope identity (a live-tree reference) — a view; writes go through the ceremony. */
 	promoteNestedItem(
 		parentItemIndex: number,
-		nestedListNode: CstNode,
+		nestedListNode: NodeView,
 		nestedItemIndex: number
 	): Promise<void>;
 	/** Returns this list's index in its enclosing list (for nested-list promotion). */
