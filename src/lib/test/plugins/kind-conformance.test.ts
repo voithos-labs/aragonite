@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { declaredPluginKind } from '$lib/plugin';
 import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
@@ -58,41 +60,64 @@ describe('kind conformance — plugin kinds enroll', () => {
 
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
 // Every block kind under `$lib/plugins` carries a required closure block; registering
-// one must enroll its headless cells exactly as a built-in's. Enrollment is anchored
-// on BUNDLED_INSTALLS — a bundled plugin dropped from this list is the residual escape
-// (nothing installs it, so the lockstep can't see it), so keep the list in sync when a
-// bundled kind lands. (highlight-occurrences registers no block kind — decoration
-// source only; latex's inline `math` is an inline kind, not a block — neither enrolls.)
-const BUNDLED_INSTALLS: { kind: string; install: () => void }[] = [
-	{ kind: DETAILS, install: registerDetailsKind },
-	{ kind: ADMONITION, install: registerAdmonitions },
-	{ kind: MATH_BLOCK, install: registerMathBlock },
-	{ kind: MERMAID, install: registerMermaidKind },
-	{ kind: TOC_BLOCK, install: registerTocBlock }
+// one must enroll its headless cells exactly as a built-in's. The plugins DIRECTORY
+// listing is the canonical bundled set (the plugin-pack-parity lint derives from the
+// same listing), so a plugin dir born or dropped outside BUNDLED_INSTALLS fails the
+// dir lockstep below at birth. (highlight-occurrences registers no block kind —
+// decoration source only; latex's inline `math` is an inline kind, not a block.)
+const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
+	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
+	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
+	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
+	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
+	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
 ];
+
+const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences']);
 
 describe('kind conformance — bundled plugin kinds enroll', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 
+	// The battery runs over EVERY kind the registrar registers, not only the headline
+	// one — fixtureless chrome kinds (details summary, admonition title) and the
+	// directive-fallback ride-ins run their fixture-free cells like built-ins do.
 	it.each(BUNDLED_INSTALLS)(
-		'$kind executes its fixtured headless cells',
+		'$kind registrar: every registered kind executes its headless cells',
 		async ({ kind, install }) => {
 			install();
-			const branded = declaredPluginKind(kind);
-			const report = await runKindConformance(branded);
-			// One recorded cell per declared closure column — nothing silently dropped.
-			expect(new Set(report.cells.map((c) => c.column))).toEqual(
-				new Set(Object.keys(getBlockKindDescriptor(branded).closure))
-			);
+			const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
+			expect(registered).toContain(declaredPluginKind(kind));
+			for (const k of registered) {
+				const report = await runKindConformance(k);
+				// One recorded cell per declared closure column — nothing silently dropped.
+				expect(new Set(report.cells.map((c) => c.column))).toEqual(
+					new Set(Object.keys(getBlockKindDescriptor(k).closure))
+				);
+			}
+			const report = await runKindConformance(declaredPluginKind(kind));
 			expect(statusOf(report, 'roundTrip')).toBe('executed');
 			expect(statusOf(report, 'mergeBackspace')).toBe('executed');
 		}
 	);
 
-	// Lockstep: installing every bundled registrar registers exactly the swept kinds.
-	// `registerAdmonitions` activates the shared directive grammar, so the core
-	// generic-directive fallback kinds ride in — excluded here as they are core, not
-	// bundled plugins, and covered by `closure-fixtures.test.ts` + G1.24.
+	// Lockstep, dir tier: the fs listing of src/lib/plugins is the canonical bundled
+	// set — every plugin directory is enrolled or a declared no-block-kind exception,
+	// and neither list names a directory that no longer exists.
+	it('every plugin directory on disk is enrolled or a declared exception', () => {
+		const dirs = readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
+			.filter((e) => e.isDirectory())
+			.map((e) => e.name);
+		const enrolled = new Set(BUNDLED_INSTALLS.map((b) => b.dir));
+		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !NO_BLOCK_KIND_DIRS.has(d));
+		expect(unaccounted, 'plugin dirs neither enrolled nor declared kind-less').toEqual([]);
+		const stale = [...enrolled, ...NO_BLOCK_KIND_DIRS].filter((d) => !dirs.includes(d));
+		expect(stale, 'enrolled/exception entries with no plugin directory').toEqual([]);
+	});
+
+	// Lockstep, kind tier: installing every bundled registrar registers exactly the
+	// swept kinds. `registerAdmonitions` activates the shared directive grammar, so
+	// the core generic-directive fallback kinds ride in — excluded here as they are
+	// core, not bundled plugins, and covered by `closure-fixtures.test.ts` + G1.24.
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
 		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);
