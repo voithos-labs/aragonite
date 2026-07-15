@@ -9,6 +9,7 @@
 // findRawOffsetTarget) run for real.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { asDomTextOffset, asEditorX } from '../../cursor/coordinate-spaces';
 import {
 	getCurrentCursorEditorRelativeX,
 	getOffsetRect,
@@ -128,11 +129,11 @@ describe('sticky-measure geometry', () => {
 		it('returns null when the offset has no resolvable DOM position', () => {
 			const empty = document.createElement('div');
 			editor.appendChild(empty);
-			expect(getOffsetRect(empty, 3)).toBeNull();
+			expect(getOffsetRect(empty, asDomTextOffset(3))).toBeNull();
 		});
 
 		it('returns the measured rect at a resolvable offset', () => {
-			const rect = getOffsetRect(block, 4);
+			const rect = getOffsetRect(block, asDomTextOffset(4));
 			expect(rect).not.toBeNull();
 			expect(rect!.left).toBe(4 * CHAR_WIDTH);
 			expect(rect!.height).toBe(LINE_HEIGHT);
@@ -141,7 +142,7 @@ describe('sticky-measure geometry', () => {
 
 	describe('findOffsetNearestX', () => {
 		it('returns minOffset when the container is shorter than minOffset', () => {
-			expect(findOffsetNearestX(block, 0, 'above', 999)).toBe(999);
+			expect(findOffsetNearestX(block, asEditorX(0), 'above', asDomTextOffset(999))).toBe(999);
 		});
 
 		it('returns minOffset when no offset yields a measurable rect', () => {
@@ -164,21 +165,21 @@ describe('sticky-measure geometry', () => {
 				} as unknown as DOMRectList;
 			};
 			Range.prototype.getBoundingClientRect = () => zeroRect;
-			expect(findOffsetNearestX(block, 50, 'above', 0)).toBe(0);
+			expect(findOffsetNearestX(block, asEditorX(50), 'above', asDomTextOffset(0))).toBe(0);
 		});
 
 		it('on a single line, lands on the offset whose X is nearest the target', () => {
 			// Target X is editor-relative; SUT re-adds editor left internally.
 			// editorRelativeX 50 → viewport 80 → nearest offset is 80/8 = 10.
-			const offset = findOffsetNearestX(block, 50, 'above', 0);
+			const offset = findOffsetNearestX(block, asEditorX(50), 'above', asDomTextOffset(0));
 			expect(offset).toBe(10);
 		});
 
 		it('above vs below pick the matching X on different wrapped lines', () => {
 			wrapAt = 6; // "hello " on line 1 (offsets 0-5), "world" on line 2 (offsets 6-11).
 			// Target editor-relative X 10 → viewport 40 → column 5 on whichever line `from` probes.
-			const above = findOffsetNearestX(block, 10, 'above', 0);
-			const below = findOffsetNearestX(block, 10, 'below', 0);
+			const above = findOffsetNearestX(block, asEditorX(10), 'above', asDomTextOffset(0));
+			const below = findOffsetNearestX(block, asEditorX(10), 'below', asDomTextOffset(0));
 			expect(above).toBe(5); // column 5 on line 1
 			expect(below).toBe(11); // column 5 on line 2 = offset 6 + 5
 			expect(above).not.toBe(below);
@@ -186,7 +187,12 @@ describe('sticky-measure geometry', () => {
 
 		it('respects minOffset, excluding the prefix region from candidates', () => {
 			// Target viewport X 0 would otherwise pick offset 0; minOffset 4 forbids it.
-			const offset = findOffsetNearestX(block, -EDITOR_LEFT, 'above', 4);
+			const offset = findOffsetNearestX(
+				block,
+				asEditorX(-EDITOR_LEFT),
+				'above',
+				asDomTextOffset(4)
+			);
 			expect(offset).toBe(4);
 		});
 
@@ -228,11 +234,25 @@ describe('sticky-measure geometry', () => {
 			};
 
 			// 'above' → first line (offsets 0-19); column 5 ⇒ offset 5.
-			expect(findOffsetNearestX(block, 5 * CHAR_WIDTH - EDITOR_LEFT, 'above', 0)).toBe(5);
+			expect(
+				findOffsetNearestX(
+					block,
+					asEditorX(5 * CHAR_WIDTH - EDITOR_LEFT),
+					'above',
+					asDomTextOffset(0)
+				)
+			).toBe(5);
 			const aboveCalls = rectCalls;
 			rectCalls = 0;
 			// 'below' → last line (offsets 180-195); column 5 ⇒ offset 185.
-			expect(findOffsetNearestX(block, 5 * CHAR_WIDTH - EDITOR_LEFT, 'below', 0)).toBe(185);
+			expect(
+				findOffsetNearestX(
+					block,
+					asEditorX(5 * CHAR_WIDTH - EDITOR_LEFT),
+					'below',
+					asDomTextOffset(0)
+				)
+			).toBe(185);
 
 			// Each direction reads only a few lines' worth of offsets, not all ~196.
 			expect(aboveCalls).toBeLessThan(120);

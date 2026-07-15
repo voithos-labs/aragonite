@@ -1,13 +1,17 @@
 /**
- * DOM Range ↔ raw-content offset translation for atomic inline widgets.
+ * DOM Range ↔ walk-space offset translation for atomic inline widgets.
  * Widgets contribute their raw bytes via data-source-start / data-source-end
  * without contributing to textContent; the walker accumulates text-node
- * lengths plus widget raw lengths. `ambient/` adds the marker prefix on top.
+ * lengths — including a leading ambient marker span's text — plus widget raw
+ * lengths. Walk positions are therefore `DomTextOffset` (raw + ambient prefix);
+ * `ambient/ambient-cursor.ts` owns the ± ambientLength translation to raw.
  */
+
+import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
-export function rawOffsetAtNode(container: HTMLElement, node: Node, offset: number): number {
+export function rawOffsetAtNode(container: HTMLElement, node: Node, offset: number): DomTextOffset {
 	let count = 0;
 	let stopped = false;
 
@@ -43,7 +47,7 @@ export function rawOffsetAtNode(container: HTMLElement, node: Node, offset: numb
 	}
 
 	visit(container);
-	return count;
+	return asDomTextOffset(count);
 }
 
 export interface DomPosition {
@@ -52,13 +56,16 @@ export interface DomPosition {
 }
 
 /**
- * DOM-layer lookup: maps a raw offset to a live `(node, offset)` DOM position.
- * The model-layer counterpart is `core/inline-render.ts` `findNodeAtOffset`,
- * which maps the same offset to a CST inline node without touching the DOM.
- * Accepts a detached fragment (island application walks builds in progress)
- * with the same arithmetic as a live block element.
+ * DOM-layer lookup: maps a walk-space offset to a live `(node, offset)` DOM
+ * position. The model-layer counterpart is `core/inline-render.ts`
+ * `findNodeAtOffset`, which maps the same offset to a CST inline node without
+ * touching the DOM. Accepts a detached fragment (island application walks
+ * builds in progress) with the same arithmetic as a live block element.
  */
-export function findRawOffsetTarget(container: ParentNode, target: number): DomPosition | null {
+export function findRawOffsetTarget(
+	container: ParentNode,
+	target: DomTextOffset
+): DomPosition | null {
 	let count = 0;
 	let last: DomPosition | null = null;
 
@@ -128,8 +135,8 @@ export function findRawOffsetTarget(container: ParentNode, target: number): DomP
  */
 export function widgetsIntersectingRange(
 	container: HTMLElement,
-	start: number,
-	end: number
+	start: DomTextOffset,
+	end: DomTextOffset
 ): HTMLElement[] {
 	const out: HTMLElement[] = [];
 	let count = 0;
@@ -157,7 +164,8 @@ export function widgetsIntersectingRange(
 	return out;
 }
 
-export function containerRawLength(container: ParentNode): number {
+/** Total walk length of `container` — its one-past-end walk position. */
+export function containerRawLength(container: ParentNode): DomTextOffset {
 	let count = 0;
 	function visit(node: Node): void {
 		if (node.nodeType === Node.TEXT_NODE) {
@@ -174,7 +182,7 @@ export function containerRawLength(container: ParentNode): number {
 		}
 	}
 	for (const child of container.childNodes) visit(child);
-	return count;
+	return asDomTextOffset(count);
 }
 
 /**
@@ -185,10 +193,10 @@ export function containerRawLength(container: ParentNode): number {
  */
 export function widgetSpanContainingOffset(
 	container: ParentNode,
-	offset: number
-): { start: number; end: number } | null {
+	offset: DomTextOffset
+): { start: DomTextOffset; end: DomTextOffset } | null {
 	let count = 0;
-	let found: { start: number; end: number } | null = null;
+	let found: { start: DomTextOffset; end: DomTextOffset } | null = null;
 	function visit(node: Node): void {
 		if (found || count > offset) return;
 		if (node.nodeType === Node.TEXT_NODE) {
@@ -200,7 +208,7 @@ export function widgetSpanContainingOffset(
 			if (el.matches?.(WIDGET_SELECTOR)) {
 				const len = widgetRawLength(el);
 				if (len > 0 && count < offset && offset < count + len) {
-					found = { start: count, end: count + len };
+					found = { start: asDomTextOffset(count), end: asDomTextOffset(count + len) };
 				}
 				count += len;
 				return;
@@ -235,8 +243,8 @@ export function rawTextOfNode(domNode: Node, raw: string): string {
 
 export function createRangeAtRawOffsets(
 	container: ParentNode,
-	start: number,
-	end: number
+	start: DomTextOffset,
+	end: DomTextOffset
 ): Range | null {
 	const range = document.createRange();
 	// A detached fragment has no parent for setEndAfter; end inside it instead.

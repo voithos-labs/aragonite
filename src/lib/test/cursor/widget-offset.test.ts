@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
 	containerRawLength,
 	findRawOffsetTarget,
@@ -38,7 +39,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const trailing = sentinel();
 		el.append(w, trailing);
 
-		const pos = findRawOffsetTarget(el, 10);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		// Caret should land inside the trailing sentinel, not at parent + idx+1.
 		// Otherwise Chromium drops beforeinput at this position.
@@ -52,7 +53,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const w = widget(0, 10);
 		el.append(leading, w);
 
-		const pos = findRawOffsetTarget(el, 0);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(0));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(leading);
 		expect(pos!.offset).toBe(0);
@@ -65,7 +66,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const w2 = widget(10, 20);
 		el.append(w1, between, w2);
 
-		const pos = findRawOffsetTarget(el, 10);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		// Should land inside the inter-sentinel (text-node), not at parent boundary.
 		expect(pos!.node).toBe(between);
@@ -77,7 +78,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const w = widget(0, 10);
 		el.appendChild(w);
 
-		const pos = findRawOffsetTarget(el, 10);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(el);
 		expect(pos!.offset).toBe(1);
@@ -89,7 +90,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const trailText = document.createTextNode(' trail');
 		el.append(w, trailText);
 
-		const pos = findRawOffsetTarget(el, 10);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(trailText);
 		expect(pos!.offset).toBe(0);
@@ -102,7 +103,7 @@ describe('findRawOffsetTarget — widget boundary placement', () => {
 		const text = document.createTextNode('hello');
 		el.appendChild(text);
 
-		const pos = findRawOffsetTarget(el, Number.MAX_SAFE_INTEGER);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(Number.MAX_SAFE_INTEGER));
 		expect(pos).not.toBeNull();
 		expect(pos!.node).toBe(text);
 		expect(pos!.offset).toBe('hello'.length);

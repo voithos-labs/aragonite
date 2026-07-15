@@ -29,6 +29,13 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import {
+	asEditorX,
+	asRawOffset,
+	toDomTextOffset,
+	toRawOffset,
+	type RawOffset
+} from '../../cursor/coordinate-spaces';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 import {
@@ -43,9 +50,9 @@ import type { SharedKeydownContext } from '../../selection/shared-keydown';
  * `buildRange` maps a raw-offset span to a DOM Range for selection writes.
  */
 export interface CursorBackend {
-	getRaw(): number | null;
-	setRaw(offset: number): void;
-	buildRange(start: number, end: number): Range | null;
+	getRaw(): RawOffset | null;
+	setRaw(offset: RawOffset): void;
+	buildRange(start: RawOffset, end: RawOffset): Range | null;
 }
 
 export interface EditableSurfaceDeps {
@@ -167,7 +174,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus();
-		deps.backend.setRaw(Math.max(0, offset));
+		deps.backend.setRaw(asRawOffset(Math.max(0, offset)));
 	}
 
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -175,9 +182,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (!el) return;
 		el.focus();
 		const ambientLength = deps.getAmbientLength();
-		// minOffset = ambientLength keeps the scan out of the marker region (0 for code/cell).
-		const contentOffset = findOffsetNearestX(el, x, from, ambientLength);
-		deps.backend.setRaw(Math.max(0, contentOffset - ambientLength));
+		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
+		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
+		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
+		deps.backend.setRaw(asRawOffset(Math.max(0, toRawOffset(walkOffset, ambientLength))));
 	}
 
 	function getCursorOffset(): number | null {
@@ -193,7 +201,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function setSelection(start: number, end: number): void {
 		if (!deps.getEl()) return;
-		const range = deps.backend.buildRange(start, end);
+		const range = deps.backend.buildRange(asRawOffset(start), asRawOffset(end));
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
@@ -206,8 +214,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const ambientLength = deps.getAmbientLength();
 		return measurePartialRectsInContentEditable(
 			el,
-			ambientLength + startOffset,
-			ambientLength + endOffset
+			toDomTextOffset(asRawOffset(startOffset), ambientLength),
+			toDomTextOffset(asRawOffset(endOffset), ambientLength)
 		);
 	}
 

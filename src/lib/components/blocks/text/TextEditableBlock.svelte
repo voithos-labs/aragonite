@@ -72,6 +72,7 @@
 		createRangeAtRawOffsets
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
+	import { asRawOffset, toDomTextOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
@@ -163,7 +164,11 @@
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
 			buildRange: (start, end) =>
-				createRangeAtRawOffsets(el!, ambientLength + start, ambientLength + end)
+				createRangeAtRawOffsets(
+					el!,
+					toDomTextOffset(start, ambientLength),
+					toDomTextOffset(end, ambientLength)
+				)
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -441,7 +446,7 @@
 			// (revealed source persisted as focus leaves) also sets a pending offset;
 			// without this guard the restore would yank the global selection back into
 			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
-			if (document.activeElement === el) cursor.setRaw(pendingCursorOffset);
+			if (document.activeElement === el) cursor.setRaw(asRawOffset(pendingCursorOffset));
 			pendingCursorOffset = null;
 		}
 		markKeystrokeSettle();

@@ -12,6 +12,7 @@ import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { comparePaths } from './path-math';
+import { asRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
 import { createRangeAtRawOffsets, rawOffsetAtNode } from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
@@ -49,7 +50,7 @@ export function readNativeCaretInBlock(
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);
 	if (ambient > 0 && point.offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
-	const target = ambient + point.offset;
+	const target = toDomTextOffset(asRawOffset(point.offset), ambient);
 	const range = createRangeAtRawOffsets(blockEl, target, target);
 	if (!range) return;
 	const sel = window.getSelection();
@@ -63,7 +64,11 @@ export function applySingleBlockRange(
 	endOffset: number
 ): void {
 	const ambient = ambientLengthOf(blockEl);
-	const range = createRangeAtRawOffsets(blockEl, ambient + startOffset, ambient + endOffset);
+	const range = createRangeAtRawOffsets(
+		blockEl,
+		toDomTextOffset(asRawOffset(startOffset), ambient),
+		toDomTextOffset(asRawOffset(endOffset), ambient)
+	);
 	if (!range) return;
 	const sel = window.getSelection();
 	sel?.removeAllRanges();

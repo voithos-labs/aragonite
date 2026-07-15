@@ -3,6 +3,7 @@
 // only verifies boundary handling — real pixel measurement is covered by e2e specs.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 
 describe('measurePartialRectsInContentEditable', () => {
@@ -20,16 +21,18 @@ describe('measurePartialRectsInContentEditable', () => {
 	});
 
 	it('returns an empty array for a zero-length range', () => {
-		const rects = measurePartialRectsInContentEditable(el, 3, 3);
+		const rects = measurePartialRectsInContentEditable(el, asDomTextOffset(3), asDomTextOffset(3));
 		expect(rects).toEqual([]);
 	});
 
 	it('returns an array for a valid range within the element', () => {
-		const rects = measurePartialRectsInContentEditable(el, 0, 5);
+		const rects = measurePartialRectsInContentEditable(el, asDomTextOffset(0), asDomTextOffset(5));
 		expect(Array.isArray(rects)).toBe(true);
 	});
 
 	it('clamps out-of-range offsets without throwing', () => {
-		expect(() => measurePartialRectsInContentEditable(el, 0, 9999)).not.toThrow();
+		expect(() =>
+			measurePartialRectsInContentEditable(el, asDomTextOffset(0), asDomTextOffset(9999))
+		).not.toThrow();
 	});
 });

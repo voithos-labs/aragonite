@@ -35,6 +35,7 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { asDomTextOffset, asRawOffset } from '../../../cursor/coordinate-spaces';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -100,12 +101,18 @@
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
+		// A zero-ambient, widget-free surface: its DOM-text space IS its raw
+		// space, so the backend door-mints across the two brands.
 		backend: {
-			getRaw: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
-			setRaw: (offset) => {
-				if (el) setCursorOffsetHelper(el, offset);
+			getRaw: () => {
+				const offset = el ? getCursorOffsetHelper(el) : null;
+				return offset === null ? null : asRawOffset(offset);
 			},
-			buildRange: (start, end) => (el ? createRangeFromOffsets(el, start, end) : null)
+			setRaw: (offset) => {
+				if (el) setCursorOffsetHelper(el, asDomTextOffset(offset));
+			},
+			buildRange: (start, end) =>
+				el ? createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end)) : null
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -174,7 +181,11 @@
 		lastRenderedRaw = node.raw;
 
 		if (pendingSelection !== null) {
-			const range = createRangeFromOffsets(el, pendingSelection.start, pendingSelection.end);
+			const range = createRangeFromOffsets(
+				el,
+				asDomTextOffset(pendingSelection.start),
+				asDomTextOffset(pendingSelection.end)
+			);
 			if (range) {
 				const sel = window.getSelection();
 				sel?.removeAllRanges();
@@ -187,7 +198,9 @@
 			// reparses to multiple blocks moves the caret to the split-off sibling
 			// (structural commit's afterTick); an unguarded restore would yank it
 			// back. Mirrors TextEditableBlock's activeElement guard.
-			if (document.activeElement === el) setCursorOffsetHelper(el, pendingCursorOffset);
+			if (document.activeElement === el) {
+				setCursorOffsetHelper(el, asDomTextOffset(pendingCursorOffset));
+			}
 			pendingCursorOffset = null;
 		}
 	});
@@ -264,7 +277,7 @@
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
-			setCursorOffsetHelper(el, result.caretOffset);
+			setCursorOffsetHelper(el, asDomTextOffset(result.caretOffset));
 			return;
 		}
 		blockEdit.updateBlockContent(index, result.newText + '\n', preEditOffset);
