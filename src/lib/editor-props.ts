@@ -12,8 +12,10 @@ import type { SearchState } from './reactivity/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
 import type { EditorPluginEntry } from './schema/plugin-install';
+import type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
+export type { InteractionTraceEntry } from './debug/interaction-trace';
 
 export interface EditorProps {
 	source?: string;
@@ -43,4 +45,26 @@ export interface EditorInstance {
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
 	getRects(): EditorRects;
+	getDiagnostics(): EditorDiagnostics;
+}
+
+/**
+ * The diagnostics door: arm the interaction trace, read it, and serialize an
+ * attachable field report for a bug ticket. The recorder ships default-off, so a
+ * consumer opts in (`enableTrace()`), reproduces, then serializes.
+ *
+ * Grows as fields: future diagnostics arrive as more methods on this one object,
+ * never a second door — the additive rule the whole extension surface follows.
+ */
+export interface EditorDiagnostics {
+	enableTrace(): void;
+	disableTrace(): void;
+	isTraceEnabled(): boolean;
+	traceSnapshot(): InteractionTraceEntry[];
+	/**
+	 * A fenced-markdown snapshot (timestamp, trace tail, ops-log tail, selection).
+	 * The document source is EXCLUDED by default — a field report must not leak the
+	 * document; pass `{ includeSource: true }` to opt in.
+	 */
+	serializeDiagnostics(opts?: { includeSource?: boolean }): string;
 }

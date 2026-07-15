@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Section from './Section.svelte';
 	import { createPanelState, MIN_PANEL_WIDTH, type SectionKey } from './panel-state.svelte';
+	import { enableInteractionTrace } from '$lib/debug/interaction-trace';
 
 	interface Props {
 		rawSource: string;
@@ -9,6 +10,7 @@
 		getUndoStack: () => string;
 		getInlineTree: () => string;
 		getOpsLog: () => string;
+		getTrace: () => string;
 		opsLogTick: number;
 	}
 	let {
@@ -18,6 +20,7 @@
 		getUndoStack,
 		getInlineTree,
 		getOpsLog,
+		getTrace,
 		opsLogTick
 	}: Props = $props();
 
@@ -31,6 +34,10 @@
 	const opsLogText = $derived.by(() => {
 		opsLogTick;
 		return getOpsLog();
+	});
+	const traceText = $derived.by(() => {
+		opsLogTick;
+		return getTrace();
 	});
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -54,7 +61,8 @@
 			['Selection', selectionText],
 			['Undo stack', undoText],
 			['Inline tree', inlineText],
-			['Operations log', opsLogText]
+			['Operations log', opsLogText],
+			['Interaction trace', traceText]
 		] as const;
 		const timestamp = new Date().toISOString();
 		const body = sections
@@ -66,6 +74,15 @@
 
 	function mkToggle(key: SectionKey) {
 		return () => panel.toggleSection(key);
+	}
+
+	// The interaction trace ships default-off (one boolean per recorder site).
+	// Expanding its section is the dev's opt-in: it arms the recorder and stays
+	// armed for the session (least-magic — no per-keystroke enable, no hidden
+	// side effect beyond the one the user asked for by opening the view).
+	function toggleTrace() {
+		if (!panel.isExpanded('trace')) enableInteractionTrace();
+		panel.toggleSection('trace');
 	}
 
 	// ── Resize ────────────────────────────────────────────────────────────────
@@ -148,6 +165,9 @@
 			onToggle={mkToggle('opsLog')}
 		>
 			{opsLogText}
+		</Section>
+		<Section title="Interaction trace" expanded={panel.isExpanded('trace')} onToggle={toggleTrace}>
+			{traceText || '(recording — interact to capture inline transitions)'}
 		</Section>
 	</aside>
 {/if}

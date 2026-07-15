@@ -16,8 +16,19 @@ import {
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
+import {
+	dumpTree,
+	dumpUndoStack,
+	dumpInlineTree,
+	dumpOperationsLog,
+	dumpInteractionTrace
+} from '$lib/debug/inspect';
 import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
+import {
+	enableInteractionTrace,
+	disableInteractionTrace,
+	interactionTraceSnapshot
+} from '$lib/debug/interaction-trace';
 import type { ClosureBlock } from '$lib/schema/closure';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
@@ -386,6 +397,17 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			reset: resetPerfInstruments,
 			snapshot: perfSnapshot
 		},
+		// ── Interaction-trace surface ─────────────────────────────────────
+		trace: {
+			enable: enableInteractionTrace,
+			disable: disableInteractionTrace,
+			snapshot: interactionTraceSnapshot
+		},
+		// ── Consumer diagnostics door (real, not the extracted builder) ────
+		// Drives editor.getDiagnostics().serializeDiagnostics through the actual
+		// door so the includeSource `?? false` default is exercised where it lives.
+		serializeDiagnostics: (opts?: { includeSource?: boolean }) =>
+			editor.getDiagnostics().serializeDiagnostics(opts),
 		// ── Debug engine surface ──────────────────────────────────────────
 		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
 			dumpTree(editor.__test.getDocument(), opts),
@@ -402,6 +424,7 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		},
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
+		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
 		// ── Edit-event counting probe ─────────────────────────────────────
 		/**
 		 * Begin accumulating structural edit events (op !== 'input').

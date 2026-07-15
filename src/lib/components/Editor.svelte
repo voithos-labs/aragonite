@@ -3,7 +3,7 @@
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
-	import type { EditorProps, EditorInstance } from '../editor-props';
+	import type { EditorProps, EditorInstance, EditorDiagnostics } from '../editor-props';
 	import type { EditorEvents } from '../editor-events';
 	import {
 		BLOCK_DRAG_HANDLES_KEY,
@@ -76,6 +76,14 @@
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
+	import { dumpInteractionTrace, dumpOperationsLog } from '../debug/inspect';
+	import { buildDiagnosticsReport } from '../debug/diagnostics-report';
+	import {
+		enableInteractionTrace,
+		disableInteractionTrace,
+		isInteractionTraceEnabled,
+		interactionTraceSnapshot
+	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
@@ -865,6 +873,36 @@
 		return rects;
 	}
 
+	// One-line selection summary for the field report — the public snapshot, so it
+	// covers single-block carets the cross-block SelectionState never holds.
+	function selectionSummary(): string {
+		const sel = getSelection();
+		if (!sel) return '(no selection)';
+		const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
+		return `anchor=${fmt(sel.anchor)} focus=${fmt(sel.focus)}`;
+	}
+
+	export function getDiagnostics(): EditorDiagnostics {
+		return {
+			enableTrace: enableInteractionTrace,
+			disableTrace: disableInteractionTrace,
+			isTraceEnabled: isInteractionTraceEnabled,
+			traceSnapshot: interactionTraceSnapshot,
+			serializeDiagnostics: (opts) => {
+				const includeSource = opts?.includeSource ?? false;
+				return buildDiagnosticsReport({
+					timestamp: new Date().toISOString(),
+					trace: dumpInteractionTrace(interactionTraceSnapshot()),
+					opsLog: dumpOperationsLog(operationsLog),
+					selection: selectionSummary(),
+					// Serialize only when opted in — the report stays document-free by default.
+					source: includeSource ? getSource() : '',
+					includeSource
+				});
+			}
+		};
+	}
+
 	// Compile-time conformance: the published handle can't drift from the exports.
 	void ({
 		getSource,
@@ -872,7 +910,8 @@
 		getEvents,
 		getSearch,
 		getDecorations,
-		getRects
+		getRects,
+		getDiagnostics
 	} satisfies EditorInstance);
 
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {

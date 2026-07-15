@@ -8,6 +8,10 @@ export { default as Editor } from './components/Editor.svelte';
 
 export type { EditorProps, EditorInstance } from './editor-props';
 
+// The consumer diagnostics door — `getDiagnostics()` returns EditorDiagnostics;
+// InteractionTraceEntry is what its `traceSnapshot()` yields.
+export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
+
 export type { BlockComponent } from './block-component';
 export type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 export type { ImageLoadPolicy } from './core/inline-render';

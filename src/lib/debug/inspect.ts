@@ -9,6 +9,7 @@ import type { InlineNode } from '../core/nodes';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry } from '../undo/types';
 import type { OperationsLog, OperationEntry } from './operations-log';
+import type { InteractionTraceEntry } from './interaction-trace';
 
 export { dumpTree } from './dump-tree';
 
@@ -93,6 +94,24 @@ export function dumpOperationsLog(log: OperationsLog, n = 20): string {
 function renderOp(e: OperationEntry, now: number): string {
 	const base = `[${now - e.t}ms ago] op=${e.op} path=[${e.path.join(',')}]`;
 	const detail = renderDetail(e);
+	return detail ? `${base} ${detail}` : base;
+}
+
+// ── Interaction trace ──────────────────────────────────────────────────────
+
+export function dumpInteractionTrace(entries: InteractionTraceEntry[], n = 50): string {
+	if (entries.length === 0) return '(no interactions recorded)';
+	const tail = entries.slice(-n);
+	const now = performance.now();
+	return tail.map((e) => renderTraceEntry(e, now)).join('\n');
+}
+
+function renderTraceEntry(e: InteractionTraceEntry, now: number): string {
+	const base = `[${Math.round(now - e.t)}ms ago] ${e.site}/${e.kind}`;
+	if (!e.detail) return base;
+	const detail = Object.entries(e.detail)
+		.map(([k, v]) => `${k}=${v}`)
+		.join(' ');
 	return detail ? `${base} ${detail}` : base;
 }
 
