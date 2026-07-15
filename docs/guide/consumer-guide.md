@@ -246,7 +246,7 @@ The payload envelopes — read the source types for the per-op arms, which chang
 
 ## Diagnostics
 
-`getDiagnostics()` returns the field-report door. The editor's hardest bugs live in the inline layer, where every state is transient — spans rebuild on each keystroke, so cursor moves, reveal open/fold, widget-pool churn, and IME composition are gone by the time a report is read. The **interaction trace** is a ring buffer that records those transitions as they happen. It ships **default-off**, behind one cheap check per recorder, so arming it is your call.
+`getDiagnostics()` returns the field-report door. The editor's hardest bugs live in the inline layer, where every state is transient — spans rebuild on each keystroke, so cursor moves, reveal open/fold, widget-pool churn, and IME composition are gone by the time a report is read. The **interaction trace** is a ring buffer that records those transitions as they happen. It ships **default-off**, behind one cheap check per recorder, so arming it is your call. The trace is process-global: two editors on one page interleave their entries in the one buffer.
 
 The workflow when a user hits an inline glitch: **reproduce → serialize → attach.**
 
