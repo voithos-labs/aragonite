@@ -1,4 +1,4 @@
-This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extendable, lean, fast, have a graceful ui/ux, and have hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
+This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, lean, fast, have a graceful ui/ux, and have hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
 Note that aragonite is a work in progress [^3]. Its written in typescript and svelte [^4] [^5] [^6] [^7], and tested on chromium browsers (chrome and edge) [^8]. Yes, there are plans to port to different frontend frameworks and test in different browsers. No, not right now, sometime in the future.
 
@@ -37,9 +37,9 @@ Ok, actually, nothing so dramatic. The short of it is, two years ago, two dumbas
 
 # Lossless
 
-Why make aragonite lossless? What a stupid question, but let me answer it anyways. The philosophy is that you own your files (in limestone), so `serialize(parse(source)) !== source` would be pretty bad; one load and save from the app and your file is ruined. So the first principle of this editor is to maintain `serialize(parse(source)) === source` - the architecture itself also takes this into consideration, and is designed to maintain this principle easily.
+_Why make aragonite lossless?_ What a stupid question, but let me answer it anyways. The philosophy is that you own your files (in limestone), but a traditional approach to parsing/serializing doesn't always grant you that. Most editors normalizes the data to their document model on load and on save, and sometimes `serialize(parse(source)) !== source` - that's not good. What you really want here is an underlying robustness; an architecture that takes the round trip losslessness as one of its core promises.
 
-We need a tree to act as the document model[^9] for an editor. Given our lossless principle, the natural conclusion is a concrete syntax tree. Naively, we can make it such that the editor parses the source into a tree whose nodes each hold their own slice of the original text, renders those slices as styled DOM, and saves by concatenating the slices back together. Serialization could be as simple as this:
+To start, you need a tree to act as the document model [^9] for an editor. Given the lossless promise, the natural conclusion is a concrete syntax tree (CST). But what, exactly, should be the shape for this CST? Well, let's imagine the simplest approach - make it such that the editor parse the source into a tree whose nodes each hold their own slice of the original text. Naturally, you'd render the slices as styled DOM, and save by concatenating the slices back together. So serialization might be something quite simple:
 
 ```js
 interface Serializable {
@@ -59,7 +59,24 @@ export function serialize(document: Serializable): string {
 }
 ```
 
-Well, funny things is, this implementation actually stuck around.
+(leading trivia, prefix, and suffix would of course preserve the white spaces in the original document.)
+
+_But what about nested structures, like quote blocks and lists?_ Let's again imagine a simplistic approach: a container's raw holds its entire subtree's source, and its children each hold their own slices of the inner content.
+
+That's it, actually. That's the basic shape of the document model for aragonite. Congrats, you came up with the gists of the architecture.
+
+_Surely this approach wouldn't work?_ You are thinking. For one, this model means that parents redundantly store it's children's contents. Yes, but remember, your typical markdown documents do not have deeply nested structures. On the other hand, what does this architecture buy? 
+
+1. Syntax the parser doesn't understand will still round-trip losslessly
+2. The worst case for a parser bug is bad styling, not a corrupted file
+3. The architecture handles partial syntax (say, while you are typing) for free
+4. This architecture
+
+So indeed, it's a surprisingly robust design to achieve the lossless promise. Thus, aragonite made the design trade off to store a little redundantly 
+
+# Extensible
+What gives an editor a good plugin system?
+
 
 # Footnote
 
