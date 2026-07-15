@@ -16,7 +16,7 @@ import { computeInlineContent, getContentRange, isProseKind } from '../../../cor
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
-import { createRangeAtRawOffsets, rawOffsetAtNode } from '../../../cursor/widget-offset';
+import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../../../cursor/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -162,11 +162,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (!document.activeElement || !el.contains(document.activeElement)) return null;
 		const sel = window.getSelection();
 		if (!sel?.focusNode || !el.contains(sel.focusNode)) return null;
-		return rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		return domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
 	}
 
 	function restoreCaret(el: HTMLElement, walkOffset: DomTextOffset): void {
-		const range = createRangeAtRawOffsets(el, walkOffset, walkOffset);
+		const range = createRangeAtDomTextOffsets(el, walkOffset, walkOffset);
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();

@@ -42,8 +42,9 @@
  * block contributes (list item, blockquote). The `widget-offset` DOM walk counts
  * that marker text, so a source offset is converted to walk space as
  * `getAmbientLength() + offset` at the single `placeCaret` seam — the same
- * conversion as `TextEditableBlock`'s `createRangeAtRawOffsets(el, ambientLength +
- * start, …)`. Ambient is 0 for a plain paragraph or a top-level block, nonzero
+ * conversion as `TextEditableBlock`'s `createRangeAtDomTextOffsets(el,
+ * ambientLength + start, …)`. Ambient is 0 for a plain paragraph or a
+ * top-level block, nonzero
  * inside a marker prefix; feeding the bare block offset to the walk mis-lands the
  * caret by exactly ambient.
  *
@@ -59,7 +60,7 @@
 
 import { tick } from 'svelte';
 import { asRawOffset, toDomTextOffset } from './coordinate-spaces';
-import { createRangeAtRawOffsets } from './widget-offset';
+import { createRangeAtDomTextOffsets } from './widget-offset';
 
 export interface SourceRevealDeps {
 	/** The block's contenteditable host — where the offset walk runs. Null while a
@@ -94,7 +95,7 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	/** Places the caret at a BLOCK-source offset, converting to ambient-included walk space. */
 	function placeCaret(container: HTMLElement, blockSourceOffset: number): void {
 		const target = toDomTextOffset(asRawOffset(blockSourceOffset), deps.getAmbientLength());
-		const range = createRangeAtRawOffsets(container, target, target);
+		const range = createRangeAtDomTextOffsets(container, target, target);
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();

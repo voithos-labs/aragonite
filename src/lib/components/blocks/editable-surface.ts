@@ -96,7 +96,8 @@ export interface EditableSurfaceDeps {
 	pasteCoordinator: PasteCommitCoordinator;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
-	getFocusOffset: () => number | null;
+	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
+	getFocusOffset: () => RawOffset | null;
 	getTextLen: () => number;
 
 	// ── Input skeleton (per-surface) ──────────────────────────────────────────

@@ -16,7 +16,8 @@ import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
-import { rawTextOfNode, rawOffsetAtNode } from '$lib/cursor/widget-offset';
+import { rawTextOfNode, domTextOffsetAtNode } from '$lib/cursor/widget-offset';
+import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { stampMathWidget, resetInlineState } from './math-widget-fixture';
@@ -85,7 +86,7 @@ function mount(source: string, widgetKind: string) {
 	// is the direction oracle.
 	const caretRaw = () => {
 		const sel = window.getSelection()!;
-		return rawOffsetAtNode(el, sel.anchorNode!, sel.anchorOffset);
+		return domTextOffsetAtNode(el, sel.anchorNode!, sel.anchorOffset);
 	};
 	return { interaction, widgetSelection, widget, caretRaw, key };
 }
@@ -101,7 +102,7 @@ describe('handleWidgetAtCursorKeydown — reveal-capable kind opens the reveal',
 	] as const) {
 		it(`${label} reveals the source without selecting`, () => {
 			const b = mount('Before $x^2$ after', MATH_INLINE);
-			const offset = offsetSide === 'end' ? b.widget.end : b.widget.start;
+			const offset = asRawOffset(offsetSide === 'end' ? b.widget.end : b.widget.start);
 			expect(b.interaction.handleWidgetAtCursorKeydown(b.key(keyName), offset)).toBe(true);
 			expect(b.interaction.isRevealing()).toBe(true);
 			expect(b.widgetSelection.getSelected()).toBeNull();
@@ -110,14 +111,14 @@ describe('handleWidgetAtCursorKeydown — reveal-capable kind opens the reveal',
 
 	it('places the caret at the trailing edge entering from the right', async () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
-		b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowLeft'), b.widget.end);
+		b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowLeft'), asRawOffset(b.widget.end));
 		await new Promise((r) => setTimeout(r));
 		expect(b.caretRaw()).toBe(b.widget.end);
 	});
 
 	it('places the caret at the leading edge entering from the left', async () => {
 		const b = mount('Before $x^2$ after', MATH_INLINE);
-		b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowRight'), b.widget.start);
+		b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowRight'), asRawOffset(b.widget.start));
 		await new Promise((r) => setTimeout(r));
 		expect(b.caretRaw()).toBe(b.widget.start);
 	});
@@ -126,7 +127,9 @@ describe('handleWidgetAtCursorKeydown — reveal-capable kind opens the reveal',
 describe('handleWidgetAtCursorKeydown — image kind keeps select-then-step', () => {
 	it('ArrowLeft at the trailing edge selects, anchoring undo at the trailing edge', () => {
 		const b = mount('lead ![cat](x.png)\n', 'image');
-		expect(b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowLeft'), b.widget.end)).toBe(true);
+		expect(
+			b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowLeft'), asRawOffset(b.widget.end))
+		).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.widgetSelection.getSelected()).toMatchObject({
 			sourceStart: b.widget.start,
@@ -136,9 +139,9 @@ describe('handleWidgetAtCursorKeydown — image kind keeps select-then-step', ()
 
 	it('ArrowRight at the leading edge selects, anchoring undo at the leading edge', () => {
 		const b = mount('![cat](x.png) tail\n', 'image');
-		expect(b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowRight'), b.widget.start)).toBe(
-			true
-		);
+		expect(
+			b.interaction.handleWidgetAtCursorKeydown(b.key('ArrowRight'), asRawOffset(b.widget.start))
+		).toBe(true);
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.widgetSelection.getSelected()).toMatchObject({
 			sourceStart: b.widget.start,

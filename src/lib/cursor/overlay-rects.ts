@@ -5,7 +5,7 @@
  */
 
 import type { DomTextOffset } from './coordinate-spaces';
-import { createRangeAtRawOffsets, widgetsIntersectingRange } from './widget-offset';
+import { createRangeAtDomTextOffsets, widgetsIntersectingRange } from './widget-offset';
 
 /**
  * Client rects covering [startOffset, endOffset) within `el`. Offsets are
@@ -20,7 +20,7 @@ export function measurePartialRectsInContentEditable(
 	endOffset: DomTextOffset
 ): DOMRect[] {
 	if (startOffset === endOffset) return [];
-	const range = createRangeAtRawOffsets(el, startOffset, endOffset);
+	const range = createRangeAtDomTextOffsets(el, startOffset, endOffset);
 	const rects: DOMRect[] =
 		range && typeof range.getClientRects === 'function' ? Array.from(range.getClientRects()) : [];
 	// Atomic inline widgets add 0 chars to textContent, so a range entirely inside

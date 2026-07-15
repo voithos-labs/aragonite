@@ -48,12 +48,12 @@
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import {
-		rawOffsetAtNode,
+		domTextOffsetAtNode,
 		rawTextOfNode,
-		containerRawLength,
-		createRangeAtRawOffsets
+		containerDomTextLength,
+		createRangeAtDomTextOffsets
 	} from '../../../cursor/widget-offset';
-	import { asRawOffset, toDomTextOffset } from '../../../cursor/coordinate-spaces';
+	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
@@ -143,7 +143,7 @@
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
 			buildRange: (start, end) =>
-				createRangeAtRawOffsets(el!, toDomTextOffset(start, 0), toDomTextOffset(end, 0))
+				createRangeAtDomTextOffsets(el!, toDomTextOffset(start, 0), toDomTextOffset(end, 0))
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -174,7 +174,7 @@
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => getRawFocusOffset(),
-		getTextLen: () => (el ? containerRawLength(el) : 0),
+		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
 		// Cells can't carry a raw newline, so no trailing '\n' (unlike text/code);
 		// savedOffset re-focuses if the edit remounts the cell.
@@ -230,7 +230,7 @@
 				columnCount,
 				rowCount,
 				offset: cursor.getRaw() ?? 0,
-				textLen: containerRawLength(el),
+				textLen: containerDomTextLength(el),
 				collapsed: !hasSelectionHelper(),
 				selectAllCount: selection.selectAllCount
 			}
@@ -312,11 +312,12 @@
 		return out;
 	}
 
-	function getRawFocusOffset(): number | null {
+	// Zero-ambient cell: the walk offset IS the raw offset, minted across here.
+	function getRawFocusOffset(): RawOffset | null {
 		if (!el) return null;
 		const sel = window.getSelection();
 		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		return rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		return asRawOffset(domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset));
 	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────
@@ -345,7 +346,7 @@
 				columnCount,
 				rowCount,
 				offset: preEditOffset,
-				textLen: containerRawLength(el),
+				textLen: containerDomTextLength(el),
 				collapsed: !hasSelectionHelper(),
 				selectAllCount: selection.selectAllCount
 			}

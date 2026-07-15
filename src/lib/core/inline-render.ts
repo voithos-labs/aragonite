@@ -302,8 +302,8 @@ export interface OffsetResult {
  * prefers the right node; `offset === end` only matches the last node.
  *
  * Model-layer lookup: walks the parsed inline tree, touches no DOM. The DOM-layer
- * counterpart is `cursor/widget-offset.ts` `findRawOffsetTarget`, which maps the
- * same kind of raw offset to a live `(node, offset)` DOM position.
+ * counterpart is `cursor/widget-offset.ts` `findDomTextOffsetTarget`, which maps
+ * a walk-space offset to a live `(node, offset)` DOM position.
  */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
 	for (let i = 0; i < nodes.length; i++) {

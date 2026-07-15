@@ -10,8 +10,8 @@
 import { ambientSpanOf } from '../ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
-	containerRawLength,
-	createRangeAtRawOffsets,
+	containerDomTextLength,
+	createRangeAtDomTextOffsets,
 	rawTextOfNode,
 	widgetSpanContainingOffset
 } from '../cursor/widget-offset';
@@ -47,7 +47,7 @@ export function applyIslandDecorations(
 ): Array<() => void> {
 	if (islands.length === 0) return [];
 	const ambientLength = opts.ambientLength ?? 0;
-	const contentLength = containerRawLength(root) - ambientLength;
+	const contentLength = toRawOffset(containerDomTextLength(root), ambientLength);
 	const destroys: Array<() => void> = [];
 
 	for (const { dec } of orderForApplication(islands)) {
@@ -62,7 +62,7 @@ export function applyIslandDecorations(
 			return;
 		}
 		const walkOffset = toDomTextOffset(asRawOffset(dec.offset), ambientLength);
-		const range = createRangeAtRawOffsets(root, walkOffset, walkOffset);
+		const range = createRangeAtDomTextOffsets(root, walkOffset, walkOffset);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM position at offset');
 			return;
@@ -86,8 +86,8 @@ export function applyIslandDecorations(
 		// A text-position range cannot split an atomic widget: a boundary strictly
 		// inside one snaps outward to whole-element coverage, so the island's span
 		// still equals the bytes it displaces.
-		let start: number = dec.start;
-		let end: number = dec.end;
+		let start = dec.start;
+		let end = dec.end;
 		const startSpan = widgetSpanContainingOffset(
 			root,
 			toDomTextOffset(asRawOffset(start), ambientLength)
@@ -104,7 +104,7 @@ export function applyIslandDecorations(
 				`replace boundary inside an atomic widget; snapped ${dec.start}..${dec.end} outward to ${start}..${end}`
 			);
 		}
-		const range = createRangeAtRawOffsets(
+		const range = createRangeAtDomTextOffsets(
 			root,
 			toDomTextOffset(asRawOffset(start), ambientLength),
 			toDomTextOffset(asRawOffset(end), ambientLength)
