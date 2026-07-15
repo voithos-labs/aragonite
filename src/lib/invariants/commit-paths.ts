@@ -5,15 +5,17 @@
  * be one past the end because insert-shaped ops (append, insert-below-last)
  * legitimately name the slot they create. A scope-local index leaking in as
  * a "path" fails here loudly instead of surfacing as a mis-targeted event or
- * a silently dropped caret restore.
+ * a silently dropped caret restore. The `DocPath` param is a compile-time gate
+ * complementing the runtime check — types don't bind JS callers, so both stay.
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import type { DocPath } from '../selection/path-math';
 import type { InvariantViolation } from './assert';
 
 export function checkCommitPathAddressable(
 	doc: Document,
-	path: number[],
+	path: DocPath,
 	role: 'eventPath' | 'snapshot.path'
 ): InvariantViolation | null {
 	let parent: CstNode | Document = doc;

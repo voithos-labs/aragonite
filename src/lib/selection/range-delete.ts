@@ -10,7 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
-import { walkBetween, assertCharOffset } from './primitives';
+import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { nodeAt } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
@@ -74,8 +74,8 @@ export function rangeDelete(
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 	const startRaw = (startBlock as CstNode).raw;
 	const endRaw = (endBlock as CstNode).raw;
-	const startOffset = assertCharOffset(start, 'rangeDelete:prose-merge-start');
-	const endOffset = assertCharOffset(end, 'rangeDelete:prose-merge-end');
+	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
+	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 	const mergedRaw = startRaw.slice(0, startOffset) + endRaw.slice(endOffset);
 
 	if (sameBlock) {

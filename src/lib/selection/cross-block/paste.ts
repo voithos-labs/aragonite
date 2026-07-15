@@ -11,7 +11,7 @@ import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
-import { assertCharOffset } from '../primitives';
+import { charOffsetOf } from '../primitives';
 import { applyCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
@@ -60,7 +60,7 @@ export async function handleCrossBlockPaste(
 		{
 			pastedText: pasted,
 			targetPath: caret.path,
-			offset: assertCharOffset(caret, 'cross-block-paste:dispatch')
+			offset: charOffsetOf(caret, 'cross-block-paste:dispatch')
 		},
 		{
 			doc,
@@ -114,6 +114,8 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	const rowCount = node.children?.length ?? 0;
 	const cellCount = meta.columnCount * rowCount;
 	if (cellCount === 0) return false;
+	// Same-path intra-table selection: cell offsets are context-established
+	// (same table, unflagged), so read directly.
 	const lo = Math.min(anchor.offset, focus.offset);
 	const hi = Math.max(anchor.offset, focus.offset);
 	return lo === 0 && hi === cellCount - 1;

@@ -25,6 +25,8 @@ import type { Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint } from './primitives';
+import { cellIndexOf } from './primitives';
+import { asCellIndex } from '../cursor/coordinate-spaces';
 import { comparePaths } from './path-math';
 
 /**
@@ -49,7 +51,7 @@ export function normalizeTableEndpoint(
 			const colIdx = path[d + 2] ?? 0;
 			return {
 				path: path.slice(0, d + 1),
-				offset: rowIdx * colCount + colIdx,
+				offset: asCellIndex(rowIdx * colCount + colIdx),
 				cellCoordinate: true
 			};
 		}
@@ -68,7 +70,8 @@ export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): numb
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const colCount = metadataOf(node, 'table').columnCount;
-	return [...point.path, Math.floor(point.offset / colCount), point.offset % colCount];
+	const cellIdx = cellIndexOf(point, 'cellEndpointDeepPath');
+	return [...point.path, Math.floor(cellIdx / colCount), cellIdx % colCount];
 }
 
 export function snapCrossBlockTableEndpoints(
@@ -89,8 +92,9 @@ function snapEndpoint(doc: Document, point: SelectionPoint, side: 'start' | 'end
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return point;
 
 	const colCount = metadataOf(node, 'table').columnCount;
-	const row = Math.floor(point.offset / colCount);
+	const cellIdx = cellIndexOf(point, 'snapCrossBlockTableEndpoints');
+	const row = Math.floor(cellIdx / colCount);
 	const snappedOffset = side === 'start' ? row * colCount : row * colCount + colCount - 1;
-	if (snappedOffset === point.offset) return point;
+	if (snappedOffset === cellIdx) return point;
 	return { ...point, offset: snappedOffset };
 }

@@ -6,6 +6,12 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { comparePaths, isPathBetween } from './path-math';
+import {
+	asCellIndex,
+	asRawOffset,
+	type CellIndex,
+	type RawOffset
+} from '../cursor/coordinate-spaces';
 import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -19,8 +25,9 @@ import { devWarn } from '../dev-warn';
  * the path addressing the table block rather than a deep cell leaf. The generic
  * document-order ops here (`comparePaths`, `normalize`, `walkBetween`,
  * `classifyBlockForSelection`) compare offsets numerically and are correct under
- * either meaning. Sites that slice `raw` by `offset` must read it through
- * {@link assertCharOffset} so a stray cell coordinate is caught in DEV.
+ * either meaning. Consumers read the field through {@link charOffsetOf} or
+ * {@link cellIndexOf} — the accessor for their branch mints the matching brand
+ * and DEV-warns on the wrong space.
  */
 export interface SelectionPoint {
 	path: number[];
@@ -45,15 +52,28 @@ export interface EditorSelection {
 export type SelectionDragStart = SelectionPoint | null;
 
 /**
- * Read a point's offset where it must be a character index (the caller slices
- * `raw` or places a caret by character). Warns in DEV if the point carries a
- * cell coordinate; always returns the raw offset value.
+ * Read a point's offset as a character index into the leaf's `raw` (the caller
+ * slices `raw` or places a caret by character). Warns in DEV if the point
+ * instead carries a cell coordinate — the space mismatch is the caret-corruption
+ * class the brand splits. Always returns the value, minted `RawOffset`.
  */
-export function assertCharOffset(point: SelectionPoint, tag: string): number {
+export function charOffsetOf(point: SelectionPoint, tag: string): RawOffset {
 	if (point.cellCoordinate) {
 		devWarn(tag, 'char-offset site received a cell-coordinate SelectionPoint', point);
 	}
-	return point.offset;
+	return asRawOffset(point.offset);
+}
+
+/**
+ * Read a point's offset as a row-major table cell index (the caller decodes it
+ * into row/column). Warns in DEV when the point is NOT a cell coordinate — the
+ * mirror of {@link charOffsetOf}. Always returns the value, minted `CellIndex`.
+ */
+export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
+	if (!point.cellCoordinate) {
+		devWarn(tag, 'cell-index site received a char-offset SelectionPoint', point);
+	}
+	return asCellIndex(point.offset);
 }
 
 // ── Normalization ──────────────────────────────────────────────────────────

@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
-import { assertCharOffset, normalize, type SelectionPoint } from '../../selection/primitives';
+import {
+	charOffsetOf,
+	cellIndexOf,
+	normalize,
+	type SelectionPoint
+} from '../../selection/primitives';
 import { comparePaths } from '../../selection/path-math';
 
 const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -67,22 +72,41 @@ describe('normalize', () => {
 	});
 });
 
-describe('assertCharOffset', () => {
+describe('charOffsetOf', () => {
 	beforeEach(() => vi.mocked(devWarn).mockClear());
 
 	it('returns a char point offset without warning', () => {
-		const offset = assertCharOffset(P([0], 7), 'tag');
-		expect(offset).toBe(7);
+		expect(charOffsetOf(P([0], 7), 'tag')).toBe(7);
 		expect(devWarn).not.toHaveBeenCalled();
 	});
 
 	it('returns the offset but trips the guard on a cell-coordinate point', () => {
 		const point = cell([0], 3);
-		expect(assertCharOffset(point, 'tag')).toBe(3);
+		expect(charOffsetOf(point, 'tag')).toBe(3);
 		expect(devWarn).toHaveBeenCalledTimes(1);
 		expect(devWarn).toHaveBeenCalledWith(
 			'tag',
 			'char-offset site received a cell-coordinate SelectionPoint',
+			point
+		);
+	});
+});
+
+describe('cellIndexOf', () => {
+	beforeEach(() => vi.mocked(devWarn).mockClear());
+
+	it('returns a cell point offset without warning', () => {
+		expect(cellIndexOf(cell([0], 4), 'tag')).toBe(4);
+		expect(devWarn).not.toHaveBeenCalled();
+	});
+
+	it('returns the offset but trips the guard on a char-offset point', () => {
+		const point = P([0], 3);
+		expect(cellIndexOf(point, 'tag')).toBe(3);
+		expect(devWarn).toHaveBeenCalledTimes(1);
+		expect(devWarn).toHaveBeenCalledWith(
+			'tag',
+			'cell-index site received a char-offset SelectionPoint',
 			point
 		);
 	});

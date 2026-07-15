@@ -5,9 +5,12 @@ import {
 	pathsEqual,
 	sharedPrefixLength,
 	pointsEqual,
-	isPathBetween
+	isPathBetween,
+	asDocPath,
+	extendDocPath
 } from '../../selection/path-math';
 import type { SelectionPoint } from '../../selection/primitives';
+import { checkCommitPathAddressable } from '../../invariants/commit-paths';
 
 const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -111,5 +114,29 @@ describe('isPathBetween', () => {
 		expect(isPathBetween([0], [0], [2])).toBe(false);
 		expect(isPathBetween([2], [0], [2])).toBe(false);
 		expect(isPathBetween([3], [0], [2])).toBe(false);
+	});
+});
+
+describe('DocPath brand', () => {
+	it('extendDocPath appends the child index to the parent', () => {
+		expect(extendDocPath([1, 2], 3)).toEqual([1, 2, 3]);
+		expect(extendDocPath([], 0)).toEqual([0]);
+	});
+
+	// Assignment-shaped compile pin (runtime-free): the doc-absolute guard's
+	// entry demands a minted DocPath, so a bare number[] can't reach it. An
+	// unused @ts-expect-error is itself a check error, so a green gate proves both
+	// that the mint is required AND that the brand hasn't decayed to number[].
+	it('the commit-path guard rejects an unminted path', () => {
+		type GuardPath = Parameters<typeof checkCommitPathAddressable>[1];
+
+		// @ts-expect-error a plain number[] is not a doc-absolute path
+		const bare: GuardPath = [0];
+		void bare;
+
+		const minted: GuardPath = asDocPath([0]);
+		const extended: GuardPath = extendDocPath([0], 1);
+		expect(minted).toEqual([0]);
+		expect(extended).toEqual([0, 1]);
 	});
 });

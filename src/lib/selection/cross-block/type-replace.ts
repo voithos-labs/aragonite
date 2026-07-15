@@ -11,7 +11,7 @@ import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
-import { assertCharOffset } from '../primitives';
+import { charOffsetOf } from '../primitives';
 import { nodeAt } from '../../tree-operations/node-ops';
 import { applyCollapsedCaret } from '../native-bridge';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
@@ -59,7 +59,7 @@ export async function handleCrossBlockTypeReplace(
 		snapshot: 'skip',
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			const charOffset = assertCharOffset(caret, 'cross-block-type-replace:slice');
+			const charOffset = charOffsetOf(caret, 'cross-block-type-replace:slice');
 			const chain = ensureUnsharedPath(doc, caret.path, sharing);
 			const owned = chain[chain.length - 1] ?? targetNode;
 			owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
