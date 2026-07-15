@@ -246,6 +246,8 @@ The standing lesson is the 0.9.18 whole-block-focus incident: the tier shipped *
 
 **The rule.** Every extension tier — and every new per-kind capability on an existing tier — must define its behavior under each cross-cutting system _before it ships_: it fills its matrix row, a ✓ or a ledgered gap, never a blank. A blank cell is an unasked question, which is exactly how the 0.9.18 holes shipped.
 
+**The row is a type.** The matrix is no longer a doc checklist a reviewer might skip — it is a required `closure` block on every block-kind registration (a `ClosureCell` per `ClosureColumn`: `implemented` with a named `via`, `inherit-default` for the generic ceremony, or `not-supported` with a named `reason`). `Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one, so a blank cell can no longer reach the tree. G1.24 cross-checks the cells against the rest of the descriptor — a container's `roundTrip` must name its `rebuildRaw` rather than inherit the default, a `not-mergeable` kind's `mergeBackspace` cannot inherit a default merge it does not have — and validates each declared `conformanceFixture` parses to its kind. What is declared here, the following milestone _executes_: registering a kind enrolls it in a generic per-cell behavioral battery.
+
 The rows are the five interaction-tiers a caret meets; they refine the editable-content tiers above. The block-level **whole-block-focus opaque** tier — a childless opaque block that is its own focus target, e.g. a diagram — is split out from the **inline widget**, the atomic embed inside prose; the editable-content table folds that block-level case under Container.
 
 _Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partial (ledgered edge) · gap (ledgered hole)._
@@ -330,6 +332,7 @@ The contract's load-bearing rules are guarded by the invariant catalog (`docs/de
 
 - Opener coherence at bootstrap over the live registry, and kind-table completeness at bootstrap.
 - Keymap coherence over the live registries — a plugin keymap's command ids validate against the minted `PluginCommandId`s (the earlier built-ins-only gap is closed) — and a container's `reservedChrome` declaration gets bootstrap coherence.
+- Closure-block coherence (G1.24): the required `closure` block agrees with the rest of the descriptor at bootstrap, and each declared `conformanceFixture` parses to its kind.
 - Opaque-container staleness, rebuild determinism, and the reserved-chrome slot, at every commit.
 - A plugin opener's return checked at parse: non-advancing throws, raw-mismatch warns.
 - Duplicate registration throws at the call site.

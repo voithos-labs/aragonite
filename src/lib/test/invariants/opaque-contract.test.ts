@@ -4,6 +4,7 @@ import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { registerBlockOpener } from '../../schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import { parse } from '../../core/parser';
 import { concatChildren } from '../../core/serializer';
 import { trimTrailingLineEnding } from '../../core/lines';
@@ -33,12 +34,14 @@ function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind 
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		closure: testClosure,
 		contextDependentKind: true
 	});
 	registerBlockKind(note, {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		closure: testClosure,
 		container: {
 			contract: 'opaque',
 			rebuildRaw: rebuildNoteRaw,
@@ -100,6 +103,7 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		// raw deliberately diverges from serialize(children) — the opaque contract.
@@ -222,6 +226,7 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		const node: CstNode = {

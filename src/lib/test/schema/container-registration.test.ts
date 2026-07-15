@@ -8,11 +8,13 @@ import {
 	type BlockKindRegistration
 } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 const leaf = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false
+	supportsInline: false,
+	closure: testClosure
 } as const;
 
 const UNWRAP = {

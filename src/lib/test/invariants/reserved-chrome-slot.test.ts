@@ -3,6 +3,7 @@ import { checkReservedChromeSlot } from '../../invariants/node-shape';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind, CstNode } from '../../core/nodes';
 
 // A container declaring its child 0 as reserved chrome, plus the chrome leaf.
@@ -13,12 +14,14 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		closure: testClosure,
 		contextDependentKind: true
 	});
 	registerBlockKind(container, {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		closure: testClosure,
 		container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chrome } }
 	});
 	return { container, chrome };

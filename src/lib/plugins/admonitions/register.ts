@@ -101,7 +101,34 @@ export function registerAdmonitions(): void {
 			reservedChrome: { kind: title },
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
-		keymap: [{ chord: 'Mod+7', command: cycleKind }]
+		keymap: [{ chord: 'Mod+7', command: cycleKind }],
+		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',
+		closure: {
+			roundTrip: {
+				mode: 'implemented',
+				via: 'container contract=opaque — rebuildAdmonitionRaw (directive)'
+			},
+			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
+			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'children are real blocks — search descends and paints'
+			},
+			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+			undo: {
+				mode: 'implemented',
+				via: 'updateMetadata — the kind cycle commits as one undoable metadataUpdate'
+			},
+			clipboard: {
+				mode: 'implemented',
+				via: 'byte-slice copy; a copy starting mid-title into the body drops the container wrapper (issues.md)'
+			},
+			simOracle: {
+				mode: 'implemented',
+				via: 'admonition + paste-transform e2e under the [invariant:] watcher'
+			}
+		}
 	});
 
 	registerChromeLeaf(title, { blockClass: 'admonition-title' });

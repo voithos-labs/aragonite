@@ -181,3 +181,47 @@ export function checkReservedChromeCoherence(
 	}
 	return null;
 }
+
+type ClosureCellMode = 'implemented' | 'inherit-default' | 'not-supported';
+
+export interface ClosureCoherenceEntry {
+	kind: AnyBlockKind;
+	notMergeable: boolean;
+	hasContainerContract: boolean;
+	roundTripMode: ClosureCellMode;
+	mergeBackspaceMode: ClosureCellMode;
+}
+
+/**
+ * G1.24 — closure-block coherence: the two cross-checks between a kind's closure
+ * cells and the rest of its descriptor that a compiler can't reach. (a) A
+ * container (declares `container.contract`) cannot claim `roundTrip:
+ * inherit-default` — its `rebuildRaw` IS the round-trip mechanism, so the cell
+ * must name it. (b) A `not-mergeable` kind cannot claim `mergeBackspace:
+ * inherit-default` — the default merge does not apply to it, so the cell must
+ * name the non-merge behavior (`implemented`) or mark it `not-supported`. The
+ * fixture-parses-to-kind check (rule c) runs in the unit sweep, not here: a
+ * `parse` import would close a `schema → core/parser → schema` cycle. Reports
+ * the first offending kind.
+ */
+export function checkClosureCoherence(
+	entries: readonly ClosureCoherenceEntry[]
+): InvariantViolation | null {
+	for (const entry of entries) {
+		if (entry.hasContainerContract && entry.roundTripMode === 'inherit-default') {
+			return {
+				code: 'closure-coherence',
+				message: `kind "${entry.kind}" declares a container contract but its closure roundTrip is inherit-default — the container's rebuildRaw is the round-trip mechanism; declare roundTrip: implemented`,
+				detail: { kind: entry.kind, column: 'roundTrip' }
+			};
+		}
+		if (entry.notMergeable && entry.mergeBackspaceMode === 'inherit-default') {
+			return {
+				code: 'closure-coherence',
+				message: `kind "${entry.kind}" is not-mergeable but its closure mergeBackspace is inherit-default — a not-mergeable kind has no default merge to inherit; name the non-merge mechanism (implemented) or mark it not-supported`,
+				detail: { kind: entry.kind, column: 'mergeBackspace' }
+			};
+		}
+	}
+	return null;
+}

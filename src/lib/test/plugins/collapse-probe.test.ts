@@ -4,6 +4,7 @@ import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/n
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import { configureEditorEnv, resetEditorEnv } from '../../env';
 
 // A collapsible container kind whose declared `reservedChrome.isCollapsed` probe
@@ -16,6 +17,7 @@ function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		closure: testClosure,
 		// The probe never commits, so an inert strip contract + noop rebuild satisfy
 		// the group's required pairing.
 		container: {

@@ -12,6 +12,7 @@ import {
 	type BlockOpener
 } from '$lib/schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 // lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it
 // must carry the same seam duties: drain pending registration checks and trip
@@ -20,7 +21,8 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 const leaf: BlockKindRegistration = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false
+	supportsInline: false,
+	closure: testClosure
 };
 
 const opener = (priority: number): BlockOpener => ({

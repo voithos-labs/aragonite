@@ -116,7 +116,40 @@ export function registerMermaidKind(): void {
 		// default arm would seed at ~one line. Seed VR with a diagram-sized skeleton;
 		// the measured height supersedes on mount.
 		estimateHeight: () => 320,
-		keymap: [{ chord: 'Mod+M', command: focusCommand }]
+		keymap: [{ chord: 'Mod+M', command: focusCommand }],
+		conformanceFixture: '```mermaid\ngraph TD\n```\n',
+		closure: {
+			roundTrip: {
+				mode: 'implemented',
+				via: 'container contract=opaque — rebuildMermaidRaw from metadata'
+			},
+			focus: {
+				mode: 'implemented',
+				via: 'blockFocus=whole-block — focus-then-delete; the component supplies the focus surface'
+			},
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'blockFocus=whole-block — caret-adjacent Backspace focuses, a second press deletes'
+			},
+			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect via the container shim' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'raw scans as a leaf, painted via the container shim measurePartialRects; replace skips it — metadata-derived raw (issues.md)'
+			},
+			reorder: {
+				mode: 'implemented',
+				via: 'Alt+ArrowUp/Down whole-block reorder (nudgeReorderUnit)'
+			},
+			undo: {
+				mode: 'implemented',
+				via: 'updateOwnMetadata — a code edit commits as one undoable metadataUpdate'
+			},
+			clipboard: { mode: 'inherit-default' },
+			simOracle: {
+				mode: 'implemented',
+				via: 'mermaid decoration/selection overlay e2e under the [invariant:] watcher'
+			}
+		}
 	});
 
 	registerBlockOpener(mermaid, {

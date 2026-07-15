@@ -13,9 +13,29 @@ import { registerBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
 import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
+import type { ClosureBlock } from '$lib/schema/closure';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
+
+// Both forced probe kinds exist to trip one BlockHost fallback path each (the
+// no-component branch, the throwing-component boundary), never to be a real
+// editing surface — so every cross-cutting system is honestly not-supported.
+// mergeBackspace stays non-inherit to satisfy the not-mergeable coherence rule.
+const HARNESS_PROBE_CLOSURE: ClosureBlock = {
+	roundTrip: { mode: 'inherit-default' },
+	focus: {
+		mode: 'not-supported',
+		reason: 'harness probe — a single BlockHost fallback path, not an editing surface'
+	},
+	mergeBackspace: { mode: 'not-supported', reason: 'harness probe — not a real editing surface' },
+	selectionPaint: { mode: 'not-supported', reason: 'harness probe — visible-raw fallback' },
+	searchPaint: { mode: 'not-supported', reason: 'harness probe — not exercised by search' },
+	reorder: { mode: 'not-supported', reason: 'harness probe — not reorder-tested' },
+	undo: { mode: 'not-supported', reason: 'harness probe — not undo-tested' },
+	clipboard: { mode: 'not-supported', reason: 'harness probe — not clipboard-tested' },
+	simOracle: { mode: 'not-supported', reason: 'harness probe — drives the fallback path only' }
+};
 
 export interface TestProbeDeps {
 	editor: EditorInstance;
@@ -168,7 +188,8 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				registerBlockKind(kind, {
 					mergeRole: 'not-mergeable',
 					editable: true,
-					supportsInline: false
+					supportsInline: false,
+					closure: HARNESS_PROBE_CLOSURE
 				});
 			}
 			const doc = editor.__test.getDocument();
@@ -185,7 +206,8 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				registerBlockKind(kind, {
 					mergeRole: 'not-mergeable',
 					editable: false,
-					supportsInline: false
+					supportsInline: false,
+					closure: HARNESS_PROBE_CLOSURE
 				});
 				// A throwing stub isn't a full BlockComponent, but it throws before
 				// any method is read.

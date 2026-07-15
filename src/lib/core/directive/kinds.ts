@@ -49,6 +49,27 @@ export function registerDirectiveKinds(): void {
 			contract: 'opaque',
 			rebuildRaw: rebuildDirectiveContainerRaw,
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		},
+		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
+		closure: {
+			roundTrip: {
+				mode: 'implemented',
+				via: 'container contract=opaque — rebuildDirectiveContainerRaw'
+			},
+			focus: { mode: 'implemented', via: 'focus walks into the first body child' },
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
+			},
+			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'children are real blocks — search descends and paints'
+			},
+			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+			undo: { mode: 'inherit-default' },
+			clipboard: { mode: 'inherit-default' },
+			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
 		}
 	});
 
@@ -57,7 +78,25 @@ export function registerDirectiveKinds(): void {
 		editable: true,
 		supportsInline: false,
 		getContentRange: directiveLeafContentRange,
-		keymap: DIRECTIVE_LEAF_KEYMAP
+		keymap: DIRECTIVE_LEAF_KEYMAP,
+		conformanceFixture: '::spoiler\n',
+		closure: {
+			roundTrip: { mode: 'inherit-default' },
+			focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'not-mergeable — Backspace moves focus (mergePrev walk), never concatenates'
+			},
+			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'content-range raw scanned (::name marker skipped); marks'
+			},
+			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+			undo: { mode: 'inherit-default' },
+			clipboard: { mode: 'inherit-default' },
+			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
+		}
 	});
 }
 

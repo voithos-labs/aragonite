@@ -62,6 +62,8 @@ export type {
 	MergeRole,
 	UnwrapRole
 } from './schema/block-kind-descriptor';
+// The required closure block a registration answers every cross-cutting system with.
+export type { ClosureBlock, ClosureColumn, ClosureCell } from './schema/closure';
 
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';

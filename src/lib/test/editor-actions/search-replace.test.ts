@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { compileMatcher } from '$lib/search/matcher';
 import { scanDocument } from '$lib/search/document-scan';
@@ -210,6 +211,7 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			container: { contract: 'opaque', rebuildRaw: () => {} }
 		});
 		diagramNode = { kind: diagram, leadingTrivia: '\n', raw: DIAGRAM_RAW, children: [] };

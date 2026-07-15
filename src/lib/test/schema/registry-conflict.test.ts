@@ -17,11 +17,13 @@ import {
 } from '$lib/schema/block-openers';
 import { registerCommand, getCommand } from '$lib/schema/commands';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 const minimal = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false
+	supportsInline: false,
+	closure: testClosure
 } as const;
 
 // Guard fires on registry.has before the entry is read, so a stub entry is enough.

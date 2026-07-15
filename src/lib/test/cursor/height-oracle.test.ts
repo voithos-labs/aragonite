@@ -3,6 +3,7 @@ import { createHeightOracle } from '../../cursor/height-oracle';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
+import { testClosure } from '$lib/test/support/closure';
 
 const opts = {
 	lineHeight: 24,
@@ -195,6 +196,7 @@ describe('createHeightOracle', () => {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			// The oracle only estimates, so an inert strip contract + noop rebuild
 			// satisfy the group's required pairing.
 			container: {
@@ -227,6 +229,7 @@ describe('createHeightOracle', () => {
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,
+			closure: testClosure,
 			estimateHeight: () => 320
 		});
 		const node: CstNode = { kind: estimated, leadingTrivia: '', raw: 'x\n' };
@@ -244,6 +247,7 @@ describe('createHeightOracle', () => {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			estimateHeight: () => 320,
 			container: {
 				contract: 'strip',
