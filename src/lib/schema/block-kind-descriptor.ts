@@ -618,7 +618,10 @@ registerBlockKind('table', {
 		},
 		reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 		undo: { mode: 'inherit-default' },
-		clipboard: { mode: 'inherit-default' },
+		clipboard: {
+			mode: 'implemented',
+			via: 'rectangular multi-cell copy → synthesized GFM sub-table, not a byte slice (copyRectangleAsSubTable, cell index)'
+		},
 		simOracle: { mode: 'implemented', via: 'note-taking simulation drives table cell edits' }
 	}
 });
@@ -639,9 +642,14 @@ registerBlockKind('tableRow', {
 		searchPaint: { mode: 'implemented', via: 'descends to cells; per-cell mark overlay' },
 		reorder: {
 			mode: 'not-supported',
-			reason: 'grid child — the table reorders as a whole; rows are not block reorder units'
+			reason:
+				'grid child — not a block-level reorder unit; whole rows move via a row-drag gesture inside the table grid, not the BlockList'
 		},
 		undo: { mode: 'inherit-default' },
+		// inherit-default, not implemented like table/tableCell: no clipboard path
+		// anchors on a row node — the rectangular sub-table copy reads the table,
+		// the copy/cut handlers live on the cell. The row paints per-cell but is
+		// never a copy source, so selectionPaint: implemented does not extend here.
 		clipboard: { mode: 'inherit-default' },
 		simOracle: { mode: 'implemented', via: 'note-taking simulation (table edits)' }
 	}
@@ -679,10 +687,14 @@ registerBlockKind('tableCell', {
 		},
 		reorder: {
 			mode: 'not-supported',
-			reason: 'grid cell — no independent block reorder'
+			reason:
+				'grid cell — not a block-level reorder unit; row/column drag gestures inside the table grid move whole rows or columns, not individual cells'
 		},
 		undo: { mode: 'inherit-default' },
-		clipboard: { mode: 'inherit-default' },
+		clipboard: {
+			mode: 'implemented',
+			via: 'copy/cut synthesize a GFM sub-table for the selected rectangle (intraTableRectPayload → copyRectangleAsSubTable, cell index)'
+		},
 		simOracle: { mode: 'implemented', via: 'note-taking simulation (table cell edits)' }
 	}
 });
