@@ -51,7 +51,8 @@ export interface EditorInstance {
 /**
  * The diagnostics door: arm the interaction trace, read it, and serialize an
  * attachable field report for a bug ticket. The recorder ships default-off, so a
- * consumer opts in (`enableTrace()`), reproduces, then serializes.
+ * consumer opts in (`enableTrace()`), reproduces, then serializes. The trace is
+ * process-global: two editor instances interleave their entries.
  *
  * Grows as fields: future diagnostics arrive as more methods on this one object,
  * never a second door — the additive rule the whole extension surface follows.

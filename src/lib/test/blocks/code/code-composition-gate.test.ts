@@ -4,6 +4,9 @@
 // component's real listeners (the branch lives in the component, not an
 // extracted helper): an IME emitting insertLineBreak mid-composition must not
 // sync the CST; the same event after compositionend splices its newline.
+// This is the suite's first real component mount — the context stubs below
+// enumerate every key CodeBlock requires, so a new required context fails
+// loudly here at mount rather than silently downstream.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
