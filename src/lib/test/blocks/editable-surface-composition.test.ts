@@ -1,69 +1,17 @@
 // @vitest-environment jsdom
 //
-// G1.27 fired through the real surface skeleton: an unpaired compositionend
-// reaches devWarn on `invariant:composition-window`; a paired start→end cycle
-// stays silent and commits exactly once (the IME contract the per-keystroke
-// bail defends).
+// The IME composition window driven through the real surface skeleton, in the
+// order the browser sends it: start → input(s) with the window open → end,
+// which funnels to input and reads the DOM back. Pins the composing gate (no
+// commit mid-window), the exactly-once end commit, the offset pair the commit
+// receives, and G1.27 (an unpaired end fires; a paired cycle stays silent).
+// The commit's downstream effects (undo anchor, no-op discard) are pinned
+// against the real block-edit actions in editable-surface-composition-commit.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
-import {
-	createEditableSurface,
-	type EditableSurfaceDeps
-} from '$lib/components/blocks/editable-surface';
-
-function makeSurface() {
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	document.body.appendChild(el);
-
-	let composing = false;
-	let preEditOffset = 0;
-	const commits: Array<{ text: string; preEdit: number; saved: number }> = [];
-
-	const deps = {
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		backend: { getRaw: () => null, setRaw: () => {}, buildRange: () => null },
-		getMyPath: () => [0],
-		getIndex: () => 0,
-		getComposing: () => composing,
-		setComposing: (value: boolean) => {
-			composing = value;
-		},
-		getPreEditOffset: () => preEditOffset,
-		setPreEditOffset: (offset: number) => {
-			preEditOffset = offset;
-		},
-		setPendingCursor: () => {},
-		// The composition path touches only these two context reads; the rest of the
-		// cross-block wiring is constructed but never invoked here.
-		selection: { isCrossBlock: false },
-		stickyColumn: { reset: () => {} },
-		focusActions: { revealPath: async () => null },
-		getDoc: () => null,
-		getBlockElByPath: () => null,
-		getEditorRoot: () => null,
-		getEditorLifetime: () => null,
-		containerEdit: {},
-		blockEdit: {},
-		controller: {},
-		history: {},
-		pluginEditor: undefined,
-		onCommandError: undefined,
-		getKeybindingOverrides: () => ({}),
-		pasteCoordinator: {},
-		getFocusOffset: () => null,
-		getTextLen: () => 0,
-		readText: () => 'abc',
-		commitInput: (text: string, preEdit: number, saved: number) => {
-			commits.push({ text, preEdit, saved });
-		}
-	} as unknown as EditableSurfaceDeps;
-
-	return { surface: createEditableSurface(deps), commits };
-}
+import { makeSurface } from '../harness/editable-surface';
 
 function compositionFires(): unknown[][] {
 	return vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:composition-window');
@@ -78,6 +26,49 @@ afterEach(() => {
 	vi.unstubAllEnvs();
 });
 
+describe('editable surface — the composing gate', () => {
+	it('input events inside the window never commit; the end commits the DOM text once', () => {
+		const { surface, commits, el } = makeSurface();
+		el.textContent = 'hello';
+		surface.onCompositionStart();
+
+		el.textContent = 'helloか';
+		surface.onInput();
+		el.textContent = 'helloかん';
+		surface.onInput();
+		expect(commits).toHaveLength(0);
+
+		surface.onCompositionEnd();
+		expect(commits.map((c) => c.text)).toEqual(['helloかん']);
+	});
+
+	it('the offsets captured at start survive a caret the IME moved mid-window', () => {
+		const { surface, commits, el, setCaret } = makeSurface();
+		el.textContent = 'hello';
+		setCaret(5);
+		surface.onCompositionStart();
+
+		// The IME advances the caret as it composes; keydowns that would refresh
+		// preEditOffset are gated on the composing flag, so 5 must survive.
+		setCaret(7);
+		el.textContent = 'helloかん';
+		surface.onCompositionEnd();
+
+		expect(commits).toEqual([{ text: 'helloかん', preEdit: 5, saved: 7 }]);
+	});
+
+	it('input after the window closes commits normally again', () => {
+		const { surface, commits, el } = makeSurface();
+		el.textContent = 'hello';
+		surface.onCompositionStart();
+		surface.onCompositionEnd();
+
+		el.textContent = 'hello!';
+		surface.onInput();
+		expect(commits.map((c) => c.text)).toEqual(['hello', 'hello!']);
+	});
+});
+
 describe('editable surface — composition window (G1.27)', () => {
 	it('compositionend with no open composition fires', () => {
 		const { surface } = makeSurface();
@@ -86,11 +77,10 @@ describe('editable surface — composition window (G1.27)', () => {
 		expect(compositionFires()[0][2]).toBe('end-without-start');
 	});
 
-	it('a paired start → end cycle stays silent and commits exactly once', () => {
-		const { surface, commits } = makeSurface();
+	it('a paired start → end cycle stays silent', () => {
+		const { surface } = makeSurface();
 		surface.onCompositionStart();
 		surface.onCompositionEnd();
 		expect(devWarn).not.toHaveBeenCalled();
-		expect(commits).toEqual([{ text: 'abc', preEdit: 0, saved: 0 }]);
 	});
 });
