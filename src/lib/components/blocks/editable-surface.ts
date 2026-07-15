@@ -43,6 +43,8 @@ import {
 } from '../../selection/cross-block/dispatch';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
+import { assertInvariant } from '../../invariants/assert';
+import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 
 /**
  * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).
@@ -254,6 +256,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function onCompositionEnd(): void {
+		// Browsers pair composition events per element and onCompositionStart always
+		// arms the flag, so an unpaired end means a consumer wired compositionend
+		// without compositionstart — both are exposed for plugin markup (G1.27).
+		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);
 		onInput();

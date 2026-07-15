@@ -16,6 +16,8 @@ import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
 import { tracePoolPass } from '../../debug/interaction-trace';
+import { assertInvariant } from '../../invariants/assert';
+import { checkPoolBracket } from '../../invariants/inline-transitions';
 
 // ── Pure pool ─────────────────────────────────────────────────────────────────
 
@@ -54,11 +56,16 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	// Multiset per `${kind} ${source}` key: two identical sources in one block are
 	// two entries in one bucket, each adopted at most once per pass.
 	const buckets = new Map<string, PoolEntry<H>[]>();
+	// The acquire bracket (see WidgetPool.acquire) held as explicit state so a
+	// violation fires at this seam instead of surfacing as a widget leak (G1.25).
+	let passOpen = false;
 	// Per-pass adopt/build tallies for the interaction trace, recorded at sweep.
 	let passAdopt = 0;
 	let passBuild = 0;
 
 	function beginPass(): void {
+		assertInvariant('pool-bracket', () => checkPoolBracket(passOpen, 'beginPass'));
+		passOpen = true;
 		passAdopt = 0;
 		passBuild = 0;
 		for (const bucket of buckets.values()) {
@@ -67,6 +74,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	}
 
 	function acquire(kind: AnyInlineKind, inline: InlineNode, source: string): HTMLElement | null {
+		assertInvariant('pool-bracket', () => checkPoolBracket(passOpen, 'acquire'));
 		const key = `${kind} ${source}`;
 		const bucket = buckets.get(key);
 		const reused = bucket?.find((entry) => !entry.adopted);
@@ -91,6 +99,8 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	}
 
 	function sweep(): void {
+		assertInvariant('pool-bracket', () => checkPoolBracket(passOpen, 'sweep'));
+		passOpen = false;
 		let destroyed = 0;
 		for (const [key, bucket] of [...buckets]) {
 			const survivors: PoolEntry<H>[] = [];
@@ -110,6 +120,7 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 	}
 
 	function dispose(): void {
+		passOpen = false;
 		for (const bucket of buckets.values()) {
 			for (const entry of bucket) adapter.destroy(entry.handle);
 		}

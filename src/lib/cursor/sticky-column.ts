@@ -55,7 +55,7 @@ export function createStickyColumnState(): StickyColumnState {
 			traceStickyCapture(x);
 		},
 		// Record only a real clear: reset fires on nearly every keystroke, so the
-		// enabled gate short-circuits before the state read (advisor's honest-one-check).
+		// enabled gate short-circuits before the state read.
 		reset: () => {
 			if (isInteractionTraceEnabled() && stickyX !== null) traceStickyReset();
 			stickyX = null;
