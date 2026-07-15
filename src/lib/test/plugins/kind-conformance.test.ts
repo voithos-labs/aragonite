@@ -11,7 +11,11 @@ import {
 } from '$lib/schema/block-kind-descriptor';
 import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
-import { registerCalloutKind, NOTE } from '../../../routes/test/plugins/callout/callout-kind';
+import {
+	registerCalloutKind,
+	NOTE,
+	NOTE_TITLE
+} from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { registerAdmonitions } from '$lib/plugins/admonitions/register';
 import { ADMONITION } from '$lib/plugins/admonitions/kinds';
@@ -55,6 +59,20 @@ describe('kind conformance — plugin kinds enroll', () => {
 		expect(statusOf(report, 'roundTrip')).toBe('executed');
 		expect(statusOf(report, 'mergeBackspace')).toBe('executed');
 		expect(statusOf(report, 'clipboard')).toBe('boundary');
+	});
+
+	// Mirrors the bundled per-registrar sweep below: the dogfood registrars' chrome
+	// ride-ins (callout's note-title) execute their fixture-free cells too — no
+	// registered kind sits outside every battery.
+	it('every kind the dogfood registrars register executes its headless cells', async () => {
+		const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
+		expect(registered).toContain(declaredPluginKind(NOTE_TITLE));
+		for (const k of registered) {
+			const report = await runKindConformance(k);
+			expect(new Set(report.cells.map((c) => c.column))).toEqual(
+				new Set(Object.keys(getBlockKindDescriptor(k).closure))
+			);
+		}
 	});
 });
 
