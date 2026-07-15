@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/action-contracts';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import type { EditorEvents } from '$lib/editor-events';
@@ -33,7 +34,8 @@ export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent
 }
 
 export function makeStickyColumn(x: number | null = null): StickyColumnState {
-	return { get: () => x, reset: vi.fn(), capture: vi.fn() };
+	const stickyX = x === null ? null : asEditorX(x);
+	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn() };
 }
 
 // ── BlockListState stub ──────────────────────────────────────────────────────

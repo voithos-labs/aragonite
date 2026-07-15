@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import {
 	createRangeAtRawOffsets,
@@ -109,7 +110,7 @@ describe('source-reveal — caret-landing model (ambient = 0)', () => {
 		// The justification for reveal: with the widget rendered, a request for an
 		// interior source position (start+2) resolves to the trailing EDGE, never
 		// the interior glyph. An atomic widget yields only raw SRC_START or SRC_END.
-		const pos = findRawOffsetTarget(el, SRC_START + 2);
+		const pos = findRawOffsetTarget(el, asDomTextOffset(SRC_START + 2));
 		expect(pos).not.toBeNull();
 		expect(rawOffsetAtNode(el, pos!.node, pos!.offset)).toBe(SRC_END);
 	});
@@ -233,7 +234,11 @@ describe('source-reveal — highest-risk edges', () => {
 		// Rendered: a selection reaching from the outside text ("a ") toward an
 		// interior source glyph can only reach the widget's trailing EDGE — the
 		// opaque island has no interior to land in.
-		const rendered = createRangeAtRawOffsets(el, 0, SRC_START + 2)!;
+		const rendered = createRangeAtRawOffsets(
+			el,
+			asDomTextOffset(0),
+			asDomTextOffset(SRC_START + 2)
+		)!;
 		expect(rawOffsetAtNode(el, rendered.startContainer, rendered.startOffset)).toBe(0);
 		expect(rawOffsetAtNode(el, rendered.endContainer, rendered.endOffset)).toBe(SRC_END);
 
@@ -241,7 +246,7 @@ describe('source-reveal — highest-risk edges', () => {
 		// glyph, its start still anchored in the outside text — the boundary is
 		// crossed through the one shared offset walk, not a second coordinate space.
 		await reveal.reveal();
-		const across = createRangeAtRawOffsets(el, 0, SRC_START + 2)!;
+		const across = createRangeAtRawOffsets(el, asDomTextOffset(0), asDomTextOffset(SRC_START + 2))!;
 		const sel = window.getSelection()!;
 		sel.removeAllRanges();
 		sel.addRange(across);

@@ -29,6 +29,7 @@
 		type WidthVersionGetter
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
+	import { asEditorX } from '../../../cursor/coordinate-spaces';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import type { UndoController } from '../../../editor-actions/deps';
@@ -241,14 +242,14 @@
 			internalStickyColumn = null;
 		},
 		exitUpward(stickyX) {
-			editorStickyColumn.capture(stickyX);
+			editorStickyColumn.capture(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] - 1, {
 				stickyColumnFrom: 'below'
 			});
 		},
 		exitDownward(stickyX) {
-			editorStickyColumn.capture(stickyX);
+			editorStickyColumn.capture(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] + 1, {
 				stickyColumnFrom: 'above'

@@ -8,6 +8,7 @@
  */
 
 import { ambientSpanOf } from '../ambient/ambient-dom';
+import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
 	containerRawLength,
 	createRangeAtRawOffsets,
@@ -60,7 +61,7 @@ export function applyIslandDecorations(
 			opts.onSkipped?.(dec, 'offset outside the block content');
 			return;
 		}
-		const walkOffset = ambientLength + dec.offset;
+		const walkOffset = toDomTextOffset(asRawOffset(dec.offset), ambientLength);
 		const range = createRangeAtRawOffsets(root, walkOffset, walkOffset);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM position at offset');
@@ -85,19 +86,29 @@ export function applyIslandDecorations(
 		// A text-position range cannot split an atomic widget: a boundary strictly
 		// inside one snaps outward to whole-element coverage, so the island's span
 		// still equals the bytes it displaces.
-		let start = dec.start;
-		let end = dec.end;
-		const startSpan = widgetSpanContainingOffset(root, ambientLength + start);
-		if (startSpan) start = startSpan.start - ambientLength;
-		const endSpan = widgetSpanContainingOffset(root, ambientLength + end);
-		if (endSpan) end = endSpan.end - ambientLength;
+		let start: number = dec.start;
+		let end: number = dec.end;
+		const startSpan = widgetSpanContainingOffset(
+			root,
+			toDomTextOffset(asRawOffset(start), ambientLength)
+		);
+		if (startSpan) start = toRawOffset(startSpan.start, ambientLength);
+		const endSpan = widgetSpanContainingOffset(
+			root,
+			toDomTextOffset(asRawOffset(end), ambientLength)
+		);
+		if (endSpan) end = toRawOffset(endSpan.end, ambientLength);
 		if (startSpan || endSpan) {
 			devWarn(
 				'decorations',
 				`replace boundary inside an atomic widget; snapped ${dec.start}..${dec.end} outward to ${start}..${end}`
 			);
 		}
-		const range = createRangeAtRawOffsets(root, ambientLength + start, ambientLength + end);
+		const range = createRangeAtRawOffsets(
+			root,
+			toDomTextOffset(asRawOffset(start), ambientLength),
+			toDomTextOffset(asRawOffset(end), ambientLength)
+		);
 		if (!range) {
 			opts.onSkipped?.(dec, 'no DOM range for span');
 			return;

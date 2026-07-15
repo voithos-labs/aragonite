@@ -4,19 +4,20 @@
  * cross-block selection.
  */
 
+import type { DomTextOffset } from './coordinate-spaces';
 import { createRangeAtRawOffsets, widgetsIntersectingRange } from './widget-offset';
 
 /**
  * Client rects covering [startOffset, endOffset) within `el`. Offsets are
- * raw-content positions (text-node lengths plus image-widget raw lengths
- * via `cursor/widget-offset.ts`); for widget-free blocks this is identical
- * to textContent offsets. The jsdom guard on `getClientRects` keeps unit
- * tests from crashing (real pixel geometry is covered by e2e).
+ * walk-space positions (text-node lengths plus image-widget raw lengths via
+ * `cursor/widget-offset.ts`); for widget-free blocks this is identical to
+ * textContent offsets. The jsdom guard on `getClientRects` keeps unit tests
+ * from crashing (real pixel geometry is covered by e2e).
  */
 export function measurePartialRectsInContentEditable(
 	el: HTMLElement,
-	startOffset: number,
-	endOffset: number
+	startOffset: DomTextOffset,
+	endOffset: DomTextOffset
 ): DOMRect[] {
 	if (startOffset === endOffset) return [];
 	const range = createRangeAtRawOffsets(el, startOffset, endOffset);
