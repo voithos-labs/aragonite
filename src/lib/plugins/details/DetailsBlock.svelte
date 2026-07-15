@@ -9,10 +9,10 @@
 		createContainerBlock,
 		isCollapsedContainer,
 		type ContainerBlockComponent,
-		type CstNode
+		type NodeView
 	} from '$lib/plugin';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 

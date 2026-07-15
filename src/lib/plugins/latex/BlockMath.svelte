@@ -12,10 +12,10 @@
 	// re-rendering on blur. All editing behavior (caret, IME, undo, cross-block
 	// selection, commit) lives in `createEditableLeaf`; this component owns the
 	// render↔source swap visuals — the engine is injected through the `math-renderer` seam.
-	import { createEditableLeaf, type BlockComponent, type CstNode } from '$lib/plugin';
+	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 	import { renderDisplayMath } from './math-renderer';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const mountId = nextMountId++;
 	let renderCount = 0;

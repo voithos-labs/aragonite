@@ -9,7 +9,7 @@
 // marks would perturb those exact-overlay-count assertions, the same reason the
 // dogfood sources are seed-gated.
 import { definePlugin } from '$lib/plugin';
-import type { CstNode, Document, MarkDecoration } from '$lib/plugin';
+import type { DocumentView, MarkDecoration, NodeView } from '$lib/plugin';
 
 // Whole-word-present in both loaded-ops fixtures (PLUGIN_DOC, DIRECTIVE_DOC).
 const MARKED_WORD = 'paragraph';
@@ -30,7 +30,7 @@ export const simMarkPlugin = definePlugin({
 	}
 });
 
-function standingMarks(doc: Document): MarkDecoration[] {
+function standingMarks(doc: DocumentView): MarkDecoration[] {
 	const marks: MarkDecoration[] = [];
 	forEachLeaf(doc.children, [], (node, path) => {
 		const text = node.raw;
@@ -56,9 +56,9 @@ function standingMarks(doc: Document): MarkDecoration[] {
 }
 
 function forEachLeaf(
-	children: CstNode[],
+	children: readonly NodeView[],
 	path: number[],
-	visit: (node: CstNode, path: number[]) => void
+	visit: (node: NodeView, path: number[]) => void
 ): void {
 	for (let i = 0; i < children.length; i++) {
 		const node = children[i];

@@ -3,9 +3,9 @@
 	// text surface. All editing behavior (caret, IME, per-keystroke commits,
 	// undo batching, cross-block selection) lives in `createEditableLeaf`; this
 	// component owns only the text-sync view.
-	import { createEditableLeaf, type BlockComponent, type CstNode } from '$lib/plugin';
+	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let el: HTMLDivElement | undefined = $state();
 

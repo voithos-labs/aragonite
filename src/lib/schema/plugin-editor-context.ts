@@ -4,7 +4,7 @@
  * "one context object, not two" freeze litmus, satisfied structurally.
  * `document` is a getter so every read is live (culture: getters, not values).
  */
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import {
@@ -27,7 +27,7 @@ export const mintEditorId = () => `editor-${++n}`;
 
 export function createEditorPluginContexts(deps: {
 	editorId: string;
-	getDoc: () => Document;
+	getDoc: () => DocumentView;
 	events: EditorEventSubscriptions;
 	optionsFor: (pluginName: string) => unknown;
 	decorations: DecorationRegistry;

@@ -12,7 +12,6 @@ import {
 	dispatchGetBlockComponentByPath
 } from './focus/focus-dispatch';
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
-import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import { devWarn } from '../dev-warn';

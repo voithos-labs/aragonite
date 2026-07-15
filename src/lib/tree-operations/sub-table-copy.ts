@@ -1,4 +1,4 @@
-import type { CstNode, TableAlignment } from '../core/nodes';
+import type { TableAlignment } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 

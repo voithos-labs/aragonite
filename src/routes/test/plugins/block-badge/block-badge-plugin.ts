@@ -1,6 +1,6 @@
 // Fixture for BlockDecoration on public doors only: every heading host gets a
 // class plus a badge widget (blockDecorationsForPath's consumer), at any depth.
-import { definePlugin, type CstNode, type Decoration, type Document } from '$lib/plugin';
+import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
 
 export const blockBadgePlugin = definePlugin({
 	name: 'block-badge',
@@ -15,12 +15,12 @@ export const blockBadgePlugin = definePlugin({
 	}
 });
 
-function headingBadges(doc: Document): Decoration[] {
+function headingBadges(doc: DocumentView): Decoration[] {
 	const badges: Decoration[] = [];
 	walk(doc.children, []);
 	return badges;
 
-	function walk(children: CstNode[], path: number[]): void {
+	function walk(children: readonly NodeView[], path: number[]): void {
 		children.forEach((node, i) => {
 			const childPath = [...path, i];
 			if (node.kind === 'heading') {

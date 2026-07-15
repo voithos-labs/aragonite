@@ -12,7 +12,6 @@ import type { HeightOracle } from '../cursor/height-oracle';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
 import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
-import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 
 export interface ListWindowingDeps {

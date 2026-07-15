@@ -118,6 +118,11 @@ export type { FenceOpen } from './core/parsers/fenced-code';
 
 // ── CST node access ────────────────────────────────────────────────────────────
 export type { CstNode } from './core/nodes';
+// The bytes-readonly views every read surface hands a plugin (component props,
+// EditorContext.document, DecorationSource.provide, descriptor read hooks).
+// CstNode/Document stay the types a plugin CONSTRUCTS (openers, factories,
+// rebuildRaw) — reads get views, owned/built nodes stay mutable.
+export type { NodeView, DocumentView } from './core/node-views';
 // Typed plugin metadata: store/read a plugin kind's own shape without casting
 // through the built-in `BlockMetadata` union at the call site.
 export { setPluginMetadata, getPluginMetadata } from './core/nodes';

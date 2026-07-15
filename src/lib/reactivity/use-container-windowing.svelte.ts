@@ -14,7 +14,6 @@ import {
 } from '../editor-keys';
 import type { HeightOracle } from '../cursor/height-oracle';
 import type { RevealAnchorState } from '../cursor/reveal-anchor';
-import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 

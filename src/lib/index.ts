@@ -56,6 +56,10 @@ export type {
 	InlineNode
 } from './core/nodes';
 
+// The bytes-readonly views a consumer reads the CST through (EditorContext.document,
+// BlockComponentProps, DecorationSource.provide). Mutation goes through commits.
+export type { NodeView, DocumentView } from './core/node-views';
+
 // ── Events ───────────────────────────────────────────────────────────────────
 
 export type {

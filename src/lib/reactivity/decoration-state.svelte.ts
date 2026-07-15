@@ -1,4 +1,5 @@
-import type { CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 import {
 	groupDecorationsByAncestor,
 	groupDecorationsByPath,
@@ -26,7 +27,7 @@ const EMPTY_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] =
 const EMPTY_BLOCKS: BlockDecoration[] = [];
 
 export interface DecorationEngineDeps {
-	getDoc: () => Document;
+	getDoc: () => DocumentView;
 	onSourceError?: (sourceName: string, error: unknown) => void;
 }
 
