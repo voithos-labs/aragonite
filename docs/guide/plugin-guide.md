@@ -240,7 +240,28 @@ function registerNote(): void {
 		keymap: [
 			{ chord: 'Mod+7', command: setVariant, arg: 'note' },
 			{ chord: 'Mod+8', command: setVariant, arg: 'tip' }
-		]
+		],
+		// Required: how this kind behaves under every cross-cutting editor system.
+		// A container's roundTrip must name its rebuildRaw (not inherit-default), and
+		// a not-mergeable kind's mergeBackspace must name its non-merge behavior — a
+		// missing cell or column is a compile error. See "The closure block" below.
+		closure: {
+			roundTrip: { mode: 'implemented', via: 'container contract=opaque — rebuildNoteRaw' },
+			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
+			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'children are real blocks — search descends and paints'
+			},
+			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+			undo: {
+				mode: 'implemented',
+				via: 'updateMetadata — the variant switch commits as one undo entry'
+			},
+			clipboard: { mode: 'inherit-default' },
+			simOracle: { mode: 'implemented', via: 'plugin e2e under the [invariant:] watcher' }
+		}
 	});
 
 	registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
@@ -260,6 +281,18 @@ export function notePlugin(): EditorPlugin {
 ```
 
 `registerDirective`'s `(tier, name)` mapping, the `ParsedDirective` shape, and the per-tier factory rules live in the [directives guide](directives.md). This module supplies the container factory (`fromDirective`, required for the container tier) and the descriptor.
+
+### The closure block
+
+`closure` is a required field on every registration: the kind's answer to each cross-cutting editor system, so a new kind cannot ship closed under a subsystem nobody asked about (the incident behind it is the 0.9.18 whole-block-focus tier). Each of the nine `ClosureColumn`s — `roundTrip`, `focus`, `mergeBackspace`, `selectionPaint`, `searchPaint`, `reorder`, `undo`, `clipboard`, `simOracle` — takes a `ClosureCell`:
+
+- `{ mode: 'implemented', via }` — a real mechanism you can name (a `rebuildRaw`, a keymap command, `measurePartialRects`).
+- `{ mode: 'inherit-default' }` — the generic editor ceremony, nothing kind-specific.
+- `{ mode: 'not-supported', reason }` — the subsystem is structurally absent; name the degradation.
+
+`Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one. Two coherence rules also hold at bootstrap: a container must declare `roundTrip: implemented` (its `rebuildRaw` is the mechanism), and a `not-mergeable` kind cannot declare `mergeBackspace: inherit-default` (it has no default merge to inherit). Answer honestly — `implemented` needs a nameable mechanism; when you cannot name one, the cell is `inherit-default` or `not-supported`, never an invented capability. The full row-by-tier reference is the closure matrix in `docs/design/plugin-contract.md`.
+
+Optionally add a `conformanceFixture` — a small markdown source that parses to your kind — for the conformance battery.
 
 ### The component
 
@@ -719,11 +752,12 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Block-kind descriptor**
 
-| Export                                                                                                                         | Role                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `registerBlockKind`                                                                                                            | Register a kind's descriptor — merge behavior, editability, container shape                                       |
-| `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                          |
-| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums |
+| Export                                                                                                                         | Role                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `registerBlockKind`                                                                                                            | Register a kind's descriptor — merge behavior, editability, container shape                                              |
+| `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                                 |
+| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums        |
+| `ClosureBlock`, `ClosureColumn`, `ClosureCell`                                                                                 | The required closure matrix per kind — one `implemented`/`inherit-default`/`not-supported` cell per cross-cutting system |
 
 **Component registry**
 

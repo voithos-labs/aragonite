@@ -71,7 +71,39 @@ export function registerChromeLeaf<
 		editable: true,
 		supportsInline: false,
 		contextDependentKind: true,
-		keymap: mergeChromeKeymap(opts.keymap)
+		keymap: mergeChromeKeymap(opts.keymap),
+		// One block for every chrome kind — the Chrome-leaf matrix row. No
+		// conformanceFixture: the container opener mints child-0, so a chrome leaf
+		// never stands alone as a document scan's result.
+		closure: {
+			roundTrip: {
+				mode: 'implemented',
+				via: 'contextDependentKind — the container rebuildRaw emits the chrome bytes into its opener line'
+			},
+			focus: {
+				mode: 'implemented',
+				via: 'native caret; Enter descends to the body (chrome.descendToBody)'
+			},
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'not-mergeable chrome — cleared-not-deleted by range ops; Backspace/Delete take the merge walk'
+			},
+			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
+			searchPaint: { mode: 'implemented', via: 'chrome raw scanned; matches painted as marks' },
+			reorder: {
+				mode: 'not-supported',
+				reason: 'reserved child 0 — no independent block identity to move'
+			},
+			undo: { mode: 'inherit-default' },
+			clipboard: {
+				mode: 'implemented',
+				via: 'byte-slice copy; a copy starting mid-chrome into the body drops the container wrapper (issues.md)'
+			},
+			simOracle: {
+				mode: 'implemented',
+				via: 'reserved-chrome structural-ops e2e under the [invariant:] watcher'
+			}
+		}
 	});
 	registerBlockComponent(
 		kind,

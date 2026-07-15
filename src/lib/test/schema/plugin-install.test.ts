@@ -3,11 +3,13 @@ import { definePlugin, installPlugins, isPluginInstalled } from '$lib/schema/plu
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 const minimalRegistration = {
 	mergeRole: 'not-mergeable',
 	editable: false,
-	supportsInline: false
+	supportsInline: false,
+	closure: testClosure
 } as const;
 
 beforeEach(() => __resetSchemaRegistriesForTests());

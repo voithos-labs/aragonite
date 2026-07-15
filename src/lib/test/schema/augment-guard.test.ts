@@ -8,11 +8,13 @@ import {
 } from '$lib/schema/block-kind-descriptor';
 import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 const minimal = {
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false
+	supportsInline: false,
+	closure: testClosure
 } as const;
 
 afterEach(() => __resetSchemaRegistriesForTests());

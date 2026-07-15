@@ -78,6 +78,33 @@ export function registerDetailsKind(): void {
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open
 			},
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+		},
+		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
+		closure: {
+			roundTrip: { mode: 'implemented', via: 'container contract=opaque — rebuildDetailsRaw' },
+			focus: { mode: 'implemented', via: 'focus walks to the summary chrome / first body child' },
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'mergeRole=container + unwrapRole; collapse-aware merge walk'
+			},
+			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
+			searchPaint: {
+				mode: 'implemented',
+				via: 'children are real blocks — search descends and paints'
+			},
+			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+			undo: {
+				mode: 'implemented',
+				via: 'updateOwnMetadata — the open-state toggle commits as one undoable metadataUpdate'
+			},
+			clipboard: {
+				mode: 'implemented',
+				via: 'byte-slice copy; a copy starting mid-summary into the body drops the container wrapper (issues.md)'
+			},
+			simOracle: {
+				mode: 'implemented',
+				via: 'details container/windowing e2e under the [invariant:] watcher'
+			}
 		}
 	});
 

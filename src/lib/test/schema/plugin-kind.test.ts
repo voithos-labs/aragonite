@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { declarePluginKind, declaredPluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { testClosure } from '$lib/test/support/closure';
 
 describe('declarePluginKind', () => {
 	it('returns the name, branded, for a valid plugin kind', () => {
@@ -24,7 +25,8 @@ describe('declarePluginKind', () => {
 		registerBlockKind(kind, {
 			mergeRole: 'not-mergeable',
 			editable: false,
-			supportsInline: false
+			supportsInline: false,
+			closure: testClosure
 		});
 		expect(tryGetBlockKindDescriptor(kind)?.mergeRole).toBe('not-mergeable');
 	});

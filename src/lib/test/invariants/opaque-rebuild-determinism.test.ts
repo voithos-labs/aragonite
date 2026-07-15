@@ -3,6 +3,7 @@ import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
 
@@ -15,6 +16,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
+			closure: testClosure,
 			container: { contract: 'opaque', rebuildRaw }
 		});
 		return kind;

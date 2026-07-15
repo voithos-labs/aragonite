@@ -2,6 +2,7 @@ import { isBuiltinBlockKind, metadataOf, type AnyBlockKind, type CstNode } from 
 import { displayLength } from '../core/lines';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
+import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import {
 	rebuildBlockquoteRaw,
@@ -34,6 +35,22 @@ export interface UnwrapRole {
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
+	/**
+	 * The kind's answer to every cross-cutting editor system — the closure matrix
+	 * row as a required field, so a kind cannot ship closed under a subsystem
+	 * nobody asked about. `Record<ClosureColumn, …>` makes a missing column a
+	 * compile error; requiring the field makes a missing block one. Read-side and
+	 * flat (all kinds, not container-only), so it survives `stripContainerOnlyKeys`.
+	 */
+	closure: ClosureBlock;
+	/**
+	 * A small markdown source that parses to a tree containing this kind — consumed
+	 * by the conformance battery. Present for parser-reachable kinds; omitted for
+	 * context-dependent kinds (chrome, tableCell) and reserved `unrecognized`, which
+	 * a document scan can never yield in isolation. G1.24 checks that a declared
+	 * fixture actually parses to the kind; it does not demand one exist.
+	 */
+	conformanceFixture?: string;
 	/**
 	 * Editor-level whole-block focus policy for an opaque, childless block (e.g. a
 	 * render-primary plugin diagram). `'whole-block'` opts the kind into the
@@ -248,6 +265,27 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
+// ── Closure blocks ────────────────────────────────────────────────────────────
+
+// Shared by the not-mergeable, non-inline raw-text leaves (indentedCode,
+// htmlBlock, linkReferenceDefinition) — byte-identical rows, hoisted rather than
+// triplicated. fencedCode and unrecognized diverge (own keymap / self-merge), so
+// they stay inline.
+const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
+	roundTrip: { mode: 'inherit-default' },
+	focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
+	mergeBackspace: {
+		mode: 'implemented',
+		via: 'mergeRole=not-mergeable — Backspace moves focus, never concatenates'
+	},
+	selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
+	searchPaint: { mode: 'implemented', via: 'raw scanned; matches painted as decoration marks' },
+	reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+	undo: { mode: 'inherit-default' },
+	clipboard: { mode: 'inherit-default' },
+	simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+};
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
@@ -396,21 +434,81 @@ registerBlockKind('paragraph', {
 	mergeRole: 'prose',
 	editable: true,
 	supportsInline: true,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	conformanceFixture: 'hello world\n',
+	closure: {
+		roundTrip: { mode: 'inherit-default' },
+		focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=prose — Backspace merges into the previous prose block'
+		},
+		selectionPaint: {
+			mode: 'implemented',
+			via: 'measurePartialRects (raw offsets, per visual line)'
+		},
+		searchPaint: { mode: 'implemented', via: 'prose raw scanned; matches painted as marks' },
+		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap; resolveReorderUnit' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+	}
 });
 registerBlockKind('heading', {
 	mergeRole: 'prose-absorber',
 	editable: true,
 	supportsInline: true,
 	getContentRange: headingContentRange,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	conformanceFixture: '# Heading\n',
+	closure: {
+		roundTrip: { mode: 'inherit-default' },
+		focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=prose-absorber — absorbs the following prose block'
+		},
+		selectionPaint: {
+			mode: 'implemented',
+			via: 'measurePartialRects (content range, marker skipped)'
+		},
+		searchPaint: {
+			mode: 'implemented',
+			via: 'content-range raw scanned; marks (marker prefix skipped)'
+		},
+		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+	}
 });
 registerBlockKind('setextHeading', {
 	mergeRole: 'prose-absorber',
 	editable: true,
 	supportsInline: true,
 	getContentRange: setextHeadingContentRange,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	conformanceFixture: 'Title\n===\n',
+	closure: {
+		roundTrip: { mode: 'inherit-default' },
+		focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=prose-absorber — absorbs the following prose block'
+		},
+		selectionPaint: {
+			mode: 'implemented',
+			via: 'measurePartialRects (content range, underline skipped)'
+		},
+		searchPaint: {
+			mode: 'implemented',
+			via: 'content-range raw scanned; marks (underline line skipped)'
+		},
+		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+	}
 });
 registerBlockKind('fencedCode', {
 	mergeRole: 'not-mergeable',
@@ -426,7 +524,25 @@ registerBlockKind('fencedCode', {
 		{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 		{ chord: 'Mod+B', command: 'format.toggleStrong' },
 		{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
-	]
+	],
+	conformanceFixture: '```\ncode\n```\n',
+	closure: {
+		roundTrip: { mode: 'inherit-default' },
+		focus: { mode: 'implemented', via: 'native caret in the code contenteditable' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'not-mergeable — code.backspace edits within; no cross-block concat'
+		},
+		selectionPaint: {
+			mode: 'implemented',
+			via: 'measurePartialRects (raw offsets, per visual line)'
+		},
+		searchPaint: { mode: 'implemented', via: 'code raw scanned; matches painted as marks' },
+		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+	}
 });
 registerBlockKind('thematicBreak', {
 	mergeRole: 'not-mergeable',
@@ -435,37 +551,100 @@ registerBlockKind('thematicBreak', {
 	keymap: [
 		{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 		{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
-	]
+	],
+	conformanceFixture: '---\n',
+	closure: {
+		roundTrip: { mode: 'inherit-default' },
+		focus: {
+			mode: 'implemented',
+			via: 'ThematicBreakBlock whole-block focus (focus-then-delete model)'
+		},
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'not-mergeable — caret-adjacent Backspace focuses, a second press deletes'
+		},
+		selectionPaint: { mode: 'implemented', via: 'whole-block cover rect (no partial offsets)' },
+		searchPaint: { mode: 'not-supported', reason: 'no editable text content — nothing to search' },
+		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+	}
 });
 registerBlockKind('indentedCode', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	conformanceFixture: '    indented code\n',
+	closure: RAW_TEXT_LEAF_CLOSURE
 });
 registerBlockKind('htmlBlock', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	conformanceFixture: '<div>\nhtml\n</div>\n',
+	closure: RAW_TEXT_LEAF_CLOSURE
 });
 registerBlockKind('linkReferenceDefinition', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	conformanceFixture: '[id]: /url "title"\n',
+	closure: RAW_TEXT_LEAF_CLOSURE
 });
 registerBlockKind('table', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	container: { contract: 'grid', rebuildRaw: rebuildTableRaw }
+	container: { contract: 'grid', rebuildRaw: rebuildTableRaw },
+	conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
+	closure: {
+		roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRaw' },
+		focus: { mode: 'implemented', via: 'focus walks into the first cell' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'not-mergeable — no block merge; edits stay within cells'
+		},
+		selectionPaint: {
+			mode: 'implemented',
+			via: 'rectangular cell selection; per-cell cover rects'
+		},
+		searchPaint: {
+			mode: 'implemented',
+			via: 'descends to cells; per-cell mark overlay (measurePartialRects cell index)'
+		},
+		reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation drives table cell edits' }
+	}
 });
 registerBlockKind('tableRow', {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	container: { contract: 'grid', rebuildRaw: rebuildTableRowRaw }
+	container: { contract: 'grid', rebuildRaw: rebuildTableRowRaw },
+	conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
+	closure: {
+		roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRowRaw' },
+		focus: { mode: 'implemented', via: 'focus walks into a cell' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'not-mergeable — no row-level merge; cell edits only'
+		},
+		selectionPaint: { mode: 'implemented', via: 'per-cell cover rects' },
+		searchPaint: { mode: 'implemented', via: 'descends to cells; per-cell mark overlay' },
+		reorder: {
+			mode: 'not-supported',
+			reason: 'grid child — the table reorders as a whole; rows are not block reorder units'
+		},
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation (table edits)' }
+	}
 });
 registerBlockKind('tableCell', {
 	mergeRole: 'not-mergeable',
@@ -480,13 +659,54 @@ registerBlockKind('tableCell', {
 		{ chord: 'Shift+Tab', command: 'cell.shiftTab' },
 		{ chord: 'Mod+B', command: 'format.toggleStrong' },
 		{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
-	]
+	],
+	// No conformanceFixture: context-dependent — the table opener mints cells, so a
+	// cell never stands alone as the top-level result of a document scan.
+	closure: {
+		roundTrip: {
+			mode: 'implemented',
+			via: 'contextDependentKind — the parent grid rebuildTableRaw owns the cell bytes'
+		},
+		focus: { mode: 'implemented', via: 'per-cell native caret' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'not-mergeable — edits stay within the cell; no cross-cell concat'
+		},
+		selectionPaint: { mode: 'implemented', via: 'measurePartialRects (cell index)' },
+		searchPaint: {
+			mode: 'implemented',
+			via: 'cell raw scanned; per-cell mark overlay (measurePartialRects cell index)'
+		},
+		reorder: {
+			mode: 'not-supported',
+			reason: 'grid cell — no independent block reorder'
+		},
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation (table cell edits)' }
+	}
 });
 registerBlockKind('unrecognized', {
 	mergeRole: 'self-merge',
 	editable: true,
 	supportsInline: false,
-	keymap: TEXT_EDITABLE_KEYMAP
+	keymap: TEXT_EDITABLE_KEYMAP,
+	// No conformanceFixture: a document scan never yields `unrecognized` in
+	// isolation — it is the reserved fallback for content no opener claimed.
+	closure: {
+		roundTrip: { mode: 'inherit-default' },
+		focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=self-merge — concatenates with an adjacent unrecognized block'
+		},
+		selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
+		searchPaint: { mode: 'implemented', via: 'raw scanned; matches painted as marks' },
+		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'inherit-default' }
+	}
 });
 registerBlockKind('blockquote', {
 	mergeRole: 'container',
@@ -497,6 +717,30 @@ registerBlockKind('blockquote', {
 		rebuildRaw: rebuildBlockquoteRaw,
 		containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 		unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+	},
+	conformanceFixture: '> quoted\n',
+	closure: {
+		roundTrip: { mode: 'implemented', via: 'container contract=strip — rebuildBlockquoteRaw' },
+		focus: { mode: 'implemented', via: 'focus walks into the first child' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
+		},
+		selectionPaint: {
+			mode: 'implemented',
+			via: 'real child blocks paint; container cover spans them'
+		},
+		searchPaint: {
+			mode: 'implemented',
+			via: 'children are real blocks — search descends and paints'
+		},
+		reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+		undo: { mode: 'inherit-default' },
+		clipboard: {
+			mode: 'implemented',
+			via: 'containerPaste.matchesAncestor — clipboard top merges into a same-kind ancestor'
+		},
+		simOracle: { mode: 'implemented', via: 'note-taking simulation (nested blockquote edits)' }
 	}
 });
 registerBlockKind('list', {
@@ -516,6 +760,24 @@ registerBlockKind('list', {
 			firstChildBackspace: 'list-item-cascade',
 			middleChildBackspace: 'list-item-cascade'
 		}
+	},
+	conformanceFixture: '- item\n',
+	closure: {
+		roundTrip: { mode: 'implemented', via: 'container contract=strip — rebuildListRaw' },
+		focus: { mode: 'implemented', via: 'focus walks into the first item' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=container + unwrapRole (list-item-cascade)'
+		},
+		selectionPaint: { mode: 'implemented', via: 'item child blocks paint; container cover' },
+		searchPaint: { mode: 'implemented', via: 'descends into items — mark overlay per child' },
+		reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+		undo: { mode: 'inherit-default' },
+		clipboard: {
+			mode: 'implemented',
+			via: 'containerPaste.siblingAbsorb — clipboard items splice as siblings, ordered-flag matched'
+		},
+		simOracle: { mode: 'implemented', via: 'note-taking simulation (list edits)' }
 	}
 });
 registerBlockKind('listItem', {
@@ -526,5 +788,23 @@ registerBlockKind('listItem', {
 	keymap: [
 		{ chord: 'Tab', command: 'list.indent' },
 		{ chord: 'Shift+Tab', command: 'list.unindent' }
-	]
+	],
+	conformanceFixture: '- item\n',
+	closure: {
+		roundTrip: { mode: 'implemented', via: 'container contract=strip — rebuildListItemRaw' },
+		focus: { mode: 'implemented', via: 'focus walks into the first child' },
+		mergeBackspace: {
+			mode: 'implemented',
+			via: 'mergeRole=container — Backspace cascades via the parent list unwrapRole'
+		},
+		selectionPaint: { mode: 'implemented', via: 'child blocks paint; item cover' },
+		searchPaint: { mode: 'implemented', via: 'descends into item children — mark overlay' },
+		reorder: {
+			mode: 'implemented',
+			via: 'list.indent/unindent keymap; whole-item reorder through the parent list'
+		},
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation (list item edits)' }
+	}
 });

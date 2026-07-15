@@ -40,14 +40,15 @@ validation before freeze**.
       brand at the boundary: consumer DX unchanged, internal arithmetic protected. Scheduled
       **before** presentation modes deliberately — rung 3 is the heaviest caret/offset churn
       left and should happen under compile-time protection, not ahead of it.
-   2. **The closure matrix becomes a type and an executable battery.** Registration grows a
-      required closure block — every cross-cutting system answered with an implementation, an
-      inherit-default, or an explicit not-supported — so a blank matrix cell is a compile error,
-      not an unasked question (the 0.9.18 lesson, made unrepresentable). The `aragonite/testing`
+   2. **The closure matrix runs as an executable battery.** The required closure block has landed:
+      registration answers every cross-cutting system with an implementation, an inherit-default, or
+      an explicit not-supported, so a blank matrix cell is a compile error (a required registration
+      field is breaking-if-deferred) and G1.24 cross-checks the cells against the descriptor — the
+      0.9.18 lesson, made unrepresentable. What remains is _execution_: the `aragonite/testing`
       container conformance kit generalizes so registering a kind _enrolls_ it in a generic
-      behavioral battery (focus walk, selection/search paint, clipboard round-trip): a matrix row
-      is executed, not declared. Required registration fields are breaking-if-deferred, and the
-      battery must precede the clean-room run, which probes the third-party testing story.
+      behavioral battery (focus walk, selection/search paint, clipboard round-trip) — a matrix row
+      run, not declared. The battery must precede the clean-room run, which probes the third-party
+      testing story.
    3. **Readonly-by-layer CST views.** The mutable node type stays visible only inside
       `tree-operations/` and the commit ceremony; components and the entire plugin surface
       receive deep-readonly views, so writing through a shared or stale reference (G1.9's

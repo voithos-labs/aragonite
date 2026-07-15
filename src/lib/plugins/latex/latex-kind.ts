@@ -101,7 +101,37 @@ export function registerMathBlock(): void {
 	registerBlockKind(mathBlock, {
 		mergeRole: 'not-mergeable',
 		editable: true,
-		supportsInline: false
+		supportsInline: false,
+		conformanceFixture: '$$\nx^2\n$$\n',
+		closure: {
+			roundTrip: { mode: 'inherit-default' },
+			focus: {
+				mode: 'implemented',
+				via: 'createEditableLeaf render-primary reveal (source ⇄ rendered)'
+			},
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'not-mergeable — Backspace at the edge moves focus, never concatenates'
+			},
+			selectionPaint: {
+				mode: 'implemented',
+				via: 'measurePartialRects (raw offsets) while the source is revealed'
+			},
+			searchPaint: { mode: 'implemented', via: 'source raw scanned; matches painted as marks' },
+			reorder: {
+				mode: 'implemented',
+				via: 'whole-block drag reorder through the parent BlockList'
+			},
+			undo: {
+				mode: 'implemented',
+				via: 'render-primary — the reveal→edit→blur cycle commits as one undo entry'
+			},
+			clipboard: { mode: 'inherit-default' },
+			simOracle: {
+				mode: 'implemented',
+				via: 'block-math editable-leaf e2e under the [invariant:] watcher'
+			}
+		}
 	});
 
 	registerBlockOpener(mathBlock, {
