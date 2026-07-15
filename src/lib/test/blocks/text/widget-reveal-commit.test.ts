@@ -21,6 +21,7 @@ import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
+import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { stampMathWidget, resetInlineState } from './math-widget-fixture';
@@ -110,7 +111,7 @@ function mountMathBlock() {
 	async function reveal(): Promise<void> {
 		interaction.handleWidgetAtCursorKeydown(
 			new KeyboardEvent('keydown', { key: 'ArrowRight' }),
-			math.start
+			asRawOffset(math.start)
 		);
 		await new Promise((r) => setTimeout(r));
 	}
@@ -253,7 +254,7 @@ describe('cancelReveal — identity-exact fold-back', () => {
 		// Reveal the SECOND widget via arrow-entry from its left, then Escape-cancel.
 		interaction.handleWidgetAtCursorKeydown(
 			new KeyboardEvent('keydown', { key: 'ArrowRight' }),
-			second.start
+			asRawOffset(second.start)
 		);
 		await new Promise((r) => setTimeout(r));
 		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node

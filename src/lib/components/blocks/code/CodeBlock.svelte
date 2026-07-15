@@ -35,7 +35,7 @@
 	import type { UndoController } from '../../../editor-actions/deps';
 	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
-	import { asDomTextOffset, asRawOffset } from '../../../cursor/coordinate-spaces';
+	import { asDomTextOffset, asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -98,16 +98,23 @@
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
+	// A zero-ambient, widget-free surface: its DOM-text space IS its raw space.
+	// Every DOM caret read door-mints across the identity here, once.
+	function readCaretOffset(): RawOffset | null {
+		const offset = el ? getCursorOffsetHelper(el) : null;
+		return offset === null ? null : asRawOffset(offset);
+	}
+
+	function readFocusOffset(): RawOffset | null {
+		const offset = el ? getSelectionFocusOffsetHelper(el) : null;
+		return offset === null ? null : asRawOffset(offset);
+	}
+
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
-		// A zero-ambient, widget-free surface: its DOM-text space IS its raw
-		// space, so the backend door-mints across the two brands.
 		backend: {
-			getRaw: () => {
-				const offset = el ? getCursorOffsetHelper(el) : null;
-				return offset === null ? null : asRawOffset(offset);
-			},
+			getRaw: readCaretOffset,
 			setRaw: (offset) => {
 				if (el) setCursorOffsetHelper(el, asDomTextOffset(offset));
 			},
@@ -142,7 +149,7 @@
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
-		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
+		getFocusOffset: readFocusOffset,
 		getTextLen: () => (el?.textContent ?? '').length,
 		readText: () => el?.textContent ?? '',
 		// Code anchors undo at preEditOffset only; it has no kind-change remount to
@@ -242,7 +249,7 @@
 		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
 			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
-			const branchPreEditOffset = getCursorOffsetHelper(el) ?? 0;
+			const branchPreEditOffset = readCaretOffset() ?? 0;
 			// Sibling of codeNewline's opener guard: a soft break splices the same
 			// `\n`, so its selection clamps out of the opener line too.
 			const range = currentRange();
@@ -264,7 +271,7 @@
 
 		const text = getDisplayText();
 		const selOffsets = getSelectionOffsetsHelper(el);
-		const offset = selOffsets ? selOffsets.start : (getCursorOffsetHelper(el) ?? 0);
+		const offset = selOffsets ? selOffsets.start : (readCaretOffset() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
 		const result = computeAutoPair({
@@ -292,7 +299,7 @@
 		if (composing) return;
 		if (!el) return;
 
-		preEditOffset = getCursorOffsetHelper(el) ?? 0;
+		preEditOffset = readCaretOffset() ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
@@ -344,7 +351,7 @@
 
 	function codeBackspace(): boolean {
 		if (!el || hasSelectionHelper()) return false;
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = readCaretOffset() ?? 0;
 		// offset===0 is the universal contract; offset===bodyStart catches the
 		// fence-boundary case (Home from the body lands there, and native
 		// Backspace would delete the opener's terminating `\n`).
@@ -369,7 +376,7 @@
 
 	function codeDelete(): boolean {
 		if (!el || hasSelectionHelper()) return false;
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = readCaretOffset() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// Mirror of codeBackspace's unconditional moveFocus(index - 1), but the
 			// root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -387,7 +394,7 @@
 		if (!el) return false;
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so the undo anchor must read fresh.
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = readCaretOffset() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
 
@@ -439,7 +446,7 @@
 		if (!el) return { start: 0, end: 0 };
 		const sel = getSelectionOffsetsHelper(el);
 		if (sel) return sel;
-		const cursor = getCursorOffsetHelper(el) ?? 0;
+		const cursor = readCaretOffset() ?? 0;
 		return { start: cursor, end: cursor };
 	}
 

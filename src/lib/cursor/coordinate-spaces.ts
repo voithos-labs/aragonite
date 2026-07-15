@@ -58,6 +58,15 @@ export function toRawOffset(domText: DomTextOffset, ambientLength: number): RawO
 	return (domText - ambientLength) as RawOffset;
 }
 
+/**
+ * `toRawOffset` clamped to raw 0 — the shared shape of every DOM read that may
+ * land inside the leading ambient marker, where the unclamped result goes
+ * negative.
+ */
+export function toClampedRawOffset(domText: DomTextOffset, ambientLength: number): RawOffset {
+	return Math.max(0, toRawOffset(domText, ambientLength)) as RawOffset;
+}
+
 export function toEditorX(viewport: ViewportX, editorLeft: number): EditorX {
 	return (viewport - editorLeft) as EditorX;
 }

@@ -16,6 +16,7 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
+import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { stampMathWidget, resetInlineState } from './math-widget-fixture';
@@ -108,7 +109,7 @@ function mountTwoMathBlock() {
 	async function revealFirst(): Promise<void> {
 		interaction.handleWidgetAtCursorKeydown(
 			new KeyboardEvent('keydown', { key: 'ArrowLeft' }),
-			first.end
+			asRawOffset(first.end)
 		);
 		await new Promise((r) => setTimeout(r));
 	}

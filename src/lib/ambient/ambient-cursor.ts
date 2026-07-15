@@ -9,12 +9,11 @@
 
 import {
 	asRawOffset,
+	toClampedRawOffset,
 	toDomTextOffset,
-	toRawOffset,
-	type DomTextOffset,
 	type RawOffset
 } from '../cursor/coordinate-spaces';
-import { rawOffsetAtNode, findRawOffsetTarget } from '../cursor/widget-offset';
+import { domTextOffsetAtNode, findDomTextOffsetTarget } from '../cursor/widget-offset';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from './ambient-dom';
 
 export interface AmbientCursorDeps {
@@ -45,11 +44,6 @@ export interface AmbientCursorIO {
 }
 
 export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO {
-	// Walk positions inside the marker convert to negative raw; clamp to raw 0.
-	function clampedRaw(content: DomTextOffset, ambientLength: number): RawOffset {
-		return asRawOffset(Math.max(0, toRawOffset(content, ambientLength)));
-	}
-
 	function snapTargetRaw(): RawOffset | null {
 		const target = deps.getSnapTarget?.() ?? null;
 		return target === null ? null : asRawOffset(target);
@@ -70,8 +64,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		if (ambient && ambient.contains(range.startContainer)) {
 			return snapTargetRaw();
 		}
-		const content = rawOffsetAtNode(el, range.startContainer, range.startOffset);
-		return clampedRaw(content, deps.getAmbientLength());
+		const content = domTextOffsetAtNode(el, range.startContainer, range.startOffset);
+		return toClampedRawOffset(content, deps.getAmbientLength());
 	}
 
 	function setToAmbientBoundary(): void {
@@ -92,7 +86,7 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 			return;
 		}
 		const target = toDomTextOffset(offset, ambientLength);
-		const pos = findRawOffsetTarget(el, target);
+		const pos = findDomTextOffsetTarget(el, target);
 		if (!pos) return;
 		// Walker's last-text-node fallback can land inside the marker text;
 		// the contenteditable="false" island traps the caret either way.
@@ -122,7 +116,7 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
 		const range = sel.getRangeAt(0);
-		const content = rawOffsetAtNode(el, range.startContainer, range.startOffset);
+		const content = domTextOffsetAtNode(el, range.startContainer, range.startOffset);
 		if (content >= ambientLength) return;
 		setToAmbientBoundary();
 	}
@@ -134,11 +128,11 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		if (!sel || sel.isCollapsed) return null;
 		const range = sel.getRangeAt(0);
 		const ambientLength = deps.getAmbientLength();
-		const start = rawOffsetAtNode(el, range.startContainer, range.startOffset);
-		const end = rawOffsetAtNode(el, range.endContainer, range.endOffset);
+		const start = domTextOffsetAtNode(el, range.startContainer, range.startOffset);
+		const end = domTextOffsetAtNode(el, range.endContainer, range.endOffset);
 		return {
-			start: clampedRaw(start, ambientLength),
-			end: clampedRaw(end, ambientLength)
+			start: toClampedRawOffset(start, ambientLength),
+			end: toClampedRawOffset(end, ambientLength)
 		};
 	}
 

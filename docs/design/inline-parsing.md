@@ -32,7 +32,7 @@ Reading `raw` back from the DOM is the step with a trap in it. **A prose block's
 - **Atomic widgets contribute zero characters to `textContent`.** An image or an inline formula renders as a `contenteditable="false"` island whose bytes live on `data-source-*` attributes, not in any text node.
 - **The ambient prefix contributes characters that aren't in `raw` at all.** A list item lends its `- ` marker to its first prose child's rendered content, so `textContent === ambientPrefix + raw`.
 
-So the read goes through a raw-aware DOM walk (`cursor/widget-offset.ts`), which sums text-node lengths _and_ widget raw lengths and excludes the marker span. Surfaces with neither complication — code blocks, plain plugin leaves — can read `textContent` directly, because for them it genuinely is `raw`.
+So the read goes through a raw-aware DOM walk (`cursor/widget-offset.ts`), which sums text-node lengths _and_ widget raw lengths — marker-span text included. Excluding the marker is the wrapper's job: the raw read skips the ambient span, and `ambient/ambient-cursor.ts` subtracts its length from offsets. Surfaces with neither complication — code blocks, plain plugin leaves — can read `textContent` directly, because for them it genuinely is `raw`.
 
 IME composition suppresses the rebuild until composition ends; blocks without inline support are untouched by any of this.
 

@@ -44,7 +44,7 @@ const MINT_ALLOWLIST: Record<string, string> = {
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'pending-caret restore holds a plain number field',
 	'src/lib/components/blocks/table/TableCellBlock.svelte':
-		'pending-caret restore holds a plain number field',
+		'zero-ambient cell — pending-caret restore + focus-offset walk read mint across the identity',
 	'src/lib/components/blocks/table/TableBlock.svelte':
 		'table sticky-X exit re-enters the editor column state',
 	'src/lib/components/blocks/text/widget-interaction.ts':

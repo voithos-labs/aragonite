@@ -11,6 +11,7 @@ import {
 	type DecorationIslandKeysDeps
 } from '$lib/components/blocks/text/decoration-island-keys';
 import { parse } from '$lib/core/parser';
+import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { BlockEditActions } from '$lib/action-contracts';
 
 interface Harness {
@@ -83,7 +84,7 @@ describe('modifier chords stay native near islands', () => {
 	it.each(chords)('%o+Backspace at a replace island trailing edge is not consumed', (mods) => {
 		const h = mount('abHIDDENcd\n', 2, 8);
 		const e = key('Backspace', mods);
-		expect(h.handleKeydown(e, 8)).toBe(false);
+		expect(h.handleKeydown(e, asRawOffset(8))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 		expect(h.edits).toHaveLength(0);
 	});
@@ -91,14 +92,14 @@ describe('modifier chords stay native near islands', () => {
 	it('Ctrl+Delete at a replace island leading edge is not consumed', () => {
 		const h = mount('abHIDDENcd\n', 2, 8);
 		const e = key('Delete', { ctrlKey: true });
-		expect(h.handleKeydown(e, 2)).toBe(false);
+		expect(h.handleKeydown(e, asRawOffset(2))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 	});
 
 	it('Ctrl+Backspace at a widget island is not consumed (native word-delete)', () => {
 		const h = mount('hello\n', 3, 3);
 		const e = key('Backspace', { ctrlKey: true });
-		expect(h.handleKeydown(e, 3)).toBe(false);
+		expect(h.handleKeydown(e, asRawOffset(3))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 		expect(h.edits).toHaveLength(0);
 	});
@@ -106,7 +107,7 @@ describe('modifier chords stay native near islands', () => {
 	it('plain Backspace at the trailing edge still selects the island whole', () => {
 		const h = mount('abHIDDENcd\n', 2, 8);
 		const e = key('Backspace');
-		expect(h.handleKeydown(e, 8)).toBe(true);
+		expect(h.handleKeydown(e, asRawOffset(8))).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
 		const selected = window.getSelection()!.getRangeAt(0).cloneContents();
 		expect(selected.querySelector('[data-decoration-island]')).not.toBeNull();
@@ -118,7 +119,7 @@ describe('typing at an element-level caret against a widget island', () => {
 		const h = mount('hello\n', 5, 5);
 		caretAfter(h.island);
 		const e = key('z');
-		expect(h.handleKeydown(e, 5)).toBe(true);
+		expect(h.handleKeydown(e, asRawOffset(5))).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
 		expect(h.edits).toEqual([{ index: 0, content: 'helloz\n', start: 5, end: 6 }]);
 	});
@@ -134,7 +135,7 @@ describe('typing at an element-level caret against a widget island', () => {
 		sel.addRange(range);
 
 		const e = key('z');
-		expect(h.handleKeydown(e, 5)).toBe(false);
+		expect(h.handleKeydown(e, asRawOffset(5))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 	});
 });

@@ -14,7 +14,7 @@ import {
 	type EditorX,
 	type ViewportX
 } from './coordinate-spaces';
-import { containerRawLength, findRawOffsetTarget } from './widget-offset';
+import { containerDomTextLength, findDomTextOffsetTarget } from './widget-offset';
 
 // A candidate counts as "on the probe line" when its rect overlaps the line band
 // padded by half a line height on each side — wide enough to catch ascender/
@@ -45,7 +45,7 @@ export function getCurrentCursorEditorRelativeX(el: HTMLElement): EditorX | null
 }
 
 export function getOffsetRect(container: HTMLElement, offset: DomTextOffset): DOMRect | null {
-	const pos = findRawOffsetTarget(container, offset);
+	const pos = findDomTextOffsetTarget(container, offset);
 	if (!pos) return null;
 	const range = document.createRange();
 	try {
@@ -77,7 +77,7 @@ export function findOffsetNearestX(
 	from: StickyColumnDirection,
 	minOffset: DomTextOffset = asDomTextOffset(0)
 ): DomTextOffset {
-	const totalLen = containerRawLength(container);
+	const totalLen = containerDomTextLength(container);
 	if (totalLen <= minOffset) return minOffset;
 
 	const editor = container.closest('.editor') as HTMLElement | null;

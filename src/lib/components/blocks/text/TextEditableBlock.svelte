@@ -67,12 +67,16 @@
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
-		rawOffsetAtNode,
+		domTextOffsetAtNode,
 		rawTextOfNode,
-		createRangeAtRawOffsets
+		createRangeAtDomTextOffsets
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
-	import { asRawOffset, toDomTextOffset } from '../../../cursor/coordinate-spaces';
+	import {
+		asRawOffset,
+		toClampedRawOffset,
+		toDomTextOffset
+	} from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
@@ -164,7 +168,7 @@
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
 			buildRange: (start, end) =>
-				createRangeAtRawOffsets(
+				createRangeAtDomTextOffsets(
 					el!,
 					toDomTextOffset(start, ambientLength),
 					toDomTextOffset(end, ambientLength)
@@ -202,8 +206,8 @@
 			if (!el) return null;
 			const sel = window.getSelection();
 			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-			const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-			return Math.max(0, content - ambientLength);
+			const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+			return toClampedRawOffset(content, ambientLength);
 		},
 		getTextLen: () => getDisplayText().length,
 		readText: () => readRawText(),
@@ -476,8 +480,8 @@
 				lastSnapTargetOffset = null;
 				return;
 			}
-			const content = rawOffsetAtNode(root, range.startContainer, range.startOffset);
-			const off = Math.max(0, content - ambientLength);
+			const content = domTextOffsetAtNode(root, range.startContainer, range.startOffset);
+			const off = toClampedRawOffset(content, ambientLength);
 			if (off !== lastSnapTargetOffset) {
 				lastSnapTargetOffset = null;
 			}
