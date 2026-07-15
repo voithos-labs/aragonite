@@ -701,6 +701,8 @@ it('my kind conforms', async () => {
 
 It resolves with a per-cell report and throws naming every failed cell — so a `conformanceFixture` that stops parsing to your kind, or a closure cell that lies about a mechanism the runner can observe, fails the moment you register it. Where a cell claims a mechanism the runner cannot reach generically (a kind-specific copy, say), supply a check for it: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })` — `ctx` hands you the parsed fixture and the kind's node.
 
+The mounted-DOM cells — focus, selection paint, search paint — are executed for you: a browser conformance sweep enrolls every registered kind that declares a `conformanceFixture`, so the moment your kind registers with one it is driven headfully for caret walk-through, cross-block selection painting, and search-match painting.
+
 ### Conformance-testing a container
 
 If your plugin registers a **container** kind, `aragonite/testing` also publishes the harness the built-in containers are held to — the same checks, pointed at your kind. It is the fastest way to find out whether your container behaves like a first-class one:
