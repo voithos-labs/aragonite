@@ -29,6 +29,7 @@ import {
 // block-commands.
 import type { EditorContext } from './plugin-install';
 import type { CommandErrorSink } from './block-commands';
+import type { PresentationMode } from '../presentation-mode';
 
 export const GLOBAL_COMMAND_IDS = ['history.undo', 'history.redo'] as const;
 export const BLOCK_COMMAND_IDS = [
@@ -63,6 +64,9 @@ export interface GlobalCommandContext {
 	history: { requestUndo(): void | Promise<void>; requestRedo(): void | Promise<void> };
 	/** Per-instance context lookup, threaded from the dispatching editor (Task 5). */
 	pluginEditor?: (pluginName: string) => EditorContext;
+	/** The effective presentation mode, read live — the reading-mode gate keys off this,
+	 *  not the plugin lookup. Absent (a history-only context) means source. */
+	getPresentationMode?: () => PresentationMode;
 	/** Injected by dispatchKeyCommand — routes a contained handler throw. */
 	onCommandError?: CommandErrorSink;
 }

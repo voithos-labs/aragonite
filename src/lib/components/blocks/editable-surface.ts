@@ -21,7 +21,12 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { BlockComponent, StickyColumnDirection } from '../../block-component';
-import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
+import type {
+	BlockElLookup,
+	DocumentGetter,
+	PluginEditorLookup,
+	PresentationModeGetter
+} from '../../editor-keys';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
 import type { UndoController } from '../../editor-actions/deps';
@@ -93,6 +98,9 @@ export interface EditableSurfaceDeps {
 	// dispatch tier. Required fields (undefinable value) so a surface can't skip the
 	// thread — the cross-block path would otherwise contain plugin throws silently.
 	pluginEditor: PluginEditorLookup | undefined;
+	/** The effective presentation mode, threaded to the cross-block reading gate — a
+	 *  sibling to `pluginEditor`, never smuggled through it. */
+	getPresentationMode: PresentationModeGetter | undefined;
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -147,6 +155,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		controller: deps.controller,
 		history: deps.history,
 		pluginEditor: deps.pluginEditor,
+		getPresentationMode: deps.getPresentationMode,
 		onCommandError: deps.onCommandError,
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,

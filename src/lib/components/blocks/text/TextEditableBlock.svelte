@@ -216,6 +216,7 @@
 		controller,
 		history,
 		pluginEditor,
+		getPresentationMode: () => presentationMode,
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
@@ -631,7 +632,7 @@
 			dispatchKeyCommand(
 				chord,
 				{ kind: node.kind, runCommand },
-				{ history, pluginEditor },
+				{ history, pluginEditor, getPresentationMode: () => presentationMode },
 				keybindingOverrides(),
 				onCommandError
 			)

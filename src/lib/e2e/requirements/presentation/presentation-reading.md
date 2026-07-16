@@ -28,6 +28,8 @@ asserted through the `window.__test` bridge.
   between, the source is byte-identical to what it was before the mode flip
 - toggling to reading while a block is focused mid-edit commits/folds first
   (blur-class flip) and fires no invariant
+- an open replace row (Ctrl+H) collapses on a flip to reading (replace is an edit,
+  gated inert) and returns on the flip back to source
 
 ## User interactions
 

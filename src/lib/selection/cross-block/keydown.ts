@@ -79,14 +79,14 @@ async function handleCrossBlockActive(
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
-		if (isReadingMode(ctx.pluginEditor)) return true;
+		if (isReadingMode(ctx.getPresentationMode)) return true;
 		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
 		return true;
 	}
 
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		if (isReadingMode(ctx.pluginEditor)) return true;
+		if (isReadingMode(ctx.getPresentationMode)) return true;
 		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete
 		// returns the authoritative post-delete position against the merged tree, and
 		// for a table endpoint that is the deep [table,row,col] cell whose runCommand
@@ -102,7 +102,11 @@ async function handleCrossBlockActive(
 			dispatchKeyCommand(
 				chord,
 				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
-				{ history: ctx.history, pluginEditor: ctx.pluginEditor },
+				{
+					history: ctx.history,
+					pluginEditor: ctx.pluginEditor,
+					getPresentationMode: ctx.getPresentationMode
+				},
 				ctx.getKeybindingOverrides(),
 				ctx.onCommandError
 			);
@@ -303,7 +307,7 @@ function handleCompositionStart(
 ): boolean {
 	ctx.stickyColumn.reset();
 	if (!ctx.selection.isCrossBlock) return false;
-	if (isReadingMode(ctx.pluginEditor)) return false;
+	if (isReadingMode(ctx.getPresentationMode)) return false;
 	performCrossBlockDeleteSync(mutCtx);
 	return true;
 }

@@ -179,6 +179,33 @@ test.describe('preview-inline — markers by caret proximity', () => {
 		await expect(emMarkers.first()).toBeHidden();
 	});
 
+	test('ambient-prefixed blocks (list item, blockquote) reveal at content offsets', async ({
+		page
+	}) => {
+		// The ambient `- `/`> ` prefix shifts DOM offsets off raw offsets; the reveal
+		// subtracts the ambient length, so a click on the wrapped word reveals and a
+		// click outside folds. A missing subtraction would mis-target by the prefix width.
+		await ep.loadContent(['- ab *cd* ef', '', '> gh **ij** kl'].join('\n'));
+		const listEm = ep.getBlock(0).locator('[data-construct-start="3"]').first();
+		const quoteStrong = ep.getBlock(1).locator('[data-construct-start="3"]').first();
+
+		const cd = await centerOfWord(page, 'cd');
+		await page.mouse.click(cd.x, cd.y);
+		await expect(listEm).toBeVisible();
+
+		const ab = await centerOfWord(page, 'ab');
+		await page.mouse.click(ab.x, ab.y);
+		await expect(listEm).toBeHidden();
+
+		const ij = await centerOfWord(page, 'ij');
+		await page.mouse.click(ij.x, ij.y);
+		await expect(quoteStrong).toBeVisible();
+
+		const gh = await centerOfWord(page, 'gh');
+		await page.mouse.click(gh.x, gh.y);
+		await expect(quoteStrong).toBeHidden();
+	});
+
 	test('toggling to source shows every marker; reading hides all and folds', async ({ page }) => {
 		const point = await centerOfWord(page, 'beta');
 		await page.mouse.click(point.x, point.y);

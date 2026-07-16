@@ -272,6 +272,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		controller,
 		history,
 		pluginEditor,
+		getPresentationMode,
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
@@ -442,7 +443,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			dispatchKeyCommand(
 				chord,
 				{ kind: deps.node.kind, runCommand, getCommandContext },
-				{ history, pluginEditor },
+				{ history, pluginEditor, getPresentationMode },
 				keybindingOverrides(),
 				onCommandError
 			)
