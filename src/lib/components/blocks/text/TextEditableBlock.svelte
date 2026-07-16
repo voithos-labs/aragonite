@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, tick } from 'svelte';
+	import { getContext, tick, untrack } from 'svelte';
 	import type {
 		BlockEditActions,
 		ContainerEditActions,
@@ -64,6 +64,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
@@ -296,6 +297,21 @@
 		}
 	});
 
+	// preview-inline's marker reveal: caret-chain evaluation on selection cadence,
+	// CSS class flips only — no keys intercepted, no bytes touched.
+	const constructReveal = createConstructReveal({
+		get node() {
+			return node;
+		},
+		get linkRef() {
+			return linkRef;
+		},
+		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength,
+		getPresentationMode: () => presentationMode,
+		isCrossBlock: () => selection.isCrossBlock
+	});
+
 	// The one caret-edge dispatch: CST widget → decoration island → ambient overlap,
 	// each resolved against its declarative edge policy. Replaces the three former
 	// sibling seams; entry (reveal vs select) stays at widgetInteraction.enterWidget.
@@ -486,6 +502,13 @@
 			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
+		// A rebuild mints fresh spans with no reveal class; re-apply synchronously
+		// (before paint) or typing inside a revealed construct folds for one frame
+		// per keystroke. untracked: the caret chain must never join the effect's
+		// dependencies (selection and the inline cache are non-reactive anyway).
+		untrack(() => {
+			if (!composing) constructReveal.update(true);
+		});
 		markKeystrokeSettle();
 	});
 
@@ -565,6 +588,12 @@
 		if (composing) return;
 
 		preEditOffset = cursor.getRaw() ?? 0;
+
+		// Synchronous construct-reveal backstop, before any default runs: rapid
+		// arrows outrun the async selectionchange reveal (input events outrank
+		// normal tasks), and a step computed against folded markers skips their
+		// bytes. Never consumes the key.
+		constructReveal.prepareForKeydown(e);
 
 		// Revealed `$…$` source: Escape cancels back to rendered, Enter commits +
 		// re-renders. Every other key edits the source natively (onInput suppressed).
@@ -651,16 +680,18 @@
 		lastSnapTargetOffset = null;
 	}
 
-	// While a widget's source is revealed, a caret/selection move that escapes it —
-	// same-block clicks, arrow-exits — folds the reveal. Blur keeps owning the
-	// focus-leaving fold; a mid-IME selection move must not commit, so composition
-	// suppresses the fold like it suppresses onInput.
+	// Selection cadence for both reveal machines: a caret/selection move folds an
+	// escaped widget-source reveal and re-evaluates preview-inline's construct
+	// chain. Blur keeps owning the focus-leaving widget fold; a mid-IME selection
+	// move must neither commit nor flip marker visibility, so composition
+	// suppresses both like it suppresses onInput.
 	$effect(() => {
 		const root = el;
 		if (!root) return;
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
+			constructReveal.update();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);

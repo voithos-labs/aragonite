@@ -87,7 +87,7 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
-	import { resolveEffectivePresentationMode, warnStubPresentationMode } from '../presentation-mode';
+	import { resolveEffectivePresentationMode, isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
 	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
@@ -127,9 +127,8 @@
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
 	// The one mode every door reports (root attribute, context getter, plugin
-	// contexts, events): preview stubs collapse to 'source' here, once.
+	// contexts, events).
 	const effectiveMode = $derived(resolveEffectivePresentationMode(presentationMode));
-	$effect(() => warnStubPresentationMode(presentationMode));
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
@@ -844,15 +843,15 @@
 	// mounted block, so the pin needn't be reactive.
 	let focusedPath: number[] | null = null;
 
-	// `data-focused` marks the block host whose leaf holds the caret; preview-block
-	// CSS keys its per-block source reveal off it. Set imperatively (like focusedPath,
-	// and for the same teardown-safety reason), gated on the effective mode so
-	// source/reading DOM stays byte-identical — a click that reveals markers must not
-	// alter the other modes' markup. The attribute lives on the same element the focus
-	// pin resolves; the two are updated together.
+	// `data-focused` marks the block host whose leaf holds the caret; both preview
+	// modes' CSS key their focused-block reveal off it. Set imperatively (like
+	// focusedPath, and for the same teardown-safety reason), gated on the effective
+	// mode so source/reading DOM stays byte-identical — a click that reveals markers
+	// must not alter the other modes' markup. The attribute lives on the same element
+	// the focus pin resolves; the two are updated together.
 	let focusedHostEl: HTMLElement | null = null;
 	function applyFocusedAttr(): void {
-		if (focusedHostEl && effectiveMode === 'preview-block') {
+		if (focusedHostEl && isPreviewMode(effectiveMode)) {
 			focusedHostEl.setAttribute('data-focused', '');
 		} else {
 			focusedHostEl?.removeAttribute('data-focused');
@@ -864,8 +863,8 @@
 		focusedHostEl = host;
 		applyFocusedAttr();
 	}
-	// Reconcile the attribute when the mode flips: entering preview-block marks the
-	// already-focused block (no re-focus fires), leaving it cleans the attribute off.
+	// Reconcile the attribute when the mode flips: entering a preview mode marks the
+	// already-focused block (no re-focus fires), leaving both cleans the attribute off.
 	$effect(() => {
 		void effectiveMode;
 		applyFocusedAttr();

@@ -58,9 +58,8 @@ export type ResolveLinkUrl = (rawUrl: string) => string;
 
 export const IMAGE_LOAD_POLICY_KEY = Symbol('image-load-policy');
 
-/** Getter-wrapped live EFFECTIVE presentation mode (preview stubs collapsed to
- *  'source'); render paths read it into their render keys so a mode flip
- *  re-renders every mounted block. */
+/** Getter-wrapped live EFFECTIVE presentation mode; render paths read it into
+ *  their render keys so a mode flip re-renders every mounted block. */
 export const PRESENTATION_MODE_KEY = Symbol('presentation-mode');
 export type PresentationModeGetter = () => PresentationMode;
 

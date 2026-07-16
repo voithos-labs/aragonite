@@ -40,8 +40,11 @@ export interface InlineWidgetComponentProps {
  * inline-entity consumer — `&copy;`) from the two-press select-then-delete image and
  * `<br>` use today; `onEdge` distinguishes selecting the construct whole from stepping
  * transparently over it. The caret-edge dispatch (`components/blocks/text/edge-policy-dispatch.ts`)
- * reads them. `atomic` still awaits its consumer — no built-in kind sets it — so the
- * field is typed and dispatch-honored but not yet load-bearing for a shipped kind.
+ * consults `deleteGranularity` for widget kinds directly; `onEdge` is island-internal
+ * today — the dispatch expresses its internal island policies in this vocabulary, but
+ * no code path reads `onEdge` off a widget kind's registration yet (widget-policy
+ * consumer pending). `atomic` likewise awaits its consumer — no built-in kind sets
+ * it — so both are typed forward-wiring, not yet load-bearing for a shipped kind.
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;

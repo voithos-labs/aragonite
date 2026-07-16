@@ -27,9 +27,8 @@
 	import { Editor, type PresentationMode } from '$lib';
 	import { SHOWCASE_DOCUMENT } from './showcase-content';
 
-	// Live-changeable prop — the toggle flips it in place, no remount. The
-	// inline-granular rung joins this list when its batch builds it.
-	const MODES: PresentationMode[] = ['source', 'reading', 'preview-block'];
+	// Live-changeable prop — the toggle flips it in place, no remount.
+	const MODES: PresentationMode[] = ['source', 'reading', 'preview-block', 'preview-inline'];
 	let presentationMode = $state<PresentationMode>('source');
 </script>
 
