@@ -92,7 +92,10 @@ export function deepNestedLeafPath(depth: number): number[] {
 	return path;
 }
 
-// Average `words()` token: 6-letter mean corpus word + one separator.
+// `words()` yields ~6.1 B/token (5.1-char mean corpus word + one separator); the
+// divisor rounds up to 7, so `bytesPerLevel` is a NOMINAL target the fixtures
+// under-fill by ~12% (a true 50 KB/level would cost marginally more — still
+// floor-class, so the shortfall is conservative for the concern-4 verdict).
 const BYTES_PER_WORD = 7;
 
 function wrapBlockquote(inner: string): string {
