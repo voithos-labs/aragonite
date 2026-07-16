@@ -189,7 +189,7 @@ To add a widget kind, register it in the inline-widget registry so recognition i
 The CST is mutable plain objects — no class hierarchy. The parser produces mutable nodes; the editor mutates them in place; `serialize()` reads `raw` only, and is structurally typed over readonly fields, so it works on any object of the right shape — including the bytes-readonly node views (`core/node-views.ts`) that readers outside the mutation layers hold, whose only sanctioned view→mutable doors are the unshare/clone seam and the commit ceremony's owned scope views.
 
 - `parse(source)` yields a mutable `Document`. The editor works with those nodes directly — no wrapping, no cloning on load.
-- Re-parse runs `parse()` on the block's `raw` and transfers the result into the existing tree — in place when the text stays one block, splicing when it becomes several.
+- Re-parse runs `parse()` on the block's `raw` and transfers the result into the existing tree through a single funnel: a same-kind edit writes the block's fields in place, so routine typing keeps the node object (its component and IME state ride along); a kind change or a multi-block result mints fresh nodes and splices them into the slot, the ID carried across at the index (§ 8). The transfer never rewrites `kind` in place — the discriminated union (`syntax-tree.md`) has no such door.
 - Undo snapshots **share** the live tree's nodes; a mutation copies the shared spine before writing (§ 11).
 
 ### Metadata-driven raw

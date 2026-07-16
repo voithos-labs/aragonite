@@ -397,8 +397,15 @@ export type BuiltinCstNode =
  */
 export type CstNode = BuiltinCstNode | PluginBlockNode;
 
-/** Narrow a node to the discriminated built-in union — the door to `switch (node.kind)` metadata narrowing. */
-export function isBuiltinBlockNode(node: CstNode): node is BuiltinCstNode {
+/**
+ * Narrow a node to the discriminated built-in union — the door to
+ * `switch (node.kind)` metadata narrowing that the branded plugin arm otherwise
+ * blocks. Mirrored for views: `BytesView<BuiltinCstNode>` discriminates too, so a
+ * reader that narrows a `NodeView` reads each arm's metadata with no `metadataOf`.
+ */
+export function isBuiltinBlockNode(node: CstNode): node is BuiltinCstNode;
+export function isBuiltinBlockNode(node: NodeView): node is BytesView<BuiltinCstNode>;
+export function isBuiltinBlockNode(node: CstNode | NodeView): boolean {
 	return isBuiltinBlockKind(node.kind);
 }
 

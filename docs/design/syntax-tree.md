@@ -51,21 +51,21 @@ That dispatch is a per-keystroke write-amplification of ≈ chain-depth ÷ 2 (ea
 
 ### Node shape
 
-All nodes are **mutable plain objects.** One `CstNode` interface, used everywhere: the parser produces it, the editor mutates it in place, serialization reads it. There is no immutable→mutable conversion step and no class hierarchy.
+All nodes are **mutable plain objects.** The `CstNode` type is used everywhere: the parser produces it, the editor mutates it in place, serialization reads it. There is no immutable→mutable conversion step and no class hierarchy.
 
-`CstNode` is a flat interface with optional fields, not a mapped-type discriminated union, and that is deliberate: **the editor reassigns `kind` in place** when a block's type changes (paragraph → heading as you type `## `). A strict discriminated union would make that reassignment a type error, and the workaround would be worse than the union.
+`CstNode` is a **discriminated union** — a per-kind arm for each built-in block (metadata typed to the kind, container fields only on containers) plus one open `PluginBlockNode` arm whose branded-string `kind` keeps the plugin surface unbounded. `switch (node.kind)` narrows a built-in node to its arm and reads that kind's metadata with no cast; the branded arm blocks discrimination on the full union, so `isBuiltinBlockNode` is the door into narrowing. A block's type changing (paragraph → heading as you type `## `) never rewrites `kind` in place — the re-parse transfer mints a fresh node and splices it into the slot (§8 of editor.md), the single funnel that lets the union hold everywhere. Constructing a node from a runtime kind goes through `makeBlockNode`, the one sanctioned mint cast. See architecture-concerns.md #3.
 
 The fields, by category:
 
-| Field                         | On               | Meaning                                                                                                      |
-| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| `kind`                        | every node       | `AnyBlockKind` — the built-in union plus branded plugin kinds. Every registry lookup keys off it.            |
-| `raw`, `leadingTrivia`        | every node       | The serialization truth.                                                                                     |
-| `metadata`                    | most kinds       | Derived from `raw`; never participates in round-trip. Narrowed manually after checking `kind`.               |
-| `children`                    | containers       | The decomposition of the inner content.                                                                      |
-| `innerPrefix` / `innerSuffix` | strip containers | Whitespace inside the container, outside any child.                                                          |
-| `childIds`                    | containers       | Stable per-child IDs for keyed rendering. Carried on the node, so undo restores them with `children`.        |
-| `ownerEpoch`                  | every node       | The structural-sharing mark: does a live undo snapshot still share this node? See `editor.md` § Undo / redo. |
+| Field                         | On               | Meaning                                                                                                                                                      |
+| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kind`                        | every node       | `AnyBlockKind` — the built-in union plus branded plugin kinds. Every registry lookup keys off it.                                                            |
+| `raw`, `leadingTrivia`        | every node       | The serialization truth.                                                                                                                                     |
+| `metadata`                    | most kinds       | Derived from `raw`; never participates in round-trip. Typed to the kind once `switch (node.kind)` narrows; `metadataOf` is the funnel for un-narrowed reads. |
+| `children`                    | containers       | The decomposition of the inner content.                                                                                                                      |
+| `innerPrefix` / `innerSuffix` | strip containers | Whitespace inside the container, outside any child.                                                                                                          |
+| `childIds`                    | containers       | Stable per-child IDs for keyed rendering. Carried on the node, so undo restores them with `children`.                                                        |
+| `ownerEpoch`                  | every node       | The structural-sharing mark: does a live undo snapshot still share this node? See `editor.md` § Undo / redo.                                                 |
 
 `childIds` and `ownerEpoch` are editor-level, not source-level. They are not part of the round-trip and a parser consumer can ignore them entirely. That split is itself a type: readers outside the mutation layers hold bytes-readonly node views (`core/node-views.ts`) that keep the serialized fields immutable while leaving this bookkeeping writable.
 
