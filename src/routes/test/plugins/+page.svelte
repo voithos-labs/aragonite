@@ -211,6 +211,9 @@
 			},
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
+			},
+			setPresentationMode: (mode) => {
+				presentationMode = mode;
 			}
 		});
 	});

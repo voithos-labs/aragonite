@@ -68,14 +68,15 @@
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
 	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
 
-	// Reading-mode CSS needs to tell bullet/ordered/task markers apart (bullets
-	// become rendered chrome, numbers stay visible) and the ambient span carries
-	// no such class. Attribute present only in reading mode — the source-mode DOM
-	// stays byte-identical.
-	const readingMarkerKind = $derived.by(() => {
-		if (!readOnly) return undefined;
+	// Reading and preview-block CSS tell bullet/ordered/task markers apart (bullets
+	// become rendered chrome, numbers stay visible) and the ambient span carries no
+	// such class. Present in both marker-hiding modes; absent in source, so the
+	// source-mode DOM stays byte-identical.
+	const presentationMarkerKind = $derived.by(() => {
+		if (presentationMode !== 'reading' && presentationMode !== 'preview-block') return undefined;
 		const meta = metadataOf(node, 'listItem');
 		if (meta?.taskItem) return 'task';
 		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';
@@ -266,7 +267,7 @@
 	class="list-item-block"
 	class:reorder-host={dragHandles}
 	data-task-checked={taskCheckedAttr}
-	data-list-marker={readingMarkerKind}
+	data-list-marker={presentationMarkerKind}
 	bind:this={boxEl}
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->

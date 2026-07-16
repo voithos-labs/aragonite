@@ -843,6 +843,34 @@
 	// re-slices on scroll and after every commit, and a focus change can't drop a
 	// mounted block, so the pin needn't be reactive.
 	let focusedPath: number[] | null = null;
+
+	// `data-focused` marks the block host whose leaf holds the caret; preview-block
+	// CSS keys its per-block source reveal off it. Set imperatively (like focusedPath,
+	// and for the same teardown-safety reason), gated on the effective mode so
+	// source/reading DOM stays byte-identical — a click that reveals markers must not
+	// alter the other modes' markup. The attribute lives on the same element the focus
+	// pin resolves; the two are updated together.
+	let focusedHostEl: HTMLElement | null = null;
+	function applyFocusedAttr(): void {
+		if (focusedHostEl && effectiveMode === 'preview-block') {
+			focusedHostEl.setAttribute('data-focused', '');
+		} else {
+			focusedHostEl?.removeAttribute('data-focused');
+		}
+	}
+	function setFocusedHost(host: HTMLElement | null): void {
+		if (focusedHostEl === host) return;
+		focusedHostEl?.removeAttribute('data-focused');
+		focusedHostEl = host;
+		applyFocusedAttr();
+	}
+	// Reconcile the attribute when the mode flips: entering preview-block marks the
+	// already-focused block (no re-focus fires), leaving it cleans the attribute off.
+	$effect(() => {
+		void effectiveMode;
+		applyFocusedAttr();
+	});
+
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -850,8 +878,10 @@
 			const host = (e.target as Element | null)?.closest('[data-block-path]');
 			if (!host || !root.contains(host)) {
 				focusedPath = null;
+				setFocusedHost(null);
 				return;
 			}
+			setFocusedHost(host as HTMLElement);
 			try {
 				const path = JSON.parse(host.getAttribute('data-block-path')!) as number[];
 				focusedPath = Array.isArray(path) && path.length > 0 ? path : null;
@@ -863,6 +893,7 @@
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return; // moving between blocks — keep the pin
 			focusedPath = null;
+			setFocusedHost(null);
 		};
 		root.addEventListener('focusin', onFocusIn);
 		root.addEventListener('focusout', onFocusOut);
