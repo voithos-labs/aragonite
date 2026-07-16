@@ -9,6 +9,7 @@
  */
 
 import type { BlockEditActions } from '../../action-contracts';
+import { makeBlockNode } from '../../core/nodes';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
 	updateNodeContent as performUpdate,
@@ -149,7 +150,11 @@ export function createNestedBlockEdit(
 			// path. Live tree is not mutated here — the chosen branch runs the
 			// real mutation below.
 			const child = deps.node.children[innerIndex];
-			const probe = { kind: child.kind, leadingTrivia: child.leadingTrivia, raw: child.raw };
+			const probe = makeBlockNode({
+				kind: child.kind,
+				leadingTrivia: child.leadingTrivia,
+				raw: child.raw
+			});
 			const preview = performUpdate({ children: [probe] }, 0, text);
 
 			const leafPath = [...deps.path, innerIndex];

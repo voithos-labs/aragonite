@@ -5,7 +5,7 @@
  * absolute indent, and keep ordered-marker sequences intact.
  */
 
-import type { CstNode } from '../../core/nodes';
+import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import type { SharingState } from '../sharing';
@@ -79,7 +79,9 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		kind: 'list',
 		leadingTrivia: '',
 		raw: '',
-		metadata: clonedList.metadata ? { ...clonedList.metadata } : { ordered: parentOrdered },
+		metadata: clonedList.metadata
+			? ({ ...clonedList.metadata } as ListMetadata)
+			: { ordered: parentOrdered },
 		children: remainingItems,
 		childIds: freshChildIds(remainingItems),
 		innerPrefix: clonedList.innerPrefix ?? '',

@@ -21,7 +21,7 @@ function listNode(childCount: number): CstNode {
 		leadingTrivia: '',
 		raw: 'text\n'
 	}));
-	return { kind: 'list', leadingTrivia: '', raw: '', children };
+	return { kind: 'list', leadingTrivia: '', raw: '', metadata: { ordered: false }, children };
 }
 
 function container(refs: BlockComponent[]): BlockComponent {
@@ -122,6 +122,7 @@ describe('createContainerBlockComponent', () => {
 			kind: 'list',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { ordered: false },
 			children: [
 				{
 					kind: 'paragraph',

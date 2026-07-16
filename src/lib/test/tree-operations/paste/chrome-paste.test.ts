@@ -60,7 +60,7 @@ function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): 
 					{ kind: chrome, leadingTrivia: '', raw: 'Title\n' },
 					{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
 				]
-			}
+			} as CstNode
 		]
 	};
 }
@@ -135,6 +135,7 @@ describe('paste into a reserved-chrome leaf', () => {
 			kind: 'list',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { ordered: false },
 			children: [
 				{
 					kind: container,
@@ -144,7 +145,7 @@ describe('paste into a reserved-chrome leaf', () => {
 						{ kind: chrome, leadingTrivia: '', raw: 'Title\n' },
 						{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
 					]
-				}
+				} as CstNode
 			]
 		};
 		const doc: Document = { kind: 'document', prefix: '', suffix: '', children: [list] };

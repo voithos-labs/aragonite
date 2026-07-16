@@ -18,11 +18,13 @@ export function cloneDocument(doc: DocumentView): Document {
 // ── Node ────────────────────────────────────────────────────────────────────
 
 export function cloneNode(node: NodeView): CstNode {
-	const cloned: CstNode = {
+	// `kind` is a runtime value spanning every arm, so no literal arm matches —
+	// the cast is the generic-clone door, mirroring copyNode's spread (unshare.ts).
+	const cloned = {
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
-	};
+	} as CstNode;
 
 	if (node.metadata) {
 		assertInvariant('clone-safe-metadata', () => checkCloneSafeMetadata(node));

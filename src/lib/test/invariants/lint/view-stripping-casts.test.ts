@@ -7,6 +7,12 @@
  * (`editor-actions/commit/`), whose scope views are runtime-proven owned.
  * Anywhere else, a view-stripping cast fails this scan.
  *
+ * `core/nodes.ts` is sanctioned on separate grounds: it holds `makeBlockNode`,
+ * the construction funnel that mints a fresh node from a runtime `kind` (a
+ * non-literal kind matches no arm, so the mint needs a cast). That is
+ * construction, not a strip — the funnel spreads into a fresh object and never
+ * writes through a view — so it is not the G1.9 hazard this scan guards.
+ *
  * `as Document` is counted only in files that import the CST `Document` from
  * `core/nodes` — elsewhere the identifier is the DOM `Document`
  * (`blockEl.ownerDocument` casts in selection/native-bridge.ts). Named type
@@ -23,11 +29,16 @@ const STRIP_CAST_RE = /\bas\s+(CstNode|Document)\b(?!\s*\[\s*')/g;
 
 const CST_DOCUMENT_IMPORT_RE = /import[^;]*\bDocument\b[^;]*from\s+'[^']*core\/nodes'/;
 
-const SANCTIONED_ZONES = ['src/lib/tree-operations/', 'src/lib/editor-actions/commit/'];
+const SANCTIONED_ZONES = [
+	'src/lib/tree-operations/',
+	'src/lib/editor-actions/commit/',
+	'src/lib/core/nodes.ts'
+];
 
 const RULE =
-	'view→mutable conversion lives ONLY at the unshare/clone seam and the commit ceremony ' +
-	`(${SANCTIONED_ZONES.join(', ')}); route the write through them instead of casting`;
+	'a CstNode/Document cast lives ONLY in the sanctioned zones: the unshare/clone seam and the ' +
+	'commit ceremony (view→mutable), and core/nodes.ts makeBlockNode (runtime-kind construction) ' +
+	`(${SANCTIONED_ZONES.join(', ')}); route through makeBlockNode instead of casting`;
 
 function stripCasts(code: string, countsDocument: boolean): string[] {
 	const hits: string[] = [];

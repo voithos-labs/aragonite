@@ -20,7 +20,7 @@ describe('ensureListItemNewlineTerminated', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '- x',
-			metadata: { marker: '- ' }
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
 		};
 		ensureListItemNewlineTerminated(item);
 		expect(item.raw).toBe('- x\n');

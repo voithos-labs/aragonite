@@ -31,7 +31,7 @@ describe('ensureEditableContainers — reserved-chrome backfill', () => {
 
 	it('re-mints a chrome leaf + paragraph when a chrome-declaring container empties', () => {
 		const { container, chrome } = registerChromeContainer();
-		const node: CstNode = { kind: container, leadingTrivia: '', raw: '', children: [] };
+		const node: CstNode = { kind: container, leadingTrivia: '', raw: '', children: [] } as CstNode;
 
 		ensureEditableContainers(node);
 

@@ -40,7 +40,7 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 				{ kind: chrome, leadingTrivia: '', raw: 'Title\n' },
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }
 			]
-		};
+		} as CstNode;
 		expect(checkReservedChromeSlot(node)).toBeNull();
 	});
 
@@ -51,7 +51,7 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 			leadingTrivia: '',
 			raw: ':::note\nbody\n:::\n',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
-		};
+		} as CstNode;
 		expect(checkReservedChromeSlot(node)?.code).toBe('reserved-chrome-slot');
 	});
 
@@ -62,7 +62,7 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 			leadingTrivia: '',
 			raw: ':::note\n:::\n',
 			children: []
-		};
+		} as CstNode;
 		expect(checkReservedChromeSlot(node)?.code).toBe('reserved-chrome-slot');
 	});
 
@@ -71,6 +71,7 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '> hi\n',
+			metadata: { quoteDepth: 1 },
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hi\n' }]
 		};
 		expect(checkReservedChromeSlot(node)).toBeNull();

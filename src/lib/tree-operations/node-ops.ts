@@ -247,14 +247,19 @@ export function deleteNode(
 // ── Update Content ──
 
 /**
- * Update raw and re-parse. Single-block text keeps the node in its slot: a
- * kind change returns replacePreservingFirst(…, 1, 1), a same-kind edit noop.
- * Multi-block text replaces the node with EVERY parsed block (the first keeps
- * the slot's identity and trivia; text-leading blanks fold into its raw, the
- * single-block path's own shape) — a same-kind first block used to be a
- * raw-only write, cramming the trailing blocks into one node and desyncing
- * the live CST from parse(serialize(doc)) (the block-math stuck-fence class,
- * equally reachable by paragraph hard-break + interrupter-line typing).
+ * Update raw and re-parse. The sole re-parse transfer funnel: a kind change
+ * mints the reparsed block into the slot rather than reassigning `kind` in
+ * place, and multi-block text mints every parsed block. Only a same-kind
+ * single-block edit writes fields in place (routine typing keeps the node's
+ * object identity). A minted first block preserves the slot's position and
+ * trivia; `replacePreservingFirst` carries the id/ref across the swap.
+ *
+ * Multi-block replacement folds text-leading blanks into the first block's raw
+ * (the single-block shape); the rest keep their own trivia. A same-kind first
+ * block used to be a raw-only write, cramming the trailing blocks into one node
+ * and desyncing the live CST from parse(serialize(doc)) — the block-math
+ * stuck-fence class, equally reachable by paragraph hard-break + interrupter
+ * typing.
  */
 export function updateNodeContent(
 	parent: NodeParent,
@@ -276,22 +281,41 @@ export function updateNodeContent(
 	const first: CstNode | undefined = parsed[0];
 	if (first) ensureEditableContainers(first);
 
-	// Copy all fields so leaf↔container transitions propagate children and container structure.
-	node.raw = parsed.length > 1 ? first.leadingTrivia + first.raw : newText;
-	node.kind = first?.kind ?? 'paragraph';
-	node.metadata = first?.metadata;
-	node.children = first?.children;
-	node.innerPrefix = first?.innerPrefix;
-	node.innerSuffix = first?.innerSuffix;
-
+	// Multi-block: replace the slot with every parsed block. The first block is
+	// minted, not the old node reassigned, so a kind change never rewrites `kind`
+	// in place. It inherits the slot's trivia (text-leading blanks fold into its
+	// raw, the single-block shape); the rest keep their own trivia.
 	if (parsed.length > 1) {
 		const rest = parsed.slice(1);
 		for (const sibling of rest) ensureEditableContainers(sibling);
-		parent.children.splice(blockIndex + 1, 0, ...rest);
-		return replacePreservingFirst(blockIndex, 1, 1 + rest.length);
+		first.raw = first.leadingTrivia + first.raw;
+		first.leadingTrivia = node.leadingTrivia;
+		parent.children.splice(blockIndex, 1, first, ...rest);
+		return replacePreservingFirst(blockIndex, 1, parsed.length);
 	}
 
-	return node.kind !== oldKind ? replacePreservingFirst(blockIndex, 1, 1) : { op: 'noop' };
+	const newKind = first?.kind ?? 'paragraph';
+
+	// Same-kind edit (routine typing): refresh content fields in place so the node
+	// keeps its object identity — the component, IME state, and inline cache are
+	// keyed on it — and report no structural change.
+	if (newKind === oldKind) {
+		node.raw = newText;
+		node.metadata = first?.metadata;
+		node.children = first?.children;
+		node.innerPrefix = first?.innerPrefix;
+		node.innerSuffix = first?.innerSuffix;
+		return { op: 'noop' };
+	}
+
+	// Kind change: mint the reparsed block into the slot. This is the sole
+	// re-parse transfer, and it replaces the node rather than reassigning `kind` in
+	// place — the discriminated union carries no in-place kind write.
+	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
+	replacement.raw = newText;
+	replacement.leadingTrivia = node.leadingTrivia;
+	parent.children.splice(blockIndex, 1, replacement);
+	return replacePreservingFirst(blockIndex, 1, 1);
 }
 
 /**
@@ -376,7 +400,8 @@ export function ensureEditableContainers(node: CstNode): void {
 			// A chrome-declaring container must re-mint its child-0 leaf too, or the
 			// backfilled paragraph would occupy the reserved slot and violate G1.14.
 			if (chromeKind !== undefined) {
-				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' });
+				// Runtime chrome kind — generic-mint cast (the paragraph below is a literal arm).
+				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' } as CstNode);
 			}
 			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 			// The synthesized paragraph's '\n' already represents the trailing
