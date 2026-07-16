@@ -105,14 +105,16 @@ ancestry rebuild, mean ms (vitest/Node, DEV assertions off — production-repres
 | depth ↓ / per-level → | 1 KB  | 10 KB | 50 KB |
 | --------------------- | ----- | ----- | ----- |
 | 4                     | 0.004 | 0.015 | 0.25  |
-| 8                     | 0.010 | 0.052 | 0.92  |
+| 8                     | 0.010 | 0.052 | 0.93  |
 | 12                    | 0.019 | 0.11  | 1.83  |
 
 Redundant-storage amplification tracks chain-depth ÷ 2 (×3.5 at depth 4, ×6.5 at 8, ×9.5 at
 12). Past the realistic envelope, the adversarial depth 16 × 100 KB corner costs 5.5 ms
 (reported, not judged). The realistic envelope is **depth ≤ 10, per-level ≤ 50 KB** — 50 KB of
 sibling content at each of ten nested levels is already half a megabyte in one subtree, past
-any document a human writes.
+any document a human writes. (Per-level figures are nominal byte targets; the ASCII corpus
+under-fills them ~12%, so each measured point sits marginally below its label — conservative
+for the verdict.)
 
 Why a microbench settles an e2e-phrased claim: a top-level keystroke skips the ancestry
 rebuild entirely, so a nested keystroke on a same-sized leaf is exactly _floor +
@@ -122,10 +124,13 @@ stays in the viewport-bounded floor class (~2–4 ms) and never nears the pathol
 (single-giant-paragraph, 177 ms @ 1 MB). The report-only at-depth e2e row
 (`typing-latency.perf.spec.ts`) corroborates in the browser: typing into the depth-8 × 50 KB
 leaf drives exactly one full depth-13 rebuild and only **two** block renders per keystroke — no
-cascade, no scaling with document size. Its p50 (~16 ms) sits above the floor only because the
-DEV invariant assertions that defend this very redundancy (stale-raw, rebuild-determinism, the
-integrity digest) walk the ancestry in dev/test — a development cost, not shipped latency, and
-still an order of magnitude under the pathological class. The measured worst case is stated in
+cascade, no scaling with document size. Its p50 (~16 ms) is a DEV-plus-harness-quantized upper
+bound, not a profiled production latency: the settle poll runs on a 16 ms cadence
+(`waitForBlock0Len`, `polling: 16`), so a commit landing just after a poll snaps to the next
+tick, and the number was never decomposed into rebuild-vs-render-vs-DEV cost. The verdict does
+not rest on it — it rests on the production-representative bench rebuild term (~0.9 ms) and the
+measured O(1) render count, which together leave no identified production mechanism for a
+depth-specific cost beyond the sub-2 ms rebuild. The measured worst case is stated in
 `syntax-tree.md` beside the container-contract rationale. The redundancy stays; the gate found
 no user-facing indictment.
 
