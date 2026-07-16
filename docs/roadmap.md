@@ -39,13 +39,13 @@ ordered by **risk first, validation before freeze**.
    2. **Block-granular** — unfocused blocks hide markers, the focused block shows source. The
       editable-leaf render-primary swap generalized to built-in prose kinds. The stepping stone: it
       builds the marker-island rendering and the presentation-mode seam rung 3 refines.
-   3. **Inline-granular** — the target. Marker islands + reveal-on-caret-proximity (the shipped
-      reveal kernel with a caret-containment trigger) + caret-affinity semantics (the one genuinely
-      new piece; prior art: ProseMirror stored marks). Block-granular alone is not the Obsidian
-      feel — clicking into a paragraph should not turn the whole paragraph raw. Opening move:
-      consolidate the caret-edge/destructive-key dispatch into declarative edge policies (three
-      sibling seams as of the decorations work) before adding reveal semantics — never a fourth
-      seam.
+   3. **Inline-granular** — the target, now built: reveal-on-caret-proximity ships as a
+      caret-chain trigger over the inline tree flipping CSS on the existing marker spans (marker
+      islands proved unnecessary — no new DOM contract), on top of the consolidated edge-policy
+      dispatch (the opening move, shipped first so reveal semantics never grew a fourth seam).
+      What remains of the rung is the refinement batch: caret-affinity semantics at construct
+      boundaries (the one genuinely new piece; prior art: ProseMirror stored marks) and
+      second-round construct coverage.
 
    **The reason this is pre-1.0 is the contract, not the feature.** A plugin has no way to learn
    what presentation mode it is in, so a plugin authored against a marker-always 1.0 renders wrong
@@ -136,10 +136,11 @@ ordered by **risk first, validation before freeze**.
    - **Freeze litmus (presentation mode)**: a plugin block, editable leaf, and inline widget must
      each be able to learn the current presentation mode and render for it. The mode contract is
      shipped (the `PresentationMode` union, `EditorContext.presentationMode` + change event, the
-     leaf/widget mode reads, the `data-presentation` root attribute) with reading mode and
-     block-granular preview as its first two consumers; item 1's last rung (inline-granular)
-     verifies it against marker islands — which is the point: rung 3 is what proves the inline and
-     caret contracts survive marker islands and caret affinity.
+     leaf/widget mode reads, the `data-presentation` root attribute) with all four rungs as
+     consumers — reading, block-granular, and inline-granular preview (the last rung activated
+     with zero API change, proving the union-ships-whole bet; it needed no new DOM contract —
+     CSS construct-reveal over the existing marker spans, not marker islands). What remains for
+     item 1 is the caret-affinity refinement, which stays inside the shipped contracts.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only

@@ -3,35 +3,28 @@
  * styled source, byte-identical to pre-mode behavior); `reading` hides markers,
  * renders widgets, and makes the surface inert; `preview-block` is a live editing
  * mode that hides markers on every block except the one holding the caret (the
- * focused block renders exactly as `source` does). `preview-inline` — reveal per
- * caret-adjacent inline island — is the last rung; until its batch it collapses to
- * `preview-block`, the closest available behavior.
+ * focused block renders exactly as `source` does); `preview-inline` narrows the
+ * reveal to inline granularity — within the focused block, each construct's
+ * markers stay hidden until the caret enters its range (the construct-reveal
+ * trigger, `components/blocks/text/construct-reveal.ts`).
  *
  * Every door — the `data-presentation` root attribute, the block/leaf/widget
  * context getters, and `EditorContext.presentationMode` — reports the EFFECTIVE
  * mode, so a consumer or plugin never renders for a mode the editor is not
- * actually in. The `presentationMode` prop holds the requested value; when a
- * preview rung becomes real, the collapse narrows and no API changes.
+ * actually in. All four rungs are built, so the effective mode now equals the
+ * requested one; the seam stays because every door routes through it.
  */
-
-import { devWarn } from './dev-warn';
 
 export type PresentationMode = 'source' | 'reading' | 'preview-block' | 'preview-inline';
 
-/** Modes not yet built; each collapses to the closest available one below. */
-const STUB_MODES: ReadonlySet<PresentationMode> = new Set(['preview-inline']);
-
 export function resolveEffectivePresentationMode(mode: PresentationMode): PresentationMode {
-	return mode === 'preview-inline' ? 'preview-block' : mode;
+	return mode;
 }
 
-export function warnStubPresentationMode(mode: PresentationMode): void {
-	if (STUB_MODES.has(mode)) {
-		devWarn(
-			'presentation',
-			`presentationMode '${mode}' is not yet implemented; renders as 'preview-block'`
-		);
-	}
+/** The two live-preview rungs share their marker-hiding CSS families and the
+ *  focus-tracking `data-focused` attribute. */
+export function isPreviewMode(mode: PresentationMode): boolean {
+	return mode === 'preview-block' || mode === 'preview-inline';
 }
 
 /**

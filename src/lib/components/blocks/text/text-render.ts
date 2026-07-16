@@ -155,7 +155,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				imageLoadPolicy: deps.imageLoadPolicy,
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
-				buildPortalWidget
+				buildPortalWidget,
+				// Attribute-only stamps for the construct-reveal trigger; mode-gated so
+				// the other modes' DOM stays byte-identical (the renderKey's mode segment
+				// already forces the rebuild on a flip).
+				tagConstructMarkers: deps.presentationMode === 'preview-inline'
 			})
 		);
 		return frag;

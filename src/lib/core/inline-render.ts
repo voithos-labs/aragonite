@@ -37,6 +37,14 @@ export interface RenderInlineOptions {
 	 * portal specifics; absent or null → the widget falls back to its raw source.
 	 */
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
+	/**
+	 * Stamp each construct's marker spans (and ref labels) with the construct's raw
+	 * range as `data-construct-start`/`-end`, so preview-inline's construct-reveal
+	 * trigger can address them per construct. Attributes only — textContent is
+	 * untouched, so the offset walk is unaffected. Off by default: the default DOM
+	 * stays byte-identical outside preview-inline.
+	 */
+	tagConstructMarkers?: boolean;
 }
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
@@ -48,22 +56,34 @@ function markerSpan(text: string): HTMLSpanElement {
 	return span;
 }
 
+function tagConstruct(el: HTMLElement, node: InlineNode, opts: RenderInlineOptions): HTMLElement {
+	if (opts.tagConstructMarkers) {
+		el.setAttribute('data-construct-start', String(node.start));
+		el.setAttribute('data-construct-end', String(node.end));
+	}
+	return el;
+}
+
 // ── Inline code ─────────────────────────────────────────────────────────────
 
-function renderInlineCode(node: InlineNode, raw: string): DocumentFragment {
+function renderInlineCode(
+	node: InlineNode,
+	raw: string,
+	opts: RenderInlineOptions
+): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const content = node.text ?? '';
 	const tickLen = (node.end - node.start - content.length) / 2;
 	const ticks = raw.slice(node.start, node.start + tickLen);
 
-	frag.appendChild(markerSpan(ticks));
+	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
 
 	const code = document.createElement('code');
 	code.className = 'inline-code-content';
 	code.textContent = content;
 	frag.appendChild(code);
 
-	frag.appendChild(markerSpan(ticks));
+	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
 	return frag;
 }
 
@@ -94,14 +114,14 @@ function renderWrapped(
 	const openMarker = raw.slice(node.start, openEnd);
 	const closeMarker = raw.slice(closeStart, node.end);
 
-	frag.appendChild(markerSpan(openMarker));
+	frag.appendChild(tagConstruct(markerSpan(openMarker), node, opts));
 
 	const wrapper = document.createElement(tag);
 	const innerFrag = renderInlineNodes(children, raw, opts);
 	wrapper.appendChild(innerFrag);
 	frag.appendChild(wrapper);
 
-	frag.appendChild(markerSpan(closeMarker));
+	frag.appendChild(tagConstruct(markerSpan(closeMarker), node, opts));
 	return frag;
 }
 
@@ -121,7 +141,7 @@ export function renderInlineNodes(
 				break;
 
 			case 'inlineCode':
-				frag.appendChild(renderInlineCode(node, raw));
+				frag.appendChild(renderInlineCode(node, raw, opts));
 				break;
 
 			case 'emphasis':
@@ -164,7 +184,7 @@ export function renderInlineNodes(
 						raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
 					const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
 
-					frag.appendChild(markerSpan(openMarker));
+					frag.appendChild(tagConstruct(markerSpan(openMarker), node, opts));
 					const resolvedHref =
 						node.url !== undefined ? (opts.resolveLinkUrl ?? ((u) => u))(node.url) : undefined;
 					const hrefOk = resolvedHref !== undefined && isAllowedHrefScheme(resolvedHref);
@@ -177,23 +197,27 @@ export function renderInlineNodes(
 					linkEl.appendChild(renderInlineNodes(children, raw, opts));
 					frag.appendChild(linkEl);
 					if (closingTextBracket) {
-						frag.appendChild(markerSpan(closingTextBracket));
+						frag.appendChild(tagConstruct(markerSpan(closingTextBracket), node, opts));
 					}
 					if (trailingMarker) {
 						if (node.label !== undefined) {
 							const span = document.createElement('span');
 							span.className = 'md-ref-label';
 							span.textContent = trailingMarker;
-							frag.appendChild(span);
+							frag.appendChild(tagConstruct(span, node, opts));
 						} else {
-							frag.appendChild(markerSpan(trailingMarker));
+							frag.appendChild(tagConstruct(markerSpan(trailingMarker), node, opts));
 						}
 					}
 				} else {
 					// Empty link text: [](url)
 					const mid = raw.indexOf(']', node.start);
-					frag.appendChild(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)));
-					if (mid !== -1) frag.appendChild(markerSpan(raw.slice(mid, node.end)));
+					frag.appendChild(
+						tagConstruct(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)), node, opts)
+					);
+					if (mid !== -1) {
+						frag.appendChild(tagConstruct(markerSpan(raw.slice(mid, node.end)), node, opts));
+					}
 				}
 				break;
 			}
@@ -212,9 +236,9 @@ export function renderInlineNodes(
 					const altText = node.alt ?? '';
 					const altStart = node.start + 2;
 					const altEnd = altStart + altText.length;
-					frag.appendChild(markerSpan(raw.slice(node.start, altStart)));
+					frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, altStart)), node, opts));
 					frag.appendChild(document.createTextNode(altText));
-					frag.appendChild(markerSpan(raw.slice(altEnd, node.end)));
+					frag.appendChild(tagConstruct(markerSpan(raw.slice(altEnd, node.end)), node, opts));
 				}
 				break;
 			}
