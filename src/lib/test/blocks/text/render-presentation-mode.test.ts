@@ -97,4 +97,31 @@ describe('text-render presentation-mode key segment', () => {
 		render.render();
 		expect(el.firstChild).toBe(first);
 	});
+
+	it('preview-inline carries its own segment and stamps construct markers; other modes stay unstamped', () => {
+		const el = document.createElement('div');
+		const node = parse('**bold** `code`\n').children[0]!;
+		const { deps, setMode } = makeDeps(node, el);
+		const render = createTextRender(deps);
+
+		// The stamp is mode-gated: source/reading/preview-block DOM is attribute-free.
+		for (const mode of ['source', 'reading', 'preview-block'] as const) {
+			setMode(mode);
+			render.render();
+			expect(el.querySelectorAll('[data-construct-start]').length).toBe(0);
+		}
+
+		const before = el.firstChild;
+		setMode('preview-inline');
+		render.render();
+		// A distinct segment from preview-block — the flip rebuilds into stamped DOM.
+		expect(el.firstChild).not.toBe(before);
+		expect(el.textContent).toBe('**bold** `code`');
+		// strong spans [0,8): both `**` markers carry its range; the ticks carry the
+		// code span's — per-construct addressing, exactly what the reveal CSS keys on.
+		const strongMarkers = el.querySelectorAll('[data-construct-start="0"][data-construct-end="8"]');
+		expect(strongMarkers.length).toBe(2);
+		const codeMarkers = el.querySelectorAll('[data-construct-start="9"][data-construct-end="15"]');
+		expect(codeMarkers.length).toBe(2);
+	});
 });

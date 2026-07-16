@@ -40,9 +40,10 @@
 		dragHandlesOn = !dragHandlesOn;
 	}
 
-	// `?presentationMode=reading|preview-block` starts in that mode; the header
-	// toggles flip it live (the prop reads live — no remount, unlike blockDragHandles).
-	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block'];
+	// `?presentationMode=reading|preview-block|preview-inline` starts in that mode;
+	// the header toggles flip it live (the prop reads live — no remount, unlike
+	// blockDragHandles).
+	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
 	let presentationMode = $state<PresentationMode>(
 		(typeof window !== 'undefined' &&
 			(PARAM_MODES.find(
@@ -146,6 +147,16 @@
 					(presentationMode = presentationMode === 'preview-block' ? 'source' : 'preview-block')}
 			/>
 			Block preview
+		</label>
+		<label class="demo-toggle">
+			<input
+				type="checkbox"
+				data-testid="preview-inline-toggle"
+				checked={presentationMode === 'preview-inline'}
+				onchange={() =>
+					(presentationMode = presentationMode === 'preview-inline' ? 'source' : 'preview-inline')}
+			/>
+			Inline preview
 		</label>
 	</header>
 	<div class="demo-body">

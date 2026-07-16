@@ -22,6 +22,7 @@
 		type PresentationModeGetter
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
+	import { isPreviewMode } from '../../../presentation-mode';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { displayLength } from '../../../core/lines';
@@ -71,12 +72,12 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	// Reading and preview-block CSS tell bullet/ordered/task markers apart (bullets
+	// Reading and preview CSS tell bullet/ordered/task markers apart (bullets
 	// become rendered chrome, numbers stay visible) and the ambient span carries no
-	// such class. Present in both marker-hiding modes; absent in source, so the
+	// such class. Present in every marker-hiding mode; absent in source, so the
 	// source-mode DOM stays byte-identical.
 	const presentationMarkerKind = $derived.by(() => {
-		if (presentationMode !== 'reading' && presentationMode !== 'preview-block') return undefined;
+		if (presentationMode !== 'reading' && !isPreviewMode(presentationMode)) return undefined;
 		const meta = metadataOf(node, 'listItem');
 		if (meta?.taskItem) return 'task';
 		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';

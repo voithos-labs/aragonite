@@ -118,16 +118,24 @@ export function tracePendingCursorConsume(offset: number, applied: boolean): voi
 	record('pending-cursor', 'consume', { offset, applied });
 }
 
-export function traceRevealOpen(tier: 'inline' | 'leaf'): void {
+/** `construct` (preview-inline's marker reveal) carries a `kind:start-end`
+ *  descriptor; the widget/leaf tiers record the tier alone. */
+export function traceRevealOpen(tier: 'inline' | 'leaf' | 'construct', construct?: string): void {
 	if (!enabled) return;
-	record('reveal', 'open', { tier });
+	record('reveal', 'open', construct === undefined ? { tier } : { tier, construct });
 }
 
-export type RevealFoldReason = 'commit' | 'cancel' | 'no-edit' | 'selection-escape' | 'blur';
+export type RevealFoldReason =
+	| 'commit'
+	| 'cancel'
+	| 'no-edit'
+	| 'selection-escape'
+	| 'blur'
+	| 'caret-exit';
 
-export function traceRevealFold(reason: RevealFoldReason): void {
+export function traceRevealFold(reason: RevealFoldReason, construct?: string): void {
 	if (!enabled) return;
-	record('reveal', 'fold', { reason });
+	record('reveal', 'fold', construct === undefined ? { reason } : { reason, construct });
 }
 
 /** One record per rebuild bracket: how many pooled widgets were adopted, built
