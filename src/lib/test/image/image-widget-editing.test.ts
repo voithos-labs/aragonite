@@ -4,7 +4,11 @@ import type { InlineNode } from '../../core/nodes';
 import type { InlineWidgetEditingContext } from '../../core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '../../components/image/image-widget-editing';
 
-function contextFor(raw: string, inline: InlineNode) {
+function contextFor(
+	raw: string,
+	inline: InlineNode,
+	presentationMode: 'source' | 'reading' = 'source'
+) {
 	const commit = vi.fn();
 	const ctx: InlineWidgetEditingContext = {
 		node: { kind: 'paragraph', leadingTrivia: '', raw },
@@ -14,6 +18,7 @@ function contextFor(raw: string, inline: InlineNode) {
 		index: 0,
 		preSelectOffset: inline.start,
 		editorContentWidth: 800,
+		presentationMode,
 		updateContent: commit
 	};
 	return { ctx, commit };
@@ -75,6 +80,16 @@ describe('imageWidgetOnSelectedKey — Shift+Arrow keyboard resize', () => {
 		});
 		expect(imageWidgetOnSelectedKey(shiftArrow('ArrowRight'), ctx)).toBe(true);
 		expect(commit).toHaveBeenCalledWith('![cat|320][shot]', 0, 16);
+	});
+
+	it('declines in reading mode and commits nothing', () => {
+		const { ctx, commit } = contextFor(
+			'![a](x)',
+			{ kind: 'image', start: 0, end: 7, alt: 'a', url: 'x' },
+			'reading'
+		);
+		expect(imageWidgetOnSelectedKey(shiftArrow('ArrowRight'), ctx)).toBe(false);
+		expect(commit).not.toHaveBeenCalled();
 	});
 
 	it('ignores a key without Shift and commits nothing', () => {

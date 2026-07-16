@@ -32,6 +32,9 @@ export interface TextClipboardDeps {
 	getDoc: DocumentGetter;
 	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
+	/** Reading mode: cut degrades to copy, paste is inert. The events still fire
+	 *  on a non-editable surface, so the gate lives in the handlers. */
+	isReadOnly: () => boolean;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
@@ -51,6 +54,12 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 	function onCopy(e: ClipboardEvent): void {
 		deps.stickyColumn.reset();
 		e.preventDefault();
+		// Reading mode copies what the reader sees: the native selection string,
+		// which excludes the CSS-hidden marker spans — not the raw markdown slice.
+		if (deps.isReadOnly()) {
+			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+			return;
+		}
 		// Sync write via e.clipboardData — navigator.clipboard.writeText is async/permission-gated
 		// and unreliable in Tauri's wry webview.
 		if (writeCrossBlockCopy(e, deps)) return;
@@ -60,6 +69,11 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		deps.stickyColumn.reset();
 		e.preventDefault();
+
+		if (deps.isReadOnly()) {
+			onCopy(e);
+			return;
+		}
 
 		if (await writeCrossBlockCut(e, deps)) return;
 
@@ -77,6 +91,10 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (deps.isReadOnly()) {
+			e.preventDefault();
+			return;
+		}
 		if (await deps.crossBlock.handlePaste(e)) return;
 
 		deps.stickyColumn.reset();

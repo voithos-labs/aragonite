@@ -17,8 +17,12 @@ export { definePlugin, isPluginInstalled } from './schema/plugin-install';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // The setup-context spine: `setup(ctx)` registers `onEditor` callbacks that
 // receive a per-instance EditorContext (editorId, live document, subscribe-only
-// events, typed options).
+// events, typed options, live presentationMode).
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
+// The presentation-mode vocabulary every mode read reports (EditorContext,
+// the editable-leaf getter, InlineWidgetComponentProps.getPresentationMode,
+// InlineWidgetEditingContext.presentationMode, the `data-presentation` root attr).
+export type { PresentationMode } from './presentation-mode';
 // The single-block plugin unit: one kind, one component, one register step. The
 // common case that needn't touch definePlugin + registerBlockComponent directly.
 export { definePluginBlock } from './schema/define-plugin-block';

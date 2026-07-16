@@ -23,13 +23,15 @@
 		KEYBINDING_OVERRIDES_KEY,
 		PASTE_COORDINATOR_KEY,
 		PLUGIN_EDITOR_KEY,
+		PRESENTATION_MODE_KEY,
 		REORDER_ACTION_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
 		type KeybindingOverridesGetter,
-		type PluginEditorLookup
+		type PluginEditorLookup,
+		type PresentationModeGetter
 	} from '../../../editor-keys';
 	import type { ReorderAction } from '../../../editor-actions/reorder-action';
 	import type { UndoController } from '../../../editor-actions/deps';
@@ -91,6 +93,8 @@
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
@@ -483,6 +487,12 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
+		// Reading mode copies the rendered selection, never the markdown-source
+		// cross-block payload.
+		if (readOnly) {
+			e.clipboardData?.setData('text/plain', getCopyPayload());
+			return;
+		}
 		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 	}
@@ -490,6 +500,12 @@
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+		// Reading mode: cut degrades to copy (the event still fires on a
+		// non-editable surface).
+		if (readOnly) {
+			onCopy(e);
+			return;
+		}
 		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 
@@ -504,6 +520,10 @@
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (readOnly) {
+			e.preventDefault();
+			return;
+		}
 		if (await crossBlock.handlePaste(e)) return;
 
 		stickyColumn.reset();
@@ -537,7 +557,8 @@
 	bind:this={el}
 	tabindex="0"
 	class="code-block"
-	contenteditable="true"
+	contenteditable={readOnly ? 'false' : 'true'}
+	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
 	spellcheck="false"
 	oninput={onInput}

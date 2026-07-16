@@ -26,6 +26,7 @@ import { displayLength } from '../../core/lines';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
+import { isReadingMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
@@ -413,8 +414,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		const chord = eventToChord(e);
 		if (
 			chord &&
-			dispatchKindCommand(chord, kindTarget, keybindingOverrides(), (report) =>
-				emitCommandError(editorEvents, report)
+			dispatchKindCommand(
+				chord,
+				kindTarget,
+				keybindingOverrides(),
+				(report) => emitCommandError(editorEvents, report),
+				pluginEditor
 			)
 		) {
 			e.preventDefault();
@@ -439,26 +444,30 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		if (!focusEl || !focusEl.contains(document.activeElement)) return;
 		if (isEditableEventTarget(e.target)) return;
 
+		// A whole-block surface is tabindex-focusable independent of contenteditable,
+		// so this path is live in reading mode: arrows (below) stay, edits gate.
+		const reading = isReadingMode(pluginEditor);
+
 		if (e.key === 'ArrowUp' && e.altKey) {
 			e.preventDefault();
-			void reorder.nudgeReorderUnit(deps.path, -1);
+			if (!reading) void reorder.nudgeReorderUnit(deps.path, -1);
 			return;
 		}
 		if (e.key === 'ArrowDown' && e.altKey) {
 			e.preventDefault();
-			void reorder.nudgeReorderUnit(deps.path, 1);
+			if (!reading) void reorder.nudgeReorderUnit(deps.path, 1);
 			return;
 		}
 
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			void parentBlockEdit.splitBlock(deps.index, displayLength(deps.node.raw));
+			if (!reading) void parentBlockEdit.splitBlock(deps.index, displayLength(deps.node.raw));
 			return;
 		}
 
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
-			void parentBlockEdit.deleteBlock(deps.index);
+			if (!reading) void parentBlockEdit.deleteBlock(deps.index);
 			return;
 		}
 

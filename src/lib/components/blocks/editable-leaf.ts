@@ -48,13 +48,15 @@ import {
 	KEYBINDING_OVERRIDES_KEY,
 	PASTE_COORDINATOR_KEY,
 	PLUGIN_EDITOR_KEY,
+	PRESENTATION_MODE_KEY,
 	REORDER_ACTION_KEY,
 	SELECTION_KEY,
 	STICKY_COLUMN_KEY,
 	type BlockElLookup,
 	type DocumentGetter,
 	type KeybindingOverridesGetter,
-	type PluginEditorLookup
+	type PluginEditorLookup,
+	type PresentationModeGetter
 } from '../../editor-keys';
 import { emitCommandError, type EditorEvents } from '../../editor-events';
 import type { ReorderAction } from '../../editor-actions/reorder-action';
@@ -75,6 +77,7 @@ import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { trimTrailingLineEnding } from '../../core/lines';
+import type { PresentationMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
 import {
@@ -113,6 +116,15 @@ export interface EditableLeafDeps {
 export interface EditableLeaf {
 	/** The block's source minus its trailing line ending — the editable text. */
 	readonly sourceText: string;
+
+	/**
+	 * The live EFFECTIVE presentation mode — the leaf tier's mode read. The
+	 * factory already gates itself in 'reading' (no reveal, no commits); a plain-
+	 * mode component additionally binds `contenteditable` off this so its
+	 * always-mounted source goes structurally inert (the memo fixture is the
+	 * reference).
+	 */
+	getPresentationMode(): PresentationMode;
 
 	// ── BlockComponent surface (mode-guarded; re-export as one-liners) ────────
 	focus(offset: number): void;
@@ -198,6 +210,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const getPresentationModeCtx = getContext<PresentationModeGetter | undefined>(
+		PRESENTATION_MODE_KEY
+	);
+	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
+	const isReading = () => getPresentationMode() === 'reading';
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	let composing = false;
@@ -266,7 +283,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getTextLen: () => (deps.getEl()?.textContent ?? '').length,
 		readText: () => deps.getEl()?.textContent ?? '',
 		commitInput: (text, preEdit, saved) => {
-			if (mode === 'plain') blockEdit.updateBlockContent(deps.index, text + '\n', preEdit, saved);
+			// !isReading: the leaf is the seam — even if a plain-mode component keeps
+			// its source editable in reading mode, nothing reaches the CST.
+			if (mode === 'plain' && !isReading()) {
+				blockEdit.updateBlockContent(deps.index, text + '\n', preEdit, saved);
+			}
 		}
 	});
 
@@ -326,6 +347,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	function focus(offset: number): void {
 		if (mode === 'render-primary') {
+			// Reading mode: a rendered view has no source to reveal; focus is a no-op
+			// and block-level traversal passes over.
+			if (isReading()) return;
 			void revealKernel.reveal(offset);
 			return;
 		}
@@ -337,6 +361,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		void (async () => {
 			if (!isRevealed()) {
+				if (isReading()) return;
 				deps.setRevealed!(true);
 				await tick();
 			}
@@ -430,6 +455,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// it never splits the block. Plain mode commits the insertion.
 		if (e.key === 'Enter') {
 			e.preventDefault();
+			if (isReading()) return;
 			insertNewlineAtCaret();
 			if (mode === 'plain') editableSurface.onInput();
 		}
@@ -440,8 +466,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	function onRenderPointerDown(e: PointerEvent): void {
-		// Shift-click extends a selection (handled once revealed); a plain click reveals.
-		if (e.shiftKey) return;
+		// Shift-click extends a selection (handled once revealed); a plain click
+		// reveals. Reading mode: no reveal, and no preventDefault — native selection
+		// over the rendered view stays available.
+		if (e.shiftKey || isReading()) return;
 		e.preventDefault();
 		void revealKernel.reveal(0);
 	}
@@ -450,6 +478,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		get sourceText() {
 			return sourceText();
 		},
+
+		getPresentationMode,
 
 		focus,
 		focusAtColumn,
@@ -470,10 +500,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onFocusOut: commitReveal,
 		onRenderPointerDown,
 
-		reveal: (offset = 0) =>
-			mode === 'render-primary'
-				? revealKernel.reveal(offset)
-				: Promise.resolve(surface.focus(offset)),
+		reveal: (offset = 0) => {
+			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
+			return isReading() ? Promise.resolve() : revealKernel.reveal(offset);
+		},
 		commitSource,
 
 		syncSource,

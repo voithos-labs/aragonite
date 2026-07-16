@@ -9,6 +9,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
 import { isBlockNode } from '../../tree-operations/node-ops';
+import { isReadingMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import {
@@ -75,14 +76,17 @@ async function handleCrossBlockActive(
 	// e.clipboardData.setData. Tauri's wry webview refuses
 	// navigator.clipboard.writeText in some contexts.
 
+	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
+		if (isReadingMode(ctx.pluginEditor)) return true;
 		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
 		return true;
 	}
 
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
+		if (isReadingMode(ctx.pluginEditor)) return true;
 		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete
 		// returns the authoritative post-delete position against the merged tree, and
 		// for a table endpoint that is the deep [table,row,col] cell whose runCommand
@@ -299,6 +303,7 @@ function handleCompositionStart(
 ): boolean {
 	ctx.stickyColumn.reset();
 	if (!ctx.selection.isCrossBlock) return false;
+	if (isReadingMode(ctx.pluginEditor)) return false;
 	performCrossBlockDeleteSync(mutCtx);
 	return true;
 }

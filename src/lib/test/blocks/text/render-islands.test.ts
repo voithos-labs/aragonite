@@ -54,6 +54,9 @@ function makeHarness(initialNode: CstNode) {
 		get islands() {
 			return islands;
 		},
+		get presentationMode() {
+			return 'source' as const;
+		},
 		brokenUrlCache: new Set<string>()
 	};
 	return {

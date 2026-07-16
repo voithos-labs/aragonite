@@ -20,11 +20,13 @@
 		EDITOR_LIFETIME_KEY,
 		EDITOR_ROOT_KEY,
 		FOCUS_KEY,
+		PRESENTATION_MODE_KEY,
 		REORDER_ANNOUNCE_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
 		WIDTH_VERSION_KEY,
+		type PresentationModeGetter,
 		type ReorderAnnounce,
 		type WidthVersionGetter
 	} from '../../../editor-keys';
@@ -77,6 +79,11 @@
 	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
 	const announceReorder = getContext<ReorderAnnounce>(REORDER_ANNOUNCE_KEY);
 	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	// Every menu item mutates the table (structure, clipboard cut/paste), so
+	// reading mode declines to open it; the native context menu (with Copy) shows
+	// instead. Grips are CSS-hidden under [data-presentation='reading'].
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -315,7 +322,7 @@
 	// right-click in the table's padding gaps keeps the native menu. The cell's
 	// selection is captured now, before clicking a menu item moves focus off it.
 	function openCellMenu(e: MouseEvent): void {
-		if (!tableEl) return;
+		if (readOnly || !tableEl) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
 		if (!cell) return;
 		e.preventDefault();
@@ -333,7 +340,7 @@
 	// the cell; preventDefault suppresses the native context menu the key triggers.
 	function onTableKeyDown(e: KeyboardEvent): void {
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
-		if (!opensMenu || !focusedCell) return;
+		if (readOnly || !opensMenu || !focusedCell) return;
 		e.preventDefault();
 		const { rowIdx, colIdx } = focusedCell;
 		const rect = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
