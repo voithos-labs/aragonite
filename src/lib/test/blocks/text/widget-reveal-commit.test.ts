@@ -21,7 +21,6 @@ import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { stampMathWidget, resetInlineState } from './math-widget-fixture';
@@ -105,14 +104,11 @@ function mountMathBlock() {
 
 	const interaction = createWidgetInteraction(deps);
 
-	// Arrow-entry from the LEFT of the widget opens its reveal at the leading edge and
-	// anchors undo at the widget's leading offset (math.start) — the anchor the commit
-	// assertions below depend on. Entry from the right would anchor at math.end.
+	// Entry from the leading edge opens the widget's reveal there and anchors undo at
+	// the widget's leading offset (math.start) — the anchor the commit assertions below
+	// depend on. Entry from the trailing edge would anchor at math.end.
 	async function reveal(): Promise<void> {
-		interaction.handleWidgetAtCursorKeydown(
-			new KeyboardEvent('keydown', { key: 'ArrowRight' }),
-			asRawOffset(math.start)
-		);
+		interaction.enterWidget(math, false);
 		await new Promise((r) => setTimeout(r));
 	}
 
@@ -251,11 +247,8 @@ describe('cancelReveal — identity-exact fold-back', () => {
 			}
 		} as unknown as WidgetInteractionDeps);
 
-		// Reveal the SECOND widget via arrow-entry from its left, then Escape-cancel.
-		interaction.handleWidgetAtCursorKeydown(
-			new KeyboardEvent('keydown', { key: 'ArrowRight' }),
-			asRawOffset(second.start)
-		);
+		// Reveal the SECOND widget by entering from its leading edge, then Escape-cancel.
+		interaction.enterWidget(second, false);
 		await new Promise((r) => setTimeout(r));
 		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node
 		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));

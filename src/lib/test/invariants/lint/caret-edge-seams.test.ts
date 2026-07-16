@@ -1,25 +1,26 @@
 /**
- * G4.12 — caret-edge destructive-key seam parity. Three sibling seams intercept a
- * plain (no ctrl/meta/alt) Backspace/Delete at a caret edge in a prose block and
- * route the edit through `blockEdit.updateBlockContent`, never native
- * contenteditable mutation: the CST inline-widget handler, the decoration-island
- * handler, and TextEditableBlock's ambient-marker selection branch. Each guards a
- * different atomic thing native deletion would silently corrupt (a widget's raw
- * span, an island's hidden bytes, a range overlapping the non-editable ambient
- * marker).
+ * G4.12 — caret-edge destructive-key funnel. Every plain (no ctrl/meta/alt)
+ * Backspace/Delete intercepted at a caret edge in a prose block routes through ONE
+ * dispatch (`edge-policy-dispatch.ts`) and commits via `blockEdit.updateBlockContent`,
+ * never native contenteditable mutation. The dispatch classifies the construct at the
+ * edge — CST inline widget, decoration island, ambient-marker overlap — and resolves
+ * each against its declarative edge policy, so a fourth caret-edge interception cannot
+ * be born as a fourth sibling seam.
  *
- * Consolidating the three into one declarative edge policy is deliberately
- * deferred (presentation modes). Until then this pins the set: a NEW file under
- * `components/blocks/text/` that intercepts a plain destructive key with
- * `preventDefault` is the exact shape that must route through the CST — the guard
- * fails the day it appears unallowlisted, forcing the author to route through an
- * existing seam or join the allowlist. The scan is scoped to this directory
- * because Backspace/Delete key handling is common elsewhere and would drown the
- * signal.
+ * The allowlist is the funnel plus one carve-out: `widget-interaction.ts` keeps the
+ * SELECTED-widget second-press delete, a selected-STATE seam that runs before the
+ * shared keymap (selection clears the native range, so the shared boundary branch
+ * would misfire) and therefore cannot move into the post-shared-keymap dispatch
+ * without a behavior-changing reorder. It still routes through `updateBlockContent`.
+ *
+ * A NEW file under `components/blocks/text/` that intercepts a plain destructive key
+ * with `preventDefault` is the exact shape that must route through the dispatch — the
+ * guard fails the day it appears unallowlisted. The scan is scoped to this directory
+ * because Backspace/Delete handling is common elsewhere and would drown the signal.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { collectEditorSources } from './scan-source';
+import { collectEditorSources, type SourceFile } from './scan-source';
 
 const TEXT_BLOCK_SRC = path.resolve('src/lib/components/blocks/text');
 
@@ -38,17 +39,22 @@ function routesThroughCst(code: string): boolean {
 	return UPDATE_CONTENT_RE.test(code);
 }
 
-/** Each sanctioned caret-edge seam → the atomic thing its destructive-key branch protects. */
-const SEAMS: Record<string, string> = {
-	'src/lib/components/blocks/text/TextEditableBlock.svelte':
-		'ambient-marker branch: deletes a range overlapping the non-editable ambient span',
-	'src/lib/components/blocks/text/decoration-island-keys.ts':
-		'decoration islands: deletes a replace-island hidden range / zero-width widget-island edge',
+function interceptorsOf(sources: SourceFile[]): string[] {
+	return sources
+		.filter((f) => hasDestructiveGate(f.code))
+		.map((f) => f.relPath)
+		.sort();
+}
+
+/** The funnel: the one dispatch, plus the selected-state carve-out → why each is sanctioned. */
+const FUNNEL: Record<string, string> = {
+	'src/lib/components/blocks/text/edge-policy-dispatch.ts':
+		'the one caret-edge dispatch — CST widget / decoration island / ambient overlap, each routed to updateBlockContent',
 	'src/lib/components/blocks/text/widget-interaction.ts':
-		'CST inline widgets: deletes a selected widget raw span'
+		'the selected-widget second-press delete — a selected-STATE seam ordered before the shared keymap, distinct from the caret-edge classes'
 };
 
-describe('G4.12 caret-edge destructive-key seam parity', () => {
+describe('G4.12 caret-edge destructive-key funnel', () => {
 	const sources = collectEditorSources(TEXT_BLOCK_SRC);
 	const byPath = new Map(sources.map((f) => [f.relPath, f]));
 
@@ -56,29 +62,39 @@ describe('G4.12 caret-edge destructive-key seam parity', () => {
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('exactly the three sanctioned seams intercept a plain destructive key', () => {
-		const interceptors = sources
-			.filter((f) => hasDestructiveGate(f.code))
-			.map((f) => f.relPath)
-			.sort();
+	it('exactly the funnel files intercept a plain destructive key', () => {
 		expect(
-			interceptors,
-			`plain Backspace/Delete preventDefault handlers under blocks/text/ must be a sanctioned seam: route the edit through updateBlockContent via an existing seam, or add the file to this allowlist. Unexpected set: ${interceptors.join(
-				', '
-			)}`
-		).toEqual(Object.keys(SEAMS).sort());
+			interceptorsOf(sources),
+			`plain Backspace/Delete preventDefault handlers under blocks/text/ must route through the ` +
+				`edge-policy dispatch (or be the sanctioned selected-widget seam). Unexpected set: ${interceptorsOf(
+					sources
+				).join(', ')}`
+		).toEqual(Object.keys(FUNNEL).sort());
 	});
 
-	it('each seam still holds the gate and routes through updateBlockContent', () => {
-		for (const seam of Object.keys(SEAMS)) {
+	it('each funnel file still holds the gate and routes through updateBlockContent', () => {
+		for (const seam of Object.keys(FUNNEL)) {
 			const file = byPath.get(seam);
-			expect(file, `seam not found: ${seam}`).toBeDefined();
+			expect(file, `funnel file not found: ${seam}`).toBeDefined();
 			expect(hasDestructiveGate(file!.code), `destructive gate gone from ${seam}`).toBe(true);
 			expect(
 				routesThroughCst(file!.code),
 				`${seam} no longer routes through updateBlockContent`
 			).toBe(true);
 		}
+	});
+
+	// ── Mutation test: a rogue interceptor breaks the funnel ──────────────────
+
+	it('a new unallowlisted destructive interceptor under blocks/text is caught', () => {
+		const rogue: SourceFile = {
+			relPath: 'src/lib/components/blocks/text/rogue-keys.ts',
+			text: '',
+			code: "if (e.key === 'Backspace') { e.preventDefault(); range.deleteContents(); }"
+		};
+		expect(hasDestructiveGate(rogue.code)).toBe(true);
+		// The rogue joins the interceptor set, so the equality the real gate asserts fails.
+		expect(interceptorsOf([...sources, rogue])).not.toEqual(Object.keys(FUNNEL).sort());
 	});
 
 	// ── Matcher self-tests (synthetic positive + benign negatives) ────────────

@@ -30,8 +30,7 @@ import { trimTrailingLineEnding } from '../../../core/lines';
 import {
 	asRawOffset,
 	toClampedRawOffset,
-	toDomTextOffset,
-	type RawOffset
+	toDomTextOffset
 } from '../../../cursor/coordinate-spaces';
 import { domTextOffsetAtNode, createRangeAtDomTextOffsets } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
@@ -43,7 +42,6 @@ import {
 import { assertInvariant } from '../../../invariants/assert';
 import { caretIsInTextContent } from './click-snap-guard';
 import {
-	widgetAtCursor,
 	findWidgetNodeByStart,
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
@@ -91,8 +89,13 @@ export interface WidgetInteraction {
 	/** Shift+Arrow stepping into a widget; extends the native selection to the
 	 *  far boundary atomically. */
 	handleShiftArrowIntoWidget(e: KeyboardEvent): boolean;
-	/** Plain Arrow/Delete/typing while the caret sits against a widget edge. */
-	handleWidgetAtCursorKeydown(e: KeyboardEvent, effectiveOffset: RawOffset | null): boolean;
+	/** Enter a widget at a caret edge — the reveal-vs-select policy split. The
+	 *  caret-edge dispatch classifies the edge and calls this; `fromTrailingEdge`
+	 *  is the direction of entry. */
+	enterWidget(
+		widget: { start: number; end: number; kind: AnyInlineKind },
+		fromTrailingEdge: boolean
+	): void;
 	/** Cross-block edge landing: a reveal-capable widget at the near edge opens its
 	 *  source reveal; any other widget is selected (image overlay). Returns whether
 	 *  an edge widget was entered. */
@@ -616,45 +619,6 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 	}
 
-	function handleWidgetAtCursorKeydown(
-		e: KeyboardEvent,
-		effectiveOffset: RawOffset | null
-	): boolean {
-		if (activeReveal) return false;
-		if (effectiveOffset === null) return false;
-		const node = deps.node;
-		const widgetAt = widgetAtCursor(effectiveOffset, inlinesOf(node), node.raw);
-		if (!widgetAt) return false;
-
-		// Caret-entry against a widget edge: ArrowLeft/Backspace from the trailing
-		// edge, ArrowRight/Delete from the leading edge.
-		const enterFromRight =
-			!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
-		const enterFromLeft =
-			!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
-		if (enterFromRight || enterFromLeft) {
-			e.preventDefault();
-			deps.setSnapTarget(null);
-			enterWidget(widgetAt, enterFromRight);
-			return true;
-		}
-		// Chromium inserts into a text node natively, but drops printable keys at
-		// element-level positions adjacent to a contenteditable=false widget.
-		if (!caretIsInTextNode() && isTypingKey(e) && !isReading()) {
-			e.preventDefault();
-			deps.setSnapTarget(null);
-			const typed = e.key;
-			const newRaw = node.raw.slice(0, effectiveOffset) + typed + node.raw.slice(effectiveOffset);
-			const postEdit = effectiveOffset + typed.length;
-			deps.blockEdit.updateBlockContent(deps.index, newRaw, effectiveOffset, postEdit);
-			// Re-anchor the caret after the rerender — without it, the next
-			// keystroke teleports to div offset 0.
-			deps.setPendingCursor(postEdit);
-			return true;
-		}
-		return false;
-	}
-
 	function enterEdgeWidget(side: 'start' | 'end'): boolean {
 		const inlines = inlinesOf(deps.node);
 		if (inlines.length === 0) return false;
@@ -744,17 +708,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		sel.extend(range.endContainer, range.endOffset);
 	}
 
-	function caretIsInTextNode(): boolean {
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return false;
-		return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
-	}
-
 	return {
 		isVerticallyTransparent,
 		handleSelectedWidgetKeydown,
 		handleShiftArrowIntoWidget,
-		handleWidgetAtCursorKeydown,
+		enterWidget,
 		enterEdgeWidget,
 		snapClickToWidgetEdge,
 		isRevealing,
