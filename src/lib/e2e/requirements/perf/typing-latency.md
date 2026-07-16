@@ -27,6 +27,17 @@ not production latencies. The caveat is embedded in every result artifact.
   O(top-level blocks) per poll — because serializing the source per poll at
   10MB would dwarf the latency being measured
 
+## At-depth typing (report-only)
+
+One row types into the DEEPEST leaf of a deep-nested document (`generateDeepNested`,
+depth 8 × 50KB/level), so each keystroke pays the full ancestry raw rebuild that
+top-level rows skip. Report-only — no gate, no baseline judgment — the browser-side
+corroboration of the vitest ancestry-rebuild bench (concern 4). Caret lands at the
+leaf via `focusBlockAtPath(deepNestedLeafPath(depth), …)`; the keystroke settles on
+block 0's raw length, since the ancestry rebuild propagates the typed character to
+the root container. A leaf the nested windowing left off-window fails the row via a
+mounted check rather than recording a bogus latency.
+
 ## Sizes
 
 All shapes run at 100KB / 1MB / 10MB — nothing is capped. The giant-single

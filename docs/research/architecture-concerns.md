@@ -95,11 +95,39 @@ container chrome (irregular `> ` spacing, mixed indentation) makes per-line pref
 converge back toward storing the raw anyway; the trivially-auditable serializer has real
 value; and the amplification is measured and ceiling-gated, not open-ended.
 
-**Direction.** A falsification gate, not a deferral: build the deep-nesting amplification
-benchmark first, as a real artifact over realistic workloads. If the data indicts the design,
-fix it in the architecture-concern pass — before limestone. If it exonerates, state the
-measured worst case in `syntax-tree.md` beside the rationale and record the decision here.
-Either way the verdict is earned by numbers, not momentum.
+**Resolution (0.9.27 — EXONERATED).** The falsification benchmark was built and clears the
+design. `container-raw.bench.ts` gained a combined depth × bytes axis over a new
+`generateDeepNested` fixture — every ancestor level carries substantial sibling raw, so the
+outermost container materializes the whole subtree — and it drives the shipped
+`rebuildUnsharedChain`, the exact function the routine-typing path calls. Per-keystroke
+ancestry rebuild, mean ms (vitest/Node, DEV assertions off — production-representative):
+
+| depth ↓ / per-level → | 1 KB  | 10 KB | 50 KB |
+| --------------------- | ----- | ----- | ----- |
+| 4                     | 0.004 | 0.015 | 0.25  |
+| 8                     | 0.010 | 0.052 | 0.92  |
+| 12                    | 0.019 | 0.11  | 1.83  |
+
+Redundant-storage amplification tracks chain-depth ÷ 2 (×3.5 at depth 4, ×6.5 at 8, ×9.5 at
+12). Past the realistic envelope, the adversarial depth 16 × 100 KB corner costs 5.5 ms
+(reported, not judged). The realistic envelope is **depth ≤ 10, per-level ≤ 50 KB** — 50 KB of
+sibling content at each of ten nested levels is already half a megabyte in one subtree, past
+any document a human writes.
+
+Why a microbench settles an e2e-phrased claim: a top-level keystroke skips the ancestry
+rebuild entirely, so a nested keystroke on a same-sized leaf is exactly _floor +
+rebuild(depth, bytes)_ — the rebuild is the whole delta from the floor. At the realistic worst
+corner that delta is a small single-digit-millisecond term (~1–2 ms), so the shipped keystroke
+stays in the viewport-bounded floor class (~2–4 ms) and never nears the pathological class
+(single-giant-paragraph, 177 ms @ 1 MB). The report-only at-depth e2e row
+(`typing-latency.perf.spec.ts`) corroborates in the browser: typing into the depth-8 × 50 KB
+leaf drives exactly one full depth-13 rebuild and only **two** block renders per keystroke — no
+cascade, no scaling with document size. Its p50 (~16 ms) sits above the floor only because the
+DEV invariant assertions that defend this very redundancy (stale-raw, rebuild-determinism, the
+integrity digest) walk the ancestry in dev/test — a development cost, not shipped latency, and
+still an order of magnitude under the pathological class. The measured worst case is stated in
+`syntax-tree.md` beside the container-contract rationale. The redundancy stays; the gate found
+no user-facing indictment.
 
 ## 5. Svelte context-key sprawl
 
