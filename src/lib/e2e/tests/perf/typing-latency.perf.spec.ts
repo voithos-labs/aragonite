@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_SHAPES, type FixtureShape } from '../../../test/perf/fixtures/generate';
-import { measureTypingLatency } from './latency-harness';
+import { measureTypingLatency, measureDeepNestedTyping } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -62,6 +62,30 @@ test.describe('typing latency', () => {
 			});
 		}
 	}
+});
+
+// ── At-depth typing (concern-4 corroboration, report-only) ───────────────────
+
+// One report-only row: typing at the deepest leaf of a deep-nested document,
+// where the keystroke pays the full ancestry rebuild the top-level rows skip.
+// No gate, no baseline judgment — first end-to-end data on the ancestry tax.
+// depth 8 × 50KB/level is the realistic worst corner the vitest bench sweeps.
+test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const m = await measureDeepNestedTyping(page, editor, 8, 50_000, 30);
+	writeResult('deep-nested-d8-50KB', 'at-depth', {
+		shape: 'deep-nested',
+		depth: 8,
+		bytesPerLevel: 50_000,
+		loadMs: round(m.loadMs),
+		keystrokes: 30,
+		keystrokeP50Ms: round(m.p50Ms),
+		keystrokeP95Ms: round(m.p95Ms),
+		rendersPerKeystroke: m.rendersPerKeystroke,
+		rebuildDepths: m.rebuildDepths,
+		note: DEV_CAVEAT
+	});
+	expect(m.samples).toHaveLength(30);
 });
 
 // ── Bridge sanity ───────────────────────────────────────────────────────────
