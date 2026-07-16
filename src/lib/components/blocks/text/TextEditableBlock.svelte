@@ -63,7 +63,7 @@
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
-	import { createDecorationIslandKeys } from './decoration-island-keys';
+	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
@@ -296,17 +296,31 @@
 		}
 	});
 
-	const decorationIslandKeys = createDecorationIslandKeys({
+	// The one caret-edge dispatch: CST widget → decoration island → ambient overlap,
+	// each resolved against its declarative edge policy. Replaces the three former
+	// sibling seams; entry (reveal vs select) stays at widgetInteraction.enterWidget.
+	const edgeDispatch = createEdgePolicyDispatch({
 		get node() {
 			return node;
 		},
 		get index() {
 			return index;
 		},
+		get linkRef() {
+			return linkRef;
+		},
 		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength,
 		getRawSelection: () => cursor.getRawSelection(),
 		blockEdit,
-		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'island')
+		setPendingCursor: (offset, source) => setPendingCursorOffset(offset, source),
+		setSnapTarget: (offset) => {
+			lastSnapTargetOffset = offset;
+		},
+		isRevealing: () => widgetInteraction.isRevealing(),
+		enterWidget: (widget, fromTrailingEdge) =>
+			widgetInteraction.enterWidget(widget, fromTrailingEdge),
+		isReading: () => readOnly
 	});
 
 	const textRender = createTextRender({
@@ -568,13 +582,10 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		if (widgetInteraction.handleWidgetAtCursorKeydown(e, cursor.getRaw())) return;
-
-		// Decoration islands are view-only ([data-decoration-island]) and invisible to
-		// the CST-widget path above; this keeps an edge Backspace/Delete from letting
-		// native contenteditable silently eat a replace island's hidden bytes. Its
-		// handling is destructive-only, so reading mode skips it wholesale.
-		if (!readOnly && decorationIslandKeys.handleKeydown(e, cursor.getRaw())) return;
+		// Every caret-edge construct — CST widget, decoration island, ambient overlap —
+		// intercepts a plain edge key through this one dispatch, keeping native
+		// contenteditable from silently corrupting the atomic bytes each stands for.
+		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
 		// marker span). Skip that — the user wants raw offset 0, i.e. the
@@ -583,39 +594,6 @@
 			e.preventDefault();
 			cursor.setToAmbientBoundary();
 			return;
-		}
-
-		// Selections whose DOM range extends into the contenteditable="false"
-		// ambient span block native Backspace/Delete silently — the browser
-		// refuses to modify any range overlapping non-editable content, and
-		// no beforeinput fires. Perform the delete via the CST path instead.
-		// !readOnly: a mouse selection over static reading-mode text can satisfy
-		// hasSelectionHelper, and this branch commits a delete.
-		if (
-			!readOnly &&
-			(e.key === 'Backspace' || e.key === 'Delete') &&
-			hasSelectionHelper() &&
-			el &&
-			ambientLength > 0
-		) {
-			const ambient = ambientSpanOf(el);
-			const sel = window.getSelection();
-			const touchesAmbient =
-				!!ambient &&
-				!!sel &&
-				sel.rangeCount > 0 &&
-				(ambient.contains(sel.anchorNode) || ambient.contains(sel.focusNode));
-			if (touchesAmbient) {
-				e.preventDefault();
-				const range = cursor.getRawSelection();
-				if (range && range.start < range.end) {
-					const display = getDisplayText();
-					const newDisplay = display.slice(0, range.start) + display.slice(range.end);
-					blockEdit.updateBlockContent(index, newDisplay + '\n', range.start, range.start);
-					setPendingCursorOffset(range.start, 'ambient-delete');
-				}
-				return;
-			}
 		}
 
 		const chord = eventToChord(e);

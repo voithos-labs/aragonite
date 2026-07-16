@@ -27,8 +27,8 @@ are reachable by a plugin author with no internal imports. Scenarios run on
   ghost's text — `getSource()` stays byte-clean
 - typing with the caret at the island's element-level boundary (no text node
   after the island at block end) still inserts at the raw offset — pins the
-  `isTyping && !caretIsInTextNode()` branch of decoration-island-keys, which
-  Chromium otherwise drops silently
+  `isTyping && !caretIsInTextNode()` island branch of the edge-policy dispatch,
+  which Chromium otherwise drops silently
 - ArrowRight at the paragraph's last text offset leaves the block; the zero-width
   island never traps the caret
 

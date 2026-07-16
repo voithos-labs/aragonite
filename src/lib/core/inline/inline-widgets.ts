@@ -36,13 +36,17 @@ export interface InlineWidgetComponentProps {
 /**
  * Per-kind editing behavior for a live inline widget.
  *
- * `deleteGranularity` and `onEdge` are deliberately absent: nothing consumes them,
- * and freezing an inert field is the one change that breaks an author's config
- * later. They re-add additively with the inline-entity consumer that defines them
- * (target shapes in `docs/design/plugin-contract.md`).
+ * `deleteGranularity` distinguishes a one-press whole delete (`atomic`, the future
+ * inline-entity consumer — `&copy;`) from the two-press select-then-delete image and
+ * `<br>` use today; `onEdge` distinguishes selecting the construct whole from stepping
+ * transparently over it. The caret-edge dispatch (`components/blocks/text/edge-policy-dispatch.ts`)
+ * reads them. `atomic` still awaits its consumer — no built-in kind sets it — so the
+ * field is typed and dispatch-honored but not yet load-bearing for a shipped kind.
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
+	deleteGranularity?: 'atomic' | 'select-then-delete';
+	onEdge?: 'select' | 'step-over';
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
 }
 
@@ -183,7 +187,9 @@ export function buildCoreInlineWidget(
 registerInlineWidgetKind('image', {
 	isWidget: () => true,
 	// Base policy the editor layer augments with `onSelectedKey` — resize keys can't
-	// live in a core registration (components/built-in-blocks.ts).
+	// live in a core registration (components/built-in-blocks.ts). Left empty: image's
+	// caret-edge behavior (select whole, then delete) is the dispatch's default for a
+	// non-reveal, non-atomic widget, so no explicit edge fields are needed.
 	editing: {}
 });
 

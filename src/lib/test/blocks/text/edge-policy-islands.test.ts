@@ -1,28 +1,64 @@
 // @vitest-environment jsdom
 //
-// Caret-edge dispatch for decoration islands (decoration-island-keys). Pins two
-// contracts e2e cannot: modifier chords (word-delete) must stay native — the
-// island rules own only plain edge presses — and a printable key at an
-// element-level caret is consumed into a CST edit (in a real browser native
-// typing can mask a neutered branch byte-for-byte, so the seam is pinned here).
-import { afterEach, describe, expect, it } from 'vitest';
+// The caret-edge dispatch's decoration-island branch (edge-policy-dispatch). Pins
+// two contracts e2e cannot: modifier chords (word-delete) must stay native — the
+// island rules own only plain edge presses — and a printable key at an element-level
+// caret is consumed into a CST edit (in a real browser native typing can mask a
+// neutered branch byte-for-byte, so the seam is pinned here). A third describe pins
+// the observable precedence: a CST widget wins the shared caret edge over an island.
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-	createDecorationIslandKeys,
-	type DecorationIslandKeysDeps
-} from '$lib/components/blocks/text/decoration-island-keys';
+	createEdgePolicyDispatch,
+	type EdgePolicyDispatchDeps
+} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { parse } from '$lib/core/parser';
+import { computeInlineContent } from '$lib/core/inline';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { BlockEditActions } from '$lib/action-contracts';
+import type { CstNode, InlineNode } from '$lib/core/nodes';
 
 interface Harness {
-	handleKeydown: ReturnType<typeof createDecorationIslandKeys>['handleKeydown'];
+	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
 	el: HTMLElement;
 	island: HTMLElement;
 	edits: { index: number; content: string; start: number; end: number }[];
 }
 
+/** Common dispatch deps for the island tests: no CST widget, no reveal, editing mode. */
+function islandDeps(
+	node: CstNode,
+	el: HTMLElement,
+	edits: Harness['edits']
+): EdgePolicyDispatchDeps {
+	return {
+		get node() {
+			return node;
+		},
+		get index() {
+			return 0;
+		},
+		get linkRef() {
+			return undefined;
+		},
+		getEl: () => el,
+		getAmbientLength: () => 0,
+		getRawSelection: () => null,
+		blockEdit: {
+			updateBlockContent: (index: number, content: string, start: number, end: number) => {
+				edits.push({ index, content, start, end });
+			}
+		} as unknown as BlockEditActions,
+		setPendingCursor: () => {},
+		setSnapTarget: () => {},
+		isRevealing: () => false,
+		enterWidget: () => {},
+		isReading: () => false
+	};
+}
+
 /** Mount [text before][island][text after] for `source`'s first block and wire
- *  the factory around it. Zero-width `start === end` mounts a widget island. */
+ *  the dispatch around it. Zero-width `start === end` mounts a widget island. */
 function mount(source: string, start: number, end: number): Harness {
 	const node = parse(source).children[0];
 	const display = node.raw.replace(/\n$/, '');
@@ -41,23 +77,12 @@ function mount(source: string, start: number, end: number): Harness {
 	document.body.appendChild(el);
 
 	const edits: Harness['edits'] = [];
-	const deps: DecorationIslandKeysDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		getEl: () => el,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (index: number, content: string, start: number, end: number) => {
-				edits.push({ index, content, start, end });
-			}
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {}
+	return {
+		handleKeydown: createEdgePolicyDispatch(islandDeps(node, el, edits)).handleKeydown,
+		el,
+		island,
+		edits
 	};
-	return { handleKeydown: createDecorationIslandKeys(deps).handleKeydown, el, island, edits };
 }
 
 function key(name: string, modifiers: Partial<KeyboardEvent> = {}): KeyboardEvent {
@@ -137,5 +162,54 @@ describe('typing at an element-level caret against a widget island', () => {
 		const e = key('z');
 		expect(h.handleKeydown(e, asRawOffset(5))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
+	});
+});
+
+// ── Precedence: CST widget wins the shared caret edge over an island ───────────
+
+describe('a CST widget outranks a decoration island at the same caret edge', () => {
+	beforeEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	it('Backspace at an offset both claim enters the widget, never selects the island', () => {
+		// `a![c](x)` — the image widget occupies raw 1..8; stamp a replace island whose
+		// trailing edge is also 8. The dispatch tries the widget class first, so the
+		// widget's select-then-delete wins and the island is untouched.
+		const node = parse('a![c](x)\n').children[0];
+		const image = computeInlineContent(node).find((n: InlineNode) => n.kind === 'image')!;
+
+		const el = document.createElement('div');
+		el.setAttribute('contenteditable', 'true');
+		const island = document.createElement('span');
+		island.dataset.decorationIsland = '';
+		island.dataset.sourceStart = '6';
+		island.dataset.sourceEnd = String(image.end);
+		island.setAttribute('contenteditable', 'false');
+		el.append(document.createTextNode('a![c]('), island);
+		document.body.appendChild(el);
+		window.getSelection()?.removeAllRanges();
+
+		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+		const edits: Harness['edits'] = [];
+		const deps: EdgePolicyDispatchDeps = {
+			...islandDeps(node, el, edits),
+			enterWidget: (widget, fromTrailingEdge) =>
+				widgetSelection.select({
+					paragraphPath: [0],
+					sourceStart: widget.start,
+					preSelectOffset: fromTrailingEdge ? widget.end : widget.start
+				})
+		};
+
+		const consumed = createEdgePolicyDispatch(deps).handleKeydown(
+			key('Backspace'),
+			asRawOffset(image.end)
+		);
+		expect(consumed).toBe(true);
+		expect(widgetSelection.getSelected()).toMatchObject({ sourceStart: image.start });
+		// The island's select-whole never ran: no native range wraps it, no edit fired.
+		expect(edits).toHaveLength(0);
+		expect(window.getSelection()!.rangeCount).toBe(0);
 	});
 });
