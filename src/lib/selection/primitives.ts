@@ -16,24 +16,40 @@ import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-/**
- * A single selection endpoint: path of child indices plus an offset whose
- * meaning depends on `cellCoordinate`. Empty path is the document root.
- *
- * `offset` is a character index into the leaf's `raw` by default. On a table
- * endpoint it is instead a row-major cell index (`cellCoordinate: true`), with
- * the path addressing the table block rather than a deep cell leaf. The generic
- * document-order ops here (`comparePaths`, `normalize`, `walkBetween`,
- * `classifyBlockForSelection`) compare offsets numerically and are correct under
- * either meaning. Consumers read the field through {@link charOffsetOf} or
- * {@link cellIndexOf} — the accessor for their branch mints the matching brand
- * and DEV-warns on the wrong space.
- */
-export interface SelectionPoint {
+/** Char-space endpoint: `offset` is a character index into the leaf's `raw`. */
+export interface CharSelectionPoint {
 	path: number[];
 	offset: number;
-	cellCoordinate?: boolean;
+	cellCoordinate?: false;
 }
+
+/** Cell-space endpoint: `offset` is a row-major table cell index; `path` addresses the table block. */
+export interface CellSelectionPoint {
+	path: number[];
+	offset: number;
+	cellCoordinate: true;
+}
+
+/**
+ * A single selection endpoint, discriminated on `cellCoordinate`. Empty path is
+ * the document root.
+ *
+ * `offset` keeps its name on both arms; its space is the discriminant's job. The
+ * union's teeth are on construction — a cell point needs the literal
+ * `cellCoordinate: true`, and a char-typed slot rejects a cell point. Reading the
+ * field in the wrong space stays a runtime concern: {@link charOffsetOf} /
+ * {@link cellIndexOf} mint the matching brand and DEV-warn on a mismatch. The
+ * generic document-order ops here (`normalize`, `walkBetween`,
+ * `classifyBlockForSelection`) compare offsets numerically and hold under either
+ * meaning.
+ *
+ * Intra-table selections are the deliberate exception: both endpoints share the
+ * table path and traffic in cell-valued offsets on UNFLAGGED points, established
+ * by their shared scope rather than the flag. Forcing the flag there was tried
+ * and reverted — it spurious-warned every same-table read — so the union governs
+ * the flagged cross-block world while intra-table stays context-established.
+ */
+export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 
 /**
  * Anchor/focus pair. Same path + same offset is collapsed; same path +

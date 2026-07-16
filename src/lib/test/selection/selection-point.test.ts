@@ -6,6 +6,8 @@ import {
 	charOffsetOf,
 	cellIndexOf,
 	normalize,
+	type CharSelectionPoint,
+	type CellSelectionPoint,
 	type SelectionPoint
 } from '../../selection/primitives';
 import { comparePaths } from '../../selection/path-math';
@@ -109,6 +111,41 @@ describe('cellIndexOf', () => {
 			'cell-index site received a char-offset SelectionPoint',
 			point
 		);
+	});
+});
+
+// Compile-time pins for the discriminated union. The load-bearing assertions
+// are the `@ts-expect-error` directives, verified by `npm run check`; the runtime
+// expectations only keep the values live so vitest still exercises the block.
+describe('SelectionPoint discriminated union — type pins', () => {
+	it('discriminates on the flag literal and narrows the union', () => {
+		const cellPoint: CellSelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
+		const charPoint: CharSelectionPoint = { path: [0], offset: 3 };
+
+		// A cell point is not a char point — the required-`true` flag rejects it.
+		// @ts-expect-error — cellCoordinate: true is not assignable to a char point
+		const notChar: CharSelectionPoint = cellPoint;
+
+		// A char-typed slot rejects a cell point.
+		const takesChar = (p: CharSelectionPoint): number => p.offset;
+		// @ts-expect-error — a cell point cannot flow into a CharSelectionPoint parameter
+		takesChar(cellPoint);
+
+		// The cell variant needs the literal true — a widened boolean cannot mint it.
+		const flag = Math.random() > 0.5;
+		// @ts-expect-error — a widened boolean is neither the char nor the cell arm
+		const widened: CellSelectionPoint = { path: [0], offset: 0, cellCoordinate: flag };
+
+		// Checking the flag narrows a union value to the cell arm.
+		const point: SelectionPoint = cellPoint;
+		if (point.cellCoordinate) {
+			const narrowed: CellSelectionPoint = point;
+			expect(narrowed.cellCoordinate).toBe(true);
+		}
+
+		expect(takesChar(charPoint)).toBe(3);
+		expect(notChar.offset).toBe(3);
+		expect(widened.offset).toBe(0);
 	});
 });
 

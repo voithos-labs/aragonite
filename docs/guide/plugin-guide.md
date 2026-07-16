@@ -950,7 +950,7 @@ Viewport-space geometry over the rendered document, reached through `editor.rect
 
 The selection shapes a decoration source or rect consumer reads.
 
-| Export                              | Role                                                                                                   |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `EditorSelection`, `SelectionPoint` | The `selectionChange` payload — an anchor/focus pair — and its `(path, offset)` endpoint type          |
-| `SELECTION_END`, `SelectionEnd`     | The importable sentinel `rangeRects` accepts as `end` ("through the block's last measurable position") |
+| Export                              | Role                                                                                                                                                                                                                                   |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EditorSelection`, `SelectionPoint` | The `selectionChange` payload — an anchor/focus pair — and its endpoint: a `{ path, offset }` union discriminated by `cellCoordinate` (`true` ⇒ `offset` is a table cell index; narrow on the flag before reading it as a char offset) |
+| `SELECTION_END`, `SelectionEnd`     | The importable sentinel `rangeRects` accepts as `end` ("through the block's last measurable position")                                                                                                                                 |
