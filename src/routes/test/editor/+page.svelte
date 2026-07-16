@@ -51,6 +51,9 @@
 
 	// Reading-mode link activation records to a page-scoped sink instead of opening a
 	// window, so the presentation e2e can assert the handler fired on a plain click.
+	// Wired ONLY in reading mode (below): onLinkActivate REPLACES the default
+	// open-in-tab, so wiring it in source mode would swallow the native activation
+	// the link-clickability specs assert.
 	function recordLinkActivation(url: string) {
 		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
@@ -139,7 +142,7 @@
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					{presentationMode}
-					onLinkActivate={recordLinkActivation}
+					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
 					theme={$currentThemeType}
 				/>
 			{/key}
