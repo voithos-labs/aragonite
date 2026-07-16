@@ -113,7 +113,7 @@ The `document` reservation matters less than it looks: node-vs-document narrowin
 
 ### Events access seam — `getEvents()` canonical
 
-The editor's event surface (`edit`, `selectionChange`, `error`) has two sanctioned access paths, one per audience. A **consumer** reaches the full surface through the component method `getEvents()` (via `bind:this`); `on(event, handler)` returns a disposer. A **plugin** reaches it through `EditorContext.events`, the subscribe-only view (`Pick<EditorEvents, 'on'>` — `on` only, no `emit`) handed to an `onEditor` callback, a global-command handler, or a block command's `ctx.editor`. The narrowing is deliberate: plugin-visible `emit` would freeze at 1.0, so the plugin path exposes subscription and nothing more. The internal `setContext` wiring that hands the same emitter to child components is not part of the contract.
+The editor's event surface (`edit`, `selectionChange`, `presentationModeChange`, `error`) has two sanctioned access paths, one per audience. A **consumer** reaches the full surface through the component method `getEvents()` (via `bind:this`); `on(event, handler)` returns a disposer. A **plugin** reaches it through `EditorContext.events`, the subscribe-only view (`Pick<EditorEvents, 'on'>` — `on` only, no `emit`) handed to an `onEditor` callback, a global-command handler, or a block command's `ctx.editor`. The narrowing is deliberate: plugin-visible `emit` would freeze at 1.0, so the plugin path exposes subscription and nothing more. The internal `setContext` wiring that hands the same emitter to child components is not part of the contract.
 
 ## The pre-freeze authoring surface (1.0)
 
@@ -238,7 +238,7 @@ Viewport-space geometry over the rendered document — the read the decoration t
 These ship today and are part of what plugins observe. They are frozen _as the current shape_ — but because they are payloads consumers _receive_, new fields and new union members can be added later without breaking a receiver.
 
 - **`EditEvent`** — `{ op, path, detail, timestamp }`, where `op` is the `OperationKind` vocabulary derived from `OperationDetailMap`. Emitted from the commit ceremony (structural ops) and the keystroke-debounce flush (`op: 'input'`).
-- **`EditorError`** — `{ origin, error, context? }` with `origin` in `'subscriber' | 'render' | 'commit' | 'command'` and `error: unknown` (correct for a boundary). Routed through the `error` event channel with a recursion guard.
+- **`EditorError`** — `{ origin, error, context? }` with `origin` in `'subscriber' | 'render' | 'commit' | 'command' | 'decoration'` and `error: unknown` (correct for a boundary). Routed through the `error` event channel with a recursion guard.
 
 ## Editable-content tiers
 

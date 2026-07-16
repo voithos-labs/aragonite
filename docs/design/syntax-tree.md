@@ -65,7 +65,7 @@ The fields, by category:
 | `childIds`                    | containers       | Stable per-child IDs for keyed rendering. Carried on the node, so undo restores them with `children`.        |
 | `ownerEpoch`                  | every node       | The structural-sharing mark: does a live undo snapshot still share this node? See `editor.md` § Undo / redo. |
 
-`childIds` and `ownerEpoch` are editor-level, not source-level. They are not part of the round-trip and a parser consumer can ignore them entirely.
+`childIds` and `ownerEpoch` are editor-level, not source-level. They are not part of the round-trip and a parser consumer can ignore them entirely. That split is itself a type: readers outside the mutation layers hold bytes-readonly node views (`core/node-views.ts`) that keep the serialized fields immutable while leaving this bookkeeping writable.
 
 **Inline content is not a node field.** Prose kinds get an inline tree, but it is derived from `raw` and computed lazily on read — never stored on the node, never serialized. (Why: a reactive cache field on the node once corrupted keyed rendering. `editor.md` § Reactive state plumbing carries the scar.)
 
@@ -190,5 +190,5 @@ Why it was rejected, after the editing loop had matured enough to judge:
 - **Round-trip fidelity.** Phase 2's guarantee is trivial because serialization _is_ concatenation. Tree-as-truth requires the serializer to reproduce exact delimiter styles (`*italic*` vs `_italic_`, `- ` vs `* `), which makes the round-trip an ongoing fight instead of a property.
 - **Partial syntax while typing.** `**bold` mid-keystroke is just a string in raw-as-truth. In tree-as-truth it is an invalid tree state that every keystroke has to handle.
 - **Semantic editing already works.** Toggle bold = insert `**` around the selection in `raw`. Change heading level = swap the `# ` prefix. The editor already does this. No tree manipulation needed.
-- **Syntax hiding contradicts the design.** The editor's philosophy is always-visible styled source. Hiding markers on unfocus is a cosmetic preference, not an architectural phase.
+- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2 — hiding markers on unfocus — ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree. The feature that seemed to justify the ownership flip arrived without it — the flip stays rejected as a _mechanism_, and its not being required is the strongest vindication of that call.
 - **Complexity cost.** Tree↔DOM sync, fragile serialization, and a new bug class, in exchange for that. The editors that took this road (ProseMirror, Slate) pay an enormous complexity tax for it, and they don't have a byte-lossless round-trip to protect.
