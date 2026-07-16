@@ -5,7 +5,7 @@
  */
 
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './primitives';
+import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
 import type { AnyBlockKind } from '../core/nodes';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
@@ -79,7 +79,7 @@ export function installDragListener(
 		// The flag routes collapse/reveal to the deep cell (cellEndpointDeepPath)
 		// and marks the point as the cell variant, matching the keyboard path.
 		const focusPoint: SelectionPoint = isCellCoordinate
-			? { path: hit.path, offset, cellCoordinate: true }
+			? ({ path: hit.path, offset, cellCoordinate: true } satisfies CellSelectionPoint)
 			: { path: hit.path, offset };
 		if (!ctx.selection.isCrossBlock) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);

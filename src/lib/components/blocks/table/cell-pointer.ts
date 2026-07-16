@@ -133,7 +133,7 @@ export function installCellDragListener(
 			: offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
 		const focusPoint: SelectionPoint = hit.foreignDragHitTest
-			? { path: hit.path, offset, cellCoordinate: true }
+			? ({ path: hit.path, offset, cellCoordinate: true } satisfies CellSelectionPoint)
 			: { path: hit.path, offset };
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);

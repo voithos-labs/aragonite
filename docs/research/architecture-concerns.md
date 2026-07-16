@@ -57,8 +57,9 @@ belongs settled before the freeze: a discriminated point union (`{ path, offset 
 `CharSelectionPoint | CellSelectionPoint` on `cellCoordinate` — with `offset` keeping its name on
 both arms (renaming it to `cell` would be the gratuitous break the "equivalent shape" clause left
 open). The teeth are on construction: a cell point needs the literal `cellCoordinate: true` and a
-char-typed slot rejects a cell point, so the cell mints and the undo copy path preserve the variant
-at the type level while every consumer reading `.offset` compiles unchanged (`highlight-occurrences`
+char-typed slot rejects a cell point, so every cell mint (arm-typed or `satisfies`-checked) and the
+undo copy path preserve the variant at the type level while every consumer reading `.offset` compiles
+unchanged (`highlight-occurrences`
 and `ghost-text` are the source-compat proof). Reading `offset` in the wrong space is _not_ a
 compile error — `offset` is shared — so that check stays the `charOffsetOf`/`cellIndexOf` runtime
 DEV-warn belt; the shape is settled, not made unmisreadable. Intra-table selections keep their

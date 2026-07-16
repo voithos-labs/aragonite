@@ -24,7 +24,7 @@
 import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
-import type { SelectionPoint } from './primitives';
+import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf } from './primitives';
 import { asCellIndex } from '../cursor/coordinate-spaces';
 import { comparePaths } from './path-math';
@@ -56,7 +56,7 @@ export function normalizeTableEndpoint(
 				path: path.slice(0, d + 1),
 				offset: asCellIndex(rowIdx * colCount + colIdx),
 				cellCoordinate: true
-			};
+			} satisfies CellSelectionPoint;
 		}
 	}
 	return { path: path.slice(), offset };
@@ -103,5 +103,5 @@ function snapEndpoint(
 	const row = Math.floor(cellIdx / colCount);
 	const snappedOffset = side === 'start' ? row * colCount : row * colCount + colCount - 1;
 	if (snappedOffset === cellIdx) return point;
-	return { ...point, offset: snappedOffset };
+	return { ...point, offset: snappedOffset } satisfies CellSelectionPoint;
 }
