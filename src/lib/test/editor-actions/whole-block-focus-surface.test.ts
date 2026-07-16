@@ -19,7 +19,7 @@ function box(): HTMLElement {
 }
 
 function mermaidNode(): CstNode {
-	return { kind: 'mermaid' as AnyBlockKind, leadingTrivia: '', raw: '', children: [] };
+	return { kind: 'mermaid' as AnyBlockKind, leadingTrivia: '', raw: '', children: [] } as CstNode;
 }
 
 beforeEach(() => {

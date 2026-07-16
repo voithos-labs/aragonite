@@ -12,7 +12,7 @@ function makePara(raw: string): CstNode {
 }
 
 function makeHeading(raw: string): CstNode {
-	return { kind: 'heading', leadingTrivia: '', raw };
+	return { kind: 'heading', leadingTrivia: '', raw, metadata: { level: 1 } };
 }
 
 describe('replaceBlockAtParent — id preservation', () => {

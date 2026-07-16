@@ -11,11 +11,12 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { CstNode } from '$lib/core/nodes';
 
 const history = { history: { requestUndo() {}, requestRedo() {} } };
-const nodeOf = (kind: string): CstNode => ({
-	kind: kind as CstNode['kind'],
-	leadingTrivia: '',
-	raw: ''
-});
+const nodeOf = (kind: string): CstNode =>
+	({
+		kind: kind as CstNode['kind'],
+		leadingTrivia: '',
+		raw: ''
+	}) as CstNode;
 
 afterEach(() => {
 	__resetCommandWarningsForTests();

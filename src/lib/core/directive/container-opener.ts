@@ -10,7 +10,7 @@
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import { setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
+import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
 import { parse } from '../parser';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
@@ -51,11 +51,11 @@ export function registerDirectiveOpeners(): void {
 				}
 				// A leaf re-derives its content range from `node.raw`, so a generic leaf
 				// needs no metadata; a kind-only registration just restamps the kind.
-				const node: CstNode = {
+				const node = makeBlockNode({
 					kind: (def?.kind ?? leaf) as AnyBlockKind,
 					leadingTrivia: ctx.leadingTrivia,
 					raw: ctx.line.raw
-				};
+				});
 				return { node, nextIndex: ctx.index + 1 };
 			}
 

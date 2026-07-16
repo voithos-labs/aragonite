@@ -1,4 +1,4 @@
-import type { CstNode } from '../core/nodes';
+import type { BlockquoteMetadata, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { cloneMetadata, cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
@@ -35,7 +35,11 @@ export function unwrapFirstChildFromBlockquote(blockquote: NodeView): CstNode[] 
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: '',
-		metadata: blockquote.metadata ? cloneMetadata(blockquote.metadata) : undefined,
+		// The source is a blockquote (guarded above), so its metadata is present; the
+		// default is a dead branch kept only to satisfy the required arm.
+		metadata: blockquote.metadata
+			? (cloneMetadata(blockquote.metadata) as BlockquoteMetadata)
+			: { quoteDepth: 1 },
 		children: remainingChildren,
 		childIds: freshChildIds(remainingChildren),
 		innerPrefix: blockquote.innerPrefix ?? '',

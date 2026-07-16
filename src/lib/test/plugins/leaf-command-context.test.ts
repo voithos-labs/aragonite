@@ -22,7 +22,8 @@ import type { AnyCommandId } from '$lib/schema/command-id';
 const leaf = declarePluginKind('demoLeaf');
 const leafAlt = declarePluginKind('demoLeafAlt');
 
-const leafNode = (kind: AnyBlockKind = leaf): CstNode => ({ kind, leadingTrivia: '', raw: '' });
+const leafNode = (kind: AnyBlockKind = leaf): CstNode =>
+	({ kind, leadingTrivia: '', raw: '' }) as CstNode;
 
 function bindKindChord(
 	kind: AnyBlockKind,

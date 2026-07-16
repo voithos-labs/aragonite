@@ -7,7 +7,12 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import type { CstNode } from '$lib/core/nodes';
 
-const listItemNode = (): CstNode => ({ kind: 'listItem', leadingTrivia: '', raw: '' });
+const listItemNode = (): CstNode => ({
+	kind: 'listItem',
+	leadingTrivia: '',
+	raw: '',
+	metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+});
 
 // devWarn is silent under test by default — force dev/non-test so the dead-key
 // warn fires (pattern: src/lib/test/schema/dispatch-dead-key.test.ts).

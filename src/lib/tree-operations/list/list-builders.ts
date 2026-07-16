@@ -30,7 +30,9 @@ export function assembleListHalf(
 		kind: 'list',
 		leadingTrivia: '',
 		raw: '',
-		metadata: template.metadata ? cloneMetadata(template.metadata) : { ordered: false },
+		metadata: template.metadata
+			? (cloneMetadata(template.metadata) as ListMetadata)
+			: { ordered: false },
 		children: items,
 		childIds: freshChildIds(items),
 		innerPrefix: template.innerPrefix ?? '',
@@ -63,7 +65,9 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
 		kind: 'listItem',
 		leadingTrivia: '',
 		raw: '',
-		metadata: template.metadata ? cloneMetadata(template.metadata) : { marker: '- ' },
+		metadata: template.metadata
+			? (cloneMetadata(template.metadata) as ListItemMetadata)
+			: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 		innerPrefix: template.innerPrefix ?? '',
 		children,
 		childIds: freshChildIds(children),

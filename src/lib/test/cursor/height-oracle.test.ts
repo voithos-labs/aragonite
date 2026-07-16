@@ -32,7 +32,12 @@ describe('createHeightOracle', () => {
 
 	it('estimates fenced code by newline count, not wrap', () => {
 		const o = createHeightOracle(opts);
-		const code: CstNode = { kind: 'fencedCode', leadingTrivia: '', raw: '```\na\nb\n```\n' };
+		const code: CstNode = {
+			kind: 'fencedCode',
+			leadingTrivia: '',
+			raw: '```\na\nb\n```\n',
+			metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: true }
+		};
 		// 4 source lines at codeLineHeight + chrome.
 		expect(o.estimate(code, 800)).toBe(20 * 4 + 16);
 	});
@@ -58,9 +63,19 @@ describe('createHeightOracle', () => {
 	// silently without this guard.
 	it('estimates table and tableRow by source-line count at prose line height', () => {
 		const o = createHeightOracle(opts);
-		const table: CstNode = { kind: 'table', leadingTrivia: '', raw: 'a|b\n-|-\nc|d\n' };
+		const table: CstNode = {
+			kind: 'table',
+			leadingTrivia: '',
+			raw: 'a|b\n-|-\nc|d\n',
+			metadata: { columnCount: 2, alignments: ['none', 'none'] }
+		};
 		expect(o.estimate(table, 800)).toBe(24 * 3 + 16);
-		const row: CstNode = { kind: 'tableRow', leadingTrivia: '', raw: 'a|b\n' };
+		const row: CstNode = {
+			kind: 'tableRow',
+			leadingTrivia: '',
+			raw: 'a|b\n',
+			metadata: { isHeader: false }
+		};
 		expect(o.estimate(row, 800)).toBe(24 * 1 + 16);
 	});
 
@@ -70,7 +85,12 @@ describe('createHeightOracle', () => {
 	// chrome, undercounting a stacked container several-fold.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
-		const quote: CstNode = { kind: 'blockquote', leadingTrivia: '', raw: 'x'.repeat(250) };
+		const quote: CstNode = {
+			kind: 'blockquote',
+			leadingTrivia: '',
+			raw: 'x'.repeat(250),
+			metadata: { quoteDepth: 1 }
+		};
 		// blob-wrap (3 lines) dominates the single-child fallback term.
 		expect(o.estimate(quote, 800)).toBe(24 * 3 + 16);
 	});
@@ -78,11 +98,18 @@ describe('createHeightOracle', () => {
 	it('scales a container estimate with its child count (O(1), not a subtree walk)', () => {
 		const o = createHeightOracle(opts);
 		const raw = '- a\n- b\n- c\n- d\n- e\n'; // short rows: blob-wrap is 1 line
-		const few: CstNode = { kind: 'list', leadingTrivia: '', raw, children: [{}, {}] as CstNode[] };
+		const few: CstNode = {
+			kind: 'list',
+			leadingTrivia: '',
+			raw,
+			metadata: { ordered: false },
+			children: [{}, {}] as CstNode[]
+		};
 		const many: CstNode = {
 			kind: 'list',
 			leadingTrivia: '',
 			raw,
+			metadata: { ordered: false },
 			children: [{}, {}, {}, {}, {}] as CstNode[]
 		};
 		// Identical raw, more children => taller. The old blob-only estimate gave
@@ -113,7 +140,12 @@ describe('createHeightOracle', () => {
 
 	it('estimates a thematic break as a constant, independent of raw and width', () => {
 		const o = createHeightOracle(opts);
-		const hr: CstNode = { kind: 'thematicBreak', leadingTrivia: '', raw: '---\n' };
+		const hr: CstNode = {
+			kind: 'thematicBreak',
+			leadingTrivia: '',
+			raw: '---\n',
+			metadata: { marker: '---' }
+		};
 		expect(o.estimate(hr, 800)).toBe(24 + 16);
 		expect(o.estimate(hr, 200)).toBe(24 + 16);
 	});
@@ -179,7 +211,8 @@ describe('createHeightOracle', () => {
 		const wide: CstNode = {
 			kind: 'table',
 			leadingTrivia: '',
-			raw: '| ' + 'x'.repeat(2000) + ' |\n| --- |\n'
+			raw: '| ' + 'x'.repeat(2000) + ' |\n| --- |\n',
+			metadata: { columnCount: 1, alignments: ['none'] }
 		};
 		expect(o.estimate(wide, 800)).toBeGreaterThan(2 * 24 + 16); // not just source-line count
 	});

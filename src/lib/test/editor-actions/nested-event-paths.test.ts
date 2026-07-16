@@ -101,6 +101,7 @@ describe('nested blockquote exit emits a doc-absolute event path', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '> a\n>\n',
+			metadata: { quoteDepth: 1 },
 			children: [para('a\n'), para('\n')],
 			innerPrefix: '> ',
 			innerSuffix: ''
@@ -109,6 +110,7 @@ describe('nested blockquote exit emits a doc-absolute event path', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '> > a\n> >\n',
+			metadata: { quoteDepth: 1 },
 			children: [innerQuote],
 			innerPrefix: '> ',
 			innerSuffix: ''

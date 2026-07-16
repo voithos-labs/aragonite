@@ -1,4 +1,4 @@
-import type { CstNode } from '../core/nodes';
+import { makeBlockNode, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
@@ -198,9 +198,11 @@ function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
 	}
 
 	if (liveChrome.raw !== reparsedChrome.raw) return false;
+	// Compare the chrome-stripped bodies (same nodes minus child 0). Spreading the
+	// union widens `kind`, so re-mint through the construction funnel.
 	return rawFaithful(
-		{ ...reparsed, children: reparsed.children!.slice(1) },
-		{ ...node, children: node.children!.slice(1) }
+		makeBlockNode({ ...reparsed, children: reparsed.children!.slice(1) }),
+		makeBlockNode({ ...node, children: node.children!.slice(1) })
 	);
 }
 

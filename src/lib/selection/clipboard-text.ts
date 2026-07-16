@@ -3,8 +3,7 @@
  */
 
 import type { SelectionPoint } from './primitives';
-import type { CstNode } from '../core/nodes';
-import { metadataOf } from '../core/nodes';
+import { makeBlockNode, metadataOf } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
@@ -254,7 +253,8 @@ function endChromeContainerBytes(
 	const rebuildRaw = getBlockKindDescriptor(parent.kind).rebuildRaw;
 	if (!rebuildRaw) return null;
 
-	const synthetic: CstNode = {
+	// A synthetic node built from the parent's runtime kind for a rebuildRaw probe.
+	const synthetic = makeBlockNode({
 		kind: parent.kind,
 		leadingTrivia: '',
 		raw: '',
@@ -262,13 +262,13 @@ function endChromeContainerBytes(
 		innerPrefix: '',
 		innerSuffix: '',
 		children: [
-			{
+			makeBlockNode({
 				kind: parent.children![childIndex].kind,
 				leadingTrivia: '',
 				raw: endRaw.slice(0, endOffset)
-			}
+			})
 		]
-	};
+	});
 	rebuildRaw(synthetic);
 	return synthetic.raw;
 }

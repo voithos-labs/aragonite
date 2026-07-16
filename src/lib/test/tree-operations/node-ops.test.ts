@@ -15,7 +15,7 @@ describe('ensureEditableContainers', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '- \n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '\n',
 			children: [],
 			innerSuffix: ''
@@ -31,7 +31,7 @@ describe('ensureEditableContainers', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '- \n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '\n',
 			children: [],
 			innerSuffix: ''
@@ -45,7 +45,7 @@ describe('ensureEditableContainers', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '- \n  Hello\n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '\n',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' }],
 			innerSuffix: ''
