@@ -47,6 +47,8 @@ Serialization therefore **never recurses**. It concatenates the document's prefi
 
 The flip side: an edit _inside_ a container must write the container's `raw` back from its children before it means anything — the `rebuildRaw` on the container's descriptor, dispatched up the whole ancestry chain. Skip that and `raw` silently disagrees with the children, and the document you save is the one you had before the edit.
 
+That dispatch is a per-keystroke write-amplification of ≈ chain-depth ÷ 2 (each ancestor re-materializes everything from its level inward). The 0.9.27 falsification benchmark (`container-raw.bench.ts`, deep-nesting axis) measured it: at realistic nesting (depth ≤ 10, ≤ 50 KB/level) the rebuild stays a small single-digit-millisecond term (~1–2 ms), keeping a nested keystroke in the viewport-bounded floor class; it grows ~depth²·bytes and only bites well outside real documents (5.5 ms at an adversarial depth 16 × 100 KB). The redundancy was weighed and kept — see architecture-concerns.md #4.
+
 ### Node shape
 
 All nodes are **mutable plain objects.** One `CstNode` interface, used everywhere: the parser produces it, the editor mutates it in place, serialization reads it. There is no immutable→mutable conversion step and no class hierarchy.
