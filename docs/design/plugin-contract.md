@@ -181,7 +181,7 @@ Context-dependent kinds (no standalone recognizer — kept through edits); an op
 `PresentationMode` (`'source' | 'reading' | 'preview-block' | 'preview-inline'`) is the vocabulary; every read reports the **effective** mode, and with all four rungs built the effective mode equals the requested one (the resolve seam stays — every door routes through it). One vocabulary, four doors:
 
 1. the live `presentationMode` prop, reflected as `data-presentation` on the editor root (absent in source — the default DOM stays byte-identical);
-2. an internal block-facing context getter that joins the prose render key, so a mode flip re-renders every mounted block; both preview rungs reveal via the focus-keyed attribute plus, for `preview-inline`, a caret-chain class flip on stamped marker spans (CSS only — neither a per-block focus change nor a caret move ever rebuilds the inline DOM);
+2. an internal block-facing context getter that joins the prose render key, so a mode flip re-renders every mounted prose block; both preview rungs reveal via the focus-keyed attribute plus, for `preview-inline`, a caret-chain class flip on stamped marker spans (CSS only — neither a per-block focus change nor a caret move ever rebuilds the inline DOM);
 3. `EditorContext.presentationMode` (live getter) plus the `presentationModeChange` event;
 4. the leaf and widget tiers — `EditableLeaf.getPresentationMode()`, the live `getPresentationMode` getter mounted beside an inline-widget component's frozen snapshot, and `InlineWidgetEditingContext.presentationMode`.
 

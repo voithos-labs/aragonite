@@ -94,9 +94,11 @@ Four channels, and only four:
 
 ### Rendering mode: always-visible styled source
 
-Markdown syntax is visible at all times, but styled. Markers (`##`, `**`, ` ``` `) are dimmed; content is styled by meaning (headings large, code monospace, emphasis italic). No focus/unfocus mode switching, one rendering path per block type.
+Markdown syntax is visible at all times, but styled. Markers (`##`, `**`, ` ``` `) are dimmed; content is styled by meaning (headings large, code monospace, emphasis italic). One rendering path per block type.
 
 This is the permanent architecture, not a stepping stone. The alternative — an authoritative inline tree with `raw` derived from it, and markers hidden on unfocus — was evaluated and rejected (`syntax-tree.md`, appendix).
+
+The **presentation modes** (`presentationMode` prop: reading, block-granular and inline-granular preview) layer on top as view treatments over that same single render path — marker visibility flips via CSS keyed on focus and caret proximity, never a second render path and never a derived-`raw` tree, so cursor offsets and the round-trip are untouched by construction. Styled source remains the default and the editing substrate; the contract every plugin tier uses to read the mode is in `plugin-contract.md`.
 
 ### Three block surfaces
 
