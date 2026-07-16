@@ -472,11 +472,12 @@ That redundancy is the price of the round-trip guarantee, and what it buys is a 
 
 ### The event seam
 
-The editor exposes an observer surface via `getEvents()`. Three channels, and `on(name, cb)` returns a disposer. Events fire synchronously from their emission sites; handlers must not mutate the document (reentrant edits are not supported).
+The editor exposes an observer surface via `getEvents()`. Four channels, and `on(name, cb)` returns a disposer. Events fire synchronously from their emission sites; handlers must not mutate the document (reentrant edits are not supported).
 
 - **`edit`** — after every commit. The payload is a discriminated union keyed by `op`: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`. **`path` is doc-absolute for every op** — including `input` (the edited leaf) and every nested container op — and resolves from the document root to the operated node, or to the one-past-end slot an append creates. Column-shaped table ops target the table and carry the column index in `detail`.
 - **`selectionChange`** — the selection snapshot, or `null`.
-- **`error`** — a failure the editor _contained_ rather than propagated, discriminated by `origin`: a `subscriber` throw (one observer's throw never starves the others, and is never silently swallowed), a `render` throw (caught by the per-`BlockHost` boundary, which degrades that block to a readable fallback while its siblings survive), a `commit` throw (the ceremony rolls the undo/redo stacks back to their pre-commit state before reporting), or a `command` throw (a plugin's block-command handler — the gesture no-ops and the error is attributed to its kind, command id, and owning plugin). One seam for surfacing or logging every contained failure.
+- **`presentationModeChange`** — the effective presentation mode after a `presentationMode` prop change (never fired at mount).
+- **`error`** — a failure the editor _contained_ rather than propagated, discriminated by `origin`: a `subscriber` throw (one observer's throw never starves the others, and is never silently swallowed), a `render` throw (caught by the per-`BlockHost` boundary, which degrades that block to a readable fallback while its siblings survive), a `commit` throw (the ceremony rolls the undo/redo stacks back to their pre-commit state before reporting), a `command` throw (a plugin's block-command handler — the gesture no-ops and the error is attributed to its kind, command id, and owning plugin), or a `decoration` throw (a decoration source's `provide` — its prior decorations are retained rather than blanked, attributed to the source). One seam for surfacing or logging every contained failure.
 
 The debug op-log is a subscriber to `edit`, not a call from commit sites. A future persistent-history layer hooks in the same way, touching no editor internals.
 
@@ -541,6 +542,10 @@ Further seams don't add a kind:
 - **Per-instance context** — `setup(ctx)` → `ctx.onEditor(cb)` hands each `<Editor>` an `EditorContext`: instance identity, a live document getter, a subscribe-only events view, and typed options. The seam for derived state and edit reaction, so no plugin-state API is needed.
 - **The root document in a component** — every block component receives it read-only at any depth (`BlockComponentProps.document`), so a block can read structure above its own node.
 - **Height-oracle estimate** — a kind declares an optional O(1) `estimateHeight` the windowing model consults before its built-in default.
+- **Decorations** — a pure `doc → Decoration[]` source (mark, widget, replace, block), registered per instance, memoized per edit and painted by the shared overlay over content the plugin does not own. Never enters the CST; search is its first client (§ 10).
+- **Rects** — viewport-space geometry (`editor.rects`, or `getRects()` for a consumer): a block's box, an inline range's rects, the partial-rect split — what a suggest popup or selection toolbar anchors to.
+- **Presentation mode** — every plugin tier reads the effective mode (`EditorContext.presentationMode` plus the `presentationModeChange` event; leaf and inline-widget getters), so an extension renders correctly under reading and preview (§ 4).
+- **Diagnostics** — the consumer field-report door: `getDiagnostics()` arms the interaction trace and serializes an attachable report. Plugins never bind it.
 
 The rule that keeps all of this honest is the one from § 1. A plugin kind that reconstructs its bytes from its parsed structure instead of slicing them out of `raw` will round-trip _almost_ correctly, and you will find out which documents it corrupts later, from a user.
 

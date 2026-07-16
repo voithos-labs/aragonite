@@ -33,7 +33,7 @@ What "add a plugin" means, across the field. Systems differ in ergonomics, not i
 | **Serializer**         | `toDOM`, `toMarkdown`      | `.export()`                   | (text is truth) | (text is truth)  | `rebuildRaw` ✅ byte-lossless |
 | **View**               | `NodeView`                 | `createDOM`                   | `WidgetType`    | `toDOM`          | Svelte component ✅           |
 | **Commands + keymap**  | Command + keymap           | `registerCommand`             | keymap facet    | `addCommand`     | per-kind + global ✅          |
-| **Decorations**        | `Decoration`               | `decorate`                    | `Decoration`    | editor extension | **none ❌**                   |
+| **Decorations**        | `Decoration`               | `decorate`                    | `Decoration`    | editor extension | decoration source ✅          |
 | **Plugin-local state** | `StateField` / `PluginKey` | `addStorage`                  | `StateField`    | `addStorage`     | per-node metadata — see below |
 | **Clipboard / paste**  | `addPasteRules`            | —                             | —               | —                | content-keyed transform ✅    |
 
@@ -81,7 +81,7 @@ Of those that touch the editing surface, by share of that set:
 | Mechanism                                                           | Share                                                  | aragonite                                                |
 | ------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
 | **Document mutation** (insert at caret, reformat a region, rewrite) | over half                                              | **gap** — commands write metadata on their own node only |
-| **Decorations**                                                     | ~half                                                  | **gap**                                                  |
+| **Decorations**                                                     | ~half                                                  | **have** — a pure per-instance decoration source         |
 | **A custom block kind** from custom syntax                          | ~a third                                               | **have — best in class**                                 |
 | **Document lifecycle** (on load / change / save)                    | ~a third                                               | **have** — `onEditor` + the per-instance events view     |
 | **Single-document derived state** (ToC, footnote numbering)         | smaller share, but the two largest plugins by installs | **have** — `BlockComponentProps.document` (toc dogfood)  |
@@ -98,7 +98,7 @@ Every editor answers "custom content that is itself editable" one of three ways.
 | ------------------------------------------------------------------------------------------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **contentDOM / NodeView** — editor owns an editable hole whose children are real nodes in the one tree | ProseMirror, TipTap | **Adopted.** The nested `BlockList` inside a container factory _is_ the contentDOM. The crown jewel.                                    |
 | **Nested editor** — the editable interior is a separate editor state serialized as an opaque blob      | Lexical, CM6        | **Rejected permanently.** A parallel source of truth that cannot round-trip byte-for-byte. The single most important thing not to copy. |
-| **Decorations** — view-only overlays; "editing" reveals hidden source                                  | CM6, Obsidian       | **Presentational only.** Must never enter the CST. Not yet exposed — the gap above.                                                     |
+| **Decorations** — view-only overlays; "editing" reveals hidden source                                  | CM6, Obsidian       | **Presentational only.** Must never enter the CST. Exposed as a pure per-instance decoration source.                                    |
 
 A validated result worth keeping: modelling editable container chrome (a callout title, a `<details>` summary) as a **reserved child-0 leaf inside the container's own child list** gives native cross-block selection into that chrome _for free_ — the caret, selection, and undo all reach it with no changes to the core selection layer. The alternative (chrome as metadata behind a bounded field surface) would have made click-type-blur a permanent ceiling. This is why the chrome-leaf tier is shaped the way it is.
 

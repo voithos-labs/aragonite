@@ -196,3 +196,5 @@ Nothing else changes. The language is live on the next editor mount.
 **Requirements first, then tests, then implementation.**
 
 Complex blocks (lists, tables) get a requirement file in `src/lib/e2e/requirements/blocks/` and a spec in `src/lib/e2e/tests/blocks/`, one-to-one. Simple blocks are covered by the feature-level suites. See `docs/contributing/testing.md`.
+
+**Registration enrolls your kind in the conformance battery.** The `conformanceFixture` that rides your `closure` block — a source snippet parsing to your kind — is picked up from the live registry: the headless cells (round-trip, merge eligibility, clipboard byte-slice, undo, search degradation) run at the unit gate, and the mounted-DOM cells (focus walk, selection paint, search paint) run in the browser sweep. A cell you declared `implemented` but didn't is caught here — the closure block's promises are executed, not just asserted.

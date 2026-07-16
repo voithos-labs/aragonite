@@ -51,6 +51,7 @@ Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no 
 | `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                         |
 | `test:editor:reactivity`     | Block-list state and state registry                                                               |
 | `test:editor:selection`      | Selection-state logic                                                                             |
+| `test:editor:decorations`    | Decoration engine — sources, edit-epoch invalidation, path buckets, island model                  |
 | `test:editor:blocks`         | Per-block unit tests                                                                              |
 | `test:editor:image`          | Image dimensions, resize, source bytes, widget selection                                          |
 | `test:editor:plugins`        | Plugin authoring seams and dogfood kinds — container round-trips, chrome leaves, paste transforms |
@@ -101,6 +102,8 @@ Specs are organized by feature area at the top level, and per-block inside `test
 | `test:e2e:selection`      | Cross-block selection behavior                                                                                                 |
 | `test:e2e:sticky-column`  | Vertical cursor column tracking across block transitions                                                                       |
 | `test:e2e:search`         | Find/replace bar and controller behavior                                                                                       |
+| `test:e2e:decorations`    | Decoration engine in the browser — mark / island / block paint, search as its first client                                     |
+| `test:e2e:presentation`   | Presentation modes — reading-mode inertness, block- and inline-granular preview reveal, mid-session mode flips                 |
 | `test:e2e:simulation`     | The note-taking simulation sessions (below)                                                                                    |
 | `test:e2e:a11y`           | axe baseline-ratchet over `.editor` — fails on any violation outside the committed allowlist                                   |
 | `test:e2e:vr`             | Virtual rendering on large fixtures — windowing, reveal, table-row windowing, mounted-count ceiling                            |
@@ -261,14 +264,15 @@ A collapsible side panel on the `/test/editor` route, for ad-hoc debugging and f
 **Toggle:** `Ctrl+Shift+D` / `Cmd+Shift+D`. `Escape` closes it when focus is inside.
 **Resize:** drag the left edge. Minimum 300px; width persists in localStorage alongside the open/expanded state.
 
-| Section                     | Contents                                                                                              |
-| --------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Raw source                  | Read-only view of the live source (edit via the editor, or `window.__test.setSource(md)` in DevTools) |
-| CST tree                    | Compact text rendering of the full parsed block tree                                                  |
-| Selection                   | Live anchor/focus paths in both single-block (native DOM) and cross-block (SelectionState) modes      |
-| Undo stack                  | Top-N entries with type, selection snapshot, and timestamp                                            |
-| Inline tree (focused block) | Inline parse tree for the currently-focused prose block                                               |
-| Operations log              | Tail of the structural-operation ring buffer — op type, path, elapsed time                            |
+| Section                     | Contents                                                                                                                                                             |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Raw source                  | Read-only view of the live source (edit via the editor, or `window.__test.setSource(md)` in DevTools)                                                                |
+| CST tree                    | Compact text rendering of the full parsed block tree                                                                                                                 |
+| Selection                   | Live anchor/focus paths in both single-block (native DOM) and cross-block (SelectionState) modes                                                                     |
+| Undo stack                  | Top-N entries with type, selection snapshot, and timestamp                                                                                                           |
+| Inline tree (focused block) | Inline parse tree for the currently-focused prose block                                                                                                              |
+| Operations log              | Tail of the structural-operation ring buffer — op type, path, elapsed time                                                                                           |
+| Interaction trace           | Ring buffer of inline-layer transitions — rebuild, cursor capture/restore, reveal, widget pool, composition, island, sticky; expanding the section arms the recorder |
 
 **Copy all** concatenates every section into a timestamped fenced Markdown snapshot on the clipboard — paste it straight into a bug report or an AI conversation.
 
@@ -278,13 +282,14 @@ The debug engine itself (`src/lib/debug/`) is internal — not exported from `sr
 
 The same helpers are wired to `window.__test` on the test route, callable from DevTools without opening the panel:
 
-| Call                           | Returns                                           |
-| ------------------------------ | ------------------------------------------------- |
-| `__test.dumpTree(opts?)`       | Compact text rendering of the parsed CST          |
-| `__test.dumpSelection()`       | Current selection state as a one-line summary     |
-| `__test.dumpInlineTree()`      | Inline tree for the currently-focused prose block |
-| `__test.dumpUndoStack(n?)`     | Top-N undo entries                                |
-| `__test.dumpOperationsLog(n?)` | Tail-N of the structural-op ring buffer           |
+| Call                              | Returns                                            |
+| --------------------------------- | -------------------------------------------------- |
+| `__test.dumpTree(opts?)`          | Compact text rendering of the parsed CST           |
+| `__test.dumpSelection()`          | Current selection state as a one-line summary      |
+| `__test.dumpInlineTree()`         | Inline tree for the currently-focused prose block  |
+| `__test.dumpUndoStack(n?)`        | Top-N undo entries                                 |
+| `__test.dumpOperationsLog(n?)`    | Tail-N of the structural-op ring buffer            |
+| `__test.dumpInteractionTrace(n?)` | Tail-N of the inline interaction-trace ring buffer |
 
 The test-bridge calls (`getSource`, `setSource`, `getBlockCount`, …) live alongside them.
 
