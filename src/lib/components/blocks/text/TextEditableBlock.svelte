@@ -28,6 +28,7 @@
 		LIST_CONTEXT_KEY,
 		PASTE_COORDINATOR_KEY,
 		PLUGIN_EDITOR_KEY,
+		PRESENTATION_MODE_KEY,
 		REORDER_ACTION_KEY,
 		RESOLVE_IMAGE_URL_KEY,
 		RESOLVE_LINK_URL_KEY,
@@ -39,6 +40,7 @@
 		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
 		type PluginEditorLookup,
+		type PresentationModeGetter,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../../../editor-keys';
@@ -136,6 +138,10 @@
 	const imageLoadPolicy =
 		getContext<() => import('../../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
 	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
+	// Absent in bare unit harnesses; absent reads as 'source'.
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
 	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
@@ -251,6 +257,7 @@
 		getDoc,
 		widgetSelection,
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
+		isReadOnly: () => readOnly,
 		get linkRef() {
 			return linkRef;
 		}
@@ -283,6 +290,7 @@
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
+		getPresentationMode: () => presentationMode,
 		get linkRef() {
 			return linkRef;
 		}
@@ -319,6 +327,9 @@
 		resolveLinkUrl,
 		get imageLoadPolicy() {
 			return imageLoadPolicy();
+		},
+		get presentationMode() {
+			return presentationMode;
 		},
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
@@ -561,8 +572,9 @@
 
 		// Decoration islands are view-only ([data-decoration-island]) and invisible to
 		// the CST-widget path above; this keeps an edge Backspace/Delete from letting
-		// native contenteditable silently eat a replace island's hidden bytes.
-		if (decorationIslandKeys.handleKeydown(e, cursor.getRaw())) return;
+		// native contenteditable silently eat a replace island's hidden bytes. Its
+		// handling is destructive-only, so reading mode skips it wholesale.
+		if (!readOnly && decorationIslandKeys.handleKeydown(e, cursor.getRaw())) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
 		// marker span). Skip that — the user wants raw offset 0, i.e. the
@@ -577,7 +589,10 @@
 		// ambient span block native Backspace/Delete silently — the browser
 		// refuses to modify any range overlapping non-editable content, and
 		// no beforeinput fires. Perform the delete via the CST path instead.
+		// !readOnly: a mouse selection over static reading-mode text can satisfy
+		// hasSelectionHelper, and this branch commits a delete.
 		if (
+			!readOnly &&
 			(e.key === 'Backspace' || e.key === 'Delete') &&
 			hasSelectionHelper() &&
 			el &&
@@ -703,11 +718,15 @@
 	}
 </script>
 
+<!-- Reading mode flips contenteditable off: the whole browser-edit-path class
+	(beforeinput/input, IME, native paste/cut, drag-drop insertion) dies
+	structurally. tabindex/role are independent, so focus + arrow traversal stay. -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="text-editable-block {blockClass}"
-	contenteditable="true"
+	contenteditable={readOnly ? 'false' : 'true'}
+	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
 	style:text-indent={ambientPrefixText ? `-${ambientLength}ch` : null}
 	style:padding-left={ambientPrefixText ? `${ambientLength}ch` : null}
@@ -738,6 +757,12 @@
 		content: 'Start typing...';
 		color: var(--color-ui-dulled, #afb1b3);
 		pointer-events: none;
+	}
+
+	/* Reading mode: the placeholder is an edit prompt. Lives here, not
+	   editor.css, so it outranks the rule above deterministically. */
+	:global(.editor[data-presentation='reading']) .text-editable-block.paragraph-block:empty::before {
+		content: none;
 	}
 
 	.text-editable-block.heading-1 {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Editor } from '$lib';
+	import { Editor, type PresentationMode } from '$lib';
 	import { parse } from '$lib/core/parser';
 	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
 	import {
@@ -39,6 +39,15 @@
 		if (editor) source = editor.getSource();
 		dragHandlesOn = !dragHandlesOn;
 	}
+
+	// `?presentationMode=reading` starts in reading mode; the header select flips
+	// it live (the prop reads live — no remount, unlike blockDragHandles).
+	let presentationMode = $state<PresentationMode>(
+		typeof window !== 'undefined' &&
+			new URLSearchParams(window.location.search).get('presentationMode') === 'reading'
+			? 'reading'
+			: 'source'
+	);
 
 	// Single reactive counter that retriggers panel getters. Bumped by BOTH
 	// editor ops (via the ops-log subscriber) AND native DOM selection changes
@@ -105,6 +114,15 @@
 			<input type="checkbox" checked={dragHandlesOn} onchange={toggleDragHandles} />
 			Drag handles
 		</label>
+		<label class="demo-toggle">
+			<input
+				type="checkbox"
+				data-testid="presentation-toggle"
+				checked={presentationMode === 'reading'}
+				onchange={() => (presentationMode = presentationMode === 'reading' ? 'source' : 'reading')}
+			/>
+			Reading mode
+		</label>
 	</header>
 	<div class="demo-body">
 		<div class="editor-slot" bind:this={editorSlot}>
@@ -114,6 +132,7 @@
 					{source}
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
+					{presentationMode}
 					theme={$currentThemeType}
 				/>
 			{/key}

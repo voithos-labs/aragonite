@@ -409,3 +409,93 @@
 	opacity: 1;
 	pointer-events: auto;
 }
+
+/* ── Reading mode ─────────────────────────────────────────────────────────────
+   Scoped on the root's [data-presentation='reading'] attribute (absent in source
+   mode). Markers are hidden by CSS ONLY — never omitted from the render path:
+   the raw-aware offset walk counts every DOM text node regardless of layout, so
+   hiding keeps the DOM↔raw coordinate space intact for selection/rect
+   measurement. Structural omission would desync it and is forbidden.
+   Principle for every per-family call below: reading mode shows what a RENDERED
+   document shows. */
+
+/* Inline markers (emphasis/code/link/escape spans) and block-own prefixes
+   (heading `## `, setext underline, directive `::name`): pure syntax, in normal
+   flow — remove from paint and native copy so text joins up rendered-style.
+   Ambient container markers are excluded here; they carry layout (below). */
+:where(.editor)[data-presentation='reading'] .md-marker:not([contenteditable='false']) {
+	display: none;
+}
+
+/* Code fences + language label ride the .md-marker rule above. Their bare `\n`
+   text nodes are unreachable by CSS, so one empty line remains at the box's top
+   and bottom — it reads as symmetric padding, the honest CSS-only rendering. */
+
+/* Reference-link trailing labels (`[label]` / `[]`): resolution metadata, not
+   content — a rendered document shows only the link text. */
+:where(.editor)[data-presentation='reading'] .md-ref-label {
+	display: none;
+}
+
+/* Directive container fence lines (`:::note` / `:::`): the container chrome
+   (border/gutter) is the rendered form; the fence is source syntax. A block-level
+   span, so hiding it drops the whole line. */
+:where(.editor)[data-presentation='reading'] .directive-marker {
+	display: none;
+}
+
+/* Ambient list markers own the hanging indent (the block's padding/text-indent
+   are keyed to the span's ch width), so they keep their box: visibility, not
+   display. opacity:1 undoes the source dim — what stays visible is rendered
+   chrome now. */
+:where(.editor)[data-presentation='reading'] .list-item-block .md-marker[contenteditable='false'] {
+	visibility: hidden;
+	opacity: 1;
+}
+
+/* Bullets: `- ` hides; a rendered bullet paints in its slot — rendered chrome
+   replacing source chrome, like blockquote's border. */
+:where(.editor)[data-presentation='reading']
+	.list-item-block[data-list-marker='bullet']
+	.md-marker[contenteditable='false']::before {
+	content: '•';
+	visibility: visible;
+	color: var(--syntax-list, currentColor);
+}
+
+/* Ordered items: the ambient text IS the rendered number (`1. `), so it stays
+   visible, undimmed — exactly what an <ol> shows. */
+:where(.editor)[data-presentation='reading']
+	.list-item-block[data-list-marker='ordered']
+	.md-marker[contenteditable='false'] {
+	visibility: visible;
+}
+
+/* Task items: the `- ` prefix hides (GitHub task lists carry no bullet); the
+   checkbox stays visible but inert — pointer-events kills the toggle click at
+   the CSS layer, the toggleTask guard is the JS belt. Live checkboxes are a
+   deferred product question (docs/issues.md). */
+:where(.editor)[data-presentation='reading']
+	.list-item-block[data-list-marker='task']
+	.task-checkbox {
+	visibility: visible;
+	cursor: default;
+	pointer-events: none;
+}
+
+:where(.editor)[data-presentation='reading'] .task-checkbox:hover {
+	background-color: transparent;
+}
+
+/* Structural edit affordances leave with the mode: table grips (their menus and
+   drags all mutate). */
+:where(.editor)[data-presentation='reading'] [data-table-col-grip],
+:where(.editor)[data-presentation='reading'] [data-table-row-grip] {
+	display: none;
+}
+
+/* No caret to place: links read as links and activate on plain click. */
+:where(.editor)[data-presentation='reading'] a.md-link-content,
+:where(.editor)[data-presentation='reading'] .md-autolink:not(.md-link-blocked) {
+	cursor: pointer;
+}

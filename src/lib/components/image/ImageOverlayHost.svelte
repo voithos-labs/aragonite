@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { Document } from '../../core/nodes';
+	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
 	import { LINK_REF_KEY, type LinkReferenceResolverRef } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
@@ -20,6 +21,7 @@
 		getDoc,
 		getEditorEl,
 		getSelectionIsCustomRendered,
+		getPresentationMode,
 		lifetime
 	}: {
 		widgetSelection: WidgetSelectionState;
@@ -28,6 +30,7 @@
 		getDoc: () => Document;
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
+		getPresentationMode: () => PresentationMode;
 		lifetime: AbortSignal;
 	} = $props();
 
@@ -78,7 +81,9 @@
 	});
 </script>
 
-{#if widgetSelection.getSelected()}
+<!-- Selecting an image stays (selection-class); the overlay is resize handles +
+	properties popover — edit affordances — so reading mode never mounts it. -->
+{#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
 	{@const sel = widgetSelection.getSelected()!}
 	{@const ctx = imageEdit.getSelectedImageFields()}
 	{#if ctx?.widgetEl}

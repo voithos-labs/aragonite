@@ -15,6 +15,7 @@ import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
+import type { PresentationMode } from '../../../presentation-mode';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -73,6 +74,9 @@ export interface WidgetInteractionDeps {
 	/** A selection currently spans block boundaries — folding a revealed source
 	 *  mid-selection would strand an endpoint anchored in it. */
 	isCrossBlock: () => boolean;
+	/** Effective mode; reading gates reveal-open and the widget edit arms.
+	 *  Optional so bare harnesses read as 'source'. */
+	getPresentationMode?: () => PresentationMode;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
@@ -111,6 +115,8 @@ export interface WidgetInteraction {
 }
 
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
+	const isReading = () => deps.getPresentationMode?.() === 'reading';
+
 	// Resolver-aware so widget detection matches the render path's view — a
 	// mismatch around reference-style image widgets breaks cursor/clipboard.
 	function inlinesOf(node: NodeView): InlineNode[] {
@@ -169,6 +175,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		caretBefore: number,
 		atSourceOffset = 0
 	): Promise<void> {
+		// Every reveal entry (caret edge, click, cross-block edge landing)
+		// converges here, so this is the one reading-mode gate reveal needs.
+		if (isReading()) return;
 		// The settle window spans only microtasks plus the synchronous focus
 		// dispatch, so no user gesture can land inside it — a re-entry here is a
 		// synchronous call from within the settle chain itself (G1.26).
@@ -490,6 +499,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				index: deps.index,
 				preSelectOffset: selectedWidget.preSelectOffset,
 				editorContentWidth: deps.getEditorContentWidth(),
+				presentationMode: deps.getPresentationMode?.() ?? 'source',
 				updateContent: (newRaw, caretBefore, caretAfter) =>
 					deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
 			});
@@ -525,6 +535,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
+			// Reading mode: still swallow (a selected widget owns its keys) but
+			// commit nothing.
+			if (isReading()) return true;
 			const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
 			// Undo anchor at the pre-select caret position, not the far widget
 			// boundary — Ctrl+Z restores the caret where the user actually was
@@ -546,6 +559,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (isTypingKey(e)) {
 			e.preventDefault();
+			if (isReading()) return true;
 			const typed = e.key;
 			const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
 			deps.blockEdit.updateBlockContent(
@@ -626,7 +640,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		// Chromium inserts into a text node natively, but drops printable keys at
 		// element-level positions adjacent to a contenteditable=false widget.
-		if (!caretIsInTextNode() && isTypingKey(e)) {
+		if (!caretIsInTextNode() && isTypingKey(e) && !isReading()) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			const typed = e.key;

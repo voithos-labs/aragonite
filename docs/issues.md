@@ -100,6 +100,21 @@ alongside the cell-surface island gap above.
 
 ## Core editing
 
+### Interactive reading mode (live task checkboxes) — deferred product question
+
+**Severity:** minor (product decision, not a defect)
+**Files:** `src/lib/components/blocks/list/ListItemBlock.svelte` (`toggleTask` gate),
+`src/lib/styles/editor.css` (reading-mode checkbox `pointer-events: none`),
+`src/lib/plugins/details/DetailsBlock.svelte` (the same class: the disclosure toggle)
+
+Reading mode v1 is fully inert: task checkboxes render but do not toggle, and the details
+disclosure (which commits an `open` metadata edit) is likewise gated. A rendered document
+(GitHub, Obsidian reading view) keeps some of these live — whether reading mode should allow
+a curated set of interactive edits is a product question, not a gating bug.
+
+**Why deferred:** decided with the presentation-modes milestone's later rungs, where
+block/inline granularity forces the same "which interactions survive" call anyway.
+
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)

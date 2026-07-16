@@ -437,6 +437,24 @@ Nested-editor interiors — a second editor's state serialized as a blob — are
 
 Block math (`$$…$$` in the LaTeX dogfood plugin) is the worked example: its component script is the factory call, two view effects (KaTeX render, source populate), and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe — `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`.
 
+## Presentation modes
+
+**The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor is not permanently the marker-always source view — a consumer can put it in `reading` mode today, and block- and inline-granular preview rungs follow — so a plugin that assumes source mode renders wrong the day its host flips the prop. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline'`; every read below reports the **effective** mode (a not-yet-built preview rung reads as `'source'`), so you never render for a mode the editor is not actually in.
+
+How each tier reads it:
+
+| Tier                       | Mode read                                                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Plugin instance logic      | `editor.presentationMode` on your `EditorContext` (live getter); subscribe to the `presentationModeChange` event for flips        |
+| Editable leaf              | `leaf.getPresentationMode()` on the `createEditableLeaf` surface                                                                  |
+| Inline widget (rendering)  | The `getPresentationMode` prop your component is mounted with — a **live getter** beside the frozen `{ inline, source }` snapshot |
+| Inline widget (editing)    | `ctx.presentationMode` on the `InlineWidgetEditingContext` your `onSelectedKey` receives                                          |
+| Block component (DOM tier) | The `data-presentation` attribute on the editor root (`el.closest('[data-presentation]')`); **absent means `'source'`**           |
+
+What the platform already does for you in `reading` mode — so most plugins need no mode code at all: your editable-leaf never reveals and never commits; chord dispatch (block commands, global commands, keymaps) dead-keys at the dispatcher; the container factory's whole-block Enter/Backspace/reorder gate; and marker spans hide by CSS. You read the mode yourself when your component owns an edit affordance of its own — a toolbar button, a click-to-edit swap, an interactive widget — which must go inert (the Mermaid block's Edit button and the details disclosure are the in-repo examples), or when your rendering should genuinely differ between a source view and a reading view.
+
+Two rules keep you honest: **read live, never snapshot** — a mode flip re-renders mounted blocks, but a value you captured at mount is stale by construction; and **never gate your own rendering off `'source'` string checks you invert** — check for the mode you handle (`=== 'reading'`), so a future preview rung degrades to your source rendering instead of disappearing.
+
 ## Recipe: a render-primary block
 
 Some blocks are not text: a diagram, a chart, an embed — content that renders as a picture and is edited through its own UI, not through the editor's caret. The Mermaid reference plugin is the worked example; the shape generalizes:
@@ -754,16 +772,17 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Plugin unit** _(pre-freeze / unstable)_
 
-| Export               | Role                                                                                                              |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `definePlugin`       | Validate a `{ name, setup }` unit at definition time and return it for the `plugins` prop                         |
-| `definePluginBlock`  | The single-block plugin unit: one kind, one component, one register step — the common case                        |
-| `isPluginInstalled`  | Idempotence probe for a named plugin's install                                                                    |
-| `EditorPlugin`       | The plugin unit's shape — `<Editor plugins>` and the main barrel's `installPlugins` take these                    |
-| `EditorPluginEntry`  | A `plugins` prop entry: a bare unit, or `{ plugin, options }` for per-instance options                            |
-| `PluginSetupContext` | The `setup(ctx)` argument; its `onEditor(cb)` registers a per-instance callback (synchronous-only)                |
-| `OnEditorCallback`   | An `onEditor` callback: receives the instance's `EditorContext`, may return a disposer run at unmount             |
-| `EditorContext`      | The per-instance view a callback receives — `editorId`, live `document`, subscribe-only `events`, typed `options` |
+| Export               | Role                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `definePlugin`       | Validate a `{ name, setup }` unit at definition time and return it for the `plugins` prop                                                  |
+| `definePluginBlock`  | The single-block plugin unit: one kind, one component, one register step — the common case                                                 |
+| `isPluginInstalled`  | Idempotence probe for a named plugin's install                                                                                             |
+| `EditorPlugin`       | The plugin unit's shape — `<Editor plugins>` and the main barrel's `installPlugins` take these                                             |
+| `EditorPluginEntry`  | A `plugins` prop entry: a bare unit, or `{ plugin, options }` for per-instance options                                                     |
+| `PluginSetupContext` | The `setup(ctx)` argument; its `onEditor(cb)` registers a per-instance callback (synchronous-only)                                         |
+| `OnEditorCallback`   | An `onEditor` callback: receives the instance's `EditorContext`, may return a disposer run at unmount                                      |
+| `EditorContext`      | The per-instance view a callback receives — `editorId`, live `document`, subscribe-only `events`, typed `options`, live `presentationMode` |
+| `PresentationMode`   | The mode union every mode read reports — see [Presentation modes](#presentation-modes)                                                     |
 
 **Kind declaration**
 

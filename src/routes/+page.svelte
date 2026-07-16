@@ -24,19 +24,37 @@
 </script>
 
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor, type PresentationMode } from '$lib';
 	import { SHOWCASE_DOCUMENT } from './showcase-content';
+
+	// Live-changeable prop — the toggle flips it in place, no remount. The
+	// preview rungs join this list when their batches build them.
+	const MODES: PresentationMode[] = ['source', 'reading'];
+	let presentationMode = $state<PresentationMode>('source');
 </script>
 
 <div class="showcase aragonite-editor-theme">
 	<header class="showcase-header">
 		<span class="showcase-title">aragonite</span>
 		<span class="showcase-tag">showcase</span>
+		<div class="showcase-modes" role="group" aria-label="Presentation mode">
+			{#each MODES as mode (mode)}
+				<button
+					type="button"
+					class="showcase-mode"
+					class:active={presentationMode === mode}
+					data-mode={mode}
+					onclick={() => (presentationMode = mode)}
+				>
+					{mode}
+				</button>
+			{/each}
+		</div>
 		<a class="showcase-link" href="https://github.com/voithos-labs/aragonite/tree/main/docs">docs</a
 		>
 	</header>
 	<div class="showcase-editor">
-		<Editor source={SHOWCASE_DOCUMENT} plugins={showcasePlugins} />
+		<Editor source={SHOWCASE_DOCUMENT} plugins={showcasePlugins} {presentationMode} />
 	</div>
 </div>
 
@@ -64,8 +82,29 @@
 		font-size: 0.85rem;
 		color: var(--color-text-secondary, #888);
 	}
-	.showcase-link {
+	.showcase-modes {
 		margin-left: auto;
+		display: inline-flex;
+		gap: 2px;
+		padding: 2px;
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-radius: 6px;
+	}
+	.showcase-mode {
+		font-family: inherit;
+		font-size: 0.8rem;
+		padding: 0.1rem 0.55rem;
+		color: var(--color-text-secondary, #888);
+		background: transparent;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+	}
+	.showcase-mode.active {
+		color: var(--color-text-primary, #fff);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.18));
+	}
+	.showcase-link {
 		font-size: 0.85rem;
 		color: var(--color-accent, #567b67);
 	}

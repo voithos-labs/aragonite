@@ -22,6 +22,7 @@ import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import { isReadingMode } from '../../presentation-mode';
 import { performCrossBlockDelete } from './ops';
 import { handleCrossBlockPaste } from './paste';
 import { handleCrossBlockTypeReplace } from './type-replace';
@@ -90,13 +91,35 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
 	const pointer = createCrossBlockPointer(ctx);
 
+	// Reading-mode gates for the mutating halves live here at the composer, so
+	// every construction site (each editable surface, the editor root) inherits
+	// them. Keydown gates its own destructive branches — it also carries
+	// navigation, which stays live. The mode arrives through ctx.pluginEditor,
+	// the lookup this context already threads.
+	const reading = () => isReadingMode(ctx.pluginEditor);
+
 	return {
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
 		handlePointerDown: pointer.handlePointerDown,
-		handlePaste: (e) => handleCrossBlockPaste(ctx, mutationCtx, e),
-		handleBeforeInput: (e) => handleCrossBlockTypeReplace(ctx, mutationCtx, e),
+		handlePaste: async (e) => {
+			if (reading()) {
+				e.preventDefault();
+				return true;
+			}
+			return handleCrossBlockPaste(ctx, mutationCtx, e);
+		},
+		handleBeforeInput: async (e) => {
+			if (reading()) {
+				e.preventDefault();
+				return true;
+			}
+			return handleCrossBlockTypeReplace(ctx, mutationCtx, e);
+		},
 		performCrossBlockDeleteFromEvent: async () => {
+			// Reached from cut handlers after the clipboard write — declining the
+			// delete degrades a reading-mode cut to a copy.
+			if (reading()) return;
 			await performCrossBlockDelete(mutationCtx);
 		}
 	};

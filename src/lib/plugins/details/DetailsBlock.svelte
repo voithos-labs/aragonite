@@ -32,6 +32,10 @@
 	});
 
 	function toggle() {
+		// The disclosure commits an `open` metadata edit (the source bytes change),
+		// so reading mode makes it inert like the task checkbox. A plugin component
+		// reads the mode off the editor root — the documented DOM-tier pattern.
+		if (boxEl?.closest('[data-presentation="reading"]')) return;
 		const isOpen = open;
 		// Collapsing while the caret sits in a body child orphans it — the clamp
 		// unmounts the body and kills the window pin — so move it to the summary in

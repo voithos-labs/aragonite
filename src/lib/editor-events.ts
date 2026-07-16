@@ -6,6 +6,7 @@
  */
 
 import type { AnyBlockKind } from './core/nodes';
+import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
 import { pluginKindOwner } from './schema/plugin-install';
@@ -54,6 +55,8 @@ export interface EditorEventMap {
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
 	error: EditorError;
+	/** The EFFECTIVE mode after a `presentationMode` prop change (never fired at mount). */
+	presentationModeChange: PresentationMode;
 }
 
 export interface EditorEvents {

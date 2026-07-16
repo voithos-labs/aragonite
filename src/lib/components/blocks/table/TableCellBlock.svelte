@@ -29,6 +29,7 @@
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		PLUGIN_EDITOR_KEY,
+		PRESENTATION_MODE_KEY,
 		RESOLVE_LINK_URL_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
@@ -38,6 +39,7 @@
 		type KeybindingOverridesGetter,
 		type LinkReferenceResolverRef,
 		type PluginEditorLookup,
+		type PresentationModeGetter,
 		type ResolveLinkUrl
 	} from '../../../editor-keys';
 	import type { UndoController } from '../../../editor-actions/deps';
@@ -112,6 +114,8 @@
 	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
 	const selection = getContext<SelectionState>(SELECTION_KEY);
 	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
 	const getDoc = getContext<DocumentGetter>(DOC_KEY);
@@ -392,6 +396,9 @@
 				return;
 			default:
 				e.preventDefault();
+				// Reading mode keeps cell navigation ('focus-cell'/'exit') and swallows
+				// the structural plans (insert/delete/move rows and columns).
+				if (readOnly && plan.kind !== 'focus-cell' && plan.kind !== 'exit') return;
 				await applyCellPlan(plan);
 				return;
 		}
@@ -487,6 +494,13 @@
 
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
+		// Reading mode copies the rendered selection, never a raw slice or a
+		// GFM sub-table payload.
+		if (readOnly) {
+			e.preventDefault();
+			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+			return;
+		}
 		const rectPayload = intraTableRectPayload({ selection, getDoc });
 		if (rectPayload !== null) {
 			e.preventDefault();
@@ -510,6 +524,13 @@
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+
+		// Reading mode: cut degrades to copy (the event still fires on a
+		// non-editable surface).
+		if (readOnly) {
+			onCopy(e);
+			return;
+		}
 
 		// Intra-table multi-cell rectangle: write a GFM sub-table, then route the
 		// delete through the cross-block path *without* tableCoverageDelete so
@@ -536,6 +557,10 @@
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (readOnly) {
+			e.preventDefault();
+			return;
+		}
 		if (await crossBlock.handlePaste(e)) return;
 
 		stickyColumn.reset();
@@ -595,6 +620,8 @@
 		sel: { start: number; end: number }
 	): Promise<void> {
 		if (!el) return;
+		// Belt behind TableBlock's menu-open gate: paste and cut mutate.
+		if (readOnly && action !== 'copy') return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses
 		// it before mutating — copy/cut so execCommand acts on the restored range,
 		// paste so the caret lands in a focused cell and typing continues (native).
@@ -634,7 +661,7 @@
 	bind:this={el}
 	tabindex="0"
 	class="table-cell"
-	contenteditable="true"
+	contenteditable={readOnly ? 'false' : 'true'}
 	role="cell"
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}

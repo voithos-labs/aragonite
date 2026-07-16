@@ -10,6 +10,7 @@
 
 import type { AmbientPrefix } from '../../../block-component';
 import type { NodeView } from '../../../core/node-views';
+import type { PresentationMode } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
 import { computeInlineContent, getContentRange, isProseKind } from '../../../core/inline';
@@ -44,6 +45,9 @@ export interface TextRenderDeps {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	get imageLoadPolicy(): ImageLoadPolicy;
+	/** Effective mode. Read inside the render pass on purpose: the read is the
+	 *  reactive dependency that re-renders every mounted block on a mode flip. */
+	get presentationMode(): PresentationMode;
 	get linkResolver(): LinkReferenceResolver | undefined;
 	get linkSignature(): string;
 	/** Position-sorted islands for this block. A getter, and read inside the
@@ -86,9 +90,9 @@ const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
 		? `w:${d.offset}:${d.side ?? 'after'}`
 		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
 
-// The five NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
-// trailing segment islandRenderKeyPart contributes (absent ⇒ no fifth part).
-const RENDER_KEY_SEGMENTS = ['ambient', 'raw', 'ref', 'imgPolicy', 'islands'] as const;
+// The NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
+// trailing segment islandRenderKeyPart contributes (absent ⇒ no sixth part).
+const RENDER_KEY_SEGMENTS = ['ambient', 'raw', 'ref', 'imgPolicy', 'mode', 'islands'] as const;
 
 /** Which renderKey segment(s) differ between two keys — the interaction trace's
  *  rebuild cause. Pure over the key format so the recorder never learns the NUL
@@ -105,7 +109,7 @@ export function renderKeySegmentDiff(prev: string, next: string): string {
 
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
-	const widgetPool = createSvelteWidgetPool(deps.reportRenderError);
+	const widgetPool = createSvelteWidgetPool(deps.reportRenderError, () => deps.presentationMode);
 	let islandDestroys: Array<() => void> = [];
 
 	function destroyIslands(): void {
@@ -216,8 +220,13 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// neither subscribe to policy changes nor rebuild when the policy flips.
 		const hasImg = node.raw.includes('![');
 		const imgKeyPart = hasImg ? deps.imageLoadPolicy : '';
+		// Unconditional (unlike ref/img gating): a mode flip re-renders every
+		// mounted block. '' in source keeps the default key one NUL longer and
+		// otherwise byte-identical — the sanctioned default-path change.
+		const mode = deps.presentationMode;
+		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}${islandRenderKeyPart(islands)}`;
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 
 		if (isProseKind(node.kind)) {

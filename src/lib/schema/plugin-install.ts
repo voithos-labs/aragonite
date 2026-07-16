@@ -7,6 +7,7 @@ import type { DocumentView } from '../core/node-views';
 import type { EditorEvents } from '../editor-events';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { PresentationMode } from '../presentation-mode';
 
 export interface EditorPlugin<Options = unknown> {
 	readonly name: string;
@@ -39,6 +40,8 @@ export interface EditorContext<Options = unknown> {
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
+	/** Getter-backed, live; the EFFECTIVE mode. Change signal: the `presentationModeChange` event. */
+	readonly presentationMode: PresentationMode;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────
