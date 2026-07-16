@@ -100,6 +100,29 @@ alongside the cell-surface island gap above.
 
 ## Core editing
 
+### Reading-gate parity across command-dispatch sites is behavioral, not compile-enforced
+
+**Severity:** minor (enforcement depth; all current sites verified gated)
+**Files:** `src/lib/schema/global-commands.ts` (`GlobalCommandContext.getPresentationMode` optional),
+the eight `dispatchKeyCommand` construction sites (TextEditableBlock, CodeBlock, TableCellBlock,
+ThematicBreakBlock, editable-leaf, cross-block dispatch, ListItemBlock's local gate)
+
+Reading mode's command gate rides a `getPresentationMode` getter threaded to each dispatch
+construction site (plus one local `readOnly` gate). The getter is optional on the context
+(preserving the HistoryActions structural-compat affordance), so a future sixth editable
+surface could construct a dispatcher without it and silently skip the reading gate — the
+0.9.26 batch itself shipped this miss at four sites before an e2e caught it. Paragraph and
+code carry behavioral representative guards; Table/ThematicBreak are threaded but not
+independently pinned.
+
+**Fix direction:** climb the ladder — either a source-scan lint ("every dispatchKeyCommand
+construction threads getPresentationMode or carries a local readOnly gate"; two valid gating
+patterns make a naive scan misfire, so the scan needs both arms), or make the getter required
+at the cost of ~6 test doubles and the structural-compat affordance.
+
+**Why deferred:** all eight current sites are verified gated (enumerated in the 0.9.26 batch
+review); the residual is future-site risk, same class as the DocPath brand-adoption entry.
+
 ### Interactive reading mode (live task checkboxes) — deferred product question
 
 **Severity:** minor (product decision, not a defect)
