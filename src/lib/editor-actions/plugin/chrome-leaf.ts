@@ -23,7 +23,7 @@ import {
 import { normalizeChord, type KeyBinding } from '../../schema/keybindings';
 import { registerPasteSurface } from '../../tree-operations/paste-surfaces';
 import { defaultInlineHook } from '../../tree-operations/paste/hooks';
-import type { AnyBlockKind, CstNode } from '../../core/nodes';
+import { makeBlockNode, type AnyBlockKind, type CstNode } from '../../core/nodes';
 import type { BlockComponent, BlockComponentProps } from '../../block-component';
 
 /**
@@ -34,7 +34,7 @@ import type { BlockComponent, BlockComponentProps } from '../../block-component'
  * instance of it.
  */
 export function chromeChild(kind: AnyBlockKind, text: string): CstNode {
-	return { kind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' };
+	return makeBlockNode({ kind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' });
 }
 
 export interface ChromeLeafOptions {

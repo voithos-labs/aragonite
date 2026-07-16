@@ -56,7 +56,12 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 	it('heading supports inline with marker-skipping content range', () => {
 		const d = getBlockKindDescriptor('heading');
 		expect(d.supportsInline).toBe(true);
-		const range = d.getContentRange!({ kind: 'heading', leadingTrivia: '', raw: '## hello\n' });
+		const range = d.getContentRange!({
+			kind: 'heading',
+			leadingTrivia: '',
+			raw: '## hello\n',
+			metadata: { level: 2 }
+		});
 		expect(range).toEqual({ start: 3, end: 8 });
 	});
 
@@ -66,7 +71,8 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		const range = d.getContentRange!({
 			kind: 'setextHeading',
 			leadingTrivia: '',
-			raw: 'hello\n---\n'
+			raw: 'hello\n---\n',
+			metadata: { level: 2 }
 		});
 		expect(range).toEqual({ start: 0, end: 5 });
 	});

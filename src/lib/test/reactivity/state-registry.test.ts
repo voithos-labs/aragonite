@@ -16,7 +16,7 @@ function makeFakeState(): BlockListState {
 }
 
 function makeFakeNode(kind: CstNode['kind'] = 'list'): CstNode {
-	return { kind, leadingTrivia: '', raw: '' };
+	return { kind, leadingTrivia: '', raw: '' } as CstNode;
 }
 
 describe('state-registry', () => {
@@ -102,7 +102,14 @@ describe('state-registry', () => {
 				raw: '',
 				metadata: { ordered: false },
 				innerPrefix: '',
-				children: [{ kind: 'listItem', leadingTrivia: '', raw: '', metadata: { marker: '- ' } }],
+				children: [
+					{
+						kind: 'listItem',
+						leadingTrivia: '',
+						raw: '',
+						metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+					}
+				],
 				innerSuffix: ''
 			};
 			const state = createBlockListState(() => node);

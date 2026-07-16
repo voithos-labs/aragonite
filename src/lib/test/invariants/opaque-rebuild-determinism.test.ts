@@ -28,7 +28,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 			leadingTrivia: '',
 			raw: '::x \nbody\n::\n',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
-		};
+		} as CstNode;
 	}
 
 	// The node's raw is deliberately non-canonical relative to the rebuilder —

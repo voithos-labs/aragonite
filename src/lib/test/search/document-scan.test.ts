@@ -49,12 +49,13 @@ describe('scanDocument — childless opaque containers', () => {
 		children,
 		suffix: ''
 	});
-	const node = (kind: CstNode['kind'], raw: string, children?: CstNode[]): CstNode => ({
-		kind,
-		leadingTrivia: '',
-		raw,
-		children
-	});
+	const node = (kind: CstNode['kind'], raw: string, children?: CstNode[]): CstNode =>
+		({
+			kind,
+			leadingTrivia: '',
+			raw,
+			children
+		}) as CstNode;
 
 	let diagram: CstNode['kind'];
 	let artifact: CstNode['kind'];

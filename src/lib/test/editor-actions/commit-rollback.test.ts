@@ -58,7 +58,12 @@ describe('commit ceremony — rollback on mutation throw', () => {
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				scope.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- c\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
 				return [{ op: 'insert', at: 2, count: 1 }];
 			}
 		});
@@ -121,7 +126,12 @@ describe('commit ceremony — rollback on mutation throw', () => {
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				scope.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- c\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
 				return [{ op: 'insert', at: 2, count: 1 }];
 			}
 		});

@@ -146,12 +146,14 @@ export interface BlockMetadataByKind {
 }
 
 /**
- * Typed read of a node's metadata for a known kind. `CstNode.metadata` is the
- * `BlockMetadata` union and the flat-node model can't discriminate it by `kind`
- * (kind stays reassignable), so reading a specific kind's metadata needs a cast.
- * This is the one place that cast lives; the `kind` argument selects the return
- * interface. Pass the kind you've already established for `node`. A readonly
- * view yields a readonly metadata view — reads stay legal, writes don't.
+ * Typed read of a node's metadata for a known kind. Where the node is already a
+ * narrowed `BuiltinCstNode` arm, `node.metadata` reads with the right type
+ * directly — prefer that. This funnel stays for the un-narrowed contexts: a
+ * generic `K`, or a full `CstNode` whose branded plugin arm blocks `kind`
+ * narrowing. Its body carries the one sanctioned metadata cast; the `kind`
+ * argument selects the return interface. Pass the kind you've already
+ * established for `node`. A readonly view yields a readonly metadata view —
+ * reads stay legal, writes don't.
  */
 export function metadataOf<K extends keyof BlockMetadataByKind>(
 	node: CstNode,
@@ -251,18 +253,175 @@ export interface InlineNode {
 
 // ── Node Types ──────────────────────────────────────────────────────────────
 
-export interface CstNode {
+/**
+ * Fields every block node carries. `ownerEpoch` is editor-level sharing
+ * bookkeeping for structural-sharing undo — not round-trip bytes.
+ */
+interface BlockNodeBase {
+	leadingTrivia: string;
+	raw: string;
+	ownerEpoch?: number;
+}
+
+/**
+ * Leaf category. G1.5 forbids `children` and the container structural fields on
+ * non-containers, so the arms pin them `undefined` — the union then rejects a
+ * leaf that grew a child at the type level, and a narrowed leaf reads them away.
+ */
+interface LeafBlockNodeBase extends BlockNodeBase {
+	children?: undefined;
+	innerPrefix?: undefined;
+	innerSuffix?: undefined;
+	childIds?: undefined;
+}
+
+/**
+ * Container category. G1.5 is one-directional — a container may be transiently
+ * childless mid-edit — so every structural field stays optional; the arms never
+ * require them. `childIds` mirrors `children` for keyed rendering; undo restores
+ * both together.
+ */
+interface ContainerBlockNodeBase extends BlockNodeBase {
+	children?: CstNode[];
+	innerPrefix?: string;
+	innerSuffix?: string;
+	childIds?: string[];
+}
+
+export interface ParagraphNode extends LeafBlockNodeBase {
+	kind: 'paragraph';
+	metadata?: undefined;
+}
+export interface HeadingNode extends LeafBlockNodeBase {
+	kind: 'heading';
+	metadata: HeadingMetadata;
+}
+export interface SetextHeadingNode extends LeafBlockNodeBase {
+	kind: 'setextHeading';
+	metadata: SetextHeadingMetadata;
+}
+export interface FencedCodeNode extends LeafBlockNodeBase {
+	kind: 'fencedCode';
+	metadata: FencedCodeMetadata;
+}
+export interface ThematicBreakNode extends LeafBlockNodeBase {
+	kind: 'thematicBreak';
+	metadata: ThematicBreakMetadata;
+}
+export interface IndentedCodeNode extends LeafBlockNodeBase {
+	kind: 'indentedCode';
+	metadata?: undefined;
+}
+export interface HtmlBlockNode extends LeafBlockNodeBase {
+	kind: 'htmlBlock';
+	metadata?: undefined;
+}
+export interface LinkReferenceDefinitionNode extends LeafBlockNodeBase {
+	kind: 'linkReferenceDefinition';
+	metadata: LinkReferenceDefinitionMetadata;
+}
+export interface TableCellNode extends LeafBlockNodeBase {
+	kind: 'tableCell';
+	metadata?: undefined;
+}
+export interface UnrecognizedNode extends LeafBlockNodeBase {
+	kind: 'unrecognized';
+	metadata?: undefined;
+}
+
+export interface BlockquoteNode extends ContainerBlockNodeBase {
+	kind: 'blockquote';
+	metadata: BlockquoteMetadata;
+}
+export interface ListNode extends ContainerBlockNodeBase {
+	kind: 'list';
+	metadata: ListMetadata;
+}
+export interface ListItemNode extends ContainerBlockNodeBase {
+	kind: 'listItem';
+	metadata: ListItemMetadata;
+}
+export interface TableNode extends ContainerBlockNodeBase {
+	kind: 'table';
+	metadata: TableMetadata;
+}
+export interface TableRowNode extends ContainerBlockNodeBase {
+	kind: 'tableRow';
+	metadata: TableRowMetadata;
+}
+
+/**
+ * A block minted by a plugin kind. The kind is a branded string, not a literal,
+ * so this arm is NOT discriminable by `switch (node.kind)` — narrow past it with
+ * `isBuiltinBlockNode` first. `metadata` rides the shared slot via the cast
+ * accessors (`get`/`setPluginMetadata`); a plugin block may be a leaf or a
+ * container, so the structural fields stay optional.
+ */
+export interface PluginBlockNode extends BlockNodeBase {
+	kind: PluginBlockKind;
+	metadata?: BlockMetadata;
+	children?: CstNode[];
+	innerPrefix?: string;
+	innerSuffix?: string;
+	childIds?: string[];
+}
+
+/**
+ * The built-in block arms — a genuine discriminated union. `switch (node.kind)`
+ * on a `BuiltinCstNode` narrows to the exact arm, so `node.metadata` reads as
+ * that kind's metadata with no cast.
+ */
+export type BuiltinCstNode =
+	| ParagraphNode
+	| HeadingNode
+	| SetextHeadingNode
+	| FencedCodeNode
+	| ThematicBreakNode
+	| IndentedCodeNode
+	| HtmlBlockNode
+	| LinkReferenceDefinitionNode
+	| TableCellNode
+	| UnrecognizedNode
+	| BlockquoteNode
+	| ListNode
+	| ListItemNode
+	| TableNode
+	| TableRowNode;
+
+/**
+ * A CST block node. The built-in arms discriminate on `kind`; the open
+ * `PluginBlockNode` arm does not (branded-string kind), so full-union `kind`
+ * checks don't narrow — reach the discriminated world through
+ * `isBuiltinBlockNode`. Common fields (`raw`, `leadingTrivia`, `kind`) project
+ * across every arm and read without narrowing.
+ */
+export type CstNode = BuiltinCstNode | PluginBlockNode;
+
+/** Narrow a node to the discriminated built-in union — the door to `switch (node.kind)` metadata narrowing. */
+export function isBuiltinBlockNode(node: CstNode): node is BuiltinCstNode {
+	return isBuiltinBlockKind(node.kind);
+}
+
+/**
+ * Mint a block node from a runtime `kind`. A non-literal kind matches no arm, so
+ * the return needs a cast; this funnel is the ONE place it lives. It is a
+ * construction door, distinct from the view→mutable strip door (unshare/clone):
+ * the spread returns a FRESH object, so passing a view here mints a copy rather
+ * than stripping the view's readonly-ness — the funnel cannot open a G1.9 hazard,
+ * which is why G4.13 sanctions this file. Field params are mutable by contract.
+ */
+export function makeBlockNode(fields: {
 	kind: AnyBlockKind;
 	leadingTrivia: string;
 	raw: string;
 	metadata?: BlockMetadata;
-	innerPrefix?: string;
 	children?: CstNode[];
+	innerPrefix?: string;
 	innerSuffix?: string;
-	/** Per-child IDs for keyed rendering. Cloned with the node so undo restores them alongside `children`. */
 	childIds?: string[];
-	/** Editor-level sharing epoch for structural-sharing undo; not part of round-trip. */
 	ownerEpoch?: number;
+}): CstNode {
+	return { ...fields } as CstNode;
 }
 
 export interface Document {

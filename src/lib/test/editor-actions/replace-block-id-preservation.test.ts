@@ -161,7 +161,7 @@ describe('nested replaceBlock ensureEditableContainers', () => {
 					kind: 'listItem',
 					leadingTrivia: '',
 					raw: '',
-					metadata: { marker: '- ', taskItem: false, taskChecked: false },
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 					innerPrefix: '',
 					children: [],
 					innerSuffix: ''

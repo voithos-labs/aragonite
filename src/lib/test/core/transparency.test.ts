@@ -69,7 +69,13 @@ describe('isVerticallyTransparentNode', () => {
 
 	it('is false for an empty container (carries a caret position)', () => {
 		expect(
-			isVerticallyTransparentNode({ kind: 'list', leadingTrivia: '', raw: '', children: [] })
+			isVerticallyTransparentNode({
+				kind: 'list',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { ordered: false },
+				children: []
+			})
 		).toBe(false);
 	});
 

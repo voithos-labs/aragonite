@@ -119,6 +119,7 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { quoteDepth: 1 },
 			children: [
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' },
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'b\n' }

@@ -117,7 +117,7 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 				kind,
 				leadingTrivia: '',
 				raw
-			}
+			} as CstNode
 		]
 	};
 }

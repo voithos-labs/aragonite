@@ -27,6 +27,7 @@ function quoteOf(children: CstNode[]): CstNode {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: children.map((c) => `> ${c.raw}`).join(''),
+		metadata: { quoteDepth: 1 },
 		children,
 		innerPrefix: '> ',
 		innerSuffix: ''
@@ -43,7 +44,7 @@ function listOf(itemRaws: string[]): CstNode {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: `- ${r}`,
-			metadata: { marker: '- ' },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			innerSuffix: '',
 			children: [para(r)]

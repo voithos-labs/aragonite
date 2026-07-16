@@ -27,7 +27,12 @@ describe('commitMultiScope', () => {
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				scope.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- c\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
 				return [{ op: 'insert', at: 2, count: 1 }];
 			},
 			op: { kind: 'appendBlock', eventPath: [0, 2] }
@@ -62,7 +67,12 @@ describe('commitMultiScope', () => {
 			],
 			snapshot: { path: [0], offset: 0 },
 			mutate: ([scopeA, scopeB]) => {
-				scopeA.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- d\n' });
+				scopeA.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- d\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
 				scopeB.children.splice(1, 1);
 				return [
 					{ op: 'insert', at: 3, count: 1 },
@@ -163,7 +173,8 @@ describe('commitMultiScope', () => {
 				scope.children.splice(0, 1, original, {
 					kind: 'listItem',
 					leadingTrivia: '',
-					raw: '- a2\n'
+					raw: '- a2\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
 				});
 				return [{ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } }];
 			}

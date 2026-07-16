@@ -11,6 +11,7 @@ function bq(children: CstNode[], childIds?: string[]): CstNode {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: '',
+		metadata: { quoteDepth: 1 },
 		children,
 		childIds,
 		innerPrefix: '',
