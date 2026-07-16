@@ -12,11 +12,13 @@ const lookupFor = (mode: PresentationMode) => (_name: string) =>
 	({ presentationMode: mode }) as EditorContext;
 
 describe('resolveEffectivePresentationMode', () => {
-	it('passes source and reading through; collapses the preview stubs to source', () => {
+	it('passes the built modes through; collapses only preview-inline (to preview-block)', () => {
 		expect(resolveEffectivePresentationMode('source')).toBe('source');
 		expect(resolveEffectivePresentationMode('reading')).toBe('reading');
-		expect(resolveEffectivePresentationMode('preview-block')).toBe('source');
-		expect(resolveEffectivePresentationMode('preview-inline')).toBe('source');
+		// preview-block is a real rung now — it no longer collapses.
+		expect(resolveEffectivePresentationMode('preview-block')).toBe('preview-block');
+		// preview-inline stays a stub, narrowing to the closest built mode.
+		expect(resolveEffectivePresentationMode('preview-inline')).toBe('preview-block');
 	});
 });
 

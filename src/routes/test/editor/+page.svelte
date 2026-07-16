@@ -40,13 +40,15 @@
 		dragHandlesOn = !dragHandlesOn;
 	}
 
-	// `?presentationMode=reading` starts in reading mode; the header select flips
-	// it live (the prop reads live — no remount, unlike blockDragHandles).
+	// `?presentationMode=reading|preview-block` starts in that mode; the header
+	// toggles flip it live (the prop reads live — no remount, unlike blockDragHandles).
+	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block'];
 	let presentationMode = $state<PresentationMode>(
-		typeof window !== 'undefined' &&
-			new URLSearchParams(window.location.search).get('presentationMode') === 'reading'
-			? 'reading'
-			: 'source'
+		(typeof window !== 'undefined' &&
+			(PARAM_MODES.find(
+				(m) => m === new URLSearchParams(window.location.search).get('presentationMode')
+			) as PresentationMode | undefined)) ||
+			'source'
 	);
 
 	// Reading-mode link activation records to a page-scoped sink instead of opening a
@@ -105,6 +107,9 @@
 			},
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
+			},
+			setPresentationMode: (mode) => {
+				presentationMode = mode;
 			}
 		});
 	});
@@ -131,6 +136,16 @@
 				onchange={() => (presentationMode = presentationMode === 'reading' ? 'source' : 'reading')}
 			/>
 			Reading mode
+		</label>
+		<label class="demo-toggle">
+			<input
+				type="checkbox"
+				data-testid="preview-block-toggle"
+				checked={presentationMode === 'preview-block'}
+				onchange={() =>
+					(presentationMode = presentationMode === 'preview-block' ? 'source' : 'preview-block')}
+			/>
+			Block preview
 		</label>
 	</header>
 	<div class="demo-body">

@@ -28,8 +28,8 @@
 	import { SHOWCASE_DOCUMENT } from './showcase-content';
 
 	// Live-changeable prop — the toggle flips it in place, no remount. The
-	// preview rungs join this list when their batches build them.
-	const MODES: PresentationMode[] = ['source', 'reading'];
+	// inline-granular rung joins this list when its batch builds it.
+	const MODES: PresentationMode[] = ['source', 'reading', 'preview-block'];
 	let presentationMode = $state<PresentationMode>('source');
 </script>
 

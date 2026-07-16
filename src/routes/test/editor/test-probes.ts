@@ -1,4 +1,4 @@
-import type { Editor } from '$lib';
+import type { Editor, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
@@ -57,6 +57,7 @@ export interface TestProbeDeps {
 	editor: EditorInstance;
 	setSource: (md: string) => void;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
+	setPresentationMode: (mode: PresentationMode) => void;
 }
 
 // ── Selection inspection (shared with the DebugPanel getters) ──────────────
@@ -222,7 +223,12 @@ const decorationHandles = new Map<string, DecorationSourceHandle>();
 
 // Installs the e2e probe surface on `window.__test`. Behavior must stay
 // byte-for-byte stable — the e2e suite drives the editor through these.
-export function installTestProbes({ editor, setSource, setKeybindings }: TestProbeDeps): void {
+export function installTestProbes({
+	editor,
+	setSource,
+	setKeybindings,
+	setPresentationMode
+}: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
 	(window as any).__test = {
@@ -233,6 +239,12 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		},
 		setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
 			setKeybindings(overrides);
+		},
+		// Flip the live prop the way a consumer would — no DOM focus change, so this
+		// is the one path that exercises the editor's mode-reconcile of data-focused
+		// (the header toggles blur the editor, clearing it via focusout instead).
+		setPresentationMode: (mode: PresentationMode) => {
+			setPresentationMode(mode);
 		},
 		// getBlockCount / getBlockKind / dumpTree read the LIVE CST via getDocument()
 		// — not parse(getSource()). A reparse can't see a live-kind-vs-raw desync or a
