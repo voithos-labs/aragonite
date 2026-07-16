@@ -23,38 +23,14 @@ coordinate spaces, the closure matrix as a required registration field + executa
 bytes-readonly node views, the parity-lint family — the audit's two dominant bug classes
 climbed from guards and prose to the compiler), and **inline observability** shipped in
 0.9.25 (the interaction trace + consumer diagnostics door, transition asserts on the inline
-state machines, the IME composition harness). The remaining risk is **validation depth**:
-one clean-room run deep, every consumer since in-repo and same-day. The items below are
-ordered by **risk first, validation before freeze**.
+state machines, the IME composition harness), and **presentation modes** shipped in 0.9.26
+(the full live-preview ladder — reading mode, block-granular, inline-granular — over a mode
+contract every plugin tier can read; caret affinity dissolved to raw offsets under the
+CST-as-truth model, no stored-marks machinery needed). The remaining risk is **validation
+depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
+are ordered by **risk first, validation before freeze**.
 
-1. **Presentation modes — the full live-preview ladder, pulled forward from 1.1.** Obsidian
-   defaults to Live Preview and reveals syntax for the element _under the cursor_. Always-visible
-   styled source is a power-user aesthetic; a consumer evaluating aragonite against Obsidian sees
-   markers everywhere and bounces before reaching the good part. Styled source stays the editing
-   substrate — this makes it a choice, not a ceiling. Three rungs, each independently shippable,
-   built in order:
-
-   1. **Reading mode** — markers hidden, widgets rendered, read-only. Built through public surfaces
-      only, as a consumer would; shipped as a showcase toggle by item 4.
-   2. **Block-granular** — unfocused blocks hide markers, the focused block shows source. The
-      editable-leaf render-primary swap generalized to built-in prose kinds. The stepping stone: it
-      builds the marker-island rendering and the presentation-mode seam rung 3 refines.
-   3. **Inline-granular** — the target, now built: reveal-on-caret-proximity ships as a
-      caret-chain trigger over the inline tree flipping CSS on the existing marker spans (marker
-      islands proved unnecessary — no new DOM contract), on top of the consolidated edge-policy
-      dispatch (the opening move, shipped first so reveal semantics never grew a fourth seam).
-      What remains of the rung is the refinement batch: caret-affinity semantics at construct
-      boundaries (the one genuinely new piece; prior art: ProseMirror stored marks) and
-      second-round construct coverage.
-
-   **The reason this is pre-1.0 is the contract, not the feature.** A plugin has no way to learn
-   what presentation mode it is in, so a plugin authored against a marker-always 1.0 renders wrong
-   the day preview ships — not an API break, but worse: it strands the ecosystem. And rung 3 reaches
-   into the _inline_ and _caret_ layers that plugins bind to (`registerInlineWidgetKind`, the editing
-   policy, edge entry). Building it after the freeze is the dangerous order; a paper litmus cannot
-   validate it, because a shape with no consumer cannot be validated.
-
-2. **Limestone internal integration** — the last unchecked box in the validation list above and
+1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
    also exercises the 0.9.25 field-report workflow (the diagnostics door: reproduce →
@@ -65,7 +41,7 @@ ordered by **risk first, validation before freeze**.
    pre-freeze refinements. The first-party plugin distribution question is settled
    (0.9.23): the integration consumes the bundled plugins as `aragonite/plugins/<name>` subpath
    exports directly — the copy-source sync pattern never enters the picture.
-3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
    conformance battery ships (0.9.24), not just authoring discoverability. The first
@@ -76,17 +52,17 @@ ordered by **risk first, validation before freeze**.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-4. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
+3. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
    full pitch: every block kind + every bundled plugin — fixtures stay off it
    (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
    is the "surpass Obsidian" argument made visible. The reference-plugin aesthetic decision is
    made and shipped (restrained gutter-rail chrome on the showcased admonitions/details; chrome
    remains the plugin author's call) — the showcase inherits it; demo polish extends the same
-   restraint to whatever it adds. The showcase **surfaces item 1's presentation modes as
-   toggles** — reading mode and block-granular live preview beside styled source — so the first
-   impression is not markers-everywhere, and the freeze litmus "the contract must not preclude
-   a rendered reading mode" becomes a working proof instead of a paper check.
-5. **Freeze cut at release** — in order:
+   restraint to whatever it adds. The showcase **surfaces the presentation modes (0.9.26) as
+   toggles** — reading mode plus block- and inline-granular live preview beside styled
+   source — so the first impression is not markers-everywhere, and the freeze litmus "the
+   contract must not preclude a rendered reading mode" is a working proof, not a paper check.
+4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -139,8 +115,10 @@ ordered by **risk first, validation before freeze**.
      leaf/widget mode reads, the `data-presentation` root attribute) with all four rungs as
      consumers — reading, block-granular, and inline-granular preview (the last rung activated
      with zero API change, proving the union-ships-whole bet; it needed no new DOM contract —
-     CSS construct-reveal over the existing marker spans, not marker islands). What remains for
-     item 1 is the caret-affinity refinement, which stays inside the shipped contracts.
+     CSS construct-reveal over the existing marker spans, not marker islands). The caret-affinity
+     contract shipped with 0.9.26 and dissolved to raw offsets + inclusive reveal edges — no
+     stored-marks machinery; the litmus reads satisfied-by-construction at the cut, with the
+     reading-gate parity residual and interactive-reading question living in `docs/issues.md`.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
@@ -262,7 +240,7 @@ Settles what only an integrated surface can settle:
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
 
-_(Presentation modes moved to pre-1.0 — see § Pre-1.0, item 1.)_
+_(Presentation modes shipped pre-1.0 in 0.9.26.)_
 
 ### 1.2 — Plugin DX + deferred generalizations
 

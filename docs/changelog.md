@@ -2,6 +2,54 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.26 — Presentation modes: the full live-preview ladder
+
+Always-visible styled source stays the editing substrate and the default — these modes make it
+a choice, not a ceiling. The reason this shipped pre-1.0 is the contract, not the feature: a
+plugin can now learn the presentation mode at every tier, so nothing authored against 1.0
+strands when a consumer flips to preview.
+
+- **The mode contract.** `PresentationMode = 'source' | 'reading' | 'preview-block' |
+'preview-inline'`, a live `presentationMode` prop (the `theme` shape) reflected as
+  `data-presentation` on the root, and one effective-mode resolution feeding four doors: the
+  root attribute, a block-facing context getter (riding the render key), a plugin-facing
+  `EditorContext.presentationMode` getter + `presentationModeChange` event, and getter reads on
+  the editable-leaf and inline-widget tiers. Per-tier reactivity is documented honestly — the
+  block-component DOM read is point-in-time; live reaction subscribes to the event.
+- **Reading mode** — markers hidden, widgets rendered, read-only. Hiding is CSS-first (the
+  raw-aware walk counts lengths, not layout, so offsets survive by construction; render-path
+  omission is forbidden). Read-only is structural: `contenteditable=false` kills the whole
+  browser-edit-path class, with paste/commands/drag/islands/checkbox gates at their dispatcher
+  seams. Selection, copy, and mouse/scroll navigation stay; lists keep rendered bullets and
+  visible ordered numbers. Fully inert v1 — interactive reading (live checkboxes, details
+  disclosure) is a ledgered product question.
+- **Block-granular preview** — unfocused blocks hide their syntax (broad-hide + focused-reveal
+  by DOM containment; the focused leaf renders full source) at zero hot-path cost: focus flips
+  are CSS attribute changes, never inline-DOM rebuilds, and the caret's DOM anchor survives the
+  reveal so click-landing needs no correction.
+- **Inline-granular preview** — the target. Within the focused block, construct markers
+  (emphasis, strong, strikethrough, inline code, links, image syntax) hide until the caret
+  enters the construct's range; entry reveals the full nesting chain, leaving folds it. The
+  trigger is model-layer (raw offset against the inline tree, O(nodes-at-caret),
+  composition-gated) with a synchronous keydown backstop — the e2e found rapid arrows outrunning
+  the async reveal and skipping hidden bytes; the backstop reveals before the step lands,
+  pinned by char-by-char walks asserting every offset.
+- **Caret affinity dissolved under raw-as-truth.** The roadmap anticipated stored-marks-style
+  machinery; verify-first found none is needed — the caret is a raw offset, revealed source
+  makes boundaries visible, and typing lands where the visible caret sits (right-prefer decides
+  which construct reveals at a shared boundary). Pinned across the adversarial boundary cases
+  (edge typing, adjacent constructs, fold-then-type, backspace degrade); recorded as a design
+  finding rather than built as machinery.
+- **The opening move paid off first**: the three caret-edge/destructive-key seams consolidated
+  into one declarative edge-policy dispatch (byte-identical, full-battery-proven) with the
+  trimmed `deleteGranularity`/`onEdge` policy fields re-added; G4.12 now pins the funnel, so the
+  reveal semantics joined ONE dispatch instead of minting a fourth seam.
+- **Guardrails caught real bugs mid-milestone**: an existing reading-inertness e2e caught a
+  four-site parity miss in the mode-gate threading (fixed; the residual is ledgered), and the
+  0.9.25 instruments carried into the new machinery. The simulation gained a mid-session
+  mode-flip gesture with a byte-stability oracle; a11y scans cover all three new modes under
+  the same ratchet; the showcase and harness routes toggle every mode.
+
 ### 0.9.25 — Inline observability: the flight recorder before the field reports
 
 The inline layer's per-keystroke rebuilds make every inline state transient — cursor
