@@ -15,7 +15,9 @@ const DOC = [
 	'- alpha',
 	'- bravo',
 	'1. one',
-	'- [ ] task'
+	'- [ ] task',
+	'',
+	'Visit [example](https://example.com) here'
 ].join('\n');
 
 async function toggleReadingMode(page: Page): Promise<void> {
@@ -142,6 +144,20 @@ test.describe('reading mode — what stays live', () => {
 		await ep.waitForClipboardWrite();
 		const copied = await page.evaluate(() => navigator.clipboard.readText());
 		expect(copied).toBe('Some bold');
+	});
+
+	test('a plain click on a link fires onLinkActivate', async ({ page }) => {
+		// Source mode places a caret on a link click; reading mode has no caret, so
+		// the plain click activates instead — the harness records the href.
+		await page.locator('a.md-link-content').first().click();
+		await page.waitForFunction(
+			() =>
+				((window as unknown as { __linkActivations?: string[] }).__linkActivations ?? []).includes(
+					'https://example.com'
+				),
+			null,
+			{ timeout: 2000 }
+		);
 	});
 
 	test('toggling back to source restores editing', async ({ page }) => {
