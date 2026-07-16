@@ -60,6 +60,7 @@ import {
 	revealEditTextDirective
 } from './gestures/directive';
 import { lateCorrection } from './gestures/correction';
+import { flipPresentationMode } from './gestures/presentation';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
@@ -425,6 +426,18 @@ export class Gestures {
 	async redo(): Promise<void> {
 		await this.ctx.editor.redo();
 		this.ctx.tracker.resync(await this.ctx.editor.bridge.getSource());
+	}
+
+	// ── Presentation ────────────────────────────────────────────────────────────
+
+	/**
+	 * Flip the presentation mode to `mode` and back to source mid-session, asserting
+	 * the note round-trips byte-identical across the flip. A mode flip is auto-behavior
+	 * (reading commits/inerts, preview re-renders), so it settles on the mode attribute
+	 * and resyncs — the byte-stability oracle the loaded-ops battery otherwise never sees.
+	 */
+	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
+		return flipPresentationMode(this.ctx, mode);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────────

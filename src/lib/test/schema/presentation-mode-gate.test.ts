@@ -6,10 +6,8 @@ import {
 } from '$lib/presentation-mode';
 import { dispatchKeyCommand, dispatchKindCommand } from '$lib/schema/block-commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { EditorContext } from '$lib/schema/plugin-install';
 
-const lookupFor = (mode: PresentationMode) => (_name: string) =>
-	({ presentationMode: mode }) as EditorContext;
+const modeGetter = (mode: PresentationMode) => () => mode;
 
 describe('resolveEffectivePresentationMode', () => {
 	it('all four rungs are built — every mode passes through uncollapsed', () => {
@@ -21,9 +19,10 @@ describe('resolveEffectivePresentationMode', () => {
 });
 
 describe('isReadingMode', () => {
-	it('reads the mode through the lookup; absent lookup means not reading', () => {
-		expect(isReadingMode(lookupFor('reading'))).toBe(true);
-		expect(isReadingMode(lookupFor('source'))).toBe(false);
+	it('reads the mode through the getter; absent getter means not reading', () => {
+		expect(isReadingMode(modeGetter('reading'))).toBe(true);
+		expect(isReadingMode(modeGetter('source'))).toBe(false);
+		expect(isReadingMode(modeGetter('preview-inline'))).toBe(false);
 		expect(isReadingMode(undefined)).toBe(false);
 	});
 });
@@ -41,26 +40,26 @@ describe('dispatch gates in reading mode', () => {
 		const ran: string[] = [];
 		let undos = 0;
 		const history = { requestUndo: () => void undos++, requestRedo: () => {} };
-		const reading = { history, pluginEditor: lookupFor('reading') };
+		const reading = { history, getPresentationMode: modeGetter('reading') };
 		expect(dispatchKeyCommand('Mod+Z', target(ran), reading)).toBe(false);
 		expect(undos).toBe(0);
 
-		const source = { history, pluginEditor: lookupFor('source') };
+		const source = { history, getPresentationMode: modeGetter('source') };
 		expect(dispatchKeyCommand('Mod+Z', target(ran), source)).toBe(true);
 		expect(undos).toBe(1);
 	});
 
-	it('dispatchKindCommand gates when handed the lookup, and stays open without it', () => {
+	it('dispatchKindCommand gates when handed the reading getter, and stays open otherwise', () => {
 		const overrides = normalizeKeybindingOverrides([
 			{ kind: 'paragraph', chord: 'Mod+K', command: 'block.moveUp' }
 		]);
 		const ran: string[] = [];
 		expect(
-			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, lookupFor('reading'))
+			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, modeGetter('reading'))
 		).toBe(false);
 		expect(ran).toEqual([]);
 		expect(
-			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, lookupFor('source'))
+			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, modeGetter('source'))
 		).toBe(true);
 		expect(ran).toEqual(['block.moveUp']);
 	});

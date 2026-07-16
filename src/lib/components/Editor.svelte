@@ -730,6 +730,7 @@
 		controller,
 		history,
 		pluginEditor: pluginEditorLookup,
+		getPresentationMode: () => effectiveMode,
 		onCommandError: commandErrorSink,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
@@ -1047,7 +1048,7 @@
 		     scrollport top so it doesn't scroll away with content on next/prev. -->
 		<div class="search-anchor">
 			<SearchBar
-				{replaceExpanded}
+				replaceExpanded={replaceExpanded && effectiveMode !== 'reading'}
 				onToggleReplace={() => (replaceExpanded = effectiveMode !== 'reading' && !replaceExpanded)}
 			/>
 		</div>

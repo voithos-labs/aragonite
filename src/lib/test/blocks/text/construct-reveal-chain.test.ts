@@ -41,8 +41,27 @@ describe('constructChainAtOffset', () => {
 	});
 
 	it('a boundary shared by adjacent constructs reveals both', () => {
-		// `*a*` [0,3) then '`b`' [3,6) — affinity between them is not decided here.
+		// `*a*` [0,3) then '`b`' [3,6). Both reveal — the caret is a raw offset and
+		// insertion lands at it; there is no boundary "winner" to pick (affinity contract).
 		expect(chainKinds('*a*`b`', 3)).toEqual(['emphasis', 'inlineCode']);
+		// The truly-adjacent strong→emphasis run resolves the same way at its shared
+		// raw offset: `**a***b*` — strong [0,5), emphasis [5,8) — both show at 5.
+		expect(chainKinds('**a***b*', 5)).toEqual(['strong', 'emphasis']);
+	});
+
+	it('a construct filling the whole block reveals at both block edges', () => {
+		// Block-start/end edge: offset 0 and the block-final offset are inclusive, so a
+		// leftward walk into the opening `**` (and a rightward one into the closing `**`)
+		// reveals — the markers are steppable before the caret would land in them.
+		expect(chainKinds('**bold**', 0)).toEqual(['strong']);
+		expect(chainKinds('**bold**', 8)).toEqual(['strong']);
+	});
+
+	it('empty wrapped markup is literal text, never a construct — no chain', () => {
+		// CommonMark forbids empty emphasis: `****` is four literal asterisks, not an
+		// empty strong, so the "empty construct" boundary case does not exist — a caret
+		// among the asterisks sees plain text with nothing to reveal.
+		expect(chainKinds('a **** b', 4)).toEqual([]);
 	});
 
 	it('nested constructs yield the full chain, outermost first', () => {

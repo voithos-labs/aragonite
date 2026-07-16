@@ -14,7 +14,12 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
-import type { BlockElLookup, DocumentGetter, PluginEditorLookup } from '../../editor-keys';
+import type {
+	BlockElLookup,
+	DocumentGetter,
+	PluginEditorLookup,
+	PresentationModeGetter
+} from '../../editor-keys';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
@@ -52,6 +57,9 @@ export interface CrossBlockDispatchContext {
 	// contains its throw — required fields (undefinable value) so a new cross-block
 	// context constructor can't silently skip the thread (sibling-path parity).
 	pluginEditor: PluginEditorLookup | undefined;
+	/** The effective presentation mode — the destructive-branch reading gate keys off
+	 *  this, a sibling thread to `pluginEditor` (never the lookup). */
+	getPresentationMode: PresentationModeGetter | undefined;
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -94,9 +102,9 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	// Reading-mode gates for the mutating halves live here at the composer, so
 	// every construction site (each editable surface, the editor root) inherits
 	// them. Keydown gates its own destructive branches — it also carries
-	// navigation, which stays live. The mode arrives through ctx.pluginEditor,
-	// the lookup this context already threads.
-	const reading = () => isReadingMode(ctx.pluginEditor);
+	// navigation, which stays live. The mode arrives through ctx.getPresentationMode,
+	// the dedicated getter this context threads beside the plugin lookup.
+	const reading = () => isReadingMode(ctx.getPresentationMode);
 
 	return {
 		handleKeyDown: keydown.handleKeyDown,

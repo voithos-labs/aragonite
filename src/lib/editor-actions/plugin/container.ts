@@ -36,10 +36,12 @@ import {
 	FOCUS_KEY,
 	KEYBINDING_OVERRIDES_KEY,
 	PLUGIN_EDITOR_KEY,
+	PRESENTATION_MODE_KEY,
 	REORDER_ACTION_KEY,
 	STICKY_COLUMN_KEY,
 	type KeybindingOverridesGetter,
-	type PluginEditorLookup
+	type PluginEditorLookup,
+	type PresentationModeGetter
 } from '../../editor-keys';
 import { emitCommandError, type EditorEvents } from '../../editor-events';
 import { pluginKindOwner } from '../../schema/plugin-install';
@@ -276,6 +278,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
 
 	const listState = createBlockListState(() => deps.node);
 
@@ -419,7 +422,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				kindTarget,
 				keybindingOverrides(),
 				(report) => emitCommandError(editorEvents, report),
-				pluginEditor
+				getPresentationMode
 			)
 		) {
 			e.preventDefault();
@@ -446,7 +449,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 		// A whole-block surface is tabindex-focusable independent of contenteditable,
 		// so this path is live in reading mode: arrows (below) stay, edits gate.
-		const reading = isReadingMode(pluginEditor);
+		const reading = isReadingMode(getPresentationMode);
 
 		if (e.key === 'ArrowUp' && e.altKey) {
 			e.preventDefault();
