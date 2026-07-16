@@ -37,6 +37,9 @@ import { comparePaths } from './path-math';
  * merges external text into a cell and corrupts the grid. Non-table paths pass
  * through unchanged. SelectionState applies this to every incoming point, so
  * entry paths need not call it themselves.
+ *
+ * This is the char→cell conversion funnel: it mints the {@link CellSelectionPoint}
+ * for a table path and returns a char point otherwise — hence the union return.
  */
 export function normalizeTableEndpoint(
 	doc: DocumentView,

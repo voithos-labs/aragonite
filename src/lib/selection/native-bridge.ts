@@ -137,12 +137,14 @@ export function readCurrentSelection(
 	return null;
 }
 
-// cellCoordinate must survive the snapshot copy: a restored table endpoint
-// without it skips the whole-row snap and the deep-cell collapse routing.
+// A restored table endpoint must keep cellCoordinate, or it skips the whole-row
+// snap and the deep-cell collapse routing; the two-branch copy carries the union
+// variant through the undo snapshot.
 function copySelectionPoint(point: SelectionPoint): SelectionPoint {
-	const copy: SelectionPoint = { path: point.path.slice(), offset: point.offset };
-	if (point.cellCoordinate) copy.cellCoordinate = true;
-	return copy;
+	if (point.cellCoordinate) {
+		return { path: point.path.slice(), offset: point.offset, cellCoordinate: true };
+	}
+	return { path: point.path.slice(), offset: point.offset };
 }
 
 /**

@@ -77,7 +77,7 @@ export function installDragListener(
 
 		// A table endpoint's offset is a row-major cell index, not a char offset.
 		// The flag routes collapse/reveal to the deep cell (cellEndpointDeepPath)
-		// and arms the assertCharOffset guard, matching the keyboard path.
+		// and marks the point as the cell variant, matching the keyboard path.
 		const focusPoint: SelectionPoint = isCellCoordinate
 			? { path: hit.path, offset, cellCoordinate: true }
 			: { path: hit.path, offset };
