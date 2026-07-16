@@ -91,6 +91,31 @@ sanctioned transfer funnel; a concrete recorded blocker is the honest failure mo
 views (0.9.24) already carved the mutation perimeter, which makes the attempt far cheaper than
 it was.
 
+**Resolution (0.9.27 — FIXED).** `CstNode` is a discriminated union: a per-kind arm for each
+built-in block (metadata typed to the kind; leaf arms pin `children`/inner fields `undefined`,
+so G1.5's leaf-field ban is now unrepresentable, not guarded; container structural fields stay
+optional for transient childlessness) plus one open `PluginBlockNode` arm. The scout's survey
+held: the ONLY in-place `node.kind =` write was `updateNodeContent`'s re-parse transfer, and it
+was vestigial — its kind-change and multi-block paths now mint a fresh node and splice it into
+the slot (the same shape split/merge always used), while a same-kind edit keeps its in-place
+field write so routine typing preserves the node object, its component, IME state, and inline
+cache. That mint is the single sanctioned transfer funnel; the union has no in-place kind door.
+
+The plugin arm's branded-string `kind` is not a unit type, so it blocks discrimination on the
+FULL union — `isBuiltinBlockNode` narrows to the built-in sub-union first, and there
+`switch (node.kind)` types each arm's metadata for free. `metadataOf` therefore stays as the one
+sanctioned narrowing home for the un-narrowed and generic contexts the branded arm keeps
+un-narrowable (its body's cast survives for the generic path). This revises the pre-attempt
+estimate that "most sites simplify": the sweep collapsed the one genuine `switch (node.kind)`
+metadata cluster (the debug dump reads each arm directly now) and kept `metadataOf` at the ~90
+contextual call sites, where the kind is known by position rather than a narrowing check — an
+honest, small collapse ratio, not a shortfall. `BytesView` distributes over the union, so
+`NodeView` discriminates natively too. Runtime-kind construction routes through `makeBlockNode`,
+which spreads into a fresh object (so it cannot strip a view — no G1.9 hazard) and is the one
+cast G4.13 sanctions in `core/nodes.ts`. The enforcement climbed from guarded to unrepresentable
+for construction and for built-in narrowing; the residual `metadataOf` funnel is the honest
+floor the open plugin arm imposes, now documented rather than worked around.
+
 ## 4. Container `raw`/children redundancy is the most guard-hungry decision in the repo
 
 **The design.** A container's `raw` holds the whole subtree's source; children hold inner
