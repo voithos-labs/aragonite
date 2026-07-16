@@ -26,11 +26,13 @@ failures is paying rent the docs don't fully acknowledge.
 it made register-once/conflict-on-duplicate trivially enforceable, and no real consumer has
 yet hit the multi-editor wall.
 
-**Direction.** Pressure-test during the limestone integration — a real app with multiple
-editors, SSR, and HMR is exactly where the global-registry assumptions squeak. If limestone
-chafes, the likely shape is instance-scoped resolution over a global definition _cache_ (the
-enablement policy layer the contract already reserves room for). Decide with the consumer at
-the table, not on paper.
+**Direction.** Build the fix before limestone binds (owner-directed, build-up-front posture):
+an instance-resolution seam over global definitions — definitions stay the global cache,
+each instance resolves through a view whose default is "all definitions" (behavior-preserving),
+enablement becomes an additive policy knob, and the operational rot (test resets, HMR reloads,
+SSR registrar poison) gets a structural fix instead of a fourth compensation. Limestone then
+integrates against the fixed shape and pressure-tests it, rather than binding to the suspect
+one while "validating" it.
 
 ## 2. `SelectionPoint.offset` carries two coordinate spaces in one field
 
@@ -68,11 +70,12 @@ while the union holds everywhere else.
 **The counterweight.** The flat interface is simple, uniform across parser/editor/serializer,
 and the guards do hold — no metadata-shape corruption has shipped.
 
-**Direction.** Investigate, then decide: enumerate every site that writes `node.kind` (grep is
-cheap post-brands), determine whether in-place reassignment is real or vestigial, and either
-(a) adopt the union with one sanctioned transfer funnel, or (b) record the concrete blocker
-here so the question stops being re-litigated. Readonly views (0.9.24) already carved the
-mutation perimeter, which makes the survey far cheaper than it was.
+**Direction.** Attempt the union — the `kind`-write-site survey is step one of the attempt,
+not a separate phase. Enumerate every site that writes `node.kind` (cheap post-brands),
+determine whether in-place reassignment is real or vestigial, and adopt the union with one
+sanctioned transfer funnel; a concrete recorded blocker is the honest failure mode. Readonly
+views (0.9.24) already carved the mutation perimeter, which makes the attempt far cheaper than
+it was.
 
 ## 4. Container `raw`/children redundancy is the most guard-hungry decision in the repo
 
@@ -92,10 +95,11 @@ container chrome (irregular `> ` spacing, mixed indentation) makes per-line pref
 converge back toward storing the raw anyway; the trivially-auditable serializer has real
 value; and the amplification is measured and ceiling-gated, not open-ended.
 
-**Direction.** Re-affirm with data rather than by momentum: pull the amplification numbers
-from the perf report for realistic deep-nesting workloads, state the measured worst case in
-`syntax-tree.md` next to the design rationale, and record the decision here. No code change
-anticipated — the deliverable is the honest cost sitting beside the claim.
+**Direction.** A falsification gate, not a deferral: build the deep-nesting amplification
+benchmark first, as a real artifact over realistic workloads. If the data indicts the design,
+fix it in the architecture-concern pass — before limestone. If it exonerates, state the
+measured worst case in `syntax-tree.md` beside the rationale and record the decision here.
+Either way the verdict is earned by numbers, not momentum.
 
 ## 5. Svelte context-key sprawl
 
@@ -113,8 +117,9 @@ entry #1.
 bundle it changes with zero pass-through boilerplate — a real, load-bearing property of the
 nested-container design.
 
-**Direction.** Evaluate consolidation into fewer, named facets — the same shape as the
-freeze-cut's pending "group `BlockComponent`'s optional capability probes into named facets"
-decision; treat the two as one design question. A mount-harness helper that supplies the
-standard stub set would relieve the test-cost symptom immediately even if the interface stays
-per-key.
+**Direction.** Consolidate into fewer, named facets — the same shape as the freeze-cut's
+pending "group `BlockComponent`'s optional capability probes into named facets" decision;
+treat the two as one design question and attempt both in the architecture-concern pass
+(byte-identical refactor discipline, the edge-policy consolidation precedent). A mount-harness
+helper supplying the standard stub set relieves the test-cost symptom regardless of where the
+interface lands.

@@ -30,19 +30,25 @@ CST-as-truth model, no stored-marks machinery needed). The remaining risk is **v
 depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
 are ordered by **risk first, validation before freeze**.
 
-1. **Architecture-concern pass — address or re-affirm the eyebrow list before it freezes.**
+1. **Architecture-concern pass — attempt all five before anything binds.**
    A post-0.9.26 architecture review flagged five standing designs
    (`docs/research/architecture-concerns.md`: process-global registries, the dual-space
    `SelectionPoint.offset`, the flat `CstNode` interface, container raw/children redundancy,
-   context-key sprawl). Each is working and guarded today; the risk is shape, not defect —
-   cheap to reconsider now, breaking after the freeze. The pass: **fix** the `SelectionPoint`
-   union pre-freeze (a public shape, breaking-if-deferred by the contract's own criterion);
-   **investigate** the `CstNode` union tension (enumerate the `kind`-write sites, adopt or
-   record the blocker) and the context-facet consolidation (jointly with the freeze-cut's
-   named-facets decision); **re-affirm with data** the container-raw redundancy (amplification
-   numbers beside the rationale); and hand the **registry pressure-test** to the limestone
-   integration below, where multi-editor/SSR/HMR reality lives. An entry leaves the concerns
-   doc only with a decision recorded against it.
+   context-key sprawl). Each is working and guarded today; the risk is shape, not defect — and
+   the limestone integration would otherwise _bind to_ the suspect shapes while "validating"
+   them, paying the churn twice (the contract's own first principle: structure is cheapest to
+   fix before external code binds). The pass attempts every entry, owner-directed
+   (build-up-front posture, 2026-07-16): **fix** the `SelectionPoint` point union; **attempt**
+   the `CstNode` discriminated union (the `kind`-write-site survey is step one; a recorded
+   blocker is the honest failure mode, not an open question); **build** the instance-resolution
+   registry seam over global definitions (default = all definitions, behavior-preserving;
+   enablement becomes an additive policy knob; the operational rot — test resets, HMR reloads,
+   SSR registrar poison — gets a structural fix, not another compensation); **consolidate** the
+   context keys into named facets (jointly with the freeze-cut's named-facets decision;
+   byte-identical refactor discipline); and run **container-raw through a falsification gate**
+   — build the deep-nesting amplification benchmark first, fix in this item if the data
+   indicts, record the exoneration with numbers if it doesn't. An entry leaves the concerns doc
+   only with a fix or a recorded decision against it.
 
 2. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
