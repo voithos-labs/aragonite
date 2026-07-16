@@ -16,7 +16,6 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { stampMathWidget, resetInlineState } from './math-widget-fixture';
@@ -102,15 +101,12 @@ function mountTwoMathBlock() {
 		}
 	} as unknown as WidgetInteractionDeps);
 
-	// Arrow-entry from the right of the first widget opens its reveal at the trailing
-	// edge (the Obsidian model — no select-then-Enter). handleWidgetAtCursorKeydown
-	// runs startReveal's synchronous prefix (showSource + revealSettling) before it
-	// returns, so the reveal is already swapping when the caller inspects it.
+	// Entry from the trailing edge opens the first widget's reveal at that edge (the
+	// Obsidian model — no select-then-Enter). enterWidget runs startReveal's
+	// synchronous prefix (showSource + revealSettling) before it returns, so the
+	// reveal is already swapping when the caller inspects it.
 	async function revealFirst(): Promise<void> {
-		interaction.handleWidgetAtCursorKeydown(
-			new KeyboardEvent('keydown', { key: 'ArrowLeft' }),
-			asRawOffset(first.end)
-		);
+		interaction.enterWidget(first, true);
 		await new Promise((r) => setTimeout(r));
 	}
 
