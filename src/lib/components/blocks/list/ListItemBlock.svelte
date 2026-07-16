@@ -15,9 +15,11 @@
 		FOCUS_KEY,
 		KEYBINDING_OVERRIDES_KEY,
 		LIST_CONTEXT_KEY,
+		PRESENTATION_MODE_KEY,
 		SELECTION_KEY,
 		STICKY_COLUMN_KEY,
-		type KeybindingOverridesGetter
+		type KeybindingOverridesGetter,
+		type PresentationModeGetter
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import type { SelectionState } from '../../../selection/selection-state.svelte';
@@ -65,6 +67,19 @@
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
+
+	// Reading-mode CSS needs to tell bullet/ordered/task markers apart (bullets
+	// become rendered chrome, numbers stay visible) and the ambient span carries
+	// no such class. Attribute present only in reading mode — the source-mode DOM
+	// stays byte-identical.
+	const readingMarkerKind = $derived.by(() => {
+		if (!readOnly) return undefined;
+		const meta = metadataOf(node, 'listItem');
+		if (meta?.taskItem) return 'task';
+		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';
+	});
 
 	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
 	// this item's index in the outer list — the coordinate promoteNestedItem needs.
@@ -87,6 +102,10 @@
 	});
 
 	function toggleTask(): void {
+		// Reading mode v1 keeps checkboxes visible but inert (CSS also drops their
+		// pointer affordance); live task toggling is a deferred product question —
+		// see docs/issues.md.
+		if (readOnly) return;
 		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return;
 
@@ -232,6 +251,9 @@
 	// defaultPrevented false — a global tier would re-fire its undo/redo.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
+		// Both bubbled commands (list.indent/unindent) are edits; this caller has
+		// no pluginEditor lookup to hand the dispatcher's own gate, so it gates here.
+		if (readOnly) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
 		if (dispatchKindCommand(chord, { kind: node.kind, runCommand }, keybindingOverrides())) {
@@ -244,6 +266,7 @@
 	class="list-item-block"
 	class:reorder-host={dragHandles}
 	data-task-checked={taskCheckedAttr}
+	data-list-marker={readingMarkerKind}
 	bind:this={boxEl}
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->

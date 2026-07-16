@@ -7,6 +7,7 @@
 import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { PresentationMode } from '../presentation-mode';
 import {
 	installedPluginNames,
 	onEditorCallbacks,
@@ -32,6 +33,7 @@ export function createEditorPluginContexts(deps: {
 	optionsFor: (pluginName: string) => unknown;
 	decorations: DecorationRegistry;
 	rects: EditorRects;
+	getPresentationMode: () => PresentationMode;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -48,7 +50,10 @@ export function createEditorPluginContexts(deps: {
 				events: deps.events,
 				options: deps.optionsFor(pluginName),
 				decorations: deps.decorations,
-				rects: deps.rects
+				rects: deps.rects,
+				get presentationMode() {
+					return deps.getPresentationMode();
+				}
 			};
 			contexts.set(pluginName, ctx);
 		}

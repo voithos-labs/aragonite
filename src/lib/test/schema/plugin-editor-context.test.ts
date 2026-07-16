@@ -26,7 +26,8 @@ const deps = (doc: { children: unknown[] }) => ({
 	events: fakeEvents,
 	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
 	decorations: noopDecorations,
-	rects: noopRects
+	rects: noopRects,
+	getPresentationMode: () => 'source' as const
 });
 
 beforeEach(() => __resetInstalledPluginsForTests());
@@ -47,6 +48,18 @@ describe('createEditorPluginContexts', () => {
 		const ctx = ctxs.get('p');
 		doc = { children: [1] };
 		expect((ctx.document as never as { children: unknown[] }).children).toHaveLength(1);
+	});
+
+	it('presentationMode is a live getter, not a snapshot', () => {
+		let mode: 'source' | 'reading' = 'source';
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			getPresentationMode: () => mode
+		});
+		const ctx = ctxs.get('p');
+		expect(ctx.presentationMode).toBe('source');
+		mode = 'reading';
+		expect(ctx.presentationMode).toBe('reading');
 	});
 
 	it('attachAll fires callbacks with the same object get() returns; dispose runs disposers', () => {
@@ -143,7 +156,8 @@ describe('createEditorPluginContexts', () => {
 			events,
 			optionsFor: () => undefined,
 			decorations: registry,
-			rects: noopRects
+			rects: noopRects,
+			getPresentationMode: () => 'source'
 		});
 		ctxs.attachAll(() => {});
 

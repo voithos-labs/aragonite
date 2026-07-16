@@ -30,6 +30,7 @@ import {
 import type { KeyBinding } from './keybindings';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { EditorContext } from './plugin-install';
+import { isReadingMode } from '../presentation-mode';
 
 export interface BlockCommandContext {
 	/** Read context — a bytes-readonly view; metadata edits go through `updateMetadata`. */
@@ -160,6 +161,10 @@ export function dispatchKeyCommand(
 	overrides?: KeybindingOverrideMap,
 	onCommandError?: CommandErrorSink
 ): boolean {
+	// Reading mode is inert: the whole command vocabulary (edits, undo/redo,
+	// reorder) dead-keys at this seam, for every caller at once. Navigation
+	// never routes through the keymap, so nothing a reader needs is lost.
+	if (isReadingMode(ctx.pluginEditor)) return false;
 	const binding = resolveBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	const globalRun = getCommand(binding.command);
@@ -187,8 +192,12 @@ export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,
 	overrides?: KeybindingOverrideMap,
-	onCommandError?: CommandErrorSink
+	onCommandError?: CommandErrorSink,
+	pluginEditor?: GlobalCommandContext['pluginEditor']
 ): boolean {
+	// Sibling of dispatchKeyCommand's reading-mode gate. This path has no
+	// GlobalCommandContext, so the bubble callers pass the lookup directly.
+	if (isReadingMode(pluginEditor)) return false;
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	const minted = runMintedCommand(target, binding, onCommandError);

@@ -14,6 +14,7 @@
 
 import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
+import type { PresentationMode } from '../../presentation-mode';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -143,8 +144,15 @@ interface PortalHandle {
  * kind's component inside it with frozen `{ inline, source }` props. A synchronous
  * mount throw is caught, reported through `reportError` (the editor's `error`
  * channel), and surfaced as null so the caller falls back to the raw span.
+ *
+ * `getPresentationMode` rides ALONGSIDE the frozen snapshot as a live getter prop:
+ * pool reuse keys on `${kind} ${source}`, so an instance survives a mode flip —
+ * a frozen mode value would go stale where the getter stays current.
  */
-export function createSvelteWidgetPool(reportError?: (error: unknown) => void): WidgetPool {
+export function createSvelteWidgetPool(
+	reportError?: (error: unknown) => void,
+	getPresentationMode?: () => PresentationMode
+): WidgetPool {
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind);
@@ -155,7 +163,10 @@ export function createSvelteWidgetPool(reportError?: (error: unknown) => void): 
 			wrapper.dataset.sourceEnd = String(inline.end);
 			wrapper.setAttribute('contenteditable', 'false');
 			try {
-				const instance = mount(component, { target: wrapper, props: { inline, source } });
+				const instance = mount(component, {
+					target: wrapper,
+					props: { inline, source, getPresentationMode }
+				});
 				return { wrapper, instance };
 			} catch (error) {
 				reportError?.(error);

@@ -61,11 +61,13 @@
 	} satisfies BlockComponent);
 </script>
 
+<!-- Plain mode keeps its source always mounted, so the component binds
+	contenteditable off the leaf's mode read — the leaf-tier reference wiring. -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="memo-block"
-	contenteditable="true"
+	contenteditable={leaf.getPresentationMode() === 'reading' ? 'false' : 'true'}
 	role="textbox"
 	aria-label="Memo"
 	spellcheck="false"

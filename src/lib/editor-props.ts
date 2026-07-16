@@ -5,6 +5,7 @@
  */
 import type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
+import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
 import type { EditorSelection } from './selection/primitives';
 import type { EditorEvents } from './editor-events';
@@ -29,6 +30,12 @@ export interface EditorProps {
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */
 	theme?: string;
+	/** Read live, like `theme`. `'source'` (default) is today's styled-source
+	 *  editing; `'reading'` hides markers, renders widgets, and is read-only
+	 *  (selection/copy/navigation stay). The `preview-*` rungs are accepted but
+	 *  render as `'source'` until built; every mode read (the `data-presentation`
+	 *  root attribute, plugin getters) reports the effective mode. */
+	presentationMode?: PresentationMode;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
 	/** Plugins installed once, in array order, at mount. Set-once: a later change to

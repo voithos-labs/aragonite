@@ -86,10 +86,23 @@ Optional props customize URL and image handling and the editor's affordances.
 | `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
+| `presentationMode` | `'source'` (default), `'reading'`, or a `preview-*` rung (see [Presentation modes](#presentation-modes))                                  |
 | `keybindings`      | Per-instance keymap overrides — rebind or disable a chord (see [Keyboard shortcuts](#keyboard-shortcuts))                                 |
 | `plugins`          | Plugin units installed once at mount, in array order, before the first parse (see [Plugins](#plugins))                                    |
 
-**Set-once at mount** — `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `blockDragHandles`, and `plugins`. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks; set them at mount and treat them as fixed for the editor's lifetime. `theme`, `searchBar`, and `keybindings` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `blockDragHandles`, and `plugins`. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks; set them at mount and treat them as fixed for the editor's lifetime. `theme`, `searchBar`, `presentationMode`, and `keybindings` are the exceptions — they read live and may change after mount.
+
+## Presentation modes
+
+`presentationMode` selects how the document presents, live-switchable like `theme`:
+
+- **`'source'`** (default) — always-visible styled source: every Markdown marker renders, dimmed, and everything is editable. Byte-identical to the editor's behavior before the prop existed.
+- **`'reading'`** — a rendered reading view. Markers are hidden (by CSS — the document and its coordinate space are untouched), widgets render, list bullets and numbers show as rendered chrome, and the surface is **read-only**: typing, paste, cut, Enter/Backspace, undo/redo, block commands, checkbox toggles, drag handles, and table structure edits are all inert. What stays live is everything a reader needs — text selection, copy (which yields the rendered text, markers excluded), block-level keyboard navigation, scrolling, search (find, not replace), and links, which activate on plain click since there is no caret to place.
+- **`'preview-block'` / `'preview-inline'`** — accepted now so the mode union is complete, but not yet implemented: they render as `'source'` with a dev-mode warning. Every mode read (below) reports the **effective** mode, so nothing ever renders for a mode the editor is not actually in.
+
+The effective mode is reflected as `data-presentation` on the editor root — **absent** in source mode, so default-mode DOM is unchanged — and announced to subscribers as a `presentationModeChange` event on `getEvents()`.
+
+One reading-mode limitation to know: blocks are not `contenteditable` there, so there is no within-block text caret — navigation is block-level (mouse selection and copy work natively on the static content). This is the same contract as other reading views (Obsidian's reading mode has no caret either).
 
 ## Multiple instances
 
@@ -230,11 +243,12 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 
 Subscribe to the observer surface via `editor.getEvents()`. Three channels:
 
-| Channel           | Fires                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| `edit`            | After every commit (structural ops, the debounced typing flush, undo/redo)                              |
-| `selectionChange` | Whenever the selection changes; payload is the snapshot or `null`                                       |
-| `error`           | On a failure the editor contains rather than propagates (subscriber / render / commit / command origin) |
+| Channel                  | Fires                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `edit`                   | After every commit (structural ops, the debounced typing flush, undo/redo)                              |
+| `selectionChange`        | Whenever the selection changes; payload is the snapshot or `null`                                       |
+| `error`                  | On a failure the editor contains rather than propagates (subscriber / render / commit / command origin) |
+| `presentationModeChange` | After a `presentationMode` prop change; payload is the effective mode (never fired at mount)            |
 
 The payload envelopes — read the source types for the per-op arms, which change as operations are added:
 

@@ -41,7 +41,8 @@ export default defineConfig({
 				'a11y/**',
 				'search/**',
 				'decorations/**',
-				'plugins/**'
+				'plugins/**',
+				'presentation/**'
 			]
 		},
 		{
@@ -83,6 +84,7 @@ export default defineConfig({
 		{ name: 'e2e-blocks', testMatch: 'blocks/**/*.spec.ts' },
 		{ name: 'e2e-decorations', testMatch: 'decorations/**/*.spec.ts' },
 		{ name: 'e2e-plugins', testMatch: 'plugins/**/*.spec.ts' },
+		{ name: 'e2e-presentation', testMatch: 'presentation/**/*.spec.ts' },
 		{
 			name: 'e2e-clipboard',
 			testMatch: 'clipboard/**/*.spec.ts',

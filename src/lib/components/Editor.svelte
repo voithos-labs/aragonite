@@ -26,6 +26,7 @@
 		LINK_REF_KEY,
 		PASTE_COORDINATOR_KEY,
 		PLUGIN_EDITOR_KEY,
+		PRESENTATION_MODE_KEY,
 		REORDER_ACTION_KEY,
 		REORDER_ANNOUNCE_KEY,
 		RESOLVE_IMAGE_URL_KEY,
@@ -86,6 +87,7 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
+	import { resolveEffectivePresentationMode, warnStubPresentationMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
 	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
@@ -111,6 +113,7 @@
 		searchBar = true,
 		keybindings,
 		theme = 'dark',
+		presentationMode = 'source',
 		plugins
 	}: EditorProps = $props();
 
@@ -122,6 +125,11 @@
 	if (pluginEntries) installPlugins(pluginEntries.plugins);
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
+
+	// The one mode every door reports (root attribute, context getter, plugin
+	// contexts, events): preview stubs collapse to 'source' here, once.
+	const effectiveMode = $derived(resolveEffectivePresentationMode(presentationMode));
+	$effect(() => warnStubPresentationMode(presentationMode));
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
@@ -257,7 +265,9 @@
 			if (!anchor) return;
 			const href = anchor.getAttribute('href');
 			if (!href) return;
-			if (e.ctrlKey || e.metaKey) {
+			// Reading mode has no caret for a plain click to place, so links behave
+			// as in a rendered document: plain click activates.
+			if (e.ctrlKey || e.metaKey || effectiveMode === 'reading') {
 				e.preventDefault();
 				activateLink(href, e);
 			} else {
@@ -460,7 +470,11 @@
 		events,
 		optionsFor: (name) => pluginEntries?.optionsByName.get(name),
 		decorations,
-		rects
+		rects,
+		// The one injection point of the mode into the dispatch tiers: both chord
+		// dispatchers and the cross-block destructive branches read it back through
+		// the pluginEditor lookup they already thread.
+		getPresentationMode: () => effectiveMode
 	});
 
 	// The per-instance context lookup + command-error sink every dispatch tier that
@@ -499,10 +513,18 @@
 	let savedRange: Range | null = null;
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
+	// Find stays live in reading mode; replace is an edit and no-ops at this seam
+	// (the bar's replace row is also kept collapsed below).
+	const gatedSearchReplace: typeof searchReplace = {
+		replaceOne: (match, template) =>
+			effectiveMode === 'reading' ? Promise.resolve(0) : searchReplace.replaceOne(match, template),
+		replaceAll: (matches, template) =>
+			effectiveMode === 'reading' ? Promise.resolve(0) : searchReplace.replaceAll(matches, template)
+	};
 	const searchState = createSearchState({
 		getDoc,
 		decorations,
-		replace: searchReplace,
+		replace: gatedSearchReplace,
 		// Reveal mounts the target block (windowed-out case), then scroll the
 		// active match's element into view — a no-op when already on screen, so it
 		// also covers the mounted-but-scrolled-out case. getBlockElByPath resolves
@@ -565,7 +587,10 @@
 	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
 	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
 	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
-	setContext(BLOCK_DRAG_HANDLES_KEY, () => blockDragHandles);
+	setContext(PRESENTATION_MODE_KEY, () => effectiveMode);
+	// Reading mode forces the drag handle off through the same funnel the prop
+	// uses — both render sites read this one getter.
+	setContext(BLOCK_DRAG_HANDLES_KEY, () => blockDragHandles && effectiveMode !== 'reading');
 	setContext(KEYBINDING_OVERRIDES_KEY, () => overridesMap);
 	setContext(BROKEN_IMAGE_URLS_KEY, brokenImageUrls);
 	setContext(EDITOR_EVENTS_KEY, events);
@@ -581,6 +606,24 @@
 		get signature(): string {
 			return currentSignature;
 		}
+	});
+
+	// Mode flips are blur-class events: entering reading while a reveal is open or
+	// a composition is live must fold/commit through the existing blur choke
+	// points (onFocusOut → commitReveal, compositionend) before the surface goes
+	// inert — so blur the active element rather than invent a new fold path. The
+	// change event carries the effective mode; the initial value never emits.
+	// svelte-ignore state_referenced_locally
+	let lastEffectiveMode = effectiveMode;
+	$effect(() => {
+		const mode = effectiveMode;
+		if (mode === lastEffectiveMode) return;
+		lastEffectiveMode = mode;
+		if (mode === 'reading') {
+			const active = document.activeElement;
+			if (active instanceof HTMLElement && editorEl?.contains(active)) active.blur();
+		}
+		events.emit('presentationModeChange', mode);
 	});
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as
@@ -718,7 +761,7 @@
 				const sel = window.getSelection();
 				const selected = sel?.toString() ?? '';
 				savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-				replaceExpanded = rootChord === 'Mod+H';
+				replaceExpanded = rootChord === 'Mod+H' && effectiveMode !== 'reading';
 				searchState.open();
 				if (selected) searchState.setQuery(selected);
 				return;
@@ -735,8 +778,11 @@
 			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
 			// caret whose block unmounted, not necessarily a selection. No block is
 			// focused here, so resolve at global scope (consumer override, else default).
+			// This branch runs getCommand directly (no dispatchKeyCommand), so it
+			// carries the reading-mode gate itself — sibling: ThematicBreakBlock.
 			if (rootChord && isEditorGlobalChord(rootChord)) {
 				e.preventDefault();
+				if (effectiveMode === 'reading') return;
 				const binding = resolveGlobalBinding(rootChord, overridesMap);
 				if (binding)
 					getCommand(binding.command)?.({
@@ -954,9 +1000,13 @@
 <!-- tabindex="-1": focusable so a windowed-out block can hand focus here instead
 	of letting it fall to <body>, but not tab-reachable. Non-editable, so focusing
 	it creates no native selection the selectionchange bridge would collapse. -->
+<!-- data-presentation is ABSENT in source mode on purpose: the default path's
+	DOM stays byte-identical to the pre-mode editor; reading-mode CSS keys on the
+	attribute's presence. -->
 <div
 	class="editor"
 	data-editor-theme={theme}
+	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
 	bind:this={editorEl}
 	tabindex="-1"
 	role="group"
@@ -966,7 +1016,10 @@
 		<!-- Zero-height sticky anchor: pins the absolutely-positioned bar to the
 		     scrollport top so it doesn't scroll away with content on next/prev. -->
 		<div class="search-anchor">
-			<SearchBar {replaceExpanded} onToggleReplace={() => (replaceExpanded = !replaceExpanded)} />
+			<SearchBar
+				{replaceExpanded}
+				onToggleReplace={() => (replaceExpanded = effectiveMode !== 'reading' && !replaceExpanded)}
+			/>
 		</div>
 	{/if}
 	<BlockList
@@ -985,6 +1038,7 @@
 		{getDoc}
 		getEditorEl={() => editorEl ?? null}
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
+		getPresentationMode={() => effectiveMode}
 		lifetime={lifetimeController.signal}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>

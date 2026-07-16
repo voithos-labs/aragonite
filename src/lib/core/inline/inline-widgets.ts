@@ -11,6 +11,7 @@
 import type { Component } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
+import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 
 /**
@@ -25,6 +26,11 @@ import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 export interface InlineWidgetComponentProps {
 	inline: InlineNode;
 	source: string;
+	/** LIVE mode read, deliberately a getter beside the frozen snapshot: the pool
+	 *  reuses an instance across a mode flip, so a frozen value would go stale.
+	 *  Always supplied by the editor's mount; optional so a bare harness can
+	 *  mount without it (absent reads as 'source'). */
+	getPresentationMode?: () => PresentationMode;
 }
 
 /**
@@ -50,6 +56,8 @@ export interface InlineWidgetEditingContext {
 	index: number;
 	preSelectOffset: number;
 	editorContentWidth: number;
+	/** Effective mode at dispatch; a handler declines edits in 'reading'. */
+	presentationMode: PresentationMode;
 	/** Core-safe commit hook: this module can't reach the editor-actions block API
 	 *  from the core layer, so the caller binds this to its content update. */
 	updateContent: (newRaw: string, caretBefore: number, caretAfter: number) => void;

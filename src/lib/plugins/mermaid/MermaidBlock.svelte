@@ -204,6 +204,9 @@
 
 	function openEdit(): void {
 		if (mode === 'edit') return;
+		// Reading mode: the code edit commits bytes; the mode is read off the editor
+		// root (the documented DOM-tier pattern) and the button is CSS-hidden too.
+		if (boxEl?.closest('[data-presentation="reading"]')) return;
 		editSeed = displayCode;
 		draft = editSeed;
 		mode = 'edit';
@@ -437,6 +440,11 @@
 	.mermaid-block:focus-within .mermaid-toolbar {
 		opacity: 1;
 		pointer-events: auto;
+	}
+
+	/* Reading mode drops the edit affordance; Focus/Reset are view-only and stay. */
+	:global([data-presentation='reading']) .mermaid-toolbar :global([data-testid='mermaid-edit']) {
+		display: none;
 	}
 
 	.mermaid-toolbar button,

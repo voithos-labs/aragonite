@@ -11,9 +11,11 @@
 		HISTORY_KEY,
 		KEYBINDING_OVERRIDES_KEY,
 		PLUGIN_EDITOR_KEY,
+		PRESENTATION_MODE_KEY,
 		REORDER_ACTION_KEY,
 		type KeybindingOverridesGetter,
-		type PluginEditorLookup
+		type PluginEditorLookup,
+		type PresentationModeGetter
 	} from '../../editor-keys';
 	import type { ReorderAction } from '../../editor-actions/reorder-action';
 	import { eventToChord } from '../../schema/keybindings';
@@ -36,6 +38,11 @@
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+	// This block is tabindex-focusable independent of contenteditable, so its
+	// keydown stays live in reading mode: arrows (navigation) stay, the direct
+	// edit branches below gate.
+	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const isReading = () => getPresentationMode?.() === 'reading';
 	let el: HTMLDivElement | undefined = $state();
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -70,10 +77,13 @@
 
 	function onKeyDown(e: KeyboardEvent): void {
 		// The editor owns undo/redo; resolve override-aware so a consumer can rebind
-		// or disable these chords even while a thematic break is focused.
+		// or disable these chords even while a thematic break is focused. Runs
+		// getCommand directly (no dispatchKeyCommand), so it carries the
+		// reading-mode gate itself — sibling: the editor-root branch.
 		const chord = eventToChord(e);
 		if (chord && isEditorGlobalChord(chord)) {
 			e.preventDefault();
+			if (isReading()) return;
 			const binding = resolveBinding(chord, node.kind, keybindingOverrides());
 			if (binding) getCommand(binding.command)?.({ history, pluginEditor, onCommandError });
 			return;
@@ -97,13 +107,13 @@
 
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			blockEdit.splitBlock(index, displayLength(node.raw));
+			if (!isReading()) blockEdit.splitBlock(index, displayLength(node.raw));
 			return;
 		}
 
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
-			blockEdit.deleteBlock(index);
+			if (!isReading()) blockEdit.deleteBlock(index);
 			return;
 		}
 

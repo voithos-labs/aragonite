@@ -15,6 +15,8 @@ export function imageWidgetOnSelectedKey(
 	e: KeyboardEvent,
 	ctx: InlineWidgetEditingContext
 ): boolean {
+	// A resize is an edit; declining lets the caller's generic swallow keep the key inert.
+	if (ctx.presentationMode === 'reading') return false;
 	if (!(e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) return false;
 	e.preventDefault();
 

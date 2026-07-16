@@ -3,18 +3,20 @@ import { renderKeySegmentDiff, islandRenderKeyPart } from '$lib/components/block
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
 
-// A renderKey is `${ambient}\0${raw}\0${ref}\0${imgPolicy}${islandPart}`, where
-// islandPart is '' or `\0<sig>`. The diff names which of the five segments moved —
-// the interaction trace's rebuild cause. These pin the decomposition directly, off
-// the recorder path (the dump is never an assertion target).
+// A renderKey is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}${islandPart}`,
+// where mode is '' in source and islandPart is '' or `\0<sig>`. The diff names
+// which of the six segments moved — the interaction trace's rebuild cause. These
+// pin the decomposition directly, off the recorder path (the dump is never an
+// assertion target).
 function key(parts: {
 	ambient?: string;
 	raw: string;
 	ref?: string;
 	img?: string;
+	mode?: string;
 	islands?: string;
 }) {
-	return `${parts.ambient ?? ''}\0${parts.raw}\0${parts.ref ?? ''}\0${parts.img ?? ''}${parts.islands ?? ''}`;
+	return `${parts.ambient ?? ''}\0${parts.raw}\0${parts.ref ?? ''}\0${parts.img ?? ''}\0${parts.mode ?? ''}${parts.islands ?? ''}`;
 }
 
 const island = (offset: number): IndexedDecoration<WidgetDecoration | ReplaceDecoration> => ({
@@ -53,6 +55,17 @@ describe('renderKeySegmentDiff', () => {
 		const before = key({ raw: 'x' });
 		const after = key({ raw: 'x', islands: islandRenderKeyPart([island(1)]) });
 		expect(renderKeySegmentDiff(before, after)).toBe('islands');
+	});
+
+	it('names mode on a presentation flip, independent of islands', () => {
+		expect(renderKeySegmentDiff(key({ raw: 'x' }), key({ raw: 'x', mode: 'reading' }))).toBe(
+			'mode'
+		);
+		// The trailing island part must not be mis-attributed when mode is set.
+		const islands = islandRenderKeyPart([island(1)]);
+		expect(
+			renderKeySegmentDiff(key({ raw: 'x', islands }), key({ raw: 'x', mode: 'reading', islands }))
+		).toBe('mode');
 	});
 
 	it('reports multiple changed segments comma-joined', () => {
