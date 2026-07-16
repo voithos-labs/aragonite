@@ -28,16 +28,13 @@ export function isPreviewMode(mode: PresentationMode): boolean {
 }
 
 /**
- * The read-only gate the dispatch seams key off. Reached through the per-instance
- * plugin-context lookup that already threads every dispatch tier (leaf chord
- * dispatch, container bubble, cross-block), so no caller carries a mode flag —
- * the getter is injected once, at the Editor's context construction. Structural
- * parameter type so schema/selection layers need no editor-keys import.
+ * The read-only gate the dispatch seams key off. Reads the effective mode through a
+ * dedicated getter — the same `PresentationModeGetter` the block components read off
+ * `PRESENTATION_MODE_KEY` — threaded into each dispatch context beside the plugin
+ * lookup, never smuggled through it (a mode read is not a plugin concern). Structural
+ * parameter type so schema/selection layers need no editor-keys import; a `undefined`
+ * getter (test doubles, unwired surfaces) means not reading.
  */
-export function isReadingMode(
-	lookup: ((pluginName: string) => { readonly presentationMode: PresentationMode }) | undefined
-): boolean {
-	// The trailing ?. tolerates partial lookups (test doubles); the real
-	// per-instance lookup always resolves a context.
-	return lookup?.('')?.presentationMode === 'reading';
+export function isReadingMode(getMode: (() => PresentationMode) | undefined): boolean {
+	return getMode?.() === 'reading';
 }

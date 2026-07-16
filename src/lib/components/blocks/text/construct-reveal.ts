@@ -12,8 +12,12 @@
  * Edges are INCLUSIVE on both sides so the reveal always precedes the step that
  * would land in marker text: the caret at a construct's start/end offset has
  * already revealed it, and the next arrow step enters visible text. At a shared
- * boundary between adjacent constructs both reveal — which construct the caret
- * "belongs to" (affinity) is deliberately not decided here.
+ * boundary between adjacent constructs both reveal — and nothing more is needed:
+ * the caret is a raw offset, the revealed bytes are visible, and typing lands at
+ * that offset. No stored-marks affinity picks a boundary "winner" (the classic
+ * ambiguity — invisible markup boundaries, empty constructs — doesn't arise:
+ * revealed source is visible, and GFM has no empty wrapped construct). The affinity
+ * contract is exactly "raw offset + inclusive reveal edges"; see the affinity spec.
  *
  * Runs on selection cadence (the component's selectionchange handler, composition-
  * gated) plus a forced re-apply from the render effect — a rebuild mints fresh

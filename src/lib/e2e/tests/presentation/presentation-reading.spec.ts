@@ -125,6 +125,38 @@ test.describe('reading mode — inertness', () => {
 		await toggleReadingMode(page); // blur-class flip: the edit must survive
 		await ep.bridge.waitForSourceContains('KEPT');
 	});
+
+	test('a focused code block dead-keys its kind commands (dispatch-ctx parity)', async ({
+		page
+	}) => {
+		// The per-component dispatch sites each supply the mode getter to the reading
+		// gate; a code block is a distinct dispatch site from a paragraph. Enter (a code
+		// command) must dead-key under reading — a missing mode thread would insert a line.
+		await ep.loadContent('```js\nconst x = 1;\n```\n'); // reading mode (beforeEach)
+		const before = await ep.bridge.getSource();
+		await ep.clickBlock(0);
+		await page.keyboard.press('Enter');
+		await page.keyboard.press('Tab');
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toBe(before);
+	});
+
+	test('an open replace row collapses on a flip to reading and returns on flip back', async ({
+		page
+	}) => {
+		await toggleReadingMode(page); // back to source
+		const replaceInput = page.getByRole('textbox', { name: 'Replace' });
+		await page.keyboard.press(`${primaryModifier}+h`); // opens the bar, replace row expanded
+		await expect(replaceInput).toBeVisible();
+
+		// Reading mode disables replace (it is an edit), so the inert row must not linger.
+		await toggleReadingMode(page);
+		await expect(replaceInput).toBeHidden();
+
+		// Flipping back restores it — the expanded state was preserved, only view-gated.
+		await toggleReadingMode(page);
+		await expect(replaceInput).toBeVisible();
+	});
 });
 
 test.describe('reading mode — what stays live', () => {

@@ -289,29 +289,6 @@ simulation still types ASCII only. A composition gesture needs the CDP session t
 into the gesture set on the "perform, settle, resync" pattern — bounded design work, not
 trivially assembled, so it ledgers here per "new feature class → new simulation gesture".
 
-### Presentation-mode flip lacks a simulation gesture
-
-**Severity:** minor (test coverage; reading mode is scripted-e2e- and unit-pinned)
-**Files:** `src/lib/e2e/simulation/gestures/` (no mode-flip gesture)
-
-Reading mode is a static state, so the honest simulation gesture is "flip the presentation
-mode mid-session and assert byte-stability": the source must round-trip unchanged across a
-source→reading→source flip regardless of what edit, reveal, or composition was live when the
-flip landed. The scripted presentation e2e (`e2e/tests/presentation/`) covers the reachable
-transitions (mid-edit commit, render-primary reveal commit-on-flip), but the loaded-ops
-corruption oracle never sees a flip — so a flip that corrupted state under an unusual live
-gesture would not surface in the simulation battery. Per "new feature class → new simulation
-gesture", this is the ledgered remainder.
-
-**Fix direction:** a flip gesture in the sim set that toggles `presentationMode` at a random
-point in a note-taking session and re-runs the byte-stability oracle after the flip — the
-"perform, settle, resync" pattern the other gestures use, with the mode prop as the perturbed
-input.
-
-**Why deferred:** the state itself is scripted-e2e-pinned and unit-pinned; the gesture is
-bounded design work (a mode-carrying control threaded into the gesture set), kept out of the
-presentation milestone to keep it shippable.
-
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
 **Severity:** watch (no field report yet; Chromium-only test coverage)

@@ -82,6 +82,7 @@ function makeHandlers(
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },
 		pluginEditor: undefined,
+		getPresentationMode: () => 'source' as const,
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller),
