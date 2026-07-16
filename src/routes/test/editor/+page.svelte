@@ -49,6 +49,12 @@
 			: 'source'
 	);
 
+	// Reading-mode link activation records to a page-scoped sink instead of opening a
+	// window, so the presentation e2e can assert the handler fired on a plain click.
+	function recordLinkActivation(url: string) {
+		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
+	}
+
 	// Single reactive counter that retriggers panel getters. Bumped by BOTH
 	// editor ops (via the ops-log subscriber) AND native DOM selection changes
 	// (selectionchange). Without the selectionchange half, clicking in a block
@@ -133,6 +139,7 @@
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					{presentationMode}
+					onLinkActivate={recordLinkActivation}
 					theme={$currentThemeType}
 				/>
 			{/key}

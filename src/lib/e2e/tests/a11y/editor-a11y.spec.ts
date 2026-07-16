@@ -17,6 +17,16 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await expectNoNewA11yViolations(page, 'default');
 	});
 
+	test('reading mode has no new violations', async ({ page }) => {
+		// Reading mode is axe-relevant on its own: contenteditable=false + aria-readonly,
+		// markers hidden by CSS, synthesized bullets, and visible-undimmed ordered numbers.
+		await editor.loadContent(DEFAULT_CONTENT);
+		await page.getByTestId('presentation-toggle').click();
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await editor.waitForRenderFlush();
+		await expectNoNewA11yViolations(page, 'reading-mode');
+	});
+
 	test('cross-block selection announces via live region and has no new violations', async ({
 		page
 	}) => {
