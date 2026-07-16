@@ -3,8 +3,9 @@
 `presentationMode="reading"` on `<Editor>` hides Markdown markers via
 root-attribute-scoped CSS (the DOM keeps every marker node — offsets survive),
 makes the whole surface inert (contenteditable off, paste/cut/commands/checkbox
-gated), and keeps the reading affordances live: selection, copy, block
-navigation, link activation. `'source'` stays byte-identical to pre-mode
+gated), and keeps the reading affordances live: selection, copy, mouse
+navigation, link activation. (Navigation is by mouse — a read-only surface has no
+keyboard caret to traverse with.) `'source'` stays byte-identical to pre-mode
 behavior. Driven on `/test/editor` via the header "Reading mode" toggle (a real
 click) and the `?presentationMode=reading` query param; source stability is
 asserted through the `window.__test` bridge.
@@ -42,6 +43,8 @@ asserted through the `window.__test` bridge.
   selected text
 - select-and-copy over a marker-bearing span copies the rendered text (hidden
   markers are excluded from the native selection payload)
+- plain click on a link: `onLinkActivate` fires with the resolved href (a
+  rendered document's links click — no caret to place)
 
 ## Error cases
 

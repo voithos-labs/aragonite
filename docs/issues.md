@@ -115,6 +115,27 @@ a curated set of interactive edits is a product question, not a gating bug.
 **Why deferred:** decided with the presentation-modes milestone's later rungs, where
 block/inline granularity forces the same "which interactions survive" call anyway.
 
+### Reading-mode code blocks show an empty line above and below the code
+
+**Severity:** minor (rendering; reading mode only, v1 acceptable)
+**Files:** `src/lib/styles/editor.css` (reading-mode fence hiding),
+`src/lib/components/blocks/code/code-renderer.ts` (`renderOpenerLine` / closer — the fence
+marker span plus that line's bare `\n`)
+
+In reading mode the fence lines hide by CSS (`.md-fence` / `.md-lang`), but each fence line's
+bare `\n` text node is CSS-unreachable — CSS cannot remove a text node and structural omission
+is forbidden (the raw-aware walk counts `.length` regardless of layout). The two symmetric
+empty lines read as box padding, one above and one below the code. Offsets survive throughout;
+only the visual carries an extra blank line each side.
+
+**Fix direction:** a render-path change, out of the CSS-first scope reading mode shipped under.
+The `\n` cannot leave the raw, so the likely shape is a CSS-reachable wrapper around each fence
+line (an element the reading-mode rule can collapse) instead of a bare text node — decided
+against the offset walk that reads those bytes.
+
+**Why deferred:** reads as padding, byte-safe, and reachable only in reading mode; the fix
+touches the code renderer's DOM shape, so it folds into a render-path pass, not a CSS tweak.
+
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
@@ -267,6 +288,29 @@ The composition harness pins the IME contract at the handler level
 simulation still types ASCII only. A composition gesture needs the CDP session threaded
 into the gesture set on the "perform, settle, resync" pattern — bounded design work, not
 trivially assembled, so it ledgers here per "new feature class → new simulation gesture".
+
+### Presentation-mode flip lacks a simulation gesture
+
+**Severity:** minor (test coverage; reading mode is scripted-e2e- and unit-pinned)
+**Files:** `src/lib/e2e/simulation/gestures/` (no mode-flip gesture)
+
+Reading mode is a static state, so the honest simulation gesture is "flip the presentation
+mode mid-session and assert byte-stability": the source must round-trip unchanged across a
+source→reading→source flip regardless of what edit, reveal, or composition was live when the
+flip landed. The scripted presentation e2e (`e2e/tests/presentation/`) covers the reachable
+transitions (mid-edit commit, render-primary reveal commit-on-flip), but the loaded-ops
+corruption oracle never sees a flip — so a flip that corrupted state under an unusual live
+gesture would not surface in the simulation battery. Per "new feature class → new simulation
+gesture", this is the ledgered remainder.
+
+**Fix direction:** a flip gesture in the sim set that toggles `presentationMode` at a random
+point in a note-taking session and re-runs the byte-stability oracle after the flip — the
+"perform, settle, resync" pattern the other gestures use, with the mode prop as the perturbed
+input.
+
+**Why deferred:** the state itself is scripted-e2e-pinned and unit-pinned; the gesture is
+bounded design work (a mode-carrying control threaded into the gesture set), kept out of the
+presentation milestone to keep it shippable.
 
 ### G1.27 may false-fire on Safari's duplicate compositionend
 

@@ -53,7 +53,7 @@
 </script>
 
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor, type PresentationMode } from '$lib';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
@@ -199,6 +199,7 @@
 	// svelte-ignore state_referenced_locally
 	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
+	let presentationMode = $state<PresentationMode>('source');
 	let editor = $state<ReturnType<typeof Editor>>();
 
 	$effect(() => {
@@ -249,7 +250,21 @@
 			</button>
 		</div>
 	{/if}
-	<Editor bind:this={editor} {source} {keybindings} {plugins} />
+	{#if data.seed === 'mathblock'}
+		<div class="harness-controls">
+			<!-- onmousedown preventDefault keeps editor focus: a flip while a render-primary
+			     reveal is open must commit through the blur-class mode effect (mode already
+			     reading), not a focus-stealing blur that commits in source mode. -->
+			<button
+				data-testid="presentation-toggle"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => (presentationMode = presentationMode === 'reading' ? 'source' : 'reading')}
+			>
+				{presentationMode === 'reading' ? 'Source mode' : 'Reading mode'}
+			</button>
+		</div>
+	{/if}
+	<Editor bind:this={editor} {source} {keybindings} {plugins} {presentationMode} />
 </div>
 
 <style>
