@@ -68,6 +68,24 @@ describe('text-render presentation-mode key segment', () => {
 		expect(el.querySelectorAll('.md-marker').length).toBeGreaterThan(0);
 	});
 
+	it('preview-block carries its own mode segment (rebuilds, markers kept for CSS)', () => {
+		const el = document.createElement('div');
+		const node = parse('**bold**\n').children[0]!;
+		const { deps, setMode } = makeDeps(node, el);
+		const render = createTextRender(deps);
+
+		render.render();
+		const before = el.firstChild;
+
+		setMode('preview-block');
+		render.render();
+		// Not folded into source — the segment differs, so the block rebuilds once
+		// on the flip; per-block focus reveal is CSS on data-focused, never a rebuild.
+		expect(el.firstChild).not.toBe(before);
+		expect(el.textContent).toBe('**bold**');
+		expect(el.querySelectorAll('.md-marker').length).toBeGreaterThan(0);
+	});
+
 	it('the same mode never rebuilds (source stays the zero-cost path)', () => {
 		const el = document.createElement('div');
 		const node = parse('hello\n').children[0]!;

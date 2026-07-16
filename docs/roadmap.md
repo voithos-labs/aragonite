@@ -136,10 +136,10 @@ ordered by **risk first, validation before freeze**.
    - **Freeze litmus (presentation mode)**: a plugin block, editable leaf, and inline widget must
      each be able to learn the current presentation mode and render for it. The mode contract is
      shipped (the `PresentationMode` union, `EditorContext.presentationMode` + change event, the
-     leaf/widget mode reads, the `data-presentation` root attribute) with reading mode as its first
-     consumer; item 1's remaining rungs verify it against block- and inline-granular preview —
-     which is the point: rung 3 is what proves the inline and caret contracts survive marker
-     islands and caret affinity.
+     leaf/widget mode reads, the `data-presentation` root attribute) with reading mode and
+     block-granular preview as its first two consumers; item 1's last rung (inline-granular)
+     verifies it against marker islands — which is the point: rung 3 is what proves the inline and
+     caret contracts survive marker islands and caret affinity.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
