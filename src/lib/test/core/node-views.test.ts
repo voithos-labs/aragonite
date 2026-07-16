@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
+import { isBuiltinBlockNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 
 export function compileTimePins(node: NodeView, doc: DocumentView): void {
@@ -35,6 +36,30 @@ export function compileTimePins(node: NodeView, doc: DocumentView): void {
 	node.ownerEpoch = 3;
 }
 
+/**
+ * A view discriminates: `isBuiltinBlockNode` opens the switch that the branded
+ * plugin arm blocks, and each arm reads its own metadata (bytes-readonly) with no
+ * `metadataOf`. Positive pin — stops compiling if the union stops discriminating
+ * through the view. Kept out of `compileTimePins` because the suppressed
+ * `node.kind = …` write there narrows `kind` and would strand these cases.
+ */
+export function viewNarrowingPin(node: NodeView): void {
+	if (isBuiltinBlockNode(node)) {
+		switch (node.kind) {
+			case 'heading': {
+				const level: number = node.metadata.level;
+				void level;
+				break;
+			}
+			case 'list': {
+				const ordered: boolean = node.metadata.ordered;
+				void ordered;
+				break;
+			}
+		}
+	}
+}
+
 const SOURCE = '# h\n\n- a\n- b\n';
 
 describe('node views — bytes-scoped readonly (G1.9)', () => {
@@ -50,5 +75,13 @@ describe('node views — bytes-scoped readonly (G1.9)', () => {
 	it('serialize() accepts a DocumentView and round-trips', () => {
 		const doc: DocumentView = parse(SOURCE);
 		expect(serialize(doc)).toBe(SOURCE);
+	});
+
+	it('a NodeView narrows to its built-in arm and reads typed metadata', () => {
+		const doc: DocumentView = parse('## title\n');
+		const node = doc.children[0];
+		let level = 0;
+		if (isBuiltinBlockNode(node) && node.kind === 'heading') level = node.metadata.level;
+		expect(level).toBe(2);
 	});
 });
