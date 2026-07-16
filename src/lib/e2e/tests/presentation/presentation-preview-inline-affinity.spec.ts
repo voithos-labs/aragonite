@@ -20,7 +20,8 @@ async function stepRightTo(ep: EditorPage, page: Page, target: number): Promise<
 	await page.keyboard.press('Home');
 	await ep.waitForRenderFlush();
 	let offset = await focusOffset(ep);
-	while (offset < target) {
+	let guard = 0;
+	while (offset < target && guard++ < 40) {
 		await page.keyboard.press('ArrowRight');
 		await ep.waitForRenderFlush();
 		offset = await focusOffset(ep);
