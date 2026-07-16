@@ -66,7 +66,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
 - **`bind:this`** exposes seven methods:
   - **`getSource()`** — serialize the live document back to Markdown.
-  - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies.
+  - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies. Each endpoint (`SelectionPoint`) is a discriminated union: `offset` is a character index into the block, unless `cellCoordinate: true` marks it a table cell index — narrow on the flag before reading `offset` as a character offset.
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
   - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).

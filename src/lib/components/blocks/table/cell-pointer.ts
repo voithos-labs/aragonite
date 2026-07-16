@@ -5,7 +5,7 @@
  */
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { SelectionPoint } from '../../../selection/primitives';
+import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 import type { AnyBlockKind } from '../../../core/nodes';
 import { offsetFromViewportPoint } from '../../../selection/native-bridge';
 import { createAutoScroll } from '../../../selection/autoscroll';
@@ -52,7 +52,7 @@ export function installCellDragListener(
 	// anchored mid-row row-rounds the copy while the delete clears from the
 	// mid-cell, duplicating the leading cells. Same-table extends compare equal
 	// paths and short-circuit the snap, so the intra-table rectangle is untouched.
-	const anchorPoint: SelectionPoint = {
+	const anchorPoint: CellSelectionPoint = {
 		path: anchor.tablePath.slice(),
 		offset: anchorCellIdx,
 		cellCoordinate: true

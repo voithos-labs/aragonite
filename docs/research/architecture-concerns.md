@@ -53,6 +53,19 @@ belongs settled before the freeze: a discriminated point union (`{ path, offset 
 `{ path, cell }`) or an equivalent shape that cannot be misread. Costs a bounded churn through
 `selection/` now; costs a major version later.
 
+**Resolution (0.9.27 — FIXED).** `SelectionPoint` became a discriminated union —
+`CharSelectionPoint | CellSelectionPoint` on `cellCoordinate` — with `offset` keeping its name on
+both arms (renaming it to `cell` would be the gratuitous break the "equivalent shape" clause left
+open). The teeth are on construction: a cell point needs the literal `cellCoordinate: true` and a
+char-typed slot rejects a cell point, so the cell mints and the undo copy path preserve the variant
+at the type level while every consumer reading `.offset` compiles unchanged (`highlight-occurrences`
+and `ghost-text` are the source-compat proof). Reading `offset` in the wrong space is _not_ a
+compile error — `offset` is shared — so that check stays the `charOffsetOf`/`cellIndexOf` runtime
+DEV-warn belt; the shape is settled, not made unmisreadable. Intra-table selections keep their
+deliberate exemption, trafficking in cell-valued offsets on unflagged points by shared-scope
+convention, now documented on the union type. G3.3 in `invariants.md` records the real compile-time
+union — it previously overclaimed the 0.9.24 accessors as one.
+
 ## 3. The flat `CstNode` interface inverts the enforcement ladder at the core type
 
 **The design.** `CstNode` is one flat interface with optional fields, not a discriminated
