@@ -205,6 +205,8 @@ describe('commitColumnDelete — a windowed-out row has no registered state', ()
 
 		const table = env.deps.doc.children[0];
 		expect(metadataOf(table, 'table').columnCount).toBe(2);
+		// Every row — including the never-mounted middle one — lost its column.
+		for (const row of table.children!) expect(row.children).toHaveLength(2);
 		const out = serialize(env.deps.doc);
 		expect(serialize(parse(out))).toBe(out);
 		// Mounted rows keep their cell state in lockstep with the two survivors.
