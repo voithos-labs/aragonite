@@ -11,6 +11,15 @@ test.beforeEach(async ({ page }) => {
 	expect(errors).toEqual([]);
 });
 
+test('toc lists the document headings from the document prop', async ({ page }) => {
+	// The `[[toc]]` leaf renders (folded) a nav of the document's headings, read
+	// straight off BlockComponentProps.document — the point of the toc dogfood.
+	// highlight-occurrences installs alongside it; a page error from either would
+	// have tripped the beforeEach no-error gate before this line.
+	await expect(page.locator('.toc-block-item', { hasText: 'Consumer plugins' })).toBeVisible();
+	expect(await getSource(page)).toContain('[[toc]]');
+});
+
 test('callout mounts as a container and round-trips an edit', async ({ page }) => {
 	await expect(page.locator('.callout-block')).toBeVisible();
 	const body = page.locator('[contenteditable="true"]', { hasText: 'Callout body' });

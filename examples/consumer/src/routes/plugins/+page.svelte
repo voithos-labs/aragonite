@@ -5,6 +5,8 @@
 	import { latexPlugin } from 'aragonite/plugins/latex';
 	import { katexRenderer } from 'aragonite/plugins/latex/renderer';
 	import { mermaidPlugin } from 'aragonite/plugins/mermaid';
+	import { tocPlugin } from 'aragonite/plugins/toc';
+	import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
 
 	// Module scope so the factories run once per process, not once per (SSR) render —
 	// a re-render minting fresh same-name plugins would trip installPlugins' first-wins
@@ -13,13 +15,18 @@
 	// `:::mystery` still renders as the generic directive fallback. latex wires the
 	// katex adapter (a consumer devDependency); mermaid installs WITHOUT a renderer —
 	// the consumer has no mermaid engine, so its block renders its code statically,
-	// exercising the packaged plugin's no-engine fallback from outside the repo.
+	// exercising the packaged plugin's no-engine fallback from outside the repo. toc
+	// turns on the `[[toc]]` leaf (its render lists the seed's headings);
+	// highlightOccurrencesPlugin is already a plugin object, not a factory, so it
+	// installs directly.
 	const plugins = [
 		calloutPlugin(),
 		detailsPlugin(),
 		admonitionsPlugin(),
 		latexPlugin({ renderer: katexRenderer }),
-		mermaidPlugin()
+		mermaidPlugin(),
+		tocPlugin(),
+		highlightOccurrencesPlugin
 	];
 </script>
 
@@ -28,6 +35,10 @@
 	import 'aragonite/styles/editor-theme.css';
 
 	const SEED = [
+		'# Consumer plugins',
+		'',
+		'[[toc]]',
+		'',
 		':::note Title',
 		'Callout body',
 		':::',
