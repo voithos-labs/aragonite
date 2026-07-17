@@ -62,12 +62,6 @@ export interface EditorSelection {
 }
 
 /**
- * Pointerdown anchor of a potential cross-block drag before it has escaped
- * the original block. Null when no drag is active.
- */
-export type SelectionDragStart = SelectionPoint | null;
-
-/**
  * Read a point's offset as a character index into the leaf's `raw` (the caller
  * slices `raw` or places a caret by character). Warns in DEV if the point
  * instead carries a cell coordinate — the space mismatch is the caret-corruption

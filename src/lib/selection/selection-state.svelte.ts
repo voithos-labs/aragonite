@@ -1,13 +1,13 @@
 /**
- * Reactive state for cross-block selection. `anchor`, `focus`, `dragStart`
- * are null in single-block mode — the native browser selection handles
+ * Reactive state for cross-block selection. `anchor` and `focus` are null in
+ * single-block mode — the native browser selection handles
  * single-block editing. Transitions: `docs/design/editor.md` § Cross-block
  * selection.
  */
 
 import type { DocumentView } from '../core/node-views';
 import { nodeAt } from '../tree-operations/node-ops';
-import type { SelectionPoint, SelectionDragStart } from './primitives';
+import type { SelectionPoint } from './primitives';
 import { normalize } from './primitives';
 import { normalizeTableEndpoint, snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { pathsEqual } from './path-math';
@@ -41,7 +41,6 @@ export function createSelectionState(options?: SelectionStateOptions): Selection
 export interface SelectionState {
 	readonly anchor: SelectionPoint | null;
 	readonly focus: SelectionPoint | null;
-	readonly dragStart: SelectionDragStart;
 	readonly isCrossBlock: boolean;
 	/**
 	 * True when the selection should be painted by the overlay rather than
@@ -53,7 +52,6 @@ export interface SelectionState {
 	readonly end: SelectionPoint | null;
 	readonly selectAllCount: number;
 
-	beginDrag(point: SelectionPoint): void;
 	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void;
 	extendFocus(point: SelectionPoint): void;
 	collapse(): void;
@@ -67,7 +65,6 @@ export interface SelectionState {
 class SelectionStateImpl implements SelectionState {
 	#anchor: SelectionPoint | null = $state(null);
 	#focus: SelectionPoint | null = $state(null);
-	#dragStart: SelectionDragStart = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
 	#getDoc?: () => DocumentView;
@@ -83,10 +80,6 @@ class SelectionStateImpl implements SelectionState {
 
 	get focus(): SelectionPoint | null {
 		return this.#focus;
-	}
-
-	get dragStart(): SelectionDragStart {
-		return this.#dragStart;
 	}
 
 	get isCrossBlock(): boolean {
@@ -130,11 +123,6 @@ class SelectionStateImpl implements SelectionState {
 		return this.#selectAllCount;
 	}
 
-	beginDrag(point: SelectionPoint): void {
-		this.#dragStart = point;
-		this.#onChange?.();
-	}
-
 	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
 		this.#anchor = this.#normalizePoint(anchor);
 		this.#focus = this.#normalizePoint(focus);
@@ -171,7 +159,6 @@ class SelectionStateImpl implements SelectionState {
 	clear(): void {
 		this.#anchor = null;
 		this.#focus = null;
-		this.#dragStart = null;
 		this.#selectAllCount = 0;
 		this.#onChange?.();
 	}
