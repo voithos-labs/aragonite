@@ -151,6 +151,9 @@ function collapsedSelectionAt(path: number[], offset: number): EditorSelection {
  * the single offset-arithmetic home.
  */
 function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
+	// Node-env callers (undo snapshot capture in unit tests) have no DOM; fall
+	// back to the single caret offset rather than touching document/window.
+	if (typeof document === 'undefined' || typeof window === 'undefined') return null;
 	const active = document.activeElement;
 	if (!(active instanceof HTMLElement)) return null;
 	const sel = window.getSelection();
