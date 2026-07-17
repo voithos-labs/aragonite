@@ -1,6 +1,7 @@
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
+import { defaultGrammarView } from '../../schema/block-openers';
 
 export function matchListItem(
 	text: string
@@ -45,7 +46,8 @@ export function parseList(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string
+	leadingTrivia: string,
+	depth: number = 0
 ): { node: CstNode; nextIndex: number } {
 	const firstMatch = matchListItem(lines[startIndex].text)!;
 	const ordered = firstMatch.ordered;
@@ -93,7 +95,13 @@ export function parseList(
 			};
 		}
 
-		const inner = parseBlocks(strippedLines, 0, strippedLines.length);
+		const inner = parseBlocks(
+			strippedLines,
+			0,
+			strippedLines.length,
+			defaultGrammarView,
+			depth + 1
+		);
 
 		items.push({
 			kind: 'listItem',

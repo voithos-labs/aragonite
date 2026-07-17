@@ -26,6 +26,7 @@ import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
+import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { isReadingMode } from '../../presentation-mode';
 import { performCrossBlockDelete } from './ops';
@@ -63,6 +64,12 @@ export interface CrossBlockDispatchContext {
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
+	/** The instance's block grammar, forwarded to the join-paste reparse so a disabled
+	 *  kind's opener stays skipped when a cross-block paste completes marker syntax
+	 *  (docs/research/architecture-concerns.md). Required-nullable like `pluginEditor`
+	 *  so a new construction site can't silently skip the thread; `undefined` = the
+	 *  global grammar. */
+	grammar: GrammarView | undefined;
 
 	getCursorOffset: () => number | null;
 

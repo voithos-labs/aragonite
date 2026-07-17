@@ -12,6 +12,18 @@ import { assertInvariant } from '../invariants/assert';
 import { parseParagraph } from './parsers/paragraph';
 import './parsers/built-in-openers';
 
+/**
+ * Container-nesting cap. Each blockquote/list/directive level recurses one
+ * `parseBlocks` deep; past this cap the remaining prefix parses as the innermost
+ * block's paragraph content instead of nesting further, so pathological input
+ * (thousands of `>` or nested items) degrades gracefully rather than overflowing
+ * the call stack. Chosen well under the ~2000-level empirical crash point, with
+ * headroom for the tree walks (render, undo, tree-ops) that also recurse to this
+ * depth — far beyond any real document. Byte-preserving: only a top-level node's
+ * `raw` is serialized, and that is fixed before the recursion runs.
+ */
+export const MAX_NESTING_DEPTH = 512;
+
 // ── Public entry point ──────────────────────────────────────────────────
 
 /**
@@ -54,7 +66,8 @@ export function parseBlocks(
 	lines: ParsedLine[],
 	start: number,
 	end: number,
-	grammar: GrammarView = defaultGrammarView
+	grammar: GrammarView = defaultGrammarView,
+	depth: number = 0
 ): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let prefix = '';
@@ -76,7 +89,8 @@ export function parseBlocks(
 		line: lines[index],
 		leadingTrivia: '',
 		isFirstInWindow: true,
-		grammar
+		grammar,
+		depth
 	};
 
 	while (index < end) {
@@ -104,6 +118,11 @@ export function parseBlocks(
 // ── Dispatch ────────────────────────────────────────────────────────────
 
 function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } {
+	// At the nesting cap, no container may recurse further — everything folds into
+	// a paragraph so the remaining bytes stay covered without another stack frame.
+	if (ctx.depth >= MAX_NESTING_DEPTH) {
+		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+	}
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
 		if (result) {

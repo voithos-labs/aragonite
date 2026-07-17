@@ -29,6 +29,7 @@ import type {
 } from '../../editor-keys';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
+import type { GrammarView } from '../../schema/block-openers';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -104,6 +105,10 @@ export interface EditableSurfaceDeps {
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
+	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
+	 *  Optional at this seam: a leaf that omits it falls back to the global grammar
+	 *  (byte-identical). Supplied via `registryView.grammar` where a surface wires it. */
+	grammar?: GrammarView;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
 	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
@@ -163,6 +168,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onCommandError: deps.onCommandError,
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
+		grammar: deps.grammar,
 		getCursorOffset: () => deps.backend.getRaw(),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => deps.setPendingCursor(offset)

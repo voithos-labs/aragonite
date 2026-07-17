@@ -32,6 +32,8 @@ export interface OpenContext {
 	leadingTrivia: string;
 	/** True for the first content block of a parse window. With `leadingTrivia`, the "preceded by blank" interrupt context (GFM §4.4). */
 	isFirstInWindow: boolean;
+	/** Container-nesting depth of this parse level (0 at the document root). A container opener that reparses its body recurses at `depth + 1`; the cap (`MAX_NESTING_DEPTH`) folds deeper input into paragraph content. */
+	depth: number;
 	/**
 	 * The grammar this parse resolves through — the instance seam over the global
 	 * openers. `parseBlocks` seeds it; the top-level dispatch reads it. Nested

@@ -55,10 +55,23 @@ describe('G2.2 EOF edge states', () => {
 	}
 });
 
-// Adversarial fixed cases the generators cannot reach at useful sizes.
+// Adversarial fixed cases the generators cannot reach at useful sizes — their
+// nesting dial (arbDeepNesting) tops out around a dozen levels, well below the
+// container-depth cap these exercise.
 describe('G2.1 adversarial nesting', () => {
 	it('round-trips 2000-deep link bracket nesting', () => {
 		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
+		expect(serialize(parse(source))).toBe(source);
+	});
+
+	it('round-trips a blockquote flood past the container-depth cap', () => {
+		const source = '>'.repeat(5000) + ' x\n';
+		expect(serialize(parse(source))).toBe(source);
+	});
+
+	it('round-trips a nested-list flood past the container-depth cap', () => {
+		const source =
+			Array.from({ length: 2000 }, (_, i) => ' '.repeat(2 * i) + '- x').join('\n') + '\n';
 		expect(serialize(parse(source))).toBe(source);
 	});
 });

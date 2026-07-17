@@ -35,8 +35,17 @@ export function buildImageWidget(
 	widget.dataset.sourceEnd = String(node.end);
 	widget.setAttribute('contenteditable', 'false');
 
-	widget.addEventListener('pointerdown', (e) => {
-		e.stopPropagation();
+	// Select on `click`, never `pointerdown`. A pointerdown listener that stops
+	// propagation (or one that selects on press) hijacks a gesture STARTING on the
+	// image: the block never sees the pointerdown, so no cross-block drag or
+	// Shift-click extension can originate here, and selecting on press mounts the
+	// overlay that then covers the block a drag is heading into. `click` fires only
+	// on a press-and-release in place — a drag off the widget produces none — so the
+	// pointerdown bubbles untouched to the block's cross-block handler and only a
+	// genuine click selects the image. A Shift-click is a cross-block extension the
+	// block owns, so decline the select (it would clear the extension).
+	widget.addEventListener('click', (e) => {
+		if (e.shiftKey) return;
 		// Resolve the paragraph path live from the enclosing block-host instead
 		// of baking it at build time. A block's path shifts whenever content is
 		// inserted/removed above it — its `raw` (and so this widget's DOM) is

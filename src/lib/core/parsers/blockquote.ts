@@ -8,7 +8,7 @@
 import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { lineInterruptsParagraph } from '../../schema/block-openers';
+import { defaultGrammarView, lineInterruptsParagraph } from '../../schema/block-openers';
 
 export function matchBlockquote(text: string): boolean {
 	return /^ {0,3}>/.test(text);
@@ -34,7 +34,8 @@ export function parseBlockquote(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string
+	leadingTrivia: string,
+	depth: number = 0
 ): { node: CstNode; nextIndex: number } {
 	let i = startIndex;
 	let paragraphOpen = false;
@@ -74,7 +75,7 @@ export function parseBlockquote(
 		return strippedLine;
 	});
 
-	const inner = parseBlocks(strippedLines, 0, strippedLines.length);
+	const inner = parseBlocks(strippedLines, 0, strippedLines.length, defaultGrammarView, depth + 1);
 
 	const quoteDepth =
 		lines[startIndex].text

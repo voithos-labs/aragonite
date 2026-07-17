@@ -28,7 +28,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { controller, stickyColumn } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { controller, stickyColumn, registryView } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	const listState = createBlockListState(() => node);
 
@@ -47,6 +47,7 @@
 				return myPath;
 			},
 			stickyColumn,
+			grammar: registryView.grammar,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
