@@ -69,7 +69,17 @@
 	import { resolveEffectivePresentationMode, isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
-	import { isEditorGlobalChord, resolveGlobalBinding, getCommand } from '../schema/commands';
+	import {
+		isEditorGlobalChord,
+		isReservedUiChord,
+		resolveGlobalBinding,
+		getCommand
+	} from '../schema/commands';
+	import {
+		markEditorInteracted,
+		isLastInteractedEditor,
+		releaseInteractedEditor
+	} from '../active-editor';
 	import type { CommandErrorSink } from '../schema/block-commands';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
@@ -309,6 +319,22 @@
 				editorEl.removeEventListener('focusout', handleFocusOut);
 			}
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	});
+
+	// Track which editor the user last interacted with, so the document-level
+	// keydown handler can route a body-level chord (the caret's block windowed out
+	// to <body>) to exactly one instance instead of every mounted editor. focusin
+	// bubbles, so any descendant focus — a block, the find input, or the root's own
+	// windowed-out handoff — marks this editor. Unmount relinquishes the claim.
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const mark = () => markEditorInteracted(root);
+		root.addEventListener('focusin', mark);
+		return () => {
+			root.removeEventListener('focusin', mark);
+			releaseInteractedEditor(root);
 		};
 	});
 
@@ -732,10 +758,13 @@
 		setPendingCursor: () => {}
 	});
 
-	// Routes keystrokes that land on the editor root or <body> — i.e. no mounted
-	// block consumed them. A focused block handles its own keys first, so this
-	// only fires for the windowed-out caret: undo/redo with no block focused, and
-	// cross-block extend/collapse whose focus endpoint scrolled out.
+	// Document-level chords for the windowed-out caret — no mounted block consumed
+	// them. A focused block handles its own keys first; this fires when the caret's
+	// block scrolled out (undo/redo, plugin-global chords, cross-block motion) plus
+	// the search shortcuts, which route from anywhere inside this editor. Every arm
+	// is contained to THIS instance: the listener sees every editor's keystrokes on
+	// the page, so an unguarded handler let one Ctrl+Z revert two editors and an
+	// outside-input Ctrl+F steal focus into this editor's search bar.
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -743,30 +772,45 @@
 			// eventToChord normalizes the key (CapsLock uppercases e.key without
 			// Shift), matching every other chord-dispatch site.
 			const rootChord = eventToChord(e);
-			// Search shortcuts route regardless of which block holds focus, so they
-			// sit before the editor-root/body activeElement guard below. Seed the
-			// query from the live native selection before open() — focusing the find
-			// input collapses that selection.
-			if (searchBar && (rootChord === 'Mod+F' || rootChord === 'Mod+H')) {
-				e.preventDefault();
-				// Snapshot before open() — focusing the find input collapses the
-				// native selection, so read both the seed text and the caret now.
-				const sel = window.getSelection();
-				const selected = sel?.toString() ?? '';
-				savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-				replaceExpanded = rootChord === 'Mod+H' && effectiveMode !== 'reading';
-				searchState.open();
-				if (selected) searchState.setQuery(selected);
-				return;
-			}
-			if (e.key === 'Escape' && searchState.isOpen) {
-				e.preventDefault();
-				searchState.close();
-				return;
+			const active = root.ownerDocument.activeElement;
+
+			// Search / Escape: any focus INSIDE this editor (a block, the find input,
+			// or the root). Focus elsewhere — another editor, an unrelated input on the
+			// page — must not steer this instance's search bar.
+			if (root.contains(active)) {
+				if (searchBar && rootChord && isReservedUiChord(rootChord)) {
+					e.preventDefault();
+					// Seed the query from the live native selection before open() —
+					// focusing the find input collapses it. Guard the saved-caret
+					// snapshot on !isOpen so a repeat Mod+F (focus already in the find
+					// input) can't clobber the pre-search caret with the collapsed one.
+					const sel = window.getSelection();
+					const selected = sel?.toString() ?? '';
+					if (!searchState.isOpen) {
+						savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+					}
+					replaceExpanded = rootChord === 'Mod+H' && effectiveMode !== 'reading';
+					searchState.open();
+					if (selected) searchState.setQuery(selected);
+					return;
+				}
+				if (e.key === 'Escape' && searchState.isOpen) {
+					e.preventDefault();
+					searchState.close();
+					return;
+				}
 			}
 
-			const active = document.activeElement;
-			if (active !== root && active !== document.body) return;
+			// Undo/redo, plugin-global chords, cross-block motion: only when NO block
+			// holds focus. active === root: the caret's block windowed out and parked
+			// focus on THIS root (unique per editor). No element focused (body/null):
+			// the block windowed out and blurred to <body> — shared across editors —
+			// so only the editor last interacted with claims the chord, else two
+			// editors both act on one keypress. A focused block owns its own undo, and
+			// focus on a real element outside every editor is none of ours: both fall
+			// through here.
+			const noElementFocused = active === null || active === root.ownerDocument.body;
+			if (!(active === root || (noElementFocused && isLastInteractedEditor(root)))) return;
 
 			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
 			// caret whose block unmounted, not necessarily a selection. No block is

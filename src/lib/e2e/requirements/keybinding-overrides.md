@@ -37,10 +37,10 @@ mutating the global tables.
 
 ## Notes
 
-- Two simultaneous live editors with different props is the literal isolation proof, but
-  mounting two editors trips other not-yet-per-instance globals (state-registry, doc-level
-  Ctrl+F) — the 1.1 multi-editor work. The "clear restores default" scenario proves the
-  non-global guarantee without a second instance.
+- Two simultaneous live editors is the literal isolation proof. Document-level chord
+  containment — an outside Ctrl+F stealing focus, and a body-level undo reaching every
+  instance — is now covered by `keybinding-multi-editor.spec.ts`. The "clear restores
+  default" scenario here proves the single-instance non-global guarantee.
 - The cross-block keydown surface is exercised by the existing cross-block delete specs
   once the wiring lands; a global rebind reaching it needs an active cross-block selection
   collapsed onto a command key, which those specs already drive.

@@ -159,6 +159,16 @@ const pluginGlobalKeymap: KeyBinding[] = [];
 // at the leaf AND the UI action, on one keypress.
 const RESERVED_UI_CHORDS = new Set(['Mod+F', 'Mod+H']);
 
+/**
+ * True when a chord is intercepted by the editor UI outside the command resolvers
+ * (the search bar's document-level Ctrl+F / Ctrl+H). The single source both the
+ * plugin-global registration guard and the editor-root keydown handler read, so
+ * the reserved set is never hardcoded twice.
+ */
+export function isReservedUiChord(chord: string): boolean {
+	return RESERVED_UI_CHORDS.has(normalizeChord(chord));
+}
+
 export function assertPluginGlobalChordAvailable(rawChord: string): void {
 	// A public registration API fails loudly, not warn-and-drop: a malformed chord
 	// (the `'Ctrl+B'` → bare `'B'` trap) that slipped through would bind a handler

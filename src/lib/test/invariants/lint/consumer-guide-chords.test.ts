@@ -11,8 +11,10 @@
  *     gap tracked in docs/issues.md); a chord "resolves" when the plan is
  *     non-native for a synthesized key event.
  *   - Find / replace → literal presence in the search components
- *     (`Editor.svelte` / `SearchBar.svelte`); these route outside the keymap by
- *     design, so an unknown find chord fails until it's wired.
+ *     (`Editor.svelte` / `SearchBar.svelte`) plus the reserved Ctrl+F / Ctrl+H
+ *     source (`schema/commands.ts`, read by the root handler via
+ *     `isReservedUiChord`); these route outside the keymap by design, so an
+ *     unknown find chord fails until it's wired.
  *
  * A new documented chord with no dispatch, or a renamed family header, fails here.
  */
@@ -108,12 +110,14 @@ function cellPlanResolves(chord: string): boolean {
 	return cellKeydownPlan(toCellInput(chord), CENTRAL_CELL).kind !== 'native';
 }
 
-// Find/replace chords route through hard-coded comparisons in the search
-// components. The token each chord must show in that (comment-stripped) source;
-// an undocumented-in-code chord has no entry and fails.
+// Find/replace chords route through the search components; the reserved Ctrl+F /
+// Ctrl+H pair single-sources from schema/commands.ts (RESERVED_UI_CHORDS), which
+// the root handler reads via isReservedUiChord. The token each chord must show in
+// that (comment-stripped) source; an undocumented-in-code chord has no entry and fails.
 const SEARCH_SOURCE = [
 	readEditorFile('components/Editor.svelte').code,
-	readEditorFile('components/SearchBar.svelte').code
+	readEditorFile('components/SearchBar.svelte').code,
+	readEditorFile('schema/commands.ts').code
 ].join('\n');
 const SEARCH_CHORD_TOKENS: Record<string, string[]> = {
 	'Mod+F': ["'Mod+F'"],
