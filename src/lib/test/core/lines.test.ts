@@ -1,5 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { splitLines } from '../../core/lines';
+import { splitLines, trailingLineEnding } from '../../core/lines';
+
+describe('trailingLineEnding', () => {
+	it('reports CRLF when the raw ends with one', () => {
+		expect(trailingLineEnding('a\r\n')).toBe('\r\n');
+	});
+
+	it('reports LF when the raw ends with a bare newline', () => {
+		expect(trailingLineEnding('a\n')).toBe('\n');
+	});
+
+	// A block with no trailing ending (a document-final block) keeps the LF the
+	// commit path has always appended — matching the code-paste-surface sibling.
+	it('defaults to LF when the raw has no trailing ending', () => {
+		expect(trailingLineEnding('a')).toBe('\n');
+	});
+
+	it('reads only the trailing ending, not an interior CRLF', () => {
+		expect(trailingLineEnding('a\r\nb\n')).toBe('\n');
+	});
+});
 
 describe('splitLines', () => {
 	it('splits LF lines and preserves endings', () => {

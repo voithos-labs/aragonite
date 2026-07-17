@@ -49,7 +49,11 @@
 	import { computeFenceExit } from './code-fence-exit';
 	import { classifyFenceBoundary, clampEnterOffsetToBody } from './code-fence-boundary';
 	import { metadataOf } from '../../../core/nodes';
-	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
+	import {
+		trimTrailingLineEnding,
+		normalizeLineEndings,
+		trailingLineEnding
+	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
@@ -147,7 +151,7 @@
 		// Code anchors undo at preEditOffset only; it has no kind-change remount to
 		// re-focus, so it passes no saved offset (the omitted 4th argument).
 		commitInput: (text, preEdit) => {
-			void blockEdit.updateBlockContent(index, text + '\n', preEdit);
+			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit);
 		}
 	});
 
@@ -182,15 +186,21 @@
 		lastRenderedRaw = node.raw;
 
 		if (pendingSelection !== null) {
-			const range = createRangeFromOffsets(
-				el,
-				asDomTextOffset(pendingSelection.start),
-				asDomTextOffset(pendingSelection.end)
-			);
-			if (range) {
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(range);
+			// Restore only while this block still owns focus: an async flush after
+			// focus left would yank the global selection back into the just-blurred
+			// block. Sibling of the pendingCursorOffset guard below; the clear runs
+			// regardless so a skipped restore is dropped, never re-armed.
+			if (document.activeElement === el) {
+				const range = createRangeFromOffsets(
+					el,
+					asDomTextOffset(pendingSelection.start),
+					asDomTextOffset(pendingSelection.end)
+				);
+				if (range) {
+					const sel = window.getSelection();
+					sel?.removeAllRanges();
+					sel?.addRange(range);
+				}
 			}
 			pendingSelection = null;
 			pendingCursorOffset = null;
