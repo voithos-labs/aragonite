@@ -118,6 +118,53 @@ describe('list-context — splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 	});
 
+	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {
+		const doc = parse('- [ ] foobar\n');
+		const list = doc.children[0];
+		const item = list.children![0];
+		expect(metadataOf(item, 'listItem')).toMatchObject({ taskItem: true, taskMarker: '[ ] ' });
+
+		const deps = makeDeps([list]);
+		const liveList = () => deps.doc.children[0];
+		const liveItem = () => deps.doc.children[0].children![0];
+		const listState = makeBlockListState(liveList, ['item-0']);
+		registerBlockListState(list, listState as any);
+		const itemState = makeBlockListState(liveItem, ['para-0']);
+		registerBlockListState(item, itemState as any);
+
+		const controller = createUndoController(deps);
+		const listContext = createListContext({
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [0];
+			},
+			state: listState as any,
+			parentBlockEdit: makeStubBlockEdit(),
+			parentFocus: makeStubFocus(),
+			parentListContext: undefined,
+			controller
+		});
+
+		// Split "foobar" after "foo": the new sibling inherits the task identity.
+		await listContext.splitItemAtOffset(0, 0, 3);
+
+		const newItem = liveList().children![1];
+		expect(newItem.kind).toBe('listItem');
+		// taskItem and taskMarker must agree — a `taskItem:true / taskMarker:null`
+		// pair renders plain and trips the dev metadata guard.
+		expect(newItem.metadata).toMatchObject({
+			taskItem: true,
+			taskChecked: false,
+			taskMarker: '[ ] '
+		});
+		expect(newItem.raw).toContain('[ ]');
+	});
+
 	it('ordered split bumps the new item marker and renumbers', async () => {
 		const doc = parse('1. a\n2. b\n');
 		const list = doc.children[0];
