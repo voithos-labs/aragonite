@@ -9,6 +9,7 @@ import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
+import { lineInterruptsParagraph } from '../../schema/block-openers';
 
 export function parseLinkReferenceDefinition(
 	lines: ParsedLine[],
@@ -32,19 +33,17 @@ export function parseLinkReferenceDefinition(
 		if (!urlResult) return null;
 		url = urlResult.url;
 		const afterUrl = segment.slice(urlResult.consumed).replace(/^[ \t]*/, '');
-		if (afterUrl.length > 0) {
-			title = parseTrailingTitle(afterUrl);
-		} else {
-			const next = consumeContinuationTitle(lines, lineCursor + 1, endIndex);
-			if (next) {
-				title = next.title;
-				lineCursor = next.lineIndex;
-			}
-		}
+		const tail = resolveTitle(afterUrl, lines, lineCursor + 1, endIndex);
+		if (!tail) return null;
+		title = tail.title;
+		if (tail.titleLine !== null) lineCursor = tail.titleLine;
 	} else {
-		// URL must be on a continuation line; bare `[label]:` with no URL is not a definition.
+		// URL may sit on the next line (CommonMark §4.7 allows one line ending
+		// before the destination); bare `[label]:` with no URL is not a definition.
 		if (lineCursor + 1 >= endIndex) return null;
 		const nextLine = lines[lineCursor + 1];
+		// A line that opens another block is that block, not this definition's URL.
+		if (lineInterruptsParagraph(nextLine.text)) return null;
 		const stripped = nextLine.text.replace(/^[ \t]*/, '');
 		if (stripped.length === 0) return null;
 		const urlResult = parseUrl(stripped);
@@ -52,15 +51,10 @@ export function parseLinkReferenceDefinition(
 		url = urlResult.url;
 		lineCursor++;
 		const afterUrl = stripped.slice(urlResult.consumed).replace(/^[ \t]*/, '');
-		if (afterUrl.length > 0) {
-			title = parseTrailingTitle(afterUrl);
-		} else {
-			const next = consumeContinuationTitle(lines, lineCursor + 1, endIndex);
-			if (next) {
-				title = next.title;
-				lineCursor = next.lineIndex;
-			}
-		}
+		const tail = resolveTitle(afterUrl, lines, lineCursor + 1, endIndex);
+		if (!tail) return null;
+		title = tail.title;
+		if (tail.titleLine !== null) lineCursor = tail.titleLine;
 	}
 
 	const raw = joinRaw(lines, startIndex, lineCursor + 1);
@@ -129,6 +123,28 @@ function matchTitleSingleLine(s: string): { title: string; consumed: number } | 
 		return { title: s.slice(1, close), consumed: close + 1 };
 	}
 	return null;
+}
+
+/**
+ * Resolve the optional title after a destination. `null` invalidates the whole
+ * definition (CommonMark §4.7): non-whitespace after the destination that isn't
+ * a well-formed title — or a title trailed by junk — means it is not a
+ * definition at all. An absent title (next line consumed, or nothing) succeeds.
+ */
+function resolveTitle(
+	afterUrl: string,
+	lines: ParsedLine[],
+	continuationLine: number,
+	endIndex: number
+): { title: string | undefined; titleLine: number | null } | null {
+	if (afterUrl.length > 0) {
+		const parsed = parseTrailingTitle(afterUrl);
+		if (parsed === undefined) return null;
+		return { title: parsed, titleLine: null };
+	}
+	const next = consumeContinuationTitle(lines, continuationLine, endIndex);
+	if (next) return { title: next.title, titleLine: next.lineIndex };
+	return { title: undefined, titleLine: null };
 }
 
 function parseTrailingTitle(afterUrl: string): string | undefined {
