@@ -287,10 +287,22 @@
 		clipboardSel: CellSelection | null;
 	} | null>(null);
 
+	// A live intra-table rectangle on THIS table: both cross-block endpoints address
+	// this table's path. It suppresses the cell-local selection, so the menu reads it
+	// separately to keep Cut/Copy enabled.
+	const rectActive = $derived(
+		!!selection?.isCustomRendered &&
+			!!selection.anchor &&
+			!!selection.focus &&
+			pathsEqual(selection.anchor.path, myPath) &&
+			pathsEqual(selection.focus.path, myPath)
+	);
+
 	const menuItems = $derived(
 		menu
 			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [], {
-					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end
+					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
+					hasRect: rectActive
 				})
 			: []
 	);

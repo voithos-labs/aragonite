@@ -9,6 +9,23 @@ async function readClipboard(page: Page): Promise<string> {
 	return page.evaluate(() => navigator.clipboard.readText());
 }
 
+async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Promise<void> {
+	const fromBox = await page.locator('[role="cell"]').nth(fromIdx).boundingBox();
+	const toBox = await page.locator('[role="cell"]').nth(toIdx).boundingBox();
+	if (!fromBox || !toBox) throw new Error('dragBetweenCells: missing bounding box');
+	const sx = fromBox.x + fromBox.width / 2;
+	const sy = fromBox.y + fromBox.height / 2;
+	const ex = toBox.x + toBox.width / 2;
+	const ey = toBox.y + toBox.height / 2;
+	await page.mouse.move(sx, sy);
+	await page.mouse.down();
+	for (let i = 1; i <= 10; i++) {
+		const t = i / 10;
+		await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
+	}
+	await page.mouse.up();
+}
+
 test.describe('table block: cell right-click clipboard', () => {
 	let editor: EditorPage;
 
@@ -93,6 +110,27 @@ test.describe('table block: cell right-click clipboard', () => {
 		// The cell keeps focus after paste, so typing continues at the caret (native).
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceContains('| pastedZ | world |');
+	});
+
+	// The intra-table rectangle suppresses the cell's native selection, so pre-fix the
+	// menu read hasSelection=false and greyed out the very Cut/Copy the rect serves.
+	test('Cut/Copy enable for an intra-table rectangle and Copy writes it', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+		// Drag a 2×2 body rectangle: cell 2 (row1,col0="1") → cell 5 (row2,col1="4").
+		await dragBetweenCells(page, 2, 5);
+		await editor.waitForCrossBlock(true);
+
+		// Right-click a rectangle cell preserves the rect (button-2 pointerdown no-ops).
+		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
+		await expect(page.getByRole('menuitem', { name: /^cut$/i })).toBeEnabled();
+		await expect(page.getByRole('menuitem', { name: /^copy$/i })).toBeEnabled();
+
+		await page.getByRole('menuitem', { name: /^copy$/i }).click();
+		const copied = await readClipboard(page);
+		expect(copied).toContain('1');
+		expect(copied).toContain('4');
+		// Copy is non-destructive.
+		expect(await editor.bridge.getSource()).toContain('| 1 | 2 |');
 	});
 
 	test('Paste over a selection replaces the selected text', async ({ page }) => {
