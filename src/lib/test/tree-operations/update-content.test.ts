@@ -15,6 +15,24 @@ describe('updateNodeContent', () => {
 		expect(change).toEqual({ op: 'noop' });
 	});
 
+	// The same-kind path writes in place: routine typing must keep the node object,
+	// since the component instance, IME state, and the inline-cache WeakMap are all
+	// keyed on it. A mint-always refactor keeps raw/metadata and the noop return but
+	// silently breaks this — the covering tests above stay green, so pin it directly.
+	it('same-kind edit preserves the node object identity', () => {
+		const doc = parse('Hello\n');
+		const before = doc.children[0];
+		updateNodeContent(doc, 0, 'edited\n');
+		expect(doc.children[0]).toBe(before);
+	});
+
+	it('kind change swaps the node object (mint-and-replace)', () => {
+		const doc = parse('Hello\n');
+		const before = doc.children[0];
+		updateNodeContent(doc, 0, '## edited\n');
+		expect(doc.children[0]).not.toBe(before);
+	});
+
 	it('kind change from paragraph to heading returns a same-slot replace', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
