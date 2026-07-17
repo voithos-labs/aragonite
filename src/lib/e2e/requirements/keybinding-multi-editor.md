@@ -29,3 +29,11 @@ contained to a single instance, so one keypress never drives two editors.
   chords page-wide, matching pre-containment behavior (regression: the containment
   gate demanded focus-inside-or-body, so a click on the reading-mode toggle left
   focus on that checkbox and stranded a following Ctrl+F / Ctrl+H)
+- Ctrl+F while a foreign text-entry surface outside the editor holds focus (a
+  consumer's own `<textarea>` / text `<input>` / contenteditable) opens NO Find bar
+  and leaves that field focused — the editor must not hijack a page-global Ctrl+F
+  from a text field the user is typing in (regression B2-F1: broadening the search
+  arm to `claimsBodyChord` alone reopened the hijack the containment effort existed
+  to fix; a sole editor's claim is always true, so it fired from any outside focus)
+- Ctrl+F with focus inside the editor opens its Find bar (sanity: the foreign-text
+  exception must not strand the in-focus claim)
