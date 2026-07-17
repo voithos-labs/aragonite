@@ -211,6 +211,29 @@ on first edit like padding and delimiter normalization.
 boundary to observe and drops only non-model, never-rendered bytes — the same class as the
 Enter-at-end round-trip note above, one rung less severe (the surplus is never user-visible).
 
+### GFM hard break at end of paragraph degenerates to a literal backslash
+
+**Severity:** minor (edge input; mid-paragraph hard break unaffected)
+**Files:** `src/lib/components/blocks/text/text-keydown.ts` (`insertHardBreak`)
+
+A Shift+Enter at the very end of a paragraph inserts `\` + newline where the newline
+lands as the block's trailing line ending. `trimTrailingLineEnding` then strips it,
+leaving the display ending in a literal `\` (GFM treats a backslash before a
+paragraph-ending newline as a literal, not a hard break), and the returned caret
+offset sits one past the trimmed display length. A hard break at EOF is not
+representable in GFM as a single paragraph — it needs following content — so the
+insertion has no meaningful next line to land on.
+
+**Fix direction:** decide the EOF Shift+Enter semantics (suppress the degenerate
+break, or split into a fresh block) and clamp the caret to the display length. Both
+touch the trailing-line-ending seam (`displayLength` / `trimTrailingLineEnding` /
+the `offset >= display.length` branch).
+
+**Why deferred:** the caret off-by-one and the literal-`\` both live in the
+trailing-line-ending logic the CRLF/trailing-newline fidelity family owns (the
+deferred keystroke-commit `\r\n` normalization is the sibling); a caret-only clamp
+would patch the symptom without settling the semantics. Fold into that line-ending pass.
+
 ## Code structure
 
 ### DocPath brand adoption stops at the scope factories
@@ -461,6 +484,26 @@ through the cell surface (its pending-cursor `$effect` already carries the
 **Why deferred:** cell reveal is a feature wire-up, not a regression. Cells already render
 widgets (0.9.14) and a `<br>` now paints as one, so the rendering half of the cell-inline
 work has landed; what remains is threading the interaction bundle through the cell surface.
+
+### Copy during an active inline-widget reveal slices stale raw
+
+**Severity:** minor (non-mutating; wrong clipboard bytes, no document corruption)
+**Files:** `src/lib/components/blocks/text/text-clipboard.ts` (`onCopy`)
+
+Cut and paste now fold a live source-reveal before running, so they mutate a CST
+consistent with the swapped DOM. Copy takes no such guard — a deliberate asymmetry,
+since copy must never mutate the document and a fold commits an edit. While an
+inline-math `$…$` source is revealed, `onCopy` still slices `node.raw` at DOM-derived
+offsets, so a selection spanning the revealed (DOM-only) edit copies bytes that don't
+match what the user sees. The document is untouched; only the clipboard payload is wrong.
+
+**Fix direction:** while a reveal is active, read the copy payload from the live DOM
+source text rather than the stale raw slice — the read half of the same seam cut/paste
+fold at, without the fold's mutation.
+
+**Why deferred:** non-corrupting and narrow (a copy whose selection overlaps a revealed
+widget source); folding on copy is disallowed, so this needs its own read-path branch.
+Fold into the clipboard seam alongside the copy read.
 
 ## Dev workflow
 
