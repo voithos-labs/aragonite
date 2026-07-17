@@ -279,6 +279,32 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 	});
 });
 
+// ── Cross-block inline join reparse ──────────────────────────────────────────
+
+describe('pasteDispatch — cross-block inline join reparse', () => {
+	beforeEach(() => {
+		__resetPasteSurfacesForTests();
+		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	});
+
+	// A join paste that completes marker syntax at offset 0 must re-mint the slot
+	// at the reparsed kind, not leave a paragraph-typed node holding list bytes
+	// (parse(serialize(live)) would then diverge). The non-join sibling routes
+	// through updateBlockContent → the funnel; the join branch must mirror it.
+	it('completing an ordered-list marker re-mints the block as a list', async () => {
+		const doc = parse('. item\n');
+		expect(doc.children[0].kind).toBe('paragraph');
+
+		await pasteDispatch(
+			{ pastedText: '1', targetPath: [0], offset: 0 },
+			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController(), undoEntry: 'join' }
+		);
+
+		expect(doc.children[0].raw).toBe('1. item\n');
+		expect(doc.children[0].kind).toBe('list');
+	});
+});
+
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
 describe('pasteDispatch — strategy routing end-to-end', () => {
