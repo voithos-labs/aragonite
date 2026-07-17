@@ -49,4 +49,26 @@ describe('toggleInlineFormat', () => {
 		const parsed = parseInline(r.newDisplay, 0, r.newDisplay.length);
 		expect(leafText(parsed)).toBe('a b');
 	});
+
+	// The flanking single `*` inside `**word**` belong to a STRONG construct, not an
+	// emphasis one. Toggling emphasis must nest (add a layer), not strip the inner
+	// star of each `**` — the old flank check was construct-blind and produced the
+	// bold-destroying `*word*`.
+	it('nests emphasis inside a strong construct instead of stripping its markers', () => {
+		const r = toggleInlineFormat('**word**', { start: 2, end: 6 }, 'emphasis');
+		expect(r.newDisplay).toBe('***word***');
+		// The wrap branch selects the freshly wrapped span including its new markers.
+		expect(r.newSelStart).toBe(2);
+		expect(r.newSelEnd).toBe(8);
+	});
+
+	it('nests strong inside an emphasis construct (single-marker flank is not strong)', () => {
+		const r = toggleInlineFormat('*word*', { start: 1, end: 5 }, 'strong');
+		expect(r.newDisplay).toBe('***word***');
+	});
+
+	it('strips the emphasis layer when the selection is genuinely inside one', () => {
+		const r = toggleInlineFormat('***word***', { start: 3, end: 7 }, 'emphasis');
+		expect(r.newDisplay).toBe('**word**');
+	});
 });
