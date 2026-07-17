@@ -45,6 +45,41 @@ export function claimsBodyChord(root: HTMLElement): boolean {
 	return !hasLiveClaim && mountedEditors.size === 1 && mountedEditors.has(root);
 }
 
+// Text-like <input> types the reserved chords yield to. Checkbox/radio/button/
+// file/range/color and the date-family are deliberately absent: they don't consume
+// Ctrl+F, so a sole editor keeps claiming when one holds focus — the
+// presentation-reading toggle is such a checkbox. Unknown/missing type normalizes
+// to "text" (HTMLInputElement.type), so a bare <input> lands here.
+const TEXT_ENTRY_INPUT_TYPES = new Set([
+	'text',
+	'search',
+	'url',
+	'email',
+	'tel',
+	'password',
+	'number'
+]);
+
+/**
+ * True when `active` is a text-entry surface outside every mounted editor — a
+ * foreign `<textarea>`, text-like `<input>`, or `contenteditable` host the user is
+ * typing in. The reserved UI chords (Ctrl+F / Ctrl+H) yield to it, so a sole/last-
+ * interacted editor never hijacks a page-global Find from a consumer's own field.
+ */
+export function isForeignTextEntry(active: Element | null): boolean {
+	if (!isTextEntrySurface(active)) return false;
+	for (const root of mountedEditors) {
+		if (root.contains(active)) return false;
+	}
+	return true;
+}
+
+function isTextEntrySurface(el: Element | null): boolean {
+	if (el instanceof HTMLTextAreaElement) return true;
+	if (el instanceof HTMLInputElement) return TEXT_ENTRY_INPUT_TYPES.has(el.type);
+	return el?.matches('[contenteditable]:not([contenteditable="false"])') ?? false;
+}
+
 /** Release the claim if this editor holds it, so a torn-down instance never keeps it. */
 export function releaseInteractedEditor(root: HTMLElement): void {
 	if (lastInteracted === root) lastInteracted = null;
