@@ -214,13 +214,14 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const prevMarker = metadataOf(itemScope.node, 'listItem')?.marker ?? '- ';
+					const prevMeta = metadataOf(itemScope.node, 'listItem');
+					const inheritTask = prevMeta?.taskItem === true;
 					const newItem = buildListItem(
 						{
-							marker: bumpOrderedMarker(prevMarker),
-							taskItem: metadataOf(itemScope.node, 'listItem').taskItem ?? false,
+							marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+							taskItem: inheritTask,
 							taskChecked: false,
-							taskMarker: null
+							taskMarker: inheritTask ? '[ ] ' : null
 						},
 						secondHalf
 					);
