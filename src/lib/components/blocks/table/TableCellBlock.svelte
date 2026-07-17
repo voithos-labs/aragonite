@@ -49,9 +49,17 @@
 	} from '../../../selection/cross-block/clipboard';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
-	import { selectWholeDocument } from '../../../selection/keyboard-extend';
+	import {
+		selectWholeDocument,
+		extendFocusToNextBlock,
+		extendFocusToPreviousBlock
+	} from '../../../selection/keyboard-extend';
+	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';
 	import { intraTableRectPayload } from './cell-clipboard';
+	import { escapeCellCommit } from './table-cell-paste';
+	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -169,8 +177,14 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
 		// Cells can't carry a raw newline, so no trailing '\n' (unlike text/code);
-		// savedOffset re-focuses if the edit remounts the cell.
-		commitInput: (text, preEdit, saved) => blockEdit.updateBlockContent(index, text, preEdit, saved)
+		// savedOffset re-focuses if the edit remounts the cell. Escape typed/IME
+		// pipes to `\|` — the same bytes a paste writes — so a bare `|` never splits
+		// the row on reparse; the returned caret shifts past the inserted backslash.
+		commitInput: (text, preEdit, saved) => {
+			const committed = escapeCellCommit(text, saved);
+			void blockEdit.updateBlockContent(index, committed.text, preEdit, committed.caret);
+			return committed.caret;
+		}
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -346,6 +360,23 @@
 
 		switch (plan.kind) {
 			case 'native': {
+				// First Shift+ArrowUp/Down at the cell's vertical edge starts an
+				// intra-table rectangle down/up a whole row (cell-aware) — the shared
+				// prose extend would instead walk the next doc-order leaf (the next cell
+				// across, or the table's own first cell). Subsequent presses route
+				// through the cross-block handler above.
+				if (
+					!selection.isCrossBlock &&
+					e.shiftKey &&
+					!e.altKey &&
+					!e.ctrlKey &&
+					!e.metaKey &&
+					(e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+					startIntraTableRect(e.key, preEditOffset)
+				) {
+					e.preventDefault();
+					return;
+				}
 				if (await handleSharedKeydown(e, sharedCtx)) return;
 				// Cells route navigation through cellKeydownPlan, but inline-format
 				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
@@ -374,8 +405,10 @@
 				e.preventDefault();
 				if (plan.step === 'table') {
 					const tablePath = myPath.slice(0, -2);
+					// Flag the anchor as a cell coordinate, matching the drag/shift-click
+					// anchor: a later exit-the-table extend needs it to snap its whole row.
 					selection.enterCrossBlock(
-						{ path: tablePath, offset: 0 },
+						{ path: tablePath, offset: 0, cellCoordinate: true } satisfies CellSelectionPoint,
 						{ path: tablePath, offset: columnCount * rowCount - 1 }
 					);
 				} else {
@@ -410,6 +443,43 @@
 				exitWithStickyX(plan.direction);
 				return;
 		}
+	}
+
+	// Enter an intra-table rectangle from a collapsed cell caret on the first
+	// Shift+ArrowUp/Down. Gated on the cell's visual edge so a multi-line cell still
+	// extends its own text first (prose parity). Returns false to fall through.
+	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
+		if (!el) return false;
+		const atEdge =
+			key === 'ArrowDown'
+				? isAtLastVisualLine(el, offset, containerDomTextLength(el))
+				: isAtFirstVisualLine(el, offset);
+		if (!atEdge) return false;
+
+		const tablePath = myPath.slice(0, -2);
+		const currentIdx = rowIdx * columnCount + colIdx;
+		const currentPoint: SelectionPoint = { path: tablePath, offset: currentIdx };
+		const ext = intraTableRectExtension(getDoc(), currentPoint, currentPoint, key);
+		if (!ext) return false;
+
+		const anchor = {
+			path: tablePath,
+			offset: currentIdx,
+			cellCoordinate: true
+		} satisfies CellSelectionPoint;
+		if (ext.kind === 'cell') {
+			selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: ext.offset });
+			return true;
+		}
+		// At the vertical edge: enter the rect at the current cell, then hand off to
+		// the block-level extend so the selection leaves the table.
+		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
+		if (ext.direction === 'forward') {
+			extendFocusToNextBlock(selection, getDoc(), el, ext.fromCellPath, 'vertical');
+		} else {
+			extendFocusToPreviousBlock(selection, getDoc(), el, ext.fromCellPath, 'start');
+		}
+		return true;
 	}
 
 	function exitWithStickyX(direction: ExitDirection): void {
@@ -626,6 +696,17 @@
 			}
 			const text = normalizeLineEndings(raw);
 			if (text) await applyCellPaste(text, sel);
+			return;
+		}
+		// Intra-table rectangle: no cell-local range to restore. Refocusing the cell
+		// keeps the rect live in SelectionState; execCommand('copy') fires onCopy,
+		// which writes the rect payload, and cut then clears the rect in place —
+		// mirroring the onCopy/onCut rect arms.
+		if (intraTableRectPayload({ selection, getDoc }) !== null) {
+			stickyColumn.reset();
+			el.focus();
+			document.execCommand('copy');
+			if (action === 'cut') await crossBlock.performCrossBlockDeleteFromEvent();
 			return;
 		}
 		if (sel.start === sel.end) return;
