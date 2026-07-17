@@ -109,7 +109,7 @@ export interface LocalIndexFixture {
 export interface ContainerConformanceProfile {
 	/**
 	 * A nesting where this kind is an intermediate ancestor of a deep editable
-	 * leaf — used by the ancestry-rebuild check. `leafPath` is doc-rooted.
+	 * leaf. `leafPath` is doc-rooted.
 	 */
 	deepNesting: { source: string; leafPath: number[] };
 	/** Required when `localIndex` asserts (strip/opaque kinds; grid has its own path). */

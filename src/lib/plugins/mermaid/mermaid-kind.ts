@@ -1,6 +1,7 @@
 /**
  * ```mermaid fence — the render-primary reference plugin's grammar, built on the
- * public registration seams only. Dev/e2e harness only.
+ * public registration seams only. Ships as the `aragonite/plugins/mermaid` bundled
+ * plugin (and doubles as the render-primary dogfood/e2e validator).
  *
  * The block is an opaque container with NO children: the diagram code lives in
  * typed plugin metadata, and `rebuildMermaidRaw` re-emits the exact fence bytes

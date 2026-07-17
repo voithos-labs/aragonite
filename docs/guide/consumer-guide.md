@@ -56,7 +56,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 | **Rects**              | `EditorRects` — what `getRects()` returns: viewport-space geometry over the rendered document                                                                                                                                                                                                                                                    |
 | **CST utilities**      | `parse` / `serialize` for round-tripping Markdown outside the component; `parseInline`, `getContentRange`, `isProseKind` for inspecting a block's inline content and editable range                                                                                                                                                              |
 | **Node types**         | `CstNode`, `Document`, the block-kind and inline-node unions, and the per-kind metadata shapes — the vocabulary for reading a parsed document. `NodeView` / `DocumentView` are their bytes-readonly views: every editor surface that hands you a node to read types it as a view, so mutating the live tree is a compile error, not a convention |
-| **Events**             | `EditorEvents` and the three payload types the observer surface emits                                                                                                                                                                                                                                                                            |
+| **Events**             | `EditorEvents` and the four payload types the observer surface emits                                                                                                                                                                                                                                                                             |
 | **Diagnostics**        | `EditorDiagnostics` (what `getDiagnostics()` returns) and `InteractionTraceEntry` — the field-report door (see [Diagnostics](#diagnostics))                                                                                                                                                                                                      |
 
 ### The component contract
@@ -159,6 +159,8 @@ The two differ on whether the renderer is required, and the asymmetry is deliber
 
 The latex adapter imports `katex/dist/katex.min.css` on your behalf (it is the one bundled-plugin module with a side effect); no other setup is needed.
 
+## Theming
+
 The module owns its CSS. Two stylesheets ship under `styles/`:
 
 - **`editor.css`** — structural painting rules. Auto-imported by the component; nothing to do.
@@ -208,7 +210,7 @@ Outside that contract sits the editor's own visual language — the syntax and c
 
 Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
-**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck). The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, and the find chords are wired directly into the search components. Rebinding those is tracked in `docs/issues.md` and is not available today.
+**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck). The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, and the find chords are wired directly into the search components. Rebinding the table chords is tracked in `docs/issues.md` (folded into their migration onto the declarative keymap); the find chords are not rebindable today.
 
 **Plugin-global chords resolve last.** A plugin's global command (see the plugin guide) may claim a chord in the plugin-global tier, which resolves after every `keybindings` override, built-in kind chord, and built-in global chord — so a plugin chord never shadows a built-in binding, and the Find/replace chords `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord **on that kind, not elsewhere** — a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
@@ -244,7 +246,7 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 
 ## Events
 
-Subscribe to the observer surface via `editor.getEvents()`. Three channels:
+Subscribe to the observer surface via `editor.getEvents()`. Four channels:
 
 | Channel                  | Fires                                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------- |
@@ -257,7 +259,8 @@ The payload envelopes — read the source types for the per-op arms, which chang
 
 - **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op`. `path` is doc-absolute for every op — nested ops and the typing flush included — and resolves from the document root to the operated node.
 - **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused.
-- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command` and `context` carries the block path or op kind when known (and, for a `command` throw, the block kind, command id, and owning plugin).
+- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command | decoration` and `context` carries the block path or op kind when known (the block kind, command id, and owning plugin for a `command` throw; the source name for a `decoration` throw).
+- **`PresentationMode`** (`presentationModeChange`) — the effective mode after a `presentationMode` prop change; a bare mode value, not a `{…}` envelope, and never fired at mount.
 
 `on(name, cb)` returns a disposer; call it to unsubscribe. Events fire synchronously from their emission sites. **Handlers must not mutate the document** — reentrant edits are not supported.
 

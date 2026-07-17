@@ -73,7 +73,7 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Fix direction:** render the decoded character in a `contenteditable=false` atomic span, with offset translation between display textContent (1 char) and raw (`&...;` length) — analogous to the `ambient/` prefix translation but applied to inline mid-content. Round-trip already preserves the source via `node.raw`.
 
-**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself plus re-adding the trimmed `deleteGranularity`/`onEdge` policy fields (their shapes + additive-re-add rationale live in `docs/design/plugin-contract.md` § Target shapes (designed ahead)) — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover.
+**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself and its atomic-delete consumer — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover. The `deleteGranularity: 'atomic'` policy field it needs is already re-added on `InlineWidgetEditingPolicy` (typed and honored by the caret-edge dispatch, awaiting this first consumer).
 
 ### Search matches on render-primary leaf widgets are counted but not painted
 
@@ -332,13 +332,20 @@ and fire only when even that is absent — the wired-end-without-start bug it ex
 **Files:** `src/lib/editor-actions/search-replace.ts`
 
 A childless opaque container (e.g. a mermaid block) is scanned as a leaf, so search finds,
-highlights, and navigates to matches inside its raw. Replace skips those matches: the
-container's raw is metadata-derived (`rebuildRaw`), and a generic raw substitution would
-drift from metadata and trip the G1.12/G1.13 staleness probes. `replaceOne` no-ops,
-`replaceAll` excludes them, and `replacedCount` reports only real replacements.
+highlights, and navigates to matches inside its raw. Replace skips those matches by design
+(`isReplaceable` excludes container nodes): `replaceOne` no-ops, `replaceAll` excludes them, and
+`replacedCount` reports only real replacements. The blocker is NOT metadata drift — the replace
+path is reparse-based (substitute into a private clone's `raw`, then `parse(child.raw)` into
+fresh nodes), never an in-place write, so the G1.12/G1.13 staleness probes never see it. The real
+hazard is KIND-STABILITY: a substitution that breaks the opener fence line reparses to a different
+kind (a mermaid block silently becoming a plain `fencedCode` or paragraph) — a hazard already
+accepted for `fencedCode` leaves, but surprising to apply silently to a plugin's opaque kind.
 
-**Fix direction:** a kind-aware write path — the kind translates a raw-range edit into a
-metadata update (for mermaid, a `code` rewrite) and the ceremony rebuilds `raw` from it.
+**Fix direction:** a kind-aware write path — the kind translates a raw-range edit into a metadata
+update (for mermaid, a `code` rewrite) and the ceremony rebuilds `raw` from it, so a replacement
+can never flip the kind. Any such fix inherits the nested-grammar threading gap: `buildSubtree`
+calls bare `parse(child.raw)`, so a replacement reparses against the global grammar, not the
+instance's registry view.
 
 **Why deferred:** fold into the post-1.0 container editable-flag / opaque-write work (see
 "Container shim hardcodes the component `editable` flag").
@@ -387,15 +394,17 @@ line-ending-fidelity pass.
 
 ### Container components re-export the component surface member-by-member
 
-**Severity:** trivial (authoring ergonomics; guarded, not a defect)
+**Severity:** trivial (authoring ergonomics; plugin containers guarded, built-ins not)
 **Files:** `src/lib/components/BlockHost.svelte` (ref binding); every container component
 
 A container block re-exports each `ContainerBlockComponent` member as its own `export const` so
 `bind:this` on `<Comp>` in BlockHost captures the full surface — Svelte 5 instance exports are
 individual top-level declarations, with no spread. That is ~11 identical lines in every container
-component (callout, details, admonition, mermaid). A trailing `satisfies ContainerBlockComponent`
-now turns a forgotten member into a compile error, so the block is guarded — but the ceremony
-remains.
+component. The four plugin containers (callout, details, admonition, mermaid) end the block with a
+`satisfies ContainerBlockComponent`, which turns a forgotten member into a compile error; the four
+built-ins (BlockquoteBlock, ListBlock, ListItemBlock, DirectiveContainerBlock) instead carry `!`
+non-null assertions and no guard, so a dropped member there compiles. A Tier-2 fix adding the guard
+to the built-ins is queued.
 
 **Fix direction:** let a container expose ONE well-known instance export (its `containerApi`) and
 have BlockHost read `ref.<that>` as the `BlockComponent` surface it stores and dispatches through

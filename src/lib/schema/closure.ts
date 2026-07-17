@@ -2,7 +2,7 @@
  * The tier × subsystem closure matrix, as a type. Every block-kind registration
  * carries a `ClosureBlock` answering each cross-cutting editor system for that
  * kind — the matrix row made a required field, so a blank cell is a compile
- * error instead of the unasked question that shipped the 0.9.18 whole-block-focus
+ * error instead of the unasked question that shipped the whole-block-focus closure
  * holes (see `docs/design/plugin-contract.md` § "The tier × subsystem closure
  * matrix").
  *

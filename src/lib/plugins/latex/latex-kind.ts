@@ -141,7 +141,7 @@ export function registerMathBlock(): void {
 		// `$$` collides with no built-in matcher, so priority is only collision
 		// avoidance; sits just past the sibling verbatim fence (`fencedCode`) and
 		// ties nothing (built-ins step by 10; the shared `:::` directive opener
-		// sits at 45, the harness `<details>` opener at 65).
+		// sits at 45, the `<details>` opener at 65).
 		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
 		tryOpen(ctx) {

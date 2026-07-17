@@ -28,12 +28,11 @@ state machines, the IME composition harness), and **presentation modes** shipped
 contract every plugin tier can read; caret affinity dissolved to raw offsets under the
 CST-as-truth model, no stored-marks machinery needed), and the **architecture-concern pass**
 shipped in 0.9.27 (all five flagged designs resolved: the SelectionPoint and CstNode
-discriminated unions, per-instance registry views + the dev idempotence valve, context facets
-
-- the mount harness, and container-raw exonerated by a falsification benchmark — the
-  resolutions live in `docs/research/architecture-concerns.md`). The remaining risk is **validation
-  depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
-  are ordered by **risk first, validation before freeze**.
+discriminated unions, per-instance registry views + the dev idempotence valve, context facets —
+the mount harness, and container-raw exonerated by a falsification benchmark — the resolutions
+live in `docs/research/architecture-concerns.md`). The remaining risk is **validation
+depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
+are ordered by **risk first, validation before freeze**.
 
 1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image

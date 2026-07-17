@@ -16,7 +16,7 @@ import './parsers/built-in-openers';
 
 /**
  * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view
- * (concern #1's instance seam) — absent = the global openers (the editorless,
+ * (docs/research/architecture-concerns.md) — absent = the global openers (the editorless,
  * behavior-preserving default). It filters only the TOP-LEVEL opener dispatch:
  * nested container reparses (blockquote/list bodies) and the paragraph-interrupt
  * scan read the global grammar, the documented enablement boundary — a top-level

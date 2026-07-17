@@ -1,6 +1,6 @@
 /**
  * Override factory for BlockquoteBlock — the Enter-on-empty-last-child exit.
- * Returns the override map consumed by `createStandardNestedActions`.
+ * Returns the override map.
  * Backspace unwrap (U2) is declaration-driven — the blockquote's `unwrapRole`
  * selects strategies in `unwrap-strategies.ts`.
  */

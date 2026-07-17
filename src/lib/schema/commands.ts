@@ -63,7 +63,7 @@ export type CommandId = GlobalCommandId | BlockCommandId;
 /** Minimal context a global command needs; HistoryActions is structurally compatible. */
 export interface GlobalCommandContext {
 	history: { requestUndo(): void | Promise<void>; requestRedo(): void | Promise<void> };
-	/** Per-instance context lookup, threaded from the dispatching editor (Task 5). */
+	/** Per-instance context lookup, threaded from the dispatching editor. */
 	pluginEditor?: (pluginName: string) => EditorContext;
 	/** The effective presentation mode, read live — the reading-mode gate keys off this,
 	 *  not the plugin lookup. Absent (a history-only context) means source. */

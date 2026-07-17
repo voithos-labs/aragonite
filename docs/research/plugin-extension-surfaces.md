@@ -15,12 +15,12 @@ Surveyed: ProseMirror, TipTap/Milkdown, BlockNote, Lexical, CodeMirror 6, Slate,
 
 ProseMirror's canonical guidance is literally these two composed: put the decoration set in your plugin's state and map it forward. TipTap's `addProseMirrorPlugins` escape hatch exists _specifically_ because decorations and plugin state cannot be expressed in its declarative surface.
 
-**aragonite exposes neither — but only one of them is a gap.** It exposes a third path instead: _own a kind and render it_, which it does better than the field, since plugin content is genuinely editable and byte-lossless where Obsidian's codeblock plugins render read-only HTML into a preview. That is the moat, and it is real.
+**aragonite started from neither — but only one of them was a real gap.** It exposes a third path instead: _own a kind and render it_, which it does better than the field, since plugin content is genuinely editable and byte-lossless where Obsidian's codeblock plugins render read-only HTML into a preview. That is the moat, and it is real.
 
 - **Plugin-local state is not a gap.** aragonite genuinely does not need it, for a structural reason — see the section below. Do not copy `StateField`.
-- **Decorations are.** aragonite's model is "CST is truth, a plugin owns a kind"; the decoration model is "overlay view-only state onto ranges the plugin doesn't own." So everything that owns no syntax has no home: spellcheck squiggles, AI ghost text, inline comments, collaboration cursors, task-line badges, indent guides, backlink highlights.
+- **Decorations were — until 0.9.22.** aragonite's model is "CST is truth, a plugin owns a kind"; the decoration model is "overlay view-only state onto ranges the plugin doesn't own." Everything that owns no syntax had no home until then: spellcheck squiggles, AI ghost text, inline comments, collaboration cursors, task-line badges, indent guides, backlink highlights. The decoration source (a pure `doc → Decoration[]`, § below) closed the class.
 
-**The one real hole, then, is decorations.** The ordinary capabilities a plugin needs to reach the document at all — the context spine of § What authors actually build — shipped in 0.9.21.
+**The one real hole was decorations — closed in 0.9.22.** The ordinary capabilities a plugin needs to reach the document at all — the context spine of § What authors actually build — shipped in 0.9.21.
 
 ## The convergent taxonomy
 
@@ -52,7 +52,7 @@ The taxonomy's state row is the one place a naive reading misleads. aragonite sh
 
 **The other half evaporates.** The dominant use of a `StateField` in ProseMirror and CodeMirror is holding a **decoration set and mapping it forward through changes**. They need that because a position is an integer into a flat sequence: type one character near the top and every cached position below it is stale, so the set must be re-mapped on every transaction. _That mapping problem is what forces the state slot to exist._
 
-aragonite has no such problem. A position is a `(path, offset)` into a CST re-derived from raw on each edit — there is nothing to map forward. A decoration source is therefore a **pure function `doc → Range[]`**, recomputed or memoized on change, not a mapped-forward field. The proof already ships: the search scan _is_ that pure function, and search is the one decoration client the editor has.
+aragonite has no such problem. A position is a `(path, offset)` into a CST re-derived from raw on each edit — there is nothing to map forward. A decoration source is therefore a **pure function `doc → Range[]`**, recomputed or memoized on change, not a mapped-forward field. The proof already ships: search runs as a decoration source (its scan _is_ that pure function), and the highlight-occurrences plugin is a second client.
 
 **So the shape is three primitives, and no state API at all — shipped in 0.9.21 as the per-instance `EditorContext` an `onEditor` callback receives:**
 
