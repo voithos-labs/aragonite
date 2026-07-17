@@ -8,14 +8,16 @@
  */
 
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
+import { updateNodeContent } from '../node-ops';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
 import type { PasteDispatchContext } from './dispatch';
 import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
  * Apply an inline paste. Single-block routes through updateBlockContent
- * (snapshot + inline re-parse + kind-change focus); cross-block mutates raw
- * directly because the originating bundle may not match the target's level.
+ * (snapshot + inline re-parse + kind-change focus); cross-block runs the same
+ * re-parse funnel directly on the owned chain because the originating bundle may
+ * not match the target's level, so it can't borrow the target's updateBlockContent.
  *
  * Intentionally synchronous: the caller must set cursor state before the
  * first Svelte reactivity flush, so we return before any microtask boundary.
@@ -29,9 +31,15 @@ export function applyInlineResult(
 		// Out-of-ceremony write — the caller pushed the covering snapshot, so
 		// copy-path-on-write happens here.
 		const chain = ensureUnsharedPath(ctx.doc, targetPath, ctx.controller.sharing);
-		const targetNode = chain[chain.length - 1];
-		if (!targetNode) return;
-		targetNode.raw = result.newRaw;
+		if (chain.length !== targetPath.length) return;
+		// Route through the same-slot re-parse funnel, not a raw-only write: a join
+		// that completes marker syntax (`1` before `. item`) must re-mint the slot at
+		// the reparsed kind — a bare raw write leaves the old kind holding foreign
+		// bytes and parse(serialize(live)) diverges. Mirrors the non-join sibling,
+		// which routes through updateBlockContent → the funnel.
+		const leafIndex = targetPath[targetPath.length - 1];
+		const parentNode = chain.length >= 2 ? chain[chain.length - 2] : ctx.doc;
+		updateNodeContent({ children: parentNode.children ?? [] }, leafIndex, result.newRaw);
 		rebuildUnsharedChain(chain, ctx.controller.sharing);
 		return;
 	}
