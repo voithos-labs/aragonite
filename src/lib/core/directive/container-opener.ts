@@ -10,8 +10,16 @@
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
-import { parse } from '../parser';
+import {
+	makeBlockNode,
+	setPluginMetadata,
+	type AnyBlockKind,
+	type CstNode,
+	type Document
+} from '../nodes';
+import { parseBlocks } from '../parser';
+import { splitLines } from '../lines';
+import { defaultGrammarView } from '../../schema/block-openers';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
@@ -79,7 +87,11 @@ export function registerDirectiveOpeners(): void {
 				.slice(ctx.index, closerIdx + 1)
 				.map((l) => l.raw)
 				.join('');
-			const body = parse(bodyText);
+			// Reparse the body one nesting level deeper, so nested directives share
+			// the container-depth cap instead of overflowing via a fresh parse().
+			const bodyLines = splitLines(bodyText);
+			const inner = parseBlocks(bodyLines, 0, bodyLines.length, defaultGrammarView, ctx.depth + 1);
+			const body: Document = { kind: 'document', ...inner };
 			// The closer line is all colons (isDirectiveCloser guarantees an empty
 			// remainder), so its text length is the exact closer colon count.
 			const closerColonCount = closerLine.text.length;

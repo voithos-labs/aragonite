@@ -68,7 +68,8 @@
 		controller,
 		stickyColumn: editorStickyColumn,
 		selection,
-		reorderAnnounce: announceReorder
+		reorderAnnounce: announceReorder,
+		registryView
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
@@ -114,6 +115,7 @@
 			return myPath;
 		},
 		stickyColumn: editorStickyColumn,
+		grammar: registryView.grammar,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: focusActions,

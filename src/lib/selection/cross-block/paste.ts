@@ -66,7 +66,8 @@ export async function handleCrossBlockPaste(
 			doc,
 			blockEdit: ctx.blockEdit,
 			controller: ctx.pasteCoordinator,
-			undoEntry: 'join'
+			undoEntry: 'join',
+			grammar: ctx.grammar
 		}
 	);
 

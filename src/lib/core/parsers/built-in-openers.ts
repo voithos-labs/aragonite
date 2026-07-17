@@ -78,7 +78,7 @@ registerBlockOpener('blockquote', {
 	priority: OPENER_PRIORITIES.blockquote,
 	tryOpen(ctx) {
 		if (!matchBlockquote(ctx.line.text)) return null;
-		return parseBlockquote(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+		return parseBlockquote(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.depth);
 	},
 	interruptsParagraph: matchBlockquote
 });
@@ -87,7 +87,7 @@ registerBlockOpener('list', {
 	priority: OPENER_PRIORITIES.list,
 	tryOpen(ctx) {
 		if (!matchListItem(ctx.line.text)) return null;
-		return parseList(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+		return parseList(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.depth);
 	},
 	interruptsParagraph: listCanInterrupt
 });
