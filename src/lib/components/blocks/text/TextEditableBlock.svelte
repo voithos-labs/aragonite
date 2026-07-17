@@ -8,50 +8,22 @@
 	} from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
-	import { emitCommandError, type EditorEvents } from '../../../editor-events';
+	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		BROKEN_IMAGE_URLS_KEY,
-		DECORATIONS_KEY,
-		DOC_KEY,
-		EDITOR_EVENTS_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		IMAGE_LOAD_POLICY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		LINK_REF_KEY,
 		LIST_CONTEXT_KEY,
-		PASTE_COORDINATOR_KEY,
-		PLUGIN_EDITOR_KEY,
-		PRESENTATION_MODE_KEY,
-		REORDER_ACTION_KEY,
-		RESOLVE_IMAGE_URL_KEY,
-		RESOLVE_LINK_URL_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		WIDGET_SELECTION_KEY,
-		type BlockElLookup,
-		type DocumentGetter,
-		type KeybindingOverridesGetter,
-		type LinkReferenceResolverRef,
-		type PluginEditorLookup,
-		type PresentationModeGetter,
-		type ResolveImageUrl,
-		type ResolveLinkUrl
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { ReorderAction } from '../../../editor-actions/reorder-action';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import type { DecorationEngine } from '../../../reactivity/decoration-state.svelte';
-	import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { isProseKind } from '../../../core/inline';
 	import { getInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
@@ -66,7 +38,6 @@
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
@@ -108,8 +79,8 @@
 		blockClass?: string;
 		ambientPrefix?: AmbientPrefix;
 		// Accepted for BlockComponentProps parity — BlockHost passes `document` to
-		// every block uniformly; this surface reads the doc from DOC_KEY, so the prop
-		// stays unbound (binding it would shadow the global `document` used below).
+		// every block uniformly; this surface reads the doc from the document facet,
+		// so the prop stays unbound (binding it would shadow the global `document`).
 		document?: DocumentView;
 	} = $props();
 
@@ -118,39 +89,43 @@
 	);
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	// Present when this paragraph sits inside a list item — used to skip
 	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
 	const listContext = getContext(LIST_CONTEXT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
-	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
-	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
-	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
-	const imageLoadPolicy =
-		getContext<() => import('../../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
-	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
-	// Absent in bare unit harnesses; absent reads as 'source'.
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const {
+		reorder,
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		selection,
+		widgetSelection,
+		events: editorEvents,
+		decorations: decorationEngine
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		keybindingOverrides,
+		resolveImageUrl,
+		resolveLinkUrl,
+		imageLoadPolicy,
+		brokenImageUrls: brokenUrlCache,
+		presentationMode: getPresentationMode
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor,
+		linkRef
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
-	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
-	// Absent in bare unit harnesses; the constant fallback keeps the zero-cost
-	// render path (an empty island set never enters the render key).
-	const decorationEngine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
+	// The constant fallback keeps the zero-cost render path — an empty island set
+	// never enters the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);

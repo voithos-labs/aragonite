@@ -13,38 +13,20 @@
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
 	import type { NodeView } from '../../../core/node-views';
-	import { emitCommandError, type EditorEvents } from '../../../editor-events';
+	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		DOC_KEY,
-		EDITOR_EVENTS_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		LINK_REF_KEY,
-		PASTE_COORDINATOR_KEY,
-		PLUGIN_EDITOR_KEY,
-		PRESENTATION_MODE_KEY,
-		RESOLVE_LINK_URL_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
-		type BlockElLookup,
-		type DocumentGetter,
-		type KeybindingOverridesGetter,
-		type LinkReferenceResolverRef,
-		type PluginEditorLookup,
-		type PresentationModeGetter,
-		type ResolveLinkUrl
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { TableAlignment } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
@@ -59,7 +41,6 @@
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
@@ -107,26 +88,32 @@
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const {
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		selection,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		keybindingOverrides,
+		presentationMode: getPresentationMode,
+		resolveLinkUrl
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor,
+		linkRef
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
-	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
 
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);

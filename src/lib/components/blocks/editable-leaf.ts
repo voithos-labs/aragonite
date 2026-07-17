@@ -36,34 +36,18 @@ import type { StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import {
 	BLOCK_EDIT_KEY,
-	BLOCK_EL_LOOKUP_KEY,
 	CONTAINER_EDIT_KEY,
-	CONTROLLER_KEY,
-	DOC_KEY,
-	EDITOR_EVENTS_KEY,
-	EDITOR_LIFETIME_KEY,
-	EDITOR_ROOT_KEY,
+	EDITOR_DOC_KEY,
+	EDITOR_POLICIES_KEY,
+	EDITOR_SERVICES_KEY,
 	FOCUS_KEY,
 	HISTORY_KEY,
-	KEYBINDING_OVERRIDES_KEY,
-	PASTE_COORDINATOR_KEY,
-	PLUGIN_EDITOR_KEY,
-	PRESENTATION_MODE_KEY,
-	REORDER_ACTION_KEY,
-	SELECTION_KEY,
-	STICKY_COLUMN_KEY,
-	type BlockElLookup,
-	type DocumentGetter,
-	type KeybindingOverridesGetter,
-	type PluginEditorLookup,
-	type PresentationModeGetter
+	type EditorDoc,
+	type EditorPolicies,
+	type EditorServices,
+	type PluginEditorLookup
 } from '../../editor-keys';
-import { emitCommandError, type EditorEvents } from '../../editor-events';
-import type { ReorderAction } from '../../editor-actions/reorder-action';
-import type { UndoController } from '../../editor-actions/deps';
-import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-import type { StickyColumnState } from '../../cursor/sticky-column';
-import type { SelectionState } from '../../selection/selection-state.svelte';
+import { emitCommandError } from '../../editor-events';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
 import {
 	createRangeFromOffsets,
@@ -195,24 +179,26 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const isRevealed = mode === 'render-primary' ? deps.isRevealed! : () => true;
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
-	const getPresentationModeCtx = getContext<PresentationModeGetter | undefined>(
-		PRESENTATION_MODE_KEY
-	);
+	const {
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		reorder,
+		selection,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { keybindingOverrides, presentationMode: getPresentationModeCtx } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
 	const isReading = () => getPresentationMode() === 'reading';
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);

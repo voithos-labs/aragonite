@@ -20,7 +20,7 @@ export interface ListWindowingDeps {
 	getChildIds: () => string[];
 	/** This scope's own list element — its top within the scroll content maps root scrollTop to local. */
 	getListEl: () => HTMLElement | null;
-	/** The single editor scroll element (EDITOR_ROOT_KEY). */
+	/** The single editor scroll element (the document facet's `editorRoot`). */
 	getScrollEl: () => HTMLElement | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;

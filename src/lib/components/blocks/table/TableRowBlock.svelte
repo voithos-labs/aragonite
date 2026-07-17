@@ -10,13 +10,13 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		PARENT_SCOPE_SINK_KEY,
-		STICKY_COLUMN_KEY,
+		type EditorServices,
 		type ParentScopeSink
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../../perf/instruments';
 	import {
@@ -58,7 +58,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const { stickyColumn } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	const cellsState = createBlockListState(() => node);
 

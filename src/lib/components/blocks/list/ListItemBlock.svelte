@@ -9,22 +9,17 @@
 	import type { BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
-		KEYBINDING_OVERRIDES_KEY,
 		LIST_CONTEXT_KEY,
-		PRESENTATION_MODE_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		type KeybindingOverridesGetter,
-		type PresentationModeGetter
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import { isPreviewMode } from '../../../presentation-mode';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { displayLength } from '../../../core/lines';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
@@ -59,16 +54,17 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
+	const { stickyColumn, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		keybindingOverrides,
+		blockDragHandles: getDragHandles,
+		presentationMode: getPresentationMode
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
-	const getDragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 

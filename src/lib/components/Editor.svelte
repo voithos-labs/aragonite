@@ -6,40 +6,18 @@
 	import type { EditorProps, EditorInstance, EditorDiagnostics } from '../editor-props';
 	import type { EditorEvents } from '../editor-events';
 	import {
-		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
-		BROKEN_IMAGE_URLS_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		DECORATIONS_KEY,
-		DOC_KEY,
-		EDITOR_EVENTS_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
-		FOCUSED_PATH_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
-		HEIGHT_ORACLE_KEY,
 		HISTORY_KEY,
-		IMAGE_LOAD_POLICY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		LINK_REF_KEY,
-		PASTE_COORDINATOR_KEY,
-		PLUGIN_EDITOR_KEY,
-		PRESENTATION_MODE_KEY,
-		REGISTRY_VIEW_KEY,
-		REORDER_ACTION_KEY,
-		REORDER_ANNOUNCE_KEY,
-		RESOLVE_IMAGE_URL_KEY,
-		RESOLVE_LINK_URL_KEY,
-		SEARCH_KEY,
-		REVEAL_ANCHOR_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		WIDGET_SELECTION_KEY,
-		WIDTH_VERSION_KEY,
 		type BlockElLookup,
 		type DocumentGetter,
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices,
 		type PluginEditorLookup,
 		type ResolveImageUrl,
 		type ResolveLinkUrl
@@ -586,44 +564,40 @@
 		announceReorder(`Moved block to position ${to + 1} of ${total}`);
 	});
 
+	// The action triple stays per-key so a container re-provides exactly the
+	// bundles it overrides; HISTORY stays per-key as G1.4's single-provider
+	// subject. Everything else the root provides once rides three named facets.
 	setContext(BLOCK_EDIT_KEY, blockEdit);
 	setContext(FOCUS_KEY, focus);
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
-	setContext(CONTROLLER_KEY, controller);
-	setContext(PASTE_COORDINATOR_KEY, pasteCoordinator);
-	setContext(REORDER_ACTION_KEY, reorder);
-	setContext(REORDER_ANNOUNCE_KEY, announceReorder);
-	setContext(STICKY_COLUMN_KEY, stickyColumn);
-	setContext(REVEAL_ANCHOR_KEY, revealAnchor);
-	setContext(SELECTION_KEY, selectionState);
-	setContext(SEARCH_KEY, searchState);
-	setContext(DECORATIONS_KEY, decorationEngine);
-	setContext(WIDGET_SELECTION_KEY, widgetSelection);
-	setContext(RESOLVE_IMAGE_URL_KEY, resolveImageUrlImpl);
-	setContext(RESOLVE_LINK_URL_KEY, resolveLinkUrlImpl);
-	setContext(IMAGE_LOAD_POLICY_KEY, () => imageLoadPolicy);
-	setContext(PRESENTATION_MODE_KEY, () => effectiveMode);
-	// Reading mode forces the drag handle off through the same funnel the prop
-	// uses — both render sites read this one getter.
-	setContext(BLOCK_DRAG_HANDLES_KEY, () => blockDragHandles && effectiveMode !== 'reading');
-	setContext(KEYBINDING_OVERRIDES_KEY, () => overridesMap);
-	setContext(BROKEN_IMAGE_URLS_KEY, brokenImageUrls);
-	setContext(EDITOR_EVENTS_KEY, events);
-	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
-	setContext(DOC_KEY, getDoc);
-	setContext(PLUGIN_EDITOR_KEY, pluginEditorLookup);
-	setContext(REGISTRY_VIEW_KEY, registryView);
-	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
-	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
-	setContext(LINK_REF_KEY, {
-		get current(): LinkReferenceResolver {
-			return currentResolver;
-		},
-		get signature(): string {
-			return currentSignature;
-		}
-	});
+
+	setContext(EDITOR_SERVICES_KEY, {
+		events,
+		decorations: decorationEngine,
+		selection: selectionState,
+		search: searchState,
+		stickyColumn,
+		revealAnchor,
+		widgetSelection,
+		controller,
+		pasteCoordinator,
+		reorder,
+		reorderAnnounce: announceReorder,
+		registryView
+	} satisfies EditorServices);
+
+	setContext(EDITOR_POLICIES_KEY, {
+		resolveImageUrl: resolveImageUrlImpl,
+		resolveLinkUrl: resolveLinkUrlImpl,
+		imageLoadPolicy: () => imageLoadPolicy,
+		// Reading mode forces the drag handle off through the same funnel the prop
+		// uses — both render sites read this one getter.
+		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
+		presentationMode: () => effectiveMode,
+		keybindingOverrides: () => overridesMap,
+		brokenImageUrls
+	} satisfies EditorPolicies);
 
 	// Mode flips are blur-class events: entering reading while a reveal is open or
 	// a composition is live must fold/commit through the existing blur choke
@@ -826,7 +800,6 @@
 		blockChrome: HEIGHT_ESTIMATES.blockChrome,
 		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 	});
-	setContext(HEIGHT_ORACLE_KEY, heightOracle);
 
 	// A WIDTH change re-wraps prose, so every height the oracle cached at the old width
 	// is stale and every windowing scope must rebuild + re-measure. The editor root owns
@@ -836,7 +809,6 @@
 	// resize doesn't re-wrap, so it's ignored. ResizeObserver's per-callback batching is
 	// the coalescing — no setTimeout/rAF debounce (G4.4).
 	let widthVersion = $state(0);
-	setContext(WIDTH_VERSION_KEY, () => widthVersion);
 	$effect(() => {
 		const el = editorEl;
 		if (!el) return;
@@ -920,10 +892,30 @@
 			root.removeEventListener('focusout', onFocusOut);
 		};
 	});
-	setContext(FOCUSED_PATH_KEY, () => focusedPath);
+	// The document facet is assembled here, after the windowing signals it carries
+	// (heightOracle, widthVersion, focusedPath) exist — the block components and the
+	// windowing hook below both read it back through getContext.
+	setContext(EDITOR_DOC_KEY, {
+		doc: getDoc,
+		linkRef: {
+			get current(): LinkReferenceResolver {
+				return currentResolver;
+			},
+			get signature(): string {
+				return currentSignature;
+			}
+		},
+		pluginEditor: pluginEditorLookup,
+		lifetime: lifetimeController.signal,
+		editorRoot: () => editorEl ?? null,
+		blockElLookup: getBlockElByPath,
+		focusedPath: () => focusedPath,
+		heightOracle,
+		widthVersion: () => widthVersion
+	} satisfies EditorDoc);
 
-	// The root sources HEIGHT_ORACLE/FOCUSED_PATH/EDITOR_ROOT above; the hook reads
-	// them back via getContext. getListEl is the inner .block-list wrapper, not
+	// The root sources the doc facet (heightOracle/focusedPath/editorRoot) above; the
+	// hook reads it back via getContext. getListEl is the inner .block-list wrapper, not
 	// editorEl (== scrollEl): it scrolls with content, so its top maps root
 	// scrollTop into local coordinates — feeding editorEl collapses it to 0.
 	const topWindowing = useContainerWindowing({

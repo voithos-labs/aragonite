@@ -8,35 +8,19 @@
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
-	import { emitCommandError, type EditorEvents } from '../../../editor-events';
+	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		DOC_KEY,
-		EDITOR_EVENTS_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		PASTE_COORDINATOR_KEY,
-		PLUGIN_EDITOR_KEY,
-		PRESENTATION_MODE_KEY,
-		REORDER_ACTION_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		type BlockElLookup,
-		type DocumentGetter,
-		type KeybindingOverridesGetter,
-		type PluginEditorLookup,
-		type PresentationModeGetter
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { ReorderAction } from '../../../editor-actions/reorder-action';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { asDomTextOffset, asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import {
 		createRangeFromOffsets,
@@ -47,7 +31,6 @@
 		hasSelection as hasSelectionHelper
 	} from '../../../cursor/content-offsets';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
@@ -77,23 +60,27 @@
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const {
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		reorder,
+		selection,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { keybindingOverrides, presentationMode: getPresentationMode } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
 	const readOnly = $derived(getPresentationMode?.() === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
