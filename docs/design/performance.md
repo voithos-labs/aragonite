@@ -21,7 +21,7 @@ A flat high-block-count keystroke cost was once recorded here as an O(top-level-
 
 ## Where the numbers live, and what's gated
 
-`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec. It is the source of truth; this document is not.
+`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec. It is the source of truth; this document is not. The README's performance charts are generated from that baseline by `scripts/render-perf-chart.mjs` — a re-bless and a chart regeneration are one act, so the pictures cannot drift from the gate.
 
 | Rows                                    | Status          | Enforced by                                                                                                          |
 | --------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------- |
