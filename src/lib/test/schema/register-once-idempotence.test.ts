@@ -12,6 +12,8 @@ import {
 	getOrderedOpeners,
 	type BlockOpener
 } from '$lib/schema/block-openers';
+import { registerBlockCommand, getBlockCommand } from '$lib/schema/block-commands';
+import type { AnyCommandId } from '$lib/schema/command-id';
 import {
 	registerInlineSyntax,
 	getInlineSyntax,
@@ -50,6 +52,16 @@ describe('register-once still throws on duplicate under test', () => {
 	it('declarePluginKind throws on a duplicate name', () => {
 		declarePluginKind('dup-under-test');
 		expect(() => declarePluginKind('dup-under-test')).toThrow(/already declared/i);
+	});
+});
+
+// registerBlockCommand mints (which validates the name) INSIDE apply, before the
+// map write — so a name the mint rejects can never leave an orphaned, unreachable
+// handler behind a thrown registration.
+describe('registerBlockCommand validates the name before touching the registry', () => {
+	it('an invalid name throws and leaves no orphaned handler', () => {
+		expect(() => registerBlockCommand('paragraph', 'Invalid Name', () => false)).toThrow();
+		expect(getBlockCommand('paragraph', 'Invalid Name' as AnyCommandId)).toBeUndefined();
 	});
 });
 
