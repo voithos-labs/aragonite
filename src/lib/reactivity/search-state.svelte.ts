@@ -62,8 +62,10 @@ export function createSearchState(deps: SearchDeps): SearchState {
 
 	// The scan runs for its side effects (matches/error/activeIndex), so only the
 	// CURRENT key may ever hit — a deeper cache could hit an older key (an option
-	// toggled back, say) whose side effects no longer hold. Hence cap 1.
-	const scanMemo = createBoundedMemo<string, null>({ cap: 1 });
+	// toggled back, say) whose side effects no longer hold. Hence cap 1. Re-minted
+	// on close(), which clears `matches`: the last key's cached side effect no
+	// longer holds, so reopen (same key) must miss and rescan, not serve the empty set.
+	let scanMemo = createBoundedMemo<string, null>({ cap: 1 });
 
 	// Keyed on editEpoch + query + options — NEVER doc.children identity: routine
 	// typing mutates children in place, so identity only changes on structural
@@ -153,6 +155,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			handle = null;
 			matches = [];
 			replacedCount = null;
+			scanMemo = createBoundedMemo<string, null>({ cap: 1 });
 			deps.onClose();
 		},
 		setQuery(q: string) {

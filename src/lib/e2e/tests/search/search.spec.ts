@@ -76,6 +76,21 @@ test.describe('search — open and close', () => {
 			.poll(() => page.evaluate(() => !!document.activeElement?.closest('.editor')))
 			.toBe(true);
 	});
+
+	test('reopening after Esc with an unchanged query re-paints the highlights', async ({ page }) => {
+		await openFind(editor);
+		await typeQuery(editor, 'alpha');
+		await expect(overlays(page)).toHaveCount(2);
+
+		await page.keyboard.press('Escape');
+		await expect(overlays(page)).toHaveCount(0);
+
+		// Reopen with no edits between: the retained query must re-scan and re-paint,
+		// not serve the closed bar's cleared match set through a stale scan memo.
+		await openFind(editor);
+		await expect(overlays(page)).toHaveCount(2);
+		await expect(count(page)).toHaveText(/1\s*\/\s*2/);
+	});
 });
 
 test.describe('search — find and highlight', () => {

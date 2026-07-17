@@ -100,4 +100,18 @@ describe('SearchState', () => {
 		expect(s.matches.length).toBe(0);
 		expect(closed).toBe(1);
 	});
+	it('reopening with an unchanged query re-publishes the matches', () => {
+		// close() clears matches; the cap-1 scan memo must drop with them, or reopen
+		// (same editEpoch + query) hits the primed key, skips the rescan, and serves
+		// the cleared empty set. addSource re-runs provide synchronously, so the
+		// reopened matches are observable right here.
+		const s = makeState('a a\n');
+		s.open();
+		s.setQuery('a');
+		expect(s.matches.length).toBe(2);
+		s.close();
+		expect(s.matches.length).toBe(0);
+		s.open();
+		expect(s.matches.length).toBe(2);
+	});
 });
