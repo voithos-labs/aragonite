@@ -28,6 +28,7 @@ entirely through the keyboard and the bar's buttons. Replace-all is one undo ste
 - A regex-mode replacement with a `\n` escape splits the matched block into two (the single-line replace input can't carry a real newline).
 - Replace All is a single undo: one Ctrl+Z restores the entire original document.
 - In a tall windowed document, navigating to an off-window match scrolls its block into view and mounts it.
+- Reopening the bar after Esc with an unchanged query (no edits between) re-scans and re-paints the highlights — a stale scan memo must not serve the closed bar's cleared matches.
 
 ## User interactions
 
