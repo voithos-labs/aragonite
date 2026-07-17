@@ -197,8 +197,16 @@ export function handleCellShiftClick(
 		selection.extendFocus({ path: tablePath, offset: focusCellIdx });
 		return;
 	}
+	// Flag the anchor as a row-major cell index, matching the drag anchor: an
+	// exit-the-table extend later needs it so the whole-row snap fires. The focus
+	// stays context-established (unflagged) — same-table extends short-circuit the
+	// snap, so the intra-table rectangle is untouched.
 	selection.enterCrossBlock(
-		{ path: tablePath.slice(), offset: anchorCellIdx },
+		{
+			path: tablePath.slice(),
+			offset: anchorCellIdx,
+			cellCoordinate: true
+		} satisfies CellSelectionPoint,
 		{ path: tablePath.slice(), offset: focusCellIdx }
 	);
 }
