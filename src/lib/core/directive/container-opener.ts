@@ -18,7 +18,7 @@ import {
 	type Document
 } from '../nodes';
 import { parseBlocks } from '../parser';
-import { splitLines } from '../lines';
+import { splitLines, type ParsedLine } from '../lines';
 import { defaultGrammarView } from '../../schema/block-openers';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
@@ -67,16 +67,12 @@ export function registerDirectiveOpeners(): void {
 				return { node, nextIndex: ctx.index + 1 };
 			}
 
-			// Colon-count-aware scan to the matching closer: a shorter nested closer
-			// (`:::` inside a `::::`) fails isDirectiveCloser and does not close here.
-			let closerIdx = ctx.index + 1;
-			while (
-				closerIdx < ctx.end &&
-				!isDirectiveCloser(ctx.lines[closerIdx].text, fence.colonCount)
-			) {
-				closerIdx++;
-			}
-			if (closerIdx >= ctx.end) return null; // unterminated declines to paragraph
+			// Colon-count-aware lookup of the matching closer: a shorter nested closer
+			// (`:::` inside a `::::`) does not close here. Closer positions are indexed
+			// once per line array, so an unclosed-opener flood stays linear instead of
+			// rescanning to EOF per opener.
+			const closerIdx = findDirectiveCloser(ctx.lines, ctx.index, ctx.end, fence.colonCount);
+			if (closerIdx === -1) return null; // unterminated declines to paragraph
 
 			const closerLine = ctx.lines[closerIdx];
 			const bodyText = ctx.lines
@@ -130,4 +126,56 @@ export function registerDirectiveOpeners(): void {
 			return { node, nextIndex: closerIdx + 1 };
 		}
 	});
+}
+
+// ── Closer indexing ─────────────────────────────────────────────────────────
+
+// A closer is a line that is entirely colons (`isDirectiveCloser(text, 1)`),
+// closing any opener whose colon count is ≤ the line's length. Their positions
+// and counts are indexed once per line array — an unclosed-opener flood otherwise
+// rescans to EOF per opener (O(n²)). Keyed by array identity, so nested reparses
+// (their own stripped arrays) and windows cache independently, and the entry is
+// collected with the array.
+const closerIndexCache = new WeakMap<ParsedLine[], { positions: Int32Array; counts: Int32Array }>();
+
+function closerIndex(lines: ParsedLine[]): { positions: Int32Array; counts: Int32Array } {
+	const cached = closerIndexCache.get(lines);
+	if (cached) return cached;
+	const positions: number[] = [];
+	const counts: number[] = [];
+	for (let i = 0; i < lines.length; i++) {
+		const text = lines[i].text;
+		if (isDirectiveCloser(text, 1)) {
+			positions.push(i);
+			counts.push(text.length);
+		}
+	}
+	const index = { positions: Int32Array.from(positions), counts: Int32Array.from(counts) };
+	closerIndexCache.set(lines, index);
+	return index;
+}
+
+/**
+ * First line index in `(afterIndex, end)` that closes an opener of `colonCount`
+ * colons (a colon run of length ≥ `colonCount`), or -1 when unterminated.
+ * Equivalent to scanning `isDirectiveCloser` forward, over the closer index.
+ */
+function findDirectiveCloser(
+	lines: ParsedLine[],
+	afterIndex: number,
+	end: number,
+	colonCount: number
+): number {
+	const { positions, counts } = closerIndex(lines);
+	let lo = 0;
+	let hi = positions.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >>> 1;
+		if (positions[mid] <= afterIndex) lo = mid + 1;
+		else hi = mid;
+	}
+	for (let k = lo; k < positions.length && positions[k] < end; k++) {
+		if (counts[k] >= colonCount) return positions[k];
+	}
+	return -1;
 }
