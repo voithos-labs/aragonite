@@ -19,7 +19,7 @@ import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kin
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength, trimTrailingLineEnding } from '../lines';
+import { displayLength, trimTrailingLineEnding, trailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
 import { registerInlineWidgetKind } from '../inline/inline-widgets';
 import { matchDirectiveOpener, serializeDirective } from './grammar';
@@ -172,6 +172,10 @@ export function rebuildDirectiveContainerRaw(node: CstNode): void {
 		innerSuffix: node.innerSuffix ?? '',
 		closerColonCount: meta.closerColonCount,
 		closerNewline: meta.closerNewline,
-		lineEnding: meta.lineEnding
+		lineEnding: meta.lineEnding,
+		// The parse side threads only the opener ending; recover the closer's own
+		// ending off the current raw (the closer is its last line) so a mixed-ending
+		// directive keeps it. Ignored when `closerNewline` is false.
+		closerLineEnding: trailingLineEnding(node.raw)
 	});
 }

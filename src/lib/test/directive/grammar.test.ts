@@ -118,6 +118,31 @@ describe('serializeDirective', () => {
 		});
 		expect(out).toBe(':::note Title\r\nbody\r\n:::\r\n');
 	});
+	it('emits the closer with its own ending when it differs from the opener', () => {
+		const out = serializeDirective({
+			colonCount: 3,
+			name: 'x',
+			info: '',
+			innerPrefix: '',
+			body: 'y\n',
+			innerSuffix: '',
+			lineEnding: '\n',
+			closerLineEnding: '\r\n'
+		});
+		expect(out).toBe(':::x\ny\n:::\r\n');
+	});
+	it('defaults the closer ending to the opener ending when unspecified', () => {
+		const out = serializeDirective({
+			colonCount: 3,
+			name: 'x',
+			info: '',
+			innerPrefix: '',
+			body: 'y\r\n',
+			innerSuffix: '',
+			lineEnding: '\r\n'
+		});
+		expect(out).toBe(':::x\r\ny\r\n:::\r\n');
+	});
 });
 
 describe('parseDirectiveAttributes', () => {

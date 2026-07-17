@@ -39,4 +39,16 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
 	});
+
+	// A mixed-ending directive (LF opener, CRLF closer) keeps EACH chrome line's own
+	// ending: `closerNewline` only recorded presence, so the closer's bytes used to
+	// re-emit as the opener's ending and normalized on rebuild.
+	it("keeps the closer's own ending when it differs from the opener", () => {
+		const node = parse(':::custom\nbody\n:::\r\n').children[0];
+
+		node.children![0].raw = 'edited\n';
+		rebuildDirectiveContainerRaw(node);
+
+		expect(node.raw).toBe(':::custom\nedited\n:::\r\n');
+	});
 });
