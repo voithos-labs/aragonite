@@ -19,25 +19,55 @@ if (packNames.length === 0) {
 	process.exit(1);
 }
 
-// The pack is flat, so an .md link resolves only if it names another packed file.
-// Any other .md target is a dead pointer once the doc leaves the repo — a reader
-// with the pack alone cannot follow it. Reference an unpacked doc by naming its
-// path as inline code instead. Deliberately regex-level: a link inside a fenced
-// example counts as a violation, which keeps the gate conservative and
-// dependency-free.
+// The pack is flat and ships only .md, so a relative pointer resolves iff it names
+// another packed .md basename. Anything else is dead once the doc leaves the repo:
+// an unpacked .md, a path with directories, or a relative image/asset the pack
+// never copies. Reference an unpacked doc by naming its path as inline code
+// instead. Every target is normalized (trimmed, angle brackets and titles and
+// fragments stripped) before the test, so a padded, bracketed, or anchored form
+// can't smuggle a dead pointer past the check. Deliberately regex-level: a link
+// inside a fenced example counts as a violation, which keeps the gate conservative
+// and dependency-free.
+const INLINE_TARGET = /\]\(([^)]+)\)/g; // `[text](t)` and `![alt](t)` (the latter contains `](t)`)
+const REFERENCE_TARGET = /^[ \t]*\[[^\]]+\]:[ \t]*(\S+)/gm; // `[label]: t` link definitions
+
+function normalizeTarget(raw) {
+	let target = raw.trim();
+	if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1).trim();
+	target = target.replace(/\s+["'].*$/s, ''); // drop a link title: `t "Title"`
+	target = target.split('#')[0]; // drop the fragment
+	return target.replace(/^\.\//, '');
+}
+
+function isExternal(target) {
+	return (
+		target.includes('://') ||
+		target.startsWith('//') ||
+		target.startsWith('mailto:') ||
+		target.startsWith('data:')
+	);
+}
+
+function isPackedMd(target) {
+	return target.endsWith('.md') && target === basename(target) && packNames.includes(target);
+}
+
 const deadPointers = [];
 for (const name of packNames) {
 	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
-	for (const [, linkTarget] of text.matchAll(/\]\(([^)]+)\)/g)) {
-		const target = linkTarget.split(/[#\s]/)[0].replace(/^\.\//, '');
-		if (!target.endsWith('.md') || target.includes('://')) continue;
-		if (!packNames.includes(basename(target)) || target !== basename(target)) {
-			deadPointers.push(`${name}: ](${linkTarget})`);
-		}
+	const rawTargets = [
+		...[...text.matchAll(INLINE_TARGET)].map((m) => m[1]),
+		...[...text.matchAll(REFERENCE_TARGET)].map((m) => m[1])
+	];
+	for (const raw of rawTargets) {
+		const target = normalizeTarget(raw);
+		if (target === '' || isExternal(target)) continue; // pure anchor or off-pack URL
+		if (isPackedMd(target)) continue;
+		deadPointers.push(`${name}: ${raw.trim()}`);
 	}
 }
 if (deadPointers.length > 0) {
-	console.error('docs-pack: dead .md pointers (every target must be a packed basename):');
+	console.error('docs-pack: dead pointers (every target must be a packed .md basename):');
 	for (const hit of deadPointers) console.error(`  ${hit}`);
 	process.exit(1);
 }
