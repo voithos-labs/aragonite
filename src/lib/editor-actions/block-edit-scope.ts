@@ -39,6 +39,14 @@ export interface ScopeCommitArgs {
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: () => void;
 	/**
+	 * Leaf(ves) the dev staleness oracle checks when `mutate` returns `noop` (an
+	 * in-place metadata/kind write the StructuralChange can't name). The owned copy
+	 * exists only after `mutate` runs, so callers push into a stable array the
+	 * ceremony reads post-mutate. Top-level only — the container scope's ceremony
+	 * auto-derives from its owned scope node.
+	 */
+	touchedNodes?: CstNode[];
+	/**
 	 * Structural op that can legitimately no-op (chrome split, no-target merge):
 	 * when `mutate` reports no structural change, the ceremony discards the
 	 * snapshot instead of minting a dead undo entry. Never set on content/metadata
@@ -66,7 +74,15 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		refAt: (i) => deps.blockRefs[i],
 		collapseEmptyReplaceToDelete: false,
-		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
+		commit({
+			snapshot,
+			eventTarget,
+			op,
+			mutate,
+			afterTick,
+			touchedNodes,
+			discardIfNoop
+		}): Promise<void> {
 			return controller.commitStructural({
 				snapshot:
 					snapshot === 'skip'
@@ -80,6 +96,7 @@ export function createTopLevelScope(
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				afterTick,
+				touchedNodes,
 				discardIfNoop
 			});
 		}

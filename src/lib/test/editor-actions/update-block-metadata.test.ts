@@ -105,6 +105,24 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
+	// Wiring: the metadata commit returns `noop`, so the dev staleness oracle can't
+	// infer the touched node from the StructuralChange. The top-level scope must name
+	// it explicitly (the container scope's ceremony auto-derives), or the metadata→
+	// rebuildRaw resync gets zero G1.1/G1.12/G1.13 validation against [].
+	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
+		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
+		const { deps } = makeEditorActionsDeps([node]);
+		const controller = createUndoController(deps);
+		const spy = vi.spyOn(controller, 'commitStructural');
+		const actions = createBlockEditActions(deps, controller);
+
+		await actions.updateBlockMetadata(0, { taskChecked: true });
+
+		const args = spy.mock.calls[0][0];
+		expect(args.touchedNodes).toBeDefined();
+		expect(args.touchedNodes).toContain(deps.doc.children[0]);
+	});
+
 	it('runs the afterTick callback after committing (post-commit caret placement)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps } = makeEditorActionsDeps([node]);
@@ -134,7 +152,10 @@ describe('updateBlockMetadata', () => {
 
 	it('shallow-merge preserves untouched fields', async () => {
 		// Regression guard: a switch to `node.metadata = metadata` (no spread) would fail this.
-		const node = makeNode('list-item', '- [ ] task\n', {
+		// A leaf kind keeps the merge check kind-agnostic (the next test covers a real
+		// task listItem); the top-level dev oracle now validates the committed node, so
+		// the fixture must be a registered kind.
+		const node = makeNode('paragraph', 'hello\n', {
 			marker: '- ',
 			taskItem: true,
 			taskChecked: false
