@@ -393,9 +393,6 @@
 				return true;
 			case 'block.hardBreak': {
 				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
-				// A hard break at EOF is suppressed (unchanged raw) — no commit, the
-				// caret stays where it is.
-				if (newRaw === node.raw) return true;
 				blockEdit.updateBlockContent(index, newRaw, offset);
 				setPendingCursorOffset(caretOffset, 'hard-break');
 				return true;

@@ -74,27 +74,26 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	// A GFM hard break needs a following line, so at end-of-display it is not
-	// representable as a single paragraph: emitting `\` + newline degenerated to a
-	// literal trailing backslash (the newline became the block's trailing ending,
-	// then trimmed) with the caret one past the display. Suppress it — the raw is
-	// unchanged and the caret clamps to the display length.
-	it('suppresses the degenerate break at end of display text', () => {
+	// At end-of-display the inserted `\n` becomes the block's trailing ending, so the
+	// original is not reattached (reattaching would double it into a blank line). The
+	// break is transitional there; the caret clamps to the new display length — one
+	// past the trailing `\`, valid immediately.
+	it('emits the transitional break at end of display text, caret clamped', () => {
 		const r = insertHardBreak('abc\n', 3);
-		expect(r.newRaw).toBe('abc\n');
-		expect(r.caretOffset).toBe(3);
+		expect(r.newRaw).toBe('abc\\\n');
+		expect(r.caretOffset).toBe(4);
 	});
 
-	it('suppresses at end of a CRLF block, leaving the raw and clamping the caret', () => {
+	it('collapses a CRLF ending at end-of-display, caret clamped', () => {
 		const r = insertHardBreak('abc\r\n', 3);
-		expect(r.newRaw).toBe('abc\r\n');
-		expect(r.caretOffset).toBe(3);
+		expect(r.newRaw).toBe('abc\\\n');
+		expect(r.caretOffset).toBe(4);
 	});
 
-	it('suppresses past the display length (offset beyond end clamps)', () => {
+	it('clamps an offset past the display length to end-of-display', () => {
 		const r = insertHardBreak('abc\n', 9);
-		expect(r.newRaw).toBe('abc\n');
-		expect(r.caretOffset).toBe(3);
+		expect(r.newRaw).toBe('abc\\\n');
+		expect(r.caretOffset).toBe(4);
 	});
 
 	it('preserves trailing CRLF', () => {
