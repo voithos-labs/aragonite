@@ -30,6 +30,9 @@ test.describe('text editing — Enter at block start', () => {
 			expect(await editor.bridge.getBlockKind(1)).toBe(kind);
 			await editor.bridge.waitForSourceEquals('\n' + content);
 			expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+			// The live tree converges with a reparse of its bytes — the real mutation
+			// oracle; the byte round-trip above is a tautology for valid GFM.
+			expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 
 			const selection = await editor.bridge.getSelectionPaths();
 			expect(selection?.focus).toEqual({ path: [1], offset: 0 });
@@ -58,6 +61,7 @@ test.describe('text editing — Enter at block start', () => {
 		);
 		expect(audit).toEqual([]);
 		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 
 		await editor.typeSlowly('X');
 		await editor.bridge.waitForSourceContains('Xquoted');

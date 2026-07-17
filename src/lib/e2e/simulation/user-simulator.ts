@@ -12,6 +12,7 @@ import {
 	assertEndState,
 	assertNestedStateConsistent,
 	assertNoErrors,
+	assertParseConvergence,
 	assertRoundTripStable,
 	undoRedoDifferential
 } from './invariants';
@@ -73,6 +74,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await assertNoErrors(ctx);
 		await assertNestedStateConsistent(ctx);
 		await assertRoundTripStable(ctx);
+		await assertParseConvergence(ctx, opts.note);
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
@@ -89,6 +91,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		ctx.label = 'end-state';
 		await assertNoErrors(ctx);
 		await assertRoundTripStable(ctx);
+		await assertParseConvergence(ctx, opts.note);
 		await assertEndState(ctx, canonical);
 	} finally {
 		await recorder?.finalize();
