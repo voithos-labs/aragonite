@@ -3,7 +3,7 @@
 	import type { Document } from '../../core/nodes';
 	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
-	import { LINK_REF_KEY, type LinkReferenceResolverRef } from '../../editor-keys';
+	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
 	import ImageProperties from './ImageProperties.svelte';
@@ -36,7 +36,7 @@
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
 
-	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	// Props are stable for the editor's lifetime; the committer captures them
 	// once on purpose — reactive values already cross as getters.

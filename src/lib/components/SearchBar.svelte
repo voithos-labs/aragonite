@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { SEARCH_KEY } from '../editor-keys';
-	import type { SearchState } from '../reactivity/search-state.svelte';
+	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
 
 	// `replaceExpanded` is owned by Editor so the root Ctrl+H shortcut and the
 	// chevron share one source of truth; the chevron reports toggles back up.
@@ -13,7 +12,7 @@
 		onToggleReplace?: () => void;
 	} = $props();
 
-	const search = getContext<SearchState>(SEARCH_KEY);
+	const { search } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	let findInput = $state<HTMLInputElement>();
 	$effect(() => {

@@ -21,7 +21,6 @@ import type {
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { BlockComponent } from '../../block-component';
-import type { StickyColumnState } from '../../cursor/sticky-column';
 import { displayLength } from '../../core/lines';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
@@ -31,21 +30,17 @@ import { devWarn } from '../../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
-	CONTROLLER_KEY,
-	EDITOR_EVENTS_KEY,
+	EDITOR_DOC_KEY,
+	EDITOR_POLICIES_KEY,
+	EDITOR_SERVICES_KEY,
 	FOCUS_KEY,
-	KEYBINDING_OVERRIDES_KEY,
-	PLUGIN_EDITOR_KEY,
-	PRESENTATION_MODE_KEY,
-	REORDER_ACTION_KEY,
-	STICKY_COLUMN_KEY,
-	type KeybindingOverridesGetter,
-	type PluginEditorLookup,
-	type PresentationModeGetter
+	type EditorDoc,
+	type EditorPolicies,
+	type EditorServices,
+	type PluginEditorLookup
 } from '../../editor-keys';
-import { emitCommandError, type EditorEvents } from '../../editor-events';
+import { emitCommandError } from '../../editor-events';
 import { pluginKindOwner } from '../../schema/plugin-install';
-import type { ReorderAction } from '../reorder-action';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
@@ -56,7 +51,6 @@ import {
 	isEditableEventTarget,
 	type ContainerBlockComponent
 } from '../container-block-component';
-import type { UndoController } from '../deps';
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
@@ -272,13 +266,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
-	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const {
+		controller,
+		stickyColumn,
+		reorder,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { keybindingOverrides, presentationMode: getPresentationMode } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 
 	const listState = createBlockListState(() => deps.node);
 

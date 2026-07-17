@@ -65,6 +65,10 @@ Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no 
 
 Areas without their own script — the root-level cross-cutting tests, and the inline-scanner tests under `test/scan/` — run in the full `test:editor` suite.
 
+### Mounting a block in isolation
+
+A block component reads its wiring from the editor's context tree, so a bare `mount(SomeBlock, …)` needs that context present. `test/harness/mount-context.ts` supplies it: `editorMountContext(overrides?)` returns the Map a block requires — the action triple, history, and the three editor facets (services, policies, document) pre-stubbed. A test states only what it asserts on (`editorMountContext({ blockEdit, doc: { doc: () => parsed } })`) and takes sensible stubs for the rest. A newly required context becomes one harness edit rather than a fix across every block-mount test.
+
 ## E2E tests (Playwright)
 
 The editor component driven in real Chromium. No backend needed — it's self-contained.

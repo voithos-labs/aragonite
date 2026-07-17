@@ -4,22 +4,20 @@
 	import type { NodeView } from '../core/node-views';
 	import type { BlockDecoration } from '../decorations/types';
 	import { mountDecorationWidget } from '../decorations/widget-dom';
-	import type { EditorEvents } from '../editor-events';
-	import type { DecorationEngine } from '../reactivity/decoration-state.svelte';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
-	import { defaultRegistryView, type RegistryView } from '../schema/registry-view';
+	import { defaultRegistryView } from '../schema/registry-view';
 	import {
-		BLOCK_DRAG_HANDLES_KEY,
-		DECORATIONS_KEY,
-		DOC_KEY,
-		EDITOR_EVENTS_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
-		REGISTRY_VIEW_KEY,
 		type BlockMeasureChannel,
-		type DocumentGetter
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../editor-keys';
 	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
@@ -45,16 +43,18 @@
 		reorderable?: boolean;
 	} = $props();
 
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
+	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
+	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	const editorEvents = services?.events;
+	const engine = services?.decorations;
 	// The instance's registry view resolves component + descriptor, so per-instance
 	// enablement reaches the render path. Bare mounts (unit harnesses, conformance
 	// kit) get no provider and read the global default — behavior-preserving.
-	const registryView =
-		getContext<RegistryView | undefined>(REGISTRY_VIEW_KEY) ?? defaultRegistryView;
-	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
-	const engine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
-	const getDragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY);
+	const registryView = services?.registryView ?? defaultRegistryView;
+	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
+	const getDragHandles = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.blockDragHandles;
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in and out after the change, not just those mounted at mount.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
