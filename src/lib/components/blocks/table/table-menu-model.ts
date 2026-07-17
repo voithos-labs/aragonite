@@ -48,25 +48,29 @@ export function tableMenuItems(
 	dims: { rowCount: number; colCount: number },
 	alignments: readonly TableAlignment[],
 	// Present only for a cell right-click (both axes); drives the clipboard group,
-	// which grip menus never show.
-	clipboard?: { hasSelection: boolean }
+	// which grip menus never show. `hasRect` is a live intra-table rectangle, which
+	// suppresses the cell-local selection but is exactly what Cut/Copy serve.
+	clipboard?: { hasSelection: boolean; hasRect?: boolean }
 ): TableMenuItem[] {
 	const items: TableMenuItem[] = [];
 	const isCell = target.rowIdx != null && target.colIdx != null;
 	if (isCell && clipboard)
-		items.push(...clipboardGroup(clipboard.hasSelection), { kind: 'separator' });
+		items.push(...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true), {
+			kind: 'separator'
+		});
 	if (target.rowIdx != null) items.push(...rowGroup(target.rowIdx, dims.rowCount));
 	if (isCell) items.push({ kind: 'separator' });
 	if (target.colIdx != null) items.push(...columnGroup(target.colIdx, dims.colCount, alignments));
 	return items;
 }
 
-// Cut/Copy act on the cell's selection, so they're inert without one; Paste always
-// applies (clipboard contents aren't readable synchronously to gate it).
-function clipboardGroup(hasSelection: boolean): TableMenuItem[] {
+// Cut/Copy act on the cell selection or the live rectangle, so they're inert
+// without either; Paste always applies (clipboard contents aren't readable
+// synchronously to gate it).
+function clipboardGroup(hasContent: boolean): TableMenuItem[] {
 	return [
-		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasSelection },
-		{ kind: 'clipboard', action: 'copy', label: 'Copy', enabled: hasSelection },
+		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasContent },
+		{ kind: 'clipboard', action: 'copy', label: 'Copy', enabled: hasContent },
 		{ kind: 'clipboard', action: 'paste', label: 'Paste', enabled: true }
 	];
 }
