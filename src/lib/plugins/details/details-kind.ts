@@ -42,8 +42,15 @@ const OPEN_LINE = /^<details( open)?>$/;
 const SUMMARY_LINE = /^<summary>(.*)<\/summary>$/;
 const CLOSE_LINE = /^<\/details>$/;
 
-interface DetailsMetadata {
+export interface DetailsMetadata {
 	open: boolean;
+	/** Authored line ending (`\n` or `\r\n`) for the three chrome lines (opener, summary,
+	 *  closer). A single captured ending governs all three — a well-formed CRLF/LF document
+	 *  has uniform endings, so the rebuild reproduces them byte-identically. */
+	lineEnding: string;
+	/** Whether the `</details>` closer line ends with a newline; false for a document-final
+	 *  details with no trailing newline, so the rebuild does not add one. */
+	closerNewline: boolean;
 }
 
 /**
@@ -51,16 +58,20 @@ interface DetailsMetadata {
  * (emitted into the `<summary>` header line); children 1+ are the body. Mirrors
  * `rebuildCalloutRaw`: the two header lines plus the trailing close are the
  * container syntax, `innerPrefix`/`innerSuffix` carry the body's blank-line wrap
- * verbatim so a canonical parse rebuilds byte-identically.
+ * verbatim so a canonical parse rebuilds byte-identically. The authored line ending
+ * threads through metadata so a CRLF-authored block rebuilds CRLF-safe.
  */
 export function rebuildDetailsRaw(node: CstNode): void {
-	const open = getPluginMetadata<DetailsMetadata>(node)?.open ?? false;
+	const meta = getPluginMetadata<DetailsMetadata>(node);
+	const open = meta?.open ?? false;
+	const lineEnding = meta?.lineEnding ?? '\n';
+	const closerEnd = (meta?.closerNewline ?? true) ? lineEnding : '';
 	const children = node.children ?? [];
 	const summaryText = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
 	const body = children.slice(1);
 	const inner = (node.innerPrefix ?? '') + serializeChildren(body) + (node.innerSuffix ?? '');
-	const opener = `<details${open ? ' open' : ''}>\n<summary>${summaryText}</summary>`;
-	node.raw = `${opener}\n${inner}</details>\n`;
+	const opener = `<details${open ? ' open' : ''}>${lineEnding}<summary>${summaryText}</summary>`;
+	node.raw = `${opener}${lineEnding}${inner}</details>${closerEnd}`;
 }
 
 export function registerDetailsKind(): void {
@@ -165,7 +176,11 @@ export function registerDetailsKind(): void {
 				],
 				innerSuffix: body.suffix
 			};
-			setPluginMetadata<DetailsMetadata>(node, { open: openMatch[1] !== undefined });
+			setPluginMetadata<DetailsMetadata>(node, {
+				open: openMatch[1] !== undefined,
+				lineEnding: ctx.line.lineEnding,
+				closerNewline: ctx.lines[closeIdx].lineEnding !== ''
+			});
 			return { node, nextIndex: closeIdx + 1 };
 		}
 	});
