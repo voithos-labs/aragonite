@@ -38,4 +38,37 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
 		expect(selectedText).toBe('ello');
 	});
+
+	// Post-entry contraction: once a cross-block selection exists, walking the
+	// focus back into the anchor block must collapse to a native single-block
+	// range — not persist an invisible same-path cross-block state (E-F1).
+	test('contracting a cross-block selection back into the anchor block restores the native range', async () => {
+		await editor.loadContent('Hello world\n\nsecond\n');
+		await editor.focusBlockEnd(0);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+
+		await editor.page.keyboard.press('Shift+ArrowUp');
+		await editor.waitForCrossBlock(false);
+
+		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
+		expect(selectedText).toBe('Hello world');
+	});
+
+	test('copy after contracting into the anchor block yields the single-block range', async () => {
+		await editor.loadContent('Hello world\n\ntarget\n');
+		await editor.focusBlockEnd(0);
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Shift+ArrowUp');
+		await editor.waitForCrossBlock(false);
+
+		await editor.page.keyboard.press('Control+c');
+		await editor.waitForClipboardWrite();
+		await editor.clickBlock(1);
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('targetHello world');
+		expect(await editor.bridge.getSource()).toContain('targetHello world');
+	});
 });

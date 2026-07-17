@@ -87,7 +87,9 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 	it('extendFocus normalizes a raw deep-cell point', () => {
 		const doc = parse(TABLE_LAST);
 		const s = makeState(doc);
-		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 1 });
+		// Genuine cross-block seed (para → table): a same-path prose pair would
+		// collapse in the seam and leave extendFocus without an anchor.
+		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 2 });
 		s.extendFocus({ path: [1, 0, 1], offset: 1 });
 		expect(s.focus).toEqual({ path: [1], offset: 1, cellCoordinate: true });
 	});
