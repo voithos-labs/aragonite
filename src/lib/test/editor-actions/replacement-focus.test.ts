@@ -3,8 +3,12 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { focusMovedOutsideReplacement } from '$lib/editor-actions/replacement-focus';
 
 function focusBlockAt(path: number[]): void {
+	focusHostWithRawPath(JSON.stringify(path));
+}
+
+function focusHostWithRawPath(raw: string): void {
 	const host = document.createElement('div');
-	host.setAttribute('data-block-path', JSON.stringify(path));
+	host.setAttribute('data-block-path', raw);
 	const editable = document.createElement('div');
 	editable.tabIndex = 0;
 	host.appendChild(editable);
@@ -39,5 +43,14 @@ describe('focusMovedOutsideReplacement', () => {
 	it('restores for a nested window still holding focus', () => {
 		focusBlockAt([2, 1]);
 		expect(focusMovedOutsideReplacement([2], 1, 2)).toBe(false);
+	});
+
+	// A plugin may own data-block-path with a non-JSON value; the parse runs inside
+	// afterTick, outside the commit ceremony's catch, so a throw there is an unhandled
+	// rejection. Treat an unparseable attr like the fell-to-body case and run the restore.
+	it('restores without throwing when data-block-path is non-JSON', () => {
+		focusHostWithRawPath('plugin-owned-token');
+		expect(() => focusMovedOutsideReplacement([], 1, 2)).not.toThrow();
+		expect(focusMovedOutsideReplacement([], 1, 2)).toBe(false);
 	});
 });

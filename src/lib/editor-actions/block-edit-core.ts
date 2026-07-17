@@ -215,16 +215,22 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			if (i < 0 || i >= children.length) return;
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
+			// `mutate` returns noop, so the ceremony's dev oracle can't infer the resynced
+			// node — name it. The owned copy exists only after unshareChild, so push into a
+			// stable array the ceremony reads post-mutate.
+			const touchedNodes: CstNode[] = [];
 			await scope.commit({
 				snapshot: options?.undoEntry === 'join' ? 'skip' : { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'metadataUpdate', detail: { fields } },
+				touchedNodes,
 				mutate: (view) => {
 					const node = view.unshareChild(i);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
 					// Metadata feeds raw for list items (taskMarker) — resync so the
 					// ceremony's rebuild concatenates fresh raw.
 					rebuildOwnedContainer(node, view.sharing);
+					touchedNodes.push(node);
 					return { op: 'noop' };
 				},
 				afterTick: options?.afterTick

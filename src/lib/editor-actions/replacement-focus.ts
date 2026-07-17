@@ -21,7 +21,14 @@ export function focusMovedOutsideReplacement(
 	const host = document.activeElement?.closest?.('[data-block-path]');
 	const attr = host?.getAttribute('data-block-path');
 	if (!attr) return false; // fell to body/root — a remount ate the focused el
-	const path = JSON.parse(attr) as number[];
+	let path: number[];
+	try {
+		path = JSON.parse(attr) as number[];
+	} catch {
+		// A plugin may own data-block-path with non-JSON content; can't locate the
+		// focus, so treat it like the fell-to-body case and run the restore.
+		return false;
+	}
 	for (let depth = 0; depth < scopePath.length; depth++) {
 		if (path[depth] !== scopePath[depth]) return true;
 	}
