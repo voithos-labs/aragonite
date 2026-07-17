@@ -51,6 +51,17 @@ function matchMermaidFence(text: string): FenceOpen | null {
 	return fence && fence.info.split(/\s+/)[0] === MERMAID ? fence : null;
 }
 
+/**
+ * Rejoin the edit textarea's LF-normalized draft with the block's authored line
+ * ending, so a CRLF-authored diagram keeps `\r\n` on every body line through a
+ * commit (the opener/closer chrome already round-trip their authored ending). An
+ * emptied body commits as the empty string, carrying no stray line.
+ */
+export function joinMermaidBody(draft: string, lineEnding: string): string {
+	if (draft.length === 0) return '';
+	return draft.replaceAll('\n', lineEnding) + lineEnding;
+}
+
 /** Recompute `raw` from metadata — the opener's inverse, and the byte path every code edit rides. */
 export function rebuildMermaidRaw(node: CstNode): void {
 	const meta = getPluginMetadata<MermaidMetadata>(node);
