@@ -17,8 +17,9 @@ const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
  * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
  *
  * Conditional ): only when there are more `)` than `(` in [urlStart, end).
- * Conditional ;: only when the part before is NOT shaped like an HTML entity
- * (a `;` preceded by `&` followed by alphanumerics / `#` and digits/hex back to `&`).
+ * Conditional ;: a `;` is not trailing punctuation, so it normally stays; but a
+ * tail resembling an entity reference (`&` + one or more alphanumerics + `;`) is
+ * excluded — the `&` and everything after — then trimming continues (spec ex. 626).
  */
 export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: number): number {
 	// Parens are counted once and the balance maintained while trimming — a
@@ -46,24 +47,16 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 			break;
 		}
 		if (ch === ';') {
-			// Look back for &name; / &#NNN; / &#xHHH;
+			// An entity-shaped tail (`&` + one-or-more alphanumerics + `;`) is excluded
+			// with the `&`; a `;` that does not resemble an entity is not trailing
+			// punctuation and stays in the url.
 			let j = end - 2;
-			while (j > urlStart && /[0-9A-Fa-f]/.test(raw[j])) j--;
-			if (j >= urlStart + 2 && raw[j] === 'x' && raw[j - 1] === '#' && raw[j - 2] === '&') {
-				break;
-			}
-			j = end - 2;
-			while (j > urlStart && /[0-9]/.test(raw[j])) j--;
-			if (j >= urlStart + 1 && raw[j] === '#' && raw[j - 1] === '&') {
-				break;
-			}
-			j = end - 2;
 			while (j > urlStart && /[A-Za-z0-9]/.test(raw[j])) j--;
 			if (j >= urlStart && raw[j] === '&' && j < end - 2) {
-				break;
+				end = j;
+				continue;
 			}
-			end--;
-			continue;
+			break;
 		}
 		break;
 	}
@@ -273,7 +266,10 @@ function matchBareWwwAutolink(
 	if (urlEnd === pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	if (urlEnd === pos + 4) return null;
-	return { kind: 'autolink', start: pos, end: urlEnd, url: raw.slice(pos, urlEnd) };
+	// GFM §6.9: a www autolink has no scheme in its bytes; `http` is inserted
+	// automatically. The node's raw span stays verbatim (start..urlEnd) — only
+	// the derived href gains the scheme, exactly like email prepends `mailto:`.
+	return { kind: 'autolink', start: pos, end: urlEnd, url: 'http://' + raw.slice(pos, urlEnd) };
 }
 
 const EMAIL_LOCAL = /[A-Za-z0-9._+\-]/;
