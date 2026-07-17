@@ -18,7 +18,7 @@ import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
 import { registerOnce } from './register-once';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { normalizeChord, type KeyBinding } from './keybindings';
+import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -160,6 +160,15 @@ const pluginGlobalKeymap: KeyBinding[] = [];
 const RESERVED_UI_CHORDS = new Set(['Mod+F', 'Mod+H']);
 
 export function assertPluginGlobalChordAvailable(rawChord: string): void {
+	// A public registration API fails loudly, not warn-and-drop: a malformed chord
+	// (the `'Ctrl+B'` → bare `'B'` trap) that slipped through would bind a handler
+	// that fires on every plain keypress. Thrown before the mint (see
+	// global-commands.ts), so a rejected registration leaves no orphaned command.
+	if (!isChordWellFormed(rawChord)) {
+		throw new Error(
+			`plugin global chord "${rawChord}" is malformed — modifiers must be Mod/Alt/Shift and the key non-empty`
+		);
+	}
 	const chord = normalizeChord(rawChord);
 	if (RESERVED_UI_CHORDS.has(chord)) {
 		throw new Error(

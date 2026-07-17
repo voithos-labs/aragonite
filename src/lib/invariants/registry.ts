@@ -84,20 +84,30 @@ export interface KeymapCoherenceEntry {
 }
 
 /**
- * G1.11 — keymap coherence: every keymap binding names a known command, and a
- * kind's chords are unique after normalization (duplicates make dispatch order
+ * G1.11 — keymap coherence: every keymap binding uses a well-formed chord
+ * (modifiers Mod/Alt/Shift, non-empty key — else a mistyped `Ctrl+B` collapses to
+ * a bare `B` that fires on every keypress) naming a known command, and a kind's
+ * chords are unique after normalization (duplicates make dispatch order
  * declaration-dependent). Chords are scoped per kind — two kinds may bind the
  * same chord to different commands. Reports the first offending binding.
  */
 export function checkKeymapCoherence(
 	entries: readonly KeymapCoherenceEntry[],
 	isKnownCommand: (id: string) => boolean,
-	normalizeChord: (chord: string) => string
+	normalizeChord: (chord: string) => string,
+	isChordWellFormed: (chord: string) => boolean
 ): InvariantViolation | null {
 	for (const { kind, keymap } of entries) {
 		if (!keymap) continue;
 		const seenChords = new Set<string>();
 		for (const binding of keymap) {
+			if (!isChordWellFormed(binding.chord)) {
+				return {
+					code: 'keymap-coherence',
+					message: `kind "${kind}" binds malformed chord "${binding.chord}" — modifiers must be Mod/Alt/Shift and the key non-empty`,
+					detail: { kind, chord: binding.chord, issue: 'malformed' }
+				};
+			}
 			if (!isKnownCommand(binding.command)) {
 				return {
 					code: 'keymap-coherence',
