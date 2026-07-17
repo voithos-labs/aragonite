@@ -499,26 +499,6 @@ not the bounded closer-synthesis the END case uses.
 **Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
 direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
 
-### `<details>` chrome rebuild normalizes CRLF line ends to `\n`
-
-**Severity:** minor
-**Files:** `src/lib/plugins/details/details-kind.ts` (`rebuildDetailsRaw`)
-
-The `:::` directive path now threads the authored line ending through metadata, so a post-edit
-rebuild of a CRLF-authored directive, callout, or admonition reproduces `\r\n` on its opener and
-closer chrome lines (`serializeDirective` takes a `lineEnding`). The `<details>` plugin rebuilds its
-HTML chrome (`<details>` / `<summary>` / `</details>`) through a separate hand-rolled template that
-still hardcodes `\n`, so a CRLF-authored `<details>` block normalizes those lines on a structural
-edit. Parse→serialize stays CRLF-safe (an opaque container emits its `raw` verbatim); only a rebuild
-normalizes.
-
-**Fix direction:** thread the same authored line ending through `DetailsMetadata` and use it in
-`rebuildDetailsRaw`'s template, mirroring the directive fix.
-
-**Why deferred:** the byte round-trip holds without edits; the `<details>` HTML rebuild is a distinct
-serializer from the shared `serializeDirective`, so it needs its own threading. Fold into a
-line-ending-fidelity pass.
-
 ### Container components re-export the component surface member-by-member
 
 **Severity:** trivial (authoring ergonomics; plugin containers guarded, built-ins not)
