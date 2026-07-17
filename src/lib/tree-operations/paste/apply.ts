@@ -39,7 +39,12 @@ export function applyInlineResult(
 		// which routes through updateBlockContent → the funnel.
 		const leafIndex = targetPath[targetPath.length - 1];
 		const parentNode = chain.length >= 2 ? chain[chain.length - 2] : ctx.doc;
-		updateNodeContent({ children: parentNode.children ?? [] }, leafIndex, result.newRaw);
+		updateNodeContent(
+			{ children: parentNode.children ?? [] },
+			leafIndex,
+			result.newRaw,
+			ctx.grammar
+		);
 		rebuildUnsharedChain(chain, ctx.controller.sharing);
 		return;
 	}

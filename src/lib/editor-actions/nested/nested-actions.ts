@@ -14,6 +14,7 @@ import type {
 	ListContext
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
+import type { GrammarView } from '../../schema/block-openers';
 import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../invariants/assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
@@ -34,6 +35,10 @@ export interface NestedActionsDeps {
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
+	/** The instance's block grammar (docs/research/architecture-concerns.md), threaded to this
+	 *  container's content-commit reparse so a disabled kind's opener stays skipped when a
+	 *  nested block re-parses — parity with the top-level factory. Absent = the global grammar. */
+	grammar?: GrammarView;
 	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {

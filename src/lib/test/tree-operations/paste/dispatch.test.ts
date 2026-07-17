@@ -16,6 +16,7 @@ import {
 	registerPasteTransform
 } from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
+import { createGrammarView } from '../../../schema/block-openers';
 import { createSharingState } from '../../../tree-operations/sharing';
 import {
 	expectStateForNode,
@@ -302,6 +303,26 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 
 		expect(doc.children[0].raw).toBe('1. item\n');
 		expect(doc.children[0].kind).toBe('list');
+	});
+
+	// The join reparse is content-commit-class, so it threads the instance grammar:
+	// an instance whose grammar drops the list opener keeps the completion a paragraph.
+	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
+		const doc = parse('. item\n');
+
+		await pasteDispatch(
+			{ pastedText: '1', targetPath: [0], offset: 0 },
+			{
+				doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: makeStubController(),
+				undoEntry: 'join',
+				grammar: createGrammarView((kind) => kind !== 'list')
+			}
+		);
+
+		expect(doc.children[0].raw).toBe('1. item\n');
+		expect(doc.children[0].kind).toBe('paragraph');
 	});
 });
 
