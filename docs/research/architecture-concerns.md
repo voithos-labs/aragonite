@@ -99,7 +99,10 @@ held: the ONLY in-place `node.kind =` write was `updateNodeContent`'s re-parse t
 was vestigial — its kind-change and multi-block paths now mint a fresh node and splice it into
 the slot (the same shape split/merge always used), while a same-kind edit keeps its in-place
 field write so routine typing preserves the node object, its component, IME state, and inline
-cache. That mint is the single sanctioned transfer funnel; the union has no in-place kind door.
+cache. That mint is the single sanctioned transfer funnel. The union type does not itself forbid
+an in-place `node.kind =` on a mutable node — union-write permits it; the door is closed reader-side,
+where every reader holds a bytes-readonly `NodeView` whose `kind` is a compile error to write, plus
+funnel discipline in the mutation layer.
 
 The plugin arm's branded-string `kind` is not a unit type, so it blocks discrimination on the
 FULL union — `isBuiltinBlockNode` narrows to the built-in sub-union first, and there
