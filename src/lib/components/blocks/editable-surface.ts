@@ -113,8 +113,12 @@ export interface EditableSurfaceDeps {
 	// ── Input skeleton (per-surface) ──────────────────────────────────────────
 	/** Read the current DOM content as raw text for the input commit. */
 	readText: () => string;
-	/** Commit the read text to the CST; owns the trailing-newline and saved-offset shape. */
-	commitInput: (text: string, preEditOffset: number, savedOffset: number) => void;
+	/**
+	 * Commit the read text to the CST; owns the trailing-newline and saved-offset
+	 * shape. Returns the caret offset to restore when the committed bytes differ
+	 * from the DOM (a cell escaping a typed `|` to `\|`); void keeps the DOM caret.
+	 */
+	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | void;
 	/** Extra input prelude before the shared body (text resets snap target + keystroke mark). */
 	inputPrelude?: () => void;
 }
@@ -250,9 +254,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
 		// preEdit anchors the undo snapshot; savedOffset drives focus when a kind
-		// change remounts the block.
-		deps.commitInput(text, deps.getPreEditOffset(), savedOffset);
-		deps.setPendingCursor(savedOffset);
+		// change remounts the block. A commit that rewrites the bytes (cell pipe
+		// escape) reports the post-rewrite caret so the re-render seats it correctly.
+		const committedCaret = deps.commitInput(text, deps.getPreEditOffset(), savedOffset);
+		deps.setPendingCursor(committedCaret ?? savedOffset);
 	}
 
 	function onCompositionStart(): void {

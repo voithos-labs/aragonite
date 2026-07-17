@@ -204,8 +204,9 @@
 		},
 		getTextLen: () => getDisplayText().length,
 		readText: () => readRawText(),
-		commitInput: (text, preEdit, saved) =>
-			blockEdit.updateBlockContent(index, text + '\n', preEdit, saved),
+		commitInput: (text, preEdit, saved) => {
+			void blockEdit.updateBlockContent(index, text + '\n', preEdit, saved);
+		},
 		inputPrelude: () => {
 			markKeystrokeStart();
 			lastSnapTargetOffset = null;
