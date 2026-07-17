@@ -63,8 +63,11 @@ Each rule names its incident. These are the ways this codebase actually gets cor
   Type-enforced since 0.9.24: the coordinate spaces are branded (G3.7, minted only at their
   single homes, G4.15) — cross-space arithmetic no longer compiles.
 - **Registries are code, not state.** Register-once, throw-on-duplicate, no unregister
-  (`customElements` model). Test isolation goes through the reset affordances; dev HMR of a
-  registration module needs a page reload. This reaches the public API: a plugin author's suite
+  (`customElements` model) — in production and under test. Test isolation goes through the reset
+  affordances; under a dev server a duplicate registration replaces with a note instead of throwing
+  (`schema/register-once.ts`), so a re-evaluated registrar survives instead of 500-ing every route
+  (the SSR poison class). The contract is unchanged where it is observed — prod and test still
+  throw. This reaches the public API: a plugin author's suite
   can't re-install between cases without a sanctioned seam, so `aragonite/testing` exports
   `resetPluginPlatformForTests()` — and every new registration reachable from the public plugin
   surface must wire its reset into it, or the next author hits the dup-throw on their second

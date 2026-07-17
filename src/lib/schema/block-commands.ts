@@ -19,6 +19,7 @@ import {
 	type AnyCommandId,
 	type PluginCommandId
 } from './command-id';
+import { registerOnce } from './register-once';
 import {
 	resolveBinding,
 	resolveKindBinding,
@@ -68,14 +69,12 @@ export function registerBlockCommand(
 	handler: BlockCommandHandler
 ): PluginCommandId {
 	const key = compositeKey(kind, name);
-	if (blockCommands.has(key)) {
-		throw new Error(
-			`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
-		);
-	}
-	const id = mintCommandId(name);
-	blockCommands.set(key, handler);
-	return id;
+	registerOnce(
+		blockCommands.has(key),
+		() => blockCommands.set(key, handler),
+		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
+	);
+	return mintCommandId(name);
 }
 
 export function getBlockCommand(

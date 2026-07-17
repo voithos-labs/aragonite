@@ -16,6 +16,7 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
+import { registerOnce } from './register-once';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
 import {
@@ -75,10 +76,11 @@ type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
 const globalCommands = new Map<AnyCommandId, GlobalCommandRun>();
 
 export function registerCommand(id: AnyCommandId, run: GlobalCommandRun): void {
-	if (globalCommands.has(id)) {
-		throw new Error(`registerCommand: "${id}" is already registered. Commands are register-once.`);
-	}
-	globalCommands.set(id, run);
+	registerOnce(
+		globalCommands.has(id),
+		() => globalCommands.set(id, run),
+		`registerCommand: "${id}" is already registered. Commands are register-once.`
+	);
 }
 
 export function getCommand(id: AnyCommandId): GlobalCommandRun | undefined {
