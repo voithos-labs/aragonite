@@ -7,6 +7,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { compileMatcher } from '$lib/search/matcher';
+import { createGrammarView } from '$lib/schema/block-openers';
 import { scanDocument } from '$lib/search/document-scan';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
@@ -190,6 +191,17 @@ describe('replaceOne — single-subtree case', () => {
 		const sr = createSearchReplace(deps, createUndoController(deps));
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('heading');
+	});
+
+	// Parity with the top-level content commit: the reparse honors the instance
+	// grammar, so an introduced marker for a disabled kind stays unmaterialized.
+	it('honors the instance grammar — a disabled heading marker stays paragraph', async () => {
+		const doc = parse('title\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		deps.grammar = createGrammarView((kind) => kind !== 'heading');
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
+		expect(deps.doc.children[0].kind).toBe('paragraph');
 	});
 });
 

@@ -270,7 +270,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		controller,
 		stickyColumn,
 		reorder,
-		events: editorEvents
+		events: editorEvents,
+		registryView
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
@@ -333,6 +334,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				return deps.path;
 			},
 			stickyColumn,
+			grammar: registryView.grammar,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,

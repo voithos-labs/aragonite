@@ -155,7 +155,7 @@ export function createNestedBlockEdit(
 				leadingTrivia: child.leadingTrivia,
 				raw: child.raw
 			});
-			const preview = performUpdate({ children: [probe] }, 0, text);
+			const preview = performUpdate({ children: [probe] }, 0, text, deps.grammar);
 
 			const leafPath = [...deps.path, innerIndex];
 
@@ -169,7 +169,7 @@ export function createNestedBlockEdit(
 					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						change = performUpdate({ children: scope.children }, innerIndex, text);
+						change = performUpdate({ children: scope.children }, innerIndex, text, deps.grammar);
 						stampStructuralChange(scope.children, change, scope.sharing);
 						return change;
 					},
@@ -213,7 +213,7 @@ export function createNestedBlockEdit(
 				);
 				const ownedContainer = chain[leafPath.length - 2];
 				if (!ownedContainer?.children) return;
-				performUpdate({ children: ownedContainer.children }, innerIndex, text);
+				performUpdate({ children: ownedContainer.children }, innerIndex, text, deps.grammar);
 				// listItem's taskItem metadata is extracted at parse time from the
 				// first stripped line; live typing into the inner paragraph would
 				// otherwise leave metadata frozen while serialized source drifts.
