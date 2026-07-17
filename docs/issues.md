@@ -234,6 +234,38 @@ trailing-line-ending logic the CRLF/trailing-newline fidelity family owns (the
 deferred keystroke-commit `\r\n` normalization is the sibling); a caret-only clamp
 would patch the symptom without settling the semantics. Fold into that line-ending pass.
 
+### Nested structural content commit seeds its undo snapshot differently from the top-level path
+
+**Severity:** minor (undo-selection nuance; the edit is correct and byte-safe)
+**Files:** `src/lib/editor-actions/nested/nested-block-edit.ts` (`updateBlockContent` structural arm),
+`src/lib/editor-actions/block-edit.ts` (the top-level sibling)
+
+A nested structural content commit pushes its own undo snapshot at `{ path: leafPath, offset:
+preEditOffset }`, while the top-level sibling skips to the debounced typing snapshot
+(`snapshot: 'skip'`). The two content-commit paths therefore seed the undo selection
+differently, and the nested coordinate names a pre-edit offset on a node whose kind/shape the
+commit may have just changed. No corruption results — the restored caret is a view concern — but
+the post-change coordinate and the top-level divergence want a joint look.
+
+**Why deferred:** post-edit-caret-versus-pre-edit-tree selection semantics touch the debounce
+seam and both content-commit factories together — a careful reconciliation, not a spot change.
+Fold into the history-seam pass (limestone internal integration).
+
+### Post-paste caret landing diverges across paste routes
+
+**Severity:** minor (caret placement; the document bytes are correct on every route)
+**Files:** `src/lib/tree-operations/paste/apply.ts`, `src/lib/tree-operations/paste/dispatch.ts`
+(inline `pendingCursorOffset` vs cross-block DOM restore vs structural internal focus)
+
+The post-paste caret lands through three mechanisms depending on the route; the audit flagged
+two of the five caret gates as placing the caret at a different relative position than the
+others for the same logical paste. The current landings are pinned by the clipboard e2e suite
+(post-paste source plus type-after-paste flows), so any parity change re-baselines those specs.
+
+**Why deferred:** the divergence is cosmetic (bytes are correct) and the current behavior is
+spec-pinned; unifying the caret target is a deliberate change that must re-pin the affected
+clipboard specs. Fold into the paste caret/transform pass.
+
 ## Code structure
 
 ### DocPath brand adoption stops at the scope factories
@@ -301,6 +333,42 @@ scan (which walks `src/**` only). The sibling `dev-probe.ts` `CstNode` uses are 
 **Why deferred:** registration-erased and cosmetic — the packaged types compile unchanged and the drift
 has no runtime effect, so it isn't worth a standalone edit to the reference consumer; it rides the next
 change that opens the file.
+
+### Non-windowing revealChildOrWait parks on a bounded mount-wait instead of degrading
+
+**Severity:** minor (robustness; windowing callers degrade correctly today)
+**Files:** `src/lib/reactivity/publish-ref.svelte.ts` (`revealChildOrWait` non-windowing branch)
+
+A caller without an `isInWindow` membership predicate cannot prove a target will never mount, so
+`revealChildOrWait` falls to a bounded mount-wait (up to `MAX_MOUNT_REWAITS` spurious cross-level
+wakes) rather than degrading immediately the way windowing callers do. A never-mounting target on
+a non-windowing caller therefore spins the cap before returning, instead of short-circuiting on a
+membership check.
+
+**Fix direction:** give non-windowing callers a membership (or positive "will-not-mount") signal
+so the open-ended branch degrades on the same evidence the windowing branch uses.
+
+**Why deferred:** every windowing caller passes `isInWindow` and degrades correctly; the
+open-ended branch is only reached by non-windowing containers whose children always mount, so the
+cap is never exercised in practice. Adopt when the reveal seam is next touched.
+
+### resolveReorderUnit keys reorderable parents off the raw kind string
+
+**Severity:** minor (latent naming coupling; no reachable misbehavior today)
+**Files:** `src/lib/tree-operations/reorder-unit.ts` (`REORDERABLE_PARENT` string set)
+
+`resolveReorderUnit` treats any ancestor whose `kind` is `'document'`, `'list'`, or `'blockquote'`
+as a sibling-permutable parent by plain string match. `isBlockNode`'s own comment notes a plugin
+may mint `'document'` as a block kind, so a plugin kind colliding with one of these names would be
+misclassified as a reorder container. No shipped kind collides, so there is no reachable defect.
+
+**Fix direction:** key the reorderable-parent test off a descriptor capability (a container
+`siblingReorderable` flag) rather than a hardcoded kind-string set, so the classification follows
+declared behavior and cannot collide with a plugin kind name.
+
+**Why deferred:** no shipped or plausible plugin kind collides with the three built-in names — a
+latent coupling, not a bug, the same class as the DocPath brand-adoption entry. Adopt the
+capability flag when the reorder resolver is next edited.
 
 ## Test coverage
 
@@ -391,9 +459,9 @@ accepted for `fencedCode` leaves, but surprising to apply silently to a plugin's
 
 **Fix direction:** a kind-aware write path — the kind translates a raw-range edit into a metadata
 update (for mermaid, a `code` rewrite) and the ceremony rebuilds `raw` from it, so a replacement
-can never flip the kind. Any such fix inherits the nested-grammar threading gap: `buildSubtree`
-calls bare `parse(child.raw)`, so a replacement reparses against the global grammar, not the
-instance's registry view.
+can never flip the kind. `buildSubtree` now reparses through the instance grammar
+(`parse(child.raw, { grammar })`), so a future kind-aware fix no longer inherits a
+grammar-threading gap.
 
 **Why deferred:** fold into the post-1.0 container editable-flag / opaque-write work (see
 "Container shim hardcodes the component `editable` flag").
