@@ -214,12 +214,20 @@ These are the formal extensions that distinguish GFM from plain CommonMark.
 ~~This text is crossed out~~
 ```
 
-- **Autolinks:** Bare URLs and email addresses automatically turn into clickable links without needing angle brackets `< >` or standard link syntax.
+- **Autolinks (§6.9):** Bare URLs and email addresses turn into links without angle brackets `< >` or `[text](url)` syntax.
 
 ```markdown
-Visit https://github.com
+Visit https://github.com or www.github.com
 Contact support@example.com
 ```
+
+Recognition follows the GFM extension rules. These are what the editor's autolink pass enforces:
+
+- **`www.` scheme insertion.** A `www.` URL carries no scheme, so `http` is inserted for the link target while the visible text stays verbatim — `www.example.com` links to `http://www.example.com`. (`http`/`https` URLs keep their own scheme; emails prepend `mailto:`.)
+- **Valid domain.** The domain is dot-separated segments of letters, digits, `_`, and `-`, with at least one dot. A bare `www.`, or a host with no dot, does not autolink.
+- **Leading boundary.** A bare autolink begins only at the start of the region or after whitespace or one of `*`, `_`, `~`, `(` — so `xhttps://x` and `a/foo@bar.com` stay literal.
+- **Trailing punctuation.** A trailing `?`, `!`, `.`, `,`, `:`, `*`, `_`, or `~` is left out of the link (`visit https://example.com.` keeps the period as text). A trailing `)` is excluded only when the URL holds more `)` than `(`, so a wiki link like `…/Foo_(bar)` keeps its parenthesis.
+- **Entity-shaped tail.** A trailing `;` stays in the URL unless it ends in something shaped like an entity reference — `&`, then one or more alphanumerics, then `;` — in which case the whole `&…;` is excluded: `www.google.com/search?q=commonmark&hl;` links only `…?q=commonmark`.
 
 - **Disallowed Raw HTML:** Some raw HTML tags are treated as literal text rather than HTML. This is a specific GFM extension and is separate from GitHub's broader HTML sanitization rules.
 
