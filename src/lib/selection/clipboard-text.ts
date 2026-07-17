@@ -48,7 +48,11 @@ export function collectCrossBlockText(
 	// established (same table, unflagged), so they read directly. The cross-block
 	// table branches below carry the flag and use cellIndexOf.
 	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {
-		return emitTablePortion(startNode, start.offset, end.offset);
+		// Cell offsets are inclusive on both ends, matching the cross-block table
+		// branches (`+ 1` below). A collapsed pair (equal offsets) is a caret in a
+		// cell, not a rect — copy nothing and let the cell's native copy handle it.
+		if (start.offset === end.offset) return '';
+		return emitTablePortion(startNode, start.offset, end.offset + 1);
 	}
 
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';

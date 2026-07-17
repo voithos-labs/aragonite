@@ -248,6 +248,35 @@ others for the same logical paste. The current landings are pinned by the clipbo
 spec-pinned; unifying the caret target is a deliberate change that must re-pin the affected
 clipboard specs. Fold into the paste caret/transform pass.
 
+### caretNearestSurvivor parks a container survivor at a char offset on its own path
+
+**Severity:** minor (caret placement in a narrow table-delete edge; bytes are correct)
+**Files:** `src/lib/selection/range-delete-table.ts` (`caretNearestSurvivor`)
+
+When a table-aware range delete removes every block the caret could land in, the survivor
+before the range gets `{ path: [beforeIdx], offset: displayLength(before.raw) }`. Tables are
+special-cased to a deep cell caret, but a **container** survivor (blockquote/list) falls
+through: `before.raw` is the whole container's raw (nested markers included), so the offset is
+a container-path char offset that no leaf owns. The restore then clamps or mis-lands.
+
+**Why deferred:** needs a container last-leaf descent resolver (the table branch's
+`lastCellCaret` generalized) and a container-before-consumed-table cross-block-delete scenario;
+not a cheap one-liner. Fold into the caret-landing parity pass.
+
+### Cross-block type-replace splices the surviving leaf's raw without re-deriving its kind
+
+**Severity:** minor (transient; the next reparse corrects it)
+**Files:** `src/lib/selection/cross-block/type-replace.ts`
+
+The typed character is spliced straight into the surviving leaf's raw and committed via
+commitMultiScope. If the inserted character changes the block kind (e.g. a leading `#`/`>` when
+the merge caret sits at offset 0), the kind stays stale until the next full reparse — unlike the
+single-block type path, which reparses.
+
+**Why deferred:** a correct fix reparses the spliced leaf and replaces the block when the kind
+changes, which is a reparse-and-replace inside the commit flow, not a cheap tweak. Reachable
+only when the post-delete caret lands at offset 0 and the typed char is a block marker.
+
 ## Code structure
 
 ### DocPath brand adoption stops at the scope factories
