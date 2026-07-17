@@ -4,6 +4,7 @@
  * SFC stays focused on render and lifecycle.
  */
 
+import { tick } from 'svelte';
 import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { DocumentGetter, LinkReferenceResolverRef } from '../../../editor-keys';
@@ -35,6 +36,10 @@ export interface TextClipboardDeps {
 	/** Reading mode: cut degrades to copy, paste is inert. The events still fire
 	 *  on a non-editable surface, so the gate lives in the handlers. */
 	isReadOnly: () => boolean;
+	/** Fold a live source-reveal before a clipboard mutation, so cut/paste run against
+	 *  a CST consistent with the swapped DOM. Returns the committed caret, or null when
+	 *  no reveal was open. */
+	commitRevealBeforeClipboard: () => number | null;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
@@ -75,6 +80,10 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			return;
 		}
 
+		// Fold any live reveal first (the fold collapses the selection, so a
+		// cut-during-reveal degrades to a no-op — acceptable; it never corrupts).
+		if (deps.commitRevealBeforeClipboard() !== null) await tick();
+
 		if (await writeCrossBlockCut(e, deps)) return;
 
 		const selectedText = getSelectedTextFromRaw();
@@ -95,10 +104,15 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			e.preventDefault();
 			return;
 		}
+		// preventDefault before any await, or the native paste fires during the fold
+		// tick and corrupts the DOM (parity with onCut's synchronous prevent).
+		e.preventDefault();
+		const foldedCaret = deps.commitRevealBeforeClipboard();
+		if (foldedCaret !== null) await tick();
+
 		if (await deps.crossBlock.handlePaste(e)) return;
 
 		deps.stickyColumn.reset();
-		e.preventDefault();
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 
@@ -126,7 +140,9 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			}
 		}
 
-		const offset = deps.cursor.getRaw() ?? 0;
+		// After a reveal fold the caret sits on the widget's element-level edge, where
+		// getRaw can read null; the committed caret is the correct landing offset.
+		const offset = deps.cursor.getRaw() ?? foldedCaret ?? 0;
 		const selOffsets = deps.cursor.getRawSelection();
 
 		const result = await pasteDispatch(

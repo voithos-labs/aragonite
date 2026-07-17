@@ -216,31 +216,6 @@
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
 
-	const clipboardHandlers = createTextClipboard({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get myPath() {
-			return myPath;
-		},
-		cursor,
-		crossBlock,
-		selection,
-		stickyColumn,
-		blockEdit,
-		pasteCoordinator,
-		getDoc,
-		widgetSelection,
-		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
-		isReadOnly: () => readOnly,
-		get linkRef() {
-			return linkRef;
-		}
-	});
-
 	const widgetInteraction = createWidgetInteraction({
 		get node() {
 			return node;
@@ -269,6 +244,34 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		getPresentationMode: () => presentationMode,
+		get linkRef() {
+			return linkRef;
+		}
+	});
+
+	// After widgetInteraction so the reveal-fold seam is available: a clipboard
+	// mutation folds a live reveal before touching the CST.
+	const clipboardHandlers = createTextClipboard({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get myPath() {
+			return myPath;
+		},
+		cursor,
+		crossBlock,
+		selection,
+		stickyColumn,
+		blockEdit,
+		pasteCoordinator,
+		getDoc,
+		widgetSelection,
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
+		isReadOnly: () => readOnly,
+		commitRevealBeforeClipboard: () => widgetInteraction.commitRevealBeforeClipboard(),
 		get linkRef() {
 			return linkRef;
 		}
@@ -737,18 +740,6 @@
 		word-wrap: break-word;
 		min-height: 1.4em;
 		width: 100%;
-	}
-
-	.text-editable-block.paragraph-block:empty::before {
-		content: 'Start typing...';
-		color: var(--color-ui-dulled, #afb1b3);
-		pointer-events: none;
-	}
-
-	/* Reading mode: the placeholder is an edit prompt. Lives here, not
-	   editor.css, so it outranks the rule above deterministically. */
-	:global(.editor[data-presentation='reading']) .text-editable-block.paragraph-block:empty::before {
-		content: none;
 	}
 
 	.text-editable-block.heading-1 {
