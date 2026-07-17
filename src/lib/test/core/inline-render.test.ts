@@ -167,6 +167,17 @@ describe('inline-render — href + autolink anchor', () => {
 		expect(a?.textContent).toBe('foo@bar.com');
 	});
 
+	it('www autolink renders an absolute http href with the text kept verbatim', () => {
+		// GFM §6.9: the scheme is inserted for the href only, so activation navigates
+		// absolutely instead of resolving the bare host against the current page.
+		const raw = 'visit www.example.com now';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(inline, raw);
+		const a = frag.querySelector('a.md-autolink');
+		expect(a?.getAttribute('href')).toBe('http://www.example.com');
+		expect(a?.textContent).toBe('www.example.com');
+	});
+
 	it('blocked-scheme link renders an inert span, not an anchor', () => {
 		const raw = '[x](javascript:alert(1))';
 		const inline = parseInline(raw, 0, raw.length);
