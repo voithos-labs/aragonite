@@ -69,6 +69,10 @@ export function buildImageWidget(
 	});
 
 	const img = document.createElement('img');
+	// A default-draggable <img> starts a native HTML5 drag on pointerdown, which
+	// swallows the pointermove stream — a cross-block drag that begins on the image
+	// would never reach the block's drag listener.
+	img.draggable = false;
 	img.alt = node.alt ?? '';
 	const resolvedUrl = safeResolve(opts.resolveImageUrl, node.url ?? '');
 	const policy = opts.imageLoadPolicy ?? 'auto';

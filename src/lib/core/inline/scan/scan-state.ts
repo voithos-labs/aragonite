@@ -20,6 +20,11 @@ export interface ScanContext {
 	delimiters: Delimiter[];
 	brackets: Bracket[];
 	resolver?: LinkReferenceResolver;
+	/**
+	 * Backtick-run positions by length, built lazily on the first code-span probe
+	 * and reused for every later opener so a flood stays linear (see backticks.ts).
+	 */
+	backtickRuns?: Map<number, number[]>;
 }
 
 export interface Delimiter {
