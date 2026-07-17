@@ -6,7 +6,13 @@ import { measureTypingLatency, measureDeepNestedTyping } from './latency-harness
 
 declare const process: { env: Record<string, string | undefined> };
 
-test.skip(!process.env.PERF, 'set PERF=1 to run the perf project');
+// Report-only rows: `perf:e2e` (PERF alone) runs them; the `perf:check` gate
+// (PERF_GATE) skips them — they gate nothing, so the gate job shouldn't pay their
+// runtime or flake risk.
+test.skip(
+	!process.env.PERF || !!process.env.PERF_GATE,
+	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
+);
 
 // All rows run against the dev server with DEV invariant assertions active,
 // so every number is a conservative upper bound on production latency.
