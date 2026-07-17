@@ -11,7 +11,6 @@
 import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
-import { comparePaths } from './path-math';
 import { asRawOffset, toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
 import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
@@ -129,20 +128,47 @@ export function readCurrentSelection(
 		const pos = ref.getCursorPosition?.();
 		if (pos) {
 			const path = [i, ...pos.path];
-			return {
-				anchor: { path, offset: pos.offset },
-				focus: { path: [...path], offset: pos.offset }
-			};
+			return nativeRangeInFocusedBlock(path) ?? collapsedSelectionAt(path, pos.offset);
 		}
 		const offset = ref.getCursorOffset();
 		if (offset !== null && offset !== undefined) {
-			return {
-				anchor: { path: [i], offset },
-				focus: { path: [i], offset }
-			};
+			return nativeRangeInFocusedBlock([i]) ?? collapsedSelectionAt([i], offset);
 		}
 	}
 	return null;
+}
+
+function collapsedSelectionAt(path: number[], offset: number): EditorSelection {
+	return { anchor: { path: path.slice(), offset }, focus: { path: path.slice(), offset } };
+}
+
+/**
+ * The focused block's native selection as distinct anchor/focus raw offsets, so
+ * getSelection() reports a within-block range instead of collapsing it to the
+ * caret. Null when the selection is collapsed or not inside the active block —
+ * callers fall back to the single caret offset. `path` addresses the leaf whose
+ * contenteditable holds native focus; offsets convert through its ambient length,
+ * the single offset-arithmetic home.
+ */
+function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
+	const active = document.activeElement;
+	if (!(active instanceof HTMLElement)) return null;
+	const sel = window.getSelection();
+	if (!sel || sel.isCollapsed || sel.anchorNode === null || sel.focusNode === null) return null;
+	if (!active.contains(sel.anchorNode) || !active.contains(sel.focusNode)) return null;
+	const ambient = ambientLengthOf(active);
+	const anchorOffset = toClampedRawOffset(
+		domTextOffsetAtNode(active, sel.anchorNode, sel.anchorOffset),
+		ambient
+	);
+	const focusOffset = toClampedRawOffset(
+		domTextOffsetAtNode(active, sel.focusNode, sel.focusOffset),
+		ambient
+	);
+	return {
+		anchor: { path: path.slice(), offset: anchorOffset },
+		focus: { path: path.slice(), offset: focusOffset }
+	};
 }
 
 // A restored table endpoint must keep cellCoordinate, or it skips the whole-row
@@ -165,10 +191,11 @@ export function applySelectionToDom(
 	selectionState: SelectionState,
 	getBlockElByPath: (path: number[]) => HTMLElement | null
 ): void {
-	const samePath = comparePaths(selection.anchor.path, selection.focus.path) === 0;
-	const sameOffset = selection.anchor.offset === selection.focus.offset;
+	// Classify before mutating state so a single-block restore never emits a
+	// phantom transient cross-block selectionChange (enterCrossBlock → clear).
+	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
-	if (samePath && sameOffset) {
+	if (route === 'collapsed') {
 		selectionState.clear();
 		const blockEl = getBlockElByPath(selection.anchor.path);
 		if (blockEl) {
@@ -178,27 +205,30 @@ export function applySelectionToDom(
 		return;
 	}
 
-	// isCustomRendered checks the doc node at the path: same-path different-
-	// offset on a table wrapper means cell-index selection, not char range.
-	selectionState.enterCrossBlock(selection.anchor, selection.focus);
-	if (selectionState.isCustomRendered) {
-		// Park caret in the focus block as a paste/key-dispatch anchor; without
-		// it Chromium routes paste events to <body>.
-		const focusEl = getBlockElByPath(selection.focus.path);
-		if (focusEl) {
-			applyCollapsedCaret(focusEl, selection.focus);
-			focusEl.focus();
-		} else {
-			clearNativeSelection();
+	if (route === 'single-block') {
+		selectionState.clear();
+		const blockEl = getBlockElByPath(selection.anchor.path);
+		if (blockEl) {
+			applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
+			blockEl.focus();
 		}
 		return;
 	}
 
-	selectionState.clear();
-	const blockEl = getBlockElByPath(selection.anchor.path);
-	if (blockEl) {
-		applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
-		blockEl.focus();
+	// Custom: cross-block or intra-table cell rect → the overlay paints. Park a
+	// collapsed caret in the focus block as a paste/key-dispatch anchor (Chromium
+	// otherwise routes paste to <body>). A cell-coordinate focus addresses the
+	// table wrapper by linear cell index, so park in its deep cell — a char-walk
+	// with the cell index would land the caret in the wrong place.
+	selectionState.enterCrossBlock(selection.anchor, selection.focus);
+	const cellPath = selectionState.cellDeepPath(selection.focus);
+	const parkPath = cellPath ?? selection.focus.path;
+	const focusEl = getBlockElByPath(parkPath);
+	if (focusEl) {
+		applyCollapsedCaret(focusEl, cellPath ? { path: parkPath, offset: 0 } : selection.focus);
+		focusEl.focus();
+	} else {
+		clearNativeSelection();
 	}
 }
 

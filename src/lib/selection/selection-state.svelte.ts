@@ -9,7 +9,11 @@ import type { DocumentView } from '../core/node-views';
 import { nodeAt } from '../tree-operations/node-ops';
 import type { SelectionPoint } from './primitives';
 import { normalize } from './primitives';
-import { normalizeTableEndpoint, snapCrossBlockTableEndpoints } from './table-endpoint-snap';
+import {
+	cellEndpointDeepPath,
+	normalizeTableEndpoint,
+	snapCrossBlockTableEndpoints
+} from './table-endpoint-snap';
 import { pathsEqual } from './path-math';
 
 // ── Public factory ──────────────────────────────────────────────────────────
@@ -58,6 +62,20 @@ export interface SelectionState {
 	clear(): void;
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
+
+	/**
+	 * Route an anchor/focus pair for DOM restore WITHOUT mutating state, so the
+	 * caller classifies before it decides — no phantom cross-block onChange. A
+	 * same-path prose range is 'single-block' (native browser highlight); a
+	 * cross-block or intra-table cell rect is 'custom' (overlay); equal offsets
+	 * are 'collapsed'.
+	 */
+	restoreRoute(
+		anchor: SelectionPoint,
+		focus: SelectionPoint
+	): 'collapsed' | 'single-block' | 'custom';
+	/** The deep `[table,row,col]` leaf path of a cell-coordinate point, else null. */
+	cellDeepPath(point: SelectionPoint): number[] | null;
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
@@ -196,6 +214,35 @@ class SelectionStateImpl implements SelectionState {
 		this.#focus = null;
 		this.#selectAllCount = 0;
 		this.#onChange?.();
+	}
+
+	restoreRoute(
+		anchor: SelectionPoint,
+		focus: SelectionPoint
+	): 'collapsed' | 'single-block' | 'custom' {
+		if (!pathsEqual(anchor.path, focus.path)) return 'custom';
+		if (anchor.offset === focus.offset) return 'collapsed';
+		// Same path, distinct offsets: a table cell rect (flagged endpoint, or a
+		// table node under the shared path) paints via the overlay; prose is a
+		// native single-block range.
+		if (anchor.cellCoordinate || focus.cellCoordinate) return 'custom';
+		const getDoc = this.#getDoc;
+		if (!getDoc) return 'single-block';
+		const node = nodeAt(getDoc(), anchor.path);
+		return node?.kind === 'table' ? 'custom' : 'single-block';
+	}
+
+	cellDeepPath(point: SelectionPoint): number[] | null {
+		const getDoc = this.#getDoc;
+		if (!getDoc) return null;
+		// A context-established intra-table endpoint is unflagged, yet its offset is
+		// a cell index. Mint the flag so cellEndpointDeepPath resolves it; the
+		// helper returns null for any non-table path, so a prose/cross-block
+		// endpoint stays a no-op.
+		const cellPoint: SelectionPoint = point.cellCoordinate
+			? point
+			: { path: point.path, offset: point.offset, cellCoordinate: true };
+		return cellEndpointDeepPath(getDoc(), cellPoint);
 	}
 
 	incrementSelectAllCount(): void {
