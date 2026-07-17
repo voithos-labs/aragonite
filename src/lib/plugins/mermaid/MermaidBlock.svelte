@@ -13,7 +13,7 @@
 		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
-	import { type MermaidMetadata } from './mermaid-kind';
+	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
 	import { hasMermaidRenderer, renderMermaid, type MermaidRenderResult } from './mermaid-renderer';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -225,7 +225,10 @@
 		// The textarea API value is LF-normalized, so compare the seed the same
 		// way — an untouched CRLF block must not rewrite its bytes on blur.
 		if (value === normalizeLineEndings(editSeed)) return;
-		updateOwnMetadata({ code: value.length > 0 ? value + '\n' : '' });
+		// Rejoin with the block's authored ending so a CRLF diagram stays CRLF
+		// (the LF-normalized draft would otherwise flip every body line).
+		const lineEnding = getPluginMetadata<MermaidMetadata>(node)?.openerLineEnding ?? '\n';
+		updateOwnMetadata({ code: joinMermaidBody(value, lineEnding) });
 		// Only a keyboard commit refocuses; a blur commit must not yank the
 		// focus back from wherever the user clicked.
 		if (refocus) refocusBlock();
