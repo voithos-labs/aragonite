@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('../../../dev-warn', () => ({ devWarn: vi.fn() }));
+import { devWarn } from '../../../dev-warn';
 import {
 	handleCellShiftClick,
 	cellCoordsOfElement,
 	type CellAnchor
 } from '../../../components/blocks/table/cell-pointer';
 import { createSelectionState } from '../../../selection/selection-state.svelte';
+import type { DocumentView } from '../../../core/node-views';
 
 describe('handleCellShiftClick', () => {
 	function makeAnchor(rowIdx: number, colIdx: number): CellAnchor {
@@ -18,25 +22,27 @@ describe('handleCellShiftClick', () => {
 		};
 	}
 
+	// The anchor carries cellCoordinate so a later exit-the-table extend snaps its
+	// whole row (matching the drag anchor); the focus stays context-established.
 	it('builds shallow-path multi-cell selection from cold state', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 1, colIdx: 2 });
-		expect(sel.anchor).toEqual({ path: [2], offset: 0 });
+		expect(sel.anchor).toEqual({ path: [2], offset: 0, cellCoordinate: true });
 		expect(sel.focus).toEqual({ path: [2], offset: 5 });
 	});
 
 	it('extends focus when already in custom-rendered mode', () => {
 		const sel = createSelectionState();
-		sel.enterCrossBlock({ path: [2], offset: 0 }, { path: [2], offset: 1 });
+		sel.enterCrossBlock({ path: [2], offset: 0, cellCoordinate: true }, { path: [2], offset: 1 });
 		handleCellShiftClick(sel, makeAnchor(0, 0), { rowIdx: 2, colIdx: 2 });
-		expect(sel.anchor).toEqual({ path: [2], offset: 0 });
+		expect(sel.anchor).toEqual({ path: [2], offset: 0, cellCoordinate: true });
 		expect(sel.focus).toEqual({ path: [2], offset: 8 });
 	});
 
 	it('encodes anchor at non-origin cell', () => {
 		const sel = createSelectionState();
 		handleCellShiftClick(sel, makeAnchor(1, 1), { rowIdx: 2, colIdx: 0 });
-		expect(sel.anchor).toEqual({ path: [2], offset: 4 });
+		expect(sel.anchor).toEqual({ path: [2], offset: 4, cellCoordinate: true });
 		expect(sel.focus).toEqual({ path: [2], offset: 6 });
 	});
 
@@ -47,6 +53,33 @@ describe('handleCellShiftClick', () => {
 		anchor.tablePath[0] = 99;
 		expect(sel.anchor!.path).toEqual([2]);
 		expect(sel.focus!.path).toEqual([2]);
+	});
+
+	// Reverted-incident guard: reading a same-table rectangle (start/end normalize +
+	// snap short-circuit) must not trip the coordinate-space warn that force-flagging
+	// every same-table read once caused.
+	it('reads the same-table rectangle without a coordinate-space warn', () => {
+		vi.mocked(devWarn).mockClear();
+		const doc = {
+			kind: 'document',
+			prefix: '',
+			suffix: '',
+			children: [
+				{
+					kind: 'table',
+					leadingTrivia: '',
+					raw: '',
+					metadata: { columnCount: 3, alignments: ['none', 'none', 'none'] },
+					children: []
+				}
+			]
+		} as unknown as DocumentView;
+		const sel = createSelectionState({ getDoc: () => doc });
+		handleCellShiftClick(sel, { ...makeAnchor(0, 0), tablePath: [0] }, { rowIdx: 1, colIdx: 2 });
+		void sel.start;
+		void sel.end;
+		void sel.isCustomRendered;
+		expect(devWarn).not.toHaveBeenCalled();
 	});
 });
 
