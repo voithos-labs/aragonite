@@ -108,6 +108,9 @@ export interface WidgetInteraction {
 	handleRevealingKeydown(e: KeyboardEvent): Promise<boolean>;
 	/** Commit the revealed source when focus leaves the block. */
 	commitRevealOnBlur(): void;
+	/** Fold an active reveal before a clipboard mutation so cut/paste run against a
+	 *  consistent CST. Returns the committed caret offset, or null if none was open. */
+	commitRevealBeforeClipboard(): number | null;
 	/** While source is revealed, fold when the caret/selection escapes it but
 	 *  stays inside the block (blur owns the focus-leaving fold). */
 	foldRevealIfSelectionEscaped(): void;
@@ -253,14 +256,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// for serialize/undo. The caret lands on the math's new trailing edge, read from
 	// the revealed source node's live position so an edit to the surrounding prose
 	// shifts it correctly (a length delta off the widget's old end would not).
-	function commitReveal(reason: RevealFoldReason = 'commit'): void {
+	function commitReveal(reason: RevealFoldReason = 'commit'): number | null {
 		assertFoldTargetsActiveReveal('commitReveal');
-		if (!activeReveal) return;
+		if (!activeReveal) return null;
 		// Sibling of editable-leaf's `commitReveal`: a cross-block selection sweeping
 		// through keeps the source revealed so its rects measure real text, not a
 		// folded island — folding now would strand a selection endpoint anchored in
 		// the source text node.
-		if (deps.isCrossBlock()) return;
+		if (deps.isCrossBlock()) return null;
 		traceRevealFold(reason);
 		const el = deps.getEl();
 		const sourceNode = activeSourceNode;
@@ -283,7 +286,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// focus-guarded, so a blur folds without yanking the caret back.
 		if (editedDisplay === revealOriginalDisplay) {
 			deps.setPendingCursor(caretAfter);
-			return;
+			return caretAfter;
 		}
 		deps.blockEdit.updateBlockContent(
 			deps.index,
@@ -292,6 +295,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			caretAfter
 		);
 		deps.setPendingCursor(caretAfter);
+		return caretAfter;
 	}
 
 	// Cancel: discard the ephemeral edit, imperatively rebuilding the original
@@ -467,6 +471,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function commitRevealOnBlur(): void {
 		if (activeReveal) commitReveal('blur');
+	}
+
+	// A clipboard mutation (cut/paste) runs the full CST pipeline against node.raw,
+	// but a live reveal has the island swapped for edited DOM the CST hasn't seen —
+	// splicing there corrupts. Fold first (as keydown/IME already gate the commit),
+	// returning the committed caret so the caller can land the paste past the widget
+	// instead of at offset 0 when the folded caret sits on an element-level edge.
+	function commitRevealBeforeClipboard(): number | null {
+		if (!activeReveal) return null;
+		return commitReveal('commit');
 	}
 
 	function isVerticallyTransparent(): boolean {
@@ -718,6 +732,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		isRevealing,
 		handleRevealingKeydown,
 		commitRevealOnBlur,
+		commitRevealBeforeClipboard,
 		foldRevealIfSelectionEscaped,
 		isPointOnRevealWidget
 	};
