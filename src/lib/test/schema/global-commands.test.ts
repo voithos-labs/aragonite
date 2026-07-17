@@ -73,6 +73,18 @@ describe('registerGlobalCommand', () => {
 		);
 	});
 
+	// Red-first: pre-fix, assertPluginGlobalChordAvailable normalized `Ctrl+W`
+	// (non-strict) to a bare `W` — not reserved, no collision — so registration
+	// SUCCEEDED and `resolveBinding('W', 'paragraph')` returned the probe binding,
+	// firing the handler on every plain `w`.
+	it('rejects a malformed chord and binds nothing (the Ctrl+W trap)', () => {
+		expect(() => registerGlobalCommand('demo.malformed', () => true, { chord: 'Ctrl+W' })).toThrow(
+			/malformed/
+		);
+		expect(pluginGlobalBinding('W')).toBeNull();
+		expect(resolveBinding('W', 'paragraph')).toBeNull();
+	});
+
 	it('a chord collision leaves no partial state — the name can still be minted afterward', () => {
 		expect(() => registerGlobalCommand('demo.retry', () => true, { chord: 'Mod+Z' })).toThrow();
 		expect(() =>

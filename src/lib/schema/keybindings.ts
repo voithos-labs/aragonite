@@ -44,29 +44,42 @@ export function normalizeChord(chord: string): string {
 	return [...mods, normalizeKey(key)].join('+');
 }
 
-const VALID_MODIFIERS = new Set(['Mod', 'Alt', 'Shift']);
+const VALID_MODIFIERS = new Set<string>(MOD_ORDER);
+
+/**
+ * Why a chord is malformed — an empty key, or a non-final token that isn't a
+ * recognized modifier — or null when it's well-formed. Shared core of the strict
+ * paths; keeping the reason lets `normalizeChordStrict` name it in the warn.
+ */
+function chordDefect(chord: string): string | null {
+	const parts = chord.split('+');
+	const key = parts.pop() ?? '';
+	if (key === '') return 'empty key';
+	const bad = parts.find((mod) => !VALID_MODIFIERS.has(mod));
+	return bad === undefined ? null : `unrecognized modifier "${bad}" (use Mod/Alt/Shift)`;
+}
+
+/**
+ * True when every non-final token is Mod/Alt/Shift and the key is non-empty —
+ * the well-formedness the strict ingestion paths gate on, so a mis-typed
+ * `'Ctrl+B'` can't collapse to a bare `'B'` that fires on every keypress. Pure:
+ * the caller decides whether to warn (consumer override), throw (registration
+ * API), or report (the keymap-coherence invariant).
+ */
+export function isChordWellFormed(chord: string): boolean {
+	return chordDefect(chord) === null;
+}
 
 /**
  * Validate then normalize a consumer-supplied chord. Returns null (dev-warned)
- * when a non-final token is not a recognized modifier or the key is empty —
- * guarding the trap where `'Ctrl+B'` silently drops the unrecognized `Ctrl` and
- * collapses to bare `'B'`, a binding that would fire on every keypress.
+ * when malformed — guarding the trap where `'Ctrl+B'` silently drops the
+ * unrecognized `Ctrl` and collapses to bare `'B'`.
  */
 export function normalizeChordStrict(chord: string): string | null {
-	const parts = chord.split('+');
-	const key = parts.pop() ?? '';
-	if (key === '') {
-		devWarn('keybindings', `chord "${chord}": empty key; entry dropped`);
+	const defect = chordDefect(chord);
+	if (defect !== null) {
+		devWarn('keybindings', `chord "${chord}": ${defect}; entry dropped`);
 		return null;
-	}
-	for (const mod of parts) {
-		if (!VALID_MODIFIERS.has(mod)) {
-			devWarn(
-				'keybindings',
-				`chord "${chord}": unrecognized modifier "${mod}" (use Mod/Alt/Shift); entry dropped`
-			);
-			return null;
-		}
 	}
 	return normalizeChord(chord);
 }
