@@ -168,6 +168,9 @@ class SelectionStateImpl implements SelectionState {
 		const f = this.#normalizePoint(point);
 		// A focus that lands back on the anchor's prose leaf is a contraction to a
 		// single-block range — collapse rather than persist the invisible state.
+		// Deliberately WITHOUT the `offset !== offset` guard `#isSamePathProseRange`
+		// carries: extendFocus never seeds, so a contraction landing exactly on the
+		// anchor offset is a fully-collapsed selection that must also not be stored.
 		if (
 			pathsEqual(this.#anchor.path, f.path) &&
 			!this.#anchor.cellCoordinate &&
