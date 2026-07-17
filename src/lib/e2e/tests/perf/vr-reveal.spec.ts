@@ -419,14 +419,17 @@ test("undo fires after the caret's block is windowed out (F2)", async ({ page })
 	await editor.scrollEditorTo(scrollHeight);
 	expect(await topLevelHostPresent(page, 0)).toBe(false);
 
-	// The crux of the regression: no mounted block holds focus. Focus is on the
-	// editor root or <body>, so a block-scoped keydown handler would never see the
-	// Ctrl+Z. (The pre-fix bug: undo silently inert here.)
-	const focusOk = await page.evaluate(() => {
+	// The crux of the regression: no mounted block holds focus. The scroll-past-cap
+	// pin drops focus before the block unmounts, so it blurs to <body> rather than
+	// re-homing to the root. The document-level handler still routes the Ctrl+Z:
+	// with no editor focused, the editor the user last interacted with claims a
+	// body-level chord (see the containment gate in Editor.svelte). (Pre-fix bug:
+	// undo silently inert here.)
+	const noBlockFocused = await page.evaluate(() => {
 		const active = document.activeElement;
 		return active === document.body || active === document.querySelector('.editor');
 	});
-	expect(focusOk).toBe(true);
+	expect(noBlockFocused).toBe(true);
 
 	await editor.undo();
 	await editor.bridge.waitForSourceNotContains('WINDOWED_MARK', 10_000);
