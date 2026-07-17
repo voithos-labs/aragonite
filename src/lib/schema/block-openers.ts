@@ -17,6 +17,7 @@ import {
 	__resetRegistrationChecksForTests
 } from './registration-pending';
 import { flushPendingRegistrationChecks } from './registration-checks';
+import { registerOnce } from './register-once';
 
 /**
  * One instance is reused across the parse loop — openers must consume it
@@ -46,15 +47,16 @@ let orderedCache: BlockOpener[] | null = null;
 let interruptCache: ((lineText: string) => boolean)[] | null = null;
 
 export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): void {
-	if (openers.has(kind)) {
-		throw new Error(
-			`registerBlockOpener: "${kind}" is already registered. Openers are register-once.`
-		);
-	}
-	openers.set(kind, opener);
-	enqueueRegistrationCheck(kind, 'opener');
-	orderedCache = null;
-	interruptCache = null;
+	registerOnce(
+		openers.has(kind),
+		() => {
+			openers.set(kind, opener);
+			enqueueRegistrationCheck(kind, 'opener');
+			orderedCache = null;
+			interruptCache = null;
+		},
+		`registerBlockOpener: "${kind}" is already registered. Openers are register-once.`
+	);
 }
 
 /**

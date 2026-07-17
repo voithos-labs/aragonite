@@ -6,6 +6,7 @@
  */
 
 import type { InlineNode } from '../../nodes';
+import { registerOnce } from '../../../schema/register-once';
 
 /**
  * Inspect `raw` at `pos` (the trigger) within `[pos, end)`. Return a node whose
@@ -35,10 +36,11 @@ export function registerInlineSyntax(trigger: string, recognizer: InlineSyntaxRe
 				`which dispatches it before the plugin registry — the recognizer would never fire`
 		);
 	}
-	if (registry.has(trigger)) {
-		throw new Error(`registerInlineSyntax: "${trigger}" already registered`);
-	}
-	registry.set(trigger, recognizer);
+	registerOnce(
+		registry.has(trigger),
+		() => registry.set(trigger, recognizer),
+		`registerInlineSyntax: "${trigger}" already registered`
+	);
 }
 
 export function getInlineSyntax(trigger: string): InlineSyntaxRecognizer | undefined {

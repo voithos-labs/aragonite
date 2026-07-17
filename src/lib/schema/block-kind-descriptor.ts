@@ -3,6 +3,7 @@ import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
+import { registerOnce } from './register-once';
 import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import {
@@ -294,16 +295,18 @@ const registry = new Map<AnyBlockKind, BlockKindDescriptor>();
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
-	if (registry.has(kind)) {
-		const owner = pluginKindOwner(kind);
-		throw new Error(
-			`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
-				`use augmentBlockKind to merge fields into an existing registration.` +
-				(owner ? ` — first declared by plugin '${owner}'` : '')
-		);
-	}
-	registry.set(kind, normalizeRegistration(registration));
-	enqueueRegistrationCheck(kind);
+	const isDuplicate = registry.has(kind);
+	const owner = isDuplicate ? pluginKindOwner(kind) : null;
+	registerOnce(
+		isDuplicate,
+		() => {
+			registry.set(kind, normalizeRegistration(registration));
+			enqueueRegistrationCheck(kind);
+		},
+		`registerBlockKind: "${kind}" is already registered. Kinds are register-once — ` +
+			`use augmentBlockKind to merge fields into an existing registration.` +
+			(owner ? ` — first declared by plugin '${owner}'` : '')
+	);
 }
 
 // The flat part is stripped of container-only keys (see CONTAINER_ONLY_KEYS)

@@ -448,21 +448,22 @@ anchor-correction investigation.
 
 **Why deferred:** needs the CI datapoint (next dev push) before any threshold decision.
 
-### Editing a registrar-adjacent module under `vite dev` 500s every editor route
+### Residual: a chorded plugin-global command still needs a dev reload on re-eval
 
-**Severity:** minor (dev workflow; no production or built-output impact)
-**Files:** `src/lib/schema/*` registries, `src/lib/components/built-in-blocks.ts` (registrars)
+**Severity:** trivial (dev workflow; narrow surface; no production impact)
+**Files:** `src/lib/schema/commands.ts` (`registerPluginGlobalBinding`)
 
-Editing any registrar-adjacent `$lib` module while `vite dev` is running invalidates the registrar
-modules but keeps the registry module instances alive. On the next SSR render the registrars re-run
-against a registry that still holds the prior evaluation's registrations, so the register-once contract
-throws (`registerBlockComponent: "paragraph" is already registered`) and every editor route 500s until a
-full `src/**` mtime touch (forcing registries + registrars to re-evaluate together) or a server restart.
+The SSR registrar-poison 500-class (0.9.27) is resolved: every keyed register-once registry
+(kinds, components, openers, commands, block-commands, inline syntax, inline widgets, paste
+surfaces, paste transforms, directives) and every mint/declare (`declarePluginKind`,
+`declarePluginInlineKind`, `mintCommandId`) now REPLACES a duplicate with a dev note instead of
+throwing when a Vite dev server re-evaluates a registrar module (`schema/register-once.ts`,
+`devReplacesRegistration`). Production and test keep the register-once throw. The one residual: a
+`registerGlobalCommand` that binds a chord re-runs `registerPluginGlobalBinding`, whose chord
+collision throw is left intact (it also guards genuine cross-command collisions and unstealable
+chords, which the same-key valve cannot distinguish). A chorded global command therefore still
+500s on registrar re-eval and needs a page reload.
 
-**Fix direction:** either a dev-only SSR idempotence guard at the registration seam — in tension with the
-culture rule "registries are code, not state" (register-once, throw-on-duplicate), so it needs a
-deliberate design that scopes the guard to the HMR/dev boundary without softening the production contract
-— or a documented touch/restart policy for registrar edits under the dev server.
-
-**Why deferred:** dev-server-only; production and `svelte-package` output are unaffected. The mtime-touch
-self-heal is known and cheap, so this waits on the deliberate seam design.
+**Why deferred:** the surface is narrow (only chorded global commands), the throw guards a real
+collision class, and a page reload self-heals. A same-command chord idempotence check is the
+additive fix when a consumer hits it.

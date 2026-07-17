@@ -7,6 +7,7 @@ import type { Component } from 'svelte';
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponent, BlockComponentProps } from '../block-component';
+import { registerOnce } from './register-once';
 
 export interface BlockComponentEntry {
 	/**
@@ -41,12 +42,11 @@ export function defineBlockComponent<
 const registry = new Map<AnyBlockKind, BlockComponentEntry>();
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
-	if (registry.has(kind)) {
-		throw new Error(
-			`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
-		);
-	}
-	registry.set(kind, entry);
+	registerOnce(
+		registry.has(kind),
+		() => registry.set(kind, entry),
+		`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
+	);
 }
 
 export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | undefined {

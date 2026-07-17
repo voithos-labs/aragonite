@@ -9,6 +9,7 @@
 
 import type { DirectiveTier, DirectiveFence } from './grammar';
 import type { AnyBlockKind, PluginInlineKind, CstNode, InlineNode, Document } from '../nodes';
+import { registerOnce } from '../../schema/register-once';
 
 export interface ParsedDirective {
 	fence: DirectiveFence;
@@ -52,12 +53,11 @@ export function registerDirective(
 	}
 
 	const key = keyOf(tier, name);
-	if (definitions.has(key)) {
-		throw new Error(
-			`registerDirective: "${key}" is already registered. Directives are register-once.`
-		);
-	}
-	definitions.set(key, def);
+	registerOnce(
+		definitions.has(key),
+		() => definitions.set(key, def),
+		`registerDirective: "${key}" is already registered. Directives are register-once.`
+	);
 }
 
 export function resolveDirective(

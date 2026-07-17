@@ -6,6 +6,7 @@
  * the `customElements` model shared with `paste-surfaces.ts`.
  */
 import { currentInstallingPlugin } from '../../schema/plugin-install';
+import { registerOnce } from '../../schema/register-once';
 import { devWarn } from '../../dev-warn';
 import { editorEnv } from '../../env';
 
@@ -27,14 +28,13 @@ const transforms = new Map<string, RegisteredTransform>();
 
 export function registerPasteTransform(transform: PasteTransform): void {
 	const existing = transforms.get(transform.name);
-	if (existing) {
-		throw new Error(
-			`registerPasteTransform: "${transform.name}" is already registered` +
-				(existing.owner ? ` by plugin '${existing.owner}'` : '') +
-				`. Paste transforms are register-once.`
-		);
-	}
-	transforms.set(transform.name, { transform, owner: currentInstallingPlugin() });
+	registerOnce(
+		existing !== undefined,
+		() => transforms.set(transform.name, { transform, owner: currentInstallingPlugin() }),
+		`registerPasteTransform: "${transform.name}" is already registered` +
+			(existing?.owner ? ` by plugin '${existing.owner}'` : '') +
+			`. Paste transforms are register-once.`
+	);
 }
 
 /**
