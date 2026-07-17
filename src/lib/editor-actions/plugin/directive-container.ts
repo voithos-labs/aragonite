@@ -14,7 +14,7 @@
 
 import { serializeDirective } from '../../core/directive/grammar';
 import { concatChildren as serializeChildren } from '../../core/serializer';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
 import { getPluginMetadata, type CstNode } from '../../core/nodes';
 
 export function createDirectiveRebuild<
@@ -38,7 +38,11 @@ export function createDirectiveRebuild<
 			innerSuffix: node.innerSuffix ?? '',
 			closerColonCount: meta?.closerColonCount ?? meta?.colonCount ?? 3,
 			closerNewline: meta?.closerNewline ?? true,
-			lineEnding: meta?.lineEnding
+			lineEnding: meta?.lineEnding,
+			// The parse side threads only the opener ending; recover the closer's own
+			// ending off the current raw (the closer is its last line). Ignored when
+			// `closerNewline` is false.
+			closerLineEnding: trailingLineEnding(node.raw)
 		});
 	};
 }

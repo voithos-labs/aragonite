@@ -61,13 +61,15 @@ export function serializeDirective(parts: {
 	closerColonCount?: number;
 	/** Whether the closer ends with a newline; defaults to true. False for a document-final directive. */
 	closerNewline?: boolean;
-	/** Authored line ending for the synthesized opener + closer chrome lines; defaults to `\n`. Threaded so a CRLF-authored directive rebuilds CRLF-safe (the body carries its own bytes). */
+	/** Authored line ending for the synthesized opener line; defaults to `\n`. Threaded so a CRLF-authored directive rebuilds CRLF-safe (the body carries its own bytes). */
 	lineEnding?: string;
+	/** Authored line ending for the closer line; defaults to `lineEnding`. A mixed-ending directive (LF opener, CRLF closer) keeps each chrome line's own bytes. */
+	closerLineEnding?: string;
 }): string {
 	const lineEnding = parts.lineEnding ?? '\n';
 	const opener = ':'.repeat(parts.colonCount);
 	const closer = ':'.repeat(parts.closerColonCount ?? parts.colonCount);
-	const closerEnd = (parts.closerNewline ?? true) ? lineEnding : '';
+	const closerEnd = (parts.closerNewline ?? true) ? (parts.closerLineEnding ?? lineEnding) : '';
 	return `${opener}${parts.name}${parts.info}${lineEnding}${parts.innerPrefix}${parts.body}${parts.innerSuffix}${closer}${closerEnd}`;
 }
 
