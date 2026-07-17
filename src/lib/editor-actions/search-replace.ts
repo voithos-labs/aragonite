@@ -67,7 +67,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			if (rel.length > 0) rebuildAncestryRaw(child, rel);
 		}
-		const newNodes = parse(child.raw).children;
+		const newNodes = parse(child.raw, { grammar: deps.grammar }).children;
 		// leadingTrivia is positional (the separator before this block) and lives off
 		// `raw`, so parsing `child.raw` alone drops it — carry it onto the first node.
 		if (newNodes[0]) newNodes[0].leadingTrivia = child.leadingTrivia;

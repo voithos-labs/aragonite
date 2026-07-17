@@ -12,6 +12,7 @@
 
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
+import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-ops';
 import { getPasteSurface, type PasteRange } from '../paste-surfaces';
@@ -46,6 +47,10 @@ export interface PasteDispatchContext {
 	controller: PasteCommitCoordinator;
 	/** `'join'`: no snapshot or updateBlockContent debounce here — the cross-block caller owns the undo entry. */
 	undoEntry?: UndoEntryMode;
+	/** The instance's block grammar (docs/research/architecture-concerns.md) for the join branch's
+	 *  same-slot reparse. Absent = the global grammar; the non-join branch threads its own via
+	 *  updateBlockContent. */
+	grammar?: GrammarView;
 }
 
 export interface PasteDispatchResult {
