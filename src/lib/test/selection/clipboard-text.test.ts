@@ -90,6 +90,14 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe('');
 		});
 
+		it('keeps the focus cell row when the intra-table focus lands on a row-start cell (E-F5)', () => {
+			// Anchor cell 0 (row 0, col 0), focus cell 3 (row 1, col 0). The end cell is
+			// inclusive — its row must be captured; an exclusive end drops row 1.
+			const doc = parse(fixture);
+			const text = collectCrossBlockText(doc, cell(0), cell(3));
+			expect(text).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
+		});
+
 		it('emits each table fully when selection spans two tables and surrounding paragraphs', () => {
 			const doc = parse(
 				'a\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nb\n\n| C | D |\n| --- | --- |\n| 3 | 4 |\n\nc\n'
