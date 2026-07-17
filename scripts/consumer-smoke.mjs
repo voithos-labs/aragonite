@@ -11,16 +11,17 @@ const withDeps = process.platform === 'linux' ? '--with-deps ' : '';
 
 run('npm run package');
 // The tarball name embeds the version; install the file `npm pack` reports
-// instead of the consumer's static pin so a version bump can't strand the
-// smoke on a stale tarball name. (The static pin stays for manual installs;
-// installing by path rewrites it to the packed name when they diverge.)
+// instead of the consumer's static pin so a version bump can't strand the smoke
+// on a stale tarball name. `--no-save` (below) keeps the tracked `file:../..` pin
+// intact — the source of truth for a fresh clone — so a local run stops churning
+// the consumer's package.json to the packed tarball name.
 const packOutput = execSync('npm pack', { encoding: 'utf8' });
 const tarball = packOutput.trim().split(/\r?\n/).pop();
 run('node scripts/verify-pack.mjs'); // published paths present AND no test files ship
 // Force a fresh extract — npm may reuse a cached copy for an unchanged version,
 // which would make an edit → repack loop test stale bits.
 rmSync('examples/consumer/node_modules/aragonite', { recursive: true, force: true });
-run(`npm install ../../${tarball}`, { cwd: 'examples/consumer' });
+run(`npm install --no-save ../../${tarball}`, { cwd: 'examples/consumer' });
 // The consumer's own check/build/test pre-hooks sync the dogfood plugin sources
 // ($lib rewritten) before each step, so this gate runs the same $lib rewrite a
 // fresh clone does — no separate sync call to drift from what a consumer runs.
