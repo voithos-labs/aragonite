@@ -42,6 +42,11 @@ durable record):
   ~1-2 ms/keystroke of ancestry rebuild — floor class, two orders below the pathological
   class — with the superlinear tail confined to adversarial shapes. The most guard-hungry
   design in the repo keeps its guards and gains its evidence.
+- **Perf e2e baseline re-blessed (2026-07-16 run).** First re-measure after the 0.9.26/0.9.27
+  milestones, which the 2026-06 baseline predated: many-small-blocks 10MB load 22.1s → 4.5s,
+  reference-heavy 10MB load 2.5s → 1.1s, single-giant-paragraph 10MB keystroke 1.8s → 1.2s;
+  the viewport-bounded keystroke band reads 2.5-4.4ms across every shape and size. Bench time
+  rows keep their 2026-06-20 reference values.
 
 ### 0.9.26 — Presentation modes: the full live-preview ladder
 
