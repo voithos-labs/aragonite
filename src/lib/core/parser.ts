@@ -7,17 +7,28 @@
 import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
-import { getOrderedOpeners, type OpenContext } from '../schema/block-openers';
+import { defaultGrammarView, type GrammarView, type OpenContext } from '../schema/block-openers';
 import { assertInvariant } from '../invariants/assert';
 import { parseParagraph } from './parsers/paragraph';
 import './parsers/built-in-openers';
 
 // ── Public entry point ──────────────────────────────────────────────────
 
-export function parse(source: string): Document {
+/**
+ * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view
+ * (concern #1's instance seam) — absent = the global openers (the editorless,
+ * behavior-preserving default). It filters only the TOP-LEVEL opener dispatch:
+ * nested container reparses (blockquote/list bodies) and the paragraph-interrupt
+ * scan read the global grammar, the documented enablement boundary — a top-level
+ * disabled kind is skipped, a nested one is not. In-editor reparse callers thread
+ * their instance grammar the same way (`updateNodeContent`); the unthreaded ones
+ * (`parse-block`, split/merge reparse, paste) default to global and so stay
+ * byte-identical.
+ */
+export function parse(source: string, opts?: { grammar?: GrammarView }): Document {
 	const t0 = perfEnabled() ? performance.now() : 0;
 	const lines = splitLines(source);
-	const result = parseBlocks(lines, 0, lines.length);
+	const result = parseBlocks(lines, 0, lines.length, opts?.grammar ?? defaultGrammarView);
 	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
 	return {
 		kind: 'document',
@@ -39,7 +50,12 @@ interface ParseBlocksResult {
  * a [start, end) window aligned to block starts parses identically to a
  * full parse of the window's text.
  */
-export function parseBlocks(lines: ParsedLine[], start: number, end: number): ParseBlocksResult {
+export function parseBlocks(
+	lines: ParsedLine[],
+	start: number,
+	end: number,
+	grammar: GrammarView = defaultGrammarView
+): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let prefix = '';
 	let pendingTrivia = '';
@@ -59,7 +75,8 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 		end,
 		line: lines[index],
 		leadingTrivia: '',
-		isFirstInWindow: true
+		isFirstInWindow: true,
+		grammar
 	};
 
 	while (index < end) {
@@ -87,7 +104,7 @@ export function parseBlocks(lines: ParsedLine[], start: number, end: number): Pa
 // ── Dispatch ────────────────────────────────────────────────────────────
 
 function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } {
-	for (const opener of getOrderedOpeners()) {
+	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
 		if (result) {
 			if (import.meta.env.DEV) guardOpenerResult(ctx, result);
