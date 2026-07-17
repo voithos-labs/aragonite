@@ -143,7 +143,11 @@ async function listItemCascadeMiddle(
 			if (!merged) return;
 			const [firstPathIdx, ...restPath] = merged.targetPath;
 			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, merged.offset);
-		}
+		},
+		// A no-target merge (opaque prev leaf) changes nothing; discard the entry but
+		// keep afterTick — mergedElseFocusPrevious still lands the caret (mirrors
+		// block-edit-core's mergeWithPreviousInterior).
+		discardIfNoop: true
 	});
 }
 
