@@ -204,19 +204,26 @@ function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | nul
 }
 
 /**
- * Per-kind keymap ONLY — no global fallthrough. Override(kind) decides first
- * (binding shadows, 'disabled' short-circuits without consulting the built-in);
- * absent → built-in kind keymap. Container bubble handlers use this: the global
- * tier belongs to the focused leaf, and a bubble re-firing it would double-fire
- * (see `dispatchKindCommand` in `./block-commands`).
+ * Container-bubble resolution: override(kind) → override(global) → built-in kind
+ * keymap. No built-in GLOBAL fallthrough — undo/redo belong to the focused leaf,
+ * and a bubble re-firing the built-in global table would double-fire (see
+ * `dispatchKindCommand` in `./block-commands`). Consumer overrides ARE honored at
+ * both scopes: a `keybindings` decision is a per-instance intent that must mean
+ * the same at the leaf and the bubble. So a global DISABLE unbinds a chord even
+ * where a kind defines it (the container-bubble hole this closes), and a global
+ * BIND shadows the built-in kind binding too — routing to the container's
+ * `runCommand`, which declines an unowned command, rather than falling through to
+ * the shadowed built-in and firing a second, unasked action.
  */
 export function resolveKindBinding(
 	chord: string,
 	kind: AnyBlockKind,
 	overrides?: KeybindingOverrideMap
 ): KeyBinding | null {
-	const decision = overrideDecision(lookupOverride(overrides, kind, chord));
-	if (decision !== undefined) return decision;
+	const kindDecision = overrideDecision(lookupOverride(overrides, kind, chord));
+	if (kindDecision !== undefined) return kindDecision;
+	const globalDecision = overrideDecision(lookupOverride(overrides, 'global', chord));
+	if (globalDecision !== undefined) return globalDecision;
 	return builtinKindBinding(chord, kind);
 }
 

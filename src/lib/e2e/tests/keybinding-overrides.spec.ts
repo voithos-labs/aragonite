@@ -92,6 +92,22 @@ test.describe('keybinding-override prop', () => {
 		expect(await source(editor)).not.toMatch(/- one\n {2}- two/);
 		expect(await source(editor)).toContain('- two');
 	});
+
+	// Global (kind-less) scope reaches the container bubble too: resolveKindBinding
+	// consults override(global), so a global Tab-disable stops the list indent.
+	// Pre-fix the bubble ignored global overrides and Tab still indented the item.
+	test('global scope: disabling Tab stops the list indent at the bubble', async () => {
+		await editor.loadContent('- one\n- two\n');
+		await setKeybindings(editor, [{ chord: 'Tab', command: null }]);
+
+		await editor.page.locator('.text-editable-block', { hasText: 'two' }).click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Tab');
+
+		await editor.page.waitForTimeout(150); // absence-of-indent check; no shape to poll for
+		expect(await source(editor)).not.toMatch(/- one\n {2}- two/);
+		expect(await source(editor)).toContain('- two');
+	});
 });
 
 // Mod+Alt+U has no built-in binding, so undo fires only via the per-instance override.

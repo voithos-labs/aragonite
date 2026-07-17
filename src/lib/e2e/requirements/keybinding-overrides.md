@@ -20,11 +20,14 @@ mutating the global tables.
 - a modified variant of an undo/redo chord (e.g. Mod+Alt+Y) is NOT swallowed as redo —
   it reaches its own override (regression guard: a loose `key==='y'` check used to catch it)
 
-## Per-kind scope
+## Override scope
 
 - a `kind:'heading'` override fires when a heading is focused but not on a paragraph
 - a `kind:'listItem'` override disabling Tab makes Tab no longer indent the item
   (the container-bubble `resolveKindBinding` path — the leaf never claims Tab inside a list)
+- a GLOBAL (kind-less) disable of Tab ALSO stops the list indent: the container bubble
+  consults `override(global)`, so a per-instance decision means the same at the leaf and
+  the bubble (regression: the bubble used to ignore global overrides and Tab still indented)
 
 ## User interactions (real keys, every leaf dispatch surface)
 
