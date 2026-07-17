@@ -124,7 +124,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (deps.isRevealing()) return false;
 		if (caretOffset === null) return false;
 		const node = deps.node;
-		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw);
+		// Forward keys enter the widget after the caret, backward keys the one before —
+		// so a caret between two adjacent widgets enters the correct one instead of
+		// letting native contenteditable delete the far island whole.
+		const direction = e.key === 'ArrowRight' || e.key === 'Delete' ? 'forward' : 'backward';
+		const widgetAt = widgetAtCursor(caretOffset, inlinesOf(node), node.raw, direction);
 		if (!widgetAt) return false;
 
 		// Caret-entry against a widget edge: ArrowLeft/Backspace from the trailing

@@ -72,6 +72,51 @@ describe('widgetAtCursor', () => {
 	});
 });
 
+// Two adjacent widgets share a boundary (A.end === B.start). A forward key must
+// enter B (its leading edge); a backward key must enter A (its trailing edge). The
+// old document-order pick always returned A, so a forward Delete fell through to
+// native contenteditable and wiped B's whole island in one press.
+describe('widgetAtCursor at a shared widget boundary', () => {
+	const TWO_IMAGES = '![a](x.png)![b](y.png)\n';
+	const adjacentInlines: InlineNode[] = [image(0, 11), image(11, 22)];
+
+	it('forward keys resolve the boundary to the following widget (B, leading edge)', () => {
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'forward')).toEqual({
+			start: 11,
+			end: 22,
+			atRight: false,
+			kind: 'image'
+		});
+	});
+
+	it('backward keys resolve the boundary to the preceding widget (A, trailing edge)', () => {
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'backward')).toEqual({
+			start: 0,
+			end: 11,
+			atRight: true,
+			kind: 'image'
+		});
+	});
+
+	it('defaults to the preceding widget (backward) when no direction is given', () => {
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES)).toEqual({
+			start: 0,
+			end: 11,
+			atRight: true,
+			kind: 'image'
+		});
+	});
+
+	it('direction is inert away from a shared boundary (single trailing edge)', () => {
+		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, 'forward')).toEqual({
+			start: 0,
+			end: 11,
+			atRight: true,
+			kind: 'image'
+		});
+	});
+});
+
 describe('findWidgetNodeByStart', () => {
 	it('finds a live widget by its source start offset', () => {
 		expect(findWidgetNodeByStart(0, imageInlines, IMAGE_RAW)).toEqual({ start: 0, end: 11 });

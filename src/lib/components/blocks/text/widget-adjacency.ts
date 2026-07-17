@@ -20,22 +20,32 @@ export interface WidgetAtCursor extends WidgetRange {
 	kind: AnyInlineKind;
 }
 
+export type CaretDirection = 'forward' | 'backward';
+
 /** The live widget the caret sits against, or null. `atRight` distinguishes a
- *  caret at the widget's trailing edge from one at its leading edge. */
+ *  caret at the widget's trailing edge from one at its leading edge. At a boundary
+ *  two widgets share (A.end === B.start), `direction` breaks the tie: a forward key
+ *  enters the following widget (B, leading edge), a backward key the preceding one
+ *  (A, trailing edge). Away from a shared boundary only one match exists and
+ *  `direction` is inert. */
 export function widgetAtCursor(
 	offset: number | null,
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
-	raw: string
+	raw: string,
+	direction: CaretDirection = 'backward'
 ): WidgetAtCursor | null {
 	if (offset === null) return null;
+	let leadingMatch: WidgetAtCursor | null = null;
+	let trailingMatch: WidgetAtCursor | null = null;
 	// Recurse so a widget nested inside a link (`[![alt][ref]][repo]`) is seen.
 	for (const inline of flattenInlineWidgets(inlineContent ?? [], raw)) {
-		if (offset === inline.start)
-			return { start: inline.start, end: inline.end, atRight: false, kind: inline.kind };
-		if (offset === inline.end)
-			return { start: inline.start, end: inline.end, atRight: true, kind: inline.kind };
+		if (offset === inline.start && !leadingMatch)
+			leadingMatch = { start: inline.start, end: inline.end, atRight: false, kind: inline.kind };
+		if (offset === inline.end && !trailingMatch)
+			trailingMatch = { start: inline.start, end: inline.end, atRight: true, kind: inline.kind };
 	}
-	return null;
+	if (direction === 'forward') return leadingMatch ?? trailingMatch;
+	return trailingMatch ?? leadingMatch;
 }
 
 export function findWidgetNodeByStart(
