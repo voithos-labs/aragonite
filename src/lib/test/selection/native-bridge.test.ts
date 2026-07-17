@@ -63,3 +63,50 @@ describe('undo selection snapshots — cellCoordinate round-trip', () => {
 		expect(restored.end?.offset).toBe(3);
 	});
 });
+
+describe('applySelectionToDom — restore routing', () => {
+	const TABLE_ONLY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+
+	it('single-block-range restore fires one onChange and never enters cross-block (E-F8)', () => {
+		const doc = parse('paragraph one\n');
+		let onChangeCount = 0;
+		let sawCrossBlock = false;
+		const s = createSelectionState({
+			getDoc: () => doc,
+			onChange: () => {
+				onChangeCount++;
+				if (s.isCrossBlock) sawCrossBlock = true;
+			}
+		});
+
+		applySelectionToDom(
+			{ anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 5 } },
+			s,
+			() => null
+		);
+
+		expect(onChangeCount).toBe(1);
+		expect(sawCrossBlock).toBe(false);
+		expect(s.isCrossBlock).toBe(false);
+	});
+
+	it('parks the restore caret in the focus cell for an intra-table rect (E-F4)', () => {
+		const doc = parse(TABLE_ONLY);
+		const s = createSelectionState({ getDoc: () => doc });
+		const requested: number[][] = [];
+
+		applySelectionToDom(
+			// Flagged anchor + context-established (unflagged) focus, cell index 3.
+			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
+			s,
+			(p) => {
+				requested.push(p);
+				return document.createElement('div');
+			}
+		);
+
+		// Cell index 3 in a 2-column table is row 1, col 1 — park in the deep cell,
+		// not a char-walk on the table wrapper path [0].
+		expect(requested).toEqual([[0, 1, 1]]);
+	});
+});

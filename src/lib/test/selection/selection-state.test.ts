@@ -141,3 +141,62 @@ describe('SelectionState.isCustomRendered', () => {
 		expect(s.isCustomRendered).toBe(true);
 	});
 });
+
+describe('SelectionState.restoreRoute (classify a pair without mutating state)', () => {
+	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+
+	it('routes distinct paths as custom (cross-block)', () => {
+		const doc = parse('a\n\nb\n');
+		const s = createSelectionState({ getDoc: () => doc });
+		expect(s.restoreRoute({ path: [0], offset: 0 }, { path: [1], offset: 1 })).toBe('custom');
+	});
+
+	it('routes an equal-offset pair as collapsed', () => {
+		const s = createSelectionState();
+		expect(s.restoreRoute({ path: [0], offset: 3 }, { path: [0], offset: 3 })).toBe('collapsed');
+	});
+
+	it('routes a same-path prose range as single-block', () => {
+		const doc = parse('paragraph\n');
+		const s = createSelectionState({ getDoc: () => doc });
+		expect(s.restoreRoute({ path: [0], offset: 0 }, { path: [0], offset: 5 })).toBe('single-block');
+	});
+
+	it('routes a same-path table range as custom (cell rect)', () => {
+		const doc = parse(tableSource);
+		const s = createSelectionState({ getDoc: () => doc });
+		// Flagged anchor and context-established (unflagged) focus both classify custom.
+		expect(
+			s.restoreRoute({ path: [0], offset: 0, cellCoordinate: true }, { path: [0], offset: 1 })
+		).toBe('custom');
+		expect(s.restoreRoute({ path: [0], offset: 0 }, { path: [0], offset: 1 })).toBe('custom');
+	});
+
+	it('treats a same-path range as single-block when no doc accessor is wired', () => {
+		const s = createSelectionState();
+		expect(s.restoreRoute({ path: [0], offset: 0 }, { path: [0], offset: 5 })).toBe('single-block');
+	});
+});
+
+describe('SelectionState.cellDeepPath', () => {
+	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+
+	it('resolves a flagged cell endpoint to its deep [table,row,col] path', () => {
+		const doc = parse(tableSource);
+		const s = createSelectionState({ getDoc: () => doc });
+		// cellIdx 3 in a 2-column table = row 1, col 1.
+		expect(s.cellDeepPath({ path: [0], offset: 3, cellCoordinate: true })).toEqual([0, 1, 1]);
+	});
+
+	it('resolves a context-established (unflagged) intra-table endpoint too (E-F4)', () => {
+		const doc = parse(tableSource);
+		const s = createSelectionState({ getDoc: () => doc });
+		expect(s.cellDeepPath({ path: [0], offset: 2 })).toEqual([0, 1, 0]);
+	});
+
+	it('returns null for a prose endpoint', () => {
+		const doc = parse('paragraph\n');
+		const s = createSelectionState({ getDoc: () => doc });
+		expect(s.cellDeepPath({ path: [0], offset: 3 })).toBeNull();
+	});
+});
