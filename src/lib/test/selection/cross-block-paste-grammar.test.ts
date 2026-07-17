@@ -55,7 +55,15 @@ function makeEnv(source: string) {
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
 	const containerEdit = createContainerEditActions(deps, controller);
-	return { doc: () => deps.doc, deps, selectionState, controller, blockEdit, containerEdit, stickyColumn };
+	return {
+		doc: () => deps.doc,
+		deps,
+		selectionState,
+		controller,
+		blockEdit,
+		containerEdit,
+		stickyColumn
+	};
 }
 
 function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | undefined) {
@@ -102,7 +110,10 @@ describe('handleCrossBlockPaste forwards the instance grammar to the join repars
 		const env = makeEnv('x\n\n. item\n');
 		env.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
 
-		const handlers = makeHandlers(env, createGrammarView((kind) => kind !== 'list'));
+		const handlers = makeHandlers(
+			env,
+			createGrammarView((kind) => kind !== 'list')
+		);
 		await handlers.handlePaste(pasteEvent('1'));
 
 		expect(env.doc().children).toHaveLength(1);
