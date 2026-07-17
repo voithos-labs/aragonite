@@ -71,6 +71,32 @@ test.describe('undo and redo', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
+	test('undo across a paragraph→htmlBlock flip restores the rendered DOM, not just the source', async () => {
+		// The block starts as the paragraph '<di'. Typing 'v' makes '<div', which
+		// reparses to an htmlBlock in the same (non-prose) render path — and the
+		// browser has already inserted the char, so the DOM matches the display
+		// before the render runs. Undo returns the paragraph, and the DOM must
+		// follow the CST. Asserting source alone passes while the bug is live (the
+		// CST is correct after undo); only the rendered DOM goes stale, so the next
+		// keystroke would commit the undone byte back.
+		await editor.loadContent('<di\n');
+		await editor.focusBlockEnd(0);
+		await editor.typeText('v');
+		await editor.bridge.waitForSourceContains('<div');
+		await editor.waitForUndoBatchFlush();
+		expect(await editor.bridge.getBlockKind(0)).toBe('htmlBlock');
+
+		await editor.undo();
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+		expect(await editor.getBlockText(0)).toBe('<di');
+
+		// The undone byte must not resurrect through the next keystroke's readback.
+		await editor.focusBlockEnd(0);
+		await editor.typeText('z');
+		await editor.bridge.waitForSourceContains('z');
+		expect(await editor.bridge.getSource()).not.toContain('div');
+	});
+
 	test('multiple undo steps revert a sequence of operations', async () => {
 		const original = await editor.bridge.getSource();
 

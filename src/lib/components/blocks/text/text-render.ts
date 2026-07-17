@@ -258,7 +258,6 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			}
 			widgetPool.sweep();
 			if (caretWalkOffset !== null) restoreCaret(el, caretWalkOffset);
-			lastRenderedKey = renderKey;
 		} else {
 			// A non-prose kind builds no inline widgets or islands, so an empty pass
 			// here sweeps any pooled widget — and the destroy run any island — stranded
@@ -278,14 +277,18 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 					el.replaceChildren(
 						buildMarkerPrefixDOM(markerPrefix, display.slice(markerPrefix.length))
 					);
-					lastRenderedKey = renderKey;
 				}
 			} else if (el.textContent !== display) {
 				el.textContent = display;
-				lastRenderedKey = renderKey;
 			}
 		}
 
+		// Record the key unconditionally: after this pass the DOM reflects
+		// renderKey even when an arm skipped its write because the text already
+		// matched. Updating only on a write froze the key across a prose→non-prose
+		// flip whose DOM the browser had already mutated, and a later prose render
+		// with the frozen key wrongly early-returned onto stale DOM.
+		lastRenderedKey = renderKey;
 		ensureBr(el);
 	}
 
