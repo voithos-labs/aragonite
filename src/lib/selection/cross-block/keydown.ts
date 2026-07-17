@@ -21,6 +21,7 @@ import {
 	scrollFocusBlockIntoView
 } from '../keyboard-extend';
 import { cellEndpointDeepPath } from '../table-endpoint-snap';
+import { intraTableRectExtension } from '../table-rect-extend';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
@@ -116,6 +117,31 @@ async function handleCrossBlockActive(
 
 	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
 	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
+
+	// Intra-table rectangle: Shift+Arrow grows the rectangle cell-by-cell and exits
+	// at the vertical edge. Must precede the generic block-level extend, which walks
+	// the table's own first cell and snaps the focus back to cellIdx 0.
+	if (
+		e.shiftKey &&
+		(e.key === 'ArrowUp' ||
+			e.key === 'ArrowDown' ||
+			e.key === 'ArrowLeft' ||
+			e.key === 'ArrowRight')
+	) {
+		const ext = intraTableRectExtension(doc, selection.anchor, selection.focus, e.key);
+		if (ext) {
+			e.preventDefault();
+			if (ext.kind === 'cell') {
+				selection.extendFocus({ path: selection.focus!.path.slice(), offset: ext.offset });
+			} else if (ext.direction === 'forward') {
+				extendFocusToNextBlock(selection, doc, el, ext.fromCellPath, 'vertical');
+			} else {
+				extendFocusToPreviousBlock(selection, doc, el, ext.fromCellPath, 'start');
+			}
+			await revealActiveEndpoint(ctx);
+			return true;
+		}
+	}
 
 	if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
 		e.preventDefault();
