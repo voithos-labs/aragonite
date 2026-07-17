@@ -27,7 +27,7 @@ import { getBlockComponent } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
 import { isPluginCommandId } from './command-id';
-import { normalizeChord } from './keybindings';
+import { normalizeChord, isChordWellFormed } from './keybindings';
 import { takeRegistrationFlushWork } from './registration-pending';
 
 export {
@@ -96,7 +96,7 @@ export function flushPendingRegistrationChecks(
 	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 	report('keymap-coherence', () =>
-		checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId, normalizeChord)
+		checkKeymapCoherence(keymapEntries(kinds), isKnownCommandId, normalizeChord, isChordWellFormed)
 	);
 	report('reserved-chrome-coherence', () =>
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
