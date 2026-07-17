@@ -6,6 +6,7 @@
  * that collides with a built-in id or a prior mint.
  */
 import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS, type CommandId } from './commands';
+import { devReplacesRegistration } from './register-once';
 
 declare const PluginCommandIdBrand: unique symbol;
 export type PluginCommandId = string & { readonly [PluginCommandIdBrand]: true };
@@ -28,6 +29,9 @@ export function mintCommandId(name: string): PluginCommandId {
 		throw new Error(`mintCommandId: "${name}" is a built-in command id`);
 	}
 	if (mintedCommandIds.has(name)) {
+		// Dev re-eval (HMR/SSR) re-mints a plugin's own id; return the existing brand
+		// rather than 500 the route. Production/test keep the collision throw.
+		if (devReplacesRegistration()) return name as PluginCommandId;
 		throw new Error(`mintCommandId: "${name}" was already minted by another plugin`);
 	}
 	mintedCommandIds.add(name);

@@ -13,6 +13,7 @@ import type { AnyInlineKind, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
+import { registerOnce } from '../../schema/register-once';
 
 /**
  * Props a `component` widget kind is mounted with. A frozen-at-mount snapshot: the
@@ -89,19 +90,18 @@ export function registerInlineWidgetKind(
 	kind: AnyInlineKind,
 	descriptor: InlineWidgetDescriptor
 ): void {
-	if (registry.has(kind)) {
-		throw new Error(
-			`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
-				`register-once — a re-registration would clobber a built-in (image/rawHtml).`
-		);
-	}
 	if (descriptor.component && descriptor.buildWidget) {
 		throw new Error(
 			`registerInlineWidgetKind: "${kind}" declares both a component and a buildWidget — ` +
 				`a widget kind renders through exactly one. Drop one.`
 		);
 	}
-	registry.set(kind, descriptor);
+	registerOnce(
+		registry.has(kind),
+		() => registry.set(kind, descriptor),
+		`registerInlineWidgetKind: "${kind}" is already registered. Inline-widget kinds are ` +
+			`register-once — a re-registration would clobber a built-in (image/rawHtml).`
+	);
 }
 
 /**

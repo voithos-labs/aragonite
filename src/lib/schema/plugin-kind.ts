@@ -7,6 +7,7 @@ import {
 } from '../core/nodes';
 import { currentInstallingPlugin, pluginKindOwner, recordPluginKindOwner } from './plugin-install';
 import { isValidPluginName } from './plugin-name';
+import { devReplacesRegistration } from './register-once';
 
 const declaredPluginKinds = new Set<string>();
 
@@ -27,6 +28,9 @@ export function declarePluginKind(name: string): PluginBlockKind {
 		throw new Error(`declarePluginKind: "${name}" is a reserved structural sentinel`);
 	}
 	if (declaredPluginKinds.has(name)) {
+		// Dev re-eval (HMR/SSR) re-declares a plugin's own kind; return the existing
+		// brand rather than 500 the route. Production/test keep the collision throw.
+		if (devReplacesRegistration()) return name as PluginBlockKind;
 		const owner = pluginKindOwner(name);
 		throw new Error(
 			`declarePluginKind: "${name}" was already declared by another plugin` +
@@ -70,6 +74,8 @@ export function declarePluginInlineKind(name: string): PluginInlineKind {
 		throw new Error(`declarePluginInlineKind: "${name}" is a built-in InlineNodeKind`);
 	}
 	if (declaredPluginInlineKinds.has(name)) {
+		// Dev re-eval survival — see declarePluginKind. Production/test keep the throw.
+		if (devReplacesRegistration()) return name as PluginInlineKind;
 		throw new Error(`declarePluginInlineKind: "${name}" was already declared by another plugin`);
 	}
 	declaredPluginInlineKinds.add(name);
