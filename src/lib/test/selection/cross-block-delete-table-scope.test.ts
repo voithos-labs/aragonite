@@ -13,7 +13,7 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import type { CstNode } from '$lib/core/nodes';
+import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 
 // Regression guards for the stale-table-row-ids class: a cross-block delete
@@ -167,5 +167,48 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 		expect(env.deps.doc.children).toHaveLength(1);
 		expect(env.deps.doc.children[0].kind).toBe('paragraph');
 		expect(env.getBlockIds()).toHaveLength(1);
+	});
+});
+
+// A row registers its BlockListState on mount; a row windowed out of the mounted
+// slice never does. A full-column delete splices every row's cells, but only the
+// mounted rows need a reactive scope — the unmounted ones just need copy-on-write.
+describe('commitColumnDelete — a windowed-out row has no registered state', () => {
+	// Three columns so canDeleteColumn permits removing one (≥2 must remain).
+	const THREE_COL = '| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
+
+	function registerRowState(env: ReturnType<typeof makeEnv>, rowIdx: number): BlockListState {
+		const rowAt = () => env.deps.doc.children[0].children![rowIdx];
+		const state = makeBlockListState(rowAt);
+		registerBlockListState(rowAt(), state);
+		return state;
+	}
+
+	function selectFirstColumn(env: ReturnType<typeof makeEnv>): void {
+		// Column 0 across all rows: cellIdx 0 (row 0, col 0) → 6 (row 2, col 0) in a
+		// 3×3 grid. Anchor carries the cell-coordinate flag like a real rect anchor.
+		env.deps.selectionState.enterCrossBlock(
+			{ path: [0], offset: 0, cellCoordinate: true },
+			{ path: [0], offset: 6 }
+		);
+	}
+
+	it('deletes the column without throwing when the middle row never mounted', async () => {
+		const env = makeEnv(THREE_COL);
+		registerTableState(env, 0);
+		const header = registerRowState(env, 0);
+		const lastRow = registerRowState(env, 2);
+		// Row 1 stays windowed out — no registerRowState, so no registered state.
+		selectFirstColumn(env);
+
+		await performCrossBlockDelete(env.mutCtx, { tableCoverageDelete: true });
+
+		const table = env.deps.doc.children[0];
+		expect(metadataOf(table, 'table').columnCount).toBe(2);
+		const out = serialize(env.deps.doc);
+		expect(serialize(parse(out))).toBe(out);
+		// Mounted rows keep their cell state in lockstep with the two survivors.
+		expect(header.innerBlockIds).toHaveLength(2);
+		expect(lastRow.innerBlockIds).toHaveLength(2);
 	});
 });
