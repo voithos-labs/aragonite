@@ -124,8 +124,22 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
-		this.#anchor = this.#normalizePoint(anchor);
-		this.#focus = this.#normalizePoint(focus);
+		const a = this.#normalizePoint(anchor);
+		const f = this.#normalizePoint(focus);
+		// A same-path prose pair is a single-block range the native browser owns —
+		// storing it mints an INVISIBLE cross-block state (paints nothing yet
+		// suppresses the caret, copies duplicated tail+head, deletes without
+		// reparse). Refuse it here so no entry path can. Intra-table rects share the
+		// table path legitimately but flag their anchor as a cell coordinate — those
+		// pass. The same-offset seed (`enterCrossBlockFromKeyboard`) is kept so its
+		// immediate `extendFocus` has an anchor; a real range collapses on that step.
+		if (this.#isSamePathProseRange(a, f)) {
+			this.#anchor = null;
+			this.#focus = null;
+		} else {
+			this.#anchor = a;
+			this.#focus = f;
+		}
 		this.#onChange?.();
 	}
 
@@ -133,8 +147,29 @@ class SelectionStateImpl implements SelectionState {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
-		this.#focus = this.#normalizePoint(point);
+		const f = this.#normalizePoint(point);
+		// A focus that lands back on the anchor's prose leaf is a contraction to a
+		// single-block range — collapse rather than persist the invisible state.
+		if (
+			pathsEqual(this.#anchor.path, f.path) &&
+			!this.#anchor.cellCoordinate &&
+			!f.cellCoordinate
+		) {
+			this.#anchor = null;
+			this.#focus = null;
+		} else {
+			this.#focus = f;
+		}
 		this.#onChange?.();
+	}
+
+	// Same prose leaf, distinct offsets — the range shape that must never enter
+	// cross-block state. A collapsed (equal-offset) pair is excluded so the
+	// keyboard entry seed survives to its follow-up extend.
+	#isSamePathProseRange(a: SelectionPoint, f: SelectionPoint): boolean {
+		return (
+			pathsEqual(a.path, f.path) && !a.cellCoordinate && !f.cellCoordinate && a.offset !== f.offset
+		);
 	}
 
 	// The one place every entry path (keyboard, shift-click, drag, select-all,

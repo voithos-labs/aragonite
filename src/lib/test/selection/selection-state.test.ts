@@ -42,6 +42,32 @@ describe('SelectionState lifecycle', () => {
 		expect(s.end).toEqual({ path: [3], offset: 2 });
 	});
 
+	it('collapses a same-path prose range instead of entering cross-block (E-F1)', () => {
+		const s = createSelectionState();
+		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 5 });
+		expect(s.isCrossBlock).toBe(false);
+		expect(s.anchor).toBeNull();
+		expect(s.focus).toBeNull();
+	});
+
+	it('keeps the same-offset keyboard seed so its follow-up extend has an anchor', () => {
+		const s = createSelectionState();
+		s.enterCrossBlock({ path: [0], offset: 3 }, { path: [0], offset: 3 });
+		expect(s.isCrossBlock).toBe(true);
+		s.extendFocus({ path: [1], offset: 0 });
+		expect(s.anchor).toEqual({ path: [0], offset: 3 });
+		expect(s.focus).toEqual({ path: [1], offset: 0 });
+	});
+
+	it('collapses when extendFocus contracts onto the anchor prose leaf', () => {
+		const s = createSelectionState();
+		s.enterCrossBlock({ path: [0], offset: 3 }, { path: [1], offset: 0 });
+		expect(s.isCrossBlock).toBe(true);
+		s.extendFocus({ path: [0], offset: 8 });
+		expect(s.isCrossBlock).toBe(false);
+		expect(s.anchor).toBeNull();
+	});
+
 	it('ctrl+a doubling counter tracks press count', () => {
 		const s = createSelectionState();
 		expect(s.selectAllCount).toBe(0);
@@ -57,10 +83,12 @@ describe('SelectionState lifecycle', () => {
 describe('SelectionState.isCustomRendered', () => {
 	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-	it('is true for same-path different-offset on a table block (cell-index selection)', () => {
+	it('is true for a same-path table rect (flagged anchor, cell-index selection)', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
-		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 1 });
+		// Real rects flag the anchor as a cell coordinate (cell-pointer.ts); an
+		// unflagged char pair would collapse to single-block instead.
+		s.enterCrossBlock({ path: [0], offset: 0, cellCoordinate: true }, { path: [0], offset: 1 });
 		expect(s.isCustomRendered).toBe(true);
 	});
 
@@ -95,13 +123,14 @@ describe('SelectionState.isCustomRendered', () => {
 		expect(s.isCustomRendered).toBe(false);
 	});
 
-	it('is false for same-path different-offset on a non-table block', () => {
+	it('never renders custom for a same-path prose range — it collapses to native', () => {
 		const doc = parse('paragraph one\n\n> quoted\n');
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 5 });
+		expect(s.isCrossBlock).toBe(false);
 		expect(s.isCustomRendered).toBe(false);
-		s.clear();
 		s.enterCrossBlock({ path: [1], offset: 0 }, { path: [1], offset: 3 });
+		expect(s.isCrossBlock).toBe(false);
 		expect(s.isCustomRendered).toBe(false);
 	});
 

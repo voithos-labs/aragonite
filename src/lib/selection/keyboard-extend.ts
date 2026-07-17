@@ -12,9 +12,11 @@ import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
+	applySingleBlockRange,
 	clearNativeSelection,
 	offsetFromViewportPoint
 } from './native-bridge';
+import type { BlockElLookup } from '../editor-keys';
 import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths, isStrictAncestorOf } from './path-math';
@@ -100,6 +102,29 @@ export function scrollFocusBlockIntoView(
 // ── Keyboard Extension ─────────────────────────────────────────────────────
 
 /**
+ * Move the cross-block focus to `target`, or — when the seam collapses because
+ * the focus contracted back onto the anchor's prose leaf — restore the resulting
+ * single-block range natively. Keyboard entry parks only a collapsed caret (no
+ * native range tracks underneath, unlike a pointer drag), so the range must be
+ * re-established here to stay visible and copyable. No-op restore without a
+ * lookup (harness callers) or when the anchor block is off-window.
+ */
+function extendFocusOrRestore(
+	selection: SelectionState,
+	target: number[],
+	offset: number,
+	getBlockElByPath?: BlockElLookup
+): void {
+	const anchor = selection.anchor;
+	selection.extendFocus({ path: target, offset });
+	if (!anchor || selection.isCrossBlock || !getBlockElByPath) return;
+	const blockEl = getBlockElByPath(target);
+	if (!blockEl) return;
+	blockEl.focus();
+	applySingleBlockRange(blockEl, Math.min(anchor.offset, offset), Math.max(anchor.offset, offset));
+}
+
+/**
  * Extend focus to the next leaf in document order (Shift+ArrowDown /
  * Shift+ArrowRight leaving the current block). Enters cross-block mode if
  * still single-block. Returns true if focus moved.
@@ -114,7 +139,8 @@ export function extendFocusToNextBlock(
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	axis: 'horizontal' | 'vertical' = 'horizontal'
+	axis: 'horizontal' | 'vertical' = 'horizontal',
+	getBlockElByPath?: BlockElLookup
 ): boolean {
 	const leafTarget =
 		axis === 'vertical'
@@ -125,7 +151,7 @@ export function extendFocusToNextBlock(
 	if (!selection.isCrossBlock) {
 		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
-	selection.extendFocus({ path: leafTarget, offset: 0 });
+	extendFocusOrRestore(selection, leafTarget, 0, getBlockElByPath);
 	return true;
 }
 
@@ -141,7 +167,8 @@ export function extendFocusToPreviousBlock(
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	side: 'start' | 'end' = 'end'
+	side: 'start' | 'end' = 'end',
+	getBlockElByPath?: BlockElLookup
 ): boolean {
 	const leafTarget =
 		side === 'start'
@@ -153,7 +180,7 @@ export function extendFocusToPreviousBlock(
 		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
 	const offset = side === 'start' ? 0 : leafOffsetEnd(doc, leafTarget);
-	selection.extendFocus({ path: leafTarget, offset });
+	extendFocusOrRestore(selection, leafTarget, offset, getBlockElByPath);
 	return true;
 }
 
@@ -167,7 +194,8 @@ export function extendFocusToDocEdge(
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	to: 'start' | 'end'
+	to: 'start' | 'end',
+	getBlockElByPath?: BlockElLookup
 ): boolean {
 	const edge = to === 'start' ? firstPath(doc) : lastPath(doc);
 	if (!edge) return false;
@@ -184,7 +212,7 @@ export function extendFocusToDocEdge(
 	}
 
 	const offset = to === 'end' ? leafOffsetEnd(doc, target) : 0;
-	selection.extendFocus({ path: target, offset });
+	extendFocusOrRestore(selection, target, offset, getBlockElByPath);
 	return true;
 }
 
@@ -199,13 +227,22 @@ export function selectWholeDocument(
 	const first = firstPath(doc);
 	const last = lastPath(doc);
 	if (!first || !last) return false;
-	selection.enterCrossBlock(
-		{ path: first, offset: 0 },
-		{
-			path: last,
-			offset: leafOffsetEnd(doc, last)
+	const lastOffset = leafOffsetEnd(doc, last);
+	selection.enterCrossBlock({ path: first, offset: 0 }, { path: last, offset: lastOffset });
+
+	// A single prose leaf (whole doc is one block) has no cross-block state to
+	// paint — the seam refuses it. Select it natively rather than clearing the
+	// selection (2nd Ctrl+A on a one-block doc must not deselect).
+	if (!selection.isCustomRendered) {
+		selection.collapse();
+		const blockEl = getBlockElByPath?.(first);
+		if (blockEl) {
+			blockEl.focus();
+			applySingleBlockRange(blockEl, 0, lastOffset);
 		}
-	);
+		return true;
+	}
+
 	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard. A table focus
 	// endpoint normalizes to the table block, whose wrapper holds no caret —
 	// park in its deep cell instead, as collapseCrossBlock does.
