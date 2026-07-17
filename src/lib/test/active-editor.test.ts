@@ -1,34 +1,60 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+	registerEditor,
+	unregisterEditor,
 	markEditorInteracted,
-	isLastInteractedEditor,
+	claimsBodyChord,
 	releaseInteractedEditor,
 	__resetActiveEditorForTests
 } from '$lib/active-editor';
 
-describe('active-editor — document-chord owner', () => {
+describe('active-editor — body-chord claimant', () => {
 	const a = document.createElement('div');
 	const b = document.createElement('div');
 	beforeEach(() => __resetActiveEditorForTests());
 
-	it('last interaction wins across instances', () => {
+	it('the sole mounted editor claims a body chord even before any interaction', () => {
+		registerEditor(a);
+		expect(claimsBodyChord(a)).toBe(true);
+	});
+
+	it('an unregistered editor never claims', () => {
+		expect(claimsBodyChord(a)).toBe(false);
+	});
+
+	it('the last-interacted editor claims across two mounted instances', () => {
+		registerEditor(a);
+		registerEditor(b);
 		markEditorInteracted(a);
-		expect(isLastInteractedEditor(a)).toBe(true);
+		expect(claimsBodyChord(a)).toBe(true);
+		expect(claimsBodyChord(b)).toBe(false);
 		markEditorInteracted(b);
-		expect(isLastInteractedEditor(a)).toBe(false);
-		expect(isLastInteractedEditor(b)).toBe(true);
+		expect(claimsBodyChord(a)).toBe(false);
+		expect(claimsBodyChord(b)).toBe(true);
 	});
 
-	it('nothing is claimed before any interaction', () => {
-		expect(isLastInteractedEditor(a)).toBe(false);
+	it('two mounted editors with no live claim resolve to neither — ambiguous', () => {
+		registerEditor(a);
+		registerEditor(b);
+		expect(claimsBodyChord(a)).toBe(false);
+		expect(claimsBodyChord(b)).toBe(false);
 	});
 
-	it('release clears only the holder', () => {
+	it('a released last-interacted claim falls back to the remaining sole editor', () => {
+		registerEditor(a);
+		registerEditor(b);
 		markEditorInteracted(a);
-		releaseInteractedEditor(b); // b never held it — no-op
-		expect(isLastInteractedEditor(a)).toBe(true);
 		releaseInteractedEditor(a);
-		expect(isLastInteractedEditor(a)).toBe(false);
+		unregisterEditor(a);
+		expect(claimsBodyChord(b)).toBe(true);
+	});
+
+	it('a stale (unmounted, unreleased) claim still yields to the sole survivor', () => {
+		registerEditor(a);
+		registerEditor(b);
+		markEditorInteracted(a);
+		unregisterEditor(a); // release skipped — claim points at an unmounted editor
+		expect(claimsBodyChord(b)).toBe(true);
 	});
 });
