@@ -172,7 +172,7 @@ async function runCustomCheck(
 	// (`inherit-default`) or structural absence (`not-supported`), yet a bespoke
 	// check overrides — silencing the declared-mode executor. Refusing it here is
 	// what makes reverting a profiled cell off `implemented`, with the profile left
-	// intact (the 0.9.24 `table.clipboard` incident), go red rather than stay green.
+	// intact (the table-clipboard cell that lied about its rect-copy mechanism), go red rather than stay green.
 	if (cell.mode !== 'implemented') {
 		fail(
 			`profile supplies a "${column}" check for "${kind}", but its declared mode is ` +

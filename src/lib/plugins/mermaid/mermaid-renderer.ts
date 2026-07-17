@@ -1,7 +1,10 @@
 /**
- * Injectable Mermaid renderer for the render-primary reference block. Lives
- * under the dogfood harness (not `src/lib`) so `svelte-package` never bundles
- * it — the `mermaid` engine stays a devDependency, out of the published `dist/`.
+ * Injectable Mermaid renderer seam for the render-primary reference block. Ships
+ * as part of `aragonite/plugins/mermaid` — engine-free: it holds the injected
+ * renderer slot and the per-code memo, never the `mermaid` engine itself. That
+ * engine is confined to the `/renderer` subpath (`renderer.ts`), which
+ * dynamic-imports `mermaid` (an optional peer dependency) so it never rides the
+ * plugin's core bundle.
  *
  * `MermaidBlock` mounts with the standard block props (no renderer channel), so
  * the injected engine travels by module, like the inline-math renderer:

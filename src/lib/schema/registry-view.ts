@@ -1,5 +1,5 @@
 /**
- * Per-instance resolution over the process-global block definitions (concern #1).
+ * Per-instance resolution over the process-global block definitions (docs/research/architecture-concerns.md).
  *
  * Kind definitions stay global (the `customElements` model — register-once, one
  * definition per process; docs/design/plugin-contract.md § Schema registries). An
@@ -14,11 +14,9 @@
  * the predicate's domain is plugin kinds. The DESCRIPTOR is never filtered: it is
  * required infrastructure (isContainer, merge role, rebuild), and a disabled kind
  * still needs it to degrade rather than throw.
- *
- * The enablement predicate has no public prop yet — it firms up with limestone
- * (docs/design/plugin-contract.md). This batch ships the seam + a harness-only
- * door for the enablement proof.
  */
+// TODO(limestone): public enablement prop — the predicate that sources enablement
+// has no public door yet; it firms up with limestone (docs/design/plugin-contract.md).
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';
 import {

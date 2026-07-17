@@ -83,7 +83,7 @@
 	bootstrapCodeLanguages();
 	runStartupInvariantChecks();
 
-	// `__registryEnablement` is a harness-only door (concern #1): a per-instance
+	// `__registryEnablement` is a harness-only door (docs/research/architecture-concerns.md): a per-instance
 	// enablement predicate for the registry view, NOT part of the public EditorProps.
 	// The intersection keeps it off the exported type — the public enablement prop
 	// firms up with limestone (docs/design/plugin-contract.md).
@@ -387,7 +387,7 @@
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
-	// The instance's resolution over the global block definitions (concern #1).
+	// The instance's resolution over the global block definitions (docs/research/architecture-concerns.md).
 	// Default (no enablement door) reads the global registry verbatim, so the
 	// editor is byte-identical to the pre-view behavior; a harness enablement
 	// predicate filters the component (→ raw-editable) and the grammar.

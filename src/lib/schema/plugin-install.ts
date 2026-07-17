@@ -17,8 +17,8 @@ export interface EditorPlugin<Options = unknown> {
 
 // ── Setup-time context + per-editor subscription ─────────────────────────────
 // `setup` receives a PluginSetupContext scoped to the install; `onEditor`
-// registers a callback fired once per <Editor> instance (Task 2 builds the
-// EditorContext it receives). Option typing flows by generic — a plugin author
+// registers a callback fired once per <Editor> instance. Option typing flows by
+// generic — a plugin author
 // writing `definePlugin<DocStatsOptions>` reads `editor.options: DocStatsOptions`
 // with no cast — but `setup` stays method syntax (bivariant params) so a typed
 // plugin remains assignable at the heterogeneous install boundary.

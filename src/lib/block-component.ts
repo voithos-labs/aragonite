@@ -153,8 +153,7 @@ export interface BlockComponent {
 	 * reveal-capable widget (inline math, directive text) opens its source reveal;
 	 * any other widget is selected (image overlay). Returns true when an edge
 	 * widget was entered; false lets the caller fall through to focus(0) /
-	 * focus(CURSOR_END). Used by cross-block arrow dispatch so ArrowLeft into a
-	 * paragraph that ends with a widget acts on it directly.
+	 * focus(CURSOR_END).
 	 */
 	enterEdgeWidget?(side: 'start' | 'end'): boolean;
 	/**

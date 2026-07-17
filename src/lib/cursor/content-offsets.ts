@@ -107,8 +107,7 @@ export function getCursorOffset(container: HTMLElement): DomTextOffset | null {
 
 /**
  * Returns the moving endpoint of the selection (distinct from the anchor
- * when the user has extended a selection). Used by Shift+Arrow boundary
- * checks to decide whether the next extension crosses a block boundary.
+ * when the user has extended a selection).
  */
 export function getSelectionFocusOffset(container: HTMLElement): DomTextOffset | null {
 	if (document.activeElement !== container) return null;

@@ -34,7 +34,7 @@ export interface NestedActionsDeps {
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** Enclosing list's context, when this container is a list nested in one — consumed by the list-item-cascade unwrap strategy. */
+	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {
 		blockEdit: BlockEditActions;

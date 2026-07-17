@@ -30,11 +30,13 @@ export interface EditorProps {
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */
 	theme?: string;
-	/** Read live, like `theme`. `'source'` (default) is today's styled-source
-	 *  editing; `'reading'` hides markers, renders widgets, and is read-only
-	 *  (selection/copy/navigation stay). The `preview-*` rungs are accepted but
-	 *  render as `'source'` until built; every mode read (the `data-presentation`
-	 *  root attribute, plugin getters) reports the effective mode. */
+	/** Read live, like `theme`. `'source'` (default) is styled-source editing;
+	 *  `'reading'` hides markers, renders widgets, and is read-only
+	 *  (selection/copy/navigation stay); `'preview-block'` and `'preview-inline'`
+	 *  are live-editing preview rungs that reveal source per focused block or per
+	 *  caret-touched construct. Every mode read (the `data-presentation` root
+	 *  attribute, plugin getters) reports the effective mode, which equals the
+	 *  requested one. */
 	presentationMode?: PresentationMode;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
