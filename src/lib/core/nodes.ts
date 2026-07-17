@@ -416,6 +416,10 @@ export function isBuiltinBlockNode(node: CstNode | NodeView): boolean {
  * the spread returns a FRESH object, so passing a view here mints a copy rather
  * than stripping the view's readonly-ness — the funnel cannot open a G1.9 hazard,
  * which is why G4.13 sanctions this file. Field params are mutable by contract.
+ *
+ * The fields are not checked against the arm, so this can mint a metadata-less
+ * node of a metadata-carrying kind — a transient re-parse probe does exactly that.
+ * Such a node's `metadata` must not be read before it is re-parsed or discarded.
  */
 export function makeBlockNode(fields: {
 	kind: AnyBlockKind;
