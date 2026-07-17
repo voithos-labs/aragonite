@@ -10,8 +10,9 @@ import type { SelectionPoint } from './primitives';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
+import type { StructuralChange } from '../tree-operations/structural-change';
 import { deleteNode } from '../tree-operations/node-ops';
-import { expectStateForNode } from '../reactivity/state-registry';
+import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import { classifyTableSelectionCoverage } from './range-delete-table';
 import {
 	deleteRow as mutDeleteRow,
@@ -167,13 +168,18 @@ async function commitColumnDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const rows = table.children ?? [];
+	// A row's BlockListState registers on mount; a row windowed out of the
+	// table's mounted slice has none. Scope only the mounted rows for reactivity —
+	// the ensureUnsharedChildren below copy-path-on-writes EVERY row, mounted or
+	// not, so the per-row cell splice stays G1.9-safe regardless of mount state.
+	const mountedRowScopes: MultiScopeTarget[] = [];
+	for (let i = 0; i < rows.length; i++) {
+		const state = getStateForNode(rows[i]);
+		if (state) mountedRowScopes.push({ node: rows[i], state, path: [tableIdx, i] });
+	}
 	const scopes: MultiScopeTarget[] = [
 		{ node: table, state: rowsState, path: [tableIdx] },
-		...rows.map((row, i) => ({
-			node: row,
-			state: expectStateForNode(row),
-			path: [tableIdx, i]
-		}))
+		...mountedRowScopes
 	];
 	const snapshot =
 		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
@@ -183,17 +189,20 @@ async function commitColumnDelete(
 		scopes,
 		snapshot,
 		mutate: (scopeViews) => {
-			// Row scopes own every row, so the column splices land in owned
-			// arrays; raws rebuild on the owned chains after mutate.
 			const ownedTable = scopeViews[0].node;
-			const rowChanges = mutDeleteColumn(ownedTable, colIdx);
+			// Unshare every row before the splice. Mounted rows are already owned via
+			// their scope; this reaches the windowed-out rows the scopes skip.
+			ensureUnsharedChildren(ownedTable, scopeViews[0].sharing);
+			mutDeleteColumn(ownedTable, colIdx);
 
 			const newColumnCount = metadataOf(ownedTable, 'table').columnCount;
 			const targetCol = Math.min(colIdx, Math.max(0, newColumnCount - 1));
 			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
 			ctx.selection.collapse();
 
-			return [{ op: 'noop' }, ...rowChanges];
+			// Every mounted row loses the same cell; the table scope is a no-op.
+			const rowDelete: StructuralChange = { op: 'delete', at: colIdx, count: 1 };
+			return [{ op: 'noop' }, ...mountedRowScopes.map(() => rowDelete)];
 		},
 		// Event targets the TABLE — a column index is not a child path (parity
 		// with table-context's column ops); colIdx rides in the detail.
