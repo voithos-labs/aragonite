@@ -74,13 +74,27 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	// At end-of-display the inserted `\n` substitutes for the trailing line
-	// ending; preserving the original would form a blank line and break list-
-	// item continuation when the paragraph lives inside a list.
-	it('inserts at end of display text without doubling the trailing newline', () => {
+	// A GFM hard break needs a following line, so at end-of-display it is not
+	// representable as a single paragraph: emitting `\` + newline degenerated to a
+	// literal trailing backslash (the newline became the block's trailing ending,
+	// then trimmed) with the caret one past the display. Suppress it — the raw is
+	// unchanged and the caret clamps to the display length.
+	it('suppresses the degenerate break at end of display text', () => {
 		const r = insertHardBreak('abc\n', 3);
-		expect(r.newRaw).toBe('abc\\\n');
-		expect(r.caretOffset).toBe(5);
+		expect(r.newRaw).toBe('abc\n');
+		expect(r.caretOffset).toBe(3);
+	});
+
+	it('suppresses at end of a CRLF block, leaving the raw and clamping the caret', () => {
+		const r = insertHardBreak('abc\r\n', 3);
+		expect(r.newRaw).toBe('abc\r\n');
+		expect(r.caretOffset).toBe(3);
+	});
+
+	it('suppresses past the display length (offset beyond end clamps)', () => {
+		const r = insertHardBreak('abc\n', 9);
+		expect(r.newRaw).toBe('abc\n');
+		expect(r.caretOffset).toBe(3);
 	});
 
 	it('preserves trailing CRLF', () => {

@@ -28,7 +28,7 @@
 	import { getInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
-	import { trimTrailingLineEnding } from '../../../core/lines';
+	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { toggleInlineFormat } from './format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
@@ -205,7 +205,7 @@
 		getTextLen: () => getDisplayText().length,
 		readText: () => readRawText(),
 		commitInput: (text, preEdit, saved) => {
-			void blockEdit.updateBlockContent(index, text + '\n', preEdit, saved);
+			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit, saved);
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -393,6 +393,9 @@
 				return true;
 			case 'block.hardBreak': {
 				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
+				// A hard break at EOF is suppressed (unchanged raw) — no commit, the
+				// caret stays where it is.
+				if (newRaw === node.raw) return true;
 				blockEdit.updateBlockContent(index, newRaw, offset);
 				setPendingCursorOffset(caretOffset, 'hard-break');
 				return true;
@@ -699,7 +702,7 @@
 			format
 		);
 
-		blockEdit.updateBlockContent(index, newDisplay + '\n', newSelStart);
+		blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart);
 
 		tick().then(() => {
 			setSelection(newSelStart, newSelEnd);

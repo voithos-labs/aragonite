@@ -60,7 +60,7 @@ import { createEditableSurface } from './editable-surface';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
@@ -273,7 +273,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			// !isReading: the leaf is the seam — even if a plain-mode component keeps
 			// its source editable in reading mode, nothing reaches the CST.
 			if (mode === 'plain' && !isReading()) {
-				blockEdit.updateBlockContent(deps.index, text + '\n', preEdit, saved);
+				blockEdit.updateBlockContent(
+					deps.index,
+					text + trailingLineEnding(deps.node.raw),
+					preEdit,
+					saved
+				);
 			}
 		}
 	});
@@ -314,7 +319,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// One undo entry: the anchor is where the caret entered the edit; the
 		// post-edit caret follows the edit position (a structural split lands it
 		// in the block it falls in).
-		blockEdit.updateBlockContent(deps.index, edited + '\n', preEditOffset, edited.length);
+		blockEdit.updateBlockContent(
+			deps.index,
+			edited + trailingLineEnding(deps.node.raw),
+			preEditOffset,
+			edited.length
+		);
 	}
 
 	function commitReveal(): void {
