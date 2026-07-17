@@ -34,6 +34,37 @@ SSR registrar poison) gets a structural fix instead of a fourth compensation. Li
 integrates against the fixed shape and pressure-tests it, rather than binding to the suspect
 one while "validating" it.
 
+**Resolution (0.9.27 — FIXED).** Two structural fixes landed; the frozen 0.8.3 semantics
+(register-once, conflict-on-duplicate, definitions-are-global) are preserved.
+
+_The instance-resolution view_ (`schema/registry-view.ts`). Definitions stay the process-global
+cache; an editor instance reads them through a `RegistryView`. The default view resolves every
+kind VERBATIM — the module-level registry functions ARE its implementation — so an editorless
+`parse()` and every bare component mount stay byte-identical, and the full unit suite unchanged is
+the proof. The read families that moved: block **component** and **descriptor** (BlockHost reads
+the view via one context key) and the block **grammar** (`parse(source, { grammar })` threads a
+per-instance `GrammarView` through the top-level opener dispatch). Command/keymap resolution and
+inline-widget reads already had per-instance channels (the override-map argument, in-component
+context) and did not move. Enablement is the additive knob the contract pre-authorizes as "the
+policy layer above": a filtered view resolves NO component for a disabled plugin kind (the
+raw-editable fallback renders — the unknown-kind rule) and drops its opener from the grammar;
+built-ins are never disableable and the descriptor is never filtered (a disabled kind degrades,
+not throws). The enablement _predicate_ ships behind a harness-only door with a two-editor proof
+(one kind disabled in A, live in B); its **public prop firms up with limestone** — the seam is
+built, the public surface deliberately deferred. The honest boundary: the instance grammar
+threads the top-level parse and the content-commit reparse; nested container reparse, the
+paragraph-interrupt scan, split/merge reparse, paste, and inline syntax read the global grammar
+(byte-identical by the default, and completed when the public enablement API sources the
+predicate everywhere).
+
+_The DEV idempotence guard_ (`schema/register-once.ts`) kills the SSR registrar-poison 500-class:
+under a dev server (not production, not a test run) a duplicate registration REPLACES with a note
+instead of throwing, so a Vite-invalidated registrar overwrites its own prior registrations
+rather than 500-ing every route. Production and test keep the register-once throw — the observed,
+pinned contract is unchanged. Applied to every keyed registry plus the kind/id mints; a chorded
+plugin-global command is the one documented residual (`docs/issues.md`). Test resets and the
+maintenance invariant are untouched (the valve adds no registry state).
+
 ## 2. `SelectionPoint.offset` carries two coordinate spaces in one field
 
 **The design.** `offset: number` means a character offset into a leaf's `raw` — unless
