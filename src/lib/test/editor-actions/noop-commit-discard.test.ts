@@ -6,6 +6,7 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { findMergeTarget } from '$lib/schema/merge-rules';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
@@ -88,5 +89,50 @@ describe('noop structural commit discards its snapshot', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 		expect(edits.filter((e) => e.op === 'split')).toHaveLength(1);
 		expect(deps.doc.children).toHaveLength(2);
+	});
+});
+
+// The M1 middle-item merge (Backspace at a non-first list item's start) can find
+// no target when the previous item's deepest leaf is opaque (a fenced code block).
+// That no-op must discard like its block-edit-core sibling — no dead undo entry, no
+// phantom `merge` event.
+describe('no-target list middle-item merge discards its commit', () => {
+	it('Backspace above an opaque prev leaf mints no entry and no merge event', async () => {
+		const doc = parse('- ```\n  code\n  ```\n- text\n');
+		const list = doc.children[0];
+		// Precondition: item 0's deepest leaf is opaque, so the merge finds no target
+		// (RED ≠ GREEN — a reachable prose leaf would merge and legitimately commit).
+		expect(list.children?.[0].children?.[0].kind).toBe('fencedCode');
+		expect(findMergeTarget(list.children![0])).toBeNull();
+
+		const { deps, events } = makeEditorActionsDeps([list]);
+		const controller = createUndoController(deps);
+		const containerEdit = createContainerEditActions(deps, controller);
+		const state = createBlockListState(() => deps.doc.children[0]);
+		const bundle = createStandardNestedActions(state, {
+			index: 0,
+			get node() {
+				return deps.doc.children[0];
+			},
+			path: [0],
+			stickyColumn: makeStickyColumn(),
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit
+			}
+		});
+
+		const before = serialize(deps.doc);
+		const beforeChildIds = [...(deps.doc.children[0].childIds ?? [])];
+		const edits: EditEvent[] = [];
+		events.on('edit', (e) => edits.push(e));
+
+		await bundle.blockEdit.mergeWithPrevious(1);
+
+		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(edits).toHaveLength(0);
+		expect(serialize(deps.doc)).toBe(before);
+		expect(deps.doc.children[0].childIds ?? []).toEqual(beforeChildIds);
 	});
 });
