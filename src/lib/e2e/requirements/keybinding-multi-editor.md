@@ -21,3 +21,11 @@ contained to a single instance, so one keypress never drives two editors.
 - Ctrl+F with focus in an element outside every editor (a page control, an
   unrelated input) opens no search bar — outside focus must not steer any
   instance's search bar (regression: it opened the editor's search and stole focus)
+
+## Single-editor document-chord claim
+
+- Ctrl+F on a lone editor while a sibling control outside it holds focus (a toolbar
+  toggle, not `<body>`) opens its Find bar — a sole editor claims its own search
+  chords page-wide, matching pre-containment behavior (regression: the containment
+  gate demanded focus-inside-or-body, so a click on the reading-mode toggle left
+  focus on that checkbox and stranded a following Ctrl+F / Ctrl+H)
