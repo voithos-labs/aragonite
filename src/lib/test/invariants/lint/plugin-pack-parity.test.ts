@@ -1,14 +1,14 @@
 /**
  * G4.10 — plugin package/pack parity. Every directory under `src/lib/plugins/`
  * is a shippable subpath, so each must surface as a `./plugins/<name>` entry in
- * package.json `exports` AND as `dist/plugins/<name>/index.js` +
- * `dist/plugins/<name>/index.d.ts` in verify-pack's REQUIRED manifest. A plugin
- * dir born without both is silently unshippable — the funnel that would enforce
- * this at build time can't exist (the manifests are hand-maintained), so the
- * parity rule lives here.
+ * package.json `exports` — from which verify-pack derives the tarball's REQUIRED
+ * manifest (`scripts/pack-manifest.mjs`), pulling in `dist/plugins/<name>/index.js`
+ * + `dist/plugins/<name>/index.d.ts`. A plugin dir absent from `exports` is
+ * silently unshippable; this lint is the filesystem-grounded check that the export
+ * surface — and the derivation that reads it — covers every plugin source dir.
  *
  * The mapping is subset, not equality: latex and mermaid legitimately publish an
- * extra `/renderer` engine-adapter subpath, so the manifests carry more entries
+ * extra `/renderer` engine-adapter subpath, so the manifest carries more entries
  * than there are plugin dirs. The guard only asserts every dir is reachable —
  * never that every manifest entry maps back to a dir.
  *
@@ -22,6 +22,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { collectEditorSources } from './scan-source';
+import { requiredPackPaths } from '../../../../../scripts/pack-manifest.mjs';
 
 const PLUGIN_SRC = path.resolve('src/lib/plugins');
 
@@ -41,15 +42,6 @@ function pluginDirs(): string[] {
 		.filter((e) => e.isDirectory())
 		.map((e) => e.name)
 		.sort();
-}
-
-// verify-pack's REQUIRED is a static string-literal array; the only `dist/plugins`
-// paths in the file live there, so a scan for the token is unambiguous.
-const VERIFY_PACK_PLUGIN_PATH = /dist\/plugins\/[A-Za-z0-9._/-]+/g;
-
-function verifyPackPluginPaths(): Set<string> {
-	const text = readFileSync(path.resolve('scripts/verify-pack.mjs'), 'utf8');
-	return new Set(text.match(VERIFY_PACK_PLUGIN_PATH) ?? []);
 }
 
 /** A top-level side-effect CSS import (`import 'x.css';`), the latex renderer shape. */
@@ -101,7 +93,7 @@ describe('G4.10 plugin package/pack parity', () => {
 	const names = pluginDirs();
 	const pkg = readPackage();
 	const exportKeys = new Set(Object.keys(pkg.exports));
-	const distPaths = verifyPackPluginPaths();
+	const distPaths = new Set(requiredPackPaths());
 	const sideEffects = new Set(pkg.sideEffects);
 
 	it('found bundled plugin directories to check', () => {
@@ -113,11 +105,11 @@ describe('G4.10 plugin package/pack parity', () => {
 		expect(missing, `plugins absent from package.json exports: ${missing.join(', ')}`).toEqual([]);
 	});
 
-	it('every plugin dir is in verify-pack REQUIRED as index.js + index.d.ts', () => {
+	it('every plugin dir resolves in the exports-derived pack manifest (index.js + index.d.ts)', () => {
 		const missing = missingVerifyPack(names, distPaths);
 		expect(
 			missing,
-			`plugins absent (or half-listed) in scripts/verify-pack.mjs REQUIRED: ${missing.join(', ')}`
+			`plugins absent (or half-listed) in the exports-derived REQUIRED manifest: ${missing.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -136,15 +128,15 @@ describe('G4.10 plugin package/pack parity', () => {
 describe('G4.10 plugin package/pack parity — non-vacuity', () => {
 	const pkg = readPackage();
 
-	it('parsed a real export surface, verify-pack manifest, and sideEffects list', () => {
+	it('parsed a real export surface, derived pack manifest, and sideEffects list', () => {
 		expect(Object.keys(pkg.exports).length).toBeGreaterThan(0);
 		expect(pkg.sideEffects.length).toBeGreaterThan(0);
-		expect(verifyPackPluginPaths().size).toBeGreaterThan(0);
+		expect(requiredPackPaths().length).toBeGreaterThan(0);
 	});
 
 	it('a known plugin resolves through every list (the checks can actually fail)', () => {
 		expect(new Set(Object.keys(pkg.exports)).has('./plugins/latex')).toBe(true);
-		expect(verifyPackPluginPaths().has('dist/plugins/latex/index.js')).toBe(true);
+		expect(new Set(requiredPackPaths()).has('dist/plugins/latex/index.js')).toBe(true);
 		expect(new Set(pkg.sideEffects).has('./dist/plugins/latex/renderer.js')).toBe(true);
 	});
 
