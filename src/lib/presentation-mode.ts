@@ -30,7 +30,7 @@ export function isPreviewMode(mode: PresentationMode): boolean {
 /**
  * The read-only gate the dispatch seams key off. Reads the effective mode through a
  * dedicated getter — the same `PresentationModeGetter` the block components read off
- * `PRESENTATION_MODE_KEY` — threaded into each dispatch context beside the plugin
+ * the editor-policies facet — threaded into each dispatch context beside the plugin
  * lookup, never smuggled through it (a mode read is not a plugin concern). Structural
  * parameter type so schema/selection layers need no editor-keys import; a `undefined`
  * getter (test doubles, unwired surfaces) means not reading.

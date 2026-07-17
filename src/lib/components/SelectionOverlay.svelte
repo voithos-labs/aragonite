@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { SELECTION_END, type BlockComponent } from '../block-component';
-	import { DOC_KEY, EDITOR_ROOT_KEY, SELECTION_KEY, type DocumentGetter } from '../editor-keys';
-	import type { SelectionState } from '../selection/selection-state.svelte';
+	import {
+		EDITOR_DOC_KEY,
+		EDITOR_SERVICES_KEY,
+		type EditorDoc,
+		type EditorServices
+	} from '../editor-keys';
 	import {
 		normalize,
 		classifyBlockForSelection,
@@ -31,9 +35,8 @@
 		hasChildHosts?: boolean;
 	} = $props();
 
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
+	const { selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { editorRoot: getEditorRoot, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// Containers that supply their own measurePartialRects (table) paint cell
 	// rects from this overlay; their children don't render BlockHost wrappers.

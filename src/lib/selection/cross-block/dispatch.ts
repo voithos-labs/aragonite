@@ -46,7 +46,7 @@ export interface CrossBlockDispatchContext {
 	getBlockElByPath: BlockElLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
-	/** Aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
+	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
 	containerEdit: ContainerEditActions;

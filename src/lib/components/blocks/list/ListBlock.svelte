@@ -11,13 +11,11 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
-		STICKY_COLUMN_KEY
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import { createListContext } from '../../../editor-actions/list-context';
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
@@ -35,8 +33,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const { controller, stickyColumn } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	const listState = createBlockListState(() => node);
 

@@ -231,3 +231,38 @@ treat the two as one design question and attempt both in the architecture-concer
 (byte-identical refactor discipline, the edge-policy consolidation precedent). A mount-harness
 helper supplying the standard stub set relieves the test-cost symptom regardless of where the
 interface lands.
+
+**Resolution (0.9.27 — FIXED).** The block↔editor interface consolidated into three named
+facets: `EDITOR_SERVICES` (event seam, view-state stores, cross-scope commit/reorder
+primitives, registry view), `EDITOR_POLICIES` (URL resolution, load/drag-handle gates,
+presentation mode, keybinding overrides, broken-image cache), and `EDITOR_DOC` (doc getter,
+link-reference ref, plugin-context resolver, mount lifetime, DOM anchors, windowing
+oracle/version signals). Grouping is by consumer overlap and change cadence. Each facet is
+ONE context key holding a plain object of the values the root already provided — getters stay
+getters, bundles stay bundles, no value reshaping — constructed once at provide-time with no
+reactive wrapper, so the per-keystroke path and every getter's reactivity contract are
+untouched. A consumer's `getContext(X_KEY)` became `getContext(FACET_KEY).x`: mount-time,
+mechanical, byte-identical (the full unit suite unchanged is the proof, the 4.3 edge-policy
+precedent). A facet is read as a required value where any of its members was required before,
+and as an optional (`?.`) where every member was — so `BlockHost`'s bare-mount fallback
+(`services?.registryView ?? defaultRegistryView`, concern #1's default-view mechanism) stays
+verbatim.
+
+Four families stay per-key because their individual granularity IS the mechanism: the action
+triple (BLOCK_EDIT/FOCUS/CONTAINER_EDIT), which a container re-provides one bundle at a time
+to override exactly what it changes; HISTORY (G1.4's single-provider subject — folding it into
+a container-re-providable facet is the exact violation); and the scope-provided list/table
+contexts plus the two windowing measure channels (scope provision is their channel). G1.4 and
+the context source-scan lints stay green unchanged.
+
+The test-cost symptom is relieved structurally: `test/harness/mount-context.ts`'s
+`editorMountContext(overrides?)` supplies the standard facet + per-key stub set, so a bare
+block mount states only its overrides and a newly required context is one harness edit rather
+than a per-test key list — the thirteen-stub `CodeBlock` mount collapsed onto it.
+
+The aligned `BlockComponent` optional-capability-probe grouping was evaluated and
+deliberately NOT shipped: the probes are OPTIONAL interface members, so grouping them into
+named sub-objects is a public-surface change that churns every implementor for no runtime
+win, whereas the context facets are an internal-wiring change with none. The facet vocabulary
+(services / policies / document) is recorded as the aligned input for that freeze-cut
+decision.

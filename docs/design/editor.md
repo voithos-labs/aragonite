@@ -209,7 +209,7 @@ Two invariants govern how CST state crosses into Svelte's reactivity. Both exist
 
 Blocks call typed context functions for structural operations — split, merge, delete, move focus, update content, undo, redo — each taking a block index relative to the **local** children array. No signal dispatcher, no string matching, no performer registry.
 
-The block–editor interface is split across four focused sub-bundles (block editing, focus, history, container editing), each provided under its own Svelte context key. A container overrides only the bundles whose behavior it changes; everything else resolves by walking up the context tree to the nearest ancestor that provides it. Pass-through delegation boilerplate does not exist. Two further keys thread primitives that cross scopes: `CONTROLLER_KEY` (the multi-scope commit primitive) and `PASTE_COORDINATOR_KEY` (the paste commit coordinator, § 10).
+The block–editor interface rides three named facets — editor services, host policies, and document identity — plus the per-key survivors whose individual granularity is the mechanism. A container overrides only the action sub-bundles whose behavior it changes (block editing, focus, container editing), one bundle at a time; history stays its own key that only the editor root provides, so undo/redo resolve to one stack (G1.4). Everything else resolves by walking up the context tree to the nearest ancestor that provides it — pass-through delegation boilerplate does not exist. The cross-scope commit primitive and the paste commit coordinator (§ 10) ride the services facet.
 
 ### Downward: editor → block
 

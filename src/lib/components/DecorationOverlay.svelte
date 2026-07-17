@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { BlockComponent } from '../block-component';
-	import { DECORATIONS_KEY, EDITOR_ROOT_KEY } from '../editor-keys';
-	import type { DecorationEngine } from '../reactivity/decoration-state.svelte';
+	import {
+		EDITOR_DOC_KEY,
+		EDITOR_SERVICES_KEY,
+		type EditorDoc,
+		type EditorServices
+	} from '../editor-keys';
 	import type { MarkDecoration } from '../decorations/types';
 	import type { IndexedDecoration } from '../decorations/buckets';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
@@ -26,8 +30,8 @@
 		hasChildHosts?: boolean;
 	} = $props();
 
-	const engine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
+	const engine = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.decorations;
+	const { editorRoot: getEditorRoot } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// A grid container (table) supplies cellRect, so its descendant cell marks —
 	// which never get their own BlockHost overlay — paint as whole cells here.

@@ -1,19 +1,14 @@
 import { getContext, setContext } from 'svelte';
 import {
-	EDITOR_ROOT_KEY,
-	FOCUSED_PATH_KEY,
-	HEIGHT_ORACLE_KEY,
+	EDITOR_DOC_KEY,
+	EDITOR_SERVICES_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
-	REVEAL_ANCHOR_KEY,
-	WIDTH_VERSION_KEY,
 	type BlockMeasureChannel,
-	type FocusedPathGetter,
-	type ParentScopeSink,
-	type WidthVersionGetter
+	type EditorDoc,
+	type EditorServices,
+	type ParentScopeSink
 } from '../editor-keys';
-import type { HeightOracle } from '../cursor/height-oracle';
-import type { RevealAnchorState } from '../cursor/reveal-anchor';
 import type { NodeView } from '../core/node-views';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
@@ -42,12 +37,14 @@ export interface ContainerWindowingOpts {
  * component passes to its sliced render and to `createContainerBlockComponent`.
  */
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
-	const oracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getFocusPath = getContext<FocusedPathGetter | undefined>(FOCUSED_PATH_KEY);
-	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
+	const {
+		heightOracle: oracle,
+		editorRoot: getEditorRoot,
+		focusedPath: getFocusPath,
+		widthVersion: getWidthVersion
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
-	const revealAnchor = getContext<RevealAnchorState | undefined>(REVEAL_ANCHOR_KEY);
+	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
 	// Single-claimant: only the ROOT scope holds the reveal anchor (path[0]); nested
 	// scopes keep top-of-viewport anchoring, or their deltas would fight over one scrollTop.
 	const isRoot = opts.getParentPath().length === 0;

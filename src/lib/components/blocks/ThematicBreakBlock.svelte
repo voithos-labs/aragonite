@@ -3,21 +3,18 @@
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { emitCommandError, type EditorEvents } from '../../editor-events';
+	import { emitCommandError } from '../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		EDITOR_EVENTS_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		PLUGIN_EDITOR_KEY,
-		PRESENTATION_MODE_KEY,
-		REORDER_ACTION_KEY,
-		type KeybindingOverridesGetter,
-		type PluginEditorLookup,
-		type PresentationModeGetter
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../editor-keys';
-	import type { ReorderAction } from '../../editor-actions/reorder-action';
 	import { eventToChord } from '../../schema/keybindings';
 	import {
 		resolveBinding,
@@ -33,15 +30,14 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
-	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const pluginEditor = getContext<PluginEditorLookup | undefined>(PLUGIN_EDITOR_KEY);
+	const { reorder, events: editorEvents } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { keybindingOverrides, presentationMode: getPresentationMode } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	// This block is tabindex-focusable independent of contenteditable, so its
 	// keydown stays live in reading mode: arrows (navigation) stay, the direct
 	// edit branches below gate.
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
 	const isReading = () => getPresentationMode?.() === 'reading';
 	let el: HTMLDivElement | undefined = $state();
 

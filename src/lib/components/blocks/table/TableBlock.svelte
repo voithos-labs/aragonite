@@ -16,25 +16,17 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
-		PRESENTATION_MODE_KEY,
-		REORDER_ANNOUNCE_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
-		WIDTH_VERSION_KEY,
-		type PresentationModeGetter,
-		type ReorderAnnounce,
-		type WidthVersionGetter
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import { asEditorX } from '../../../cursor/coordinate-spaces';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
-	import type { UndoController } from '../../../editor-actions/deps';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint } from './cell-pointer';
@@ -72,14 +64,20 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
-	const announceReorder = getContext<ReorderAnnounce>(REORDER_ANNOUNCE_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
-	const getPresentationMode = getContext<PresentationModeGetter | undefined>(PRESENTATION_MODE_KEY);
+	const {
+		controller,
+		stickyColumn: editorStickyColumn,
+		selection,
+		reorderAnnounce: announceReorder
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		editorRoot: getEditorRoot,
+		widthVersion: getWidthVersion,
+		lifetime: editorLifetime
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const getPresentationMode = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.presentationMode;
 	// Every menu item mutates the table (structure, clipboard cut/paste), so
 	// reading mode declines to open it; the native context menu (with Copy) shows
 	// instead. Grips are CSS-hidden under [data-presentation='reading'].
