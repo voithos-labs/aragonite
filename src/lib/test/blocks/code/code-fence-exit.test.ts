@@ -64,6 +64,32 @@ describe('computeFenceExit — closed fence', () => {
 		});
 		expect(r).toEqual({ kind: 'none' });
 	});
+
+	// The closer grammar admits 0–3 spaces of indent (matchFenceClose); the
+	// blank-line-before-closer strip must too, or Enter-exit declines on an
+	// indented closer and drops the user inside the block.
+	for (const indent of [1, 2, 3]) {
+		const pad = ' '.repeat(indent);
+		it(`strips the blank line before a ${indent}-space-indented closer and exits`, () => {
+			const text = `hello\n\n${pad}\`\`\``;
+			const r = computeFenceExit({
+				text,
+				offset: 6,
+				meta: { fenceMarker: '`', fenceLength: 3, info: '', closed: true }
+			});
+			expect(r).toEqual({ kind: 'exitWithEdit', newText: `hello\n${pad}\`\`\`` });
+		});
+	}
+
+	it('strips the blank line before an indented tilde closer', () => {
+		const text = 'a\n\n ~~~';
+		const r = computeFenceExit({
+			text,
+			offset: 2,
+			meta: { fenceMarker: '~', fenceLength: 3, info: '', closed: true }
+		});
+		expect(r).toEqual({ kind: 'exitWithEdit', newText: 'a\n ~~~' });
+	});
 });
 
 describe('computeFenceExit — unclosed fence', () => {

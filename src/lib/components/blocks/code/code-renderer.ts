@@ -164,9 +164,14 @@ function renderOpenerLine(
 	const openerWithoutNewline = slice.openerLine.replace(/\n$/, '');
 	const hasTrailingNewline = slice.openerLine.endsWith('\n');
 
-	frag.appendChild(makeMarkerSpan(fenceChars, 'md-fence'));
+	// The fence may sit behind 0–3 spaces of indent (BACKTICK_OPEN/TILDE_OPEN).
+	// Carry that indent inside the fence-marker span — the closer's house pattern
+	// (whole line in one span) — so textContent keeps every opener byte.
+	const indent = openerWithoutNewline.match(/^ {0,3}/)![0];
 
-	const afterFence = openerWithoutNewline.slice(fenceChars.length);
+	frag.appendChild(makeMarkerSpan(indent + fenceChars, 'md-fence'));
+
+	const afterFence = openerWithoutNewline.slice(indent.length + fenceChars.length);
 	if (afterFence.length > 0) {
 		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
 	}
