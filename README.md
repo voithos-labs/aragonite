@@ -39,7 +39,7 @@ _Why make aragonite lossless?_ What a stupid question, but let me answer it anyw
 
 _How do other editors deal with this?_ Broadly, three camps. Notion doesn't even pretend: the truth is its proprietary block model, and markdown is an export format. The rich text camp (the ProseMirror markdown lineage: Tiptap, Milkdown, and friends) parses markdown into a rich node tree, treats that tree as the truth, and serializes by walking it. Open a file, change nothing, save, and the diff can be non-empty. And then there's Obsidian, which genuinely is lossless, because its editor is a raw text buffer (CodeMirror 6) wearing syntax hiding decorations. The document model _is_ the string; a fine answer for losslessness, a limiting one for everything else (more on that in [Extensible](#extensible)). Aragonite is a bit more ambitious in its design: I want the byte honesty of a text buffer and a real document model at the same time.
 
-So here's the promise: `serialize(parse(source)) === source`. Not just for valid GFM, for any input: the parser is total (a line no rule claims is still absorbed as paragraph text, bytes intact), and the property suite fuzzes this exact round trip over arbitrary strings to keep everyone honest.
+So here's the promise: `serialize(parse(source)) === source`. For any input, the parser is total (a line no rule claims is still absorbed as paragraph text), and there are guards/checks in place (e.g. Aragonite's property suite fuzzes this exact round trip over arbitrary strings) to keep everyone honest.
 
 To start, then, you need a tree [^9] to act as the document model. Given the lossless promise, the natural conclusion is a concrete syntax tree (CST). But what, exactly, should be the shape for this CST? Well, let's imagine the simplest approach: parse the source into a tree whose nodes each hold their own slice of the original text. Naturally, you'd render the slices as styled DOM, and save by concatenating the slices back together. So serialization might be something quite simple:
 
@@ -70,7 +70,7 @@ _But what about nested structures, like quote blocks and lists?_ Let's again ima
 > World
 ```
 
-parses to a blockquote whose raw is the full two lines, `> ` prefixes and all, while its single paragraph child holds a raw of `Hello\nWorld`, no `> ` in sight. Parsing a container is just strip-and-recurse: strip the markers off each line, parse what's left with the same algorithm, keep the original unstripped lines as the container's raw.
+parses to a blockquote whose raw is the full two lines, `> ` prefixes and all, while its single paragraph child holds a raw of `Hello\nWorld`, no `> `. Parsing a container is just strip-and-recurse: strip the markers off each line, parse what's left with the same algorithm, keep the original unstripped lines as the container's raw.
 
 That's it, actually. That's the basic shape of the document model for aragonite:
 
@@ -85,7 +85,7 @@ Congrats, you came up with the gist of the architecture.
 
 _Surely this approach wouldn't work?_ You are thinking. For one, this model means that parents redundantly store their children's contents. Yes, that is certainly true. But look at what the redundancy buys: serialize never recurses. A container's raw already contains its entire subtree's source, so serialization concatenates the top-level children and stops. Nesting depth is never part of the equation, and a function that small has nowhere for a bug to hide. Oh, btw, that code snippet above is `src/lib/core/serializer.ts`, the whole file, verbatim [^10]. That is really how this editor saves your documents.
 
-And the wins keep coming:
+And, also importantly:
 
 1. Syntax the parser doesn't understand will still round-trip losslessly (including syntax from a plugin you have since uninstalled)
 2. The worst case for a parser bug is bad styling, not a corrupted file
@@ -243,7 +243,7 @@ The thing that makes this more than a feature list is that all four ride _one re
 
 aragonite is at 0.9.x, closing in on 1.0, the release where the plugin API freezes. The license is MIT, already, for everything in this repo. What sits between here and 1.0 is validation rather than construction: wiring the editor into a real app (limestone), a second clean-room plugin author, and a demo that makes the pitch without me talking over it. If you read this far and want to poke at it: clone, `npm run dev`, break something, tell me about it. [CONTRIBUTING.md](./CONTRIBUTING.md) is the front door, and `docs/` has the full design specs if this monologue somehow wasn't enough.
 
-[^1]: read [the changelog](./docs/changelog.md) to experience my suffering.
+[^1]: read docs/changelog.md to experience my suffering.
 
 [^2]: this is not even the first iteration of this editor; this is like my fourth try to write this piece of lovely shit.
 
@@ -261,7 +261,7 @@ aragonite is at 0.9.x, closing in on 1.0, the release where the plugin API freez
 
 [^9]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 
-[^10]: ok, fine: the real file spells `readonly` in a few places and carries a comment up top. The logic is character for character what you just read.
+[^10]: ok, fine; the real file spells `readonly` in a few places and carries a comment up top. The logic is character for character what you just read.
 
 [^11]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
 
