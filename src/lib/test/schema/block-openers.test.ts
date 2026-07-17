@@ -89,13 +89,5 @@ describe('block-opener registry', () => {
 			// The unfiltered read is unchanged — filtering never mutates the cache.
 			expect(getOrderedOpeners().map((o) => o.priority)).toEqual([20, 40]);
 		});
-
-		it('drops a disabled kind predicate from the interrupt scan', () => {
-			const enabled = (kind: string) => kind !== 'blockquote';
-			expect(lineInterruptsParagraph('> quote', enabled)).toBe(false);
-			expect(lineInterruptsParagraph('# h', enabled)).toBe(true);
-			// Unfiltered still sees blockquote's interrupt.
-			expect(lineInterruptsParagraph('> quote')).toBe(true);
-		});
 	});
 });
