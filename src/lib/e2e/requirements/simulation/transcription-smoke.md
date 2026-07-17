@@ -38,4 +38,6 @@ wall-time budget.
 
 - no console or page errors fire during the session
 - nested BlockListState stays consistent (no container id/ref desync)
-- the live serializer round-trips the current CST (`serialize(parse(src)) === src`)
+- the serialized source is a byte fixed point (`serialize(parse(src)) === src`) AND the live
+  CST converges structurally with a reparse of that source, so a gesture that left the tree
+  diverging from its own raw is caught where the byte check is blind (checkpoint cadence)

@@ -168,6 +168,55 @@ separator needs an owner (the first half's raw gaining the blank line, or the se
 divergence needs a save→reload boundary to observe. The separator-ownership call touches
 split, merge, and trivia semantics together — a deliberate design change, not a spot patch.
 
+### List-item merge relocation clears the paragraph separator, producing a lazy-continuation divergence
+
+**Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
+**Files:** `src/lib/tree-operations/list/unwrap-merge.ts` (`relocateRemainingChildren` — the
+trailing-paragraph absorb clears `leadingTrivia` instead of keeping the blank-line separator)
+
+When a list-item Backspace-merge absorbs the merged-away item's trailing paragraph into the
+target item, it clears that paragraph's `leadingTrivia`, so the target item keeps two live
+paragraph nodes (`[para "BC", para "extra"]`) whose serialization `- BC\n  extra\n` has no
+blank line — GFM lazy continuation reparses it as ONE paragraph. Byte round-trip
+(`serialize(parse(s)) === s`) holds; the divergence is `parse(serialize(liveTree))`
+disagreeing with the live tree's block structure. Surfaced by the parse-convergence oracle
+when `relocate-remaining-children.test.ts` was rewired off its tautological round-trip check
+(that file's converging site now asserts convergence; the two lazy-continuation sites keep
+the byte round-trip with a comment). Same class as the Enter-at-end note above.
+
+**Fix direction:** shared with the Enter-at-end separator-ownership call — the relocation
+either keeps the blank-line separator (preserving two paragraphs) or collapses the two live
+paragraphs into one; decided against the merge/undo paths that read those bytes.
+
+**Why deferred:** byte-safe and self-consistent in the live session; needs a save→reload to
+observe. Folds into the same split/merge trivia-semantics design change as Enter-at-end.
+
+### Content typed after an unclosed fenced code block stays a separate live block but reloads collapsed
+
+**Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
+**Files:** `src/lib/core/parsers/fenced-code.ts` (an unclosed fence has no terminator, so on
+load it absorbs every following line to EOF), `src/lib/core/serializer.ts` (emits `node.raw`
+verbatim, so the live fence's own bytes plus the trailing blocks' bytes compose faithfully)
+
+Typing content after an unclosed fenced code block (` ``` ` with no closing fence) keeps
+that content as separate live blocks — the editor lets you author a paragraph, thematic break,
+or heading below the open fence. But the document serializes to an open fence followed by those
+blocks' bytes, and GFM lazy continuation reparses the whole tail INTO the code block: load →
+one fenced-code node swallowing everything. Byte round-trip (`serialize(parse(s)) === s`) holds
+throughout — the divergence is `parse(serialize(liveTree))` disagreeing with the live tree's
+block structure, invisible to the round-trip oracles. Surfaced when the parse-convergence oracle
+was wired into the simulation checkpoints: three note fixtures (biology, project-plan, readme)
+build this shape deliberately and are exempted with a documented reason (`NoteFixture.unconvergedReason`).
+Same class as the Enter-at-end and relocation lazy-continuation notes above.
+
+**Fix direction:** a design look at whether the editor should auto-close a fence when a
+structural block is created after it (closing fence minted into the code node's raw), decided
+against the code-block edit/reveal paths that read those bytes.
+
+**Why deferred:** byte-safe and self-consistent in the live session; needs a save→reload to
+observe. The auto-close decision touches fence rebuild, code-block navigation, and the
+descend-below gesture together — a deliberate change, not a spot patch.
+
 ### A body row wider than the header drops its surplus cells on first table edit
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip at load unaffected)

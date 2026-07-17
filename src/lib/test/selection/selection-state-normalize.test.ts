@@ -6,6 +6,7 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
+import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
 
 const TABLE_FIRST = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\npara\n';
@@ -34,9 +35,13 @@ function gridForeigners(doc: Document): string[] {
 	return bad;
 }
 
-function roundTrips(doc: Document): boolean {
+// The deleted doc must not just re-serialize (a tautology) — its live tree must
+// converge with a fresh parse of its bytes, so a delete that leaves a stale grid
+// or split-separator shape is caught. Byte round-trip retained alongside.
+function assertDeleteConverged(doc: Document): void {
+	expectParseConverged(doc);
 	const out = serialize(doc);
-	return serialize(parse(out)) === out;
+	expect(serialize(parse(out))).toBe(out);
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
@@ -51,7 +56,7 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 		expect(s.start).toEqual({ path: [0], offset: 0, cellCoordinate: true });
 		const { newDoc } = deleteSelected(doc, s);
 		expect(gridForeigners(newDoc)).toEqual([]);
-		expect(roundTrips(newDoc)).toBe(true);
+		assertDeleteConverged(newDoc);
 	});
 
 	it('selectWholeDocument on a table-last doc snaps the end to a cell coordinate', () => {
@@ -61,7 +66,7 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 		expect(s.end).toEqual({ path: [1], offset: 3, cellCoordinate: true });
 		const { newDoc } = deleteSelected(doc, s);
 		expect(gridForeigners(newDoc)).toEqual([]);
-		expect(roundTrips(newDoc)).toBe(true);
+		assertDeleteConverged(newDoc);
 	});
 
 	it('enterCrossBlock normalizes a raw deep-cell anchor (shift-click shape, table first)', () => {
@@ -71,7 +76,7 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 		expect(s.anchor).toEqual({ path: [0], offset: 0, cellCoordinate: true });
 		const { newDoc } = deleteSelected(doc, s);
 		expect(gridForeigners(newDoc)).toEqual([]);
-		expect(roundTrips(newDoc)).toBe(true);
+		assertDeleteConverged(newDoc);
 	});
 
 	it('enterCrossBlock normalizes a raw deep-cell focus (shift-click shape, table last)', () => {
@@ -81,7 +86,7 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 		expect(s.focus).toEqual({ path: [1], offset: 2, cellCoordinate: true });
 		const { newDoc } = deleteSelected(doc, s);
 		expect(gridForeigners(newDoc)).toEqual([]);
-		expect(roundTrips(newDoc)).toBe(true);
+		assertDeleteConverged(newDoc);
 	});
 
 	it('extendFocus normalizes a raw deep-cell point', () => {

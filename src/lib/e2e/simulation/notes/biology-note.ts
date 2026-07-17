@@ -17,6 +17,13 @@ import type { NoteFixture } from './types';
  */
 export const BIOLOGY_NOTE: NoteFixture = {
 	name: 'biology-note',
+	// The unclosed fenced code block below is followed by a summary/divider/image
+	// that stay separate live blocks while typing but GFM lazy-collapses into the
+	// fence on reload — byte-safe, structurally divergent (docs/issues.md). Exempt
+	// from the checkpoint convergence oracle; bytes stay guarded by round-trip +
+	// end-state equality.
+	unconvergedReason:
+		'content typed after an unclosed fenced code block (byte-safe reload-collapse)',
 	async build(g: Gestures): Promise<void> {
 		await g.typeText('# Cell Division and Photosynthesis');
 		await g.pressEnter();

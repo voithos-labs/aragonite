@@ -23,6 +23,12 @@ import type { NoteFixture } from './types';
  */
 export const PROJECT_PLAN_NOTE: NoteFixture = {
 	name: 'project-plan-note',
+	// Types a reference paragraph + image after an unclosed fenced code block: they
+	// stay separate live blocks but GFM lazy-collapses them into the fence on reload
+	// — byte-safe, structurally divergent (docs/issues.md). Exempt from the checkpoint
+	// convergence oracle; round-trip + end-state equality still guard the bytes.
+	unconvergedReason:
+		'content typed after an unclosed fenced code block (byte-safe reload-collapse)',
 	async build(g: Gestures): Promise<void> {
 		await g.typeText('# Q3 Editor Project Plan');
 		await g.pressEnter();
