@@ -27,6 +27,7 @@
 		PASTE_COORDINATOR_KEY,
 		PLUGIN_EDITOR_KEY,
 		PRESENTATION_MODE_KEY,
+		REGISTRY_VIEW_KEY,
 		REORDER_ACTION_KEY,
 		REORDER_ANNOUNCE_KEY,
 		RESOLVE_IMAGE_URL_KEY,
@@ -94,6 +95,7 @@
 	import type { CommandErrorSink } from '../schema/block-commands';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
+	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
@@ -103,6 +105,10 @@
 	bootstrapCodeLanguages();
 	runStartupInvariantChecks();
 
+	// `__registryEnablement` is a harness-only door (concern #1): a per-instance
+	// enablement predicate for the registry view, NOT part of the public EditorProps.
+	// The intersection keeps it off the exported type — the public enablement prop
+	// firms up with limestone (docs/design/plugin-contract.md).
 	let {
 		source = '',
 		resolveImageUrl,
@@ -114,8 +120,9 @@
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
-		plugins
-	}: EditorProps = $props();
+		plugins,
+		__registryEnablement
+	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
 
 	// Install before initDocument parses `source`, so plugin openers/directives are
 	// live for the seed grammar. Set-once by contract — a later prop change is ignored.
@@ -402,6 +409,15 @@
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
+	// The instance's resolution over the global block definitions (concern #1).
+	// Default (no enablement door) reads the global registry verbatim, so the
+	// editor is byte-identical to the pre-view behavior; a harness enablement
+	// predicate filters the component (→ raw-editable) and the grammar.
+	// svelte-ignore state_referenced_locally
+	const registryView = createRegistryView(
+		__registryEnablement ? { isEnabled: __registryEnablement } : undefined
+	);
+
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -429,7 +445,8 @@
 		selectionState,
 		getBlockElByPath,
 		revealPath,
-		events
+		events,
+		grammar: registryView.grammar
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
@@ -596,6 +613,7 @@
 	setContext(BLOCK_EL_LOOKUP_KEY, getBlockElByPath);
 	setContext(DOC_KEY, getDoc);
 	setContext(PLUGIN_EDITOR_KEY, pluginEditorLookup);
+	setContext(REGISTRY_VIEW_KEY, registryView);
 	setContext(EDITOR_ROOT_KEY, () => editorEl ?? null);
 	setContext(EDITOR_LIFETIME_KEY, lifetimeController.signal);
 	setContext(LINK_REF_KEY, {

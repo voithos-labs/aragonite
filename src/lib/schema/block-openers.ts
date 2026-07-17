@@ -32,6 +32,13 @@ export interface OpenContext {
 	leadingTrivia: string;
 	/** True for the first content block of a parse window. With `leadingTrivia`, the "preceded by blank" interrupt context (GFM §4.4). */
 	isFirstInWindow: boolean;
+	/**
+	 * The grammar this parse resolves through — the instance seam over the global
+	 * openers. `parseBlocks` seeds it; the top-level dispatch reads it. Nested
+	 * container reparses create their own context and default to the global
+	 * grammar (the documented enablement boundary — see `parse`).
+	 */
+	grammar: GrammarView;
 }
 
 export interface BlockOpener {
@@ -43,8 +50,15 @@ export interface BlockOpener {
 }
 
 const openers = new Map<AnyBlockKind, BlockOpener>();
+let orderedEntriesCache: [AnyBlockKind, BlockOpener][] | null = null;
 let orderedCache: BlockOpener[] | null = null;
 let interruptCache: ((lineText: string) => boolean)[] | null = null;
+
+function invalidateGrammarCaches(): void {
+	orderedEntriesCache = null;
+	orderedCache = null;
+	interruptCache = null;
+}
 
 export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): void {
 	registerOnce(
@@ -52,8 +66,7 @@ export function registerBlockOpener(kind: AnyBlockKind, opener: BlockOpener): vo
 		() => {
 			openers.set(kind, opener);
 			enqueueRegistrationCheck(kind, 'opener');
-			orderedCache = null;
-			interruptCache = null;
+			invalidateGrammarCaches();
 		},
 		`registerBlockOpener: "${kind}" is already registered. Openers are register-once.`
 	);
@@ -68,37 +81,65 @@ export function isBlockOpenerRegistered(kind: string): boolean {
 	return openers.has(kind as AnyBlockKind);
 }
 
+/** A per-instance enablement predicate: `true` keeps the kind's opener in the grammar. */
+export type OpenerEnablement = (kind: AnyBlockKind) => boolean;
+
+// Priority-ascending, equal priorities broken by kind name — dispatch order is a
+// pure function of the declarations, never of registration order. Cached; both
+// grammar reads derive from it (the mapped/filtered shapes are the leaf caches).
+function orderedEntries(): readonly [AnyBlockKind, BlockOpener][] {
+	if (!orderedEntriesCache) {
+		orderedEntriesCache = [...openers.entries()].sort(
+			([kindA, a], [kindB, b]) =>
+				a.priority - b.priority || (kindA < kindB ? -1 : kindA > kindB ? 1 : 0)
+		);
+	}
+	return orderedEntriesCache;
+}
+
 /**
- * Priority-ascending, equal priorities broken by kind name — so dispatch order
- * is a pure function of the declarations, never of registration order (G1.10
- * still warns on the tie, since a shared priority is usually unintended).
- * Cached — the parser loops this per block. The grammar-consumption seam:
- * registrations pending since the last flush are validated before this read,
- * and flush-before-mark keeps a registrant racing the first read out of the
- * late-opener warn (G1.17).
+ * The parser's dispatch order (G1.10 still warns on a priority tie, since a shared
+ * priority is usually unintended). Cached — the parser loops this per block. The
+ * grammar-consumption seam: registrations pending since the last flush are
+ * validated before this read, and flush-before-mark keeps a registrant racing the
+ * first read out of the late-opener warn (G1.17).
+ *
+ * `isEnabled` is the per-instance enablement filter (concern #1's instance seam):
+ * absent = all definitions (the editorless/behavior-preserving default, cached);
+ * present = a fresh view dropping the disabled plugin kinds' openers. Built-ins are
+ * never filtered — the predicate's domain is plugin kinds (the view enforces that).
  */
-export function getOrderedOpeners(): readonly BlockOpener[] {
+export function getOrderedOpeners(isEnabled?: OpenerEnablement): readonly BlockOpener[] {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
-	if (!orderedCache) {
-		orderedCache = [...openers.entries()]
-			.sort(
-				([kindA, a], [kindB, b]) =>
-					a.priority - b.priority || (kindA < kindB ? -1 : kindA > kindB ? 1 : 0)
-			)
+	if (isEnabled) {
+		return orderedEntries()
+			.filter(([kind]) => isEnabled(kind))
 			.map(([, opener]) => opener);
 	}
+	if (!orderedCache) orderedCache = orderedEntries().map(([, opener]) => opener);
 	return orderedCache;
 }
 
 /**
  * Registry-derived paragraph-interrupt check. A grammar read like
- * getOrderedOpeners, so it carries the same seam duties: flush pending
- * registration checks, trip the grammar-consumed latch.
+ * getOrderedOpeners, so it carries the same seam duties (flush pending checks,
+ * trip the grammar-consumed latch) and the same optional enablement filter.
  */
-export function lineInterruptsParagraph(lineText: string): boolean {
+export function lineInterruptsParagraph(lineText: string, isEnabled?: OpenerEnablement): boolean {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
+	if (isEnabled) {
+		for (const [kind, opener] of orderedEntries()) {
+			if (
+				opener.interruptsParagraph !== false &&
+				isEnabled(kind) &&
+				opener.interruptsParagraph(lineText)
+			)
+				return true;
+		}
+		return false;
+	}
 	if (!interruptCache) {
 		interruptCache = [...openers.values()]
 			.map((o) => o.interruptsParagraph)
@@ -108,6 +149,29 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 		if (predicate(lineText)) return true;
 	}
 	return false;
+}
+
+/**
+ * The grammar as a per-instance resolution object over the global openers — the
+ * slot `parse(source, { grammar })` threads (concern #1). The default reads the
+ * global definitions verbatim (behavior-preserving); a filtered view carries an
+ * instance's enablement predicate.
+ */
+export interface GrammarView {
+	orderedOpeners(): readonly BlockOpener[];
+	interruptsParagraph(lineText: string): boolean;
+}
+
+export const defaultGrammarView: GrammarView = {
+	orderedOpeners: () => getOrderedOpeners(),
+	interruptsParagraph: (lineText) => lineInterruptsParagraph(lineText)
+};
+
+export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
+	return {
+		orderedOpeners: () => getOrderedOpeners(isEnabled),
+		interruptsParagraph: (lineText) => lineInterruptsParagraph(lineText, isEnabled)
+	};
 }
 
 /** Registry introspection for the invariant guard (G1.10). */
@@ -121,8 +185,7 @@ export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number 
 // controlled set as late registrations.
 export function __resetBlockOpenersForTests(): void {
 	openers.clear();
-	orderedCache = null;
-	interruptCache = null;
+	invalidateGrammarCaches();
 	__resetRegistrationChecksForTests();
 }
 
@@ -131,6 +194,5 @@ export function __removePluginOpenersForTests(): void {
 	for (const kind of openers.keys()) {
 		if (!isBuiltinBlockKind(kind)) openers.delete(kind);
 	}
-	orderedCache = null;
-	interruptCache = null;
+	invalidateGrammarCaches();
 }

@@ -73,7 +73,12 @@ export function createBlockEditActions(
 			// commit and routine typing. Nested-body parity; the live mutation for
 			// the structural path runs inside the ceremony so a multi-block splice
 			// never touches the live children array out-of-commit.
-			const preview = performUpdate({ children: [{ ...deps.doc.children[blockIndex] }] }, 0, text);
+			const preview = performUpdate(
+				{ children: [{ ...deps.doc.children[blockIndex] }] },
+				0,
+				text,
+				deps.grammar
+			);
 
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
@@ -84,7 +89,7 @@ export function createBlockEditActions(
 					op: { kind: 'updateContent', detail: { length: text.length } },
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
-						change = performUpdate({ children: view.children }, blockIndex, text);
+						change = performUpdate({ children: view.children }, blockIndex, text, deps.grammar);
 						stampStructuralChange(view.children, change, view.sharing);
 						return change;
 					},
@@ -108,7 +113,7 @@ export function createBlockEditActions(
 			// keystroke batch). The debounced snapshot above holds the undo seam;
 			// `input` edit events fire at debounce-flush time.
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-			performUpdate(deps.doc, blockIndex, text);
+			performUpdate(deps.doc, blockIndex, text, deps.grammar);
 		},
 
 		// ── Paste (top-level emits `paste`; container routes via replaceBlock) ─
