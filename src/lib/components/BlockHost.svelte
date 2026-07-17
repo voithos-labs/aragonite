@@ -10,14 +10,14 @@
 	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
-	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-	import { getBlockComponent } from '../schema/block-component-registry';
+	import { defaultRegistryView, type RegistryView } from '../schema/registry-view';
 	import {
 		BLOCK_DRAG_HANDLES_KEY,
 		DECORATIONS_KEY,
 		DOC_KEY,
 		EDITOR_EVENTS_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
+		REGISTRY_VIEW_KEY,
 		type BlockMeasureChannel,
 		type DocumentGetter
 	} from '../editor-keys';
@@ -47,6 +47,11 @@
 
 	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
 	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
+	// The instance's registry view resolves component + descriptor, so per-instance
+	// enablement reaches the render path. Bare mounts (unit harnesses, conformance
+	// kit) get no provider and read the global default — behavior-preserving.
+	const registryView =
+		getContext<RegistryView | undefined>(REGISTRY_VIEW_KEY) ?? defaultRegistryView;
 	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
 	const engine = getContext<DecorationEngine | undefined>(DECORATIONS_KEY);
 	const getDragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY);
@@ -61,7 +66,7 @@
 		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
 	);
 
-	let isContainer = $derived(getBlockKindDescriptor(node.kind).isContainer);
+	let isContainer = $derived(registryView.descriptor(node.kind).isContainer);
 	// A childless container (render-primary plugin block) mounts no child hosts,
 	// so overlay painting can't be delegated downward — see SelectionOverlay.
 	let hasChildHosts = $derived(isContainer && (node.children?.length ?? 0) > 0);
@@ -69,7 +74,7 @@
 	let hostEl: HTMLElement | null = $state(null);
 	let ref: BlockComponent | undefined = $state();
 
-	let entry = $derived(getBlockComponent(node.kind));
+	let entry = $derived(registryView.component(node.kind));
 
 	// A kind with no registered component falls back to a visible raw-editable
 	// surface (below) rather than silently rendering nothing.

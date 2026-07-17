@@ -67,4 +67,35 @@ describe('block-opener registry', () => {
 		);
 		expect(lineInterruptsParagraph('> quote')).toBe(true);
 	});
+
+	// The per-instance enablement filter (concern #1). The unfiltered read is the
+	// behavior-preserving default; a predicate drops a disabled kind's opener from
+	// both grammar reads without disturbing the cached default read.
+	describe('enablement filter', () => {
+		beforeEach(() => {
+			registerBlockOpener(
+				'heading',
+				opener(20, (t) => t.startsWith('#'))
+			);
+			registerBlockOpener(
+				'blockquote',
+				opener(40, (t) => t.startsWith('>'))
+			);
+		});
+
+		it('drops a disabled kind opener from the ordered dispatch', () => {
+			const enabled = (kind: string) => kind !== 'blockquote';
+			expect(getOrderedOpeners(enabled).map((o) => o.priority)).toEqual([20]);
+			// The unfiltered read is unchanged — filtering never mutates the cache.
+			expect(getOrderedOpeners().map((o) => o.priority)).toEqual([20, 40]);
+		});
+
+		it('drops a disabled kind predicate from the interrupt scan', () => {
+			const enabled = (kind: string) => kind !== 'blockquote';
+			expect(lineInterruptsParagraph('> quote', enabled)).toBe(false);
+			expect(lineInterruptsParagraph('# h', enabled)).toBe(true);
+			// Unfiltered still sees blockquote's interrupt.
+			expect(lineInterruptsParagraph('> quote')).toBe(true);
+		});
+	});
 });

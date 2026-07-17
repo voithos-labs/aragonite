@@ -79,6 +79,13 @@ export const EDITOR_EVENTS_KEY = Symbol('editor-events');
 export const PLUGIN_EDITOR_KEY = Symbol('plugin-editor-context');
 export type PluginEditorLookup = (pluginName: string) => EditorContext;
 
+/** The instance's resolution over the global block definitions (concern #1) —
+ *  BlockHost resolves component/descriptor through it, so a per-instance
+ *  enablement filter reaches the render path. Absent in bare mounts, which fall
+ *  back to the global default view. A single key the upcoming facet batch may
+ *  absorb. */
+export const REGISTRY_VIEW_KEY = Symbol('registry-view');
+
 export const EDITOR_ROOT_KEY = Symbol('editor-root');
 
 /**

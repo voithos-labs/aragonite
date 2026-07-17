@@ -8,6 +8,7 @@ import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
+import type { GrammarView } from '../schema/block-openers';
 export type {
 	CommitController,
 	CommitStructuralArgs,
@@ -34,6 +35,10 @@ export interface EditorActionsDeps {
 	 *  targets return synchronously without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
+	/** The instance's block grammar (concern #1) — threaded to the content-commit
+	 *  reparse so a disabled kind's opener is skipped when the editor re-parses an
+	 *  edited block. Absent (bare harnesses) = the global grammar, byte-identical. */
+	grammar?: GrammarView;
 }
 
 /**

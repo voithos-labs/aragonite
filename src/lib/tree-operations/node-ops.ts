@@ -25,6 +25,7 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
+import type { GrammarView } from '../schema/block-openers';
 import { trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { findMergeTarget } from '../schema/merge-rules';
@@ -264,7 +265,8 @@ export function deleteNode(
 export function updateNodeContent(
 	parent: NodeParent,
 	blockIndex: number,
-	newText: string
+	newText: string,
+	grammar?: GrammarView
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
@@ -277,7 +279,9 @@ export function updateNodeContent(
 		return { op: 'noop' };
 	}
 
-	const parsed = parse(newText).children;
+	// The instance grammar (concern #1) reaches the routine content-commit reparse;
+	// absent (paste, split/merge reparse) defaults to the global grammar.
+	const parsed = parse(newText, { grammar }).children;
 	const first: CstNode | undefined = parsed[0];
 	if (first) ensureEditableContainers(first);
 
