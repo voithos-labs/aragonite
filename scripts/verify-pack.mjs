@@ -1,37 +1,30 @@
 // Packs the library and gates the tarball: every published path must be present,
 // and no test/e2e/spec file may ship. Run after `npm run package`. Exits non-zero
 // (with the offending list) on either failure.
+//
+// REQUIRED is derived from package.json `exports` (see pack-manifest.mjs), not a
+// hand-maintained list — a new plugin subpath added to `exports` is gated here
+// automatically, so it can't be published-but-unbuilt without this failing.
 import { execSync } from 'node:child_process';
+import { requiredPackPaths } from './pack-manifest.mjs';
 
 // `npm pack --json` reports files[].path relative to the package root (e.g.
 // `dist/index.js`) — NOT prefixed with `package/`.
-const REQUIRED = [
-	'dist/index.js',
-	'dist/index.d.ts',
-	'dist/plugin.js',
-	'dist/plugin.d.ts',
-	'dist/plugins/admonitions/index.js',
-	'dist/plugins/admonitions/index.d.ts',
-	'dist/plugins/details/index.js',
-	'dist/plugins/details/index.d.ts',
-	'dist/plugins/latex/index.js',
-	'dist/plugins/latex/index.d.ts',
-	'dist/plugins/latex/renderer.js',
-	'dist/plugins/latex/renderer.d.ts',
-	'dist/plugins/mermaid/index.js',
-	'dist/plugins/mermaid/index.d.ts',
-	'dist/plugins/mermaid/renderer.js',
-	'dist/plugins/mermaid/renderer.d.ts',
-	'dist/plugins/toc/index.js',
-	'dist/plugins/toc/index.d.ts',
-	'dist/plugins/highlight-occurrences/index.js',
-	'dist/plugins/highlight-occurrences/index.d.ts',
-	'dist/testing.js',
-	'dist/testing.d.ts',
-	'dist/components/Editor.svelte',
-	'dist/styles/editor.css',
-	'dist/styles/editor-theme.css'
-];
+const REQUIRED = requiredPackPaths();
+
+// Non-vacuity: a broken derivation (empty `exports`, a renamed field, a bad parse)
+// must fail loud here, never silently green-light an unchecked tarball. Anchor on
+// the two entry points every build ships.
+if (
+	REQUIRED.length === 0 ||
+	!REQUIRED.includes('dist/index.js') ||
+	!REQUIRED.includes('dist/plugin.js')
+) {
+	console.error(
+		'verify-pack: derived REQUIRED is empty or missing anchor paths — check package.json exports'
+	);
+	process.exit(1);
+}
 
 // --ignore-scripts: inspect the dist/ that `npm run package` already built; without
 // it, the `prepack` script re-fires and its stdout corrupts the --json output.
