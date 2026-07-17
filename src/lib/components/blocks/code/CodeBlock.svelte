@@ -146,7 +146,9 @@
 		readText: () => el?.textContent ?? '',
 		// Code anchors undo at preEditOffset only; it has no kind-change remount to
 		// re-focus, so it passes no saved offset (the omitted 4th argument).
-		commitInput: (text, preEdit) => blockEdit.updateBlockContent(index, text + '\n', preEdit)
+		commitInput: (text, preEdit) => {
+			void blockEdit.updateBlockContent(index, text + '\n', preEdit);
+		}
 	});
 
 	const crossBlock = editableSurface.crossBlock;
