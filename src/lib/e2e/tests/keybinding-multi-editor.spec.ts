@@ -77,6 +77,12 @@ test.describe('multi-editor document-chord containment', () => {
 });
 
 test.describe('single-editor document-chord claim', () => {
+	// The full claim truth-table for a lone editor: focus inside → claims; focus on a
+	// foreign NON-text control (a checkbox toggle) or <body>/nowhere → claims (the
+	// pre-containment page-wide reach); focus in a foreign TEXT-entry surface (a
+	// consumer's own <textarea>/<input>) → yields, so the editor never hijacks a
+	// page-global Ctrl+F away from a text field the user is typing in (B2-F1).
+
 	// A lone editor claims its own search chord even when native focus rests on a
 	// sibling control OUTSIDE it (a toolbar toggle), not just on <body>. The
 	// containment gate strands this if it demands focus-inside-or-body: root.contains
@@ -101,6 +107,41 @@ test.describe('single-editor document-chord claim', () => {
 				})
 			)
 			.toBe(true);
+
+		await page.keyboard.press(`${primaryModifier}+f`);
+		await expect(page.getByRole('textbox', { name: 'Find' })).toBeVisible();
+	});
+
+	test('the sole editor yields Ctrl+F to a foreign text-entry focus', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('# Title\n\nAlpha paragraph\n');
+
+		// A consumer's own <textarea>, mounted OUTSIDE the editor. Its type-list twin —
+		// a foreign checkbox — is claimed above; a text-entry surface must not be.
+		await page.evaluate(() => {
+			const field = document.createElement('textarea');
+			field.setAttribute('data-testid', 'foreign-textarea');
+			document.body.appendChild(field);
+		});
+		const foreign = page.getByTestId('foreign-textarea');
+		await foreign.focus();
+		await expect(foreign).toBeFocused();
+
+		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.waitForTimeout(150); // absence check — no shape to poll for
+
+		// No Find bar opens, and focus stays in the consumer's field (pre-fix the sole
+		// editor claimed unconditionally, opened its bar, and stole focus into it).
+		await expect(page.locator('.search-bar')).toHaveCount(0);
+		await expect(foreign).toBeFocused();
+	});
+
+	test('the sole editor claims Ctrl+F when focus is inside it', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('# Title\n\nAlpha paragraph\n');
+		await editor.focusBlockEnd(1);
 
 		await page.keyboard.press(`${primaryModifier}+f`);
 		await expect(page.getByRole('textbox', { name: 'Find' })).toBeVisible();

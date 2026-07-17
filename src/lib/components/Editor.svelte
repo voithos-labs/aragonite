@@ -80,6 +80,7 @@
 		unregisterEditor,
 		markEditorInteracted,
 		claimsBodyChord,
+		isForeignTextEntry,
 		releaseInteractedEditor
 	} from '../active-editor';
 	import type { CommandErrorSink } from '../schema/block-commands';
@@ -786,7 +787,10 @@
 			// editor claims Find/Replace page-wide — even with focus on a sibling toolbar
 			// control — restoring the pre-containment behavior; a second mounted editor
 			// can't steal it (an outside-focus Ctrl+F opens no bar when 2+ editors exist).
-			if (root.contains(active) || claimsBodyChord(root)) {
+			// The one exception: a foreign text-entry surface (a consumer's own
+			// <textarea>/<input>/contenteditable) owns page-global Ctrl+F while the user
+			// types in it, so the editor yields there rather than hijacking it (B2-F1).
+			if (root.contains(active) || (claimsBodyChord(root) && !isForeignTextEntry(active))) {
 				if (searchBar && rootChord && isReservedUiChord(rootChord)) {
 					e.preventDefault();
 					// Seed the query from the live native selection before open() —
