@@ -7,8 +7,9 @@
 	// first-wins dev-warn (the stable-array pattern a consumer copies). Editor 2's array
 	// adds detailsPlugin, which editor 1 never had — the staggered late-mount this
 	// harness exists to exercise.
-	const editorOnePlugins = [calloutPlugin()];
-	const editorTwoPlugins = [calloutPlugin(), detailsPlugin()];
+	const callout = calloutPlugin();
+	const editorOnePlugins = [callout];
+	const editorTwoPlugins = [callout, detailsPlugin()];
 
 	// One seed holding both a callout and a `<details>`. Editor 1 parses it under
 	// callout only, so `<details>` falls to the built-in htmlBlock; editor 2 parses

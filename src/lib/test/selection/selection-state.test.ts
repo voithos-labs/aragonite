@@ -8,7 +8,6 @@ describe('SelectionState lifecycle', () => {
 		expect(s.isCrossBlock).toBe(false);
 		expect(s.anchor).toBeNull();
 		expect(s.focus).toBeNull();
-		expect(s.dragStart).toBeNull();
 	});
 
 	it('enterCrossBlock populates anchor and focus', () => {
@@ -30,12 +29,10 @@ describe('SelectionState lifecycle', () => {
 	it('clear resets everything', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
-		s.beginDrag({ path: [0], offset: 0 });
 		s.clear();
 		expect(s.isCrossBlock).toBe(false);
 		expect(s.anchor).toBeNull();
 		expect(s.focus).toBeNull();
-		expect(s.dragStart).toBeNull();
 	});
 
 	it('start and end are normalized in document order', () => {

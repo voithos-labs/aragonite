@@ -498,9 +498,9 @@ export function installTestProbes({
 		getCapturedErrors: (): string[] => capturedErrorOrigins,
 		// ── List item id probe ────────────────────────────────────────────
 		/**
-		 * Return the innerBlockIds array for the first list node found at
-		 * the given top-level block index. Useful for identity-preservation
-		 * regression tests that check which id survives a cross-scope delete.
+		 * Return the innerBlockIds array of the container node at the given
+		 * top-level block index. Useful for identity-preservation regression
+		 * tests that check which id survives a cross-scope delete.
 		 */
 		getListItemIds: (blockIndex: number): string[] => {
 			const doc = editor.__test.getDocument();
