@@ -186,6 +186,31 @@ separator needs an owner (the first half's raw gaining the blank line, or the se
 divergence needs a save→reload boundary to observe. The separator-ownership call touches
 split, merge, and trivia semantics together — a deliberate design change, not a spot patch.
 
+### A body row wider than the header drops its surplus cells on first table edit
+
+**Severity:** minor (live-tree vs reload divergence; byte round-trip at load unaffected)
+**Files:** `src/lib/core/parsers/table.ts` (`buildRow` truncates cell children to the
+header width), `src/lib/schema/container-rebuilders.ts` (`rebuildTableRowRaw` maps the
+truncated children)
+
+GFM (§4.10) ignores body cells beyond the header width, so `buildRow` truncates a wider
+row's CHILDREN to `columnCount` while the row/table `raw` keeps the authored bytes verbatim.
+Because `serialize` emits the table's own `raw`, `serialize(parse(source)) === source` holds
+at load — the surplus cells survive a pure round-trip. The first `rebuildTableRowRaw` after
+any table edit rebuilds the row from its (truncated) children, silently dropping the surplus
+bytes. Reachable only by loading or pasting GFM with a malformed wider-than-header row; typing
+cannot produce one (the grid fixes `columnCount`). The dropped cells were never part of the
+model and never rendered, so no editor-visible content is lost.
+
+**Fix direction:** none intended — preserving the surplus would require either phantom
+children or a `raw` that disagrees with `children`, both of which violate CST-is-source-of-truth
+(raw must rebuild FROM children). The accepted behavior is GFM-mandated truncation, normalized
+on first edit like padding and delimiter normalization.
+
+**Why deferred:** spec-compliant and byte-safe at load; the divergence needs a save→reload
+boundary to observe and drops only non-model, never-rendered bytes — the same class as the
+Enter-at-end round-trip note above, one rung less severe (the surplus is never user-visible).
+
 ## Code structure
 
 ### DocPath brand adoption stops at the scope factories
