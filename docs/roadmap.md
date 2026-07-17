@@ -26,31 +26,16 @@ climbed from guards and prose to the compiler), **inline observability** shipped
 state machines, the IME composition harness), and **presentation modes** shipped in 0.9.26
 (the full live-preview ladder — reading mode, block-granular, inline-granular — over a mode
 contract every plugin tier can read; caret affinity dissolved to raw offsets under the
-CST-as-truth model, no stored-marks machinery needed). The remaining risk is **validation
-depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
-are ordered by **risk first, validation before freeze**.
+CST-as-truth model, no stored-marks machinery needed), and the **architecture-concern pass**
+shipped in 0.9.27 (all five flagged designs resolved: the SelectionPoint and CstNode
+discriminated unions, per-instance registry views + the dev idempotence valve, context facets
 
-1. **Architecture-concern pass — attempt all five before anything binds.**
-   A post-0.9.26 architecture review flagged five standing designs
-   (`docs/research/architecture-concerns.md`: process-global registries, the dual-space
-   `SelectionPoint.offset`, the flat `CstNode` interface, container raw/children redundancy,
-   context-key sprawl). Each is working and guarded today; the risk is shape, not defect — and
-   the limestone integration would otherwise _bind to_ the suspect shapes while "validating"
-   them, paying the churn twice (the contract's own first principle: structure is cheapest to
-   fix before external code binds). The pass attempts every entry, owner-directed
-   (build-up-front posture, 2026-07-16): **fix** the `SelectionPoint` point union; **attempt**
-   the `CstNode` discriminated union (the `kind`-write-site survey is step one; a recorded
-   blocker is the honest failure mode, not an open question); **build** the instance-resolution
-   registry seam over global definitions (default = all definitions, behavior-preserving;
-   enablement becomes an additive policy knob; the operational rot — test resets, HMR reloads,
-   SSR registrar poison — gets a structural fix, not another compensation); **consolidate** the
-   context keys into named facets (jointly with the freeze-cut's named-facets decision;
-   byte-identical refactor discipline); and run **container-raw through a falsification gate**
-   — build the deep-nesting amplification benchmark first, fix in this item if the data
-   indicts, record the exoneration with numbers if it doesn't. An entry leaves the concerns doc
-   only with a fix or a recorded decision against it.
+- the mount harness, and container-raw exonerated by a falsification benchmark — the
+  resolutions live in `docs/research/architecture-concerns.md`). The remaining risk is **validation
+  depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
+  are ordered by **risk first, validation before freeze**.
 
-2. **Limestone internal integration** — the last unchecked box in the validation list above and
+1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
    also exercises the 0.9.25 field-report workflow (the diagnostics door: reproduce →
@@ -61,7 +46,7 @@ are ordered by **risk first, validation before freeze**.
    pre-freeze refinements. The first-party plugin distribution question is settled
    (0.9.23): the integration consumes the bundled plugins as `aragonite/plugins/<name>` subpath
    exports directly — the copy-source sync pattern never enters the picture.
-3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
    conformance battery ships (0.9.24), not just authoring discoverability. The first
@@ -72,7 +57,7 @@ are ordered by **risk first, validation before freeze**.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-4. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
+3. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
    full pitch: every block kind + every bundled plugin — fixtures stay off it
    (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
    is the "surpass Obsidian" argument made visible. The reference-plugin aesthetic decision is
@@ -82,7 +67,7 @@ are ordered by **risk first, validation before freeze**.
    toggles** — reading mode plus block- and inline-granular live preview beside styled
    source — so the first impression is not markers-everywhere, and the freeze litmus "the
    contract must not preclude a rendered reading mode" is a working proof, not a paper check.
-5. **Freeze cut at release** — in order:
+4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -93,8 +78,8 @@ are ordered by **risk first, validation before freeze**.
      quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
      a weekend contributor meets the rules before the scar tissue); a CODE_OF_CONDUCT; the PR
      flow and external-contributor setup; dev-loop friction retired or documented (the SSR
-     registrar-poison entry in `docs/issues.md` is contributor experience — resolve or give it
-     an honest workaround section); a first pass of curated entry-level issues. The bar stays
+     registrar-poison class was structurally fixed in 0.9.27 — dev re-registration replaces
+     instead of throwing; only the chorded plugin-global-command residual remains ledgered); a first pass of curated entry-level issues. The bar stays
      high — the reading order is what changes.
    - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in

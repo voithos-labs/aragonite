@@ -1,11 +1,12 @@
-# Architecture concerns — the standing eyebrow list
+# Architecture concerns — the resolved eyebrow list
 
-Five designs flagged in a post-0.9.26 architecture review as questionable, each with the
-evidence, the counterweight, and a direction. This is a **record of concerns, not a defect
-ledger** (defects go to `docs/issues.md`) — every entry is a working design whose _shape_ may
-be wrong, cheap to reconsider now and expensive after the 1.0 freeze. The pre-1.0
-architecture-concern pass (`docs/roadmap.md`) addresses or explicitly re-affirms each; an
-entry leaves this list only with a decision recorded against it.
+Five designs flagged in a post-0.9.26 architecture review as questionable, each recorded
+with its evidence, counterweight, and — since the 0.9.27 architecture-concern pass — its
+**Resolution**. This is the durable decision record (defects go to `docs/issues.md`): two
+shapes fixed as discriminated unions (entries 2, 3), the registry seam built with honest
+boundaries (entry 1), the context surface consolidated (entry 5), and the container-raw
+redundancy exonerated by a falsification benchmark (entry 4). Reopening an entry requires
+new evidence against its recorded resolution.
 
 ## 1. Process-global registries compound their costs
 
@@ -261,7 +262,13 @@ block mount states only its overrides and a newly required context is one harnes
 than a per-test key list — the thirteen-stub `CodeBlock` mount collapsed onto it.
 
 The aligned `BlockComponent` optional-capability-probe grouping was evaluated and
-deliberately NOT shipped: the probes are OPTIONAL interface members, so grouping them into
+deliberately NOT shipped — recorded here as the freeze-cut input, concretely: the 15 optional
+probes cluster as `selection?` (getSelectedText, setSelection, getSelectionOffsets,
+measurePartialRects), `traversal?` (focusByPath, getBlockComponentByPath, revealByPath,
+getCursorPosition, focusAtColumn, isVerticallyTransparent, enterEdgeWidget), `grid?`
+(cellRect, mountedRowWindow, applyMenuClipboard), and `commands?` (runCommand) — the same
+services/policies/document vocabulary applied to the capability axis. Not shipped because
+the probes are OPTIONAL interface members, so grouping them into
 named sub-objects is a public-surface change that churns every implementor for no runtime
 win, whereas the context facets are an internal-wiring change with none. The facet vocabulary
 (services / policies / document) is recorded as the aligned input for that freeze-cut

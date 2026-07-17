@@ -57,12 +57,12 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 
 The moving state, and the background material behind it.
 
-| Doc                                                                              | Scope                                                                    |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [`roadmap.md`](roadmap.md)                                                       | Forward plan — nothing shipped                                           |
-| [`changelog.md`](changelog.md)                                                   | Shipped history — nothing speculative                                    |
-| [`issues.md`](issues.md)                                                         | Known-defect ledger; entries leave when they ship                        |
-| [`research/gfm-reference.md`](research/gfm-reference.md)                         | The GFM syntax the editor parses                                         |
-| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What a plugin system must expose; where aragonite stands                 |
-| [`research/code-smells.md`](research/code-smells.md)                             | Code-smell vocabulary used in reviews                                    |
-| [`research/architecture-concerns.md`](research/architecture-concerns.md)         | The standing eyebrow list — flagged designs awaiting a recorded decision |
+| Doc                                                                              | Scope                                                                                      |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [`roadmap.md`](roadmap.md)                                                       | Forward plan — nothing shipped                                                             |
+| [`changelog.md`](changelog.md)                                                   | Shipped history — nothing speculative                                                      |
+| [`issues.md`](issues.md)                                                         | Known-defect ledger; entries leave when they ship                                          |
+| [`research/gfm-reference.md`](research/gfm-reference.md)                         | The GFM syntax the editor parses                                                           |
+| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What a plugin system must expose; where aragonite stands                                   |
+| [`research/code-smells.md`](research/code-smells.md)                             | Code-smell vocabulary used in reviews                                                      |
+| [`research/architecture-concerns.md`](research/architecture-concerns.md)         | The resolved eyebrow list — five flagged designs, each with its decision recorded (0.9.27) |
