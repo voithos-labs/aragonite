@@ -76,8 +76,10 @@
 		getCommand
 	} from '../schema/commands';
 	import {
+		registerEditor,
+		unregisterEditor,
 		markEditorInteracted,
-		isLastInteractedEditor,
+		claimsBodyChord,
 		releaseInteractedEditor
 	} from '../active-editor';
 	import type { CommandErrorSink } from '../schema/block-commands';
@@ -322,19 +324,23 @@
 		};
 	});
 
-	// Track which editor the user last interacted with, so the document-level
-	// keydown handler can route a body-level chord (the caret's block windowed out
-	// to <body>) to exactly one instance instead of every mounted editor. focusin
-	// bubbles, so any descendant focus — a block, the find input, or the root's own
-	// windowed-out handoff — marks this editor. Unmount relinquishes the claim.
+	// Register this editor as a body-chord claimant and track which one the user last
+	// interacted with, so the document-level keydown handler routes a body-level chord
+	// (the caret's block windowed out to <body>) to exactly one instance instead of
+	// every mounted editor. A lone editor claims unconditionally; among several, the
+	// last-interacted one wins. focusin bubbles, so any descendant focus — a block, the
+	// find input, or the root's own windowed-out handoff — marks this editor. Unmount
+	// relinquishes the claim and deregisters.
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
+		registerEditor(root);
 		const mark = () => markEditorInteracted(root);
 		root.addEventListener('focusin', mark);
 		return () => {
 			root.removeEventListener('focusin', mark);
 			releaseInteractedEditor(root);
+			unregisterEditor(root);
 		};
 	});
 
@@ -774,10 +780,13 @@
 			const rootChord = eventToChord(e);
 			const active = root.ownerDocument.activeElement;
 
-			// Search / Escape: any focus INSIDE this editor (a block, the find input,
-			// or the root). Focus elsewhere — another editor, an unrelated input on the
-			// page — must not steer this instance's search bar.
-			if (root.contains(active)) {
+			// Search / Escape: focus INSIDE this editor (a block, the find input, or the
+			// root), or a search chord this instance claims. claimsBodyChord is true for
+			// the sole editor (or, among several, the last-interacted one), so a lone
+			// editor claims Find/Replace page-wide — even with focus on a sibling toolbar
+			// control — restoring the pre-containment behavior; a second mounted editor
+			// can't steal it (an outside-focus Ctrl+F opens no bar when 2+ editors exist).
+			if (root.contains(active) || claimsBodyChord(root)) {
 				if (searchBar && rootChord && isReservedUiChord(rootChord)) {
 					e.preventDefault();
 					// Seed the query from the live native selection before open() —
@@ -801,16 +810,15 @@
 				}
 			}
 
-			// Undo/redo, plugin-global chords, cross-block motion: only when NO block
-			// holds focus. active === root: the caret's block windowed out and parked
-			// focus on THIS root (unique per editor). No element focused (body/null):
-			// the block windowed out and blurred to <body> — shared across editors —
-			// so only the editor last interacted with claims the chord, else two
-			// editors both act on one keypress. A focused block owns its own undo, and
-			// focus on a real element outside every editor is none of ours: both fall
-			// through here.
+			// Undo/redo, plugin-global chords, cross-block motion fire only when NO block
+			// holds focus: active === root (the caret's block windowed out and parked on
+			// THIS root, unique per editor), or nothing focused (body/null — windowed out
+			// and blurred to a page-shared target, claimed by the sole/last-interacted
+			// editor). Unlike the search chords above, these collide with a focused
+			// outside element's native behavior — a text input owns Ctrl+Z — so they
+			// yield to any focused element and act only on the windowed-out caret.
 			const noElementFocused = active === null || active === root.ownerDocument.body;
-			if (!(active === root || (noElementFocused && isLastInteractedEditor(root)))) return;
+			if (!(active === root || (noElementFocused && claimsBodyChord(root)))) return;
 
 			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
 			// caret whose block unmounted, not necessarily a selection. No block is
