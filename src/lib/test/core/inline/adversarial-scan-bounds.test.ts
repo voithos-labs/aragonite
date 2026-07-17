@@ -23,7 +23,7 @@ describe('adversarial scan bounds', () => {
 		const nodes = parseInline(source, 0, source.length);
 		expect(performance.now() - started).toBeLessThan(2000);
 		const autolink = nodes.find((n) => n.kind === 'autolink');
-		expect(autolink?.url).toBe('www.x.com');
+		expect(autolink?.url).toBe('http://www.x.com');
 		expect(nodes.map((n) => source.slice(n.start, n.end)).join('')).toBe(source);
 	}, 60_000);
 });
