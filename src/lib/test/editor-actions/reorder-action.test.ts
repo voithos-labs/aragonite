@@ -10,6 +10,7 @@ import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
@@ -58,9 +59,13 @@ function makeContainer(source: string) {
 		deps: harness.deps,
 		undo: history.requestUndo,
 		ids: () => state.innerBlockIds,
-		stable() {
+		// Convergence, not just a byte round-trip: after a reorder the live tree
+		// must match a fresh parse of its bytes, so a permutation that leaves a
+		// stale container raw or a renumber-desynced marker is caught.
+		assertStable() {
+			expectParseConverged(harness.doc);
 			const live = serialize(harness.doc);
-			return serialize(parse(live)) === live;
+			expect(serialize(parse(live))).toBe(live);
 		}
 	};
 }
@@ -111,6 +116,7 @@ describe('reorder action — top level', () => {
 
 		const live = serialize(harness.doc);
 		expect(live).toBe('- two\n\n- three\n\n- one\n');
+		expectParseConverged(harness.doc); // live tree converges with a reparse of its bytes
 		expect(serialize(parse(live))).toBe(live); // byte-stable round-trip
 	});
 });
@@ -138,7 +144,7 @@ describe('reorder action — list', () => {
 		const h = makeContainer('1. one\n2. two\n3. three\n');
 		await h.reorder.nudgeReorderUnit([0, 2, 0], -1); // three up
 		expect(serialize(h.doc)).toBe('1. one\n2. three\n3. two\n');
-		expect(h.stable()).toBe(true);
+		h.assertStable();
 	});
 });
 

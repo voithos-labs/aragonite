@@ -15,7 +15,9 @@ list item's split-at-start path.
 
 - real click + Home + Enter on a paragraph: same split as the seeded-caret path (the gesture Home lands on raw 0)
 - Enter at offset 0 of a blockquote's first child: empty block above inside the blockquote at the same nesting level; nested block-list state stays consistent; caret on the content
-- source round-trips after every split (`serialize(parse(source)) === source`)
+- the live tree converges after every split: it matches a reparse of its own serialization
+  (not merely `serialize(parse(source)) === source`, which is a tautology for valid GFM — the
+  convergence check catches a split that left the tree's kind or shape stale vs its raw)
 
 ## User interactions
 

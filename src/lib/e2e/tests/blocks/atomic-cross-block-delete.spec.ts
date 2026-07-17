@@ -94,10 +94,13 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 
 // The atomic block and the selected span are gone; the surviving prose endpoints
 // (`before` head, `omega` tail) merge into clean prose with no fused atomic-block
-// content and no orphaned fence. roundTrip is the serializer-corruption backstop.
+// content and no orphaned fence. roundTrip is the serializer-corruption backstop;
+// parseConverged is the live-tree oracle — a delete that left a stale grid or
+// split-separator shape diverges from a reparse where the byte check is blind.
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
 	expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+	expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 	expect(source).not.toContain(body);
 	expect(source).not.toContain('```');
 	expect(source).toContain('before');

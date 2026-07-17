@@ -11,6 +11,12 @@ import type { NoteFixture } from './types';
  */
 export const README_NOTE: NoteFixture = {
 	name: 'readme-note',
+	// Types a Links section after an unclosed fenced code block: those blocks stay
+	// separate while typing but GFM lazy-collapses them into the fence on reload —
+	// byte-safe, structurally divergent (docs/issues.md). Exempt from the checkpoint
+	// convergence oracle; round-trip + end-state equality still guard the bytes.
+	unconvergedReason:
+		'content typed after an unclosed fenced code block (byte-safe reload-collapse)',
 	async build(g: Gestures): Promise<void> {
 		await g.typeText('# Limestone CLI');
 		await g.pressEnter();

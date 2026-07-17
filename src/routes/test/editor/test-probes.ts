@@ -1,6 +1,7 @@
 import type { Editor, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { parseConverges } from '$lib/testing/parse-convergence';
 import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 import { findBlockPathForElement } from '$lib/selection/path-lookup';
 import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
@@ -261,7 +262,8 @@ export function installTestProbes({
 		// container's children. Root-only paths are rejected (root ids live in a separate
 		// `blockIds` array this helper can't reach). The container's own raw (and every
 		// ancestor's) stays STALE, so getSource()/roundTripStable() are blind to the splice
-		// — assert through getDocument() after using this.
+		// — assert through getDocument(), or through parseConverged() which reads the live
+		// tree and DOES catch the stale-raw divergence the source-string checks miss.
 		spliceContainerChildren: (
 			path: number[],
 			at: number,
@@ -345,6 +347,14 @@ export function installTestProbes({
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
 		},
+		// The live-tree convergence oracle. roundTripStable above is a source-string
+		// FIXED POINT — valuable (it catches unserializable raw) but a tautology as a
+		// mutation oracle: serialize(parse(s)) === s holds for all valid GFM. This
+		// reads the LIVE CST and compares it structurally against a reparse of its
+		// own serialization, so a mutation that left the tree diverging from its raw
+		// (stale kind, stale grid, split-separator drift) is caught where the byte
+		// check is blind.
+		parseConverged: (): boolean => parseConverges(editor.__test.getDocument()),
 		// The bar shows a match count instead of "N replaced" whenever matches
 		// survive a replace (e.g. skipped container matches), so specs read the
 		// replaced count here.

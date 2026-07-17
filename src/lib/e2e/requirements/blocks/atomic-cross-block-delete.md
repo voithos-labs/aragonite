@@ -11,7 +11,9 @@ editor chooses — they are asserted instead of a guessed exact output string.
 
 ## Hard invariants (must hold for every scenario)
 
-- Round-trip stable after the op: `serialize(parse(getSource())) === getSource()`.
+- Convergent after the op: the live tree matches a reparse of its own serialization, not merely
+  `serialize(parse(getSource())) === getSource()` (a tautology for valid GFM) — so a delete that
+  left a stale grid or split-separator shape is caught where the byte round-trip is blind.
 - No fenced-code body text fused into surrounding prose.
 - No orphaned code fence and no orphaned `---` thematic-break marker left in the source.
 - No console errors, page errors, invariant warnings, or editor `error` events during the op.
