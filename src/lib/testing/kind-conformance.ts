@@ -245,6 +245,20 @@ function execRoundTrip(
 		const first = rebuildRawOf(kind, ctx.fixture, descriptor);
 		const second = rebuildRawOf(kind, ctx.fixture, descriptor);
 		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
+		// Parse-canonical identity (byte-faithful rebuilds only): ctx.node is freshly
+		// parsed, hence canonical, so rebuildRaw over it reproduces the SAME bytes —
+		// catching a rebuild that is deterministically wrong (the details-CRLF class
+		// that shipped green here on the determinism check alone). Grid rebuilds
+		// canonicalize delimiter/padding widths by contract, so a valid non-canonical
+		// grid fixture is legally not a rebuild fixed-point; determinism is grid's
+		// half and the browser sweep covers its rebuilt bytes.
+		if (descriptor.containerContract !== 'grid') {
+			assertIs(first, ctx.node.raw, `"${kind}" rebuildRaw reproduces the parse-canonical raw`);
+			return {
+				status: 'executed',
+				detail: 'byte round-trip + rebuildRaw parse-identity + determinism'
+			};
+		}
 		return { status: 'executed', detail: 'byte round-trip + rebuildRaw determinism' };
 	}
 	return { status: 'executed', detail: 'byte round-trip' };
