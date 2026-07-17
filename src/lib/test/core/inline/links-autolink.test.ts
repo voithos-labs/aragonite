@@ -110,23 +110,26 @@ describe('trimTrailingPunctuation (GFM §6.9)', () => {
 		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe('https://example.com'.length);
 	});
 
-	it('strips final semicolon when not preceded by HTML entity shape', () => {
+	it('keeps a trailing semicolon that does not resemble an entity reference', () => {
+		// GFM §6.9: `;` is not trailing punctuation — a bare `;` stays in the url.
 		const raw = 'https://example.com;';
-		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe('https://example.com'.length);
-	});
-
-	it('keeps final semicolon when preceded by HTML entity shape (&copy;)', () => {
-		const raw = 'https://example.com/?a=&copy;';
 		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
 	});
 
-	it('keeps final semicolon when preceded by numeric entity (&#39;)', () => {
-		const raw = 'https://example.com/?a=&#39;';
-		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
+	it('excludes an entity-shaped tail (& + alphanumerics + ;), stripping back through the &', () => {
+		// GFM §6.9 example 626: `&hl;` resembles an entity reference, so the whole
+		// `&hl;` — the `&` and everything after — is excluded from the url.
+		const raw = 'https://example.com/?q=&hl;';
+		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe('https://example.com/?q='.length);
 	});
 
-	it('keeps final semicolon when preceded by hex entity (&#x27;)', () => {
-		const raw = 'https://example.com/?a=&#x27;';
+	it('excludes an entity-shaped tail containing digits', () => {
+		const raw = 'https://example.com/?q=&bogus08;';
+		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe('https://example.com/?q='.length);
+	});
+
+	it('keeps a semicolon after an ampersand with no alphanumeric run (not entity-shaped)', () => {
+		const raw = 'https://example.com/?a=&;';
 		expect(trimTrailingPunctuation(raw, 0, raw.length)).toBe(raw.length);
 	});
 
@@ -226,12 +229,12 @@ describe('bare http/https autolink — trim + boundary (GFM §6.9)', () => {
 });
 
 describe('bare www. autolink (GFM §6.9)', () => {
-	it('autolinks www.example.com', () => {
+	it('autolinks www.example.com with the inserted http scheme', () => {
 		const raw = 'Visit www.example.com today';
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
 		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('www.example.com');
+		expect(autolinks[0].url).toBe('http://www.example.com');
 	});
 
 	it('autolinks WWW.EXAMPLE.COM (case insensitive prefix)', () => {
@@ -239,7 +242,7 @@ describe('bare www. autolink (GFM §6.9)', () => {
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
 		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('WWW.EXAMPLE.COM');
+		expect(autolinks[0].url).toBe('http://WWW.EXAMPLE.COM');
 	});
 
 	it('autolinks www. with path and query', () => {
@@ -247,7 +250,7 @@ describe('bare www. autolink (GFM §6.9)', () => {
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
 		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('www.example.com/foo?a=1');
+		expect(autolinks[0].url).toBe('http://www.example.com/foo?a=1');
 	});
 
 	it('does not autolink mid-word', () => {
@@ -270,7 +273,7 @@ describe('bare www. autolink (GFM §6.9)', () => {
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
 		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('www.example.com');
+		expect(autolinks[0].url).toBe('http://www.example.com');
 	});
 });
 

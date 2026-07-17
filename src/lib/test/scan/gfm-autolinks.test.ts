@@ -26,26 +26,26 @@ describeScanCases('bare autolinks as the only content (fast-bail seam)', [
 		'https://bare.example',
 		[autolinkNode(0, 20, 'https://bare.example')]
 	],
-	['www prefix probe', 'www.example.com', [autolinkNode(0, 15, 'www.example.com')]],
+	['www prefix probe', 'www.example.com', [autolinkNode(0, 15, 'http://www.example.com')]],
 	['email probe (`@`)', 'foo@bar.example.com', [autolinkNode(0, 19, 'mailto:foo@bar.example.com')]],
-	['uppercase www prefix', 'WWW.Example.Com', [autolinkNode(0, 15, 'WWW.Example.Com')]]
+	['uppercase www prefix', 'WWW.Example.Com', [autolinkNode(0, 15, 'http://WWW.Example.Com')]]
 ]);
 
 describeScanCases('recognition boundaries and trimming', [
 	[
 		'trailing punctuation trimmed',
 		'Visit www.example.com.',
-		[textNode(0, 6, 'Visit '), autolinkNode(6, 21, 'www.example.com'), textNode(21, 22, '.')]
+		[textNode(0, 6, 'Visit '), autolinkNode(6, 21, 'http://www.example.com'), textNode(21, 22, '.')]
 	],
 	[
 		'unbalanced close paren trimmed',
 		'www.example.com/a(b)c)',
-		[autolinkNode(0, 21, 'www.example.com/a(b)c'), textNode(21, 22, ')')]
+		[autolinkNode(0, 21, 'http://www.example.com/a(b)c'), textNode(21, 22, ')')]
 	],
 	[
 		'open paren is a valid leading boundary',
 		'(www.x.com)',
-		[textNode(0, 1, '('), autolinkNode(1, 10, 'www.x.com'), textNode(10, 11, ')')]
+		[textNode(0, 1, '('), autolinkNode(1, 10, 'http://www.x.com'), textNode(10, 11, ')')]
 	],
 	['bracket is not a valid leading boundary', '[www.x.com]', [textNode(0, 11, '[www.x.com]')]],
 	[
@@ -58,9 +58,11 @@ describeScanCases('recognition boundaries and trimming', [
 	['word character before the scheme rejects', 'xhttps://a.b', [textNode(0, 12, 'xhttps://a.b')]],
 	['dotless email domain rejects', 'x@y', [textNode(0, 3, 'x@y')]],
 	[
-		'entity-shaped semicolon is kept',
+		// GFM §6.9: a trailing `&…;` resembling an entity reference is excluded
+		// from the url (the `&` and everything after), landing as sibling text.
+		'entity-shaped semicolon is excluded',
 		'www.x.com/&bogus08;',
-		[autolinkNode(0, 19, 'www.x.com/&bogus08;')]
+		[autolinkNode(0, 10, 'http://www.x.com/'), textNode(10, 19, '&bogus08;')]
 	]
 ]);
 
@@ -85,14 +87,14 @@ describeScanCases('urls stop where claimed constructs start', [
 	[
 		'spec autolink ends the url',
 		'www.x.com<https://a.b>',
-		[autolinkNode(0, 9, 'www.x.com'), autolinkNode(9, 22, 'https://a.b')]
+		[autolinkNode(0, 9, 'http://www.x.com'), autolinkNode(9, 22, 'https://a.b')]
 	],
 	// The hard-break claim wins over url continuation, so the break survives
 	// instead of the backslash being absorbed into the destination.
 	[
 		'backslash hard break ends the url',
 		'www.x.com\\\nfoo',
-		[autolinkNode(0, 9, 'www.x.com'), hardBreak(9, 11), textNode(11, 14, 'foo')]
+		[autolinkNode(0, 9, 'http://www.x.com'), hardBreak(9, 11), textNode(11, 14, 'foo')]
 	]
 ]);
 
@@ -105,7 +107,7 @@ describeScanCases('autolinks interleave with emphasis and links', [
 	[
 		'strikethrough wraps around a url',
 		'~~www.x.com~~',
-		[strikethroughNode(0, 13, [autolinkNode(2, 11, 'www.x.com')])]
+		[strikethroughNode(0, 13, [autolinkNode(2, 11, 'http://www.x.com')])]
 	],
 	[
 		'interior delimiter is url content, trailing one pairs',
@@ -120,12 +122,12 @@ describeScanCases('autolinks interleave with emphasis and links', [
 	[
 		'autolink inside link text',
 		'[see www.x.com](/u)',
-		[linkNode(0, 19, [textNode(1, 5, 'see '), autolinkNode(5, 14, 'www.x.com')], '/u')]
+		[linkNode(0, 19, [textNode(1, 5, 'see '), autolinkNode(5, 14, 'http://www.x.com')], '/u')]
 	],
 	[
 		'autolink inside image alt structure',
 		'![www.x.com](/u)',
-		[imageNode(0, 16, [autolinkNode(2, 11, 'www.x.com')], 'www.x.com', '/u')]
+		[imageNode(0, 16, [autolinkNode(2, 11, 'http://www.x.com')], 'www.x.com', '/u')]
 	]
 ]);
 
