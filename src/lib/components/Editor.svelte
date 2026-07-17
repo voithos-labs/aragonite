@@ -142,6 +142,7 @@
 	// that structural operations write through directly, so they cannot be
 	// $derived — we take a one-time snapshot at mount and re-sync via
 	// $effect below when the prop changes.
+	// svelte-ignore state_referenced_locally
 	const initial = initDocument(source);
 	// svelte-ignore state_referenced_locally
 	let doc = $state<Document>(initial.doc);
