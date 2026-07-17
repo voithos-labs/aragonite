@@ -96,11 +96,12 @@ registerBlockOpener('indentedCode', {
 	priority: OPENER_PRIORITIES.indentedCode,
 	tryOpen(ctx) {
 		if (!matchIndentedCode(ctx.line.text)) return null;
-		// GFM §4.4: indented code cannot interrupt a paragraph — opens only
-		// after a blank line or at the window start.
-		if (ctx.leadingTrivia.length === 0 && !ctx.isFirstInWindow) return null;
 		return parseIndentedCode(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 	},
+	// GFM §4.4: indented code cannot interrupt a paragraph. An open paragraph
+	// already absorbs a following indented line as lazy continuation, so the
+	// line only reaches this opener when no paragraph is open — where indented
+	// code opens with no blank line required.
 	interruptsParagraph: false
 });
 
