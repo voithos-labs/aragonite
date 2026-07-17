@@ -124,22 +124,13 @@ export function getOrderedOpeners(isEnabled?: OpenerEnablement): readonly BlockO
 /**
  * Registry-derived paragraph-interrupt check. A grammar read like
  * getOrderedOpeners, so it carries the same seam duties (flush pending checks,
- * trip the grammar-consumed latch) and the same optional enablement filter.
+ * trip the grammar-consumed latch). NOT enablement-filtered: the interrupt scan is
+ * the documented global-grammar boundary — the parsers call it directly, never
+ * through the per-instance GrammarView, so a filter here would be parse-path-dead.
  */
-export function lineInterruptsParagraph(lineText: string, isEnabled?: OpenerEnablement): boolean {
+export function lineInterruptsParagraph(lineText: string): boolean {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
-	if (isEnabled) {
-		for (const [kind, opener] of orderedEntries()) {
-			if (
-				opener.interruptsParagraph !== false &&
-				isEnabled(kind) &&
-				opener.interruptsParagraph(lineText)
-			)
-				return true;
-		}
-		return false;
-	}
 	if (!interruptCache) {
 		interruptCache = [...openers.values()]
 			.map((o) => o.interruptsParagraph)
@@ -155,27 +146,25 @@ export function lineInterruptsParagraph(lineText: string, isEnabled?: OpenerEnab
  * The grammar as a per-instance resolution object over the global openers — the
  * slot `parse(source, { grammar })` threads (concern #1). The default reads the
  * global definitions verbatim (behavior-preserving); a filtered view carries an
- * instance's enablement predicate.
+ * instance's enablement predicate. Only the opener dispatch is instance-resolved;
+ * the paragraph-interrupt scan stays on the global-grammar boundary.
  */
 export interface GrammarView {
 	orderedOpeners(): readonly BlockOpener[];
-	interruptsParagraph(lineText: string): boolean;
 }
 
 export const defaultGrammarView: GrammarView = {
-	orderedOpeners: () => getOrderedOpeners(),
-	interruptsParagraph: (lineText) => lineInterruptsParagraph(lineText)
+	orderedOpeners: () => getOrderedOpeners()
 };
 
-// TODO(limestone): the filtered reads are uncached — getOrderedOpeners(isEnabled)
+// TODO(limestone): the filtered read is uncached — getOrderedOpeners(isEnabled)
 // re-sorts+filters every call, so parsing an N-block doc under an ACTIVE filter is
 // N re-sorts vs the cached O(1) default path. Harmless while enablement is
 // harness-only (the default view is cached); memoize per-view with
 // registration-invalidation before the public enablement API ships.
 export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
 	return {
-		orderedOpeners: () => getOrderedOpeners(isEnabled),
-		interruptsParagraph: (lineText) => lineInterruptsParagraph(lineText, isEnabled)
+		orderedOpeners: () => getOrderedOpeners(isEnabled)
 	};
 }
 

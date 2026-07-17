@@ -61,7 +61,9 @@ const compositeKey = (kind: AnyBlockKind, id: string): string => `${kind} ${id}`
 
 /**
  * Register-once check precedes the mint: a duplicate `(kind, name)` reports as
- * "register-once", not the mint's own already-minted collision message.
+ * "register-once", not the mint's own already-minted collision message. The mint
+ * (which validates the name) runs INSIDE `apply`, before the map write, so an
+ * invalid name throws before touching the registry — never an orphaned handler.
  */
 export function registerBlockCommand(
 	kind: AnyBlockKind,
@@ -69,12 +71,16 @@ export function registerBlockCommand(
 	handler: BlockCommandHandler
 ): PluginCommandId {
 	const key = compositeKey(kind, name);
+	let id: PluginCommandId | undefined;
 	registerOnce(
 		blockCommands.has(key),
-		() => blockCommands.set(key, handler),
+		() => {
+			id = mintCommandId(name);
+			blockCommands.set(key, handler);
+		},
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
 	);
-	return mintCommandId(name);
+	return id!;
 }
 
 export function getBlockCommand(

@@ -51,11 +51,13 @@ raw-editable fallback renders — the unknown-kind rule) and drops its opener fr
 built-ins are never disableable and the descriptor is never filtered (a disabled kind degrades,
 not throws). The enablement _predicate_ ships behind a harness-only door with a two-editor proof
 (one kind disabled in A, live in B); its **public prop firms up with limestone** — the seam is
-built, the public surface deliberately deferred. The honest boundary: the instance grammar
-threads the top-level parse and the content-commit reparse; nested container reparse, the
-paragraph-interrupt scan, split/merge reparse, paste, and inline syntax read the global grammar
-(byte-identical by the default, and completed when the public enablement API sources the
-predicate everywhere).
+built, the public surface deliberately deferred. The honest boundary: the `parse(source, { grammar })`
+seam filters the top-level opener dispatch, and the editor threads its instance grammar to the
+content-commit reparse. The editor's INITIAL parse deliberately stays global (so a disabled kind's
+block parses to its plugin node and renders raw-editable — the proof's degradation); nested container
+reparse, the paragraph-interrupt scan, split/merge reparse, paste, and inline syntax also read the
+global grammar (byte-identical by the default, and completed when the public enablement API sources
+the predicate everywhere).
 
 _The DEV idempotence guard_ (`schema/register-once.ts`) kills the SSR registrar-poison 500-class:
 under a dev server (not production, not a test run) a duplicate registration REPLACES with a note
