@@ -26,10 +26,10 @@ export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HT
 }
 
 /**
- * First scrollable descendant of `el` in document order, or null. Used by the
- * selection overlay: the block-host wrapper sits outside a block's internal
- * scroll container (table's .table-block, code block's contenteditable), so
- * the overlay must look inward to find what scrolls beneath it.
+ * First scrollable descendant of `el` in document order, or null. A block-host
+ * wrapper sits outside a block's internal scroll container (table's .table-block,
+ * code block's contenteditable), so finding what scrolls beneath the host means
+ * looking inward, not up.
  */
 export function firstScrollableDescendant(el: HTMLElement): HTMLElement | null {
 	const stack: HTMLElement[] = [];

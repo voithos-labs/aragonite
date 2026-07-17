@@ -1,6 +1,7 @@
 /**
  * `<details>` collapsible — the second reserved-chrome container consumer, built
- * on the same public seams as the callout. Dev/e2e harness only.
+ * on the same public seams as the callout. Ships as the `aragonite/plugins/details`
+ * bundled plugin (and doubles as a dogfood/e2e validator).
  *
  * Canonical form (byte-pinned):
  *

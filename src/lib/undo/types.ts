@@ -26,8 +26,7 @@ export interface UndoManager {
 	getStacks(): { undo: UndoEntry[]; redo: UndoEntry[] };
 	/**
 	 * Restore both stacks in place to a snapshot captured via `getStacks()`.
-	 * Used by the commit ceremony to roll back a push when its mutation throws —
-	 * a wholesale restore (not a pop) because `push` may have evicted the oldest
+	 * A wholesale restore (not a pop) because `push` may have evicted the oldest
 	 * entry at MAX_UNDO.
 	 */
 	restoreStacks(stacks: { undo: UndoEntry[]; redo: UndoEntry[] }): void;

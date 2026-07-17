@@ -359,6 +359,7 @@ The contract's load-bearing rules are guarded by the invariant catalog (`docs/de
 
 - The view types (`core/node-views.ts`): every plugin-visible read surface is bytes-readonly at compile time, and the G4.13 door lint keeps view→mutable casts confined to `tree-operations/` + the commit ceremony.
 - Readonly-view prop parity (G4.14): a block component annotating its `node`/`document` props with the mutable types is caught by a source-scan lint — the registration boundary erases prop types, so the drift would otherwise compile.
+- Bundled-plugin import boundary (G4.16): a source-scan lint holds every file under `src/lib/plugins/` to the public authoring barrel, its own plugin dir, or — in a `renderer.ts` — its one declared engine, so a bundled plugin reaching a `$lib` deep path proves the barrel is missing a surface (fix the barrel, not the import).
 - Opener coherence at bootstrap over the live registry, and kind-table completeness at bootstrap.
 - Keymap coherence over the live registries — a plugin keymap's command ids validate against the minted `PluginCommandId`s (the earlier built-ins-only gap is closed) — and a container's `reservedChrome` declaration gets bootstrap coherence.
 - Closure-block coherence (G1.24): the required `closure` block agrees with the rest of the descriptor at bootstrap, and each declared `conformanceFixture` parses to its kind.

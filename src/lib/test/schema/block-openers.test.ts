@@ -68,7 +68,7 @@ describe('block-opener registry', () => {
 		expect(lineInterruptsParagraph('> quote')).toBe(true);
 	});
 
-	// The per-instance enablement filter (concern #1). The unfiltered read is the
+	// The per-instance enablement filter (docs/research/architecture-concerns.md). The unfiltered read is the
 	// behavior-preserving default; a predicate drops a disabled kind's opener from
 	// both grammar reads without disturbing the cached default read.
 	describe('enablement filter', () => {

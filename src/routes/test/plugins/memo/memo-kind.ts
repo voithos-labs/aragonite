@@ -67,8 +67,8 @@ export function registerMemoBlock(): void {
 	});
 
 	registerBlockOpener(memo, {
-		// `%%` collides with no built-in matcher; 25 sits between the harness's
-		// block-math opener (15) and the shared `:::` directive opener (45).
+		// `%%` collides with no built-in matcher; 25 sits between the block-math
+		// opener (15) and the shared `:::` directive opener (45).
 		priority: 25,
 		interruptsParagraph: (text) => text.startsWith('%%'),
 		tryOpen(ctx) {

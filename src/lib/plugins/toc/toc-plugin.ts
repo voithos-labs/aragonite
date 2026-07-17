@@ -2,7 +2,8 @@
  * The table-of-contents dogfood: a `[[toc]]` leaf whose folded view lists the
  * document's headings. It exists to validate one thing — `BlockComponentProps.document`
  * is delivered to a block component, live and at any depth — so the component reads
- * the heading list straight off that prop. Dev/e2e harness only.
+ * the heading list straight off that prop. Ships as the `aragonite/plugins/toc`
+ * bundled plugin.
  *
  * Recognition is gated on registration: with no plugin loaded, `[[toc]]` is a plain
  * paragraph, so parsing stays byte-identical to bare GFM.

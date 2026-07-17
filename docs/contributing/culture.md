@@ -87,7 +87,7 @@ kill it:
 - A diff that adds an entry path gets one standing review question: **can the rule move into the
   seam instead of being carried?** Carrying is the exception and says why.
 - Where the funnel can't be built yet, mint the parity rule as a source-scan guard
-  (`invariants/lint/`): "every entry path matching X routes through Y" fails the day path N+1 is
+  (`src/lib/test/invariants/lint/`): "every entry path matching X routes through Y" fails the day path N+1 is
   born, instead of at the next audit.
 
 ## Fixing bugs

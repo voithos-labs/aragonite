@@ -129,7 +129,7 @@ Cross-cutting block-kind metadata lives in `src/lib/schema/`. Both `core/inline/
 - **Merge rules** — eligibility predicates for Backspace-merge, plus the walker that finds the deepest mergeable leaf.
 - **Container raw rebuild** — per-kind rebuild plus ancestry dispatch, so an edit deep in a nesting chain re-emits every enclosing container's `raw`.
 
-Registries are code, not state: register-once, throw on duplicate, no unregister (the `customElements` model).
+Registries are code, not state: register-once, throw on duplicate, no unregister (the `customElements` model) — in production and under test; under a dev server a duplicate registration replaces with a note instead (`schema/register-once.ts`), so a re-evaluated registrar survives rather than 500-ing every route.
 
 ## 6. CST ↔ DOM synchronization
 
@@ -363,7 +363,7 @@ Native browser selection inside the block's contenteditable. The caret is the br
 
 ### Cross-block selection
 
-Two endpoints — anchor and focus — each a `path` (child indices from the document root) plus a character offset in that block's `raw`. Same path on both = single-block, and the browser handles it. Different paths = the editor manages all selection rendering, and only then are the native caret and native `::selection` suppressed (via `[data-cross-block]` on the editor root) so they don't double up with the overlay.
+Two endpoints — anchor and focus — each a `path` (child indices from the document root) plus an offset in that block: a character offset into its `raw`, or a row-major cell index for an intra-table endpoint (`SelectionPoint` is a discriminated union, `selection/primitives.ts`). Same path on both = single-block, and the browser handles it. Different paths = the editor manages all selection rendering, and only then are the native caret and native `::selection` suppressed (via `[data-cross-block]` on the editor root) so they don't double up with the overlay.
 
 The state is lazy: its fields are null in single-block mode and become non-null only when the selection crosses a boundary. A normalized `start`/`end` pair in document order is derived from anchor/focus.
 
