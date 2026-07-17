@@ -193,29 +193,6 @@ on first edit like padding and delimiter normalization.
 boundary to observe and drops only non-model, never-rendered bytes — the same class as the
 Enter-at-end round-trip note above, one rung less severe (the surplus is never user-visible).
 
-### GFM hard break at end of paragraph degenerates to a literal backslash
-
-**Severity:** minor (edge input; mid-paragraph hard break unaffected)
-**Files:** `src/lib/components/blocks/text/text-keydown.ts` (`insertHardBreak`)
-
-A Shift+Enter at the very end of a paragraph inserts `\` + newline where the newline
-lands as the block's trailing line ending. `trimTrailingLineEnding` then strips it,
-leaving the display ending in a literal `\` (GFM treats a backslash before a
-paragraph-ending newline as a literal, not a hard break), and the returned caret
-offset sits one past the trimmed display length. A hard break at EOF is not
-representable in GFM as a single paragraph — it needs following content — so the
-insertion has no meaningful next line to land on.
-
-**Fix direction:** decide the EOF Shift+Enter semantics (suppress the degenerate
-break, or split into a fresh block) and clamp the caret to the display length. Both
-touch the trailing-line-ending seam (`displayLength` / `trimTrailingLineEnding` /
-the `offset >= display.length` branch).
-
-**Why deferred:** the caret off-by-one and the literal-`\` both live in the
-trailing-line-ending logic the CRLF/trailing-newline fidelity family owns (the
-deferred keystroke-commit `\r\n` normalization is the sibling); a caret-only clamp
-would patch the symptom without settling the semantics. Fold into that line-ending pass.
-
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 
 **Severity:** minor (undo-selection nuance; the edit is correct and byte-safe)

@@ -16,6 +16,16 @@ export function trimTrailingLineEnding(raw: string): string {
 }
 
 /**
+ * The block's authored trailing line ending — `\r\n` for a CRLF block, `\n`
+ * otherwise. A commit that reattaches the trailing ending reads it here so a
+ * CRLF-authored block keeps its ending; a block with no trailing ending keeps the
+ * `\n` the commit path has always appended (the code-paste-surface sibling idiom).
+ */
+export function trailingLineEnding(raw: string): string {
+	return raw.endsWith('\r\n') ? '\r\n' : '\n';
+}
+
+/**
  * Normalize external text to LF. Paste entry points funnel through here so
  * Windows CRLF doesn't leak into notes and break byte-level cross-platform
  * consistency.

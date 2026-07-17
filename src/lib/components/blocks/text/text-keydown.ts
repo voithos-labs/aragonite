@@ -32,15 +32,19 @@ export function cycleHeading(raw: string, level: number, preEditOffset: number):
 	return { newRaw: newDisplay + trailing, caretOffset };
 }
 
-/** Insert a GFM hard-break (`\\\n`) at `offset` within the display portion. */
+/**
+ * Insert a GFM hard-break (`\\\n`) at `offset` within the display portion. A hard
+ * break needs a following line, so at end-of-display it is not representable as a
+ * single paragraph — emitting one degenerates to a literal trailing backslash. The
+ * degenerate case is suppressed: the raw is returned unchanged and the caret clamps
+ * to the display length (the component treats an unchanged raw as a no-op).
+ */
 export function insertHardBreak(raw: string, offset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
+	if (offset >= display.length) return { newRaw: raw, caretOffset: display.length };
 	const trailing = raw.slice(displayLength(raw));
 	const newDisplay = display.slice(0, offset) + '\\\n' + display.slice(offset);
-	// At end-of-display the inserted `\n` *is* the trailing line ending; reusing
-	// the original would form a blank line and break list-item continuation.
-	const newRaw = offset >= display.length ? newDisplay : newDisplay + trailing;
-	return { newRaw, caretOffset: offset + 2 };
+	return { newRaw: newDisplay + trailing, caretOffset: offset + 2 };
 }
 
 /** Insert a literal tab character at `offset` within the display portion. */
