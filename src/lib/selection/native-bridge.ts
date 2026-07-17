@@ -30,7 +30,15 @@ export function readNativeCaretInBlock(
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
-	const content = domTextOffsetAtNode(blockEl, range.startContainer, range.startOffset);
+	// The anchor is the fixed end the selection grew from; for a BACKWARD
+	// selection (anchor after focus) it sits at range.end, so reading range.start
+	// captures the moving focus instead and cross-block entry drops the
+	// highlighted span. Read the real anchor when it's a resolvable node inside
+	// this block; a collapsed caret (or an anchor in a sibling) keeps range.start.
+	const useAnchor = !sel.isCollapsed && sel.anchorNode !== null && blockEl.contains(sel.anchorNode);
+	const node = useAnchor ? sel.anchorNode! : range.startContainer;
+	const nodeOffset = useAnchor ? sel.anchorOffset : range.startOffset;
+	const content = domTextOffsetAtNode(blockEl, node, nodeOffset);
 	return {
 		path: path.slice(),
 		offset: toClampedRawOffset(content, ambientLengthOf(blockEl))
