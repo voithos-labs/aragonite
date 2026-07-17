@@ -2,6 +2,47 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.27 — The architecture-concern pass: five flagged designs, five recorded resolutions
+
+A post-0.9.26 architecture review flagged the five designs most likely to be regretted after
+the freeze; the owner's build-up-front posture demanded every one be attempted before the
+limestone integration binds to them. All five resolved — two fixed as types, one built, one
+consolidated, one exonerated by measurement (`docs/research/architecture-concerns.md` is the
+durable record):
+
+- **`SelectionPoint` is a discriminated union** (`CharSelectionPoint | CellSelectionPoint` on
+  the `cellCoordinate` flag). `offset` keeps its name on both variants — near-source-compatible
+  for every consumer — while cell mints carry `satisfies`-enforced construction teeth, the undo
+  copy path preserves the variant, and the intra-table context-established convention is
+  documented on the type. The dual-space wart no longer freezes loose at 1.0.
+- **`CstNode` is a discriminated union** — per-built-in-kind arms with typed metadata behind
+  `isBuiltinBlockNode`, plus the open branded-plugin arm. The one production in-place `kind`
+  write (the re-parse transfer) proved vestigial and now mints-and-replaces on kind change,
+  while same-kind edits keep in-place field writes — node identity is load-bearing (the
+  block-list registry, height caches, and inline accessor key WeakMaps by node), now pinned by
+  an identity test. Honest boundary: the branded plugin arm blocks full-union narrowing, so the
+  ~90 `metadataOf` sites keep the single sanctioned funnel; the union's wins are construction
+  correctness, native narrowing in the built-in sub-union, and a discriminable `NodeView`.
+- **Registry reads resolve through per-instance views over global definitions.** The default
+  view aliases the global reads — behavior-preserving by construction — with a harness-proven
+  enablement knob (editor A renders a plugin kind raw-editable while B renders it live, one
+  process); `parse` gains an additive `{ grammar }` option threaded through the content-commit
+  reparse. The **SSR registrar-poison class is structurally fixed**: under a dev server a
+  duplicate registration replaces with a note instead of throwing, so a re-evaluated registrar
+  survives — prod and test keep the frozen register-once throw. Honest boundaries recorded for
+  limestone: the initial parse stays global, inline enablement waits on layering, the
+  enablement knob's public shape firms with the first real consumer.
+- **The context surface consolidated**: 36 keys → three named facets (services, policies,
+  document) plus the eight load-bearing per-key survivors — the container override triple,
+  history (G1.4), and the scope-provided channels. Byte-identical; mounting a block component
+  in a test is now one `editorMountContext()` call instead of thirteen stubs. The aligned
+  `BlockComponent` probe-facet grouping is recorded as freeze-cut input, deliberately unshipped.
+- **Container-raw redundancy: exonerated by falsification.** The new combined depth-x-size
+  benchmark (the axis no prior fixture reached) measures realistic deep-nesting typing at
+  ~1-2 ms/keystroke of ancestry rebuild — floor class, two orders below the pathological
+  class — with the superlinear tail confined to adversarial shapes. The most guard-hungry
+  design in the repo keeps its guards and gains its evidence.
+
 ### 0.9.26 — Presentation modes: the full live-preview ladder
 
 Always-visible styled source stays the editing substrate and the default — these modes make it
