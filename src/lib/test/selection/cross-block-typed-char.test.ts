@@ -86,6 +86,7 @@ function makeHandlers(
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller),
+		grammar: undefined,
 		getCursorOffset,
 		afterReactivity: async () => {},
 		setPendingCursor: () => {}

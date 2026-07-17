@@ -760,6 +760,7 @@
 		onCommandError: commandErrorSink,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
+		grammar: registryView.grammar,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
 		afterReactivity: () => tick(),
 		setPendingCursor: () => {}
