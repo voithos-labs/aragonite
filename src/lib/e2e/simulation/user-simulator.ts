@@ -9,6 +9,7 @@ import type { NoteFixture } from './notes/types';
 import {
 	type SimContext,
 	assertContainsInOrder,
+	assertContainerParity,
 	assertEndState,
 	assertNestedStateConsistent,
 	assertNoErrors,
@@ -73,6 +74,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		ctx.label = 'checkpoint';
 		await assertNoErrors(ctx);
 		await assertNestedStateConsistent(ctx);
+		await assertContainerParity(ctx);
 		await assertRoundTripStable(ctx);
 		await assertParseConvergence(ctx, opts.note);
 		await assertContainsInOrder(ctx, opts.note.landmarks);
@@ -90,6 +92,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 
 		ctx.label = 'end-state';
 		await assertNoErrors(ctx);
+		await assertContainerParity(ctx);
 		await assertRoundTripStable(ctx);
 		await assertParseConvergence(ctx, opts.note);
 		await assertEndState(ctx, canonical);

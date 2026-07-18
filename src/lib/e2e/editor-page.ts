@@ -129,6 +129,11 @@ export class EditorPage {
 		await this.placeCaretInBlock(index, 'start');
 	}
 
+	// COORDINATE-SPACE WARNING: a numeric `position` here counts ALL text nodes,
+	// including `.md-marker` ambient spans — a DOM-textContent offset, NOT the
+	// raw-semantic offset `focusBlockAtPath`/`pointForOffset` use (those filter
+	// markers). The two spaces are NOT interchangeable on marker-bearing blocks.
+	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
 	private async placeCaretInBlock(
 		index: number,
 		position: 'start' | 'end' | number
@@ -139,7 +144,10 @@ export class EditorPage {
 				const block = wrapper?.querySelector(
 					':scope > :not(.selection-overlay):not(.decoration-badge)'
 				) as HTMLElement | null;
-				if (!block) return;
+				// Throw, never silently return: a selector drift (missing wrapper or
+				// editable) must fail the spec, not let a downstream absence-assertion
+				// pass for the wrong reason. Mirrors pointForOffset.
+				if (!block) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
 				block.focus();
 
 				const range = document.createRange();
@@ -178,16 +186,22 @@ export class EditorPage {
 		);
 	}
 
+	// COORDINATE-SPACE WARNING: `offset` here is RAW-SEMANTIC — the tree walk
+	// filters `.md-marker` ambient spans (see acceptNode below). This is NOT the
+	// marker-counting DOM-textContent space `placeCaretInBlock(index, number)` uses.
+	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
 			({ path, offset }) => {
 				const attr = JSON.stringify(path);
 				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
-				if (!wrapper) return;
+				// Throw, never silently return: selector drift must fail the spec, not
+				// green an absence-assertion for the wrong reason. Mirrors pointForOffset.
+				if (!wrapper) throw new Error(`focusBlockAtPath: no block wrapper at ${attr}`);
 				const block = wrapper.querySelector(
 					':scope > :not(.selection-overlay):not(.decoration-badge)'
 				) as HTMLElement | null;
-				if (!block) return;
+				if (!block) throw new Error(`focusBlockAtPath: no editable at ${attr}`);
 				block.focus();
 
 				const range = document.createRange();
