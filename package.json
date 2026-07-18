@@ -71,6 +71,7 @@
 		"**/*.css",
 		"./dist/components/built-in-blocks.js",
 		"./dist/core/parsers/built-in-openers.js",
+		"./dist/schema/built-in-descriptors.js",
 		"./dist/plugins/latex/renderer.js"
 	],
 	"scripts": {

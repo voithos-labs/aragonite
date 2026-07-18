@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import '$lib/schema/block-kind-descriptor';
+import '$lib/schema/built-in-descriptors';
 import { resolveBinding } from '$lib/schema/commands';
 import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
 import { normalizeChord } from '$lib/schema/keybindings';
