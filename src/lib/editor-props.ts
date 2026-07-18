@@ -9,7 +9,7 @@ import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
 import type { EditorSelection } from './selection/primitives';
 import type { EditorEvents } from './editor-events';
-import type { SearchState } from './reactivity/search-state.svelte';
+import type { SearchState } from './search/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
 import type { EditorPluginEntry } from './schema/plugin-install';

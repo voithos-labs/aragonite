@@ -16,7 +16,7 @@ export type { BlockComponent } from './block-component';
 export type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 export type { ImageLoadPolicy } from './core/inline-render';
 export type { PresentationMode } from './presentation-mode';
-export type { SearchState, SearchOptions } from './reactivity/search-state.svelte';
+export type { SearchState, SearchOptions } from './search/search-state.svelte';
 export type { Match } from './search/document-scan';
 
 // ── Plugins ────────────────────────────────────────────────────────────────────

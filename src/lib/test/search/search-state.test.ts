@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { createSearchState } from '../../reactivity/search-state.svelte';
+import { createSearchState } from '../../search/search-state.svelte';
 
 const stubReplace = { replaceOne: async () => 0, replaceAll: async () => 0 };
 
