@@ -5,13 +5,23 @@ import {
 	__resetBlockCommandsForTests
 } from '$lib/schema/block-commands';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
+import {
+	definePlugin,
+	installPlugins,
+	__resetInstalledPluginsForTests
+} from '$lib/schema/plugin-install';
 
 // A plugin kind is a branded string; the bare literal 'note' is not assignable
 // to AnyBlockKind. Declared once — the reset clears the command registries, not
 // the plugin-kind declarations (a per-test declare would double-throw).
 const note = declarePluginKind('note');
+const noteA = declarePluginKind('note-a');
+const noteB = declarePluginKind('note-b');
 
-afterEach(() => __resetBlockCommandsForTests());
+afterEach(() => {
+	__resetBlockCommandsForTests();
+	__resetInstalledPluginsForTests();
+});
 
 describe('block-command registry', () => {
 	it('mints a branded id and resolves the handler by (kind,id)', () => {
@@ -34,5 +44,22 @@ describe('block-command registry', () => {
 	it('returns undefined for an unregistered (kind,id)', () => {
 		const id = registerBlockCommand(note, 'callout.setKind', () => true);
 		expect(getBlockCommand('paragraph', id)).toBeUndefined();
+	});
+
+	// One plugin owning several kinds names the same command on each — the mint is
+	// name-global, but attribution (currentInstallingPlugin) lets the same installer
+	// re-mint for another kind. This drives the real install path so a regression that
+	// drops the attribution thread (not just the mint idempotence) fails here.
+	it('lets one plugin register the same command on two of its kinds', () => {
+		const plugin = definePlugin({
+			name: 'multi-kind',
+			setup() {
+				registerBlockCommand(noteA, 'shared.toggle', () => true);
+				registerBlockCommand(noteB, 'shared.toggle', () => true);
+			}
+		});
+		expect(() => installPlugins([plugin])).not.toThrow();
+		expect(getBlockCommand(noteA, 'shared.toggle')).toBeTypeOf('function');
+		expect(getBlockCommand(noteB, 'shared.toggle')).toBeTypeOf('function');
 	});
 });

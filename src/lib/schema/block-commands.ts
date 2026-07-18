@@ -30,7 +30,7 @@ import {
 } from './commands';
 import type { KeyBinding } from './keybindings';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
-import type { EditorContext } from './plugin-install';
+import { currentInstallingPlugin, type EditorContext } from './plugin-install';
 import { isReadingMode } from '../presentation-mode';
 
 export interface BlockCommandContext {
@@ -75,7 +75,7 @@ export function registerBlockCommand(
 	registerOnce(
 		blockCommands.has(key),
 		() => {
-			id = mintCommandId(name);
+			id = mintCommandId(name, currentInstallingPlugin());
 			blockCommands.set(key, handler);
 		},
 		`registerBlockCommand: (${kind}, ${name}) is already registered — block commands are register-once`
