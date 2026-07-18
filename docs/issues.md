@@ -511,23 +511,3 @@ fold at, without the fold's mutation.
 **Why deferred:** non-corrupting and narrow (a copy whose selection overlaps a revealed
 widget source); folding on copy is disallowed, so this needs its own read-path branch.
 Fold into the clipboard seam alongside the copy read.
-
-## Dev workflow
-
-### VR-1 anchor spec reds locally on an environmental drift (71.8px vs the 20px threshold)
-
-**Severity:** minor (local test environment; byte-identical across suspect code ranges)
-**Files:** `src/lib/e2e/tests/perf/vr-anchoring.spec.ts` (VR-1, "narrowing the viewport
-re-measures wrapped heights and holds the anchor")
-
-VR-1 began failing locally (drift 71.78px vs `toBeLessThan(20)`) with byte-identical results
-on commits before and after the CstNode-union batch — an environmental shift (likely a
-Chromium/OS font-metrics change between runs), not a code regression. The windowing/anchor
-subsystem was untouched by the suspect range.
-
-**Fix direction:** verify on CI (Linux font metrics differ). If CI is green, this is a
-local-environment threshold gap — record the local caveat, do not recalibrate the 20px
-threshold blind (it could mask a real anchor bug). If CI also reds, open a windowing
-anchor-correction investigation.
-
-**Why deferred:** needs the CI datapoint (next dev push) before any threshold decision.
