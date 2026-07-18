@@ -279,7 +279,7 @@ export function updateNodeContent(
 		return { op: 'noop' };
 	}
 
-	// The instance grammar (docs/research/architecture-concerns.md) reaches the routine content-commit reparse;
+	// The instance grammar reaches the routine content-commit reparse;
 	// absent (paste, split/merge reparse) defaults to the global grammar.
 	const parsed = parse(newText, { grammar }).children;
 	const first: CstNode | undefined = parsed[0];

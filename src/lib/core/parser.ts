@@ -29,8 +29,8 @@ export const MAX_NESTING_DEPTH = 512;
 // ── Public entry point ──────────────────────────────────────────────────
 
 /**
- * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view
- * (docs/research/architecture-concerns.md) — absent = the global openers (the editorless,
+ * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view —
+ * absent = the global openers (the editorless,
  * behavior-preserving default). It filters only the TOP-LEVEL opener dispatch:
  * nested container reparses (blockquote/list bodies) and the paragraph-interrupt
  * scan read the global grammar, the documented enablement boundary — a top-level

@@ -1,7 +1,7 @@
 /**
  * Sibling-path parity: every container that composes a nested-actions bundle must
  * thread the instance grammar, so a disabled kind's opener stays skipped when the
- * container reparses child content (docs/research/architecture-concerns.md). The
+ * container reparses child content. The
  * rule lives at the choke point every container passes through —
  * `createStandardNestedActions` — so a NEW container that forgets `grammar` fails
  * the day it is born, not at the next audit.

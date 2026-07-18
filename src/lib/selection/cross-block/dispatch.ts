@@ -65,10 +65,9 @@ export interface CrossBlockDispatchContext {
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** The instance's block grammar, forwarded to the join-paste reparse so a disabled
-	 *  kind's opener stays skipped when a cross-block paste completes marker syntax
-	 *  (docs/research/architecture-concerns.md). Required-nullable like `pluginEditor`
-	 *  so a new construction site can't silently skip the thread; `undefined` = the
-	 *  global grammar. */
+	 *  kind's opener stays skipped when a cross-block paste completes marker syntax.
+	 *  Required-nullable like `pluginEditor` so a new construction site can't silently
+	 *  skip the thread; `undefined` = the global grammar. */
 	grammar: GrammarView | undefined;
 
 	getCursorOffset: () => number | null;

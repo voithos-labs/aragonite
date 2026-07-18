@@ -106,7 +106,7 @@ function orderedEntries(): readonly [AnyBlockKind, BlockOpener][] {
  * validated before this read, and flush-before-mark keeps a registrant racing the
  * first read out of the late-opener warn (G1.17).
  *
- * `isEnabled` is the per-instance enablement filter (docs/research/architecture-concerns.md):
+ * `isEnabled` is the per-instance enablement filter:
  * absent = all definitions (the editorless/behavior-preserving default, cached);
  * present = a fresh view dropping the disabled plugin kinds' openers. Built-ins are
  * never filtered — the predicate's domain is plugin kinds (the view enforces that).
@@ -146,7 +146,7 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 
 /**
  * The grammar as a per-instance resolution object over the global openers — the
- * slot `parse(source, { grammar })` threads (docs/research/architecture-concerns.md). The default reads the
+ * slot `parse(source, { grammar })` threads. The default reads the
  * global definitions verbatim (behavior-preserving); a filtered view carries an
  * instance's enablement predicate. Only the opener dispatch is instance-resolved;
  * the paragraph-interrupt scan stays on the global-grammar boundary.

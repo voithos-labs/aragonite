@@ -5,7 +5,7 @@
 	// One module-scoped plugin object shared by both editors: definitions are
 	// process-global (register-once), so the memo kind is defined ONCE. The two
 	// editors differ only in enablement — the per-instance policy layer over the
-	// global definition (docs/research/architecture-concerns.md).
+	// global definition.
 	const plugins = [memoPlugin()];
 
 	// Disable the memo kind for the left editor. `__registryEnablement` is the
