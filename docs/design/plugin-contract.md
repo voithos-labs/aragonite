@@ -85,7 +85,7 @@ This narrows the frozen contract — `inlineContent` was a public member of the 
 
 ### Schema registries — global, register-once, conflict-on-duplicate
 
-The block grammar is a set of **process-global** registries — block-kind descriptors, block components, block openers, global commands (in `schema/`), and per-kind paste surfaces (in `tree-operations/`) — each keyed by `AnyBlockKind` (or command id). This is the `customElements` model: a kind is a _definition_ every editor instance in the process shares, exactly as `customElements.define` defines an element for every document.
+The block grammar is a set of **process-global** registries — block-kind descriptors, block components, block openers, global and per-kind block commands (in `schema/`), inline syntax and inline widgets (in `core/inline/`), the directive registry (in `core/directive/`), and per-kind paste surfaces plus paste transforms (in `tree-operations/`) — each keyed by `AnyBlockKind` (or command id, trigger, directive name). This is the `customElements` model: a kind is a _definition_ every editor instance in the process shares, exactly as `customElements.define` defines an element for every document.
 
 ```
 Registration model
