@@ -79,15 +79,16 @@ export function findLastTextNode(node: Node): Text | null {
  * `fallbackOffset` is consulted when geometry measurement fails and should
  * be the cursor offset from getCursorOffset. Empty containers return true.
  *
- * `rangeCount === 0` means there's no selection to measure — typically the
- * race window between `focus()` and the browser installing its selection
- * range. Return false so the caller doesn't cross the block boundary based
- * on a missing-but-imminent selection; the next keystroke lands inside this
- * block once the range arrives.
+ * `rangeCount === 0` means there's no live range to measure — Chromium drops
+ * the caret range adjacent to atomic `contenteditable=false` islands across
+ * event-loop yields. Resolve via `fallbackOffset` (the snapped caret intent
+ * the caller reads through `ambient-cursor.getRaw`) rather than hard-false:
+ * a hard-false would strand every subsequent boundary read at false once the
+ * range drops. This mirrors the geometry-null branch below.
  */
 export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): boolean {
 	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return false;
+	if (!sel || sel.rangeCount === 0) return fallbackOffset === 0;
 	if ((el.textContent ?? '').length === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
@@ -124,8 +125,8 @@ export function isAtLastVisualLine(
 	textLen: number
 ): boolean {
 	const sel = window.getSelection();
-	// See isAtFirstVisualLine — missing range = don't cross the boundary.
-	if (!sel || sel.rangeCount === 0) return false;
+	// See isAtFirstVisualLine — a dropped range resolves via the snapped fallback.
+	if (!sel || sel.rangeCount === 0) return fallbackOffset === textLen;
 	if (textLen === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
