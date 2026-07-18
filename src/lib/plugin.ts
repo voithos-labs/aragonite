@@ -66,8 +66,17 @@ export type {
 	MergeRole,
 	UnwrapRole
 } from './schema/block-kind-descriptor';
-// The required closure block a registration answers every cross-cutting system with.
-export type { ClosureBlock, ClosureColumn, ClosureCell } from './schema/closure';
+// The required closure block a registration answers every cross-cutting system
+// with. `simpleLeafClosure` is sugar over the same field for a not-mergeable,
+// source-editable leaf: it bakes the structurally-fixed columns and demands the
+// four the leaf's own component determines. Containers hand-write the full nine.
+export type {
+	ClosureBlock,
+	ClosureColumn,
+	ClosureCell,
+	SimpleLeafClosureCells
+} from './schema/closure';
+export { simpleLeafClosure } from './schema/closure';
 
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';
