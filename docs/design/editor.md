@@ -25,7 +25,7 @@ The block layer follows it (a container's `raw` holds its own outer syntax; seri
 - The CST is the single source of truth for structure. If CST and DOM disagree, CST wins.
 - Each block is an independent editing unit with its own rendering surface.
 - Cross-block coordination flows through a minimal, typed interface — no signal bus, no runtime patching.
-- Adding a block type is additive: one component, one descriptor, one registration.
+- Adding a block type is additive: one component, one descriptor, one registration — a genuinely new cross-cutting capability lands once, at a choke point every later kind inherits.
 
 ## 2. The shape of it
 
@@ -556,5 +556,5 @@ Guardrails, derived from a previous failed attempt at a per-block editor.
 1. **If you need a timing hack, the design is wrong.** `setTimeout`, `queueMicrotask`, and `requestAnimationFrame` for _sequencing_ are symptoms, not solutions. The only acceptable async timing here is `await tick()` for post-render focus. Anything else means the operation flow needs rethinking. The predecessor editor died of this.
 2. **No monkey-patching.** Every dependency is explicit — parameters, context, or props. No runtime method assignment.
 3. **The CST is the single source of truth.** If the CST and the DOM disagree, the CST wins. If the CST and the undo stack disagree, the snapshot replaces the CST. There is never a question of which state is correct.
-4. **Adding a block type should be boring.** Write a component, register it, done. If it requires touching the editor shell, the orchestration layer, or the selection system, that's a coupling problem, not a feature.
+4. **Adding a block type should be boring — and usually is.** A kind that varies an existing capability is pure registration: a component, a descriptor, one `register` call, and no core file switches on its kind string. A genuinely new cross-cutting capability isn't free, but it lands _once_ at the choke point — as a declarative descriptor field or probe every later kind inherits (collapse arrived this way) — never as a kind check. The coupling bug to refuse is shell, orchestration, or selection code branching on a specific kind _name_.
 5. **Don't build upward on a shaky foundation.** A paragraph-only editor that handles split/merge/focus/undo flawlessly is worth more than a full-featured one where nothing quite works.

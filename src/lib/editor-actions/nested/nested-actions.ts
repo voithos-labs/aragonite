@@ -35,7 +35,7 @@ export interface NestedActionsDeps {
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** The instance's block grammar (docs/research/architecture-concerns.md), threaded to this
+	/** The instance's block grammar, threaded to this
 	 *  container's content-commit reparse so a disabled kind's opener stays skipped when a
 	 *  nested block re-parses — parity with the top-level factory. Absent = the global grammar. */
 	grammar?: GrammarView;

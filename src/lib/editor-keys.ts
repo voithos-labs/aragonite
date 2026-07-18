@@ -121,7 +121,7 @@ export interface EditorServices {
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
 	reorderAnnounce: ReorderAnnounce;
-	/** The instance's resolution over the global block definitions (docs/research/architecture-concerns.md):
+	/** The instance's resolution over the global block definitions:
 	 *  BlockHost resolves component/descriptor through it so a per-instance
 	 *  enablement filter reaches the render path. */
 	registryView: RegistryView;

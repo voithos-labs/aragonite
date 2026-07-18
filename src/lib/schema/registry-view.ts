@@ -1,5 +1,5 @@
 /**
- * Per-instance resolution over the process-global block definitions (docs/research/architecture-concerns.md).
+ * Per-instance resolution over the process-global block definitions.
  *
  * Kind definitions stay global (the `customElements` model — register-once, one
  * definition per process; docs/design/plugin-contract.md § Schema registries). An
