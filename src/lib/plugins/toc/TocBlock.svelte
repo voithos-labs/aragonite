@@ -128,6 +128,9 @@
 		spellcheck="false"
 		oninput={leaf.onInput}
 		onkeydown={leaf.handleKeydown}
+		oncopy={leaf.onCopy}
+		oncut={leaf.onCut}
+		onpaste={leaf.onPaste}
 		onpointerdown={leaf.onPointerDown}
 		onfocusout={leaf.onFocusOut}
 		oncompositionstart={leaf.onCompositionStart}

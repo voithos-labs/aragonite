@@ -1,13 +1,17 @@
 import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 
 /**
  * Plain-mode editable leaf (requirements/plugins/editable-leaf-plain.md): the
  * `%%` memo harness kind proves `createEditableLeaf({ mode: 'plain' })` gives a
  * plugin leaf built-in-text-block parity — typing, traversal, undo batching,
- * cross-block selection — through the public factory alone.
+ * cross-block selection, and clipboard — through the public factory alone.
  * Seed: `Before` / `%% memo text` / `After`.
  */
+
+const readClipboard = (page: Page): Promise<string> =>
+	page.evaluate(() => navigator.clipboard.readText());
 
 class MemoPage extends PluginsPage {
 	get memo() {
@@ -91,6 +95,84 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		expect(doc.texts[2]).toBe('tail');
 		// The caret followed the edit into the split-off paragraph.
 		expect(await activeBlockPath(page)).toEqual([2]);
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('a single-block paste is intercepted: HTML is stripped and newlines survive', async ({
+		page
+	}) => {
+		await editor.memo.click();
+		await page.keyboard.press('End');
+		await page.evaluate(async () => {
+			await navigator.clipboard.write([
+				new ClipboardItem({
+					'text/plain': new Blob(['a\nb'], { type: 'text/plain' }),
+					'text/html': new Blob(['<b>a</b><br><i>b</i>'], { type: 'text/html' })
+				})
+			]);
+		});
+		await page.keyboard.press('Control+v');
+
+		// The text/plain payload lands verbatim — its newline re-splits the second line
+		// off as a paragraph, so the document carries `a\nb`. Pre-fix the leaf bound no
+		// onpaste: the native paste dropped the HTML markup live into the block and the
+		// per-keystroke commit joined the lines to `ab`.
+		await editor.bridge.waitForSourceContains('%% memo texta\nb');
+		const html = await page.evaluate(() => document.querySelector('.memo-block')?.innerHTML ?? '');
+		expect(html).not.toContain('<b>');
+		expect(html).not.toContain('<i>');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('cross-block copy anchored in the memo reaches the shared collector', async ({ page }) => {
+		await editor.memo.click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+End'); // select the memo line (single-block, native)
+		await page.keyboard.press('Shift+ArrowDown'); // extend into After → cross-block
+		await editor.waitForCrossBlock(true);
+		await page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
+		await page.keyboard.press('Control+c');
+
+		// The memo (leaf) is the focused anchor: its copy handler must reach the shared
+		// cross-block collector, which reads the memo's own raw. Pre-fix the leaf bound
+		// no oncopy, so the clipboard kept the sentinel.
+		await expect.poll(() => readClipboard(page)).toContain('memo text');
+	});
+
+	test('cross-block cut anchored in the memo writes the payload and collapses the range', async ({
+		page
+	}) => {
+		await editor.memo.click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+End');
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
+		await page.keyboard.press('Control+x');
+
+		// The leaf's cut handler writes the cross-block payload and deletes the swept
+		// range. Pre-fix Ctrl+X reached no handler: the clipboard kept the sentinel and
+		// nothing was removed.
+		await expect.poll(() => readClipboard(page)).toContain('memo text');
+		await editor.waitForCrossBlock(false);
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('paste over a cross-block selection anchored in the memo clears it and lands the text', async ({
+		page
+	}) => {
+		await editor.memo.click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await page.evaluate(() => navigator.clipboard.writeText('INSERTED'));
+		await page.keyboard.press('Control+v');
+
+		// The leaf's paste handler routes the swept range through the cross-block delete
+		// + paste, so the selection collapses and the text lands. Pre-fix Ctrl+V never
+		// reached that handler, so the cross-block state stayed stuck.
+		await editor.waitForCrossBlock(false);
+		await editor.bridge.waitForSourceContains('INSERTED');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 });
