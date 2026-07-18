@@ -60,6 +60,27 @@ describe('resolveReorderUnit', () => {
 		const doc = parse('a\n\nb\n');
 		expect(resolveReorderUnit(doc, [])).toBeNull();
 	});
+
+	it('a nested node whose kind is "document" is not the reorderable root', () => {
+		// The root is identified STRUCTURALLY (parentPath.length === 0), never by the
+		// kind string. A plugin kind that happens to be named 'document' sitting at a
+		// non-root slot must not be mistaken for the sibling-permutable document.
+		const nested: CstNode = {
+			kind: 'document' as CstNode['kind'],
+			leadingTrivia: '',
+			raw: '',
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
+		};
+		const doc: Document = { kind: 'document', prefix: '', children: [nested], suffix: '' };
+		// Pre-fix this returned { parentPath: [0], index: 0, parentKind: 'document' } —
+		// treating the alias as a reorderable parent. It now walks past to the real
+		// root, moving the nested node as a top-level unit.
+		expect(resolveReorderUnit(doc, [0, 0])).toEqual({
+			parentPath: [],
+			index: 0,
+			parentKind: 'document'
+		});
+	});
 });
 
 // A plugin (opaque) container is not a reorderable parent: the resolver stops at

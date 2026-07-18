@@ -389,24 +389,6 @@ so the open-ended branch degrades on the same evidence the windowing branch uses
 open-ended branch is only reached by non-windowing containers whose children always mount, so the
 cap is never exercised in practice. Adopt when the reveal seam is next touched.
 
-### resolveReorderUnit keys reorderable parents off the raw kind string
-
-**Severity:** minor (latent naming coupling; no reachable misbehavior today)
-**Files:** `src/lib/tree-operations/reorder-unit.ts` (`REORDERABLE_PARENT` string set)
-
-`resolveReorderUnit` treats any ancestor whose `kind` is `'document'`, `'list'`, or `'blockquote'`
-as a sibling-permutable parent by plain string match. `isBlockNode`'s own comment notes a plugin
-may mint `'document'` as a block kind, so a plugin kind colliding with one of these names would be
-misclassified as a reorder container. No shipped kind collides, so there is no reachable defect.
-
-**Fix direction:** key the reorderable-parent test off a descriptor capability (a container
-`siblingReorderable` flag) rather than a hardcoded kind-string set, so the classification follows
-declared behavior and cannot collide with a plugin kind name.
-
-**Why deferred:** no shipped or plausible plugin kind collides with the three built-in names — a
-latent coupling, not a bug, the same class as the DocPath brand-adoption entry. Adopt the
-capability flag when the reorder resolver is next edited.
-
 ## Test coverage
 
 ### Decoration tiers lack dedicated simulation gestures
