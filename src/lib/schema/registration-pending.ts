@@ -14,17 +14,21 @@ let didFirstFlush = false;
 let grammarConsumed = false;
 
 /**
- * Record a registration for the next coherence flush. No-op before the first
- * flush — the bootstrap batch is validated whole by that flush. An opener
- * arriving after the grammar was consumed is additionally marked late (G1.17).
+ * Record a registration for the next coherence flush. The pending-kinds gate
+ * no-ops before the first flush — the bootstrap batch is validated whole by that
+ * flush. Lateness is recorded UNCONDITIONALLY, ahead of that gate: an editorless
+ * `parse()` trips grammar-consumption without flushing (`getOrderedOpeners` only
+ * flushes when something is already pending), so an opener registered pre-flush
+ * after the grammar was consumed is genuinely late and must survive to the first
+ * flush (G1.17).
  */
 export function enqueueRegistrationCheck(
 	kind: AnyBlockKind,
 	origin: 'descriptor' | 'opener' = 'descriptor'
 ): void {
+	if (origin === 'opener' && grammarConsumed) pendingLateOpeners.add(kind);
 	if (!didFirstFlush) return;
 	pendingKinds.add(kind);
-	if (origin === 'opener' && grammarConsumed) pendingLateOpeners.add(kind);
 }
 
 /** Grammar-consumption latch: the parser's opener-dispatch read trips it. */
@@ -49,7 +53,7 @@ export interface RegistrationFlushWork {
  * is nothing to do (first flush already ran, nothing pending since).
  */
 export function takeRegistrationFlushWork(): RegistrationFlushWork | null {
-	if (didFirstFlush && pendingKinds.size === 0) return null;
+	if (didFirstFlush && pendingKinds.size === 0 && pendingLateOpeners.size === 0) return null;
 	const work = {
 		firstFlush: !didFirstFlush,
 		kinds: [...pendingKinds],
