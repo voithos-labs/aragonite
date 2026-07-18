@@ -2,6 +2,39 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.29 — The freeze-surface liveness pass: live reads become thunks
+
+Pre-1.0 roadmap item 1, plus gap fixes from the exploration audit that preceded it. The scar
+this closes: a getter property and a value property are structurally identical to TypeScript,
+so an external author could pass a snapshot where the contract means "re-read live," compile
+clean, and hit the stale-capture class beyond every internal oracle. Every live read on the
+frozen factory deps surfaces is now an explicit thunk — value-capture does not compile.
+
+- **Deps thunks.** `ContainerBlockDeps` / `EditableLeafDeps` `node`/`index`/`path` getters
+  become `getNode()`/`getIndex()`/`getPath()`, stating the rule the shape now carries: a
+  function-valued field is a live read re-evaluated per use, a plain-valued field is static
+  config. Type pins keep value-capture uncompilable; G4.1 accepts the thunk-reference form;
+  every in-repo consumer converted (the consumer example's reader prop also swept
+  `CstNode` → `NodeView`, closing its ledger entry). The audit half is recorded: chrome
+  deps and the decoration provide context carry only static config and per-call values —
+  nothing else to convert — and the item's planned timing-primitive lint turned out to
+  predate it (G4.4, shipped `02b00c3b`).
+- **Trailing-line-ending parity (G4.20) + the CRLF class fix.** The new lint pins the
+  keystroke-commit append; its inventory surfaced twelve sibling sites reconstructing the
+  ending as a bare `'\n'` — CRLF-lossy on code-block commands, cut, edge-policy deletes,
+  and reveal-fold — all moved to `trailingLineEnding(raw)`, with a representative CRLF
+  gesture pin.
+- **Per-block opener context.** The parser mints a fresh `OpenContext` per block, retiring
+  the comment-only retention hazard on the frozen opener surface — a stashing opener now
+  holds a stable object, pinned by a retaining-opener test.
+- **Core gap fixes.** The inline-content cache splits into per-signature-space slots
+  (interleaved resolver-less and resolver-ful callers no longer evict each other on every
+  call — identity-pinned); the CommonMark §6.6 tag grammar is single-sourced into the
+  type-7 HTML-block opener (the "must stay in sync" comment retired — divergence is
+  unrepresentable); the perf docs re-match the gate they describe (nine fixture shapes, the
+  1MB+10MB gated rows, the additive tolerance and runner scale, the counters.test.ts
+  ceiling attribution); the plugin contract's registry enumeration is complete again.
+
 ### 0.9.28 — The forge-review hardening pass: a repo-wide audit, fixed to green
 
 An owner-directed four-pass audit (bugs / design+docs / test quality / organization) over the
