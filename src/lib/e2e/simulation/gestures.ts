@@ -61,6 +61,16 @@ import {
 } from './gestures/directive';
 import { lateCorrection } from './gestures/correction';
 import { flipPresentationMode } from './gestures/presentation';
+import {
+	cutSelection,
+	deleteSelection,
+	extendSelectionAcross,
+	pasteOverSelection,
+	selectWholeDocument,
+	shiftClickAcross,
+	typeOverSelection
+} from './gestures/cross-block';
+import { mergeBackspaceAtStart } from './gestures/merge';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
@@ -403,6 +413,56 @@ export class Gestures {
 
 	editContainerBody(bodyPath: number[], text: string): Promise<void> {
 		return editContainerBody(this.ctx, bodyPath, text);
+	}
+
+	// ── Cross-block selection + destruction ──────────────────────────────────────
+	// Build a real cross-block range (Shift+Arrow / Shift+Click / double select-all)
+	// then destroy over it (Backspace/Delete, Cut, type-over, paste-over). Builds
+	// fail loud if the range never engaged; destroys settle on the collapse, run the
+	// structural oracle sweep on the merged tree, and resync. The caller nets them to
+	// identity with a trailing undo — cross-block destruction is byte-reversible.
+
+	/** Extend the selection past the block boundary below/above the caret with Shift+Arrow. */
+	extendSelectionAcross(dir: 'down' | 'up', maxSteps?: number): Promise<void> {
+		return extendSelectionAcross(this.ctx, dir, maxSteps);
+	}
+
+	shiftClickAcross(targetPath: number[], offset: number): Promise<void> {
+		return shiftClickAcross(this.ctx, targetPath, offset);
+	}
+
+	/** Double Ctrl+A: select the caret's block, then escalate to the whole document. */
+	selectWholeDocument(): Promise<void> {
+		return selectWholeDocument(this.ctx);
+	}
+
+	deleteSelection(key: 'Backspace' | 'Delete'): Promise<void> {
+		return deleteSelection(this.ctx, key);
+	}
+
+	cutSelection(): Promise<void> {
+		return cutSelection(this.ctx);
+	}
+
+	typeOverSelection(text: string): Promise<void> {
+		return typeOverSelection(this.ctx, text);
+	}
+
+	pasteOverSelection(): Promise<void> {
+		return pasteOverSelection(this.ctx);
+	}
+
+	// ── Block merge ───────────────────────────────────────────────────────────────
+
+	/**
+	 * Backspace at the start of the block at `targetPath` — merges it into its
+	 * predecessor (para→para, heading absorb, container deepest leaf) or delegates to
+	 * the container-exit unwrap (list U1, blockquote U2). Fails loud on a no-op (the
+	 * document's first block has no predecessor); runs the structural oracle sweep and
+	 * resyncs. The caller nets it to identity with a trailing undo.
+	 */
+	mergeBackspaceAtStart(targetPath: number[]): Promise<void> {
+		return mergeBackspaceAtStart(this.ctx, targetPath);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────

@@ -156,6 +156,71 @@ export async function assertFocusBlock(
 	}
 }
 
+/**
+ * Both selection endpoints resolve to a live CST node, with leaf offsets within
+ * that node's raw. A structural gesture that mutates the tree can leave an endpoint
+ * addressing a node that no longer exists or an offset past a now-shorter block —
+ * a dangling selection the next keystroke dereferences into corruption. Walks the
+ * live tree (not a reparse) against the public selection snapshot, so it catches a
+ * stale endpoint the source-string oracles are blind to. A null selection (nothing
+ * focused) is vacuously valid; only leaves carry the offset bound (container offsets
+ * index children, a different space).
+ */
+export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
+	const invalid = await ctx.page.evaluate(() => {
+		const probe = (window as any).__test;
+		const sel = probe.getSelectionPaths();
+		if (!sel) return null;
+		const doc = probe.getDocument();
+		const resolve = (path: number[]): { raw: unknown; isLeaf: boolean } | null => {
+			let node: { children?: unknown[]; raw?: unknown } = doc;
+			for (const index of path) {
+				const children = node.children;
+				if (!Array.isArray(children) || index < 0 || index >= children.length) return null;
+				node = children[index] as { children?: unknown[]; raw?: unknown };
+			}
+			const children = node.children;
+			return { raw: node.raw, isLeaf: !Array.isArray(children) || children.length === 0 };
+		};
+		for (const which of ['anchor', 'focus'] as const) {
+			const point = sel[which];
+			if (point.offset < 0) return { which, reason: 'negative offset', point };
+			const resolved = resolve(point.path);
+			if (!resolved) return { which, reason: 'path resolves to no live node', point };
+			if (
+				resolved.isLeaf &&
+				typeof resolved.raw === 'string' &&
+				point.offset > resolved.raw.length
+			) {
+				return {
+					which,
+					reason: 'offset exceeds leaf raw length',
+					point,
+					rawLength: resolved.raw.length
+				};
+			}
+		}
+		return null;
+	});
+	if (invalid) {
+		throw new Error(`[${ctx.label}] selection endpoint invalid: ${JSON.stringify(invalid)}`);
+	}
+}
+
+/**
+ * The oracle sweep the destructive cross-block and merge gestures run at the moment
+ * the tree is most likely corrupted — right after a range collapse or a merge, before
+ * the next gesture builds on it. Bundles the note-agnostic structural oracles;
+ * parse-convergence stays with the caller because its waiver lives on the note.
+ */
+export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> {
+	await assertNoErrors(ctx);
+	await assertContainerParity(ctx);
+	await assertNestedStateConsistent(ctx);
+	await assertRoundTripStable(ctx);
+	await assertSelectionValidity(ctx);
+}
+
 // ── History oracle ──────────────────────────────────────────────────────────
 
 /**
