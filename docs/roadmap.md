@@ -30,7 +30,7 @@ CST-as-truth model, no stored-marks machinery needed), and the **architecture-co
 shipped in 0.9.27 (all five flagged designs resolved: the SelectionPoint and CstNode
 discriminated unions, per-instance registry views + the dev idempotence valve, context facets —
 the mount harness, and container-raw exonerated by a falsification benchmark — the resolutions
-live in `docs/research/architecture-concerns.md`), and a **repo-wide forge review** audited
+are recorded in the 0.9.27 changelog entry), and a **repo-wide forge review** audited
 and fixed the whole surface to green in 0.9.28 — its one structural residual closed in
 0.9.29 (the **freeze-surface liveness pass**: every live read on the frozen factory deps
 surfaces is an explicit thunk, value-capture uncompilable, with the trailing-line-ending
