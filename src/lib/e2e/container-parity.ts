@@ -43,7 +43,11 @@ export async function getContainerParityMismatches(page: Page): Promise<ParityMi
 			// An unmounted container has no minted childIds yet — not a desync, and it
 			// renders no keyed each to break. Only a defined-but-mismatched array is.
 			if (n.childIds !== undefined && n.children.length !== n.childIds.length) {
-				mismatches.push({ kind: n.kind ?? '?', children: n.children.length, ids: n.childIds.length });
+				mismatches.push({
+					kind: n.kind ?? '?',
+					children: n.children.length,
+					ids: n.childIds.length
+				});
 			}
 			for (const c of n.children) walk(c as Parameters<typeof walk>[0]);
 		};
