@@ -185,6 +185,22 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('helo\n');
 	});
 
+	test('a widget island at a block start lets Backspace fall through to block merge', async ({
+		page
+	}) => {
+		// The island stands in for zero bytes at offset 0, so there is no adjacent
+		// real byte to eat — Backspace at the block boundary must fall through to the
+		// normal previous-block merge, not no-op on the island DOM.
+		await editor.loadContent('alpha\n\nbeta\n');
+		await addWidgetIsland(page, [1], 0);
+		await expect(page.locator(ISLAND)).toHaveCount(1);
+
+		await placeCaretAtIsland(page, 0, 'after');
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('alphabeta\n');
+		expect(await editor.bridge.getSource()).toBe('alphabeta\n');
+	});
+
 	test('typing at a widget island boundary inserts into raw at its offset', async ({ page }) => {
 		await editor.loadContent('hello\n');
 		await addWidgetIsland(page, [0], 3);
