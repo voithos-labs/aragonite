@@ -504,17 +504,17 @@ direction into the post-1.0 clipboard/hook generalization with the container-exi
 
 ### Container components re-export the component surface member-by-member
 
-**Severity:** trivial (authoring ergonomics; plugin containers guarded, built-ins not)
+**Severity:** trivial (authoring ergonomics; all eight containers now guarded)
 **Files:** `src/lib/components/BlockHost.svelte` (ref binding); every container component
 
 A container block re-exports each `ContainerBlockComponent` member as its own `export const` so
 `bind:this` on `<Comp>` in BlockHost captures the full surface — Svelte 5 instance exports are
 individual top-level declarations, with no spread. That is ~11 identical lines in every container
-component. The four plugin containers (callout, details, admonition, mermaid) end the block with a
-`satisfies ContainerBlockComponent`, which turns a forgotten member into a compile error; the four
-built-ins (BlockquoteBlock, ListBlock, ListItemBlock, DirectiveContainerBlock) instead carry `!`
-non-null assertions and no guard, so a dropped member there compiles. A Tier-2 fix adding the guard
-to the built-ins is queued.
+component. All eight containers — the four plugin ones (callout, details, admonition, mermaid) and
+the four built-ins (BlockquoteBlock, ListBlock, ListItemBlock, DirectiveContainerBlock) — now end
+the block with a `satisfies ContainerBlockComponent` guard, so a forgotten member is a compile
+error everywhere (the built-ins' redundant `!` non-null assertions are gone with it). The
+duplication itself remains.
 
 **Fix direction:** let a container expose ONE well-known instance export (its `containerApi`) and
 have BlockHost read `ref.<that>` as the `BlockComponent` surface it stores and dispatches through

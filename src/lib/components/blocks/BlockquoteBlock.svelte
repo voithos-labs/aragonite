@@ -20,7 +20,10 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../editor-actions/nested/nested-actions';
-	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
+	import {
+		createContainerBlockComponent,
+		type ContainerBlockComponent
+	} from '../../editor-actions/container-block-component';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -108,10 +111,26 @@
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget!;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
-	export const revealByPath = containerApi.revealByPath!;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
+	export const enterEdgeWidget = containerApi.enterEdgeWidget;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
+	export const revealByPath = containerApi.revealByPath;
+	// Completeness guard: `bind:this` reads each instance export individually, so a
+	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
+	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>

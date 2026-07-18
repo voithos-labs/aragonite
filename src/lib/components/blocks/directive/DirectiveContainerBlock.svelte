@@ -4,7 +4,12 @@
 	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
 	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
 	// (a document should feel like a document, not a pile of blocks).
-	import { BlockList, createContainerBlock, getPluginMetadata } from '$lib/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		getPluginMetadata,
+		type ContainerBlockComponent
+	} from '$lib/plugin';
 	import type { NodeView } from '$lib/core/node-views';
 	import type { DirectiveContainerMetadata } from '$lib/core/directive/kinds';
 
@@ -39,6 +44,22 @@
 	export const enterEdgeWidget = containerApi.enterEdgeWidget;
 	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
 	export const revealByPath = containerApi.revealByPath;
+	// Completeness guard: `bind:this` reads each instance export individually, so a
+	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
+	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
