@@ -1,11 +1,9 @@
 /**
- * CommonMark §6.6 HTML tag grammar — shared between the block-level HTML
- * parser (`core/parsers/html-block.ts`, type 7 catch-all) and the inline
- * scanner's `<` handler (`core/inline/scan/autolinks.ts`).
- *
- * Note: `core/parsers/html-block.ts` TYPE_7_OPEN duplicates the open/close
- * tag patterns wrapped with line anchors (^ {0,3} ... \s*$) for block-level
- * Type 7 detection. Both must stay in sync if §6.6 ever shifts.
+ * CommonMark §6.6 HTML tag grammar — the inline scanner's `<` handler
+ * (`core/inline/scan/autolinks.ts`) and the block-level HTML parser
+ * (`core/parsers/html-block.ts`, type 7 catch-all) both build on it. The
+ * open/close tag sources are exported so the block parser anchors them at line
+ * scope from this one definition rather than a hand-kept copy that could drift.
  *
  * Each form's start trigger is unambiguous from the leading two chars, so
  * `matchHtmlFormAt` dispatches by `raw[pos]` + `raw[pos+1]` then runs the
@@ -14,12 +12,17 @@
 
 export type HtmlFormKind = 'openTag' | 'closeTag' | 'comment' | 'pi' | 'declaration' | 'cdata';
 
-/** Open tag: `<name (attrs)* /?>` (CommonMark §6.6). */
-const OPEN_TAG_AT_POS =
-	/^<[A-Za-z][A-Za-z0-9-]*(?:\s+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|"[^"]*"|'[^']*'))?)*\s*\/?>/;
+const OPEN_TAG =
+	/<[A-Za-z][A-Za-z0-9-]*(?:\s+[a-zA-Z_:][a-zA-Z0-9_.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|"[^"]*"|'[^']*'))?)*\s*\/?>/;
+const CLOSE_TAG = /<\/[A-Za-z][A-Za-z0-9-]*\s*>/;
 
-/** Close tag: `</name>` with optional trailing whitespace before `>`. */
-const CLOSE_TAG_AT_POS = /^<\/[A-Za-z][A-Za-z0-9-]*\s*>/;
+/** Open tag `<name (attrs)* /?>` (CommonMark §6.6), unanchored source. */
+export const OPEN_TAG_SOURCE = OPEN_TAG.source;
+/** Close tag `</name>` with optional whitespace before `>`, unanchored source. */
+export const CLOSE_TAG_SOURCE = CLOSE_TAG.source;
+
+const OPEN_TAG_AT_POS = new RegExp(`^${OPEN_TAG_SOURCE}`);
+const CLOSE_TAG_AT_POS = new RegExp(`^${CLOSE_TAG_SOURCE}`);
 
 /** Try to match a single §6.6 HTML form at position `pos` in `raw`, bounded
  *  by `end`. Returns the matched form kind and length, or null if no form
