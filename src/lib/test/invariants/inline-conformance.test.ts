@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
+import { FLANKING_CASES, INTRA_WORD_UNDERSCORE_CASES } from '../support/flanking-corpus';
 
 // G2.3: subtle CommonMark/GFM emphasis rules — left/right flanking, the
 // multiple-of-3 rule, and intra-word `_` suppression. Reference forms,
 // autolink §6.9 trimming, and basic emphasis already have example coverage in
 // test/core/inline/**; this corpus targets only the flanking-algorithm edges
-// those tests don't reach.
+// those tests don't reach. The §6.2 tables are single-sourced in
+// test/support/flanking-corpus.ts and shared with scan/emphasis-flanking.test.ts,
+// which runs the same cases against the scanner rather than the full pipeline.
 
 function hasKind(nodes: InlineNode[], kind: InlineNode['kind']): boolean {
 	for (const n of nodes) {
@@ -40,39 +43,13 @@ function shapeOf(nodes: InlineNode[], source: string): string {
 		.join('');
 }
 
-// Positive cases pin the exact set of emphasized runs (markers included):
-// asserting the full set, not mere presence, fails a parser that emphasizes the
-// wrong span, drops a nested pair, or invents a spurious one.
-interface FlankingCase {
-	name: string;
-	source: string;
-	emphasis: boolean;
-	runs?: string[];
-}
-
 const sortedSpans = (nodes: InlineNode[], source: string): string[] =>
 	collectKind(nodes, 'emphasis')
 		.map((n) => source.slice(n.start, n.end))
 		.sort();
 
 describe('G2.3 emphasis flanking (CommonMark §6.2)', () => {
-	const cases: FlankingCase[] = [
-		// Left-flanking opener requires a non-whitespace char after the run.
-		{ name: 'opener followed by space cannot open', source: '* foo*', emphasis: false },
-		{ name: 'closer preceded by space cannot close', source: '*foo *', emphasis: false },
-		{ name: 'tight run emphasizes', source: '*foo*', emphasis: true, runs: ['*foo*'] },
-		// `*` permits intra-word emphasis (no punctuation restriction).
-		{ name: 'intra-word * emphasizes', source: 'foo*bar*baz', emphasis: true, runs: ['*bar*'] },
-		// Punctuation-flanking: both the outer and inner runs pair.
-		{
-			name: 'run surrounded by punctuation pairs',
-			source: '*(*foo*)*',
-			emphasis: true,
-			runs: ['*(*foo*)*', '*foo*']
-		}
-	];
-
-	for (const { name, source, emphasis, runs } of cases) {
+	for (const { name, source, emphasis, runs } of FLANKING_CASES) {
 		it(`${name}: ${JSON.stringify(source)}`, () => {
 			const nodes = parseInline(source, 0, source.length);
 			if (!emphasis) {
@@ -85,20 +62,7 @@ describe('G2.3 emphasis flanking (CommonMark §6.2)', () => {
 });
 
 describe('G2.3 intra-word underscore suppression (CommonMark §6.2)', () => {
-	const cases: FlankingCase[] = [
-		{ name: 'intra-word _ stays literal', source: 'foo_bar_baz', emphasis: false },
-		{ name: 'opening _ mid-word cannot open', source: '_foo_bar', emphasis: false },
-		{ name: 'closing _ mid-word cannot close', source: 'foo bar_baz_', emphasis: false },
-		{
-			name: '_ with whitespace boundaries emphasizes',
-			source: 'foo _bar_ baz',
-			emphasis: true,
-			runs: ['_bar_']
-		},
-		{ name: '_ after punctuation can open', source: '(_foo_)', emphasis: true, runs: ['_foo_'] }
-	];
-
-	for (const { name, source, emphasis, runs } of cases) {
+	for (const { name, source, emphasis, runs } of INTRA_WORD_UNDERSCORE_CASES) {
 		it(`${name}: ${JSON.stringify(source)}`, () => {
 			const nodes = parseInline(source, 0, source.length);
 			if (!emphasis) {
