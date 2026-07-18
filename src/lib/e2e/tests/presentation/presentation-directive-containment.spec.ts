@@ -5,7 +5,7 @@ import { PluginsPage } from '../plugins/helpers';
 // `:::name` directive reveals that leaf's own inline markers, but the directive fences
 // (`.directive-marker`) are container chrome and never reveal — they stay hidden.
 // Runs on /test/plugins for the directive grammar. Requirements:
-// e2e/requirements/presentation/presentation-preview-block.md (directive-body containment).
+// e2e/requirements/presentation/presentation-directive-containment.md.
 
 const DOC = ':::foo\nBody with **bold** here.\n:::\n';
 
