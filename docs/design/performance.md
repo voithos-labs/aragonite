@@ -29,7 +29,7 @@ A flat high-block-count keystroke cost was once recorded here as an O(top-level-
 | `counters` (structural amplification)   | **Gated**       | `amplification.test.ts`                                                                                              |
 | `parse`, `snapshot*`, `ancestryRebuild` | **Report-only** | Dev references — environment-sensitive; read them as orders of magnitude, not targets (see baseline.json's own note) |
 
-**Environment scaling.** Ceilings derive from baselines measured on the calibration machine. A slower environment scales the whole ceiling via `PERF_RUNNER_SCALE` instead of re-blessing baselines per host. Local runs stay unscaled — that's the tight gate. CI sets the scale in the workflow from its measured slowdown, which makes the CI perf job a gross-regression net rather than a precision instrument.
+**Environment scaling.** Ceilings derive from baselines measured on the calibration machine. A slower environment scales the whole ceiling via `PERF_RUNNER_SCALE` instead of re-blessing baselines per host. Local runs stay unscaled — that's the tight gate. CI sets the scale in the workflow from its measured slowdown, which makes the CI perf job a gross-regression net rather than a precision instrument; that job measures the production build (`perf:check:prod`).
 
 ## Key architectural decisions
 

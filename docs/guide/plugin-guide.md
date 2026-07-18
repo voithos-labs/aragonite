@@ -413,12 +413,12 @@ The chords are live: focus the note, press `Mod+7` / `Mod+8` to switch it betwee
 
 Content that is _itself editable_ comes in four tiers, each backed by a tree guarantee:
 
-| Tier              | What it hosts                                                         | Status                 |
-| ----------------- | --------------------------------------------------------------------- | ---------------------- |
-| **Container**     | Real document blocks in a nested child list — the walkthrough's body  | shipped                |
-| **Chrome leaf**   | One reserved, single-line, plain-text child the container's raw owns  | shipped                |
-| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection parity | shipped _(pre-freeze)_ |
-| **Atomic widget** | An opaque, non-text embed, caret-addressable only at its edges        | shipped                |
+| Tier              | What it hosts                                                                   | Status                 |
+| ----------------- | ------------------------------------------------------------------------------- | ---------------------- |
+| **Container**     | Real document blocks in a nested child list — the walkthrough's body            | shipped                |
+| **Chrome leaf**   | One reserved, single-line, plain-text child the container's raw owns            | shipped                |
+| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection/clipboard parity | shipped _(pre-freeze)_ |
+| **Atomic widget** | An opaque, non-text embed, caret-addressable only at its edges                  | shipped                |
 
 The chrome leaf is deliberately narrow: it is always present, single-line and unsplittable (paste flattens to inline), and it is cleared — never deleted — by a destructive range, staying the same kind through every edit. The contract guarantees the empty leaf's presence, not its look: an empty-state affordance (placeholder text over an untitled title, say) is yours to build with CSS on the leaf's block class.
 
@@ -428,7 +428,7 @@ Nested-editor interiors — a second editor's state serialized as a blob — are
 
 `createEditableLeaf` is the container factory's sibling for leaves. It reads the editor's contexts itself (deps are live getters — `node`, `index`, `path` — plus `getEl()` returning your source contenteditable) and hands back everything a text-editing block needs.
 
-**Native parity is the tier's whole claim**: the editor's caret and sticky-column traversal enter and leave your block like any built-in text block, IME composition is respected, undo batches like prose, and a cross-block selection sweeps through your text. Two modes:
+**Native parity is the tier's whole claim**: the editor's caret and sticky-column traversal enter and leave your block like any built-in text block, IME composition is respected, undo batches like prose, the clipboard is intercepted for plain-Markdown copy/cut/paste like every editable surface, and a cross-block selection sweeps through your text. Two modes:
 
 - **`'plain'`** — the source is always the editable view; every keystroke commits to the tree (prose-like undo batching). Your component binds the returned handlers onto its contenteditable and calls `syncSource()` from one `$effect`. The factory owns the text sync, the Chromium trailing-newline caret anchor, and the caret restore after external rewrites.
 - **`'render-primary'`** — a rendered view by default; focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once** — the whole reveal→edit→blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering; the factory owns everything else, `onRenderPointerDown` included.
