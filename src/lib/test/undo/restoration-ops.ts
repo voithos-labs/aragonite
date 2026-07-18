@@ -38,6 +38,7 @@ import {
 
 export type Op =
 	| { t: 'typeTop'; i: number; n: number }
+	| { t: 'typeChar'; i: number; off: number; ch: number }
 	| { t: 'splitTop'; i: number; off: number }
 	| { t: 'mergeTopNext'; i: number }
 	| { t: 'insertItem'; i: number }
@@ -53,10 +54,31 @@ export type Op =
 	| { t: 'tableReorderRow'; i: number; dir: -1 | 1 }
 	| { t: 'tableCycleAlignment'; i: number }
 	| { t: 'typeCell'; r: number; c: number; n: number }
-	| { t: 'rangeDelete'; a: number; b: number; off: number };
+	| { t: 'rangeDelete'; a: number; b: number; off: number }
+	| { t: 'undo' }
+	| { t: 'redo' };
+
+/**
+ * Block- and inline-significant Markdown characters. Typing one mid-content is
+ * the class the neutral fillers (`x`/`y`/`q`/`z`) can't reach: a pipe inside a
+ * cell, a fence marker inside prose, a `>` that re-classifies the block — the
+ * live-tree-vs-raw divergences the convergence oracle exists to catch.
+ */
+export const MARKDOWN_TYPE_CHARS = ['|', '#', '>', '-', '*', '`', '[', ']', '!'] as const;
+
+/**
+ * Code-point insertion index for a `typeChar` op — resolves the arbitrary `off`
+ * against the body's code-point length so an astral source is never sliced
+ * through a surrogate pair (offsets here are UTF-16 in the raw string, but
+ * `displayLength` counts UTF-16 units, so index by code point instead).
+ */
+export function typeCharCodePointOffset(body: string, off: number): number {
+	return off % ([...body].length + 1);
+}
 
 export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({ t: fc.constant('typeTop' as const), i: fc.nat(5), n: fc.nat(2) }),
+	fc.record({ t: fc.constant('typeChar' as const), i: fc.nat(5), off: fc.nat(24), ch: fc.nat(8) }),
 	fc.record({ t: fc.constant('splitTop' as const), i: fc.nat(5), off: fc.nat(8) }),
 	fc.record({ t: fc.constant('mergeTopNext' as const), i: fc.nat(5) }),
 	fc.record({ t: fc.constant('insertItem' as const), i: fc.nat(5) }),
@@ -76,15 +98,23 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	}),
 	fc.record({ t: fc.constant('tableCycleAlignment' as const), i: fc.nat(3) }),
 	fc.record({ t: fc.constant('typeCell' as const), r: fc.nat(4), c: fc.nat(3), n: fc.nat(2) }),
-	fc.record({ t: fc.constant('rangeDelete' as const), a: fc.nat(5), b: fc.nat(5), off: fc.nat(4) })
+	fc.record({ t: fc.constant('rangeDelete' as const), a: fc.nat(5), b: fc.nat(5), off: fc.nat(4) }),
+	fc.record({ t: fc.constant('undo' as const) }),
+	fc.record({ t: fc.constant('redo' as const) })
 );
 
+// CRLF and astral/combining variants join the ASCII/LF fixtures: the marker-char
+// class the audit missed lives partly in line-ending and code-point handling, so
+// the generator must reach a `\r\n`-authored block and a surrogate-pair /
+// combining-mark block, not just plain ASCII.
 export const arbSource = fc.constantFrom(
 	'alpha\n\n- one\n- two\n- three\n\nomega\n',
 	'1. first\n2. second\n3. third\n',
 	'- a\n  - b\n- c\n\npara\n',
 	'lead\n\n> quoted\n\n- x\n- y\n',
-	'intro\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n\n- one\n- two\n'
+	'intro\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n\n- one\n- two\n',
+	'lead\r\n\r\n- one\r\n- two\r\n- three\r\n\r\ntail\r\n',
+	'álpha\n\n- \u{1D52C}\u{1D52D}\u{1D52E}\n- two\n- three\n\nomegä\n'
 );
 
 // ── Harness ──────────────────────────────────────────────────────────────────
@@ -136,6 +166,12 @@ function nestedBundleAt(h: Harness, index: number): NestedActionsBundle {
 export async function runOp(h: Harness, op: Op): Promise<void> {
 	for (const child of h.deps.doc.children) registerSubtreeStates(child);
 	switch (op.t) {
+		case 'undo':
+			return h.history.requestUndo();
+		case 'redo':
+			return h.history.requestRedo();
+		case 'typeChar':
+			return runTypeChar(h, op);
 		case 'typeTop':
 		case 'splitTop':
 		case 'mergeTopNext':
@@ -179,6 +215,30 @@ async function runTopOp(
 	} else {
 		await h.blockEdit.mergeWithNext(i);
 	}
+}
+
+/**
+ * Splice one Markdown-significant character into a top-level paragraph at an
+ * arbitrary code-point offset, through the same `updateBlockContent` entry
+ * TextEditableBlock types on. The entry reparses, so a `>` at offset 0 (or a
+ * mid-line fence marker) re-classifies the block exactly as a live keystroke
+ * would — the convergence oracle then holds only if that re-classification is
+ * byte-faithful.
+ */
+async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Promise<void> {
+	const doc = h.deps.doc;
+	const paragraphs = doc.children
+		.map((c, i) => ({ c, i }))
+		.filter(({ c }) => c.kind === 'paragraph');
+	if (paragraphs.length === 0) return;
+	const { c, i } = paragraphs[op.i % paragraphs.length];
+	const body = trimTrailingLineEnding(c.raw);
+	const at = typeCharCodePointOffset(body, op.off);
+	const cps = [...body];
+	const ch = MARKDOWN_TYPE_CHARS[op.ch % MARKDOWN_TYPE_CHARS.length];
+	const next = [...cps.slice(0, at), ch, ...cps.slice(at)].join('');
+	const utf16At = cps.slice(0, at).join('').length;
+	await h.blockEdit.updateBlockContent(i, next + '\n', utf16At, utf16At + 1);
 }
 
 async function runListOp(
