@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scanInline } from '../../core/inline/scan';
+import { scanInline } from '../../../../core/inline/scan';
 import {
 	assertTotalCoverage,
 	describeScanCases,
