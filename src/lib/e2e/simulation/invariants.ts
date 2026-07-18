@@ -3,6 +3,7 @@ import type { EditorPage } from '../editor-page';
 import type { ExpectationTracker } from './expectation';
 import type { ErrorCollector } from './error-collector';
 import type { NoteFixture } from './notes/types';
+import { getContainerParityMismatches } from '../container-parity';
 
 export interface SimContext {
 	page: Page;
@@ -71,6 +72,24 @@ export async function assertEndState(ctx: SimContext, canonicalTarget: string): 
 
 export async function assertNoErrors(ctx: SimContext): Promise<void> {
 	await ctx.errors.assertNone();
+}
+
+/**
+ * Container children/childIds parity across every keyed BlockList in the live
+ * tree. A structural mutation that extends `children` without extending
+ * `childIds` gives the trailing keyed-each entries `undefined` keys — Svelte's
+ * earliest signal of the desync class, caught here at checkpoint cadence rather
+ * than waiting for the boundary to throw mid-render. The walker throws (not
+ * returns `[]`) if the doc bridge is absent, so a missing probe is loud, never
+ * vacuously green.
+ */
+export async function assertContainerParity(ctx: SimContext): Promise<void> {
+	const mismatches = await getContainerParityMismatches(ctx.page);
+	if (mismatches.length) {
+		throw new Error(
+			`[${ctx.label}] container children/childIds parity broken:\n${JSON.stringify(mismatches, null, 2)}`
+		);
+	}
 }
 
 export async function assertNestedStateConsistent(ctx: SimContext): Promise<void> {
