@@ -33,6 +33,9 @@ wall-time budget.
   made there
 - undo / redo use real cross-platform keyboard shortcuts and restore the exact
   pre/post-gesture source around a forced batch boundary
+- whole-session undo unwind: after the build, undoing the entire stack to its floor
+  reaches the session's initial source (`"\n"`) byte-exact, then redoing to the top
+  reconstructs the built note; the stack depth comes from the debug bridge
 
 ## Error cases
 
@@ -41,3 +44,6 @@ wall-time budget.
 - the serialized source is a byte fixed point (`serialize(parse(src)) === src`) AND the live
   CST converges structurally with a reparse of that source, so a gesture that left the tree
   diverging from its own raw is caught where the byte check is blind (checkpoint cadence)
+- both selection endpoints resolve to live CST nodes with leaf offsets within raw length,
+  so a gesture that stranded a dangling selection endpoint is caught before the next
+  keystroke dereferences it
