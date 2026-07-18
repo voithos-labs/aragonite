@@ -156,40 +156,22 @@ single-newline join: GFM lazy continuation reparses it as ONE two-line paragraph
 split-then-save-then-reload merges what the live session showed as two blocks. Byte
 round-trip (`serialize(parse(s)) === s`) holds throughout — the divergence is
 `parse(serialize(liveTree))` disagreeing with the live tree's structure, which the round-trip
-oracles cannot see. `splitNode`'s own comment already names the empty-half state "tolerated";
-the typed-into variant is the part that persists. Surfaced by 0.9.22's e2e baseline pins
-(reviewer-proven).
+oracles cannot see.
 
-**Fix direction:** a design look at split's trailing-newline emission — the blank-line
-separator needs an owner (the first half's raw gaining the blank line, or the second half's
-`leadingTrivia` carrying `'\n'`), decided against the merge/undo paths that read those bytes.
+**Fix direction:** the sibling list-exit path solved its instance of this class by minting a
+uniform blank-line separator at the exit gesture. The splitNode instance cannot reuse that
+shape as-is: the separator would have to be minted before the successor kind is known (Enter
+precedes typing), and the successor kind decides whether one is needed — only a paragraph
+lazy-merges, a heading/list/blockquote never does. A kind-dependent separator is impossible
+because the simulation's `ExpectationTracker` is model-free (it predicts only char insertion
+and resyncs on structural gestures), so the trivia cannot change mid-typing. A uniform mint at
+split (blank before every successor) double-counts the deliberate `pressEnter`+`softEnter`
+thematic-break cadence and broadens para→heading spacing. So this needs its own design pass
+with gesture re-choreography, decided against the merge/undo paths that read those bytes.
 
 **Why deferred:** byte round-trip holds and the live session is self-consistent; the
-divergence needs a save→reload boundary to observe. The separator-ownership call touches
-split, merge, and trivia semantics together — a deliberate design change, not a spot patch.
-
-### List-item merge relocation clears the paragraph separator, producing a lazy-continuation divergence
-
-**Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
-**Files:** `src/lib/tree-operations/list/unwrap-merge.ts` (`relocateRemainingChildren` — the
-trailing-paragraph absorb clears `leadingTrivia` instead of keeping the blank-line separator)
-
-When a list-item Backspace-merge absorbs the merged-away item's trailing paragraph into the
-target item, it clears that paragraph's `leadingTrivia`, so the target item keeps two live
-paragraph nodes (`[para "BC", para "extra"]`) whose serialization `- BC\n  extra\n` has no
-blank line — GFM lazy continuation reparses it as ONE paragraph. Byte round-trip
-(`serialize(parse(s)) === s`) holds; the divergence is `parse(serialize(liveTree))`
-disagreeing with the live tree's block structure. Surfaced by the parse-convergence oracle
-when `relocate-remaining-children.test.ts` was rewired off its tautological round-trip check
-(that file's converging site now asserts convergence; the two lazy-continuation sites keep
-the byte round-trip with a comment). Same class as the Enter-at-end note above.
-
-**Fix direction:** shared with the Enter-at-end separator-ownership call — the relocation
-either keeps the blank-line separator (preserving two paragraphs) or collapses the two live
-paragraphs into one; decided against the merge/undo paths that read those bytes.
-
-**Why deferred:** byte-safe and self-consistent in the live session; needs a save→reload to
-observe. Folds into the same split/merge trivia-semantics design change as Enter-at-end.
+divergence needs a save→reload boundary to observe. Not reachable by the current simulation
+notes (they type para→heading and list-exit→paragraph, not Enter-at-end-then-paragraph).
 
 ### Content typed after an unclosed fenced code block stays a separate live block but reloads collapsed
 
@@ -207,7 +189,8 @@ throughout — the divergence is `parse(serialize(liveTree))` disagreeing with t
 block structure, invisible to the round-trip oracles. Surfaced when the parse-convergence oracle
 was wired into the simulation checkpoints: three note fixtures (biology, project-plan, readme)
 build this shape deliberately and are exempted with a documented reason (`NoteFixture.unconvergedReason`).
-Same class as the Enter-at-end and relocation lazy-continuation notes above.
+A live-tree vs reload lazy-continuation divergence, but here the collapse is unavoidable (an
+unclosed fence has no terminator) rather than a separator-ownership gap.
 
 **Fix direction:** a design look at whether the editor should auto-close a fence when a
 structural block is created after it (closing fence minted into the code node's raw), decided
@@ -239,8 +222,8 @@ children or a `raw` that disagrees with `children`, both of which violate CST-is
 on first edit like padding and delimiter normalization.
 
 **Why deferred:** spec-compliant and byte-safe at load; the divergence needs a save→reload
-boundary to observe and drops only non-model, never-rendered bytes — the same class as the
-Enter-at-end round-trip note above, one rung less severe (the surplus is never user-visible).
+boundary to observe and drops only non-model, never-rendered bytes — the same live-tree vs
+reload divergence class, one rung less severe (the surplus is never user-visible).
 
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 

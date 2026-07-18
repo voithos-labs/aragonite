@@ -41,5 +41,6 @@ export const SMOKE_NOTE: NoteFixture = {
 		'- Chloroplasts capture light\n' +
 		'- Water splits into oxygen\n' +
 		'- Glucose stores the energy\n' +
+		'\n' +
 		'Light and water drive the reaction.\n'
 };
