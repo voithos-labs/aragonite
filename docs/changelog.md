@@ -2,6 +2,60 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.28 — The forge-review hardening pass: a repo-wide audit, fixed to green
+
+An owner-directed four-pass audit (bugs / design+docs / test quality / organization) over the
+entire repo — every Critical/Important finding reproduced or revert-probed before fixing,
+every fix landed test-first with its red quoted. The byte round-trip core survived a
+dedicated hunt untouched; the fixes concentrate in structure-correctness, routing, and the
+gates themselves. The full battery, conformance slice, and perf ceilings are green with zero
+expected failures at the cut.
+
+- **Corruption fixes.** Indented-fence rendering corrupted bytes on load-then-type (the
+  audit's one critical); a typed `|` in a table cell shifted or silently dropped cell content
+  on reload; a stale render key let undo be silently re-reverted after a kind flip;
+  cross-block inline paste left a stale kind over new bytes; clipboard during a widget
+  reveal spliced at stale offsets and muted subsequent typing; CRLF-authored documents
+  normalized on details/mermaid/directive rebuilds and on the first keystroke.
+- **GFM conformance + parser robustness.** List items absorb lazy continuation lines (and
+  list-exit now mints the blank-line separator its output needs on reload); `www.` autolinks
+  gain their scheme; link-reference definitions reject trailing garbage and yield to block
+  openers; indented code interrupts non-paragraph predecessors; entity-shaped autolink tails
+  are excluded; container nesting depth caps at 512 with byte-preserving degradation (was a
+  stack-overflow crash reachable from ~2KB of input); the backtick and directive-closer
+  scans join their siblings' bounds, retiring two super-linear shapes.
+- **Keybinding routing.** Malformed chords fail loudly at every ingestion path (a `Ctrl+W`
+  typo no longer silently steals every `w`); the container bubble honors consumer global
+  disables; document-level chords gate on instance containment — multi-editor pages route to
+  exactly one editor, and a sole editor yields Ctrl+F to a foreign text input.
+- **Selection.** Same-path cross-block state is unmintable (the invisible-selection class);
+  backward-selection entry captures the anchor, not the range start; full-column delete
+  tolerates windowed-out rows; `getSelection()` reports real within-block range offsets;
+  table Shift+Arrow extension walks rows and exits the table.
+- **The test platform got its real oracles.** A live-tree convergence check
+  (`parse(serialize(live))` structurally equals the live tree) replaces the tautological
+  post-mutation round-trip assert everywhere it stood — the published conformance kits, the
+  e2e bridge, and every simulation checkpoint; both kits assert rebuild identity against the
+  parse; commit-family negative-controls pin that the invariant belts are actually buckled;
+  the simulation gains cross-block-destructive and merge gesture families plus session
+  undo-unwind and selection-validity oracles; the undo property types markdown at arbitrary
+  offsets and replays redo; keyboard-extend gains its mirror-direction and dispatch-layer
+  coverage; the editable-leaf tier intercepts clipboard like every other editable surface.
+- **Honest gates.** `--passWithNoTests` dropped from all 21 unit scripts; the CI perf job
+  measures the prod build it always claimed to; the consumer example exercises all eight
+  published subpaths; the docs-pack link closure and verify-pack harden (the required list
+  now derives from the exports map); four new parity lints (G4.16–G4.19).
+- **Organization.** The scan/directive/conformance test suites fold under their source
+  mirrors; decoration and search state move home to their feature directories; the built-in
+  descriptor registrations split from the descriptor contract.
+- **VR-1 resolved by exoneration.** The long-red anchor spec was measuring in the wrong
+  frame — the demo harness header's re-wrap moved the whole editor 72px and the spec read
+  viewport-absolute coordinates. Instrumentation proved the windowing correction holds the
+  anchor to 0.22px; the spec now measures editor-relative, and a revert-check confirms it
+  still catches a genuinely broken correction.
+- **Ledger.** Ten `docs/issues.md` entries closed; every surviving entry re-verified this
+  audit with its rationale, fix design, or falsification history recorded.
+
 ### 0.9.27 — The architecture-concern pass: five flagged designs, five recorded resolutions
 
 A post-0.9.26 architecture review flagged the five designs most likely to be regretted after
