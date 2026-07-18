@@ -16,15 +16,9 @@
 	let boxEl: HTMLElement | undefined = $state();
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getBoxEl: () => boxEl
 	});
 

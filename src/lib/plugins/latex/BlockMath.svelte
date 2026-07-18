@@ -26,15 +26,9 @@
 	let sourcePopulated = false;
 
 	const leaf = createEditableLeaf({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getEl: () => sourceEl ?? null,
 		mode: 'render-primary',
 		isRevealed: () => revealed,

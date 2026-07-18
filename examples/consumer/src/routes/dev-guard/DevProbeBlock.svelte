@@ -3,22 +3,16 @@
 	// disagrees with the descriptor (which declares no reservedChrome.isCollapsed
 	// probe), tripping composeCollapseProbe's dev-warn at render. Proves a plugin
 	// author's own `vite dev` still receives the packaged editor's guard signal.
-	import { BlockList, createContainerBlock, type CstNode } from 'aragonite/plugin';
+	import { BlockList, createContainerBlock, type NodeView } from 'aragonite/plugin';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
 	const { blockListProps, containerApi } = createContainerBlock({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getBoxEl: () => boxEl,
 		// The devprobe descriptor declares no collapse probe, so
 		// isCollapsedContainer(node) is false; this `true` is the deliberate
