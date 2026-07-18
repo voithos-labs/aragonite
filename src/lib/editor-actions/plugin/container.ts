@@ -21,7 +21,6 @@ import type {
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { BlockComponent } from '../../block-component';
-import { displayLength } from '../../core/lines';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -48,6 +47,7 @@ import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
 	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
+	handleWholeBlockKeys,
 	isEditableEventTarget,
 	type ContainerBlockComponent
 } from '../container-block-component';
@@ -429,10 +429,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleWholeBlockKeydown(e);
 	};
 
-	// ThematicBreak's focus-model affordances for a whole-block-focus container,
-	// dispatched from the wrapper's bubble phase so a viewport-focused key reaches
-	// them (ThematicBreakBlock.svelte is the parity reference). Gated three ways so
-	// a child-bearing container or a plugin's own editing surface is never touched:
+	// The whole-block-focus affordances for a viewport-focused container, dispatched
+	// from the wrapper's bubble phase so a viewport-focused key reaches them. Gated
+	// three ways so a child-bearing container or a plugin's own editing surface is
+	// never touched:
 	//   1. the kind opted in (getFocusEl supplied),
 	//   2. the whole-block focus element actually holds focus — excludes a focused
 	//      toolbar button (a sibling of the focus element), which would otherwise
@@ -446,9 +446,14 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		if (isEditableEventTarget(e.target)) return;
 
 		// A whole-block surface is tabindex-focusable independent of contenteditable,
-		// so this path is live in reading mode: arrows (below) stay, edits gate.
+		// so this path is live in reading mode: arrows stay, edits gate.
 		const reading = isReadingMode(getPresentationMode);
 
+		// Alt-arrow reorder is this container's own: its runCommand is inert (a plugin
+		// container owns no built-in kind command), so unlike ThematicBreak — which
+		// routes reorder through the kind keymap — it can't come from dispatchKindCommand
+		// and is handled inline here. The congruent Enter/Backspace/Delete/arrow tail is
+		// the shared handleWholeBlockKeys.
 		if (e.key === 'ArrowUp' && e.altKey) {
 			e.preventDefault();
 			if (!reading) void reorder.nudgeReorderUnit(deps.path, -1);
@@ -460,34 +465,13 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return;
 		}
 
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			if (!reading) void parentBlockEdit.splitBlock(deps.index, displayLength(deps.node.raw));
-			return;
-		}
-
-		if (e.key === 'Backspace' || e.key === 'Delete') {
-			e.preventDefault();
-			if (!reading) void parentBlockEdit.deleteBlock(deps.index);
-			return;
-		}
-
-		const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
-		if (!plainArrow) return;
-
-		if (e.key === 'ArrowUp') {
-			e.preventDefault();
-			void parentFocus.moveFocus(deps.index - 1, { stickyColumnFrom: 'below' });
-		} else if (e.key === 'ArrowLeft') {
-			e.preventDefault();
-			void parentFocus.moveFocus(deps.index - 1, 'end');
-		} else if (e.key === 'ArrowDown') {
-			e.preventDefault();
-			void parentFocus.moveFocus(deps.index + 1, { stickyColumnFrom: 'above' });
-		} else if (e.key === 'ArrowRight') {
-			e.preventDefault();
-			void parentFocus.moveFocus(deps.index + 1, 'start');
-		}
+		handleWholeBlockKeys(e, {
+			getIndex: () => deps.index,
+			getRaw: () => deps.node.raw,
+			blockEdit: parentBlockEdit,
+			focus: parentFocus,
+			isReading: () => reading
+		});
 	}
 
 	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown };

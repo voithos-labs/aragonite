@@ -23,7 +23,7 @@
 		type CommandId
 	} from '../../schema/commands';
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
-	import { displayLength } from '../../core/lines';
+	import { handleWholeBlockKeys } from '../../editor-actions/container-block-component';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -101,43 +101,17 @@
 			return;
 		}
 
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			if (!isReading()) blockEdit.splitBlock(index, displayLength(node.raw));
-			return;
-		}
-
-		if (e.key === 'Backspace' || e.key === 'Delete') {
-			e.preventDefault();
-			if (!isReading()) blockEdit.deleteBlock(index);
-			return;
-		}
-
-		const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
-
-		if (e.key === 'ArrowUp' && plainArrow) {
-			e.preventDefault();
-			focusActions.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-			return;
-		}
-
-		if (e.key === 'ArrowLeft' && plainArrow) {
-			e.preventDefault();
-			focusActions.moveFocus(index - 1, 'end');
-			return;
-		}
-
-		if (e.key === 'ArrowDown' && plainArrow) {
-			e.preventDefault();
-			focusActions.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-			return;
-		}
-
-		if (e.key === 'ArrowRight' && plainArrow) {
-			e.preventDefault();
-			focusActions.moveFocus(index + 1, 'start');
-			return;
-		}
+		// The whole-block-focus key tail (Enter-below, focus-delete, arrow traversal,
+		// reading gate) is shared with the plugin container factory — see
+		// handleWholeBlockKeys. Alt-arrow reorder is handled above through the kind
+		// keymap, so it never reaches here.
+		handleWholeBlockKeys(e, {
+			getIndex: () => index,
+			getRaw: () => node.raw,
+			blockEdit,
+			focus: focusActions,
+			isReading
+		});
 	}
 </script>
 
