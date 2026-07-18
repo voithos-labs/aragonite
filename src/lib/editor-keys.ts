@@ -25,7 +25,7 @@ import type { UndoController } from './editor-actions/deps';
 import type { ReorderAction } from './editor-actions/reorder-action';
 import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
 import type { SelectionState } from './selection/selection-state.svelte';
-import type { SearchState } from './reactivity/search-state.svelte';
+import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { StickyColumnState } from './cursor/sticky-column';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
