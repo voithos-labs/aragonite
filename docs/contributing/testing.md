@@ -23,7 +23,7 @@ Above the two layers sit three things worth knowing about before you go looking 
 
 ## Unit tests (Vitest)
 
-Pure TypeScript — no DOM, no browser. The invariant that matters most: `serialize(parse(source)) === source` for all valid GFM.
+No browser — Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (about a third of the suite does, including the `*.svelte.test.ts` files that mount real components through the harness). The invariant that matters most: `serialize(parse(source)) === source` for all valid GFM.
 
 ### Where a test file goes
 
@@ -117,7 +117,7 @@ The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither
 
 Every spec under `src/lib/e2e/tests/` pairs with a requirement file under `src/lib/e2e/requirements/` — a plain-English list of scenarios, written _before_ the spec. The requirements mirror the spec tree: `tests/plugins/callout-container.spec.ts` pairs with `requirements/plugins/callout-container.md`. When a subdirectory's specs split further, the requirements split with them.
 
-The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it. (The perf suite is the one area that pairs by feature rather than strictly by filename, its specs carrying a `.perf.spec.ts` suffix.)
+The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it. (Perf specs carry a `.perf.spec.ts` suffix; their requirement files pair by the same stem with the suffix stripped.)
 
 **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the parent category.
 
@@ -224,17 +224,17 @@ Artifacts persist under `simulation-captures/seed-<N>/` (gitignored, one directo
 
 Two layers measure the editor over shared deterministic fixtures, and one of them is a gate.
 
-| Layer   | Command               | Measures                                                                               |
-| ------- | --------------------- | -------------------------------------------------------------------------------------- |
-| Bench   | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/`             |
-| Browser | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                   |
-| Gate    | `npm run perf:check`  | Keystroke p50 of the renderable 1MB rows vs baseline + tolerance — fails on regression |
+| Layer   | Command               | Measures                                                                                              |
+| ------- | --------------------- | ----------------------------------------------------------------------------------------------------- |
+| Bench   | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/`                            |
+| Browser | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                                  |
+| Gate    | `npm run perf:check`  | Keystroke p50 of every renderable shape at 1MB and 10MB vs baseline + tolerance — fails on regression |
 
 The browser and gate scripts arm their own env gates (`PERF` / `PERF_GATE`). Outside them — in the full `npm test` battery, for instance — the `e2e-perf` specs self-skip in seconds.
 
 ### Fixtures
 
-`src/lib/test/perf/fixtures/generate.ts` builds six seeded shapes at any byte target: flat-prose, nested-containers, many-small-blocks, single-giant-paragraph, reference-heavy, table-heavy. The same (shape, size, seed) always yields identical bytes, golden-pinned — so numbers stay comparable across runs and machines.
+`src/lib/test/perf/fixtures/generate.ts` builds nine seeded shapes at any byte target: flat-prose, nested-containers, many-small-blocks, single-giant-paragraph, reference-heavy, table-heavy, giant-single-list, giant-single-blockquote, giant-single-table. The same (shape, size, seed) always yields identical bytes, golden-pinned — so numbers stay comparable across runs and machines.
 
 ### Instruments
 
@@ -246,11 +246,11 @@ On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()`
 
 ### Threshold policy
 
-| Kind                         | Examples                                       | Treatment                                                                                            |
-| ---------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Machine-independent counters | Clone byte parity, container-raw amplification | Hard ceilings — fail the commit gate (`test:editor:perf`, inside `npm test`)                         |
-| Keystroke p50 (≤1MB rows)    | nested / flat / reference / table 1MB          | Gated by `npm run perf:check` — deliberate, not in `npm test`; fails past baseline + `max(10%, 5ms)` |
-| Other time rows              | Parse/clone bench ms, p95, 10MB rows           | Report-only vs `src/lib/test/perf/baseline.json`                                                     |
+| Kind                         | Examples                                          | Treatment                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Machine-independent counters | Clone byte parity, container-raw amplification    | Hard ceilings — fail the commit gate (`test:editor:perf`, inside `npm test`)                                                                                                             |
+| Keystroke p50 (renderable)   | Five 1MB shapes + six 10MB shapes                 | Gated by `npm run perf:check` — deliberate, not in `npm test`; ceiling = `baseline × 1.1 + 5ms`, × `PERF_RUNNER_SCALE` (1 locally — the tight gate; CI sets 2.5, a gross-regression net) |
+| Other time rows              | Parse/clone bench ms, p95, single-giant-paragraph | Report-only vs `src/lib/test/perf/baseline.json`                                                                                                                                         |
 
 Ceiling and baseline bumps are deliberate decisions with a changelog note, never reflexive edits.
 
