@@ -5,6 +5,7 @@ import { serialize } from '$lib/core/serializer';
 import { getPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
+import { freshOrFixedSeed } from '../../invariants/arbitraries';
 
 // Adversarial fence-shape generator for the master invariant
 // serialize(parse(src)) === src, run in BOTH install states (uninstall safety is
@@ -67,8 +68,11 @@ const arbDoc = fc
 	)
 	.map(([prefix, fence, suffix]) => prefix + fence + suffix);
 
-const PARAMS = { numRuns: 300, seed: 20260710 } as const;
+const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(20260710) } as const;
 
+// fc.sample here feeds the reachability self-tests, which must stay deterministic
+// (a fresh seed could miss a rare fence shape and flake), so its seed is left
+// fixed rather than threaded through the fresh lane.
 let samples: string[] = [];
 beforeAll(() => {
 	samples = fc.sample(arbDoc, { numRuns: 800, seed: 20260710 });

@@ -17,7 +17,7 @@ import {
 	__resetDirectiveRegistryForTests,
 	type ParsedDirective
 } from '$lib/core/directive/registry';
-import { arbGfmDoc } from '../../invariants/arbitraries';
+import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
 activateDirectiveGrammar(); // :::/:: openers + the ':' recognizer, before any parse
@@ -254,7 +254,10 @@ function collectContainerInfos(nodes: CstNode[], out: string[]): void {
 
 // ── Properties ────────────────────────────────────────────────────────────────
 
-const PARAMS = { numRuns: 500, seed: 424242 } as const;
+const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(424242) } as const;
+// SAMPLE_PARAMS feeds fc.sample for the reachability self-tests, which must stay
+// deterministic (a fresh seed could miss a rare shape and flake), so it is left
+// fixed rather than threaded through the fresh lane.
 const SAMPLE_PARAMS = { numRuns: 3000, seed: 20260709 } as const;
 
 describe('directive total-coverage round-trip', () => {

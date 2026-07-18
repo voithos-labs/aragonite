@@ -176,6 +176,16 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 The baseline is a ratchet: a divergence not in it fails the slice, and a stale entry that is no longer divergent fails until removed. The count only shrinks, by mechanism. The full sweep is a _meter_, not a gate — its classed report is the standing divergence reading for the inline parser.
 
+The **kind differential** (`gfm-conformance/kind-differential.property.test.ts`) is the semantic complement: over the adversarial inline-source arbitrary it compares inline node _kinds and nesting_ against commonmark, so emphasis classified into the wrong kinds fails even when the bytes still tile — the gap a byte-conservation or offset-tiling property cannot see. It allows only the divergence classes the baseline documents as deliberate.
+
+## Property suites and the fresh lane
+
+Property/fuzz suites (`fc.assert` over the shared arbitraries) run **fixed-seed** so the commit gate is deterministic — a regression surfaces the same way every run rather than as a flake. The cost is no new-input discovery over time: one seed explores one set of inputs.
+
+The **fresh lane** is the opt-in escape hatch. `npm run test:editor:property:fresh` sets `PROPERTY_FRESH=1`, which swaps each site's fixed seed for a random one — every `fc.assert` seed threads through the `freshOrFixedSeed` helper — and runs just the property-bearing suites. Run it when touching the inline parser, the CST, or the arbitraries, or periodically, to hunt inputs the fixed seed never reaches. It is never part of the gate; reachability self-tests keep their fixed seeds so they cannot flake.
+
+**Reproducing a fresh find.** Fresh mode prints its seed (`[property:fresh] seed <N> …`) before the run, and fast-check echoes the failing seed and shrunk counterexample in any failure. To replay, pin that seed as the site's fixed default; the durable fix is to add the counterexample as a committed regression case, which guards the class without the lane.
+
 ## Note-taking simulation
 
 Long, realistic note-taking sessions driven through real input — the complement to the short per-feature specs. A session types a full GFM note from an empty document, character by character, with messy human behavior (typos and corrections, click-back edits, select/delete, copy/paste, image resize, undo/redo), checking strong correctness oracles continuously.

@@ -2,14 +2,20 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { arbRawString, arbCrlfString, arbDeepNesting, arbGfmDoc } from './arbitraries';
+import {
+	arbRawString,
+	arbCrlfString,
+	arbDeepNesting,
+	arbGfmDoc,
+	freshOrFixedSeed
+} from './arbitraries';
 
 // G2.1 marquee invariant: serialize(parse(s)) === s for ALL inputs. The parser
 // is total (never throws; unknown syntax becomes paragraph/unrecognized) and the
 // serializer is pure byte concatenation, so any counterexample is a real defect.
 // Seeds are fixed so a regression surfaces deterministically rather than flaking.
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 function roundTrips(source: string): boolean {
 	const doc = parse(source);
