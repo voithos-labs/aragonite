@@ -131,6 +131,7 @@ function relocateRemainingChildren(
 	targetPath: number[],
 	targetItem: CstNode,
 	currentItem: CstNode,
+	lineEnding: string,
 	sharing?: SharingState
 ): void {
 	const remainingChildren = currentItem
@@ -167,7 +168,11 @@ function relocateRemainingChildren(
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
 		} else {
-			child.leadingTrivia = '';
+			// A trailing paragraph absorbed after the target's own paragraph keeps
+			// the blank-line separator, or the two lazy-continue into one on reload
+			// (the separator-ownership rule split and list-exit carry). Other leaves
+			// start fresh and need none.
+			child.leadingTrivia = child.kind === 'paragraph' ? lineEnding : '';
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
 		}
@@ -250,7 +255,7 @@ export function mergeListItemIntoPrevious(
 	const lineEnding = (targetParagraph.raw ?? '').endsWith('\r\n') ? '\r\n' : '\n';
 	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
 
-	relocateRemainingChildren(list, targetPath, targetItem, currentItem, sharing);
+	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
 
 	children.splice(currentIndex, 1);
 
