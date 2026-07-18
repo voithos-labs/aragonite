@@ -9,7 +9,8 @@
  * and the signature-bearing callers stop evicting each other on a bracket-
  * bearing block: `plain` keys on raw alone (signature ''), `resolved` keys on
  * raw plus the live LRD signature. A raw change invalidates each side through
- * its own raw check.
+ * its own raw check. Memory: up to two content arrays per node, and the second
+ * only for a bracket block actually read through both signature spaces.
  */
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
