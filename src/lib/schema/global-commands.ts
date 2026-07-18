@@ -23,8 +23,10 @@ export function registerGlobalCommand(
 	opts?: { chord?: string }
 ): PluginCommandId {
 	// Validate the chord BEFORE the mint — a chord collision must not leave a
-	// minted name and a registered handler behind a failed registration.
-	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord);
+	// minted name and a registered handler behind a failed registration. The name
+	// IS the id the mint returns, so it doubles as the same-command candidate that
+	// lets a dev re-eval replace its own prior binding instead of throwing.
+	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
 	const id = mintCommandId(name);
 	const owner = currentInstallingPlugin();
 	owners.set(id, owner);
