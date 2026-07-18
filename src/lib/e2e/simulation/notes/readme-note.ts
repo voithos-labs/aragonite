@@ -80,6 +80,7 @@ export const README_NOTE: NoteFixture = {
 		'1. Clone the repo\n' +
 		'2. Install with `npm install`\n' +
 		'3. Launch the dev build\n' +
+		'\n' +
 		'## Commands\n' +
 		'```\n' +
 		'npm run dev\n' +
@@ -88,5 +89,6 @@ export const README_NOTE: NoteFixture = {
 		'## Links\n' +
 		'- [Issues](https://example.com/issues)\n' +
 		'- [Changelog](https://example.com/changelog)\n' +
+		'\n' +
 		'Contributions welcome.\n'
 };
