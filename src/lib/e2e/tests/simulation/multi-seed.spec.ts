@@ -21,9 +21,18 @@ test.describe('note-taking simulation: multi-seed fuzz', () => {
 		await editor.goto();
 	});
 
+	// One seed also runs the whole-session undo-unwind oracle (one undo/redo per stack
+	// entry); the rest stay lean so the fuzz breadth carries the cost, not the depth.
+	const UNDO_UNWIND_SEED = SEEDS[0];
+
 	for (const seed of SEEDS) {
 		test(`seed ${seed} reaches the canonical end state`, async ({ page }) => {
-			await runSession(page, editor, { seed, note: MEETING_MINUTES_NOTE, capture: false });
+			await runSession(page, editor, {
+				seed,
+				note: MEETING_MINUTES_NOTE,
+				capture: false,
+				undoUnwind: seed === UNDO_UNWIND_SEED
+			});
 		});
 	}
 });
