@@ -265,7 +265,11 @@
 				},
 				mode: 'soft'
 			});
-			blockEdit.updateBlockContent(index, result.newText + '\n', branchPreEditOffset);
+			blockEdit.updateBlockContent(
+				index,
+				result.newText + trailingLineEnding(node.raw),
+				branchPreEditOffset
+			);
 			pendingCursorOffset = result.newCursor;
 			return;
 		}
@@ -291,7 +295,11 @@
 			setCursorOffsetHelper(el, asDomTextOffset(result.caretOffset));
 			return;
 		}
-		blockEdit.updateBlockContent(index, result.newText + '\n', preEditOffset);
+		blockEdit.updateBlockContent(
+			index,
+			result.newText + trailingLineEnding(node.raw),
+			preEditOffset
+		);
 		if (result.kind === 'wrap') {
 			pendingSelection = result.selection;
 		} else {
@@ -371,7 +379,7 @@
 		const text = getDisplayText();
 		if (isBetweenEmptyPair(text, offset)) {
 			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), preEditOffset);
 			pendingCursorOffset = offset - 1;
 			return true;
 		}
@@ -405,7 +413,7 @@
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind !== 'none') {
 			if (exit.kind === 'exitWithEdit') {
-				blockEdit.updateBlockContent(index, exit.newText + '\n', offset);
+				blockEdit.updateBlockContent(index, exit.newText + trailingLineEnding(node.raw), offset);
 			}
 			focusActions.moveFocus(index + 1, 'start');
 			return true;
@@ -422,7 +430,7 @@
 			const indent = getLineLeadingWhitespace(text, splice);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
 			const newText = text.slice(0, splice) + '\n' + inner + '\n' + indent + text.slice(splice);
-			blockEdit.updateBlockContent(index, newText + '\n', offset);
+			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), offset);
 			pendingCursorOffset = splice + 1 + inner.length;
 			return true;
 		}
@@ -432,7 +440,7 @@
 			selection: { start: splice, end: splice },
 			mode: 'normal'
 		});
-		blockEdit.updateBlockContent(index, enter.newText + '\n', offset);
+		blockEdit.updateBlockContent(index, enter.newText + trailingLineEnding(node.raw), offset);
 		pendingCursorOffset = enter.newCursor;
 		return true;
 	}
@@ -455,7 +463,11 @@
 	}
 
 	function applyIndentResult(result: IndentResult): void {
-		blockEdit.updateBlockContent(index, result.text + '\n', result.selection.start);
+		blockEdit.updateBlockContent(
+			index,
+			result.text + trailingLineEnding(node.raw),
+			result.selection.start
+		);
 		if (result.selection.start === result.selection.end) {
 			pendingCursorOffset = result.selection.start;
 		} else {
@@ -514,7 +526,11 @@
 		if (selOffsets) {
 			const display = getDisplayText();
 			const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
+			blockEdit.updateBlockContent(
+				index,
+				newDisplay + trailingLineEnding(node.raw),
+				selOffsets.start
+			);
 			pendingCursorOffset = selOffsets.start;
 		}
 	}
