@@ -50,7 +50,7 @@
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
 	import { createSearchState, type SearchState } from '../reactivity/search-state.svelte';
-	import { createDecorationEngine } from '../reactivity/decoration-state.svelte';
+	import { createDecorationEngine } from '../decorations/decoration-state.svelte';
 	import type { DecorationRegistry } from '../decorations/types';
 	import { createEditorRects, type EditorRects } from '../editor-rects';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';

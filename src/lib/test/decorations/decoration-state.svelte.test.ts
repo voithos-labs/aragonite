@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '../../core/parser';
-import { createDecorationEngine } from '../../reactivity/decoration-state.svelte';
+import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
 import { configureEditorEnv, resetEditorEnv } from '../../env';
 import type { Decoration, DecorationWidgetSpec } from '../../decorations/types';
 
