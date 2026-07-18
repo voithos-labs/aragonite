@@ -17,6 +17,7 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	isInlineKindDeclared,
+	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type PluginInlineKind,
 	type InlineNode,
@@ -103,15 +104,10 @@ export function registerMathBlock(): void {
 		editable: true,
 		supportsInline: false,
 		conformanceFixture: '$$\nx^2\n$$\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
+		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
 				via: 'createEditableLeaf render-primary reveal (source ⇄ rendered)'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — Backspace at the edge moves focus, never concatenates'
 			},
 			selectionPaint: {
 				mode: 'implemented',
@@ -119,22 +115,14 @@ export function registerMathBlock(): void {
 			},
 			searchPaint: {
 				mode: 'implemented',
-				via: 'source raw scanned and navigable; the rendered widget carries no measurable text node, so a match is counted but not painted (docs/issues.md, browser-sweep finding)'
-			},
-			reorder: {
-				mode: 'implemented',
-				via: 'whole-block drag reorder through the parent BlockList'
+				via: 'source raw scanned and navigable; the rendered BlockMath carries no measurable text node, so a match is counted but not painted'
 			},
 			undo: {
 				mode: 'implemented',
 				via: 'render-primary — the reveal→edit→blur cycle commits as one undo entry'
 			},
-			clipboard: { mode: 'inherit-default' },
-			simOracle: {
-				mode: 'implemented',
-				via: 'block-math editable-leaf e2e under the [invariant:] watcher'
-			}
-		}
+			simOracle: { mode: 'implemented', via: 'block-math editable-leaf e2e' }
+		})
 	});
 
 	registerBlockOpener(mathBlock, {

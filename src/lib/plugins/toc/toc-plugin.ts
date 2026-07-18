@@ -17,6 +17,7 @@ import {
 	registerBlockOpener,
 	registerBlockComponent,
 	defineBlockComponent,
+	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type EditorPlugin
 } from '$lib/plugin';
@@ -36,15 +37,10 @@ export function registerTocBlock(): void {
 		editable: true,
 		supportsInline: false,
 		conformanceFixture: '[[toc]]\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
+		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
 				via: 'createEditableLeaf render-primary reveal (source ⇄ folded heading list)'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — Backspace at the edge moves focus, never concatenates'
 			},
 			selectionPaint: {
 				mode: 'implemented',
@@ -52,22 +48,14 @@ export function registerTocBlock(): void {
 			},
 			searchPaint: {
 				mode: 'implemented',
-				via: 'source raw scanned and navigable; the rendered widget carries no measurable text node, so a match is counted but not painted (docs/issues.md, browser-sweep finding)'
-			},
-			reorder: {
-				mode: 'implemented',
-				via: 'whole-block drag reorder through the parent BlockList'
+				via: 'source raw scanned and navigable; the rendered TocBlock carries no measurable text node, so a match is counted but not painted'
 			},
 			undo: {
 				mode: 'implemented',
 				via: 'render-primary — the reveal→edit→blur cycle commits as one undo entry'
 			},
-			clipboard: { mode: 'inherit-default' },
-			simOracle: {
-				mode: 'implemented',
-				via: 'toc document-prop e2e under the [invariant:] watcher'
-			}
-		}
+			simOracle: { mode: 'implemented', via: 'toc document-prop e2e' }
+		})
 	});
 
 	registerBlockOpener(toc, {

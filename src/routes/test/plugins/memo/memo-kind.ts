@@ -9,7 +9,8 @@ import {
 	declarePluginKind,
 	registerBlockKind,
 	registerBlockCommand,
-	registerBlockOpener
+	registerBlockOpener,
+	simpleLeafClosure
 } from '$lib/plugin';
 
 export const MEMO_BLOCK = 'memo';
@@ -38,32 +39,21 @@ export function registerMemoBlock(): void {
 			{ chord: 'Mod+Shift+J', command: boom }
 		],
 		conformanceFixture: '%%a memo\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
+		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',
 				via: 'createEditableLeaf plain — always-editable source caret'
 			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — Backspace at the edge moves focus, never concatenates'
-			},
-			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
 			searchPaint: { mode: 'implemented', via: 'source raw scanned; matches painted as marks' },
-			reorder: {
-				mode: 'implemented',
-				via: 'whole-block drag reorder through the parent BlockList'
-			},
 			undo: {
 				mode: 'implemented',
 				via: 'plain mode — per-keystroke commits with prose undo batching'
 			},
-			clipboard: { mode: 'inherit-default' },
 			simOracle: {
 				mode: 'implemented',
-				via: 'editable-leaf-plain / editable-leaf-command e2e under the [invariant:] watcher'
+				via: 'editable-leaf-plain / editable-leaf-command e2e'
 			}
-		}
+		})
 	});
 
 	registerBlockOpener(memo, {
