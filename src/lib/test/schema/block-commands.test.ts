@@ -51,15 +51,18 @@ describe('block-command registry', () => {
 	// re-mint for another kind. This drives the real install path so a regression that
 	// drops the attribution thread (not just the mint idempotence) fails here.
 	it('lets one plugin register the same command on two of its kinds', () => {
+		let idA: ReturnType<typeof registerBlockCommand> | undefined;
+		let idB: ReturnType<typeof registerBlockCommand> | undefined;
 		const plugin = definePlugin({
 			name: 'multi-kind',
 			setup() {
-				registerBlockCommand(noteA, 'shared.toggle', () => true);
-				registerBlockCommand(noteB, 'shared.toggle', () => true);
+				idA = registerBlockCommand(noteA, 'shared.toggle', () => true);
+				idB = registerBlockCommand(noteB, 'shared.toggle', () => true);
 			}
 		});
 		expect(() => installPlugins([plugin])).not.toThrow();
-		expect(getBlockCommand(noteA, 'shared.toggle')).toBeTypeOf('function');
-		expect(getBlockCommand(noteB, 'shared.toggle')).toBeTypeOf('function');
+		expect(idA).toBeDefined();
+		expect(getBlockCommand(noteA, idA!)).toBeTypeOf('function');
+		expect(getBlockCommand(noteB, idB!)).toBeTypeOf('function');
 	});
 });

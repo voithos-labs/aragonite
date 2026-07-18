@@ -65,12 +65,14 @@ describe('resolveReorderUnit', () => {
 		// The root is identified STRUCTURALLY (parentPath.length === 0), never by the
 		// kind string. A plugin kind that happens to be named 'document' sitting at a
 		// non-root slot must not be mistaken for the sibling-permutable document.
-		const nested: CstNode = {
-			kind: 'document' as CstNode['kind'],
+		// Deliberately an invalid kind — the whole point is a non-root node aliasing
+		// the root's name, which the CstNode union rightly won't type.
+		const nested = {
+			kind: 'document',
 			leadingTrivia: '',
 			raw: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
-		};
+		} as unknown as CstNode;
 		const doc: Document = { kind: 'document', prefix: '', children: [nested], suffix: '' };
 		// Pre-fix this returned { parentPath: [0], index: 0, parentKind: 'document' } —
 		// treating the alias as a reorderable parent. It now walks past to the real
