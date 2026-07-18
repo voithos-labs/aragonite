@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import type { AnyBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import type { ClosureBlock } from '$lib/schema/closure';
+import { simpleLeafClosure } from '$lib/schema/closure';
+import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
 import { testClosure } from '$lib/test/support/closure';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
@@ -28,6 +31,13 @@ const typePins = (): void => {
 	// @ts-expect-error a `not-supported` cell requires a `reason` string
 	const missingReason: ClosureBlock = { ...testClosure, focus: { mode: 'not-supported' } };
 	void missingReason;
+
+	// @ts-expect-error simpleLeafClosure still requires the four component-specific cells — simOracle omitted
+	simpleLeafClosure({
+		focus: { mode: 'implemented', via: 'f' },
+		searchPaint: { mode: 'inherit-default' },
+		undo: { mode: 'inherit-default' }
+	});
 };
 void typePins;
 
@@ -54,5 +64,47 @@ describe('closure lands on the read-side descriptor', () => {
 		const descriptor = getBlockKindDescriptor(kind);
 		expect(descriptor.isContainer).toBe(true);
 		expect(descriptor.closure).toEqual(testClosure);
+	});
+});
+
+// ── Preset coherence (G1.24) ────────────────────────────────────────────────
+// The type gate cannot see `mergeRole`, so the runtime cross-check is what proves
+// the baked `mergeBackspace: implemented` clears the not-mergeable rule — and what
+// goes red if someone "simplifies" a baked cell to inherit-default.
+describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
+	const cells = {
+		focus: { mode: 'implemented', via: 'test leaf caret' },
+		searchPaint: { mode: 'implemented', via: 'raw scanned' },
+		undo: { mode: 'inherit-default' },
+		simOracle: { mode: 'inherit-default' }
+	} as const;
+
+	const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry => {
+		const d = getBlockKindDescriptor(kind);
+		return {
+			kind,
+			notMergeable: d.mergeRole === 'not-mergeable',
+			hasContainerContract: d.containerContract !== undefined,
+			roundTripMode: d.closure.roundTrip.mode,
+			mergeBackspaceMode: d.closure.mergeBackspace.mode
+		};
+	};
+
+	it('passes for the baked preset', () => {
+		const kind = declarePluginKind('preset-coherent');
+		registerBlockKind(kind, { ...leaf, closure: simpleLeafClosure(cells) });
+		expect(checkClosureCoherence([coherenceEntry(kind)])).toBeNull();
+	});
+
+	it('fires when a baked mergeBackspace is overridden to inherit-default', () => {
+		const kind = declarePluginKind('preset-broken');
+		registerBlockKind(kind, {
+			...leaf,
+			closure: simpleLeafClosure({ ...cells, mergeBackspace: { mode: 'inherit-default' } })
+		});
+		expect(checkClosureCoherence([coherenceEntry(kind)])?.detail).toMatchObject({
+			kind: 'preset-broken',
+			column: 'mergeBackspace'
+		});
 	});
 });
