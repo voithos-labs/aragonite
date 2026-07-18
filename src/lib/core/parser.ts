@@ -83,18 +83,6 @@ export function parseBlocks(
 
 	if (index === end) return { prefix, children, suffix: pendingTrivia };
 
-	// Reused across the loop — openers must not retain it.
-	const ctx: OpenContext = {
-		lines,
-		index,
-		end,
-		line: lines[index],
-		leadingTrivia: '',
-		isFirstInWindow: true,
-		grammar,
-		depth
-	};
-
 	while (index < end) {
 		const line = lines[index];
 
@@ -104,10 +92,18 @@ export function parseBlocks(
 			continue;
 		}
 
-		ctx.index = index;
-		ctx.line = line;
-		ctx.leadingTrivia = pendingTrivia;
-		ctx.isFirstInWindow = children.length === 0;
+		// Minted fresh per block: an opener that retains the context sees a value
+		// stable for its own dispatch, never one re-stamped by the next block.
+		const ctx: OpenContext = {
+			lines,
+			index,
+			end,
+			line,
+			leadingTrivia: pendingTrivia,
+			isFirstInWindow: children.length === 0,
+			grammar,
+			depth
+		};
 		const { node, nextIndex } = parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
