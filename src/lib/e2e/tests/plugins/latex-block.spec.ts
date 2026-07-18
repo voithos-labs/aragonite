@@ -131,6 +131,32 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
+	test('a paste into the revealed source is intercepted to plain text (no live HTML)', async ({
+		page
+	}) => {
+		await editor.revealByClick();
+		await page.keyboard.press('End');
+		await page.evaluate(async () => {
+			await navigator.clipboard.write([
+				new ClipboardItem({
+					'text/plain': new Blob([' plain'], { type: 'text/plain' }),
+					'text/html': new Blob(['<b>BOLD</b>'], { type: 'text/html' })
+				})
+			]);
+		});
+		await page.keyboard.press('Control+v');
+
+		// The ephemeral source edit takes the text/plain payload, not the HTML markup —
+		// pre-fix the render-primary leaf bound no onpaste, so the native paste dropped
+		// live <b> into the revealed contenteditable.
+		const html = await editor.source.innerHTML();
+		expect(html).not.toContain('<b>');
+		expect(await editor.sourceText()).toContain(' plain');
+		// The edit stays ephemeral until blur — blur commits and the doc round-trips.
+		await editor.getBlock(2).click();
+		expect(await roundTripStable(editor.page)).toBe(true);
+	});
+
 	test('A1: the reveal caret lands at the source edge and a typed char lands inside it', async ({
 		page
 	}) => {

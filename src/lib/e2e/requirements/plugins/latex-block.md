@@ -21,6 +21,9 @@ and the caret's survival across it are exactly what the unit layer could not pro
 - Arrow into the block from a sibling reveals the source; arrowing back out of either
   edge folds it and lands focus on the adjacent block
 - ArrowUp/ArrowDown traverse in and out of the block by sticky column, like a code block
+- A paste into the revealed source is intercepted to plain text: HTML on the clipboard
+  is dropped, not injected as live markup, and the edit stays ephemeral until blur
+  commits it (folded, the widget falls to native copy — there is no source to slice)
 
 ## Edge cases (spec's named highest-risk)
 
