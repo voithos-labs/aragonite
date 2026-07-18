@@ -172,7 +172,7 @@
 					theme={$currentThemeType}
 				/>
 			{/key}
-			<SelectionToolbar {editor} container={editorSlot} />
+			<SelectionToolbar {editor} />
 		</div>
 		<DebugPanel
 			rawSource={liveSource}
