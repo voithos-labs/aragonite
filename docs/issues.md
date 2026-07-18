@@ -551,23 +551,3 @@ threshold blind (it could mask a real anchor bug). If CI also reds, open a windo
 anchor-correction investigation.
 
 **Why deferred:** needs the CI datapoint (next dev push) before any threshold decision.
-
-### Residual: a chorded plugin-global command still needs a dev reload on re-eval
-
-**Severity:** trivial (dev workflow; narrow surface; no production impact)
-**Files:** `src/lib/schema/commands.ts` (`registerPluginGlobalBinding`)
-
-The SSR registrar-poison 500-class (0.9.27) is resolved: every keyed register-once registry
-(kinds, components, openers, commands, block-commands, inline syntax, inline widgets, paste
-surfaces, paste transforms, directives) and every mint/declare (`declarePluginKind`,
-`declarePluginInlineKind`, `mintCommandId`) now REPLACES a duplicate with a dev note instead of
-throwing when a Vite dev server re-evaluates a registrar module (`schema/register-once.ts`,
-`devReplacesRegistration`). Production and test keep the register-once throw. The one residual: a
-`registerGlobalCommand` that binds a chord re-runs `registerPluginGlobalBinding`, whose chord
-collision throw is left intact (it also guards genuine cross-command collisions and unstealable
-chords, which the same-key valve cannot distinguish). A chorded global command therefore still
-500s on registrar re-eval and needs a page reload.
-
-**Why deferred:** the surface is narrow (only chorded global commands), the throw guards a real
-collision class, and a page reload self-heals. A same-command chord idempotence check is the
-additive fix when a consumer hits it.
