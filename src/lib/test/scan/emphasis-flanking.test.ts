@@ -7,17 +7,15 @@ import {
 	collectKind,
 	hasKind
 } from './scan-test-helpers';
+import {
+	type FlankingCase,
+	FLANKING_CASES,
+	INTRA_WORD_UNDERSCORE_CASES
+} from '../support/flanking-corpus';
 
-// FlankingCase tables ported from test/invariants/inline-conformance.property.test.ts
-// (G2.3) against scanInline — same corpus, same assertions: positives pin the
-// exact set of emphasized runs (markers included), negatives pin no emphasis.
-
-interface FlankingCase {
-	name: string;
-	source: string;
-	emphasis: boolean;
-	runs?: string[];
-}
+// The §6.2 corpus is single-sourced in test/support/flanking-corpus.ts and run
+// here against scanInline; inline-conformance.test.ts runs the same cases through
+// the full parseInline pipeline. Same corpus, different SUT — never drift.
 
 const sortedSpans = (nodes: InlineNode[], source: string): string[] =>
 	collectKind(nodes, 'emphasis')
@@ -46,40 +44,11 @@ function describeFlankingCases(
 	});
 }
 
-describeFlankingCases(
-	'flanking (CommonMark §6.2)',
-	[
-		// Left-flanking opener requires a non-whitespace char after the run.
-		{ name: 'opener followed by space cannot open', source: '* foo*', emphasis: false },
-		{ name: 'closer preceded by space cannot close', source: '*foo *', emphasis: false },
-		{ name: 'tight run emphasizes', source: '*foo*', emphasis: true, runs: ['*foo*'] },
-		// `*` permits intra-word emphasis (no punctuation restriction).
-		{ name: 'intra-word * emphasizes', source: 'foo*bar*baz', emphasis: true, runs: ['*bar*'] },
-		// Punctuation-flanking: both the outer and inner runs pair.
-		{
-			name: 'run surrounded by punctuation pairs',
-			source: '*(*foo*)*',
-			emphasis: true,
-			runs: ['*(*foo*)*', '*foo*']
-		}
-	],
-	false
-);
+describeFlankingCases('flanking (CommonMark §6.2)', FLANKING_CASES, false);
 
 describeFlankingCases(
 	'intra-word underscore suppression (CommonMark §6.2)',
-	[
-		{ name: 'intra-word _ stays literal', source: 'foo_bar_baz', emphasis: false },
-		{ name: 'opening _ mid-word cannot open', source: '_foo_bar', emphasis: false },
-		{ name: 'closing _ mid-word cannot close', source: 'foo bar_baz_', emphasis: false },
-		{
-			name: '_ with whitespace boundaries emphasizes',
-			source: 'foo _bar_ baz',
-			emphasis: true,
-			runs: ['_bar_']
-		},
-		{ name: '_ after punctuation can open', source: '(_foo_)', emphasis: true, runs: ['_foo_'] }
-	],
+	INTRA_WORD_UNDERSCORE_CASES,
 	true
 );
 

@@ -11,11 +11,6 @@ describe('createStickyColumnState', () => {
 		expect(b.get()).toBe(null);
 	});
 
-	it('initial state is null', () => {
-		const s = createStickyColumnState();
-		expect(s.get()).toBe(null);
-	});
-
 	it('capture sets value when null', () => {
 		const s = createStickyColumnState();
 		s.capture(asEditorX(150));
@@ -25,15 +20,6 @@ describe('createStickyColumnState', () => {
 	it('capture is idempotent when non-null', () => {
 		const s = createStickyColumnState();
 		s.capture(asEditorX(150));
-		s.capture(asEditorX(200));
-		expect(s.get()).toBe(150);
-	});
-
-	it('capture preserves the first value across multiple calls', () => {
-		const s = createStickyColumnState();
-		s.capture(asEditorX(150));
-		s.capture(asEditorX(175));
-		s.capture(asEditorX(100));
 		s.capture(asEditorX(200));
 		expect(s.get()).toBe(150);
 	});

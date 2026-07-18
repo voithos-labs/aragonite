@@ -118,7 +118,7 @@ Test files under `test/invariants/` (arbitraries in `test/invariants/arbitraries
 | ----- | --------------------------------------------------------------- | ----- | -------------------------------------------------------------------------- |
 | G2.1  | Round-trip + parser totality over arbitrary strings             | P·N   | `round-trip.property.test.ts`                                              |
 | G2.2  | EOF edge states round-trip (unclosed fence, unterminated HTML)  | P·N   | `round-trip.property.test.ts` (G2.2 block)                                 |
-| G2.3  | Inline conformance corpus                                       | P     | `inline-conformance.property.test.ts`                                      |
+| G2.3  | Inline conformance corpus                                       | P     | `inline-conformance.test.ts`                                               |
 | G2.4  | `textContent === ambientPrefix + raw` spine (jsdom)             | P     | `textcontent-spine.property.test.ts`                                       |
 | G2.5  | Inline-tree offset partition                                    | P·N   | `inline-offsets.property.test.ts`                                          |
 | G2.6  | Serialization purity (ignores metadata/editor-level fields)     | P     | `serialization-purity.property.test.ts`                                    |

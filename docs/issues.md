@@ -477,6 +477,19 @@ legal-if-buggy browser sequence. If a field report shows it, relax the predicate
 per-window pairing to once-per-focus: track "saw a start since this element gained focus"
 and fire only when even that is absent — the wired-end-without-start bug it exists to catch.
 
+### Inline links/autolink suite is a 584-line monolith
+
+**Severity:** trivial (test-shape debt; coverage is intact, only the file shape lags)
+**Files:** `src/lib/test/core/inline/links-autolink.test.ts`
+
+One file carries the whole inline link + autolink corpus (inline links, reference links,
+autolinks, `<...>` autolinks, edge cases) at ~584 lines, well over the ~150-line one-concern
+target. No coverage gap — purely a split-by-behavior-area chore (inline-link resolution,
+reference-link resolution, autolink recognition).
+
+**Why deferred:** a mechanical split touches many cases and earns its own bounded pass; the
+Pass-3 shape sweep ledgered it here rather than bundling the churn into unrelated test work.
+
 ## Plugin containers
 
 ### Search replace skips matches inside childless opaque containers
