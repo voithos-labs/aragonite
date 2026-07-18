@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import {
 	registerGlobalCommand,
 	__resetPluginGlobalCommandsForTests
@@ -96,5 +97,45 @@ describe('registerGlobalCommand', () => {
 		registerGlobalCommand('demo.overridable', () => true, { chord: 'Mod+Shift+8' });
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+8', command: null }]);
 		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides)).toBeNull();
+	});
+});
+
+// The SSR/HMR registrar-poison residual: a chorded global command re-runs its
+// registration on a dev-server re-eval and its chord collision throw 500'd the
+// route. In dev-and-not-test a same-command re-bind now replaces idempotently;
+// cross-command collisions and reserved chords keep the throw, and prod/test keep
+// the register-once throw everywhere.
+describe('chorded global command survives dev re-eval', () => {
+	afterEach(() => resetEditorEnv());
+
+	it('re-binding the same command+chord replaces instead of throwing', () => {
+		configureEditorEnv({ isDev: true, isTest: false });
+		registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' });
+		expect(() =>
+			registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' })
+		).not.toThrow();
+		// One binding survives — a re-eval must not stack a duplicate.
+		expect(pluginGlobalBinding('Mod+Shift+7')?.command).toBe('demo.dev');
+		expect(resolveBinding('Mod+Shift+7', 'paragraph')?.command).toBe('demo.dev');
+	});
+
+	it('a cross-command chord collision still throws under dev re-eval', () => {
+		configureEditorEnv({ isDev: true, isTest: false });
+		registerGlobalCommand('demo.owner', () => true, { chord: 'Mod+Shift+7' });
+		expect(() => registerGlobalCommand('demo.thief', () => true, { chord: 'Mod+Shift+7' })).toThrow(
+			/already bound/
+		);
+	});
+
+	it('a reserved UI chord still throws under dev re-eval', () => {
+		configureEditorEnv({ isDev: true, isTest: false });
+		expect(() => registerGlobalCommand('demo.search', () => true, { chord: 'Mod+F' })).toThrow(
+			/reserved/
+		);
+	});
+
+	it('under test the same command+chord re-registration still throws', () => {
+		registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' });
+		expect(() => registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' })).toThrow();
 	});
 });

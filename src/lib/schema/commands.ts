@@ -16,7 +16,7 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
-import { registerOnce } from './register-once';
+import { registerOnce, devReplacesRegistration } from './register-once';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
 import {
@@ -169,7 +169,17 @@ export function isReservedUiChord(chord: string): boolean {
 	return RESERVED_UI_CHORDS.has(normalizeChord(chord));
 }
 
-export function assertPluginGlobalChordAvailable(rawChord: string): void {
+/**
+ * `candidateCommand` is the id the incoming registration will bind — a plain name
+ * (the mint is deterministic: name IS the id). On a dev-server re-eval a registrar
+ * re-binds its OWN same command to its OWN same chord; that is an idempotent replace,
+ * not a collision. Reserved chords and cross-command collisions still throw — the
+ * same-key valve cannot distinguish those genuine conflicts.
+ */
+export function assertPluginGlobalChordAvailable(
+	rawChord: string,
+	candidateCommand?: string
+): void {
 	// A public registration API fails loudly, not warn-and-drop: a malformed chord
 	// (the `'Ctrl+B'` → bare `'B'` trap) that slipped through would bind a handler
 	// that fires on every plain keypress. Thrown before the mint (see
@@ -189,6 +199,7 @@ export function assertPluginGlobalChordAvailable(rawChord: string): void {
 		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
 		pluginGlobalKeymap.find((b) => normalizeChord(b.chord) === chord);
 	if (collision) {
+		if (devReplacesRegistration() && collision.command === candidateCommand) return;
 		throw new Error(
 			`plugin global chord "${rawChord}" is already bound to "${collision.command}" — global chords are register-once`
 		);
@@ -196,8 +207,14 @@ export function assertPluginGlobalChordAvailable(rawChord: string): void {
 }
 
 export function registerPluginGlobalBinding(binding: KeyBinding): void {
-	assertPluginGlobalChordAvailable(binding.chord);
-	pluginGlobalKeymap.push(binding);
+	assertPluginGlobalChordAvailable(binding.chord, binding.command);
+	// A dev re-eval passed the same-command exemption above; replace the prior
+	// binding in place instead of stacking a duplicate. Fresh registrations never
+	// find an existing entry (the assert would have thrown).
+	const chord = normalizeChord(binding.chord);
+	const existing = pluginGlobalKeymap.findIndex((b) => normalizeChord(b.chord) === chord);
+	if (existing >= 0) pluginGlobalKeymap[existing] = binding;
+	else pluginGlobalKeymap.push(binding);
 }
 
 export function pluginGlobalBinding(chord: string): KeyBinding | null {
