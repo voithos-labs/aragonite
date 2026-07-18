@@ -8,7 +8,7 @@
 		type EditorServices
 	} from '../editor-keys';
 	import type { MarkDecoration } from '../decorations/types';
-	import type { IndexedDecoration } from '../decorations/buckets';
+	import { collapseCellMarks, type IndexedDecoration } from '../decorations/buckets';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
@@ -100,38 +100,34 @@
 			return out;
 		}
 
-		// A grid's descendant cell marks paint as whole cells; marks sharing a class
-		// in one cell collapse to one rect — the class (not an active flag) is the
-		// dedupe key, since a source expresses emphasis through its class.
+		// A grid's descendant cell marks paint as whole cells; several marks in one
+		// cell collapse to a single rect whose class is their union (collapseCellMarks).
 		function measureCells(
 			descMarks: IndexedDecoration<MarkDecoration>[],
 			blockRect: DOMRect
 		): Painted[] {
 			if (!ref?.cellRect) return [];
-			const byCell = new Map<string, { rowIdx: number; colIdx: number; dec: MarkDecoration }>();
-			for (const { dec } of descMarks) {
-				const rowIdx = dec.path[path.length];
-				const colIdx = dec.path[path.length + 1];
-				if (rowIdx == null || colIdx == null) continue;
-				const key = `${rowIdx},${colIdx},${dec.class}`;
-				if (!byCell.has(key)) byCell.set(key, { rowIdx, colIdx, dec });
-			}
 			const out: Painted[] = [];
-			for (const { rowIdx, colIdx, dec } of byCell.values()) {
+			for (const { rowIdx, colIdx, class: cls, dec } of collapseCellMarks(descMarks, path.length)) {
 				const r = ref.cellRect(rowIdx, colIdx);
-				if (r) out.push(toLocal(r, blockRect, dec));
+				if (r) out.push(toLocal(r, blockRect, dec, cls));
 			}
 			return out;
 		}
 
-		function toLocal(r: DOMRect, blockRect: DOMRect, dec: MarkDecoration): Painted {
+		function toLocal(
+			r: DOMRect,
+			blockRect: DOMRect,
+			dec: MarkDecoration,
+			cls = dec.class
+		): Painted {
 			const interactive = dec.interactive;
 			return {
 				left: r.left - blockRect.left,
 				top: r.top - blockRect.top,
 				width: r.width,
 				height: r.height,
-				cls: dec.class,
+				cls,
 				attrs: dec.attrs,
 				onClick: interactive ? (ev) => interactive.onClick(dec, ev) : undefined
 			};

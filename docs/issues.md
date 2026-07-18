@@ -28,24 +28,6 @@ editing semantics in cells then ride the same wire-up as the cell reveal gap bel
 already lag the prose surface on widget interaction, so island rendering folds into that
 same cell-surface parity pass rather than shipping render support without editing rules.
 
-### Same-cell multi-match paints stacked rects instead of one collapsed rect
-
-**Severity:** minor (visual; table cells only)
-**Files:** `src/lib/components/DecorationOverlay.svelte` (cell dedupe)
-
-The engine's cell path dedupes by `row,col,class`, so a table cell holding the active search
-match plus a sibling match paints two stacked full-cell rects (active tint over normal tint — a
-slightly darker patch) where the retired `MatchOverlay` collapsed to one active rect. Visually
-benign (the active tint dominates) and unreachable by the shipped e2e (all table specs place
-matches in distinct cells). Surfaced by the search migration onto the decoration engine.
-
-**Fix direction:** a design call in the engine's cell dedupe — class-union (one rect carrying
-both classes) vs. priority-collapse (a source-declared precedence). A search-side fix is not
-possible: sources don't know about cells.
-
-**Why deferred:** benign rendering nuance behind a design call; fold into the decoration
-follow-up that also owns islands-in-cells.
-
 ### HTML entities render as the literal source instead of the decoded character
 
 **Severity:** minor (rendering; deviates from author intent)
