@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '../../core/parser';
-import { createDecorationEngine } from '../../reactivity/decoration-state.svelte';
+import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

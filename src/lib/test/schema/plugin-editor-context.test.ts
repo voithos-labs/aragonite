@@ -6,7 +6,7 @@ import {
 	__resetInstalledPluginsForTests
 } from '$lib/schema/plugin-install';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
-import { createDecorationEngine } from '$lib/reactivity/decoration-state.svelte';
+import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import type { DecorationRegistry } from '$lib/decorations/types';
 import type { EditorRects } from '$lib/editor-rects';
 

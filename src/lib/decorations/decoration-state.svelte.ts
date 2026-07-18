@@ -5,7 +5,7 @@ import {
 	groupDecorationsByPath,
 	pathKey,
 	type IndexedDecoration
-} from '../decorations/buckets';
+} from './buckets';
 import type {
 	BlockDecoration,
 	Decoration,
@@ -14,7 +14,7 @@ import type {
 	MarkDecoration,
 	ReplaceDecoration,
 	WidgetDecoration
-} from '../decorations/types';
+} from './types';
 import { assertInvariant } from '../invariants/assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
 import { isProseKind } from '../core/inline';
