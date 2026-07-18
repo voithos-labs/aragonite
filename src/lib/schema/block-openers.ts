@@ -20,8 +20,8 @@ import { flushPendingRegistrationChecks } from './registration-checks';
 import { registerOnce } from './register-once';
 
 /**
- * One instance is reused across the parse loop — openers must consume it
- * synchronously and never retain it.
+ * Minted fresh per block and stable for that block's opener dispatch — an opener
+ * reads it synchronously; it is not a long-lived handle to keep past the return.
  */
 export interface OpenContext {
 	lines: ParsedLine[];
