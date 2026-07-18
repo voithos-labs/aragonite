@@ -10,7 +10,7 @@ import type { IndexedDecoration } from '../../decorations/buckets';
 import { applyIslandDecorations } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
 import { mountDecorationWidget } from '../../decorations/widget-dom';
-import { arbInlineSource } from './arbitraries';
+import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
 // G2.4: the rendered DOM's textContent reproduces the source bytes. Every char
 // in raw maps to a DOM text node so caret <-> offset round-trips; markers render
@@ -19,7 +19,7 @@ import { arbInlineSource } from './arbitraries';
 // invariant is the clean `textContent === source`. The widget-delta case below
 // supplies widgets explicitly and accounts for their zero contribution.
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 function renderToContainer(nodes: InlineNode[], raw: string): HTMLElement {
 	const container = document.createElement('div');
