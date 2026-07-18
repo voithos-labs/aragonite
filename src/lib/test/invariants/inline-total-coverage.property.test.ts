@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
-import { arbInlineSource } from './arbitraries';
+import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { enumerateCorpus, loadSpecExamples, sampleCorpus } from '../gfm-conformance/corpus';
 import {
 	assertTotalCoverage,
@@ -50,7 +50,7 @@ function assertScanContract(raw: string, start: number, end: number): void {
 	assertKnownKinds(nodes);
 }
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', () => {
 	it('holds over adversarial inline sources', () => {

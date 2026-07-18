@@ -29,6 +29,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { serialize } from '../../core/serializer';
 import { parseConverges } from '../../testing/parse-convergence';
+import { freshOrFixedSeed } from '../invariants/arbitraries';
 import {
 	arbOp,
 	arbSource,
@@ -39,7 +40,7 @@ import {
 	type Op
 } from './restoration-ops';
 
-const PARAMS = { numRuns: 40, seed: 20260611 } as const;
+const PARAMS = { numRuns: 40, seed: freshOrFixedSeed(20260611) } as const;
 
 describe('undo restoration property (structural sharing)', () => {
 	it('every undo/redo step restores its captured serialization byte-exactly', async () => {

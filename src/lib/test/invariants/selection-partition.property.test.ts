@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import { classifyBlockForSelection, normalize, walkBetween } from '../../selection/primitives';
 import { comparePaths, pathsEqual } from '../../selection/path-math';
-import { allBlockPaths, arbDocWithSelection } from './arbitraries';
+import { allBlockPaths, arbDocWithSelection, freshOrFixedSeed } from './arbitraries';
 
 // G2.7: the two cross-block selection primitives agree. classifyBlockForSelection
 // partitions every block into start / middle / end / outside; walkBetween yields
@@ -12,7 +12,7 @@ import { allBlockPaths, arbDocWithSelection } from './arbitraries';
 // increasing document-order list that excludes both endpoints. Endpoints come
 // from real block paths (arbDocWithSelection) so classification is never vacuous.
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 describe('G2.7 selection partition', () => {
 	it('classifyBlockForSelection agrees with walkBetween across the whole doc', () => {
