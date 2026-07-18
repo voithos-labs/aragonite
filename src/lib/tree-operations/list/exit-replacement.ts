@@ -61,6 +61,9 @@ export function buildExitReplacement(
 	const blocks: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
 		blocks.push(assembleListHalf(list, firstHalfItems, base));
+		// The exit paragraph follows the surviving list; without a blank line the
+		// parser lazy-continues a typed line into the list's last item on reload.
+		exitParagraph.leadingTrivia = '\n';
 	}
 	const paragraphIndex = blocks.length;
 	blocks.push(exitParagraph);

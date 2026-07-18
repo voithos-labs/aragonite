@@ -112,13 +112,16 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'- Prophase condenses the chromosomes\n' +
 		'  - Spindle fibers attach at the centromere\n' +
 		'- Telophase reforms two nuclei\n' +
+		'\n' +
 		'## Photosynthesis inputs\n' +
 		'1. Chloroplasts capture sunlight\n' +
 		'2. Water donates electrons\n' +
 		'3. Glucose stores the chemical energy\n' +
+		'\n' +
 		'## Study checklist\n' +
 		'- [x] Redraw the light reactions\n' +
 		'- [ ] Label oxygen as a byproduct\n' +
+		'\n' +
 		'> Remember: oxygen is released, not consumed.\n' +
 		'\n' +
 		'```\n' +
