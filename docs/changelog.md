@@ -94,8 +94,8 @@ expected failures at the cut.
 A post-0.9.26 architecture review flagged the five designs most likely to be regretted after
 the freeze; the owner's build-up-front posture demanded every one be attempted before the
 limestone integration binds to them. All five resolved — two fixed as types, one built, one
-consolidated, one exonerated by measurement (`docs/research/architecture-concerns.md` is the
-durable record):
+consolidated, one exonerated by measurement (this entry is the durable record; the working
+doc it summarizes was retired once resolved):
 
 - **`SelectionPoint` is a discriminated union** (`CharSelectionPoint | CellSelectionPoint` on
   the `cellCoordinate` flag). `offset` keeps its name on both variants — near-source-compatible
