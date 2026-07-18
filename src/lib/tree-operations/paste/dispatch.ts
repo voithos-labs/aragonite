@@ -47,7 +47,7 @@ export interface PasteDispatchContext {
 	controller: PasteCommitCoordinator;
 	/** `'join'`: no snapshot or updateBlockContent debounce here — the cross-block caller owns the undo entry. */
 	undoEntry?: UndoEntryMode;
-	/** The instance's block grammar (docs/research/architecture-concerns.md) for the join branch's
+	/** The instance's block grammar for the join branch's
 	 *  same-slot reparse. Absent = the global grammar; the non-join branch threads its own via
 	 *  updateBlockContent. */
 	grammar?: GrammarView;

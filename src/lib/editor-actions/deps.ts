@@ -35,7 +35,7 @@ export interface EditorActionsDeps {
 	 *  targets return synchronously without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
-	/** The instance's block grammar (docs/research/architecture-concerns.md) — threaded to the content-commit
+	/** The instance's block grammar — threaded to the content-commit
 	 *  reparse so a disabled kind's opener is skipped when the editor re-parses an
 	 *  edited block. Absent (bare harnesses) = the global grammar, byte-identical. */
 	grammar?: GrammarView;

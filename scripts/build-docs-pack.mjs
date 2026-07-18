@@ -1,13 +1,18 @@
-// The public docs pack — the exact doc set a third-party plugin author receives.
+// Two documentation gates, both run on every invocation.
 //
-//   node scripts/build-docs-pack.mjs             verify the pack is link-closed
-//   node scripts/build-docs-pack.mjs <dir>       verify, then write it to <dir>
+//   node scripts/build-docs-pack.mjs             run both gates
+//   node scripts/build-docs-pack.mjs <dir>       run both gates, then write the pack to <dir>
 //
-// The set is docs/guide/ itself, not a manifest: a doc is authoring documentation
-// or it isn't, and the folder is where that call is already recorded. A manifest
-// would be a second place to forget.
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { basename, join } from 'node:path';
+// Gate 1 — the public docs pack: the exact doc set a third-party plugin author
+// receives (docs/guide/, not a manifest — a doc is authoring documentation or it
+// isn't, and the folder is where that call is already recorded). The pack ships
+// flat and .md-only, so every relative pointer must name a packed .md basename.
+//
+// Gate 2 — the rest of the corpus (README, CONTRIBUTING, docs/): a relative link
+// that once resolved rots silently when its target moves or is deleted, so every
+// one must still resolve to a real file or directory.
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 
 const SOURCE_DIR = 'docs/guide';
 
@@ -72,9 +77,85 @@ if (deadPointers.length > 0) {
 	process.exit(1);
 }
 
+// ── Gate 2: corpus link resolution ──────────────────────────────────────
+
+const LINK_ROOTS = ['README.md', 'CONTRIBUTING.md', 'docs'];
+const EXCLUDED_DIR = 'docs/superpowers'; // gitignored working area, not part of the shipped corpus
+
+// A target legitimately unresolvable on disk that the checks below can't
+// distinguish from a dead one. Each entry carries a reason; empty is healthy.
+const LINK_ALLOWLIST = new Set();
+
+function corpusMarkdownFiles(path, out) {
+	if (path.split('\\').join('/') === EXCLUDED_DIR) return out;
+	for (const entry of readdirSync(path, { withFileTypes: true })) {
+		const child = join(path, entry.name);
+		if (entry.isDirectory()) corpusMarkdownFiles(child, out);
+		else if (entry.name.endsWith('.md')) out.push(child);
+	}
+	return out;
+}
+
+// A markdown link written inside code — fenced or inline — documents syntax: it
+// renders as literal text and never navigates, so it is not a pointer to resolve.
+// Blank both before scanning (an example `[text](url)` must not read as a dead
+// link). Inline spans are stripped per line, so one unbalanced backtick can't
+// desync the rest of the file.
+const INLINE_CODE = /(`+)(?:(?!\1).)*?\1/g;
+function stripCode(text) {
+	let fence = null;
+	return text
+		.split('\n')
+		.map((line) => {
+			const fenceMark = line.match(/^\s*(```+|~~~+)/);
+			if (fence) {
+				if (fenceMark && line.trim().startsWith(fence)) fence = null;
+				return '';
+			}
+			if (fenceMark) {
+				fence = fenceMark[1][0].repeat(3);
+				return '';
+			}
+			return line.replace(INLINE_CODE, '');
+		})
+		.join('\n');
+}
+
+const corpusFiles = [];
+for (const root of LINK_ROOTS) {
+	if (!existsSync(root)) continue;
+	if (root.endsWith('.md')) corpusFiles.push(root);
+	else corpusMarkdownFiles(root, corpusFiles);
+}
+
+const deadLinks = [];
+for (const file of corpusFiles) {
+	const rel = file.split('\\').join('/');
+	const text = stripCode(readFileSync(file, 'utf8'));
+	const rawTargets = [...text.matchAll(INLINE_TARGET)].map((m) => m[1]);
+	for (const m of text.matchAll(REFERENCE_TARGET)) {
+		if (/^\s*\[\^/.test(m[0])) continue; // a GFM footnote definition mimics a link definition; its body is prose, not a target
+		rawTargets.push(m[1]);
+	}
+	for (const raw of rawTargets) {
+		const link = normalizeTarget(raw);
+		if (link === '' || isExternal(link)) continue;
+		if (LINK_ALLOWLIST.has(`${rel} → ${link}`)) continue;
+		if (!existsSync(join(dirname(file), link))) deadLinks.push(`${rel} → ${raw.trim()}`);
+	}
+}
+if (deadLinks.length > 0) {
+	console.error(
+		'docs-links: dead links (every relative target must resolve to a real file or directory):'
+	);
+	for (const hit of deadLinks) console.error(`  ${hit}`);
+	process.exit(1);
+}
+
 const target = process.argv[2];
 if (!target) {
 	console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
+	console.log(`docs-links: ${corpusFiles.length} corpus docs, every relative link resolves`);
 	process.exit(0);
 }
 
