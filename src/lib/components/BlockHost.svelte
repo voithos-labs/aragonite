@@ -82,6 +82,32 @@
 		if (!entry) devWarn('block-host', 'no component for kind, rendering raw', node.kind);
 	});
 
+	// A component that throws leaves <svelte:boundary> on the fallback for the life of
+	// this mounted host — it never re-renders its content until reset() runs. When
+	// undo/redo restores DIFFERENT bytes to this same instance (windowing would remount
+	// and heal it; a small doc never windows it out), retry the render. A re-throw
+	// safely re-enters the fallback — onerror recaptures the fresh reset and failing
+	// raw — and an unchanged raw never resets, so a genuinely broken block can't loop.
+	// Plain lets, not $state: the effect keys on node.raw alone and reads these live.
+	let failedRaw: string | null = null;
+	let retryFailedRender: (() => void) | null = null;
+
+	function onRenderError(error: unknown, reset: () => void): void {
+		failedRaw = node.raw;
+		retryFailedRender = reset;
+		editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } });
+	}
+
+	$effect(() => {
+		const raw = node.raw;
+		if (retryFailedRender && failedRaw !== null && raw !== failedRaw) {
+			const retry = retryFailedRender;
+			retryFailedRender = null;
+			failedRaw = null;
+			retry();
+		}
+	});
+
 	$effect(() => {
 		if (!setRef || !getRef) return;
 		return publishRefSlot(index, ref, setRef, getRef);
@@ -205,10 +231,7 @@
 	data-block-kind={node.kind}
 	bind:this={hostEl}
 >
-	<svelte:boundary
-		onerror={(error) =>
-			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })}
-	>
+	<svelte:boundary onerror={onRenderError}>
 		{#if entry}
 			{@const Comp = entry.component}
 			<Comp
