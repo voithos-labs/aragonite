@@ -1,6 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
+// Fixtures separate the trailing paragraph from the list with a blank line: an
+// under-indented line touching the list is a lazy continuation of the last item
+// (CommonMark §5.2), so only the blank line makes it a distinct following block.
 test.describe('cross-container merge on Backspace (list prev)', () => {
 	let editor: EditorPage;
 
@@ -10,7 +13,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 	});
 
 	test('flat unordered list: Backspace at start of following paragraph merges into last item', async () => {
-		await editor.loadContent('- first\n- second\ntext\n');
+		await editor.loadContent('- first\n- second\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
 		await editor.page.keyboard.press('Home');
@@ -22,7 +25,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 	});
 
 	test('flat ordered list: Backspace at start of following paragraph merges into last item without renumbering', async () => {
-		await editor.loadContent('1. first\n2. second\ntext\n');
+		await editor.loadContent('1. first\n2. second\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
 		await editor.page.keyboard.press('Home');
@@ -48,7 +51,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 	});
 
 	test('loose list item (multi-paragraph): merge lands in the LAST paragraph of the last item', async () => {
-		await editor.loadContent('- first item\n\n- second item\n\n  second para\ntext\n');
+		await editor.loadContent('- first item\n\n- second item\n\n  second para\n\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
 		await editor.page.keyboard.press('Home');
