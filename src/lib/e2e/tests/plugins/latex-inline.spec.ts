@@ -252,9 +252,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	});
 
 	// FIXME: battery-order-sensitive — green 55/55 focused (any load), red in the
-	// full plugins battery only; End-press, wait-ceiling, and font-settle causes
-	// all falsified. The semantics are unit-pinned (widget-reveal-collapse's
-	// cross-block bail). Ledgered in docs/issues.md; un-fixme with the repro.
+	// full plugins battery only; the Shift+ArrowDown never engages cross-block
+	// (waitForCrossBlock times out). End-press, wait-ceiling, font-settle, and the
+	// visual-line reader's dropped-range hard-false (fixed 0.9.27) all falsified.
+	// The semantics are unit-pinned (widget-reveal-collapse's cross-block bail).
+	// Ledgered in docs/issues.md; un-fixme with the repro.
 	test.fixme('a cross-block selection through the revealed source survives a blur without folding', async ({
 		page
 	}) => {

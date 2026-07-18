@@ -347,7 +347,10 @@ The spec passes 55/55 in focused runs at any load (--repeat-each=5 --workers=4) 
 `waitForCrossBlock` times out deterministically inside the full plugins battery: the
 Shift+ArrowDown keyboard-extend never engages cross-block. Falsified causes: the End-press
 escape (removed), the 2s wait ceiling (widened to 5s), KaTeX font-swap geometry (fonts.ready
-settle added). Whatever battery-context state breaks the visual-line detection for this
+settle added), and the visual-line reader's dropped-range hard-false (0.9.27 gave both
+`isAt{First,Last}VisualLine` a snapped-`fallbackOffset` resolution instead of `false` on
+`rangeCount === 0` — correct independently, but an un-fixme attempt still red on the first
+full-battery pass). Whatever battery-context state breaks the visual-line detection for this
 gesture is unpinned. The product semantics (a cross-block sweep keeps the source revealed;
 blur bails instead of folding) are unit-covered by the interaction factory's cross-block
 bail case.
