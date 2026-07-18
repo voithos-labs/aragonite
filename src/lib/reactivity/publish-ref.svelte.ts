@@ -62,9 +62,10 @@ export interface RevealChildOptions {
  * The bare-index mount waiter can wake on a same-index mount at another nesting
  * level (the registry is keyed by local index, shared across scopes), so a reveal
  * re-checks and re-waits. Cap the re-waits so a pathological wake storm can't spin
- * unboundedly even though each genuine wake makes progress — distinct from the
- * never-mounts hang, which the `isInWindow` membership check below short-circuits
- * before this loop is ever entered.
+ * unboundedly even though each genuine wake makes progress. The never-mounts hang is
+ * held off two ways: a windowing caller's `isInWindow` check short-circuits before
+ * this loop, and the loop itself races each wait against a tick so a non-windowing
+ * caller degrades within the cap rather than parking on a wake that never comes.
  */
 const MAX_MOUNT_REWAITS = 64;
 
@@ -80,9 +81,9 @@ const MAX_MOUNT_REWAITS = 64;
  * model left the target outside the recomputed window) or a mounted child that
  * never publishes (failed-render boundary). Windowing callers therefore never
  * enter the open-ended wait: off-window degrades immediately, in-window waits one
- * mount flush then degrades. Callers degrade by operating on path state and
- * skipping DOM placement. The per-wake cap covers spurious cross-level wakes for
- * the non-windowing wait.
+ * mount flush then degrades. A non-windowing caller can't prove membership, so it
+ * races each mount-wait against a tick and degrades within the re-wait cap. Callers
+ * degrade by operating on path state and skipping DOM placement.
  */
 export async function revealChildOrWait(index: number, opts: RevealChildOptions): Promise<void> {
 	const stale = opts.isStale?.(index) ?? false;
@@ -100,10 +101,15 @@ export async function revealChildOrWait(index: number, opts: RevealChildOptions)
 		await tick();
 		return;
 	}
-	// Membership is unknowable (a non-windowing caller): bounded mount-wait.
+	// Membership is unknowable (a non-windowing caller): bounded mount-wait. Wake on
+	// a real same-index mount, but race each wait against a tick so a child that never
+	// publishes — a failed-render boundary leaves bind:this unset, waking no waiter —
+	// degrades within the cap instead of parking on the open-ended event forever (the
+	// windowing arm's degrade, adapted where membership can't be proven). A spurious
+	// cross-level wake re-checks and re-waits, capped either way.
 	let rewaits = 0;
 	while (!opts.getRef(index) && rewaits++ < MAX_MOUNT_REWAITS) {
-		await whenRefMounted(index, () => !!opts.getRef(index));
+		await Promise.race([whenRefMounted(index, () => !!opts.getRef(index)), tick()]);
 	}
 }
 

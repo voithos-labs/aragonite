@@ -371,24 +371,6 @@ scan (which walks `src/**` only). The sibling `dev-probe.ts` `CstNode` uses are 
 has no runtime effect, so it isn't worth a standalone edit to the reference consumer; it rides the next
 change that opens the file.
 
-### Non-windowing revealChildOrWait parks on a bounded mount-wait instead of degrading
-
-**Severity:** minor (robustness; windowing callers degrade correctly today)
-**Files:** `src/lib/reactivity/publish-ref.svelte.ts` (`revealChildOrWait` non-windowing branch)
-
-A caller without an `isInWindow` membership predicate cannot prove a target will never mount, so
-`revealChildOrWait` falls to a bounded mount-wait (up to `MAX_MOUNT_REWAITS` spurious cross-level
-wakes) rather than degrading immediately the way windowing callers do. A never-mounting target on
-a non-windowing caller therefore spins the cap before returning, instead of short-circuiting on a
-membership check.
-
-**Fix direction:** give non-windowing callers a membership (or positive "will-not-mount") signal
-so the open-ended branch degrades on the same evidence the windowing branch uses.
-
-**Why deferred:** every windowing caller passes `isInWindow` and degrades correctly; the
-open-ended branch is only reached by non-windowing containers whose children always mount, so the
-cap is never exercised in practice. Adopt when the reveal seam is next touched.
-
 ## Test coverage
 
 ### Decoration tiers lack dedicated simulation gestures
