@@ -1,10 +1,10 @@
 <script lang="ts">
 	/**
-	 * Consumer-side rect-API example: no plugin, no internal imports — a
-	 * `bind:this` EditorInstance, `selectionChange` for lifecycle, `rangeRects`
-	 * for the cross-block anchor, and the native Range for the single-block
-	 * case. Scroll is v1 non-glue: the bar re-anchors on the next selection
-	 * change, not on scroll.
+	 * Consumer-side rect-API example: no plugin, no internal imports, no native
+	 * selection reads — a `bind:this` EditorInstance, `selectionChange` for
+	 * lifecycle, `rangeRects` for both the cross-block and single-block anchors.
+	 * Scroll is v1 non-glue: the bar re-anchors on the next selection change,
+	 * not on scroll.
 	 */
 	import {
 		SELECTION_END,
@@ -19,10 +19,7 @@
 		label: string;
 	}
 
-	let {
-		editor,
-		container
-	}: { editor: EditorInstance | undefined; container: HTMLElement | undefined } = $props();
+	let { editor }: { editor: EditorInstance | undefined } = $props();
 
 	let placement = $state<Placement | null>(null);
 
@@ -42,17 +39,15 @@
 			const rects = editor!.getRects().rangeRects(start.path, start.offset, SELECTION_END);
 			return rects.length ? above(rects[0], 'cross-block') : null;
 		}
-		// The selection snapshot collapses a single-block range to the focus caret
-		// (docs/issues.md, "Selection snapshot collapses single-block ranges"), so
-		// the native Range is the only consumer-readable source of the range's
-		// extent and geometry today.
-		const native = window.getSelection();
-		if (!native || native.rangeCount === 0 || native.isCollapsed) return null;
-		const range = native.getRangeAt(0);
-		if (container && !container.contains(range.commonAncestorContainer)) return null;
-		const rect = range.getClientRects()[0];
-		if (!rect) return null;
-		return above(rect, `${native.toString().length} chars`);
+		// Same block: the snapshot carries real range offsets, so the public API
+		// serves both extent and geometry. Cell-coordinate pairs (an intra-table
+		// rect) keep the bar hidden, matching the pre-range behavior.
+		if (selection.anchor.cellCoordinate || selection.focus.cellCoordinate) return null;
+		const lo = Math.min(selection.anchor.offset, selection.focus.offset);
+		const hi = Math.max(selection.anchor.offset, selection.focus.offset);
+		if (lo === hi) return null;
+		const rects = editor!.getRects().rangeRects(selection.focus.path, lo, hi);
+		return rects.length ? above(rects[0], `${hi - lo} chars`) : null;
 	}
 
 	function above(rect: DOMRect, label: string): Placement {
