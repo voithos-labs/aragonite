@@ -58,17 +58,20 @@ import {
 } from '../nested/nested-actions';
 
 /**
- * Reactive inputs the host component feeds in as getters, never values (see
- * `docs/contributing/culture.md`): each is re-read live so a parent structural op or
- * undo replacement is observed, never snapshotted. `getBoxEl` returns the component's
+ * The frozen inputs the host component feeds in. A function-valued field is a
+ * **live read**, re-evaluated on every use, so a parent structural op or undo
+ * replacement is observed rather than snapshotted; a plain-valued field is static
+ * configuration captured at the factory call. Passing a value where the contract
+ * means "re-read live" no longer compiles — value-capture is unrepresentable here
+ * (`docs/roadmap.md` freeze-surface liveness). `getBoxEl` returns the component's
  * chrome box — the element whose direct `.block-list` child the windowing lookups
  * walk (`:scope > .block-list`, so chrome siblings beside the list are fine; it need
  * not be the sole child).
  */
 export interface ContainerBlockDeps {
-	get node(): NodeView;
-	get index(): number;
-	get path(): number[];
+	getNode(): NodeView;
+	getIndex(): number;
+	getPath(): number[];
 	getBoxEl(): HTMLElement | undefined;
 	/**
 	 * Opt into editor-level whole-block focus for an opaque, childless container
@@ -237,27 +240,27 @@ export function gateMoveFocusOnCollapse(
  * chord resolves only through a registered command, whose context routes
  * `updateMetadata` back to this container's own metadata commit and carries the
  * component's `commandHooks`. `kind`, the context `node`, `hooks`, and `editor` are
- * read live off `deps`, never snapshotted — getters, never values. `pluginEditor`
- * resolves the per-plugin EditorContext by the kind's recorded owner; a kind with no
- * owner gets the base per-instance context (the `?? ''` arm).
+ * read through `deps`' thunks at dispatch, so a node swap or hook rebind is observed
+ * live. `pluginEditor` resolves the per-plugin EditorContext by the kind's recorded
+ * owner; a kind with no owner gets the base per-instance context (the `?? ''` arm).
  */
 export function buildContainerKindTarget(
-	deps: Pick<ContainerBlockDeps, 'node' | 'commandHooks'>,
+	deps: Pick<ContainerBlockDeps, 'getNode' | 'commandHooks'>,
 	updateOwnMetadata: ContainerBlock['updateOwnMetadata'],
 	pluginEditor?: PluginEditorLookup
 ): KindCommandTarget {
 	return {
 		get kind() {
-			return deps.node.kind;
+			return deps.getNode().kind;
 		},
 		runCommand: () => false,
 		getCommandContext: () => ({
-			node: deps.node,
+			node: deps.getNode(),
 			updateMetadata: (patch) => {
 				updateOwnMetadata(patch);
 			},
 			hooks: deps.commandHooks?.(),
-			editor: pluginEditor?.(pluginKindOwner(deps.node.kind) ?? '')
+			editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')
 		})
 	};
 }
@@ -277,19 +280,19 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 
-	const listState = createBlockListState(() => deps.node);
+	const listState = createBlockListState(deps.getNode);
 
-	const collapsed = composeCollapseProbe(deps.isCollapsed, () => deps.node);
+	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
 
 	const blockquoteOverrides = createBlockquoteOverrides({
 		get index() {
-			return deps.index;
+			return deps.getIndex();
 		},
 		get node() {
-			return deps.node;
+			return deps.getNode();
 		},
 		get path() {
-			return deps.path;
+			return deps.getPath();
 		},
 		state: listState,
 		parentBlockEdit,
@@ -315,7 +318,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 					collapsed,
 					defaults.focus.moveFocus,
 					parentFocus,
-					() => deps.index
+					deps.getIndex
 				)
 			}
 		};
@@ -325,13 +328,13 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		listState,
 		{
 			get index() {
-				return deps.index;
+				return deps.getIndex();
 			},
 			get node() {
-				return deps.node;
+				return deps.getNode();
 			},
 			get path() {
-				return deps.path;
+				return deps.getPath();
 			},
 			stickyColumn,
 			grammar: registryView.grammar,
@@ -347,9 +350,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	setNestedActionsContexts(bundle);
 
 	const windowing = useContainerWindowing({
-		getIndex: () => deps.index,
-		getParentPath: () => deps.path,
-		getChildren: () => deps.node.children ?? [],
+		getIndex: deps.getIndex,
+		getParentPath: deps.getPath,
+		getChildren: () => deps.getNode().children ?? [],
 		getChildIds: () => listState.innerBlockIds,
 		getListEl: () => deps.getBoxEl()?.querySelector(':scope > .block-list') ?? null,
 		getOwnEl: () => deps.getBoxEl()?.closest('.block-host') ?? null,
@@ -363,7 +366,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		? composeWholeBlockFocusSurface(
 				deps.getFocusEl,
 				() => deps.getBoxEl(),
-				() => deps.node.kind
+				() => deps.getNode().kind
 			)
 		: undefined;
 
@@ -372,10 +375,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return listState.innerBlockRefs;
 		},
 		get nodeChildrenLength() {
-			return deps.node.children?.length ?? 0;
+			return deps.getNode().children?.length ?? 0;
 		},
 		get node() {
-			return deps.node;
+			return deps.getNode();
 		},
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
@@ -386,7 +389,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const blockListProps: ContainerBlockListProps = {
 		get children() {
-			return deps.node.children ?? [];
+			return deps.getNode().children ?? [];
 		},
 		get blockIds() {
 			return listState.innerBlockIds;
@@ -394,7 +397,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		setRef: (i, r) => (listState.innerBlockRefs[i] = r),
 		getRef: (i) => listState.innerBlockRefs[i],
 		get parentPath() {
-			return deps.path;
+			return deps.getPath();
 		},
 		get window() {
 			return windowing.window;
@@ -406,7 +409,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	};
 
 	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
-		parentBlockEdit.updateBlockMetadata(deps.index, patch, { afterTick });
+		parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 
@@ -456,18 +459,18 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// the shared handleWholeBlockKeys.
 		if (e.key === 'ArrowUp' && e.altKey) {
 			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.path, -1);
+			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), -1);
 			return;
 		}
 		if (e.key === 'ArrowDown' && e.altKey) {
 			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.path, 1);
+			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), 1);
 			return;
 		}
 
 		handleWholeBlockKeys(e, {
-			getIndex: () => deps.index,
-			getRaw: () => deps.node.raw,
+			getIndex: deps.getIndex,
+			getRaw: () => deps.getNode().raw,
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
 			isReading: () => reading

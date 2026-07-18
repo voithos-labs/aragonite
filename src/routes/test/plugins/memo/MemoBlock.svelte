@@ -10,15 +10,9 @@
 	let el: HTMLDivElement | undefined = $state();
 
 	const leaf = createEditableLeaf({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getEl: () => el ?? null,
 		mode: 'plain'
 	});

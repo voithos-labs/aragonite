@@ -304,7 +304,7 @@ Optionally add a `conformanceFixture` — a small markdown source that parses to
 
 ### The component
 
-The component supplies only its own chrome; `createContainerBlock` hides the child-list state, ancestor wiring, and windowing. Read the reactive `node`, `index`, and `path` through **getters** — a plain value snapshots stale state.
+The component supplies only its own chrome; `createContainerBlock` hides the child-list state, ancestor wiring, and windowing. Pass `node`, `index`, and `path` as **thunks** — `getNode`/`getIndex`/`getPath`, each a live read re-evaluated per use. A captured value would snapshot stale state, and on this frozen surface the type no longer lets you pass one: a function-valued field is a live read, a plain-valued field is static config.
 
 ```svelte
 <!-- NoteBlock.svelte -->
@@ -320,15 +320,9 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 	let boxEl: HTMLElement | undefined = $state();
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getBoxEl: () => boxEl
 	});
 
@@ -426,7 +420,7 @@ Nested-editor interiors — a second editor's state serialized as a blob — are
 
 ### The editable leaf
 
-`createEditableLeaf` is the container factory's sibling for leaves. It reads the editor's contexts itself (deps are live getters — `node`, `index`, `path` — plus `getEl()` returning your source contenteditable) and hands back everything a text-editing block needs.
+`createEditableLeaf` is the container factory's sibling for leaves. It reads the editor's contexts itself (deps are live thunks — `getNode`, `getIndex`, `getPath` — plus `getEl()` returning your source contenteditable) and hands back everything a text-editing block needs.
 
 **Native parity is the tier's whole claim**: the editor's caret and sticky-column traversal enter and leave your block like any built-in text block, IME composition is respected, undo batches like prose, the clipboard is intercepted for plain-Markdown copy/cut/paste like every editable surface, and a cross-block selection sweeps through your text. Two modes:
 
@@ -680,7 +674,7 @@ A plugin **may not**:
 
 - Treat its DOM as authoritative, or mutate the tree from the view layer — boundary events flow up, and the tree always wins. Type-enforced since the readonly views: every plugin-visible node type is deep-readonly on its bytes ([Views](#views)).
 - Write bytes through a node reference captured before an edit — after any change, read the node back from the tree; the old reference is stale.
-- Pass reactive tree state by value across a module boundary — hand it through getters only.
+- Pass reactive tree state by value across a module boundary — hand it through a live read (a getter, or a `() =>` thunk as the frozen factory deps take).
 - Invent merge-role, unwrap, or container-contract values — those are closed sets.
 - Silently override a built-in or another plugin's registration.
 - Intercept loading or typing, or rewrite the whole document from a paste. The paste hook is **paste-scoped and pre-parse only**: it sees the clipboard text, never the load path or keystrokes. A whole-document migration belongs at the document level — read `getSource()`, transform the Markdown, and write the editor's `source` prop, which replaces the document in one step.
@@ -874,7 +868,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | Export                                                 | Role                                                                                                                 |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `createEditableLeaf`                                   | Wire a text-editing leaf surface — plain or render-primary — with native caret/IME/undo/cross-block-selection parity |
-| `EditableLeaf`, `EditableLeafDeps`, `EditableLeafMode` | The leaf API your component re-exports and wires, its getter deps, and the two modes                                 |
+| `EditableLeaf`, `EditableLeafDeps`, `EditableLeafMode` | The leaf API your component re-exports and wires, its thunk deps, and the two modes                                  |
 | `StickyColumnDirection`                                | The vertical-entry direction `focusAtColumn` receives when the caret traverses into your block                       |
 
 **Parse / serialize helpers**

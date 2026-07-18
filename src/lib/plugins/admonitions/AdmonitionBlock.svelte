@@ -2,8 +2,8 @@
   Renders an admonition: a kind-colored box whose first line is the editable
   title chrome leaf (child 0) and whose body is the nested BlockList. All child-
   list state, ancestor wiring, and windowing are hidden by createContainerBlock;
-  this component owns only its chrome. Reactive node/index/path are read through
-  getters so a parent op or undo replacement is observed, never snapshotted.
+  this component owns only its chrome. node/index/path are passed as thunks so each
+  is re-read live — a parent op or undo replacement is observed, never snapshotted.
 -->
 <script lang="ts">
 	import {
@@ -20,15 +20,9 @@
 	let boxEl: HTMLElement | undefined = $state();
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getBoxEl: () => boxEl
 	});
 

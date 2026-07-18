@@ -52,12 +52,8 @@ describe('editable-leaf command context', () => {
 		const index = 3;
 		const ctx = buildLeafCommandContext(
 			{
-				get node() {
-					return leafNode();
-				},
-				get index() {
-					return index;
-				},
+				getNode: () => leafNode(),
+				getIndex: () => index,
 				commandHooks: undefined
 			},
 			{ updateBlockMetadata }
@@ -71,12 +67,8 @@ describe('editable-leaf command context', () => {
 		const hooks = { openEdit: vi.fn() };
 		const withHooks = buildLeafCommandContext(
 			{
-				get node() {
-					return leafNode();
-				},
-				get index() {
-					return 0;
-				},
+				getNode: () => leafNode(),
+				getIndex: () => 0,
 				commandHooks: () => hooks
 			},
 			{ updateBlockMetadata: vi.fn() }
@@ -85,12 +77,8 @@ describe('editable-leaf command context', () => {
 
 		const without = buildLeafCommandContext(
 			{
-				get node() {
-					return leafNode();
-				},
-				get index() {
-					return 0;
-				},
+				getNode: () => leafNode(),
+				getIndex: () => 0,
 				commandHooks: undefined
 			},
 			{ updateBlockMetadata: vi.fn() }
@@ -98,17 +86,13 @@ describe('editable-leaf command context', () => {
 		expect(without.hooks).toBeUndefined();
 	});
 
-	it('reads deps.node live so a node swap is observed (getters, never values)', () => {
+	it('reads getNode() live so a node swap is observed (thunks, never values)', () => {
 		let node = leafNode();
 		const build = () =>
 			buildLeafCommandContext(
 				{
-					get node() {
-						return node;
-					},
-					get index() {
-						return 0;
-					},
+					getNode: () => node,
+					getIndex: () => 0,
 					commandHooks: undefined
 				},
 				{ updateBlockMetadata: vi.fn() }
@@ -128,12 +112,8 @@ describe('editable-leaf command context', () => {
 
 		const ctx = buildLeafCommandContext(
 			{
-				get node() {
-					return leafNode();
-				},
-				get index() {
-					return 0;
-				},
+				getNode: () => leafNode(),
+				getIndex: () => 0,
 				commandHooks: undefined
 			},
 			{ updateBlockMetadata: vi.fn() },
@@ -162,12 +142,8 @@ describe('editable-leaf command context', () => {
 			getCommandContext: () =>
 				buildLeafCommandContext(
 					{
-						get node() {
-							return node;
-						},
-						get index() {
-							return 0;
-						},
+						getNode: () => node,
+						getIndex: () => 0,
 						commandHooks: () => hooks
 					},
 					{ updateBlockMetadata: vi.fn() }

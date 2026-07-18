@@ -59,14 +59,7 @@ describe('plugin container kind-command target', () => {
 
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
-			buildContainerKindTarget(
-				{
-					get node() {
-						return node;
-					}
-				},
-				updateOwnMetadata
-			),
+			buildContainerKindTarget({ getNode: () => node }, updateOwnMetadata),
 			overrides
 		);
 
@@ -88,15 +81,7 @@ describe('plugin container kind-command target', () => {
 
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
-			buildContainerKindTarget(
-				{
-					get node() {
-						return node;
-					},
-					commandHooks: () => hooks
-				},
-				vi.fn()
-			),
+			buildContainerKindTarget({ getNode: () => node, commandHooks: () => hooks }, vi.fn()),
 			overrides
 		);
 
@@ -113,30 +98,16 @@ describe('plugin container kind-command target', () => {
 
 		dispatchKindCommand(
 			'Mod+Shift+K',
-			buildContainerKindTarget(
-				{
-					get node() {
-						return node;
-					}
-				},
-				vi.fn()
-			),
+			buildContainerKindTarget({ getNode: () => node }, vi.fn()),
 			overrides
 		);
 
 		expect(handler.mock.calls[0][0].hooks).toBeUndefined();
 	});
 
-	it('reads deps.node live so a node swap is observed, never snapshotted (getters, never values)', () => {
+	it('reads getNode() live so a node swap is observed, never snapshotted (thunks, never values)', () => {
 		let node = noteNode();
-		const target = buildContainerKindTarget(
-			{
-				get node() {
-					return node;
-				}
-			},
-			vi.fn()
-		);
+		const target = buildContainerKindTarget({ getNode: () => node }, vi.fn());
 
 		expect(target.kind).toBe(note);
 
@@ -153,15 +124,7 @@ describe('plugin container kind-command target', () => {
 		);
 		const node = noteNode();
 
-		const target = buildContainerKindTarget(
-			{
-				get node() {
-					return node;
-				}
-			},
-			vi.fn(),
-			pluginEditor
-		);
+		const target = buildContainerKindTarget({ getNode: () => node }, vi.fn(), pluginEditor);
 
 		expect(target.getCommandContext?.().editor).toBe(fakeEditorContext);
 		expect(pluginEditor).toHaveBeenCalledWith('admonitions');

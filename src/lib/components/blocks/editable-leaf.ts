@@ -76,14 +76,17 @@ import { pluginKindOwner } from '../../schema/plugin-install';
 export type EditableLeafMode = 'plain' | 'render-primary';
 
 /**
- * Reactive inputs the host component feeds in as getters, never values (see
- * `docs/contributing/culture.md`): each is re-read live so a structural op or
- * undo replacement is observed, never snapshotted.
+ * The frozen inputs the host component feeds in. A function-valued field is a
+ * **live read**, re-evaluated on every use, so a structural op or undo replacement
+ * is observed rather than snapshotted; a plain-valued field (`mode`) is static
+ * configuration captured at the factory call. Passing a value where the contract
+ * means "re-read live" no longer compiles — value-capture is unrepresentable here
+ * (`docs/roadmap.md` freeze-surface liveness).
  */
 export interface EditableLeafDeps {
-	get node(): NodeView;
-	get index(): number;
-	get path(): number[];
+	getNode(): NodeView;
+	getIndex(): number;
+	getPath(): number[];
 	/** The source contenteditable; null while unmounted (render-primary's rendered view). */
 	getEl(): HTMLElement | null;
 	mode?: EditableLeafMode;
@@ -163,22 +166,22 @@ export interface EditableLeaf {
  * The node → metadata bridge (plus the component's `commandHooks`) a minted block
  * command resolves against on the leaf tier — the container factory's
  * `buildContainerKindTarget` sibling, extracted so both tiers build their command
- * context through a tested seam. `node`, `hooks`, and `editor` are read when this runs
- * (once per dispatch), so a node swap or a hook rebind is observed live;
- * `updateMetadata` rides the sanctioned commit ceremony, never a bypass. `pluginEditor`
- * resolves the per-plugin EditorContext by the kind's recorded owner (base per-instance
- * context for an ownerless kind, the `?? ''` arm).
+ * context through a tested seam. `node`, `hooks`, and `editor` are read through
+ * `deps`' thunks when this runs (once per dispatch), so a node swap or a hook rebind
+ * is observed live; `updateMetadata` rides the sanctioned commit ceremony, never a
+ * bypass. `pluginEditor` resolves the per-plugin EditorContext by the kind's recorded
+ * owner (base per-instance context for an ownerless kind, the `?? ''` arm).
  */
 export function buildLeafCommandContext(
-	deps: Pick<EditableLeafDeps, 'node' | 'index' | 'commandHooks'>,
+	deps: Pick<EditableLeafDeps, 'getNode' | 'getIndex' | 'commandHooks'>,
 	blockEdit: Pick<BlockEditActions, 'updateBlockMetadata'>,
 	pluginEditor?: PluginEditorLookup
 ): Omit<BlockCommandContext, 'arg'> {
 	return {
-		node: deps.node,
-		updateMetadata: (patch) => blockEdit.updateBlockMetadata(deps.index, patch),
+		node: deps.getNode(),
+		updateMetadata: (patch) => blockEdit.updateBlockMetadata(deps.getIndex(), patch),
 		hooks: deps.commandHooks?.(),
-		editor: pluginEditor?.(pluginKindOwner(deps.node.kind) ?? '')
+		editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')
 	};
 }
 
@@ -219,7 +222,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	let preEditOffset = 0;
 	let pendingCursor: number | null = null;
 
-	const sourceText = (): string => trimTrailingLineEnding(deps.node.raw);
+	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
 	const editableSurface = createEditableSurface({
 		getEl: () => deps.getEl(),
@@ -243,8 +246,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				return el ? createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end)) : null;
 			}
 		},
-		getMyPath: () => deps.path,
-		getIndex: () => deps.index,
+		getMyPath: deps.getPath,
+		getIndex: deps.getIndex,
 		getComposing: () => composing,
 		setComposing: (value) => {
 			composing = value;
@@ -286,8 +289,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			// its source editable in reading mode, nothing reaches the CST.
 			if (mode === 'plain' && !isReading()) {
 				blockEdit.updateBlockContent(
-					deps.index,
-					text + trailingLineEnding(deps.node.raw),
+					deps.getIndex(),
+					text + trailingLineEnding(deps.getNode().raw),
 					preEdit,
 					saved
 				);
@@ -332,8 +335,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// post-edit caret follows the edit position (a structural split lands it
 		// in the block it falls in).
 		blockEdit.updateBlockContent(
-			deps.index,
-			edited + trailingLineEnding(deps.node.raw),
+			deps.getIndex(),
+			edited + trailingLineEnding(deps.getNode().raw),
 			preEditOffset,
 			edited.length
 		);
@@ -382,10 +385,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function runCommand(id: CommandId): boolean {
 		switch (id) {
 			case 'block.moveUp':
-				reorder.nudgeReorderUnit(deps.path, -1);
+				reorder.nudgeReorderUnit(deps.getPath(), -1);
 				return true;
 			case 'block.moveDown':
-				reorder.nudgeReorderUnit(deps.path, 1);
+				reorder.nudgeReorderUnit(deps.getPath(), 1);
 				return true;
 			default:
 				return false;
@@ -509,7 +512,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			chord &&
 			dispatchKeyCommand(
 				chord,
-				{ kind: deps.node.kind, runCommand, getCommandContext },
+				{ kind: deps.getNode().kind, runCommand, getCommandContext },
 				{ history, pluginEditor, getPresentationMode },
 				keybindingOverrides(),
 				onCommandError
