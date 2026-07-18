@@ -31,6 +31,8 @@ import {
 	parse,
 	serializeChildren,
 	trimTrailingLineEnding,
+	matchFenceOpen,
+	matchFenceClose,
 	OPENER_PRIORITIES,
 	type CstNode
 } from '$lib/plugin';
@@ -139,10 +141,23 @@ export function registerDetailsKind(): void {
 			if (!summaryMatch) return null;
 
 			// Depth-counted scan to the matching close; nested details recurse via parse.
+			// Fence-aware: a `</details>` inside a fenced code block is body content, not
+			// the closer, and a fenced `<details>` must not inflate depth (the parser's own
+			// fence matchers, so body recognition stays consistent with how the body reparses).
 			let depth = 1;
 			let closeIdx = -1;
+			let fence: { marker: '`' | '~'; length: number } | null = null;
 			for (let i = summaryIdx + 1; i < ctx.end; i++) {
 				const t = ctx.lines[i].text;
+				if (fence) {
+					if (matchFenceClose(t, fence.marker, fence.length)) fence = null;
+					continue;
+				}
+				const opened = matchFenceOpen(t);
+				if (opened) {
+					fence = { marker: opened.marker, length: opened.length };
+					continue;
+				}
 				if (OPEN_LINE.test(t)) {
 					depth++;
 				} else if (CLOSE_LINE.test(t)) {
