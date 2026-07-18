@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { handleDelimiter, processEmphasis } from '../../core/inline/scan/emphasis';
+import { handleDelimiter, processEmphasis } from '../../../../core/inline/scan/emphasis';
 import {
 	createScanContext,
 	flushPendingText,
 	type ScanContext
-} from '../../core/inline/scan/scan-state';
+} from '../../../../core/inline/scan/scan-state';
 import { emphasisNode, textNode } from './scan-test-helpers';
 
 // The floor contract: a `]` handler calls processEmphasis(ctx, bracket.delimiterFloor)

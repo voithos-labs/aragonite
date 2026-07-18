@@ -17,7 +17,7 @@ import {
 	__resetDirectiveRegistryForTests,
 	type ParsedDirective
 } from '$lib/core/directive/registry';
-import { arbGfmDoc } from '../invariants/arbitraries';
+import { arbGfmDoc } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
 activateDirectiveGrammar(); // :::/:: openers + the ':' recognizer, before any parse

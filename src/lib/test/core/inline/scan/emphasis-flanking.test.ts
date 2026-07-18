@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { InlineNode } from '../../core/nodes';
-import { scanInline } from '../../core/inline/scan';
+import type { InlineNode } from '../../../../core/nodes';
+import { scanInline } from '../../../../core/inline/scan';
 import {
 	assertConstructCoverage,
 	assertTotalCoverage,
@@ -11,7 +11,7 @@ import {
 	type FlankingCase,
 	FLANKING_CASES,
 	INTRA_WORD_UNDERSCORE_CASES
-} from '../support/flanking-corpus';
+} from '../../../support/flanking-corpus';
 
 // The §6.2 corpus is single-sourced in test/support/flanking-corpus.ts and run
 // here against scanInline; inline-conformance.test.ts runs the same cases through

@@ -3,8 +3,8 @@ import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import { arbInlineSource } from './arbitraries';
-import { enumerateCorpus, loadSpecExamples, sampleCorpus } from '../conformance/corpus';
-import { assertTotalCoverage, assertConstructCoverage } from '../scan/scan-test-helpers';
+import { enumerateCorpus, loadSpecExamples, sampleCorpus } from '../gfm-conformance/corpus';
+import { assertTotalCoverage, assertConstructCoverage } from '../core/inline/scan/scan-test-helpers';
 
 // G2.11: the scanner's editor-facing contract, which no conformance diff can
 // judge — commonmark carries no offsets. Every byte of [start, end) lands in

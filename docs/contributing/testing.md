@@ -42,11 +42,10 @@ Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no 
 
 | Script                       | Covers                                                                                            |
 | ---------------------------- | ------------------------------------------------------------------------------------------------- |
-| `test:editor:core`           | Parser, serializer, round-trip invariants                                                         |
+| `test:editor:core`           | Parser, serializer, inline scanner, directive grammar, round-trip invariants                      |
 | `test:editor:tree-ops`       | Tree mutation helpers                                                                             |
 | `test:editor:editor-actions` | Editor action bundles and commit primitives                                                       |
 | `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                |
-| `test:editor:directive`      | The `:::name` directive grammar — tiers, registry, activation, round-trip                         |
 | `test:editor:ambient`        | Ambient-marker DOM and offset translation                                                         |
 | `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                         |
 | `test:editor:reactivity`     | Block-list state and state registry                                                               |
@@ -63,7 +62,7 @@ Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no 
 | `test:editor:debug`          | Debug engine helpers and operations log                                                           |
 | `test:editor:perf`           | Perf commit gate — counter ceilings, amplification report, fixture goldens                        |
 
-Areas without their own script — the root-level cross-cutting tests, and the inline-scanner tests under `test/scan/` — run in the full `test:editor` suite.
+The inline-scanner suite (`test/core/inline/scan/`) and the directive suite (`test/core/directive/`) fold under `test:editor:core`. Root-level cross-cutting tests without their own script run in the full `test:editor` suite.
 
 ### Mounting a block in isolation
 
@@ -168,7 +167,7 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 ## Conformance harness (commonmark.js differ)
 
-`src/lib/test/conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note. Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
+`src/lib/test/gfm-conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note. Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
 
 | Tier       | Command                    | Scope                                                                                                               |
 | ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------- |

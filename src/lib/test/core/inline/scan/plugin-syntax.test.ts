@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { InlineNode } from '../../core/nodes';
-import { parseInline } from '../../core/inline';
+import type { InlineNode } from '../../../../core/nodes';
+import { parseInline } from '../../../../core/inline';
 import {
 	__resetInlineSyntaxForTests,
 	getInlineSyntax,
 	hasInlineSyntax,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
-} from '../../core/inline/scan/plugin-syntax';
+} from '../../../../core/inline/scan/plugin-syntax';
 import { assertTotalCoverage, textNode } from './scan-test-helpers';
 
 afterEach(() => __resetInlineSyntaxForTests());
