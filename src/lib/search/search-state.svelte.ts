@@ -1,6 +1,6 @@
 import type { DocumentView } from '../core/node-views';
-import { compileMatcher } from '../search/matcher';
-import { scanDocument, type Match } from '../search/document-scan';
+import { compileMatcher } from './matcher';
+import { scanDocument, type Match } from './document-scan';
 import { pathKey } from '../decorations/buckets';
 import type {
 	DecorationRegistry,
