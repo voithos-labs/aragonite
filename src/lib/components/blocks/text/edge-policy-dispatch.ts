@@ -40,7 +40,7 @@ import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { getInlineContent } from '../../../core/inline/inline-cache';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-import { trimTrailingLineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
@@ -191,7 +191,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const d = display();
 		const next = d.slice(0, start) + insert + d.slice(end);
 		const caretAfter = start + insert.length;
-		deps.blockEdit.updateBlockContent(deps.index, next + '\n', start, caretAfter);
+		deps.blockEdit.updateBlockContent(
+			deps.index,
+			next + trailingLineEnding(deps.node.raw),
+			start,
+			caretAfter
+		);
 		deps.setPendingCursor(caretAfter, 'island');
 	}
 
@@ -309,7 +314,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range && range.start < range.end) {
 			const shown = display();
 			const newDisplay = shown.slice(0, range.start) + shown.slice(range.end);
-			deps.blockEdit.updateBlockContent(deps.index, newDisplay + '\n', range.start, range.start);
+			deps.blockEdit.updateBlockContent(
+				deps.index,
+				newDisplay + trailingLineEnding(deps.node.raw),
+				range.start,
+				range.start
+			);
 			deps.setPendingCursor(range.start, 'ambient-delete');
 		}
 		return true;
