@@ -30,9 +30,6 @@ own ambient marker as source while sibling items stay rendered.
 - containment: focusing one list item shows its ambient marker as source with no
   rendered bullet (the `::before` chrome is suppressed — no doubled `- •`) while a
   sibling item keeps its rendered bullet chrome
-- directive-body containment (`/test/plugins`): focusing a paragraph inside a
-  `:::name` directive reveals that leaf's own inline markers, but the directive
-  fences (`.directive-marker`) are container chrome and stay hidden (no reveal)
 - a block mounting into view is unfocused, so it mounts with markers hidden
 
 ## User interactions
