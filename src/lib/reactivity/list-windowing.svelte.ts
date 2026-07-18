@@ -197,16 +197,22 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
 	}
 
-	// Rebuild on structural child-count change or an editor WIDTH change (prose re-wraps, so
-	// every height the oracle cached is stale; `widthVersion` is bumped after the cache is
-	// cleared). Never per keystroke. Build inside `untrack` so the effect doesn't subscribe
-	// to every child's raw via the oracle. The rebuild reseeds EVERY slot, a wholesale offset
-	// shift the flush-pass correction can't see (its before-snapshot is captured after this
-	// ran), so anchor-correct the reseed itself to keep the viewport stable — by stable id, so
-	// an insert/delete above the anchor remaps to the surviving block instead of index N's new
-	// occupant.
+	// Rebuild on ANY structural child change — count OR a same-length permutation
+	// (reorder) — or an editor WIDTH change (prose re-wraps, so every height the oracle
+	// cached is stale; `widthVersion` is bumped after the cache is cleared). Never per
+	// keystroke. Keying on the id SEQUENCE (not just its length) is load-bearing: a
+	// reorder that left the count unchanged would otherwise skip the rebuild, stranding
+	// `modelChildIds` and the per-index heights in the old order until the next
+	// count-change rebuild remapped the anchor off a stale id (a one-shot scroll jump).
+	// Build inside `untrack` so the effect doesn't subscribe to every child's raw via the
+	// oracle. The rebuild reseeds EVERY slot, a wholesale offset shift the flush-pass
+	// correction can't see (its before-snapshot is captured after this ran), so
+	// anchor-correct the reseed itself to keep the viewport stable — by stable id, so an
+	// insert/delete/reorder above the anchor remaps to the surviving block instead of
+	// index N's new occupant.
 	$effect(() => {
-		void deps.getChildren().length;
+		const ids = deps.getChildIds();
+		for (let i = 0; i < ids.length; i++) void ids[i];
 		void deps.getScrollEl();
 		void deps.getWidthVersion();
 		untrack(() => {
