@@ -5,7 +5,7 @@
  * every render.
  */
 
-import type { Decoration } from './types';
+import type { Decoration, MarkDecoration } from './types';
 
 /** A decoration paired with its position in the flat merged list — the stable
  *  key overlays render against. */
@@ -59,4 +59,64 @@ function push(
 	const bucket = map.get(key);
 	if (bucket) bucket.push({ dec, index });
 	else map.set(key, [{ dec, index }]);
+}
+
+// ── Grid cell collapse ─────────────────────────────────────────────────────
+
+/** One whole-cell rect for a grid cell: the union of every mark's class tokens,
+ *  plus a representative decoration for the rect's attrs/interactive. */
+export interface CollapsedCellMark {
+	rowIdx: number;
+	colIdx: number;
+	class: string;
+	dec: MarkDecoration;
+}
+
+/**
+ * Collapse a grid's descendant cell marks to one entry per `(row, col)`. A cell
+ * holding several marks paints a single whole-cell rect whose class is the UNION
+ * of their class tokens — for search this degenerates to exactly the active rect
+ * (the active class string already contains the base token), and two unrelated
+ * sources in one cell cascade-compose instead of stacking translucent rects.
+ * `containerDepth` is the grid container's path length: the cell coordinates sit
+ * at `path[depth]` (row) and `path[depth + 1]` (col). The representative dec is
+ * the last one seen — cell marks carry no attrs/interactive on the reachable
+ * (search) path, so its identity only decides a cascade tiebreak.
+ */
+export function collapseCellMarks(
+	descMarks: readonly IndexedDecoration<MarkDecoration>[],
+	containerDepth: number
+): CollapsedCellMark[] {
+	const byCell = new Map<
+		string,
+		{ rowIdx: number; colIdx: number; classes: Set<string>; dec: MarkDecoration }
+	>();
+	for (const { dec } of descMarks) {
+		const rowIdx = dec.path[containerDepth];
+		const colIdx = dec.path[containerDepth + 1];
+		if (rowIdx == null || colIdx == null) continue;
+		const cell = byCell.get(`${rowIdx},${colIdx}`);
+		if (cell) {
+			addClassTokens(cell.classes, dec.class);
+			cell.dec = dec;
+		} else {
+			byCell.set(`${rowIdx},${colIdx}`, {
+				rowIdx,
+				colIdx,
+				classes: addClassTokens(new Set(), dec.class),
+				dec
+			});
+		}
+	}
+	return [...byCell.values()].map(({ rowIdx, colIdx, classes, dec }) => ({
+		rowIdx,
+		colIdx,
+		class: [...classes].join(' '),
+		dec
+	}));
+}
+
+function addClassTokens(set: Set<string>, cls: string): Set<string> {
+	for (const token of cls.split(/\s+/)) if (token) set.add(token);
+	return set;
 }
