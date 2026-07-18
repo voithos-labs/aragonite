@@ -617,7 +617,7 @@ A source that throws is contained: the editor emits an `error` event attributed 
 
 ## Block commands
 
-`registerBlockCommand` mints a `(kind, name)` command and returns its id, which a keymap binding then targets.
+`registerBlockCommand` mints a `(kind, name)` command and returns its id, which a keymap binding then targets. The name is process-wide, but the registry key is `(kind, name)` and dispatch is kind-scoped — so you may reuse one command name across several of your own kinds (one `note.toggle` on every callout variant). A name already taken by a **different** plugin is rejected.
 
 A minted command dispatches on the two tiers that can hand it a `BlockCommandContext` (the focused node plus a metadata-commit route):
 
