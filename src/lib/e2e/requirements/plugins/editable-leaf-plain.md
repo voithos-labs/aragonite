@@ -21,6 +21,23 @@ leaf behaves like a built-in text block. Seed: `Before` / `%% memo text` / `Afte
 - A cross-block selection swept from the block above through the memo into the block
   below enters cross-block mode spanning all three
 
+## Clipboard
+
+The leaf intercepts copy/cut/paste with the same parity as every other editable surface
+(`editor.md` § Clipboard) — the tier is the clipboard owner, so a plugin leaf inherits
+the rule without wiring it.
+
+- A single-block paste is intercepted, not native: only `text/plain` is taken, so HTML on
+  the clipboard is stripped instead of landing as live markup, and multiline text keeps
+  its newlines (the second line re-splits off as a paragraph through the commit kernel)
+- Cross-block copy with the memo as the focused anchor reaches the shared cross-block
+  collector, which reads the memo's own raw plus the swept neighbour — not a bare
+  single-element copy
+- Cross-block cut with the memo as the focused anchor writes the same payload and
+  deletes the swept range, collapsing the cross-block selection
+- Paste over a cross-block selection anchored in the memo routes through the cross-block
+  delete-then-paste, collapsing the selection and landing the pasted text in one entry
+
 ## Edge cases
 
 - Undo batches like prose: a burst of typed characters undoes in one step back to the

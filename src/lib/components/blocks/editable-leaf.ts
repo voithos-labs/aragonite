@@ -53,14 +53,16 @@ import {
 	createRangeFromOffsets,
 	setCursorOffset,
 	getCursorOffset,
-	getSelectionFocusOffset
+	getSelectionFocusOffset,
+	getSelectionOffsets
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import { createEditableSurface } from './editable-surface';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
+import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding, normalizeLineEndings } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
@@ -123,6 +125,16 @@ export interface EditableLeaf {
 	onInput(): void;
 	onCompositionStart(): void;
 	onCompositionEnd(): void;
+	/**
+	 * Clipboard interception with sibling-surface parity (editor.md § Clipboard).
+	 * Bind on the source element only — a render-primary component's folded view has
+	 * no source to slice, so it falls to native copy (its selection reads return empty
+	 * while folded, and a folded middle block's raw is collected by the endpoint's
+	 * handler in a cross-block copy).
+	 */
+	onCopy(e: ClipboardEvent): void;
+	onCut(e: ClipboardEvent): Promise<void>;
+	onPaste(e: ClipboardEvent): Promise<void>;
 	handleKeydown(e: KeyboardEvent): Promise<void>;
 	onPointerDown(e: PointerEvent): void;
 	/** render-primary: commit-on-blur (fold + one CST commit). Plain: no-op. */
@@ -414,16 +426,75 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Event handlers ─────────────────────────────────────────────────────────
 
-	// Insert a literal newline into the single source text node, keeping the
-	// offset walk exact (a native Enter would split it into <div>/<br>).
-	function insertNewlineAtCaret(): void {
+	// Splice `insert` over the source text node's [start, end), reseat the caret at
+	// the splice end, and commit through the mode's path — plain commits per keystroke,
+	// render-primary stays ephemeral until the blur fold. A DOM-text mutation keeps the
+	// offset walk exact where a native Enter/cut/paste would inject <div>/<br> that
+	// vanish from textContent (the leaf's Enter, cut, and paste all funnel here).
+	function spliceSourceText(el: HTMLElement, start: number, end: number, insert: string): void {
+		const text = el.textContent ?? '';
+		el.textContent = text.slice(0, start) + insert + text.slice(end);
+		anchorTrailingNewline(el);
+		preEditOffset = start;
+		setCursorOffset(el, asDomTextOffset(start + insert.length));
+		if (mode === 'plain') editableSurface.onInput();
+	}
+
+	// ── Clipboard ────────────────────────────────────────────────────────────
+	//
+	// Sibling-surface parity: the leaf's DOM-text space IS its raw, so a single-block
+	// copy is the selection string and a cut/paste splices verbatim into that text. The
+	// tier declares no structural paste hook, so a paste never splits the block — the
+	// commit re-parses the whole raw, re-splitting only where the grammar demands (a
+	// memo's second line). Multiline pastes keep their newlines. Cross-block ops route
+	// through the shared handlers the surface already wires.
+
+	function onCopy(e: ClipboardEvent): void {
+		stickyColumn.reset();
+		e.preventDefault();
+		// Reading mode copies the visible selection string, not the cross-block payload.
+		if (isReading()) {
+			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+			return;
+		}
+		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
+		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+	}
+
+	async function onCut(e: ClipboardEvent): Promise<void> {
+		stickyColumn.reset();
+		e.preventDefault();
+		if (isReading()) {
+			onCopy(e);
+			return;
+		}
+		// Clipboard is written synchronously inside the cross-block prologue, before its
+		// range delete awaits — a cut survives even if the delete is interrupted.
+		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
+
 		const el = deps.getEl();
 		if (!el) return;
-		const text = el.textContent ?? '';
-		const offset = getCursorOffset(el) ?? text.length;
-		el.textContent = text.slice(0, offset) + '\n' + text.slice(offset);
-		anchorTrailingNewline(el);
-		setCursorOffset(el, asDomTextOffset(offset + 1));
+		const sel = getSelectionOffsets(el);
+		if (!sel || sel.start === sel.end) return;
+		e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
+		spliceSourceText(el, sel.start, sel.end, '');
+	}
+
+	async function onPaste(e: ClipboardEvent): Promise<void> {
+		// preventDefault before any branch so a native paste never injects DOM (parity
+		// with the sibling surfaces' synchronous prevent).
+		e.preventDefault();
+		if (isReading()) return;
+		if (await crossBlock.handlePaste(e)) return;
+		stickyColumn.reset();
+		const el = deps.getEl();
+		if (!el) return;
+		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+		if (!pastedText) return;
+		const sel = getSelectionOffsets(el);
+		const start = sel ? sel.start : (getCursorOffset(el) ?? (el.textContent ?? '').length);
+		const end = sel ? sel.end : start;
+		spliceSourceText(el, start, end, pastedText);
 	}
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
@@ -453,8 +524,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (isReading()) return;
-			insertNewlineAtCaret();
-			if (mode === 'plain') editableSurface.onInput();
+			const offset = getCursorOffset(el) ?? (el.textContent ?? '').length;
+			spliceSourceText(el, offset, offset, '\n');
 		}
 	}
 
@@ -492,6 +563,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onInput: editableSurface.onInput,
 		onCompositionStart: editableSurface.onCompositionStart,
 		onCompositionEnd: editableSurface.onCompositionEnd,
+		onCopy,
+		onCut,
+		onPaste,
 		handleKeydown,
 		onPointerDown,
 		onFocusOut: commitReveal,
