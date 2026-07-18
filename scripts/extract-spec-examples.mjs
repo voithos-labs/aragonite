@@ -1,4 +1,4 @@
-// Regenerates src/lib/test/conformance/spec-examples.json from a downloaded
+// Regenerates src/lib/test/gfm-conformance/spec-examples.json from a downloaded
 // CommonMark spec.json (path in argv[2]; fetch from
 // https://spec.commonmark.org/0.31.2/spec.json — the raw file is not committed).
 // Keeps only inline-only examples so the conformance differ compares like for
@@ -34,7 +34,7 @@ const examples = specExamples
 	.map(({ section, example, markdown }) => ({ section, example, markdown }));
 
 const outPath = fileURLToPath(
-	new URL('../src/lib/test/conformance/spec-examples.json', import.meta.url)
+	new URL('../src/lib/test/gfm-conformance/spec-examples.json', import.meta.url)
 );
 writeFileSync(
 	outPath,

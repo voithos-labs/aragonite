@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { InlineNode } from '../../core/nodes';
-import { scanInline } from '../../core/inline/scan';
+import type { InlineNode } from '../../../../core/nodes';
+import { scanInline } from '../../../../core/inline/scan';
 import {
 	normalizeLinkLabel,
 	type LinkReferenceResolver,
 	type ResolvedReference
-} from '../../core/inline/link-reference-resolver';
+} from '../../../../core/inline/link-reference-resolver';
 
 // ── Coverage assertions ─────────────────────────────────────────────────────
 
