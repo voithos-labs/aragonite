@@ -93,17 +93,17 @@ And, also importantly:
 4. Saving rewrites nothing you didn't touch, so a git diff (or your sync tool, or a merge) sees exactly your edit, never a whole file re-serialization
 5. This will be explained in depth later, but this architecture meshes well with the block editor model, which opens a whole range of possibilities, including windowing and a naturally more capable plugin system
 
-One objection worth heading off: surely rich text commands, a bold button, a heading dropdown, need a rich tree to operate on. They do not. A bold button inserts `**` around the selection in raw; a heading level command swaps the `#` prefix. Semantic editing never needed the tree to be the truth; it only needs the tree to know where things are.
+Reading what I told you, you might think to yourself: _surely rich text commands, a bold button, a heading dropdown, or you know, other complex things, need a rich tree to operate on._ They do not. Aragonite proves this to you, that semantic editing never needed the tree to be the truth; it only needs the tree to know where things are.
 
-And the cost is just some memory and some bookkeeping. Memory: a parent stores its children's bytes again, roughly one extra copy per nesting level. But your typical markdown documents do not nest deeply, so the amplification stays small and linear. Bookkeeping: an edit inside a container has to rebuild every enclosing container's raw on the way out, or the redundant copies drift apart. That rebuild is measured, not vibes-checked: at realistic nesting it costs a millisecond or two per keystroke, and you need a deliberately adversarial document (16 levels of nesting, 100KB per level) to push it to a whole handful of milliseconds.
+And the cost is just some memory and some bookkeeping. Memory: a parent stores its children's bytes again, roughly one extra copy per nesting level. But your typical markdown documents do not nest deeply, so the amplification stays small and linear. Bookkeeping: an edit inside a container has to rebuild every enclosing container's raw on the way out, or the redundant copies drift apart. That rebuild is measured, not vibe checked: at realistic nesting it costs a millisecond or two per keystroke, and you need a deliberately adversarial document (16 levels of nesting, 100KB per level) to push it to a whole handful of milliseconds.
 
-So indeed, it's a surprisingly robust design to achieve the lossless promise. Thus, aragonite made the design trade-off: store redundantly, get a range of benefits in exchange.
+So indeed, it's a surprisingly robust design to achieve the lossless promise. And this, in short, is why aragonite made the design trade-off to store redundantly and get a range of benefits in exchange.
 
 # Extensible
 
 What constitutes a good plugin system? In my book, three things. Reach: a plugin can teach the editor genuinely new things (new syntax, new blocks, new behavior) and the result feels native rather than bolted on. Safety: a plugin cannot cost you your document. Ergonomics: the API is typed, discoverable, and testable, so writing a plugin feels like writing a component, not like spelunking. Most editors manage one of these, maybe two.
 
-Time to survey the field again. Notion has no plugin system in the editor at all; you can automate it over their REST API, but you cannot teach its editor a new kind of block. Obsidian has a real plugin system with an enormous ecosystem, and it earned it. But its document model is a string, and that shows through the seams: rendering custom syntax means building it twice, a markdown post processor for reading view plus a CodeMirror extension for live preview, and their own docs warn that "building editor extensions can be challenging, so before you start building one, consider whether you really need it". The ProseMirror lineage has the strongest structural story, custom content nests as real children inside the one document tree, but it rides on tree-as-truth and inherits the serialization problem from the last section.
+Time to survey the field again. Notion has no plugin system in the editor at all; you can automate it over their rest api, but you cannot teach its editor a new kind of block. Obsidian has a real plugin system with an enormous ecosystem, and it earned it. But its document model is a string, and that shows through the seams: rendering custom syntax means building it twice, a markdown post processor for reading view plus a CodeMirror extension for live preview, and their own docs warn that "building editor extensions can be challenging, so before you start building one, consider whether you really need it". The ProseMirror lineage has the strongest structural story, custom content nests as real children inside the one document tree, but it rides on tree as truth and inherits the serialization problem from the last section.
 
 |                                   | Notion                         | Obsidian                         | ProseMirror lineage               | aragonite                                    |
 | --------------------------------- | ------------------------------ | -------------------------------- | --------------------------------- | -------------------------------------------- |
@@ -124,83 +124,139 @@ declare a kind ──┬─▶ descriptor   how it merges, focuses, serializes; 
                                   a :::name directive, or an inline recognizer
 ```
 
-That kind is a first-class citizen of the same tree and the same registries the built-ins use; a paragraph and your callout ride identical machinery. Registration follows the `customElements` model: process global, register once, and a duplicate throws instead of silently overriding someone else. And because the editor continuously parses raw markdown, typing the syntax _is_ the input rule. Other editors need a whole subsystem to turn typed syntax into structure; here the parser was already watching.
+That kind is a first class citizen of the same tree and the same registries the built ins use; a paragraph and your callout ride identical machinery. Registration follows the `customElements` model: process global, register once (and, in case you are wondering, a duplicate throws instead of silently overriding someone else). And because the editor continuously parses raw markdown, typing the syntax _is_ the input rule. Other editors need a whole subsystem to turn typed syntax into structure; here the parser was already watching.
 
-What separates this from an embed system is that plugin content is genuinely editable. A container kind hosts real CST children in the same nested block list the built-in blockquote uses, so selection, merge, undo, and cross-block everything work inside your callout without your plugin lifting a finger. A leaf kind gets a text surface with native caret, IME, and undo parity. An inline kind renders as an atomic widget that can reveal its raw source for editing when the caret walks into it. And the design every editor eventually reaches for and regrets, nesting a second editor whose state serializes as an opaque blob, is rejected here permanently: a parallel source of truth cannot round-trip byte for byte.
+What separates this from an embed system is that plugin content is genuinely editable. A container kind hosts real CST children in the same nested block list the built-in blockquote uses, so selection, merge, undo, and cross block everything work inside your callout without you or your plugin lifting a finger.
 
-For everything that owns no syntax (occurrence highlights, spellcheck squiggles, ghost text, comment pins) there are decorations: view-only annotations computed as a pure function of the document, painted by the editor, never entering the CST. Note what is missing here: a plugin state API. That is on purpose. Elsewhere, plugin state exists mostly to hold a decoration set and re-map it through every edit, because a position is an integer into one flat sequence and goes stale the moment someone types above it. An aragonite position is a path plus an offset into a tree re-derived from raw on every edit, so there is nothing to re-map [^11]. A plugin that wants state keeps its own map keyed on the editor's id, and the platform stores nothing.
+> [!NOTE]
+> In addition,
+> 1: a leaf kind gets a text surface with native caret, IME, and undo parity.
+> 2: an inline kind renders as an atomic widget that can reveal its raw source for editing when the caret walks into it.
+> 3: the design every editor eventually reaches for and regrets, nesting a second editor whose state serializes as an opaque blob, is rejected here permanently (since a parallel source of truth cannot round-trip byte for byte).
 
-The lossless promise also pays out one more time, as a safety property: a plugin cannot corrupt your file. Serialization reads raw and nothing else; the document a plugin sees is readonly on its bytes at compile time; mutation happens through commits the editor referees. A plugin component that throws takes down its own block, which degrades to a readable fallback while its siblings keep working. Uninstall a plugin and every document written with it still round-trips byte for byte, because unknown syntax was win number one of the last section. And shipping a kind forces the boring questions up front: the registration type requires declaring how the kind behaves under every cross-cutting subsystem (focus, merge, selection, undo, clipboard, search), and registering enrolls it in a conformance battery that actually drives those behaviors. "It renders" is a fraction of done, and the machinery knows it.
+Ofc, for everything that owns no syntax (spellcheck squiggles, ghost text, comment pins, etc.), aragonite also has decorations.
 
-One boundary keeps all of this sane: aragonite is an editor library, so aragonite plugins own the document and the editing surface, nothing else. Ribbons, sidebars, settings tabs, sync, vault-wide search: those belong to the app's plugin system (limestone's, in our case). Roughly half of Obsidian's most-installed plugins never touch the editing surface (we counted); Obsidian conflates the two layers because it is the app. An editor library that grows a ribbon API has lost the plot.
+---
 
-So that is the bet: trade plugin count for plugin quality. svelte and typescript end to end, one typed context object, a public testing seam, and the bundled plugins (admonitions, `<details>`, math, diagrams, a table of contents, occurrence highlighting) built on the same surface third parties get [^12]. The API freezes at 1.0, and not before it has been ground against real consumers, so that what freezes is a platform rather than a guess.
+<details>
+  <summary>What are decorations?</summary>
+  <p>view-only annotations computed as a pure function of the document, painted by the editor, never entering the CST.</p>
+</details>
+
+---
+
+Note what is "missing" here: a plugin state API. That is on purpose. Elsewhere, plugin state exists mostly to hold a decoration set and remap it through every edit, because a position is an integer into one flat sequence and goes stale the moment someone types above it. An aragonite position is a path plus an offset into a tree rederived from raw on every edit, so there is nothing to re-map [^11]. A plugin that wants state keeps its own map keyed on the editor's id, and the platform stores nothing.
+
+Circling back to the lossless promise - turns out that also helps here as a safety property (i.e. a plugin cannot corrupt your file):
+
+1. serialization reads raw and nothing else
+2. the document a plugin sees is readonly on its bytes at compile time
+3. mutation happens through commits the editor referees
+
+A plugin component that throws takes down its own block, which degrades to a readable fallback while its siblings keep working. Uninstall a plugin and every document written with it still round trips byte for byte, because unknown syntax is handled gracefully.
+
+Also, shipping a kind forces the boring questions up front: the registration type requires declaring how the kind behaves under every cross-cutting subsystem (focus, merge, selection, undo, clipboard, search), and registering enrolls it in a conformance battery that actually drives those behaviors.
+
+This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
+
+Does the design actually work in practice? Well, the six bundled plugins (admonitions, details, math, diagrams, table of contents, occurrence highlighting) are built on the exact surface third parties get, so you tell me.
 
 # Lean
 
-Most editors ship as a _toolkit_, and you assemble the editor yourself. CodeMirror is a dozen `@codemirror/*` packages plus a Lezer grammar; ProseMirror is `prosemirror-model` and `-state` and `-view` and `-transform` and however much glue you write to make them a product. aragonite is one library you import, with the parser, serializer, block editing, windowing, undo, selection, decorations, presentation modes, and the plugin platform already wired to each other.
+Let's start by establishing the right context: most editors ship as a toolkit, and you assemble the editor yourself. CodeMirror is a dozen `@codemirror/*` packages plus a Lezer grammar; ProseMirror is `prosemirror-model` and `-state` and `-view` and `-transform` and however much glue you write to make them a product. Aragonite, on the other hand, is one library you import, with the parser, serializer, block editing, windowing, undo, selection, decorations, presentation modes, and the plugin platform already wired to each other.
 
-And it drags almost nothing behind it. Exactly one hard runtime dependency, highlight.js, for code-block syntax colors. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.
+(And it drags almost nothing behind it. Exactly one hard runtime dependency, highlight.js, for code-block syntax colors. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
-For all of that surface area the code stays compact: about 47k lines of typescript and svelte for the shipped library, roughly 3k of which is the six bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
+For all of that surface area the code stays relatively compact: about 48k lines of typescript and svelte for the shipped library, roughly 3k of which is the six bundled plugins [^12]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">
   <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, and selection; the schema registry, invariants, bundled plugins, public API, windowing, and decorations each take progressively smaller slices." src="docs/assets/loc-light.svg">
 </picture>
 
-The number is not the boast; the ratio is. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a freezing plugin platform) fits in a codebase one person can still read end to end, with one dependency behind it. The test suite is about two-thirds the size of the library, which says more about the paranoia than the leanness (the round-trip fuzzing, the invariant gates, the correctness machinery threaded through every section above).
+I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with one hard dependency behind it. The test suite, meanwhile, is nearly twice the size of the library (~87k lines), which says more about my paranoia than the leanness.
 
 # Fast
 
-The speed story is one idea executed thoroughly: the editor only mounts what you can see. A 10KB note and a 10MB document have the same number of live components on screen, so typing costs the same in both. This is the windowing payoff promised back in the Lossless section, and it is the block editor model earning its keep.
+Aragonite is fast, and its this way due to one main reason: the editor only mounts what you can see. A 10KB note and a 10MB document have the same number of live components on screen, so typing costs the same in both. This is, as people call it, windowing, and is also one of the reasons why the block editor model earned its keep.
 
-Text editors solved their version of this long ago. CodeMirror 6 renders only the visible viewport plus a margin while tracking heights for the whole document, which is a big part of why Obsidian holds up on large files. Block editors have a harder time of it. A long Notion page is thousands of block records, users start noticing lag around a thousand blocks, and the community's standing advice is to hide content inside toggles so less of it loads. The ProseMirror lineage mounts the entire document into one contenteditable, and unmounting the middle of a live editing surface breaks selection, IME, and everything else that already makes contenteditable cranky, so virtualization there remains an open forum thread rather than a feature.
+In regards to large documents (how an editor fare with 10KB vs 10MB docs), most editors either solved this long ago, or made peace with the lack of ability to deal with it. On the "I have a solution" side, we have editors like CodeMirror 6, which renders only the visible viewport plus a margin while tracking heights for the whole document (this is a big part of why Obsidian holds up on large files). On the other side, we have the editors who threw in the towel. A long Notion page is thousands of block records, users start noticing lag around a thousand blocks, and the community's standing advice is to hide content inside toggles so less of it loads. The ProseMirror lineage mounts the entire document into one contenteditable, and unmounting the middle of a live editing surface breaks selection, IME, and everything else that already makes contenteditable cranky, so virtualization there remains an open forum thread rather than a feature.
 
-aragonite windows for real: blocks outside the viewport genuinely unmount [^14]. This is only possible because every block is its own editing surface; you cannot unmount the middle of one big contenteditable, but you can unmount nine thousand small ones. The rendered slice sits between two spacers sized by a height model, so the native scrollbar, scroll position, and scroll range are all real. Every container windows its own children, meaning a checklist of 10,000 items windows itself instead of mounting its whole subtree. Windowing self-activates per scope past a height budget, so a normal note never pays a cent for it. Heights come from a cheap per-kind estimate, corrected by real measurement once a block mounts. And any operation that needs an off-screen block, say undo landing the caret five thousand blocks away or search jumping to the next match, reveals its target first: scroll the window, mount, then act.
+On the second other side, aragonite's block model windows for real: blocks outside the viewport genuinely unmount [^13]. This is only possible because every block is its own editing surface; you cannot unmount the middle of one big contenteditable, but you can unmount nine thousand small ones. The rendered slice sits between two spacers sized by a height model, so the native scrollbar, scroll position, and scroll range are all real.
 
-A keystroke, then, costs this: the edited block re-reads its own bytes and rebuilds its styled spans (proportional to that one block, with a fast path for plain text), the ancestry rebuild from the Lossless section, an undo snapshot that shares every node with the live tree and copies only on write, and a reactive flush over roughly a viewport's worth of components. Nothing in that loop reads the whole document. In O() terms:
+---
 
-| operation                   | cost                                                              |
-| --------------------------- | ----------------------------------------------------------------- |
-| a keystroke                 | O(viewport)                                                       |
-| loading a document          | O(document)                                                       |
-| saving                      | O(document bytes) (one concatenation, zero recursion)             |
-| pushing an undo snapshot    | O(top-level blocks) (snapshots share nodes, copy on write)        |
-| finding the slice on scroll | O(log blocks)                                                     |
-| select all, then copy       | O(selection) (walked over the CST while only a slice is rendered) |
+<details>
+  <summary>If you are interested in more details</summary>
+
+- Every container windows its own children, meaning a checklist of 10000 items windows itself instead of mounting its whole subtree.
+- Windowing self-activates per scope past a height budget, so a normal note never pays a cent for it.
+- Heights come from a cheap per-kind estimate, corrected by real measurement once a block mounts.
+- Any operation that needs an off screen block, say undo landing the caret five thousand blocks away or search jumping to the next match, reveals its target first: scroll the window, mount, then act.
+
+</details>
+
+---
+
+A keystroke, then, roughly goes through this process: the edited block re-reads its own bytes and rebuilds its styled spans (proportional to that one block, with a fast path for plain text), the ancestry rebuild (mentioned in the Lossless section, if you remember), an undo snapshot that shares every node with the live tree and copies only on write, and a reactive flush over roughly a viewport's worth of components. Nothing in that loop reads the whole document. In big O terms:
+
+| operation                   | cost                                                               |
+| --------------------------- | ------------------------------------------------------------------ |
+| a keystroke                 | O(viewport)                                                        |
+| loading a document          | O(document), duh                                                   |
+| saving                      | O(document bytes), because its basically a top level concatenation |
+| pushing an undo snapshot    | O(top-level blocks), snapshots share nodes, copy on write          |
+| finding the slice on scroll | O(log blocks)                                                      |
+| select all, then copy       | O(selection)                                                       |
 
 ---
 
 <details>
 <summary>A full analysis, if you wanna waste your time</summary>
 
-Legend: N = document bytes · Bₜ = top-level block count · B = total node count · V = viewport-mounted blocks · L = edited block's content length · D = container nesting depth at the edit site · A = the ancestry rebuild term, defined below.
+**Model.** Fix a document $s$ of $N$ bytes, parsed into $B$ block nodes of which $B_t$ are top level. An edit site sits at container nesting depth $D$, inside a block whose content length is $L$ bytes; write $S_1 \le S_2 \le \dots \le S_D$ for the source sizes of its enclosing containers, innermost first, so $S_D$ is the outermost. $V$ denotes the mounted block count: the visible slice, a constant overscan band, and the pinned focus block, so $V = O(\text{viewport})$, independent of $N$ and $B$. Costs are unit-cost RAM with string concatenation linear in bytes moved. The registered block-opener set is a constant of the grammar, not of the document.
 
-**Parse and serialize.** Serialize is O(N), and about the cheapest O(N) possible: it walks only the top-level children (`prefix + Σ(leadingTrivia + raw) + suffix`, the same function the Lossless section quoted), no recursion, each byte copied exactly once because a container's raw already holds its whole subtree. That is O(Bₜ) appends moving O(N) bytes, no tree walk at all. Parse is O(N) on realistic documents and O(N·D) in the worst case: a single-pass line scanner where each line tries a fixed, priority-ordered opener list, each opener bailing cheaply when the line cannot be its syntax. The D factor comes from strip-and-recurse: a line nested d levels deep is re-scanned once per level as each container strips its prefix and re-parses the inner buffer, so the true cost is Σ(line × its depth). Flat prose is O(N); pathological `> > > >` nesting is O(N·D). Inline parsing is not in this number: the block parser never calls it, it is lazy and per block.
+**Proposition 1 (serialization).** Serialization computes $\mathit{prefix} + \sum_{i=1}^{B_t} (\mathit{trivia}_i + \mathit{raw}_i) + \mathit{suffix}$ in $\Theta(N + B_t) = \Theta(N)$, copying each output byte exactly once. Recursion is unnecessary by construction: a container's $\mathit{raw}$ already contains its entire subtree's source, so the top-level pass sees every byte. This is the redundancy the Lossless section bought; here is where it pays.
 
-**Editing, where top-level and container genuinely diverge.** The divergence is one term: A = the ancestry raw rebuild = Σ over enclosing containers of that container's subtree bytes. Dominated by the outermost container, so worst case O(D · `S_outer`), roughly O(`S_outer`) in practice; measured at a millisecond or two per keystroke at realistic nesting. Top-level edits have A = 0.
+**Proposition 2 (parsing).** The block parser is a single line-oriented scan. Each line is offered to a constant-size, priority-ordered opener list, and strip-and-recurse re-scans a line once per enclosing container, so the total is
 
-- Plain typing, top-level block: O(L + V). Reading the DOM back, rewriting node.raw, reparsing inline, and rebuilding spans is O(L); the reactive flush is O(V) thanks to windowing, and it is the dominant steady-state cost. Undo is debounce-batched, so a snapshot push amortizes across the batch rather than landing per keystroke.
-- Plain typing, inside a container: O(L + V + A). Same block work plus one synchronous ancestry rebuild per keystroke. This is the amplification the Lossless section priced: linear, bounded, and gated as a counter in the perf suite.
-- Structural edit (split / merge / delete), top-level: O(Bₜ + L). The Bₜ is pointer-array work: the snapshot copies the top-level reference array plus the id and ref splices. Structural sharing means no node cloning: the snapshot shares nodes via an epoch mark, and copy-on-write clones only the spine you actually write, which at top level is one node.
-- Structural edit, inside a container: O(Bₜ + P + A), where P is the spine unshare: one shallow copy per level, O(Σ children counts along the path). A dominates for deep or large containers.
+$$\Theta\left(\sum_{\ell \in \text{lines}} |\ell| \cdot (1 + d(\ell))\right)$$
 
-One near-caveat: editing a `linkReferenceDefinition` is the closest thing to an O(N) edit. Changing the reference map's signature invalidates inline rendering document-wide, so reference-style links update everywhere. Even there the recompute is lazy: the signature rides each prose block's render key, so you pay O(V) re-renders now and the rest as blocks scroll in. Every other edit is scoped to a dirty set.
+where $d(\ell)$ is the line's nesting depth. Flat documents give $\Theta(N)$; the adversarial bound is $O(N \cdot D_{\max})$, reached only by pathological `> > > >` towers. Inline parsing contributes nothing here: it is deferred, per block, and runs on render.
 
-The trade the whole thing rests on: materialized container raw spends on the amplification axis to buy back the undo axis. Because raw is authoritative, serialize is trivial and undo snapshots share nodes: no O(B) clone per snapshot, no gigabyte undo stack. Deriving raw from structure instead would fix the cheap problem and reintroduce the expensive one.
+**Definition (the ancestry rebuild).** An edit at depth $D$ re-materializes every enclosing container's $\mathit{raw}$:
 
-**Rendering.** Three costs, and only one is bounded by windowing. Mount is O(V): viewport blocks plus overscan plus the pinned focus block; the rest is two spacer divs sized from the height model, with scroll-to-slice mapping O(log B) through a Fenwick tree. Load is O(B), the one windowing cannot reach: proxying every node into reactive state, assigning ids, seeding heights, all script-bound and linear. Per-edit re-render is O(L): only the edited block rebuilds its span tree, from raw. Small documents, and scopes below the activation budget, skip windowing entirely and mount everything, which at that size is exactly what you want.
+$$A \;=\; \sum_{i=1}^{D} \Theta(S_i) \;\subseteq\; O(D \cdot S_D),$$
 
-In short: parse and serialize are O(N); typing is O(viewport), except inside containers where it is O(viewport + enclosing container size); load is the one unavoidable O(document). The mechanisms behind every term, and the gates holding them, live in [performance.md](./docs/design/performance.md) and the design docs it links.
+and with $b$ bytes per level uniformly, $A = \Theta(D^2 b)$. Empirically the constants are small: one to two milliseconds per keystroke at realistic nesting ($D \le 10$, $\le 50$ KB per level), 5.5 ms at an adversarial $D = 16$ with 100 KB per level. Top-level edits have $A = 0$.
+
+**Theorem (keystroke cost).** A keystroke in a block of content length $L$ costs
+
+$$\Theta(L + V) + A.$$
+
+The $\Theta(L)$ term is the DOM read-back, inline reparse, and span rebuild of the one edited block, with a plain-text fast path that keeps the common case allocation-free; $\Theta(V)$ is the reactive flush, which windowing bounds by the viewport and which dominates in steady state; $A$ is the ancestry rebuild. The undo snapshot does not appear: pushes are debounce-batched, so the $\Theta(B_t)$ push amortizes across the batch. Since $V$ is viewport-bounded and $A$ vanishes at top level, typing is $O(\text{viewport})$ independent of document size, which is exactly the property the perf gate enforces. The degenerate case is $L = \Theta(N)$, one paragraph holding the whole file, where the rebuild is $\Theta(N)$ by definition; it is transient, since any split restores $L \ll N$.
+
+**Proposition 3 (structural edits and history).** Split, merge, and delete at top level cost $\Theta(B_t + L)$: the $B_t$ term is pointer-array work (the snapshot's copy of the top-level reference array, plus the id and ref splices), and no node is deep-cloned, because a snapshot shares nodes with the live tree under an epoch mark and copy-on-write duplicates only the spine actually written, which at top level has length one. At depth, the cost is $\Theta(B_t + P) + A$, where $P = \sum_{i=1}^{D} c_i$ counts the children along the written spine, one shallow copy per level. Consequently the history heap holds the live tree plus the written spines, never stack-depth many clones: a push is $\Theta(B_t)$, not $\Theta(B)$, and a restore is a pointer swap of the same order.
+
+**Proposition 4 (rendering and queries).** Mounting is $\Theta(V)$; everything outside the slice is two spacer elements sized from a Fenwick tree over per-block heights, which answers offset-to-index and index-to-offset in $O(\log B)$ per scroll query and absorbs a height correction in $O(\log B)$. Materializing a loaded document is $\Theta(B)$, and in this design $\Omega(B)$: every node must be proxied into reactive state and assigned a stable identity at least once, so load is the one axis windowing cannot bound. Measured: sub-second at realistic sizes, about 4.5 s at the 392k-block extreme.
+
+**Boundary case (reference definitions).** Editing a `linkReferenceDefinition` whose signature changes invalidates inline rendering document-wide, the closest thing to an $O(N)$ edit in the system. The eager cost is still $\Theta(V)$, because the signature rides each block's render key and only mounted blocks re-render now; the remainder is paid lazily as blocks mount. Every other edit is scoped to a dirty set.
+
+**Remark (tradeoff).** Materialized container raw costs space. Define the amplification factor
+
+$$\alpha \;=\; \frac{1}{N} \sum_{\text{containers } c} |\mathit{raw}(c)|,$$
+
+the bytes containers store over again relative to the document itself: $\alpha$ measures 3.55 on the nested-container fixture and 1.96 on the table-heavy one, and both are asserted as ceilings in the commit gate. What the space buys is the time axis: serialization stays $\Theta(N)$ with no recursion (Proposition 1), and history stays $\Theta(B_t)$ shares instead of $\Theta(B)$ clones (Proposition 3). Deriving container raw from children instead would fix the cheap problem and reintroduce the expensive one.
+
+In summary: parse and serialize are $\Theta(N)$; a keystroke is $\Theta(L + V) + A$, which is $O(\text{viewport})$ everywhere except inside large containers, where $A$ adds the enclosing subtrees' bytes; load is the unavoidable $\Theta(B)$. The mechanisms behind every term, and the gates holding them, live in [performance.md](./docs/design/performance.md) and the design docs it links.
 
 </details>
 
 ---
 
-Two axes windowing cannot reach. Loading is O(document): the tree is materialized up front, which is sub-second at realistic sizes and multi-second only out at the hundreds-of-thousands-of-blocks extreme. And a single giant paragraph is O(itself) to edit: windowing windows blocks, not the inside of one block, so the span rebuild scales with paragraph length. That one is transient, a single Enter splits it into windowed blocks, and you only meet it by pasting a multi-megabyte blob into one block [^15].
+Two things though. Loading is O(document), because ofc it is (the tree is materialized up front, which is sub-second at realistic sizes and multi-second only out at the hundreds of thousands of blocks extreme). And a single giant paragraph is O(itself) to edit: windowing windows blocks, not the inside of one block, so the span rebuild scales with paragraph length. This one, though, is transient, a single enter splits it into windowed blocks, and you only meet it by pasting a multi megabyte blob into one block [^14].
 
-Numbers, then. The digits will drift with hardware and with every re-measure; the shape is the argument:
+Now let me show you some pretty graphs.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/perf-keystroke-dark.svg">
@@ -212,36 +268,32 @@ Numbers, then. The digits will drift with hardware and with every re-measure; th
   <img alt="Document load time across the same nine shapes, log scale: load grows roughly linearly with size; every shape loads within a few seconds at 10 MB, the 392,000-block extreme taking the longest." src="docs/assets/perf-load-light.svg">
 </picture>
 
-_Recorded 2026-07-16 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^16]
+_Recorded 2026-07-16 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^15]
 
-None of this is aspirational. The commit gate asserts the mounted-component ceiling as a hard count (counts don't vary by machine; timings do), and a perf gate holds keystroke latency against the same baselines the charts above are drawn from.
+Now, the numbers here depend on the machine; however, the scale of the numbers and the shape of the graph should tell you the story I want to share.
 
 # Graceful
 
-Here is a contradiction sitting in the Origin section: we wanted Notion's ui/ux, but the guiding rule of the actual editor is _a document, not a pile of blocks_. The resolution is that we wanted the _benefits_ of Notion, not its look. Under the hood aragonite is as much a block editor as Notion is, and the Fast and Extensible sections are what that buys. On the surface it should read like a document you are writing, not a stack of cards you are assembling.
+Now, here's a conundrum Finn and I faced early on: we wanted Notion's uiux, but we (by we, I meant Finn) wanted a document, not a pile of blocks. In summary, we wanted the benefits of Notion's uiux in our uiux, not necessarily its look. Which is why even though under the hood aragonite is as much a block editor as Notion is, on the surface it reads like a document you are writing, not a fucking game of tetris.
 
-Notion never lets you forget you are in a builder. Hover any block and a six-dot drag grip and a plus button fade into the gutter; the surface is a scaffold, and a stray click-drag can rearrange the page. That is a real cost people write about, not a nitpick. Obsidian sits at the other pole, and reads as a calm plain document, because under the hood it _is_ one (a text buffer, with all the limits the Extensible section covered). aragonite wants the calm surface and the real structure at once.
+Notion never lets you forget you are in a builder. Hover any block and a drag grip and a plus button fade into the gutter; the surface is a scaffold, and a stray click + drag can rearrange the page. Obsidian sits at the other pole, and reads as a calm plain document, because under the hood it is one (a text buffer, with all of the limitations I mentioned before). Aragonite wants the best of both world: the calm surface and a real structure.
 
-So the blocks are there, load-bearing, and mostly invisible. No card chrome, no per-block outline, no gutter furniture by default. The reorder handle is opt-in (`blockDragHandles`) and only appears on hover; keyboard reorder is always available and shows nothing until you use it. Markdown syntax stays _visible but dimmed_ rather than hidden behind a rich-text facade: your `##` and `**` are right there, greyed down, while the content they mark is styled by meaning (headings large, code monospace, emphasis italic). You are always editing markdown, and you can always see that you are.
+So, if you open aragonite, the blocks are there, mostly invisible. No card chrome, no per block outline, no gutter furniture by default. The reorder handle is opt in and only appears on hover; keyboard reorder is always available and shows nothing until you use it.
 
-That visibility is a default, not a sentence. The `presentationMode` prop dials the same document along a spectrum, from the raw side to the rendered side:
+Oh, live preview? You think I forgot about it? nah. By default, markdown syntax stays visible but dimmed. Aragonite provide the `presentationMode` prop, which dials the same document along a spectrum, from the raw side to the rendered side:
 
 - **source** (default): styled source, every marker visible and dimmed. The editing substrate.
 - **reading**: markers hidden, widgets rendered, read-only. The closest to a classic rendered preview.
 - **preview-block**: live editing, but an unfocused block hides its syntax and the focused one reveals it. Markers appear only around where you are working.
 - **preview-inline**: the finest grain. Within the focused block, a construct's markers stay hidden until your caret actually enters it, then fold away again as you leave.
 
-Here is the same note, same bytes, three ways:
+Check out some screenshots of the actual app:
 
 <img alt="The same markdown note in three presentation modes, side by side: source shows every marker dimmed but visible; preview-inline hides all syntax except the bold markers around the word the caret sits in; reading shows the clean rendered document." src="docs/assets/presentation-modes.png">
 
-_Actual screenshots of the demo editor, not mockups._
+One last snarky remark to make... All these - all four styles, follow one render path. There is never a second rendering, never a derived raw tree, never a rich text model swapped in behind the scenes. I never exactly planned for live preview, it just so happened that I valued the right promises and made the right decisions that made features like this easily buildable.
 
-The thing that makes this more than a feature list is that all four ride _one render path_. Marker visibility flips by CSS keyed on focus and caret proximity; there is never a second rendering, never a derived-`raw` tree, never a rich-text model swapped in behind the scenes. So the document under the caret is byte-identical in every mode, cursor offsets mean the same thing, and the lossless promise from the first section is untouched no matter how rendered the view looks. You can make it look like Obsidian's reading view or leave it as visible source, and it is the same file underneath either way, which is the whole point.
-
-# Where it's at
-
-aragonite is at 0.9.x, closing in on 1.0, the release where the plugin API freezes. The license is MIT, already, for everything in this repo. What sits between here and 1.0 is validation rather than construction: wiring the editor into a real app (limestone), a second clean-room plugin author, and a demo that makes the pitch without me talking over it. If you read this far and want to poke at it: clone, `npm run dev`, break something, tell me about it. [CONTRIBUTING.md](./CONTRIBUTING.md) is the front door, and `docs/` has the full design specs if this monologue somehow wasn't enough.
+# Footnote
 
 [^1]: read docs/changelog.md to experience my suffering.
 
@@ -265,12 +317,10 @@ aragonite is at 0.9.x, closing in on 1.0, the release where the plugin API freez
 
 [^11]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
 
-[^12]: and if the plugin API cannot build one of them cleanly, that is an API bug to fix, not a special case to carve.
+[^12]: counted from the tracked `src/lib` source, excluding the ~87k lines of tests. Give or take a refactor; it is a description, not a promise.
 
-[^13]: counted from the tracked `src/lib` source, excluding the ~31k lines of tests. Give or take a refactor; it is a description, not a promise.
+[^13]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
 
-[^14]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
+[^14]: don't you dare try it lol
 
-[^15]: the lever exists (reconcile the rebuilt span run instead of replacing it) and stays unbuilt until a real workload needs it.
-
-[^16]: the nine shapes, each generated from a fixed seed at 100 KB, 1 MB, and 10 MB: flat prose, nested containers (lists four deep plus nested quotes), many small blocks (392k four-word paragraphs at 10 MB), a single giant paragraph, reference-heavy prose (links plus their definitions), many small tables, one giant list, one giant blockquote, and one giant table. Each chart's band is the nine minus its own villain: the giant paragraph for keystrokes, many small blocks for load.
+[^15]: the nine shapes, each generated from a fixed seed at 100 KB, 1 MB, and 10 MB: flat prose, nested containers (lists four deep plus nested quotes), many small blocks (392k four-word paragraphs at 10 MB), a single giant paragraph, reference-heavy prose (links plus their definitions), many small tables, one giant list, one giant blockquote, and one giant table. Each chart's band is the nine minus its own villain: the giant paragraph for keystrokes, many small blocks for load.
