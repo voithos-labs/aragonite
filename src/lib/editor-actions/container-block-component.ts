@@ -13,6 +13,8 @@ import {
 } from './focus/focus-dispatch';
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 import type { NodeView } from '../core/node-views';
+import type { BlockEditActions, FocusActions } from '../action-contracts';
+import { displayLength } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import { devWarn } from '../dev-warn';
 
@@ -69,6 +71,55 @@ export function composeWholeBlockFocusSurface(
 function focusWholeBlockEl(el: HTMLElement): void {
 	if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
 	el.focus();
+}
+
+export interface WholeBlockKeyDeps {
+	getIndex: () => number;
+	getRaw: () => string;
+	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
+	focus: Pick<FocusActions, 'moveFocus'>;
+	isReading: () => boolean;
+}
+
+/**
+ * The whole-block-focus key tail shared by ThematicBreakBlock and the plugin
+ * container factory (a viewport-focused block with no inner caret): Enter inserts a
+ * sibling below, Backspace/Delete removes the block, and the four plain arrows
+ * traverse to the neighbour. The edit branches gate on reading mode; the arrows stay
+ * live (navigation never gates). A modified arrow falls through untouched. Each
+ * caller owns its own pre-branches (global chords, kind-command dispatch, Alt-arrow
+ * reorder) and delegates here for this congruent tail — one home so a new gate or
+ * branch lands once, not branch-by-branch at both.
+ */
+export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps): void {
+	if (e.key === 'Enter') {
+		e.preventDefault();
+		if (!deps.isReading())
+			void deps.blockEdit.splitBlock(deps.getIndex(), displayLength(deps.getRaw()));
+		return;
+	}
+	if (e.key === 'Backspace' || e.key === 'Delete') {
+		e.preventDefault();
+		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex());
+		return;
+	}
+
+	const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
+	if (!plainArrow) return;
+	const index = deps.getIndex();
+	if (e.key === 'ArrowUp') {
+		e.preventDefault();
+		void deps.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+	} else if (e.key === 'ArrowLeft') {
+		e.preventDefault();
+		void deps.focus.moveFocus(index - 1, 'end');
+	} else if (e.key === 'ArrowDown') {
+		e.preventDefault();
+		void deps.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+	} else if (e.key === 'ArrowRight') {
+		e.preventDefault();
+		void deps.focus.moveFocus(index + 1, 'start');
+	}
 }
 
 export interface ContainerBlockComponentDeps {
