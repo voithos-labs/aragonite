@@ -35,8 +35,12 @@ and fixed the whole surface to green in 0.9.28 — its one structural residual c
 0.9.29 (the **freeze-surface liveness pass**: every live read on the frozen factory deps
 surfaces is an explicit thunk, value-capture uncompilable, with the trailing-line-ending
 parity lint riding along). The remaining risk is **validation
-depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
-are ordered by **risk first, validation before freeze**.
+depth**: one clean-room run deep, every consumer since in-repo and same-day — sharpened by the
+0.9.28 third-party audit (addressed and retired in 0.9.30; the full report lives in git
+history), whose highest-stakes finding was that every validation artifact to date is
+owner-authored and the stated gap detector (the 1.3 reference plugins) was scheduled after the
+freeze it exists to inform. The items below are ordered by **risk first, validation before
+freeze**.
 
 1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
@@ -63,7 +67,9 @@ are ordered by **risk first, validation before freeze**.
    synthetic memo fixture — plus a paste transform; natural candidates are an Obsidian-style
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
-   plain-mode battery onto the real plugin and retire memo.
+   plain-mode battery onto the real plugin and retire memo. A clean-room run is still
+   owner-orchestrated — it probes discoverability, not external evidence; the external-author
+   gate at the freeze cut is deliberately a separate box.
 3. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
    full pitch: every block kind + every bundled plugin — fixtures stay off it
    (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
@@ -77,9 +83,14 @@ are ordered by **risk first, validation before freeze**.
 4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
-   - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
-     against the contract on paper and confirm no breaking-if-deferred gap — reading cost now versus
-     breaking change later.
+   - **External-author gate** — the freeze does not cut on first-party evidence alone: at
+     least one plugin built by a genuinely external developer from the tarball and the docs
+     pack, unassisted, with the friction log treated as blocking input — additive findings
+     land as pre-freeze refinements; a structural finding moves the cut.
+   - **1.3 dry-run** — footnotes, the riskiest of the three post-1.0 reference plugins, was
+     build-probed pre-freeze against the public surface only (0.9.30), so this check is
+     executable rather than paper where it matters most; at the cut, walk emoji and autolinks
+     on paper against the probe's findings and confirm no breaking-if-deferred gap remains.
    - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
      at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
      quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
@@ -264,7 +275,7 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7) and the pre-1.0 global-command mint; `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent. The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
 - **Trigger-character suggest seam** — a `/` menu, `@`-mentions, `[[`-completion. Table stakes for a notes app, and the class Obsidian carries with `registerEditorSuggest`. Deferred deliberately: the pre-1.0 rect API makes a suggest popup _consumer_-buildable (caret geometry plus `getSelection()`), so the question 1.2 answers is whether it deserves a first-class editor seam or stays a consumer pattern. Decide against a real consumer, not on paper.
-- **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax, validated by the 1.3 footnotes/emoji plugins.
+- **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax. The pre-freeze footnotes probe (0.9.30) turned this from a sketch into a spec: `[` is a reserved built-in trigger (registration throws), so a GFM `[^label]` reference needs a prefix-recognizer that can win a reserved trigger's prefix and must define unterminated-construct behavior (`[^` that never closes). Additive-later by the freeze criterion — the reservation throws today, so a carve-out breaks no bound code — and a strong build-now candidate with footnotes as the validating consumer; until it ships, references are expressible as decoration overlays (the probe's working approximation).
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
 - **Decoded-entity inline widget** — `&copy;` renders its glyph as an atomic component widget (the portal seam's natural next consumer); the first shipped consumer of the `deleteGranularity: 'atomic'` editing-policy value (re-added ahead of it by the caret-edge dispatch), delete-whole on one press.
 

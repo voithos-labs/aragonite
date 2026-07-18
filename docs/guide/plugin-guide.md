@@ -298,7 +298,25 @@ export function notePlugin(): EditorPlugin {
 - `{ mode: 'inherit-default' }` — the generic editor ceremony, nothing kind-specific.
 - `{ mode: 'not-supported', reason }` — the subsystem is structurally absent; name the degradation.
 
-`Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one. Two coherence rules also hold at bootstrap: a container must declare `roundTrip: implemented` (its `rebuildRaw` is the mechanism), and a `not-mergeable` kind cannot declare `mergeBackspace: inherit-default` (it has no default merge to inherit). Answer honestly — `implemented` needs a nameable mechanism; when you cannot name one, the cell is `inherit-default` or `not-supported`, never an invented capability. The full row-by-tier reference is the closure matrix in `docs/design/plugin-contract.md`.
+`Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one. Two coherence rules also hold at bootstrap: a container must declare `roundTrip: implemented` (its `rebuildRaw` is the mechanism), and a `not-mergeable` kind cannot declare `mergeBackspace: inherit-default` (it has no default merge to inherit). The full row-by-tier reference is the closure matrix in `docs/design/plugin-contract.md`.
+
+**Name a mechanism your own kind carries.** `implemented` needs a nameable `via` — your component, your `rebuildRaw`, your test — never an internal editor mechanism you do not own; a cell you cannot name honestly is `inherit-default` or `not-supported`, never an invented capability.
+
+**Simple leaves: `simpleLeafClosure`.** A not-mergeable, childless, source-editable leaf built on `createEditableLeaf` answers five columns the same way every such leaf does — its round-trip inherits the default serialize, its `not-mergeable` merge is a focus move, its selection paints through `measurePartialRects`, it reorders by whole-block drag, and its clipboard is a byte slice. `simpleLeafClosure` bakes those five and asks only the four your component determines — `focus`, `searchPaint`, `undo`, `simOracle`:
+
+```ts
+closure: simpleLeafClosure({
+	focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
+	searchPaint: {
+		mode: 'implemented',
+		via: 'source raw scanned; the rendered view carries no measurable text, so a match is counted but not painted'
+	},
+	undo: { mode: 'implemented', via: 'render-primary — reveal→edit→blur commits one undo entry' },
+	simOracle: { mode: 'implemented', via: 'my-kind e2e' }
+});
+```
+
+Omitting one of the four is a compile error, and a baked column stays overridable (a render-primary leaf scoping its `selectionPaint` to the revealed state, say). There is **no container preset**: a container's round-trip is its `rebuildRaw`, its merge and focus are structural walks, its clipboard may synthesize — so containers, whole-block-focus opaque leaves, and any novel tier hand-write the full nine, where the 0.9.18 lesson still applies.
 
 Optionally add a `conformanceFixture` — a small markdown source that parses to your kind — for the conformance battery.
 
@@ -542,6 +560,8 @@ An inline kind is minted with `declarePluginInlineKind`, recognized by hooking t
 
 - **A `component` (recommended).** Supply a Svelte component; the editor wraps it in the atomic island — stamping the marker attributes the cursor and selection machinery need — and mounts it with frozen `{ inline, source }` props. A keyed reuse pool keeps one live instance per `(kind, source)` across the editor's rebuild-everything-per-keystroke render: typing next to a widget adopts its instance rather than remounting it, and the instance is remounted only when its source text changes.
 - **A hand-built `buildWidget`.** Return the island DOM yourself when you need DOM-level control; you own the marker-attribute stamping. This is the lower-level path the image widget uses.
+
+**The trigger must be a character no built-in scanner claims.** Registering a recognizer on a reserved trigger — `` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline — throws at registration: built-in dispatch runs first and would never consult yours, and a silent no-op is the one failure a public API must not have. This closes off syntax that begins inside a built-in construct's territory (a GFM `[^label]` footnote reference, say). For those, keep the bytes as ordinary prose and paint them with a replace decoration (see Decorations below) — lossless by construction, because the bytes never leave the document.
 
 **Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught — the widget falls back to its raw source and an `error` event fires — but the component mounts as its own effect root, so nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows an inline message). A render engine's stylesheet is likewise yours: import it in the module that owns the renderer so no route can forget it.
 
@@ -804,6 +824,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                                 |
 | `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums        |
 | `ClosureBlock`, `ClosureColumn`, `ClosureCell`                                                                                 | The required closure matrix per kind — one `implemented`/`inherit-default`/`not-supported` cell per cross-cutting system |
+| `simpleLeafClosure`, `SimpleLeafClosureCells`                                                                                  | Preset for a simple leaf: bakes the five structurally-fixed columns, requires the four the component determines          |
 
 **Component registry**
 
