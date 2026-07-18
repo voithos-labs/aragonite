@@ -14,7 +14,11 @@ import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
-import { normalizeLineEndings, trimTrailingLineEnding } from '../../../core/lines';
+import {
+	normalizeLineEndings,
+	trimTrailingLineEnding,
+	trailingLineEnding
+} from '../../../core/lines';
 import { getInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block/clipboard';
@@ -94,7 +98,11 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		if (selOffsets) {
 			const displayText = trimTrailingLineEnding(deps.node.raw);
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-			deps.blockEdit.updateBlockContent(deps.index, newDisplay + '\n', selOffsets.start);
+			deps.blockEdit.updateBlockContent(
+				deps.index,
+				newDisplay + trailingLineEnding(deps.node.raw),
+				selOffsets.start
+			);
 			deps.setPendingCursor(selOffsets.start);
 		}
 	}

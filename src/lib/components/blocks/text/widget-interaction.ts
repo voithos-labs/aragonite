@@ -26,7 +26,7 @@ import {
 	getInlineWidgetEditing
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { trimTrailingLineEnding } from '../../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import {
 	asRawOffset,
 	toClampedRawOffset,
@@ -290,7 +290,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		deps.blockEdit.updateBlockContent(
 			deps.index,
-			editedDisplay + '\n',
+			editedDisplay + trailingLineEnding(deps.node.raw),
 			revealCaretBefore,
 			caretAfter
 		);
