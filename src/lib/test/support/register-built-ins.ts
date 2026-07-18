@@ -4,4 +4,6 @@
 // tests exercise internal modules (tree-operations, schema, invariants) in
 // isolation, below both anchors, so the platform is bootstrapped here instead.
 // Register-once makes a redundant load from a test's own import graph a no-op.
-import '$lib/schema/built-in-descriptors';
+import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
+
+registerBuiltInDescriptors();

@@ -6,12 +6,15 @@ import type { CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { displayLength } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-// Descriptor-read entry point (getContentRange/isProseKind): ensure the built-in
-// descriptors are registered before any read, headless of the editor mount.
-import '../../schema/built-in-descriptors';
+// Descriptor-read entry point (getContentRange/isProseKind): register the
+// built-ins before any read, headless of the editor mount. Explicit call — a
+// bare side-effect import is tree-shaken from the production build.
+import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { scanInline } from './scan';
 import { recordInlineCompute } from '../../perf/instruments';
+
+registerBuiltInDescriptors();
 
 // ── Content Range ──────────────────────────────────────────────────────────
 
