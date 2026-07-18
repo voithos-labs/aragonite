@@ -91,8 +91,9 @@
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
-	import './built-in-blocks';
+	import { registerBuiltInBlocks } from './built-in-blocks';
 
+	registerBuiltInBlocks();
 	bootstrapCodeLanguages();
 	runStartupInvariantChecks();
 

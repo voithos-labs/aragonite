@@ -10,7 +10,9 @@ import { perfEnabled, recordParse } from '../perf/instruments';
 import { defaultGrammarView, type GrammarView, type OpenContext } from '../schema/block-openers';
 import { assertInvariant } from '../invariants/assert';
 import { parseParagraph } from './parsers/paragraph';
-import './parsers/built-in-openers';
+import { registerBuiltInOpeners } from './parsers/built-in-openers';
+
+registerBuiltInOpeners();
 
 /**
  * Container-nesting cap. Each blockquote/list/directive level recurses one
