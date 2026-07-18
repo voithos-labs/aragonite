@@ -17,9 +17,11 @@
  * Two arms, because a site can drop the ending two ways:
  *  - Wrong reconstruction — a content argument appends a string-literal newline
  *    instead of `trailingLineEnding(...)`. Caught structurally at the call site.
- *    The scan reads the inline argument tail, so a newline hoisted into a
+ *    The scan reads the content argument's TAIL only, so a newline hoisted into a
  *    variable first (`const c = x + '\n'; updateBlockContent(i, c)`) slips past
  *    this arm — Arm 2 still covers any such hoist inside a `commitInput` funnel.
+ *    Mid-content newline literals (e.g. electric-indent splicing a new inner line)
+ *    are out of scope by design: only the reconstructed trailing ending is at issue.
  *  - Missing reconstruction — a new editable surface whose `commitInput` funnel omits
  *    the append entirely. Caught by requiring every `commitInput` that reaches
  *    `updateBlockContent` to carry `trailingLineEnding(`; a GFM table cell holds no
