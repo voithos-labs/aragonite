@@ -6,6 +6,9 @@ import type { CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { displayLength } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+// Descriptor-read entry point (getContentRange/isProseKind): ensure the built-in
+// descriptors are registered before any read, headless of the editor mount.
+import '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { scanInline } from './scan';
 import { recordInlineCompute } from '../../perf/instruments';

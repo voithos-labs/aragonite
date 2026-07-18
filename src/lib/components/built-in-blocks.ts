@@ -14,6 +14,9 @@ import {
 	type BlockComponentEntry
 } from '../schema/block-component-registry';
 import { augmentBuiltin } from '../schema/block-kind-descriptor';
+// Registers the built-in block-kind descriptors — mount-path anchor, and a
+// prerequisite for the augmentBuiltin('table') call below.
+import '../schema/built-in-descriptors';
 import { augmentInlineWidgetKind } from '../core/inline/inline-widgets';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
