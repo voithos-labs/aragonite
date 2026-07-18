@@ -232,7 +232,7 @@ Cost contract: an idle source's per-edit re-run is O(sources), never per-block, 
 
 ### Rects
 
-Viewport-space geometry over the rendered document — the read the decoration tier, selection toolbars, and trigger popups all bottleneck on. Reached through `EditorContext.rects` (plugin) and `getRects()` (consumer): a block's bounding box, the rects covering an inline range (per visual line on wrapped prose, per cell on grid surfaces, inheriting each surface's offset semantics — raw offsets on leaves, cell indices on grids, with the end-sentinel meaning "through the last measurable position"), the live native caret (null in cross-block mode, where the parked native range must not leak out as a caret), and a `reveal` that mounts a windowed-out block before measuring it. Rects are real only in a browser, so the surface is e2e-validated; the selection-toolbar demo is the consumer validator. Its single-block case reads the native Range: the selection snapshot collapses a single-block range to the focus caret (ledgered, `docs/issues.md`), and the fix is an additive payload extension — a decided pre-freeze refinement.
+Viewport-space geometry over the rendered document — the read the decoration tier, selection toolbars, and trigger popups all bottleneck on. Reached through `EditorContext.rects` (plugin) and `getRects()` (consumer): a block's bounding box, the rects covering an inline range (per visual line on wrapped prose, per cell on grid surfaces, inheriting each surface's offset semantics — raw offsets on leaves, cell indices on grids, with the end-sentinel meaning "through the last measurable position"), the live native caret (null in cross-block mode, where the parked native range must not leak out as a caret), and a `reveal` that mounts a windowed-out block before measuring it. Rects are real only in a browser, so the surface is e2e-validated; the selection-toolbar demo is the consumer validator. `getSelection()` reports a single-block selection's real anchor/focus offsets, so its geometry reads through `rangeRects` exactly like the cross-block case.
 
 ## Surfaces bound now, extensible additively
 
@@ -245,12 +245,12 @@ These ship today and are part of what plugins observe. They are frozen _as the c
 
 Every mechanism for plugin content that is _itself editable_ falls in one of four tiers, each bound to a CST guarantee (prior-art record: `docs/research/plugin-extension-surfaces.md`).
 
-| Tier          | Shape                                                                       | Status               |
-| ------------- | --------------------------------------------------------------------------- | -------------------- |
-| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog  | shipped              |
-| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns          | shipped              |
-| Editable leaf | a recognizer-backed standalone text block with native caret/IME/undo parity | shipped (pre-freeze) |
-| Atomic widget | opaque non-text embed, caret-addressable at its edges                       | shipped              |
+| Tier          | Shape                                                                                 | Status               |
+| ------------- | ------------------------------------------------------------------------------------- | -------------------- |
+| Container     | children are real CST blocks in a nested BlockList — the contentDOM analog            | shipped              |
+| Chrome leaf   | a reserved, single-line, plain-text child the container's raw owns                    | shipped              |
+| Editable leaf | a recognizer-backed standalone text block with native caret/IME/undo/clipboard parity | shipped (pre-freeze) |
+| Atomic widget | opaque non-text embed, caret-addressable at its edges                                 | shipped              |
 
 A _general_ editable leaf shipped pre-1.0 as `createEditableLeaf`, pre-freeze beside the container factory; the chrome leaf stays narrower on purpose. **Rejected permanently:** nested-editor interiors (a second editor state serialized as a blob) — they break byte-lossless round-trip.
 

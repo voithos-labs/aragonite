@@ -76,7 +76,7 @@ The undo/commit _ceremony_ — commit primitive, snapshot debounce — lives in 
 
 ### 1. The descriptor
 
-Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts`. Core fields: merge role, `editable`, `supportsInline`, and the required `closure` block (below). `BlockKindRegistration` documents every optional hook; the ones you're most likely to want:
+Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts` — built-ins do this from `schema/built-in-descriptors.ts`. Core fields: merge role, `editable`, `supportsInline`, and the required `closure` block (below). `BlockKindRegistration` documents every optional hook; the ones you're most likely to want:
 
 | Field                   | For                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------- |

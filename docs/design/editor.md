@@ -105,7 +105,7 @@ The **presentation modes** (`presentationMode` prop: reading, block-granular and
 A block chooses its own editing surface. Three exist:
 
 - **`TextEditableBlock`** — the built-in contenteditable prose surface. Paragraphs, headings, setext headings, and the raw-editable fallback for every kind without a dedicated component. Parameterized by CSS class.
-- **`createEditableLeaf`** — the plugin-facing text-leaf factory, with the same native caret / IME / undo / cross-block-selection parity. Two modes: `plain` (always editable, commits per keystroke) and `render-primary` (a rendered view that reveals its source on entry and commits once on blur).
+- **`createEditableLeaf`** — the plugin-facing text-leaf factory, with the same native caret / IME / undo / clipboard / cross-block-selection parity. Two modes: `plain` (always editable, commits per keystroke) and `render-primary` (a rendered view that reveals its source on entry and commits once on blur).
 - **`createContainerBlock`** — the plugin-facing container factory. Wires a nested `BlockList` with its own scoped contexts, exactly as `BlockquoteBlock` does.
 
 Beyond those, a block may render anything — a grid of cells (`TableBlock`), a static focusable element (`ThematicBreakBlock`), an opaque diagram. A block only has to conform to the block interface. Not all blocks need contenteditable.

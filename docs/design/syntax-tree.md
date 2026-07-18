@@ -107,7 +107,7 @@ The built-in priorities, in order:
 3. Thematic break (a `---` after paragraph text is consumed as a setext underline first)
 4. Blockquote → strip and recurse
 5. List item → strip and recurse
-6. Indented code (declines unless preceded by a blank line or at window start — it cannot interrupt a paragraph)
+6. Indented code (cannot interrupt a paragraph — an open paragraph absorbs the indented line as lazy continuation first; after any non-paragraph block it opens with no blank line needed)
 7. HTML block
 8. Link reference definition
 9. Nothing claimed it → start a paragraph and consume continuation lines (this arm also detects setext headings and tables)

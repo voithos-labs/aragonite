@@ -307,10 +307,10 @@ Float a formatting bar above the user's selection — the standard use of the tw
 
 1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
 2. **Cross-block selections** (anchor and focus in different blocks): normalize the endpoints yourself (compare paths, then offsets), then anchor to `rangeRects(startPath, startOffset, SELECTION_END)` — the start block's rects from the selection to its end. Rect `[0]` is the first visual line; place the bar above its top-left.
-3. **Single-block selections** — the honest caveat: the selection snapshot currently collapses a single-block range to the focus caret (anchor === focus), so the editor's own payload cannot give you the range's geometry. Read the native selection instead: `window.getSelection()!.getRangeAt(0).getBoundingClientRect()` is correct whenever the selection lives inside one block, because there the editor delegates selection to the browser. An additive payload extension is planned; until it lands, the native read is the supported pattern.
+3. **Single-block selections** (anchor and focus in the same block): `getSelection()` reports the range's real endpoints — distinct anchor/focus raw offsets on the shared path — so anchor with `rangeRects(path, startOffset, endOffset)`, the same call as the cross-block case with a real end offset in place of `SELECTION_END`. (Reading the native `window.getSelection()` range works too, since within one block the editor delegates selection to the browser.)
 4. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
 
-The demo route's `SelectionToolbar` component is this recipe verbatim, including the native-Range fallback.
+The demo route's `SelectionToolbar` component follows this recipe; its single-block branch still reads the native Range directly — an equivalent that predates within-block range reporting.
 
 ## Rewriting a document
 
