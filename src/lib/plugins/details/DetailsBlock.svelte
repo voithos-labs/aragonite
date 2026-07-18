@@ -19,15 +19,9 @@
 	const open = $derived(!isCollapsedContainer(node));
 
 	const { blockListProps, containerApi, updateOwnMetadata } = createContainerBlock({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getBoxEl: () => boxEl
 	});
 

@@ -30,15 +30,9 @@
 	}
 
 	const { containerApi, updateOwnMetadata, handleKeydown } = createContainerBlock({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get path() {
-			return myPath;
-		},
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
 		getBoxEl: () => boxEl,
 		getFocusEl: focusSurfaceEl,
 		// A minted command (mermaid.edit / mermaid.focus, incl. the Mod+M chord)
