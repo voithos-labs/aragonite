@@ -35,10 +35,16 @@ export function resolveReorderUnit(doc: Document, path: number[]): ReorderUnit |
 			return { parentPath, index: path[depth - 1], parentKind: 'document' };
 		}
 		const parentKind = nodeAt(doc, parentPath)?.kind;
-		if (parentKind === 'list' || parentKind === 'blockquote') {
-			return { parentPath, index: path[depth - 1], parentKind };
-		}
-		if (parentKind && tryGetBlockKindDescriptor(parentKind)?.containerContract === 'opaque') {
+		if (parentKind === 'list') return { parentPath, index: path[depth - 1], parentKind: 'list' };
+		if (parentKind === 'blockquote')
+			return { parentPath, index: path[depth - 1], parentKind: 'blockquote' };
+		// `!== 'document'` narrows out the Document root's kind at the type level (nodeAt
+		// widens to include it); at runtime the root is already handled above.
+		if (
+			parentKind &&
+			parentKind !== 'document' &&
+			tryGetBlockKindDescriptor(parentKind)?.containerContract === 'opaque'
+		) {
 			return null;
 		}
 	}
