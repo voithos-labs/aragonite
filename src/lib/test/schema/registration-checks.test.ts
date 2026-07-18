@@ -93,6 +93,22 @@ describe('flushPendingRegistrationChecks', () => {
 		expect(byTag('late-opener-registration')).toHaveLength(1);
 	});
 
+	it('reports an opener registered pre-flush after an editorless grammar read', () => {
+		// An editorless `parse()` reads the grammar and trips grammar-consumption,
+		// but nothing is pending so it does NOT flush — `didFirstFlush` stays false
+		// (G1.17 pre-flush blindness). An opener registered now is genuinely late:
+		// the already-parsed document will not re-parse to see it.
+		getOrderedOpeners();
+		const kind = declarePluginKind('pre-flush-late');
+		registerBlockKind(kind, leaf);
+		registerBlockOpener(kind, opener(9108));
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('late-opener-registration')).toHaveLength(1);
+		expect(byTag('late-opener-registration')[0].violation.message).toContain('pre-flush-late');
+	});
+
 	it('tolerates forward references in a coherent callout-shaped batch', () => {
 		flushPendingRegistrationChecks();
 		const calloutKind = declarePluginKind('fwd-container');
