@@ -294,25 +294,6 @@ command reaches the mounted component through `ctx.hooks`, threaded by the conta
 `commandHooks` getter; mermaid migrated off its node→hooks map). The residual `editable` flag has no
 reader, so the fix is cosmetic until a consumer needs a non-editable container surface.
 
-### Reference consumer's block-component prop still annotates `CstNode`
-
-**Severity:** trivial (cosmetic drift; legal — registration-erased)
-**Files:** `examples/consumer/src/routes/dev-guard/DevProbeBlock.svelte` (the `node: CstNode` prop)
-
-The reference consumer's `DevProbeBlock.svelte` types its reader prop `node: CstNode` where the in-repo
-fixtures now uniformly hold `node: NodeView` (the G4.14 parity lint). It compiles unchanged against the
-packaged types: `CstNode` stays exported on the plugin barrel and the registration boundary erases
-component prop types, so a mutable annotation is accepted — consumer-smoke is the live proof. The drift
-is unguarded because `examples/consumer` sits outside both svelte-check's scope and the G4.14 `.svelte`
-scan (which walks `src/**` only). The sibling `dev-probe.ts` `CstNode` uses are constructor/writer-side
-(owned mutables) and correctly stay `CstNode`.
-
-**Fix direction:** sweep the reader prop to `NodeView` when the consumer example is next touched.
-
-**Why deferred:** registration-erased and cosmetic — the packaged types compile unchanged and the drift
-has no runtime effect, so it isn't worth a standalone edit to the reference consumer; it rides the next
-change that opens the file.
-
 ## Test coverage
 
 ### Decoration tiers lack dedicated simulation gestures

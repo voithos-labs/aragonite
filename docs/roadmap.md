@@ -31,27 +31,14 @@ shipped in 0.9.27 (all five flagged designs resolved: the SelectionPoint and Cst
 discriminated unions, per-instance registry views + the dev idempotence valve, context facets —
 the mount harness, and container-raw exonerated by a falsification benchmark — the resolutions
 live in `docs/research/architecture-concerns.md`), and a **repo-wide forge review** audited
-and fixed the whole surface to green in 0.9.28 — its one structural residual (liveness rules
-the types cannot yet see) is item 1 below. The remaining risk is **validation
+and fixed the whole surface to green in 0.9.28 — its one structural residual closed in
+0.9.29 (the **freeze-surface liveness pass**: every live read on the frozen factory deps
+surfaces is an explicit thunk, value-capture uncompilable, with the trailing-line-ending
+parity lint riding along). The remaining risk is **validation
 depth**: one clean-room run deep, every consumer since in-repo and same-day. The items below
 are ordered by **risk first, validation before freeze**.
 
-1. **Freeze-surface liveness pass — move the last discipline rules into the types before
-   anything external binds.** The getters-not-values rule is invisible to TypeScript (a
-   getter property and a value property are structurally identical), so an external author
-   who passes a snapshot where the contract means "re-read live" compiles clean and hits the
-   stale-capture scar in their own code, beyond every internal oracle. Every frozen factory
-   deps field whose contract is liveness (the container/leaf/chrome deps, the decoration
-   provide context) will convert to an explicit thunk (`() => T`) — value-capture becomes
-   unrepresentable, and the conversion is breaking-if-deferred, which is why it precedes the
-   limestone integration rather than riding the freeze cut. Two lint mints ride along,
-   closing the last grep-able scar classes: a timing-primitive scan
-   (setTimeout/rAF/microtask against the sanctioned allowlist — the predecessor editor's
-   fatal class, still prose-only) and trailing-line-ending parity across the
-   keystroke-commit sites. Internal code keeps the getter convention under the existing
-   oracle net and converts opportunistically — the DocPath precedent; this item is the
-   public surface only.
-2. **Limestone internal integration** — the last unchecked box in the validation list above and
+1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
    also exercises the 0.9.25 field-report workflow (the diagnostics door: reproduce →
@@ -66,7 +53,7 @@ are ordered by **risk first, validation before freeze**.
    pre-freeze refinements. The first-party plugin distribution question is settled
    (0.9.23): the integration consumes the bundled plugins as `aragonite/plugins/<name>` subpath
    exports directly — the copy-source sync pattern never enters the picture.
-3. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
+2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
    conformance battery ships (0.9.24), not just authoring discoverability. The first
@@ -77,7 +64,7 @@ are ordered by **risk first, validation before freeze**.
    `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
    conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
    plain-mode battery onto the real plugin and retire memo.
-4. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
+3. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
    full pitch: every block kind + every bundled plugin — fixtures stay off it
    (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
    is the "surpass Obsidian" argument made visible. The reference-plugin aesthetic decision is
@@ -87,7 +74,7 @@ are ordered by **risk first, validation before freeze**.
    toggles** — reading mode plus block- and inline-granular live preview beside styled
    source — so the first impression is not markers-everywhere, and the freeze litmus "the
    contract must not preclude a rendered reading mode" is a working proof, not a paper check.
-5. **Freeze cut at release** — in order:
+4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents.
    - **1.3 paper dry-run**: walk each planned post-1.0 plugin (footnotes, emoji, autolinks)
@@ -148,9 +135,9 @@ are ordered by **risk first, validation before freeze**.
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
      by their single-home modules with the public doors keeping `number`. The liveness pass
-     (item 1) extends the program: no frozen deps field whose contract is a liveness rule may
-     remain value-shaped — every live read on the public surface is a thunk. Verified by the
-     re-audit's enforcement pass, not assumed.
+     (shipped 0.9.29) extends the program: no frozen deps field whose contract is a liveness
+     rule remains value-shaped — every live read on the public surface is a thunk. Re-verified
+     by the re-audit's enforcement pass, not assumed.
    - **Freeze litmus (history seam)**: no frozen surface binds the snapshot shape of undo — no
      public type exposes the undo stack or its entries, and the `edit` event's `undo`/`redo`
      variants stay representation-agnostic — so the overridable history seam (§ Downstream
