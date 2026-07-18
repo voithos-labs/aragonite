@@ -520,19 +520,26 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 
 	const before = await page.evaluate(() => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
-		const top = editorEl.getBoundingClientRect().top;
+		const editorTop = editorEl.getBoundingClientRect().top;
 		const hosts = Array.from(
 			document.querySelectorAll('[data-block-path]:not([data-block-path*=","])')
 		) as HTMLElement[];
 		// The block at the viewport top (anchor) and a fully-mounted block's own height
-		// (re-wrap sanity), both read at the wide width.
-		let anchor: { path: string; top: number } | null = null;
+		// (re-wrap sanity). The anchor's top is recorded RELATIVE TO THE EDITOR, not the
+		// browser viewport: narrowing the window reflows the demo harness chrome above the
+		// editor slot and moves the editor's own page position, which the anchor correction
+		// neither causes nor controls. A viewport-absolute read folds that container shift
+		// into the drift and mismeasures what the correction holds.
+		let anchor: { path: string; topInEditor: number } | null = null;
 		let sampleHeight: number | null = null;
 		for (const host of hosts) {
 			const rect = host.getBoundingClientRect();
-			if (!anchor && rect.bottom > top + 1)
-				anchor = { path: host.getAttribute('data-block-path')!, top: rect.top };
-			if (rect.top > top + 1 && sampleHeight === null) sampleHeight = rect.height;
+			if (!anchor && rect.bottom > editorTop + 1)
+				anchor = {
+					path: host.getAttribute('data-block-path')!,
+					topInEditor: rect.top - editorTop
+				};
+			if (rect.top > editorTop + 1 && sampleHeight === null) sampleHeight = rect.height;
 		}
 		return {
 			width: editorEl.clientWidth,
@@ -550,16 +557,19 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 
 	const after = await page.evaluate((anchorPath) => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const editorTop = editorEl.getBoundingClientRect().top;
 		const host = document.querySelector(`[data-block-path='${anchorPath}']`) as HTMLElement | null;
 		return {
 			width: editorEl.clientWidth,
 			scrollHeight: editorEl.scrollHeight,
-			anchorTop: host ? host.getBoundingClientRect().top : null
+			anchorTopInEditor: host ? host.getBoundingClientRect().top - editorTop : null
 		};
 	}, before.anchor!.path);
 
 	const drift =
-		after.anchorTop !== null ? Math.abs(after.anchorTop - before.anchor!.top) : Infinity;
+		after.anchorTopInEditor !== null
+			? Math.abs(after.anchorTopInEditor - before.anchor!.topInEditor)
+			: Infinity;
 	console.log(
 		`VR-1 resize ${JSON.stringify({
 			wideWidth: before.width,
@@ -577,9 +587,11 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 	// heights and scrollHeight barely moves; the > 10% growth bound fails on the revert.
 	expect(after.scrollHeight).toBeGreaterThan(before.scrollHeight * 1.1);
 
-	// (2) Anchor held through the reflow: the top block does not teleport. The rebuild
-	// reseed is anchor-corrected, so a sub-line bound holds even as every height changes.
-	expect(after.anchorTop).not.toBeNull();
+	// (2) Anchor held through the reflow: the top block does not teleport WITHIN the editor.
+	// The rebuild reseed is anchor-corrected, so a sub-line bound holds even as every height
+	// changes. Measured editor-relative (see `before`), the correction holds to well under a
+	// line; the 20px bound is far above that residual and far below a one-block slip.
+	expect(after.anchorTopInEditor).not.toBeNull();
 	expect(drift).toBeLessThan(20);
 	expect(pageErrors).toEqual([]);
 });
