@@ -18,8 +18,6 @@ import { nodeAt } from './node-ops';
 
 export type ReorderParentKind = 'document' | 'list' | 'blockquote';
 
-const REORDERABLE_PARENT = new Set<string>(['document', 'list', 'blockquote']);
-
 export interface ReorderUnit {
 	parentPath: number[];
 	index: number;
@@ -29,15 +27,18 @@ export interface ReorderUnit {
 export function resolveReorderUnit(doc: Document, path: number[]): ReorderUnit | null {
 	for (let depth = path.length; depth >= 1; depth--) {
 		const parentPath = path.slice(0, depth - 1);
-		const parentKind = parentPath.length === 0 ? 'document' : nodeAt(doc, parentPath)?.kind;
-		if (parentKind && REORDERABLE_PARENT.has(parentKind)) {
-			return { parentPath, index: path[depth - 1], parentKind: parentKind as ReorderParentKind };
+		// The document root is identified STRUCTURALLY, never by a kind string a
+		// plugin could mint: a non-root node whose kind is 'document' is just another
+		// container, resolved by its descriptor below (the isBlockNode 'document'-alias
+		// hazard, now closed here too).
+		if (parentPath.length === 0) {
+			return { parentPath, index: path[depth - 1], parentKind: 'document' };
 		}
-		if (
-			parentKind &&
-			parentKind !== 'document' &&
-			tryGetBlockKindDescriptor(parentKind)?.containerContract === 'opaque'
-		) {
+		const parentKind = nodeAt(doc, parentPath)?.kind;
+		if (parentKind === 'list' || parentKind === 'blockquote') {
+			return { parentPath, index: path[depth - 1], parentKind };
+		}
+		if (parentKind && tryGetBlockKindDescriptor(parentKind)?.containerContract === 'opaque') {
 			return null;
 		}
 	}
