@@ -527,6 +527,29 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		expect(result.collapsedCaret).toEqual({ path: [0, 1], offset: 5 });
 	});
 
+	it('both empty with a blockquote ending in a fenced code block: caret descends to the code leaf', () => {
+		// The blockquote's deepest leaf is a fenced code block — editable but NOT
+		// merge-eligible. The survivor caret must descend to it by focusability, not
+		// merge-eligibility; parking on the blockquote's own container path names a
+		// full-raw offset no leaf owns.
+		const source =
+			'> alpha\n>\n> ```\n> code\n> ```\n\n' + `${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`;
+		const doc = parse(source);
+
+		const result = rangeDelete(
+			doc,
+			{ path: [1], offset: 0 },
+			{ path: [2], offset: 5 },
+			createSharingState()
+		);
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('blockquote');
+		// Deepest last leaf: the fenced code block at [0, 1]; its raw is
+		// "```\ncode\n```\n" → displayLength 12.
+		expect(result.collapsedCaret).toEqual({ path: [0, 1], offset: 12 });
+	});
+
 	it('both empty with a preceding list: caret descends into the last item last leaf', () => {
 		// List (two items) [0], table A [1], table B [2]. Both tables consumed → the
 		// list survives; the caret lands at the end of the last item's leaf, deep-
