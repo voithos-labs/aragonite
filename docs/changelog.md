@@ -2,6 +2,68 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.30 — The audit-response pass: an outside review, answered
+
+A third-party audit of 0.9.28 (filed at `13e88c44`, retired with this entry — git history
+holds the full report) was answered finding by finding; every wave landed on the full
+commit gate (unit 4204→4257, e2e 1391, check 0, lint green throughout).
+
+- **The freeze no longer cuts on first-party evidence alone** — the audit's highest-stakes
+  finding, answered structurally: an external-author gate (a developer who is not the owner,
+  tarball + docs pack, friction log blocking) in both the roadmap's freeze cut and the plugin
+  contract's freeze criterion, and the 1.3 gap detector pulled in front of the freeze as a
+  build probe. The **footnotes probe** — built strictly against the public surface, walls
+  logged as findings — shipped the definition kind losslessly, proved the reserved-trigger
+  limit end to end (`[` is unclaimable; references degrade to a decoration overlay), and
+  falsified the feared linkReferenceDefinition collision (the built-in declines `[^` labels).
+  Routed: the inline prefix-recognizer tier is designed ahead in the contract (additive-later
+  by the freeze criterion, build-now candidate), and the reserved trigger set is now in the
+  plugin guide — the probe's one doc blocker.
+- **The closure tax on simple leaves is repealed.** `simpleLeafClosure` on `aragonite/plugin`
+  bakes the five structurally-fixed columns and requires the four the component determines —
+  omitting one is a compile error; toc/mathBlock/memo migrated with modes unchanged;
+  via-string guidance (name your own mechanism, never an internal watcher). Containers keep
+  the full nine on purpose.
+- **The property suite gained the oracle it was blind without.** A kind-differential property
+  (commonmark.js reference; the three documented divergence classes allowlisted by input
+  predicate, never a baseline lookup) fails the emphasis misclassification the byte/tiling
+  properties provably pass — the audit's own falsification, replayed red-first. An opt-in
+  fresh-seed lane (`PROPERTY_FRESH=1`, seed printed for reproduction) threads all 22
+  `fc.assert` sites; fixed seeds stay the deterministic gate. Miss-analysis: no property
+  oracle read node kinds — conservation held while classification broke.
+- **The three flagged internals are structural now.** The cross-block table-delete ceremony
+  deduped into three order-stable atoms with each case's load-bearing orderings explicit (the
+  identity scan measured at ≤1 per gesture and its cost class documented — the audit's
+  "several times" was overstated); the reveal/fold machine behind one `RevealState` and one
+  canonical reset every exit funnels through (null-before-await pinned by a
+  synchronous-observation test); the commit rollback behind one frame with one restore
+  (splice-then-throw pin covering the redo-populated dimension). All mutation-verified in
+  review.
+- **ESLint installed** — the missing standard net: curated flat config (floating promises,
+  misused promises, switch exhaustiveness, unused values; type-aware over all `.ts`), wired
+  into `npm run lint`. 514 findings triaged: 28 real cleanups, 45 intentional patterns made
+  explicit (`void`, `default:`), 441 noise-class configured off with reasons, 5 reasoned
+  inline disables. Zero live bugs in product code; product `src/lib` was already `any`-free
+  and `no-explicit-any` now stands guard as an error there. One adopted rewrite regressed
+  the demo plugins page — `prefer-writable-derived` moved a parsing read from post-mount
+  effect to first render, ahead of the page's async plugin installs, firing
+  late-opener-registration across e2e-plugins — caught by the ship battery and reverted
+  with the deferral's load-bearing timing now stated at the site. Miss-analysis: the battery
+  had the failure all along; a piped gate command masked its exit and only the
+  passed-count discrepancy exposed it — the never-pipe-a-gate rule, re-learned at the
+  controller level.
+- **Docs tell the honest version.** The README's lossless promise carries its edit-time
+  asterisk beside the claim; editor.md's "adding a block type is boring" carries the
+  variation-vs-novel-capability discriminator; the fifteen dangling architecture-concerns
+  comment pointers are gone; the docs link gate covers the whole corpus (code spans stripped,
+  footnote definitions excluded, empty allowlist) — Markdown links only; HTML `<img>` embeds
+  stay outside its reach.
+- **Readability, audited and codified** (owner-directed): the ~20 most complex files scored
+  against a written top-down rubric — 16 GOOD / 6 ACCEPTABLE / 0 NEEDS-REORDER, the
+  newspaper discipline held — six approved moves only (five honest-section dividers, one
+  487-line state-orphan hoist, contiguous block-node types in `core/nodes.ts`); the
+  newspaper-order standard and the composition-root rule are now `code-style.md` content.
+
 ### 0.9.29 — The freeze-surface liveness pass: live reads become thunks
 
 Pre-1.0 roadmap item 1, plus gap fixes from the exploration audit that preceded it. The scar
