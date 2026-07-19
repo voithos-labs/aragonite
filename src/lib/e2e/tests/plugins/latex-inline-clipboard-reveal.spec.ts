@@ -92,9 +92,9 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 		await editor.waitForClipboardWrite();
 
 		const clip = await page.evaluate(() => navigator.clipboard.readText());
-		// The clipboard holds what the user SEES — the live DOM edit — not the stale
-		// raw slice, which never carried `QQ` (the edit is uncommitted).
-		expect(clip).toContain('QQ');
+		// The clipboard holds exactly what the user selected and SEES — the live DOM
+		// edit — not the stale raw slice, which never carried `QQ` (uncommitted edit).
+		expect(clip).toBe('QQ');
 
 		// Copy never mutates: the reveal stays open (widget still folded to source)…
 		await expect(editor.mathWidget).toHaveCount(0);
