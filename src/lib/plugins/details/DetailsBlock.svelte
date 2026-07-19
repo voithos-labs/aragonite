@@ -101,9 +101,18 @@
 	.details-toggle {
 		position: absolute;
 		left: 0.45em;
-		top: 2px;
+		/* `font: inherit` anchors this <button>'s em geometry to the editor font;
+		   without it a button takes a smaller UA font-size, so the line-box math
+		   below resolves too short and floats the caret above the summary title. */
+		font: inherit;
+		/* Overlay the summary's first line box exactly — the block's 0.15em top
+		   padding plus the summary leaf's 2px, one line-height (1.6) tall — then
+		   flex-center the caret so it lands on the title line by construction. */
+		top: calc(0.15em + 2px);
 		width: 1.1em;
-		height: 1.4em;
+		height: 1.6em;
+		display: flex;
+		align-items: center;
 		padding: 0;
 		border: none;
 		background: transparent;
@@ -115,7 +124,7 @@
 		display: block;
 		width: 0;
 		height: 0;
-		margin: 0.45em 0 0 0.25em;
+		margin-left: 0.25em;
 		border-left: 6px solid currentColor;
 		border-top: 4px solid transparent;
 		border-bottom: 4px solid transparent;
