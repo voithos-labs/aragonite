@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { it, expect, beforeEach } from 'vitest';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
 import {
 	registerGlobalCommand,

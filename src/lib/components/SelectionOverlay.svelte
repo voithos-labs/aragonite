@@ -147,7 +147,7 @@
 {#if classification === 'middle'}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
 {:else if classification === 'start' || classification === 'end' || (classification === 'single-block' && containerPaintsRects)}
-	{#each endpointRects as rect}
+	{#each endpointRects as rect, i (i)}
 		<div
 			class="selection-overlay selection-overlay-endpoint"
 			contenteditable="false"

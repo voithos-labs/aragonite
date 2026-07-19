@@ -138,7 +138,7 @@
 	});
 </script>
 
-{#each rects as r}
+{#each rects as r, i (i)}
 	<div
 		{...r.attrs}
 		class="decoration-overlay {r.cls}"

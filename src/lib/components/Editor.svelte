@@ -158,7 +158,6 @@
 	// $effect below when the prop changes.
 	// svelte-ignore state_referenced_locally
 	const initial = initDocument(source);
-	// svelte-ignore state_referenced_locally
 	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));

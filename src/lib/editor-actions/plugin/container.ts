@@ -261,7 +261,7 @@ export function buildContainerKindTarget(
 		getCommandContext: () => ({
 			node: deps.getNode(),
 			updateMetadata: (patch) => {
-				updateOwnMetadata(patch);
+				void updateOwnMetadata(patch);
 			},
 			hooks: deps.commandHooks?.(),
 			editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')

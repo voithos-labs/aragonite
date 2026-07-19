@@ -65,7 +65,7 @@ test.describe('preview-block — markers by focus', () => {
 	});
 
 	test('an unfocused block hides its markers; focusing it reveals only its own', async ({
-		page
+		page: _page
 	}) => {
 		const headingMarker = ep.getBlock(0).locator('.md-marker').first();
 		const paraMarker = ep.getBlock(1).locator('.md-marker').first();
@@ -88,7 +88,9 @@ test.describe('preview-block — markers by focus', () => {
 		expect(await ep.getBlockText(1)).toBe('alpha **beta** gamma');
 	});
 
-	test('code fences hide unfocused, show when focused, textContent stays raw', async ({ page }) => {
+	test('code fences hide unfocused, show when focused, textContent stays raw', async ({
+		page: _page
+	}) => {
 		const fence = ep.getBlock(2).locator('.md-marker').first();
 		await expect(fence).toBeHidden();
 		// Read-back safety: the fence text is present regardless of paint.

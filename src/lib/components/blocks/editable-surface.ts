@@ -20,7 +20,7 @@ import type {
 	FocusActions,
 	HistoryActions
 } from '../../action-contracts';
-import type { BlockComponent, StickyColumnDirection } from '../../block-component';
+import type { StickyColumnDirection } from '../../block-component';
 import type {
 	BlockElLookup,
 	DocumentGetter,

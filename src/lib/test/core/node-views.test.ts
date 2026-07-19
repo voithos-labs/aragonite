@@ -56,6 +56,8 @@ export function viewNarrowingPin(node: NodeView): void {
 				void ordered;
 				break;
 			}
+			default:
+				break;
 		}
 	}
 }

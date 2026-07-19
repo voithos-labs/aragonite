@@ -146,7 +146,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				// An atomic kind (future inline entity) deletes whole on one press —
 				// no select step. Anchored at the pre-delete caret so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
-				deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, widgetAt.start);
+				void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, widgetAt.start);
 				deps.setPendingCursor(widgetAt.start, 'widget');
 				return true;
 			}
@@ -163,7 +163,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			const typed = e.key;
 			const newRaw = node.raw.slice(0, caretOffset) + typed + node.raw.slice(caretOffset);
 			const postEdit = caretOffset + typed.length;
-			deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, postEdit);
+			void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, postEdit);
 			deps.setPendingCursor(postEdit, 'widget');
 			return true;
 		}
@@ -191,7 +191,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const d = display();
 		const next = d.slice(0, start) + insert + d.slice(end);
 		const caretAfter = start + insert.length;
-		deps.blockEdit.updateBlockContent(
+		void deps.blockEdit.updateBlockContent(
 			deps.index,
 			next + trailingLineEnding(deps.node.raw),
 			start,
@@ -314,7 +314,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range && range.start < range.end) {
 			const shown = display();
 			const newDisplay = shown.slice(0, range.start) + shown.slice(range.end);
-			deps.blockEdit.updateBlockContent(
+			void deps.blockEdit.updateBlockContent(
 				deps.index,
 				newDisplay + trailingLineEnding(deps.node.raw),
 				range.start,

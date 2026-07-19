@@ -5,7 +5,6 @@ import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { rebuildListRaw } from '$lib/schema/container-rebuilders';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
@@ -59,7 +58,7 @@ describe('updateBlockMetadata', () => {
 
 	it('pushes exactly one undo snapshot, and undo/redo flip metadata back and forth', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeEditorActionsDeps([node]);
+		const { deps } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 		const history = createHistoryActions(deps, controller);
