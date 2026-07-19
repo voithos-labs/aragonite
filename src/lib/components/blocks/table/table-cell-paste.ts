@@ -9,6 +9,7 @@ import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
+import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
@@ -105,7 +106,9 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		replacement,
 		controller: input.controller,
 		undoEntry: input.undoEntry,
-		focusReplacementIndex: firstHalf ? 1 : 0,
+		// End of the pasted content: the last pasted block, before the second table
+		// half (the residue) — never the first pasted block.
+		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,
 		source: 'paste-dispatch-table-cell'
 	});

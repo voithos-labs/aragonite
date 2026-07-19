@@ -7,6 +7,7 @@ Design reason: pasting `1. a\n2. b\n` (ordered) into `- target` (unordered) with
 ## Happy paths
 
 - Ordered list pasted into the middle of an unordered item: the item splits, the ordered list lands between the halves at the list's parent level, trailing text becomes a new unordered item.
+- Caret after a mid-item break-out: focus lands at the end of the last pasted item (the editor's "end of the pasted content" contract), never on the trailing residue half. Typing a character appends it to the last pasted item.
 - Ordered list pasted at the end of an unordered item: item stays intact, ordered list follows at the parent level. No second-half item.
 - Ordered list pasted at the start of an unordered item: ordered list precedes the item at the parent level. No first-half item.
 - Unordered list pasted into an ordered item: symmetric to the ordered-into-unordered case. Continuous numbering across the gap (split slot burns one number; second half starts at `firstHalfItems.length + 1`).

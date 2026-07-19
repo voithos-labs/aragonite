@@ -506,6 +506,46 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 		expect(result.collapsedCaret).toEqual({ path: [0, 2, 1], offset: 1 });
 	});
 
+	it('both empty with a preceding blockquote: caret descends to the survivor last leaf', () => {
+		// Blockquote (two paragraphs) [0], table A [1], table B [2]. Select all of A
+		// and B → both removed; the blockquote survives. The caret must land at the
+		// END of the blockquote's deepest leaf (its last paragraph), never a char
+		// offset on the blockquote's own container path — that offset names bytes no
+		// leaf owns, so the restore clamps or mis-lands.
+		const doc = parse(`> alpha\n>\n> bravo\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(
+			doc,
+			{ path: [1], offset: 0 },
+			{ path: [2], offset: 5 },
+			createSharingState()
+		);
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('blockquote');
+		// Deepest last leaf: the "bravo" paragraph at [0, 1]; raw "bravo\n" → offset 5.
+		expect(result.collapsedCaret).toEqual({ path: [0, 1], offset: 5 });
+	});
+
+	it('both empty with a preceding list: caret descends into the last item last leaf', () => {
+		// List (two items) [0], table A [1], table B [2]. Both tables consumed → the
+		// list survives; the caret lands at the end of the last item's leaf, deep-
+		// pathed, not at a shallow char offset on the list's container path.
+		const doc = parse(`- one\n- two\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
+
+		const result = rangeDelete(
+			doc,
+			{ path: [1], offset: 0 },
+			{ path: [2], offset: 5 },
+			createSharingState()
+		);
+
+		expect(result.newDoc.children).toHaveLength(1);
+		expect(result.newDoc.children[0].kind).toBe('list');
+		// list[0] → last item [1] → its paragraph leaf [0]; raw "two\n" → offset 3.
+		expect(result.collapsedCaret).toEqual({ path: [0, 1, 0], offset: 3 });
+	});
+
 	it('start empties across an intervening blockquote: end-table path is not over-shifted', () => {
 		// Table A [0], blockquote [1], table B [2]. A empties → removed; the
 		// blockquote AND its inner paragraph are both deletion paths — counting

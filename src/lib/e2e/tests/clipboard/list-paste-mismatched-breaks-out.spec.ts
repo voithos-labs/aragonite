@@ -87,6 +87,29 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		expect(src).not.toMatch(/^3\. Ordered-/m);
 	});
 
+	test('caret lands at the end of the pasted content, not the trailing residue', async () => {
+		await editor.loadContent('- Unordered three\n');
+		await editor.page.evaluate(() =>
+			navigator.clipboard.writeText('1. Ordered first\n2. Ordered second\n3. Ordered third\n')
+		);
+
+		// Break out in the MIDDLE of the item, so the residue "three" becomes the
+		// trailing second-half list. The caret must land at the end of the last
+		// PASTED item, never on the residue.
+		await editor.focusBlockAtPath([0, 0, 0], 9);
+		await editor.page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceMatches(/^- three$/m);
+
+		await editor.page.keyboard.type('X');
+		await editor.bridge.waitForSourceMatches(/^3\. Ordered thirdX$/m);
+
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
+		expect(src).toMatch(/^3\. Ordered thirdX$/m);
+		// The residue item is untouched — the caret never parked there.
+		expect(src).toMatch(/^- three$/m);
+		expect(src).not.toMatch(/threeX/);
+	});
+
 	test('unordered list pasted into ordered list item also breaks out (symmetry)', async () => {
 		await editor.loadContent('1. First target\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('- paste one\n- paste two\n'));
