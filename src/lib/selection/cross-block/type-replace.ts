@@ -69,7 +69,8 @@ export async function handleCrossBlockTypeReplace(
 	// children and its StructuralChange syncs the scope's ids/refs. The guard is
 	// the enforcement belt: an unregistered ancestor would make `scope` a
 	// grandparent, and the replace would splice the wrong slot — degrade to the
-	// raw-only splice (transient stale kind, non-corrupting) rather than corrupt.
+	// raw-only splice rather than corrupt — non-corrupting, though a nested fallback
+	// leaves a stale kind and a dev-visible stale-raw fire until the next reparse.
 	const leafIndex = caret.path[caret.path.length - 1];
 	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
 
