@@ -93,6 +93,68 @@ describe('renderCodeBlock', () => {
 		const frag = renderCodeBlock(node);
 		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
 	});
+
+	it('preserves textContent invariant — single blank-line body', () => {
+		const node = makeFencedCodeNode('```\n\n```\n');
+		const frag = renderCodeBlock(node);
+		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
+	});
+});
+
+// Each fence line is wrapped so reading/preview modes can collapse the whole line
+// (marker + its `\n`) with `display: none`; the wrappers must keep every raw byte
+// in document order, so textContent stays equal to trimTrailingLineEnding(raw).
+describe('renderCodeBlock — fence-line wrappers', () => {
+	beforeEach(() => {
+		__resetRegistryForTests();
+		__resetBootForTests();
+		bootstrapCodeLanguages();
+	});
+
+	function fenceLines(frag: DocumentFragment): HTMLElement[] {
+		return Array.from(frag.querySelectorAll('.md-fence-line'));
+	}
+
+	it('wraps opener and closer, opener owns its trailing `\\n`', () => {
+		const node = makeFencedCodeNode('```javascript\nconst x = 42;\n```\n', 'javascript');
+		const lines = fenceLines(renderCodeBlock(node));
+
+		expect(lines.length).toBe(2);
+		const [opener] = lines;
+		expect(opener.textContent).toBe('```javascript\n');
+		expect(opener.querySelector('.md-fence')?.textContent).toBe('```');
+		expect(opener.querySelector('.md-lang')?.textContent).toBe('javascript');
+		expect(opener.lastChild?.nodeType).toBe(Node.TEXT_NODE);
+		expect(opener.lastChild?.textContent).toBe('\n');
+	});
+
+	it('closer wrapper owns the line break that precedes it (bottom blank collapses)', () => {
+		const node = makeFencedCodeNode('```\nhello\n```\n');
+		const lines = fenceLines(renderCodeBlock(node));
+		const closer = lines[1];
+
+		// Leading `\n` re-homed off the body's last line, then the fence marker.
+		expect(closer.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+		expect(closer.firstChild?.textContent).toBe('\n');
+		expect(closer.textContent).toBe('\n```');
+	});
+
+	it('empty-body closer carries no leading `\\n` (opener `\\n` is the only separator)', () => {
+		const node = makeFencedCodeNode('```\n```\n');
+		const lines = fenceLines(renderCodeBlock(node));
+
+		expect(lines.length).toBe(2);
+		expect(lines[1].textContent).toBe('```');
+		expect(lines[1].firstChild?.nodeType).toBe(Node.ELEMENT_NODE);
+	});
+
+	it('an unclosed fence wraps only the opener line', () => {
+		const node = makeFencedCodeNode('```js\nconst x = 1\n', 'js', false);
+		const lines = fenceLines(renderCodeBlock(node));
+
+		expect(lines.length).toBe(1);
+		expect(lines[0].textContent).toBe('```js\n');
+	});
 });
 
 describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces)', () => {
