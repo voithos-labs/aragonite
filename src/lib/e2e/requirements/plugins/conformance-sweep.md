@@ -23,7 +23,7 @@ behavioural suite; the per-kind specs keep owning depth.
 ## Search paint
 
 - implemented, measurable text: searching a token drawn from the block paints at least one match overlay within the block's subtree.
-- implemented, render-primary leaf widget (`mathBlock`, `toc`): the token is found and navigable but paints no rect — the source is not a measurable text node. This is the ledgered gap (`docs/issues.md`); the sweep pins the current degraded behaviour and flags if painting is later wired.
+- implemented, folded render-primary leaf (`mathBlock`, `toc`): the source renders through a component with no measurable text node, so `createEditableLeaf` covers the rendered block box while folded — the token is found and paints a cover overlay through the same `implemented` path as a measurable-text kind.
 - not-supported (`thematicBreak`): a token shared by the two neighbour paragraphs paints on them but never inside the block, and Enter navigation cycles between the neighbours without the active match landing on the block — skip, no trap.
 
 ## Enrolment and reachability

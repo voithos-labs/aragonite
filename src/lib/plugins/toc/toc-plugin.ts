@@ -48,7 +48,7 @@ export function registerTocBlock(): void {
 			},
 			searchPaint: {
 				mode: 'implemented',
-				via: 'source raw scanned and navigable; the rendered TocBlock carries no measurable text node, so a match is counted but not painted'
+				via: 'source raw scanned and navigable; while folded, createEditableLeaf covers the rendered block box (opaque single-unit fallback)'
 			},
 			undo: {
 				mode: 'implemented',
