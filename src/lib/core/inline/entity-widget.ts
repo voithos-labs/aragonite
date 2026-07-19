@@ -13,12 +13,15 @@
 import type { InlineNode } from '../nodes';
 
 // A decoded string renders no glyph when every code point is a control (`Cc`),
-// format (`Cf`), or whitespace (`Zs`/`Zl`/`Zp`) character. `\p{Zs}` covers the
-// non-breaking space (U+00A0) — `&nbsp;`'s glyph would be an invisible column,
-// so it stays a literal span like a plain space. `\p{Cf}` covers the
-// zero-width joiners and the BOM; `\p{Cc}` covers tab/newline/DEL and the C1
-// range. The empty string (a non-decoding node) is invisible by the same test.
-const RENDERS_NO_GLYPH = /^[\p{Cc}\p{Cf}\p{Zs}\p{Zl}\p{Zp}]*$/u;
+// format (`Cf`), whitespace (`Zs`/`Zl`/`Zp`), or zero-advance mark (`Mn`/`Me`)
+// character. `\p{Zs}` covers the non-breaking space (U+00A0) — `&nbsp;`'s glyph
+// would be an invisible column, so it stays a literal span like a plain space.
+// `\p{Cf}` covers the zero-width joiners and the BOM; `\p{Cc}` covers
+// tab/newline/DEL and the C1 range. `\p{Mn}`/`\p{Me}` cover lone combining
+// marks (`&#x301;`), which render at zero width with nothing to combine with —
+// an invisible island — while spacing marks (`Mc`) keep real advance and stay
+// widgets. The empty string (a non-decoding node) is invisible by the same test.
+const RENDERS_NO_GLYPH = /^[\p{Cc}\p{Cf}\p{Zs}\p{Zl}\p{Zp}\p{Mn}\p{Me}]*$/u;
 
 /** True when the entity's decoded value renders at least one visible glyph, so
  *  it should render as an atomic widget rather than its literal source span. */

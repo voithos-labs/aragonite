@@ -14,8 +14,7 @@ describe('entityRendersGlyph — the visibility gate', () => {
 		{ name: 'ampersand (&amp;)', decoded: '&' },
 		{ name: 'numeric letter (&#65; → A)', decoded: 'A' },
 		{ name: 'multi-codepoint ligature (fj)', decoded: 'fj' },
-		{ name: 'replacement char (invalid ref → �)', decoded: '�' },
-		{ name: 'combining acute (&#x301;)', decoded: '́' }
+		{ name: 'replacement char (invalid ref → �)', decoded: '�' }
 	])('renders a glyph for $name', ({ decoded }) => {
 		expect(entityRendersGlyph(decoded)).toBe(true);
 	});
@@ -26,7 +25,8 @@ describe('entityRendersGlyph — the visibility gate', () => {
 		{ name: 'newline (&NewLine; → U+000A)', decoded: '\n' },
 		{ name: 'tab (&Tab; → U+0009)', decoded: '\t' },
 		{ name: 'zero-width space (&ZeroWidthSpace;)', decoded: '​' },
-		{ name: 'word joiner (&#x2060;)', decoded: '⁠' }
+		{ name: 'word joiner (&#x2060;)', decoded: '⁠' },
+		{ name: 'lone combining acute (&#x301;) — zero-advance mark', decoded: '́' }
 	])('renders no glyph for $name', ({ decoded }) => {
 		expect(entityRendersGlyph(decoded)).toBe(false);
 	});
