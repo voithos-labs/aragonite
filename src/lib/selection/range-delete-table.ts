@@ -37,7 +37,7 @@ import {
 	rebuildUnsharedChain
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
-import { findMergeTarget } from '../schema/merge-rules';
+import { isCollapsedContainer } from '../schema/reserved-chrome';
 import {
 	nearestChromeContainer,
 	isChromeChild,
@@ -582,19 +582,23 @@ function caretNearestSurvivor(
 	return { path: [0], offset: 0 };
 }
 
-// End-of-survivor caret, descending a container to the leaf that owns the
-// bytes. A container (blockquote/list) survivor resolved to a char offset on
-// its own path names bytes no leaf owns — the restore then clamps or mis-lands
-// (focus of a non-zero container offset falls to the last child's end, losing
-// the offset). The merge walk already knows the deepest focusable leaf; reuse
-// it. A prose / self-merge leaf resolves to itself; a not-mergeable leaf
-// (thematic break) keeps its own-end landing.
+// End-of-survivor caret, descending a container to the leaf a caret lands in.
+// Mirrors the walk a container's own focus runs — last child at each step,
+// collapse-aware (a collapsed container clamps its body out of view, so the
+// visible target is its chrome child 0). The gate is FOCUSABILITY, not merge-
+// eligibility: a fenced-code / html leaf is editable but not merge-eligible, so
+// resolving through the merge walk would return null and strand the caret on the
+// container's own path — a full-raw offset no leaf owns, which the restore
+// clamps or mis-lands. A leaf resolves to its own end.
 function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
-	const merge = findMergeTarget(node);
-	if (merge) {
-		return { path: [...path, ...merge.path], offset: displayLength(merge.target.raw) };
+	let leaf = node;
+	const leafPath = path.slice();
+	while (leaf.children && leaf.children.length > 0) {
+		const next = isCollapsedContainer(leaf) ? 0 : leaf.children.length - 1;
+		leaf = leaf.children[next];
+		leafPath.push(next);
 	}
-	return { path, offset: displayLength(node.raw) };
+	return { path: leafPath, offset: displayLength(leaf.raw) };
 }
 
 function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
