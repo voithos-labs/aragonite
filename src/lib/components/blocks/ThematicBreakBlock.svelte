@@ -115,6 +115,9 @@
 	}
 </script>
 
+<!-- Deliberately focusable non-interactive: the whole-block-focus model (the block IS
+     its own focus target). The role/naming question is the 1.1 shell a11y decision. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={el}
 	tabindex="0"
