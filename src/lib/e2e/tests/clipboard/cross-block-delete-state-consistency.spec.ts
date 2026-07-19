@@ -2,7 +2,7 @@
 // registered BlockListState, node.children.length === innerBlockIds.length ===
 // innerBlockRefs.length. Scenarios exercise deletes touching nested containers
 // at different depths.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 type StateViolation = {
@@ -71,6 +71,27 @@ test.describe('cross-block delete — BlockListState consistency', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 3);
 		await editor.shiftClickBlock([0, 1, 1, 1, 0], 3);
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForCrossBlock(false);
+
+		const violations = await auditState(editor);
+		expect(violations).toEqual([]);
+	});
+
+	test('delete from a paragraph into a table body cell leaves the row state in sync', async () => {
+		await editor.loadContent('alpha\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+
+		// Shift+click into body cell (row 1, col 0): the whole-row snap removes
+		// rows 0–1 and promotes "3|4" — the table's own row BlockListState must
+		// shrink with its children.
+		await editor.focusBlock(0, 2);
+		const cell = editor.page.locator('[role="cell"]').nth(2);
+		const box = await cell.boundingBox();
+		if (!box) throw new Error('body cell has no bounding box');
+		await editor.page.keyboard.down('Shift');
+		await editor.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+		await editor.page.keyboard.up('Shift');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.waitForCrossBlock(false);

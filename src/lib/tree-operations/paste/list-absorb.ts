@@ -2,9 +2,9 @@
  * Paste absorb: when the clipboard is a same-type list (matching ordered
  * flag) pasted into a non-empty list item, flatten the pasted items as
  * siblings of the target in the enclosing list. Mutates the list's children
- * in place, normalizes pasted markers to the list's style, and renumbers
- * from 1 — producing the flat "continuous-sequence" result most markdown
- * editors use (Obsidian, Google Docs).
+ * in place and normalizes pasted markers to the enclosing list's style — the
+ * bullet glyph for unordered, a continuous renumbered sequence for ordered —
+ * producing the flat result most markdown editors use (Obsidian, Google Docs).
  *
  * Complements the mismatched-type `list-break-out` path: same-type pastes
  * never belong in a break-out. Runs after `findContainerMatchingUnwrap`
@@ -21,7 +21,7 @@ import { cloneNode } from '../clone';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
-import { renumberOrderedList } from '../list/ordered-markers';
+import { renumberOrderedList, normalizeItemMarkerToList } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
 import {
 	buildListItemWithContent,
@@ -122,11 +122,16 @@ export async function applyListAbsorb(
 				rebuildListItemRaw(item);
 			}
 		}
+	} else {
+		// Unordered: template the pasted items' bullet glyph from the enclosing
+		// list so a `*`/`+` paste into a `- ` list serializes as one list to
+		// reference parsers, not two. Same precompute-before-splice discipline.
+		for (const item of replacement) normalizeItemMarkerToList(item, outer);
 	}
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: plan.listPath[0], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...plan.listPath], offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);

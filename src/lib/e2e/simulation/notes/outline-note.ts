@@ -66,5 +66,6 @@ export const OUTLINE_NOTE: NoteFixture = {
 		'  - Birdsong dominates at dawn\n' +
 		'- Understory layer\n' +
 		'  - Ferns and saplings compete for light\n' +
+		'\n' +
 		'Detail captured at every depth.\n'
 };

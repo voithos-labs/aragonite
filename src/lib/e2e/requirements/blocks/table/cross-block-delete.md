@@ -18,6 +18,12 @@ table endpoints as cell coordinates.
 - Case 2 (cell mid-table → paragraph below): drag from a body cell into the paragraph below, Backspace.
   The anchor cell's entire row (and every row below it) is cleared/removed; head of the paragraph
   below dropped. Surviving table + surviving paragraph remain adjacent.
+- Case 2 into a NESTED prose end (cell mid-table → paragraph inside a blockquote): drag from a body
+  cell into a quoted paragraph, Delete. The nested endpoint (path length 2) routes through the
+  cross-container commit that mutates the live document, so the reparsed tail must be re-read through
+  the tree rather than matched by node identity — otherwise the survivor-path lookup throws. Post-
+  state: the table truncates to its surviving header, the blockquote keeps its tail as its own block
+  (no merge), no page/editor error fires, the document round-trips, and a single Ctrl+Z restores it.
 - Case 3 (full-table span: paragraph above → table → paragraph below): the table is consumed in full,
   the anchor paragraph tail is dropped, the focus paragraph head is dropped, and the two paragraphs
   merge into one block.

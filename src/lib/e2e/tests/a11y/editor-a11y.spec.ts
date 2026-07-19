@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 import { DEFAULT_CONTENT } from '../../test-content';
@@ -15,6 +15,36 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await editor.loadContent(DEFAULT_CONTENT);
 		await editor.waitForRenderFlush();
 		await expectNoNewA11yViolations(page, 'default');
+	});
+
+	test('reading mode has no new violations', async ({ page }) => {
+		// Reading mode is axe-relevant on its own: contenteditable=false + aria-readonly,
+		// markers hidden by CSS, synthesized bullets, and visible-undimmed ordered numbers.
+		await editor.loadContent(DEFAULT_CONTENT);
+		await page.getByTestId('presentation-toggle').click();
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await editor.waitForRenderFlush();
+		await expectNoNewA11yViolations(page, 'reading-mode');
+	});
+
+	test('preview-block has no new violations', async ({ page }) => {
+		// Live editing with markers hidden by focus-keyed CSS + rendered bullet chrome on
+		// unfocused list items — a distinct DOM/contrast surface from reading and source.
+		await editor.loadContent(DEFAULT_CONTENT);
+		await page.getByTestId('preview-block-toggle').click();
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'preview-block');
+		await editor.waitForRenderFlush();
+		await expectNoNewA11yViolations(page, 'preview-block');
+	});
+
+	test('preview-inline has no new violations', async ({ page }) => {
+		// Inline-granular: construct markers stamped and hidden until caret proximity —
+		// the stamped attributes and the folded/revealed spans get their own axe pass.
+		await editor.loadContent(DEFAULT_CONTENT);
+		await page.getByTestId('preview-inline-toggle').click();
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'preview-inline');
+		await editor.waitForRenderFlush();
+		await expectNoNewA11yViolations(page, 'preview-inline');
 	});
 
 	test('cross-block selection announces via live region and has no new violations', async ({

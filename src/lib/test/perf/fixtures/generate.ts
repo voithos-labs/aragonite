@@ -47,6 +47,71 @@ export function generateUniformBlocks(
 	return out.join('\n\n') + '\n';
 }
 
+/**
+ * One deep container spine of `depth` alternating blockquote/list levels, where
+ * EVERY level carries `bytesPerLevel` of sibling content beside the descent —
+ * so the outermost container's raw materializes the whole subtree and an
+ * ancestry rebuild pays Σ over levels (write-amplification ≈ depth/2).
+ *
+ * The combined axis the per-axis benches miss: `nested-containers` gives depth
+ * with tiny raws, `singleFlatList` gives breadth at depth 1. Parameterized like
+ * `generateUniformBlocks` (independent depth × bytes) rather than a
+ * `FIXTURE_SHAPES` entry, whose single `targetBytes` knob can express neither
+ * axis and would sweep an unproven shape into the perf gate.
+ *
+ * Built inside-out: each level wraps the deeper content with the serializer's
+ * own prefix transform (blockquote `> `/`>`, list-item `- `/`  `), so the
+ * result round-trips by construction. Odd levels are blockquotes, even levels
+ * lists — a list level parses to a `list` wrapping one `listItem`, so it adds
+ * two containers to the rebuild chain, not one (the chain the ancestry rebuild
+ * actually walks runs ~1.5× the wrap depth). The deepest leaf is a small plain
+ * paragraph — the typeable caret target; {@link deepNestedLeafPath} addresses it.
+ */
+export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 42): string {
+	const rand = mulberry32(seed);
+	const wordsPerLevel = Math.max(1, Math.round(bytesPerLevel / BYTES_PER_WORD));
+	let content = words(rand, 3);
+	for (let level = depth; level >= 1; level--) {
+		const inner = words(rand, wordsPerLevel) + '\n\n' + content;
+		content = level % 2 === 1 ? wrapBlockquote(inner) : wrapListItem(inner);
+	}
+	return content + '\n';
+}
+
+/**
+ * Path to the deepest (typeable) leaf of a `generateDeepNested(depth, …)` doc.
+ * Each level descends to its spine child: a blockquote's is the second child
+ * (after the sibling); a list's lives one hop deeper, inside the lone listItem.
+ */
+export function deepNestedLeafPath(depth: number): number[] {
+	const path = [0];
+	for (let level = 1; level <= depth; level++) {
+		if (level % 2 === 1) path.push(1);
+		else path.push(0, 1);
+	}
+	return path;
+}
+
+// `words()` yields ~6.1 B/token (5.1-char mean corpus word + one separator); the
+// divisor rounds up to 7, so `bytesPerLevel` is a NOMINAL target the fixtures
+// under-fill by ~12% (a true 50 KB/level would cost marginally more — still
+// floor-class, so the shortfall is conservative for the concern-4 verdict).
+const BYTES_PER_WORD = 7;
+
+function wrapBlockquote(inner: string): string {
+	return inner
+		.split('\n')
+		.map((line) => (line === '' ? '>' : '> ' + line))
+		.join('\n');
+}
+
+function wrapListItem(inner: string): string {
+	return inner
+		.split('\n')
+		.map((line, i) => (i === 0 ? '- ' + line : line === '' ? '' : '  ' + line))
+		.join('\n');
+}
+
 function mulberry32(seed: number): () => number {
 	let a = seed >>> 0;
 	return () => {

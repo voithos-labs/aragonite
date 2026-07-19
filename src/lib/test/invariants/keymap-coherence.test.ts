@@ -1,19 +1,49 @@
 import { describe, it, expect } from 'vitest';
 import { checkKeymapCoherence } from '$lib/invariants/registry';
-import '$lib/schema/block-kind-descriptor';
+import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
+import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '$lib/schema/commands';
+import { normalizeChord, isChordWellFormed } from '$lib/schema/keybindings';
+
+const knownCommands = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
+const isKnown = (id: string) => knownCommands.has(id);
+
+const check = (entries: Parameters<typeof checkKeymapCoherence>[0]) =>
+	checkKeymapCoherence(entries, isKnown, normalizeChord, isChordWellFormed);
 
 describe('G1.11 keymap coherence', () => {
 	it('passes over the real registries (the declared keymaps are coherent)', () => {
-		expect(checkKeymapCoherence()).toBeNull();
+		const entries = ALL_BLOCK_KINDS.map((kind) => ({
+			kind,
+			keymap: tryGetBlockKindDescriptor(kind)?.keymap
+		}));
+		expect(check(entries)).toBeNull();
 	});
+
 	it('flags a keymap binding to an unknown command', () => {
-		const v = checkKeymapCoherence([
-			{ kind: 'paragraph', keymap: [{ chord: 'Mod+B', command: 'no.such.command' as never }] }
+		const v = check([
+			{ kind: 'paragraph', keymap: [{ chord: 'Mod+B', command: 'no.such.command' }] }
 		]);
 		expect(v?.code).toBe('keymap-coherence');
 	});
+
+	// Red-first: pre-fix (no well-formedness arm) `Ctrl+W` collapses to a bare `W`
+	// under normalizeChord — a valid, unique, known-command binding — so the check
+	// returned null and every plain `w` keypress would have run the command.
+	it('flags a descriptor chord with an unrecognized modifier (the Ctrl+W trap)', () => {
+		const v = check([{ kind: 'paragraph', keymap: [{ chord: 'Ctrl+W', command: 'block.split' }] }]);
+		expect(v?.code).toBe('keymap-coherence');
+		expect((v?.detail as { issue?: string }).issue).toBe('malformed');
+	});
+
+	it('flags a descriptor chord with an empty key', () => {
+		const v = check([{ kind: 'paragraph', keymap: [{ chord: 'Mod+', command: 'block.split' }] }]);
+		expect(v?.code).toBe('keymap-coherence');
+		expect(v?.detail).toMatchObject({ issue: 'malformed' });
+	});
+
 	it('flags duplicate chords within one kind', () => {
-		const v = checkKeymapCoherence([
+		const v = check([
 			{
 				kind: 'paragraph',
 				keymap: [
@@ -24,19 +54,19 @@ describe('G1.11 keymap coherence', () => {
 		]);
 		expect(v?.code).toBe('keymap-coherence');
 	});
+
 	it('accepts a valid keymap', () => {
 		expect(
-			checkKeymapCoherence([
-				{ kind: 'paragraph', keymap: [{ chord: 'Enter', command: 'block.split' }] }
-			])
+			check([{ kind: 'paragraph', keymap: [{ chord: 'Enter', command: 'block.split' }] }])
 		).toBeNull();
 	});
+
 	// Guards the per-kind chord scoping: the dup check resets per kind, so two
 	// kinds binding the same chord is legal. Would false-positive if the seen-set
-	// were hoisted above the per-kind loop (the exact regression IMPL-3+ exposes).
+	// were hoisted above the per-kind loop.
 	it('allows two different kinds to bind the same chord', () => {
 		expect(
-			checkKeymapCoherence([
+			check([
 				{ kind: 'paragraph', keymap: [{ chord: 'Enter', command: 'block.split' }] },
 				{ kind: 'fencedCode', keymap: [{ chord: 'Enter', command: 'code.newline' }] }
 			])

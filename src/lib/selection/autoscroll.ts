@@ -54,13 +54,18 @@ export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
 			const rect = t.getBoundingClientRect();
 			const dx = dxFor(rect, p.clientX);
 			const dy = dyFor(rect, p.clientY);
+			// Count only motion that actually moved the target: a target already at
+			// its scroll limit ignores the write, and marking it scrolled would spin
+			// the rAF loop while the pointer sits pinned in the edge band.
 			if (dx !== 0) {
+				const before = t.scrollLeft;
 				t.scrollLeft += dx;
-				scrolled = true;
+				if (t.scrollLeft !== before) scrolled = true;
 			}
 			if (dy !== 0) {
+				const before = t.scrollTop;
 				t.scrollTop += dy;
-				scrolled = true;
+				if (t.scrollTop !== before) scrolled = true;
 			}
 		}
 		if (!scrolled) {

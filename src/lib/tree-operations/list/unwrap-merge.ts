@@ -5,7 +5,8 @@
  * absolute indent, and keep ordered-marker sequences intact.
  */
 
-import type { CstNode } from '../../core/nodes';
+import type { CstNode, ListMetadata } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import type { SharingState } from '../sharing';
 import { cloneNode } from '../clone';
@@ -24,7 +25,7 @@ import { pushChild } from '../children';
  * parent list (with matching-type sub-list items prepended and ordered
  * markers renumbered). Input is not mutated.
  */
-export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
+export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}
@@ -78,7 +79,9 @@ export function unwrapFirstItemFromList(list: CstNode): CstNode[] {
 		kind: 'list',
 		leadingTrivia: '',
 		raw: '',
-		metadata: clonedList.metadata ? { ...clonedList.metadata } : { ordered: parentOrdered },
+		metadata: clonedList.metadata
+			? ({ ...clonedList.metadata } as ListMetadata)
+			: { ordered: parentOrdered },
 		children: remainingItems,
 		childIds: freshChildIds(remainingItems),
 		innerPrefix: clonedList.innerPrefix ?? '',
@@ -128,6 +131,7 @@ function relocateRemainingChildren(
 	targetPath: number[],
 	targetItem: CstNode,
 	currentItem: CstNode,
+	lineEnding: string,
 	sharing?: SharingState
 ): void {
 	const remainingChildren = currentItem
@@ -164,7 +168,11 @@ function relocateRemainingChildren(
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
 		} else {
-			child.leadingTrivia = '';
+			// A trailing paragraph absorbed after the target's own paragraph keeps
+			// the blank-line separator, or the two lazy-continue into one on reload
+			// (the separator-ownership rule split and list-exit carry). Other leaves
+			// start fresh and need none.
+			child.leadingTrivia = child.kind === 'paragraph' ? lineEnding : '';
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
 		}
@@ -185,13 +193,18 @@ function relocateRemainingChildren(
  *               (trailing index is the LAST paragraph within the target
  *               listItem — not always 0 for loose items).
  *   offset:     position within the target paragraph, before appended content.
+ *
+ * Returns null when the previous item exposes no text-bearing leaf (its deepest
+ * leaf is opaque — a fenced code block, a collapsed container's chrome). The
+ * caller falls back to a focus move; a null return is not a caller-contract
+ * violation, so it is reported rather than thrown (unlike a bad `currentIndex`).
  */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
 	currentIndex: number,
 	sharing?: SharingState
-): { mergePoint: { targetPath: number[]; offset: number } } {
+): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Reads from list.children are allowed during targeting, but the final
 	// splice MUST land in `children`, not `list.children`. See node-ops.ts
 	// header for the project-wide rule.
@@ -206,11 +219,7 @@ export function mergeListItemIntoPrevious(
 
 	const previousIndex = currentIndex - 1;
 	const targetPath = findDeepestVisibleTextTarget(list, previousIndex);
-	if (!targetPath) {
-		throw new Error(
-			'mergeListItemIntoPrevious: could not find target — previous item has no text-bearing leaf'
-		);
-	}
+	if (!targetPath) return null;
 
 	// Own the deep-leaf spine before any capture — the walk below must see the
 	// owned copies, and the target paragraph's raw is written in place.
@@ -246,7 +255,7 @@ export function mergeListItemIntoPrevious(
 	const lineEnding = (targetParagraph.raw ?? '').endsWith('\r\n') ? '\r\n' : '\n';
 	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
 
-	relocateRemainingChildren(list, targetPath, targetItem, currentItem, sharing);
+	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
 
 	children.splice(currentIndex, 1);
 

@@ -152,6 +152,47 @@ describe('revealChildOrWait', () => {
 			// entered the mount-wait loop (which only this never-firing registry could wake).
 		});
 
+		it('degrades when an in-window target never publishes (failed-render boundary)', async () => {
+			const i = freshIndex();
+			// The child IS mounted (in-window) but renders its failed boundary, so
+			// bind:this never assigns and no same-index mount will ever fire. The
+			// reveal must return so the caller degrades, not park forever.
+			const revealChild = vi.fn(async () => {
+				await Promise.resolve();
+			});
+
+			const call = revealChildOrWait(i, {
+				childCount: i + 1,
+				getRef: () => undefined,
+				revealChild,
+				isInWindow: () => true
+			});
+
+			expect(await settlesWithin(call)).toBe(true);
+			expect(revealChild).toHaveBeenCalledWith(i);
+		});
+
+		it('degrades when a non-windowing target never mounts and no wake ever fires', async () => {
+			const i = freshIndex();
+			// A non-windowing caller (isInWindow omitted) whose target never publishes —
+			// a failed-render boundary leaves bind:this unset — AND whose shared registry
+			// is never woken (no foreign-scope mount). The open-ended event wait would hang
+			// forever; the tick-bounded loop degrades. A larger settle budget than the
+			// default accommodates the full re-wait cap of tick-length waits.
+			const revealChild = vi.fn(async () => {
+				await Promise.resolve();
+			});
+
+			const call = revealChildOrWait(i, {
+				childCount: i + 1,
+				getRef: () => undefined,
+				revealChild
+			});
+
+			expect(await settlesWithin(call, 300)).toBe(true);
+			expect(revealChild).toHaveBeenCalledWith(i);
+		});
+
 		it('still terminates under a storm of spurious same-index wakes (re-wait cap)', async () => {
 			const i = freshIndex();
 			// Membership is unknown to this scope (isInWindow omitted), so the call enters

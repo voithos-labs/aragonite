@@ -16,6 +16,7 @@ import {
 	outdent,
 	outdentEmptyItem,
 	reorder,
+	reorderInContainer,
 	softEnter,
 	startQuote,
 	toggleTask,
@@ -23,20 +24,60 @@ import {
 } from './gestures/structure';
 import { insertImage, resizeImage } from './gestures/image';
 import {
+	backspaceRevealEditInlineMath,
+	deleteAroundInlineMath,
+	deleteInlineMathWidget,
+	editBlockMath,
+	editInlineMath,
+	insertBlockMath,
+	insertInlineMath,
+	walkThroughInlineMath
+} from './gestures/math';
+import {
 	deleteColumn,
 	deleteRow,
 	editCell,
 	insertColumnRight,
 	insertRowBelow
 } from './gestures/table';
+import {
+	arrowFocusMermaid,
+	backspaceTwoStepDeleteUndoMermaid,
+	enterBelowUndoMermaid
+} from './gestures/mermaid';
+import {
+	pasteGithubAlert,
+	publishDocStats,
+	setCalloutKind,
+	toggleCollapse
+} from './gestures/plugin';
+import {
+	editContainerBody,
+	editLeafInfo,
+	insertLeafDirective,
+	insertTextDirective,
+	leafBackspaceAtStart,
+	revealEditTextDirective
+} from './gestures/directive';
 import { lateCorrection } from './gestures/correction';
+import { flipPresentationMode } from './gestures/presentation';
+import {
+	cutSelection,
+	deleteSelection,
+	extendSelectionAcross,
+	pasteOverSelection,
+	selectWholeDocument,
+	shiftClickAcross,
+	typeOverSelection
+} from './gestures/cross-block';
+import { mergeBackspaceAtStart } from './gestures/merge';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
  * keyboard/mouse action, then either predicts (printable typing) or resyncs
  * the tracker (auto-behavior), and settles on an observable state predicate —
- * never a bare sleep. Phase 1 ships the subset the smoke needs; later batches
- * add new methods against this frozen surface without changing signatures.
+ * never a bare sleep. The surface is frozen: new gestures arrive as new methods,
+ * existing signatures don't change, so a note fixture never has to be rewritten.
  */
 export interface GestureOpts {
 	typoRate?: number;
@@ -92,12 +133,12 @@ export class Gestures {
 
 	/**
 	 * Real pointer click into a top-level block to reposition the caret, then
-	 * assert the focus block landed where intended (CRITICAL-2: a wrong-block
-	 * landing must never be silently recorded as truth). The caret offset is
-	 * accepted for the frozen signature but the click lands at the block's
-	 * natural hit point — the block path is the load-bearing assertion; the
-	 * offset resyncs to whatever the click produced. Offset-precise clicks into
-	 * nested blocks arrive with a Phase-2 gesture built on a public point API.
+	 * assert the focus block landed where intended — a wrong-block landing must
+	 * never be silently recorded as truth. The caret offset is accepted for the
+	 * frozen signature but the click lands at the block's natural hit point: the
+	 * block path is the load-bearing assertion; the offset resyncs to whatever the
+	 * click produced. Gestures needing an offset-precise or nested click go through
+	 * `editor.clickBlockAtPath` instead.
 	 */
 	async clickToReposition(targetBlockPath: number[], _offset: number): Promise<void> {
 		const { editor, tracker } = this.ctx;
@@ -184,6 +225,15 @@ export class Gestures {
 	}
 
 	/**
+	 * Attempt a reorder on a body leaf inside a plugin (opaque) container. The
+	 * boundary declines, so it is a byte-exact no-op; a regression to the teleport
+	 * changes the source and the gesture throws.
+	 */
+	reorderInContainer(bodyPath: number[]): Promise<void> {
+		return reorderInContainer(this.ctx, bodyPath);
+	}
+
+	/**
 	 * Lift the empty item just created by `pressEnter` back out one level — the mirror
 	 * of `indentEmptyItem`, used to return to a shallower branch after typing a deeper
 	 * one. Settles on the focused item's path shortening; the next `typeFreshItem`
@@ -221,6 +271,63 @@ export class Gestures {
 		return resizeImage(this.ctx, direction, steps);
 	}
 
+	// ── Math (LaTeX extension, plugins route) ───────────────────────────────────
+	// Insert / reveal-edit-commit / delete inline `$…$` and block `$$…$$` math.
+	// Each gesture gates on the widget↔source swap and resyncs around the reparse.
+
+	insertInlineMath(formula: string): Promise<void> {
+		return insertInlineMath(this.ctx, formula);
+	}
+
+	insertBlockMath(formula: string, blurBlockIndex: number): Promise<void> {
+		return insertBlockMath(this.ctx, formula, blurBlockIndex);
+	}
+
+	editInlineMath(text: string): Promise<void> {
+		return editInlineMath(this.ctx, text);
+	}
+
+	editBlockMath(text: string, blurBlockIndex: number): Promise<void> {
+		return editBlockMath(this.ctx, text, blurBlockIndex);
+	}
+
+	deleteAroundInlineMath(blockIndex: number): Promise<void> {
+		return deleteAroundInlineMath(this.ctx, blockIndex);
+	}
+
+	deleteInlineMathWidget(blockIndex: number): Promise<void> {
+		return deleteInlineMathWidget(this.ctx, blockIndex);
+	}
+
+	/** Arrow-enter a block-final inline widget, walk through the revealed source and
+	 *  out its leading edge, fold — a byte-identical caret-entry-reveal round trip. */
+	walkThroughInlineMath(blockIndex: number): Promise<void> {
+		return walkThroughInlineMath(this.ctx, blockIndex);
+	}
+
+	/** Backspace-enter a block-final inline widget, insert inside the formula, and
+	 *  commit by escaping the trailing edge — the caret-escape reveal-commit path. */
+	backspaceRevealEditInlineMath(blockIndex: number, insert: string): Promise<void> {
+		return backspaceRevealEditInlineMath(this.ctx, blockIndex, insert);
+	}
+
+	// ── Mermaid (whole-block focus, plugins route) ──────────────────────────────
+	// ArrowUp-stop, Enter-below, and the Backspace-from-below two-step delete on an
+	// opaque childless diagram. Each gates on a focus/structural signal and resyncs;
+	// the delete and Enter detours net to identity via undo.
+
+	arrowFocusMermaid(belowIndex: number): Promise<void> {
+		return arrowFocusMermaid(this.ctx, belowIndex);
+	}
+
+	enterBelowUndoMermaid(): Promise<void> {
+		return enterBelowUndoMermaid(this.ctx);
+	}
+
+	backspaceTwoStepDeleteUndoMermaid(belowIndex: number): Promise<void> {
+		return backspaceTwoStepDeleteUndoMermaid(this.ctx, belowIndex);
+	}
+
 	// ── Table ─────────────────────────────────────────────────────────────────
 	// Real cell-click + keyboard row/column ops. Each resyncs around the table's
 	// canonical cell auto-padding. Cells are addressed by row-major rendered
@@ -248,6 +355,116 @@ export class Gestures {
 		return deleteRow(this.ctx, cellIndex);
 	}
 
+	// ── Plugin containers ───────────────────────────────────────────────────────
+	// Real click on a `<details>` collapse toggle. Resyncs around the opener-byte
+	// rewrite and body mount/unmount (auto-behavior). Only reachable on the plugins
+	// route, over a loaded document holding a details container.
+
+	toggleCollapse(): Promise<void> {
+		return toggleCollapse(this.ctx);
+	}
+
+	// Real minted-command chord (Mod+7/Mod+8) that bubbles from a callout leaf to
+	// the container handler and commits the new type. Resyncs around the opener-byte
+	// rewrite. Only reachable over a loaded document holding a `:::note` callout.
+	setCalloutKind(): Promise<void> {
+		return setCalloutKind(this.ctx);
+	}
+
+	// Real GitHub-alert paste (Mod+V) the admonitions pre-parse transform rewrites
+	// to a :::tip admonition. Resyncs around the transform + reparse.
+	pasteGithubAlert(): Promise<void> {
+		return pasteGithubAlert(this.ctx);
+	}
+
+	// Real global-command chord (Mod+Shift+S) for the doc-stats plugin. A read-only
+	// command: it republishes `window.__docStats` from the per-instance context and
+	// commits nothing, so the caller nets it to identity. Only reachable where the
+	// doc-stats plugin is installed (the plugins route).
+	publishDocStats(): Promise<void> {
+		return publishDocStats(this.ctx);
+	}
+
+	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────
+	// Insert / edit / reveal-commit across the container, leaf, and text tiers. Each
+	// gates on the promotion or widget swap the editor performs and resyncs around
+	// the reparse — container inserts arrive by paste (a multi-line fence never forms
+	// from live single-block typing), so they compose the selection/clipboard gestures.
+
+	insertTextDirective(name: string, label: string): Promise<void> {
+		return insertTextDirective(this.ctx, name, label);
+	}
+
+	revealEditTextDirective(stepIn: number, text: string, blurBlockIndex: number): Promise<void> {
+		return revealEditTextDirective(this.ctx, stepIn, text, blurBlockIndex);
+	}
+
+	insertLeafDirective(name: string, info: string): Promise<void> {
+		return insertLeafDirective(this.ctx, name, info);
+	}
+
+	editLeafInfo(leafIndex: number, text: string): Promise<void> {
+		return editLeafInfo(this.ctx, leafIndex, text);
+	}
+
+	leafBackspaceAtStart(leafIndex: number): Promise<void> {
+		return leafBackspaceAtStart(this.ctx, leafIndex);
+	}
+
+	editContainerBody(bodyPath: number[], text: string): Promise<void> {
+		return editContainerBody(this.ctx, bodyPath, text);
+	}
+
+	// ── Cross-block selection + destruction ──────────────────────────────────────
+	// Build a real cross-block range (Shift+Arrow / Shift+Click / double select-all)
+	// then destroy over it (Backspace/Delete, Cut, type-over, paste-over). Builds
+	// fail loud if the range never engaged; destroys settle on the collapse, run the
+	// structural oracle sweep on the merged tree, and resync. The caller nets them to
+	// identity with a trailing undo — cross-block destruction is byte-reversible.
+
+	/** Extend the selection past the block boundary below/above the caret with Shift+Arrow. */
+	extendSelectionAcross(dir: 'down' | 'up', maxSteps?: number): Promise<void> {
+		return extendSelectionAcross(this.ctx, dir, maxSteps);
+	}
+
+	shiftClickAcross(targetPath: number[], offset: number): Promise<void> {
+		return shiftClickAcross(this.ctx, targetPath, offset);
+	}
+
+	/** Double Ctrl+A: select the caret's block, then escalate to the whole document. */
+	selectWholeDocument(): Promise<void> {
+		return selectWholeDocument(this.ctx);
+	}
+
+	deleteSelection(key: 'Backspace' | 'Delete'): Promise<void> {
+		return deleteSelection(this.ctx, key);
+	}
+
+	cutSelection(): Promise<void> {
+		return cutSelection(this.ctx);
+	}
+
+	typeOverSelection(text: string): Promise<void> {
+		return typeOverSelection(this.ctx, text);
+	}
+
+	pasteOverSelection(): Promise<void> {
+		return pasteOverSelection(this.ctx);
+	}
+
+	// ── Block merge ───────────────────────────────────────────────────────────────
+
+	/**
+	 * Backspace at the start of the block at `targetPath` — merges it into its
+	 * predecessor (para→para, heading absorb, container deepest leaf) or delegates to
+	 * the container-exit unwrap (list U1, blockquote U2). Fails loud on a no-op (the
+	 * document's first block has no predecessor); runs the structural oracle sweep and
+	 * resyncs. The caller nets it to identity with a trailing undo.
+	 */
+	mergeBackspaceAtStart(targetPath: number[]): Promise<void> {
+		return mergeBackspaceAtStart(this.ctx, targetPath);
+	}
+
 	// ── History ───────────────────────────────────────────────────────────────
 
 	/**
@@ -269,6 +486,18 @@ export class Gestures {
 	async redo(): Promise<void> {
 		await this.ctx.editor.redo();
 		this.ctx.tracker.resync(await this.ctx.editor.bridge.getSource());
+	}
+
+	// ── Presentation ────────────────────────────────────────────────────────────
+
+	/**
+	 * Flip the presentation mode to `mode` and back to source mid-session, asserting
+	 * the note round-trips byte-identical across the flip. A mode flip is auto-behavior
+	 * (reading commits/inerts, preview re-renders), so it settles on the mode attribute
+	 * and resyncs — the byte-stability oracle the loaded-ops battery otherwise never sees.
+	 */
+	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
+		return flipPresentationMode(this.ctx, mode);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────────

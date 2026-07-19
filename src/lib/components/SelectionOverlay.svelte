@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { SELECTION_END, type BlockComponent } from '../block-component';
-	import { DOC_KEY, EDITOR_ROOT_KEY, SELECTION_KEY, type DocumentGetter } from '../editor-keys';
-	import type { SelectionState } from '../selection/selection-state.svelte';
+	import {
+		EDITOR_DOC_KEY,
+		EDITOR_SERVICES_KEY,
+		type EditorDoc,
+		type EditorServices
+	} from '../editor-keys';
 	import {
 		normalize,
 		classifyBlockForSelection,
+		charOffsetOf,
+		cellIndexOf,
 		type BlockSelectionClass
 	} from '../selection/primitives';
 	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
@@ -15,25 +21,29 @@
 		path,
 		blockRef,
 		blockEl,
-		isContainer = false
+		isContainer = false,
+		hasChildHosts = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
 		/** Container blocks skip overlays — their children paint their own. */
 		isContainer?: boolean;
+		/** False for a childless container (render-primary plugin block): no child
+		 *  block-hosts exist to paint, so this block takes the full-block overlay
+		 *  itself, like a non-text leaf. */
+		hasChildHosts?: boolean;
 	} = $props();
 
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getDoc = getContext<DocumentGetter | undefined>(DOC_KEY);
+	const { selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { editorRoot: getEditorRoot, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 
 	// Containers that supply their own measurePartialRects (table) paint cell
 	// rects from this overlay; their children don't render BlockHost wrappers.
 	const containerPaintsRects = $derived(isContainer && !!blockRef?.measurePartialRects);
 
 	const classification = $derived.by<BlockSelectionClass>(() => {
-		if (isContainer && !containerPaintsRects) return 'outside';
+		if (isContainer && !containerPaintsRects && hasChildHosts) return 'outside';
 		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}
@@ -101,16 +111,22 @@
 			const { start, end } = doc
 				? snapCrossBlockTableEndpoints(doc, normalized.start, normalized.end)
 				: normalized;
-			const startOffset = classification === 'end' ? 0 : start.offset;
-			// measurePartialRects paints [start, end) exclusive. A snapped table end
-			// is the inclusive last cell of its row; +1 paints the whole row, matching
-			// what copy/delete capture.
+			const startOffset =
+				classification === 'end'
+					? 0
+					: start.cellCoordinate
+						? cellIndexOf(start, 'SelectionOverlay:start')
+						: charOffsetOf(start, 'SelectionOverlay:start');
+			// measurePartialRects paints [start, end) exclusive. The +1 that turns a
+			// snapped table end (inclusive last cell of its row) into an exclusive
+			// whole-row bound lives in the cell branch only; the char branch carries a
+			// raw offset. Both decay to number at the public door.
 			const endOffset =
 				classification === 'start'
 					? SELECTION_END
 					: end.cellCoordinate
-						? end.offset + 1
-						: end.offset;
+						? cellIndexOf(end, 'SelectionOverlay:end') + 1
+						: charOffsetOf(end, 'SelectionOverlay:end');
 			const viewportRects: DOMRect[] = ref.measurePartialRects(startOffset, endOffset);
 			const blockRect = el.getBoundingClientRect();
 			endpointRects = mergeRectsPerLine(
@@ -131,7 +147,7 @@
 {#if classification === 'middle'}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
 {:else if classification === 'start' || classification === 'end' || (classification === 'single-block' && containerPaintsRects)}
-	{#each endpointRects as rect}
+	{#each endpointRects as rect, i (i)}
 		<div
 			class="selection-overlay selection-overlay-endpoint"
 			contenteditable="false"

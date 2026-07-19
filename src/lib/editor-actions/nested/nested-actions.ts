@@ -13,7 +13,8 @@ import type {
 	FocusActions,
 	ListContext
 } from '../../action-contracts';
-import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
+import type { GrammarView } from '../../schema/block-openers';
 import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../invariants/assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
@@ -21,7 +22,6 @@ import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
-import { createNestedContainerEdit } from './nested-container-edit';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -31,11 +31,15 @@ export interface NestedActionsBundle {
 
 export interface NestedActionsDeps {
 	index: number;
-	node: CstNode;
+	node: NodeView;
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** Enclosing list's context, when this container is a list nested in one — consumed by the list-item-cascade unwrap strategy. */
+	/** The instance's block grammar, threaded to this
+	 *  container's content-commit reparse so a disabled kind's opener stays skipped when a
+	 *  nested block re-parses — parity with the top-level factory. Absent = the global grammar. */
+	grammar?: GrammarView;
+	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {
 		blockEdit: BlockEditActions;
@@ -65,7 +69,10 @@ export function createStandardNestedActions(
 	// snapshots after a parent structural op or undo/redo replacement.
 	const blockEdit = createNestedBlockEdit(state, deps);
 	const focus = createNestedFocus(state, deps);
-	const containerEdit = createNestedContainerEdit(deps);
+	// Commit coordinates are doc-absolute at their mint point (block-edit-scope
+	// factories / context callers), so intermediate containers have nothing to
+	// remap — the parent's containerEdit passes through every level unchanged.
+	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
 	if (!overrideFactory) return defaults;

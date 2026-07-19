@@ -5,18 +5,24 @@
  * save/restore that touches $state; this factory owns the imperative build.
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { InlineNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
+import { createSvelteWidgetPool } from '../widget-portal';
 
 export interface CellRenderDeps {
 	get el(): HTMLElement | null;
-	get node(): CstNode;
+	get node(): NodeView;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	resolveLinkUrl: ResolveLinkUrl;
+	/** A widget component's synchronous mount throw is routed here — the editor's
+	 *  `error` channel, matching BlockHost's render-boundary origin. Absent → errors
+	 *  are not surfaced (the widget still falls back to its raw source). */
+	reportRenderError?: (error: unknown) => void;
 }
 
 export interface CellRender {
@@ -27,10 +33,17 @@ export interface CellRender {
 	 * DOM positions re-anchored even though the key didn't change.
 	 */
 	render(opts?: { forceRebuild?: boolean }): void;
+	/** Destroy every pooled widget instance — called when the cell unmounts. */
+	dispose(): void;
 }
 
 export function createCellRender(deps: CellRenderDeps): CellRender {
 	let lastRenderedKey = '';
+	const widgetPool = createSvelteWidgetPool(deps.reportRenderError);
+
+	function buildPortalWidget(node: InlineNode, raw: string): HTMLElement | null {
+		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
+	}
 
 	function render(opts?: { forceRebuild?: boolean }): void {
 		const el = deps.el;
@@ -49,12 +62,17 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 
 		const content = computeInlineContent(node, hasRef ? deps.linkRef?.current : undefined);
+		// Bracket the rebuild so portal widgets in the cell are pooled — an unchanged
+		// `$…$` keeps its mounted instance across the cell's per-keystroke rebuild.
+		widgetPool.beginPass();
 		el.replaceChildren(
 			renderInlineNodes(content, node.raw, {
 				renderImagesAsWidgets: getBlockKindDescriptor(node.kind).renderImagesAsWidgets ?? true,
-				resolveLinkUrl: deps.resolveLinkUrl
+				resolveLinkUrl: deps.resolveLinkUrl,
+				buildPortalWidget
 			})
 		);
+		widgetPool.sweep();
 		lastRenderedKey = renderKey;
 
 		if (trimTrailingLineEnding(node.raw) === '' && !el.querySelector('br')) {
@@ -62,5 +80,5 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		}
 	}
 
-	return { render };
+	return { render, dispose: () => widgetPool.dispose() };
 }

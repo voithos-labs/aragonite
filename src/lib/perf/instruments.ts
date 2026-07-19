@@ -6,7 +6,7 @@
  * non-profiling dev runs pay one boolean check per record call. Internal —
  * never exported from the editor barrel.
  */
-import type { Document } from '../core/nodes';
+import type { DocumentView } from '../core/node-views';
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
@@ -25,6 +25,9 @@ export interface PerfSnapshot {
 	keystrokeInPageMs: number[];
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
+	decorationRuns: number;
+	islandRebuilds: number;
+	islandKeyScans: number;
 }
 
 let enabled = false;
@@ -46,7 +49,10 @@ function emptySnapshot(): PerfSnapshot {
 		blockRenderMsTotal: 0,
 		keystrokeInPageMs: [],
 		blockRenderPaths: [],
-		mountedBlockCount: 0
+		mountedBlockCount: 0,
+		decorationRuns: 0,
+		islandRebuilds: 0,
+		islandKeyScans: 0
 	};
 }
 
@@ -118,6 +124,26 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
+// One decoration source's provide() ran once. notifyEdit runs every source, so a
+// typing pass records edits × sources — the ceiling that catches a per-block cascade.
+export function recordDecorationRun(): void {
+	if (!enabled) return;
+	counters.decorationRuns++;
+}
+
+// The prose render path tore down and rebuilt an island-bearing block's islands.
+export function recordIslandRebuild(): void {
+	if (!enabled) return;
+	counters.islandRebuilds++;
+}
+
+// The island key handler walked a text block's DOM for islands (one querySelectorAll
+// per destructive/printable keystroke, even when the block holds none).
+export function recordIslandKeyScan(): void {
+	if (!enabled) return;
+	counters.islandKeyScans++;
+}
+
 export function incMountedBlocks(): void {
 	if (!enabled) return;
 	counters.mountedBlockCount++;
@@ -144,7 +170,7 @@ export function markKeystrokeSettle(): void {
  * is prefix + Σ(leadingTrivia + raw) + suffix. Counts UTF-16 code units —
  * exact vs `serialize().length`, approximate vs on-disk bytes for non-ASCII.
  */
-export function docByteLength(doc: Document): number {
+export function docByteLength(doc: DocumentView): number {
 	let length = doc.prefix.length + doc.suffix.length;
 	for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
 	return length;

@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 import { expectBody, focusCodeBlockAtEnd } from './helpers';
 

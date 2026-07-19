@@ -14,6 +14,7 @@ describe('rebuildBlockquoteRaw', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { quoteDepth: 1 },
 			innerPrefix: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' }],
 			innerSuffix: ''
@@ -27,6 +28,7 @@ describe('rebuildBlockquoteRaw', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { quoteDepth: 1 },
 			innerPrefix: '',
 			children: [
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' },
@@ -43,6 +45,7 @@ describe('rebuildBlockquoteRaw', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { quoteDepth: 1 },
 			innerPrefix: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }],
 			innerSuffix: ''
@@ -56,6 +59,7 @@ describe('rebuildBlockquoteRaw', () => {
 			kind: 'blockquote',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { quoteDepth: 1 },
 			innerPrefix: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
 			innerSuffix: ''
@@ -71,7 +75,7 @@ describe('rebuildListItemRaw', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Item text\n' }],
 			innerSuffix: ''
@@ -85,7 +89,7 @@ describe('rebuildListItemRaw', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }],
 			innerSuffix: ''
@@ -99,7 +103,7 @@ describe('rebuildListItemRaw', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
-			metadata: { marker: '1. ', taskItem: false, taskChecked: false },
+			metadata: { marker: '1. ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'First\n' }],
 			innerSuffix: ''
@@ -113,7 +117,7 @@ describe('rebuildListItemRaw', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'Para 1\n' },
@@ -132,7 +136,7 @@ describe('rebuildListRaw', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '- A\n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [],
 			innerSuffix: ''
@@ -141,7 +145,7 @@ describe('rebuildListRaw', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '- B\n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [],
 			innerSuffix: ''
@@ -166,7 +170,7 @@ describe('rebuildListItemRaw: nested content', () => {
 			kind: 'listItem',
 			leadingTrivia: '',
 			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false },
+			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 			innerPrefix: '',
 			children: [
 				{ kind: 'paragraph', leadingTrivia: '', raw: 'Item\n' },

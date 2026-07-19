@@ -79,6 +79,7 @@ export const MEETING_MINUTES_NOTE: NoteFixture = {
 		'- Dana (facilitator)\n' +
 		'- Lee (notes)\n' +
 		'- Priya (eng)\n' +
+		'\n' +
 		'## Decision\n' +
 		'> Ship the editor beta behind a flag this week.\n' +
 		'\n' +
@@ -86,9 +87,11 @@ export const MEETING_MINUTES_NOTE: NoteFixture = {
 		'1. Review last sprint\n' +
 		'2. Triage the bug backlog\n' +
 		'3. Plan the beta rollout\n' +
+		'\n' +
 		'## Action items\n' +
 		'- [ ] Dana drafts the rollout note\n' +
 		'  - [ ] Circulate for review by Thursday\n' +
 		'- [ ] Priya wires the feature flag\n' +
+		'\n' +
 		'Notes archived after the sync.\n'
 };

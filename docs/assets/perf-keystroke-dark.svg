@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="412" viewBox="0 0 880 412" role="img" aria-label="Keystroke p50 latency across nine fixture shapes from 100 kilobytes to 10 megabytes. Eight shapes stay in a flat band of a few milliseconds at every size. A single giant paragraph rises to above a second at 10 megabytes.">
+<rect width="880" height="412" fill="#1a1a19"/>
+<text x="24" y="34" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#ffffff" text-anchor="start">Keystroke latency (p50) vs document size</text>
+<text x="24" y="54" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">typing cost stays flat as the document grows, except inside one giant block</text>
+<circle cx="28" cy="73" r="4" fill="#3987e5"/>
+<text x="37" y="77" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">8 other fixture shapes</text>
+<circle cx="201.2" cy="73" r="4" fill="#d95926"/>
+<text x="210.2" y="77" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">single giant paragraph</text>
+<line x1="64" y1="356" x2="620" y2="356" stroke="#2c2c2a" stroke-width="1"/>
+<text x="56" y="360" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="end" style="font-variant-numeric:tabular-nums">1.0 ms</text>
+<line x1="64" y1="281.225500937855" x2="620" y2="281.225500937855" stroke="#2c2c2a" stroke-width="1"/>
+<text x="56" y="285.225500937855" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="end" style="font-variant-numeric:tabular-nums">10 ms</text>
+<line x1="64" y1="206.45100187570992" x2="620" y2="206.45100187570992" stroke="#2c2c2a" stroke-width="1"/>
+<text x="56" y="210.45100187570992" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="end" style="font-variant-numeric:tabular-nums">100 ms</text>
+<line x1="64" y1="131.6765028135649" x2="620" y2="131.6765028135649" stroke="#2c2c2a" stroke-width="1"/>
+<text x="56" y="135.6765028135649" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="end" style="font-variant-numeric:tabular-nums">1.0 s</text>
+<line x1="64" y1="356" x2="620" y2="356" stroke="#383835" stroke-width="1"/>
+<line x1="100" y1="356" x2="100" y2="361" stroke="#383835" stroke-width="1"/>
+<text x="100" y="378" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="middle">100 KB</text>
+<line x1="342" y1="356" x2="342" y2="361" stroke="#383835" stroke-width="1"/>
+<text x="342" y="378" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="middle">1 MB</text>
+<line x1="584" y1="356" x2="584" y2="361" stroke="#383835" stroke-width="1"/>
+<text x="584" y="378" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="middle">10 MB</text>
+<text x="342" y="398" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="middle">document size (log-spaced) · vertical axis is log scale</text>
+<polygon points="100,314.40275917810754 342,310.9812657430922 584,307.8861484455489 584,326.2442351947627 342,324.97057578134087 100,324.97057578134087" fill="#3987e5" opacity="0.16"/>
+<polyline points="100,321.9892034418722 342,322.5639822047706 584,315.3175845279872" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="321.9892034418722" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="342" cy="322.5639822047706" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="584" cy="315.3175845279872" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<polyline points="100,269.38402492119974 342,201.24160482853236 584,126.16973142691006" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="269.38402492119974" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="100" y="257.38402492119974" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">14 ms</text>
+<circle cx="342" cy="201.24160482853236" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="342" y="189.24160482853236" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">117 ms</text>
+<circle cx="584" cy="126.16973142691006" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="584" y="114.16973142691006" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">1.2 s</text>
+<circle cx="636" cy="122.16973142691006" r="4" fill="#d95926"/>
+<text x="646" y="126.16973142691006" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">single giant paragraph</text>
+<text x="646" y="142.16973142691006" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">the whole file as one block,</text>
+<text x="646" y="158.16973142691006" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">the recorded exception</text>
+<circle cx="636" cy="311.3175845279872" r="4" fill="#3987e5"/>
+<text x="646" y="315.3175845279872" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">8 other fixture shapes</text>
+<text x="646" y="331.3175845279872" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">band and median, 2.5 ms</text>
+<text x="646" y="347.3175845279872" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">to 4.4 ms at every size</text>
+</svg>

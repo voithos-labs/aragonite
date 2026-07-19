@@ -72,4 +72,48 @@ describe('getInlineContent', () => {
 		const unforwarded = getInlineContent(fresh, undefined, '');
 		expect(unforwarded.some((n) => n.kind === 'link')).toBe(false);
 	});
+
+	// The plain (sig-'') and resolved (real-signature) callers hold separate
+	// slots, so interleaving them on a bracket-bearing block no longer evicts —
+	// each side stays a stable cache hit.
+	it('does not evict across interleaved plain and resolved reads on a bracket block', () => {
+		const doc = parse('see [a][x]\n\n[x]: https://example.com\n');
+		const node = doc.children[0];
+		const map = buildLinkReferenceMap(doc.children);
+
+		const a1 = getInlineContent(node);
+		const b1 = getInlineContent(node, map.resolve, map.signature);
+		const a2 = getInlineContent(node);
+		const b2 = getInlineContent(node, map.resolve, map.signature);
+
+		expect(a2).toBe(a1);
+		expect(b2).toBe(b1);
+	});
+
+	it('recomputes both slots after a raw change', () => {
+		const doc = parse('see [a][x]\n\n[x]: https://example.com\n');
+		const node = doc.children[0];
+		const map = buildLinkReferenceMap(doc.children);
+
+		const plainBefore = getInlineContent(node);
+		const resolvedBefore = getInlineContent(node, map.resolve, map.signature);
+
+		node.raw = 'now [a][x] moved\n';
+
+		expect(getInlineContent(node)).not.toBe(plainBefore);
+		expect(getInlineContent(node, map.resolve, map.signature)).not.toBe(resolvedBefore);
+	});
+
+	it('recomputes only the resolved slot when the signature changes', () => {
+		const doc = parse('see [a][x]\n\n[x]: https://example.com\n');
+		const node = doc.children[0];
+		const map = buildLinkReferenceMap(doc.children);
+
+		const plainRead = getInlineContent(node);
+		const resolvedRead = getInlineContent(node, map.resolve, map.signature);
+
+		const rebumped = getInlineContent(node, map.resolve, `${map.signature}|y<:>u<:>`);
+		expect(rebumped).not.toBe(resolvedRead);
+		expect(getInlineContent(node)).toBe(plainRead);
+	});
 });

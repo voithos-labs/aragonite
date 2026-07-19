@@ -10,17 +10,15 @@
  * as not-transparent, so an unparsed block degrades to "land on it".
  */
 
-import type { CstNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import { getInlineContent } from './inline-cache';
 import { isInlineWidget } from './inline-widgets';
 
-export function isVerticallyTransparentNode(node: CstNode | null | undefined): boolean {
+export function isVerticallyTransparentNode(node: NodeView | null | undefined): boolean {
 	if (!node) return false;
-	// Table kinds are never transparent: a cell is a grid-column landing (images
-	// render as alt-text there, not skippable widgets), and no table component
-	// exposed the old per-component gate. Without this, children-recursion plus a
-	// table cell's inline cache would skip an image-only cell — a divergence from
-	// the pre-VR-6 behavior the rest of this predicate faithfully preserves.
+	// Table kinds are never transparent: a cell is a grid-column landing, and images
+	// render there as alt text, not as skippable widgets. Without this gate the
+	// children-recursion below would skip an image-only cell (VR-6).
 	if (node.kind === 'table' || node.kind === 'tableRow' || node.kind === 'tableCell') return false;
 	if (node.children) {
 		// An empty container carries a caret position; `[].every() === true` would
@@ -28,12 +26,10 @@ export function isVerticallyTransparentNode(node: CstNode | null | undefined): b
 		if (node.children.length === 0) return false;
 		return node.children.every(isVerticallyTransparentNode);
 	}
-	// No resolver: transparency is the vertical-skip decision and stays LRD-free
-	// so the path-walkers that call it carry no resolver. Uniform across every
-	// vertical path now (the component delegates here too): a rare reference-
-	// style-image-only paragraph isn't auto-skipped on any vertical path; direct
-	// `![](url)` images are unaffected, and in-block cursor handling stays
-	// resolver-correct via the other component readers.
+	// No resolver: transparency stays LRD-free so the path-walkers that call it
+	// carry none either. The cost is that a reference-style-image-only paragraph
+	// reads as opaque and is never skipped — direct `![](url)` images are
+	// unaffected, and in-block cursor handling resolves references elsewhere.
 	const inlines = getInlineContent(node);
 	if (inlines.length === 0) return false;
 	for (const inline of inlines) {

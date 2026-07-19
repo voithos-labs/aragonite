@@ -11,11 +11,12 @@ describe('mergeListItemIntoPrevious — children-array contract', () => {
 		const childrenCopy = list.children!.slice();
 		const originalLength = childrenCopy.length;
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, childrenCopy, 2);
+		const result = mergeListItemIntoPrevious(list, childrenCopy, 2);
+		if (!result) throw new Error('expected a merge target');
 
 		expect(childrenCopy.length).toBe(originalLength - 1);
 
-		expect(mergePoint.targetPath).toEqual([1, 0]);
-		expect(mergePoint.offset).toBe('beta'.length);
+		expect(result.mergePoint.targetPath).toEqual([1, 0]);
+		expect(result.mergePoint.offset).toBe('beta'.length);
 	});
 });

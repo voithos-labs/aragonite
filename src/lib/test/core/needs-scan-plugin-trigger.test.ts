@@ -1,0 +1,64 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import type { InlineNode } from '$lib/core/nodes';
+import { parseInline } from '$lib/core/inline';
+import {
+	__resetInlineSyntaxForTests,
+	registerInlineSyntax,
+	type InlineSyntaxRecognizer
+} from '$lib/core/inline/scan/plugin-syntax';
+
+afterEach(() => __resetInlineSyntaxForTests());
+
+// Minimal single-char triggers claiming `<trigger>…}`. The `{…}` (label-less)
+// form isolates the probe — `{`, `}`, `=` are not SPECIAL chars, so only the
+// trigger can force a scan. A `[label]` form would trip needsScan on the `[`
+// alone and hide a missing probe.
+const recognizer =
+	(trigger: string): InlineSyntaxRecognizer =>
+	(raw, pos, end) => {
+		if (raw[pos] !== trigger) return null;
+		const close = raw.indexOf('}', pos);
+		if (close < 0 || close >= end) return null;
+		return { kind: 'directiveText' as InlineNode['kind'], start: pos, end: close + 1 };
+	};
+const recognizeColon = recognizer(':');
+
+// `:` is a PROBE_SCHEME char (autolink `://`), held out of the unconditional
+// SPECIAL set. The fast-bail must additionally probe a registered `:` trigger or
+// an inline directive would be missed per keystroke — without regressing the
+// empty-registry path the conformance oracle pins.
+describe('needsScan probes a registered ":" trigger', () => {
+	it('empty registry: ":x" stays one byte-identical text node', () => {
+		expect(parseInline(':x', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: ':x' }]);
+	});
+
+	it('registered ":" recognizer is consulted — ":x{k=v}" does not fast-bail to text', () => {
+		registerInlineSyntax(':', recognizeColon);
+		const nodes = parseInline(':x{k=v}', 0, 7);
+		expect(nodes).not.toEqual([{ kind: 'text', start: 0, end: 7, text: ':x{k=v}' }]);
+		expect(nodes.some((n) => n.kind === 'directiveText')).toBe(true);
+	});
+});
+
+// `w`/`W` are PROBE_WWW chars (autolink `www.`), the `:` arm's sibling — the
+// registry probe must be carried at BOTH conditional-probe arms (sibling-path
+// parity), again without regressing the empty-registry path.
+describe('needsScan probes a registered "w" trigger', () => {
+	it('empty registry: "wx" stays one byte-identical text node', () => {
+		expect(parseInline('wx', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: 'wx' }]);
+	});
+
+	it('registered "w" recognizer is consulted — "w{k=v}" does not fast-bail to text', () => {
+		registerInlineSyntax('w', recognizer('w'));
+		const nodes = parseInline('w{k=v}', 0, 6);
+		expect(nodes).not.toEqual([{ kind: 'text', start: 0, end: 6, text: 'w{k=v}' }]);
+		expect(nodes.some((n) => n.kind === 'directiveText')).toBe(true);
+	});
+
+	it('a registered "w" trigger does not shadow the www. autolink probe', () => {
+		registerInlineSyntax('w', recognizer('w'));
+		const raw = 'see www.example.com now';
+		const nodes = parseInline(raw, 0, raw.length);
+		expect(nodes.some((n) => n.kind === 'autolink')).toBe(true);
+	});
+});

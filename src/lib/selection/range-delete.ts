@@ -2,30 +2,46 @@
  * Core range mutation primitive. Mutates the doc in place: truncate start
  * block, truncate end block, delete between, re-parse merged raw, cascade-
  * clean empty ancestors, rebuild ancestor container raws. Caller must
- * pre-normalize the range. See the "start wins" rule in editor design docs.
+ * pre-normalize the range. The "start wins" rule is specified in
+ * `docs/design/editor.md` § Cross-block selection.
  */
 
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
-import { walkBetween, comparePaths, assertCharOffset } from './primitives';
-import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { nodeAt } from '../tree-operations/node-ops';
-import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
+import { walkBetween, charOffsetOf } from './primitives';
+import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
+import { blockNodeAt } from '../tree-operations/node-ops';
+import { replaceAtPath } from '../tree-operations/path-mutate';
+import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
+	ensureUnsharedNode,
 	ensureUnsharedPath,
 	rebuildUnsharedAncestry,
 	rebuildUnsharedChain
 } from '../tree-operations/unshare';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
+import { involvesReservedChrome, chromeAwareRangeDelete } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
+
+/** A whole-row window the table branch spliced out of `table.children`. */
+export interface TableRowSplice {
+	table: CstNode;
+	at: number;
+	count: number;
+}
 
 export interface RangeDeleteResult {
 	newDoc: Document;
 	collapsedCaret: SelectionPoint;
+	/**
+	 * Row splices performed on endpoint tables, reported so the cross-block
+	 * commit can descriptor-sync each table's row BlockListState without
+	 * re-deriving snap math. Set (possibly empty) by the table branch only.
+	 */
+	tableRowSplices?: TableRowSplice[];
 }
 
 /**
@@ -43,27 +59,32 @@ export function rangeDelete(
 	end: SelectionPoint,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startBlock = nodeAt(doc, start.path);
-	const endBlock = nodeAt(doc, end.path);
+	const startBlock = blockNodeAt(doc, start.path);
+	const endBlock = blockNodeAt(doc, end.path);
 	if (!startBlock || !endBlock) {
-		throw new Error('rangeDelete: start or end path does not resolve to a node');
+		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
-	if (involvesTable(startBlock as CstNode, endBlock as CstNode)) {
+	if (involvesTable(startBlock, endBlock)) {
 		return tableAwareRangeDelete(doc, start, end, sharing);
+	}
+	if (involvesReservedChrome(doc, start, end)) {
+		return chromeAwareRangeDelete(doc, start, end, sharing);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
-	const startRaw = (startBlock as CstNode).raw;
-	const endRaw = (endBlock as CstNode).raw;
-	const startOffset = assertCharOffset(start, 'rangeDelete:prose-merge-start');
-	const endOffset = assertCharOffset(end, 'rangeDelete:prose-merge-end');
+	const startRaw = startBlock.raw;
+	const endRaw = endBlock.raw;
+	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
+	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
 	const mergedRaw = startRaw.slice(0, startOffset) + endRaw.slice(endOffset);
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
 		const chain = ensureUnsharedPath(doc, start.path, sharing);
-		const owned = chain[chain.length - 1] ?? (startBlock as CstNode);
+		// start.path resolved above, so the chain reaches the leaf; the fallback
+		// still routes through the unshare seam, never a raw capture.
+		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		owned.raw = mergedRaw;
 		rebuildUnsharedChain(chain, sharing);
 		return {
@@ -95,20 +116,7 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	// Identity-check before splice: a deeper delete + cascade may shift a
-	// survivor into an outer path's slot. Cascade is identity-gated alongside
-	// the delete so we never walk a survivor's ancestors with a stale path.
-	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
-	const reverseSortedIndices = deletionPaths
-		.map((_, i) => i)
-		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
-	for (const i of reverseSortedIndices) {
-		const path = deletionPaths[i];
-		if (nodeAt(doc, path) === targetNodes[i]) {
-			deleteAtPath(doc, path);
-			cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-		}
-	}
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath);
 
 	replaceAtPath(doc, start.path, replacement);
 

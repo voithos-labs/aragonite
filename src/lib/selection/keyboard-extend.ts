@@ -5,20 +5,22 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { Document } from '../core/nodes';
-import { metadataOf } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
 import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
+	applySingleBlockRange,
 	clearNativeSelection,
 	offsetFromViewportPoint
 } from './native-bridge';
+import type { BlockElLookup } from '../editor-keys';
 import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
-import { comparePaths } from './primitives';
+import { nodeAt } from '../tree-operations/node-ops';
+import { comparePaths, isStrictAncestorOf } from './path-math';
+import { cellEndpointDeepPath } from './table-endpoint-snap';
 import { displayLength } from '../core/lines';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
@@ -28,16 +30,17 @@ import { displayLength } from '../core/lines';
  * block). Captures the native caret as both anchor and focus; the caller
  * immediately extendFocus()es to the actual target.
  */
-export function enterCrossBlockFromKeyboard(
+function enterCrossBlockFromKeyboard(
 	selection: SelectionState,
-	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[]
 ): boolean {
 	const anchorPoint = readNativeCaretInBlock(currentBlockEl, currentBlockPath);
 	if (!anchorPoint) return false;
-	const anchor = normalizeTableEndpoint(doc, anchorPoint.path, anchorPoint.offset);
-	selection.enterCrossBlock(anchor, { path: anchor.path.slice(), offset: anchor.offset });
+	selection.enterCrossBlock(anchorPoint, {
+		path: anchorPoint.path.slice(),
+		offset: anchorPoint.offset
+	});
 	// Collapse (not clear) so the focus block retains a caret — otherwise
 	// Chromium fires paste on <body>. See parkCaretInFocusBlock.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
@@ -99,6 +102,29 @@ export function scrollFocusBlockIntoView(
 // ── Keyboard Extension ─────────────────────────────────────────────────────
 
 /**
+ * Move the cross-block focus to `target`, or — when the seam collapses because
+ * the focus contracted back onto the anchor's prose leaf — restore the resulting
+ * single-block range natively. Keyboard entry parks only a collapsed caret (no
+ * native range tracks underneath, unlike a pointer drag), so the range must be
+ * re-established here to stay visible and copyable. No-op restore without a
+ * lookup (harness callers) or when the anchor block is off-window.
+ */
+function extendFocusOrRestore(
+	selection: SelectionState,
+	target: number[],
+	offset: number,
+	getBlockElByPath?: BlockElLookup
+): void {
+	const anchor = selection.anchor;
+	selection.extendFocus({ path: target, offset });
+	if (!anchor || selection.isCrossBlock || !getBlockElByPath) return;
+	const blockEl = getBlockElByPath(target);
+	if (!blockEl) return;
+	blockEl.focus();
+	applySingleBlockRange(blockEl, Math.min(anchor.offset, offset), Math.max(anchor.offset, offset));
+}
+
+/**
  * Extend focus to the next leaf in document order (Shift+ArrowDown /
  * Shift+ArrowRight leaving the current block). Enters cross-block mode if
  * still single-block. Returns true if focus moved.
@@ -113,7 +139,8 @@ export function extendFocusToNextBlock(
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	axis: 'horizontal' | 'vertical' = 'horizontal'
+	axis: 'horizontal' | 'vertical' = 'horizontal',
+	getBlockElByPath?: BlockElLookup
 ): boolean {
 	const leafTarget =
 		axis === 'vertical'
@@ -122,10 +149,9 @@ export function extendFocusToNextBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
-			return false;
+		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
-	selection.extendFocus(normalizeTableEndpoint(doc, leafTarget, 0));
+	extendFocusOrRestore(selection, leafTarget, 0, getBlockElByPath);
 	return true;
 }
 
@@ -141,7 +167,8 @@ export function extendFocusToPreviousBlock(
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	side: 'start' | 'end' = 'end'
+	side: 'start' | 'end' = 'end',
+	getBlockElByPath?: BlockElLookup
 ): boolean {
 	const leafTarget =
 		side === 'start'
@@ -150,11 +177,10 @@ export function extendFocusToPreviousBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
-			return false;
+		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
 	const offset = side === 'start' ? 0 : leafOffsetEnd(doc, leafTarget);
-	selection.extendFocus(normalizeTableEndpoint(doc, leafTarget, offset));
+	extendFocusOrRestore(selection, leafTarget, offset, getBlockElByPath);
 	return true;
 }
 
@@ -168,7 +194,8 @@ export function extendFocusToDocEdge(
 	doc: Document,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[],
-	to: 'start' | 'end'
+	to: 'start' | 'end',
+	getBlockElByPath?: BlockElLookup
 ): boolean {
 	const edge = to === 'start' ? firstPath(doc) : lastPath(doc);
 	if (!edge) return false;
@@ -181,12 +208,11 @@ export function extendFocusToDocEdge(
 	if (!target) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, doc, currentBlockEl, currentBlockPath))
-			return false;
+		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
 	}
 
 	const offset = to === 'end' ? leafOffsetEnd(doc, target) : 0;
-	selection.extendFocus(normalizeTableEndpoint(doc, target, offset));
+	extendFocusOrRestore(selection, target, offset, getBlockElByPath);
 	return true;
 }
 
@@ -201,11 +227,30 @@ export function selectWholeDocument(
 	const first = firstPath(doc);
 	const last = lastPath(doc);
 	if (!first || !last) return false;
-	const focusPoint = { path: last, offset: leafOffsetEnd(doc, last) };
-	selection.enterCrossBlock({ path: first, offset: 0 }, focusPoint);
-	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard.
-	const focusBlockEl = getBlockElByPath?.(last);
-	if (focusBlockEl) applyCollapsedCaret(focusBlockEl, focusPoint);
+	const lastOffset = leafOffsetEnd(doc, last);
+	selection.enterCrossBlock({ path: first, offset: 0 }, { path: last, offset: lastOffset });
+
+	// A single prose leaf (whole doc is one block) has no cross-block state to
+	// paint — the seam refuses it. Select it natively rather than clearing the
+	// selection (2nd Ctrl+A on a one-block doc must not deselect).
+	if (!selection.isCustomRendered) {
+		selection.collapse();
+		const blockEl = getBlockElByPath?.(first);
+		if (blockEl) {
+			blockEl.focus();
+			applySingleBlockRange(blockEl, 0, lastOffset);
+		}
+		return true;
+	}
+
+	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard. A table focus
+	// endpoint normalizes to the table block, whose wrapper holds no caret —
+	// park in its deep cell instead, as collapseCrossBlock does.
+	const focus = selection.focus;
+	const deepPath = focus && cellEndpointDeepPath(doc, focus);
+	const parkPoint = deepPath ? { path: deepPath, offset: 0 } : focus;
+	const focusBlockEl = parkPoint ? getBlockElByPath?.(parkPoint.path) : null;
+	if (focusBlockEl && parkPoint) applyCollapsedCaret(focusBlockEl, parkPoint);
 	else clearNativeSelection();
 	return true;
 }
@@ -266,7 +311,8 @@ function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
 function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
-		const node = nodeAt(doc, cur);
+		// Annotated: overload resolution + the `cur` reassignment below otherwise cycle inference.
+		const node: CstNode | Document | null = nodeAt(doc, cur);
 		if (!node) return null;
 		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
 		cur = [...cur, node.children.length - 1];
@@ -282,7 +328,13 @@ function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {
 
 /** Last leaf reachable from `fromPath` going backward (descend or step). */
 function lastLeafBefore(doc: Document, fromPath: number[]): number[] | null {
-	const prev = previousPath(doc, fromPath);
+	// previousPath is doc-order (ancestor-before-descendant), so a first-child
+	// leaf's "previous" is its own container — descending into that ancestor's
+	// LAST leaf would move the walk forward (and lets the transparent-skip
+	// callers ping-pong between two leaves). Skip ancestors until a genuinely
+	// preceding subtree (or the document start) is reached.
+	let prev = previousPath(doc, fromPath);
+	while (prev && isStrictAncestorOf(prev, fromPath)) prev = previousPath(doc, prev);
 	return prev ? lastLeafAtOrBefore(doc, prev) : null;
 }
 
@@ -294,9 +346,6 @@ function isTransparent(doc: Document, path: number[]): boolean {
 	return node !== null && 'raw' in node && isVerticallyTransparentNode(node);
 }
 
-/**
- * Walk forward from `fromPath` to the next non-transparent leaf.
- */
 function firstNonTransparentLeafAfter(doc: Document, fromPath: number[]): number[] | null {
 	let leaf = firstLeafAfter(doc, fromPath);
 	while (leaf && isTransparent(doc, leaf)) {
@@ -333,47 +382,4 @@ function leafOffsetEnd(doc: Document, path: number[]): number {
 	if (!node || !('raw' in node) || typeof node.raw !== 'string') return 0;
 	// raw includes a trailing newline; the cursor works in display space.
 	return displayLength(node.raw);
-}
-
-/**
- * A cross-block selection endpoint inside a table must address the table block
- * by row-major cell index (`[tableIdx]` + cellIdx), matching the pointer-drag
- * representation. A deep `[tableIdx, row, col]` leaf path with a character
- * offset routes the delete through the generic (non-table-aware) path, which
- * merges external text into a cell and corrupts the grid. Non-table paths pass
- * through unchanged.
- */
-export function normalizeTableEndpoint(
-	doc: Document,
-	path: number[],
-	offset: number
-): SelectionPoint {
-	for (let d = 0; d < path.length - 1; d++) {
-		const node = nodeAt(doc, path.slice(0, d + 1));
-		if (node && isBlockNode(node) && node.kind === 'table') {
-			const colCount = metadataOf(node, 'table').columnCount;
-			const rowIdx = path[d + 1];
-			const colIdx = path[d + 2] ?? 0;
-			return {
-				path: path.slice(0, d + 1),
-				offset: rowIdx * colCount + colIdx,
-				cellCoordinate: true
-			};
-		}
-	}
-	return { path: path.slice(), offset };
-}
-
-/**
- * Inverse of {@link normalizeTableEndpoint}: expand a cell-coordinate endpoint
- * back to its deep `[tableIdx, row, col]` leaf path so reveal/caret placement can
- * reach the off-window cell. Null for non-cell-coordinate points (the path is
- * already the leaf).
- */
-export function cellEndpointDeepPath(doc: Document, point: SelectionPoint): number[] | null {
-	if (!point.cellCoordinate) return null;
-	const node = nodeAt(doc, point.path);
-	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
-	const colCount = metadataOf(node, 'table').columnCount;
-	return [...point.path, Math.floor(point.offset / colCount), point.offset % colCount];
 }

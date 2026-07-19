@@ -11,13 +11,13 @@
  * raw without the trailing line ending). Mirrors `code-fence-exit.ts`.
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import { sliceFencedCode } from './code-renderer';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export interface FenceBoundaryInput {
-	node: CstNode;
+	node: NodeView;
 	offset: number;
 	/** True when the user pressed Delete (forward) rather than Backspace. */
 	forward: boolean;
@@ -63,4 +63,18 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
 	}
 	if (hasCloser && offset === bodyEnd) return { kind: 'exitNext' };
 	return { kind: 'allow' };
+}
+
+/**
+ * Clamp an Enter-splice offset out of the opener line. A `\n` spliced before
+ * or inside the opener text re-shapes the fence (`sliceFencedCode` renders a
+ * phantom fence from a leading `\n`), so those carets clamp to the body start
+ * — Enter there behaves exactly like Enter at body-line-1 start. The end of
+ * the opener text is left alone: splicing after the full fence+info string is
+ * already safe and keeps its caret-on-the-new-line behavior.
+ */
+export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
+	const openerLine = sliceFencedCode(node).openerLine;
+	const openerTextEnd = openerLine.endsWith('\n') ? openerLine.length - 1 : openerLine.length;
+	return offset < openerTextEnd ? openerLine.length : offset;
 }

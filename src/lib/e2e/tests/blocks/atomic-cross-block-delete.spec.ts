@@ -1,21 +1,21 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { waitForClipboardContains } from '../clipboard/complex-copy-paste/helpers';
 
 const CODE_FIXTURE = 'before alpha\n\n```\nconst x = 42;\n```\n\nafter omega\n';
 const BREAK_FIXTURE = 'before alpha\n\n---\n\nafter omega\n';
 
-// Captures console errors, page errors, and invariant warnings, attributed to a
-// window the caller opens with `clear()` immediately before the gesture. The test
-// page emits a benign load-time 404 a whole-session collector would trip on;
-// clearing before the op keeps full teeth for anything the destructive op emits.
+// Captures console errors and page errors, attributed to a window the caller opens
+// with `clear()` immediately before the gesture. The test page emits a benign
+// load-time 404 a whole-session collector would trip on; clearing before the op
+// keeps full teeth for anything the destructive op emits. Invariant fires are owned
+// by the shared `[invariant:…]` fixture, which asserts on every page.
 function opWindowErrors(page: Page): { clear: () => void; collected: () => string[] } {
 	let errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 	page.on('console', (m) => {
 		if (m.type() === 'error') errors.push(`console.error: ${m.text()}`);
-		else if (m.type() === 'warning' && m.text().includes('[invariant:'))
-			errors.push(`invariant: ${m.text()}`);
 	});
 	return { clear: () => (errors = []), collected: () => errors };
 }
@@ -94,10 +94,13 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 
 // The atomic block and the selected span are gone; the surviving prose endpoints
 // (`before` head, `omega` tail) merge into clean prose with no fused atomic-block
-// content and no orphaned fence. roundTrip is the serializer-corruption backstop.
+// content and no orphaned fence. roundTrip is the serializer-corruption backstop;
+// parseConverged is the live-tree oracle — a delete that left a stale grid or
+// split-separator shape diverges from a reparse where the byte check is blind.
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
 	expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+	expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 	expect(source).not.toContain(body);
 	expect(source).not.toContain('```');
 	expect(source).toContain('before');

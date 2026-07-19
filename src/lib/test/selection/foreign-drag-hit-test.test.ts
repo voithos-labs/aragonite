@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import '../../components/built-in-blocks';
+import { registerBuiltInBlocks } from '../../components/built-in-blocks';
 import { tableDragHitTest } from '../../components/blocks/table/table-drag-hit-test';
+
+registerBuiltInBlocks();
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 describe('table foreignDragHitTest', () => {

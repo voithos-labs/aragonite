@@ -12,6 +12,7 @@ Undo and redo for structural and text operations.
 
 - undo reverts a merge: Backspace merge then undo restores both original blocks
 - undo reverts kind change: typing # to convert, wait for debounce, undo reverts to paragraph
+- undo across a prose→non-prose flip restores the rendered DOM, not just the CST: typing to turn a paragraph into an htmlBlock (DOM already carries the char) then undo must repaint the block to the CST; the next keystroke must not commit the undone byte back
 - multiple undo steps: perform several operations, undo each one in sequence
 - redo stack cleared on new edit: split, undo, type new text, redo does nothing (stack cleared)
 - undo on empty stack: Ctrl+Z when nothing to undo does not crash or corrupt state

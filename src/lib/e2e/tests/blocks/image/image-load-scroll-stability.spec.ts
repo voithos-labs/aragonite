@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
 // A short, fixed viewport makes the editor a real (capped) scroll container so the

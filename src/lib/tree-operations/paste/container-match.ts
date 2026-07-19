@@ -6,13 +6,16 @@
  */
 
 import { CURSOR_END } from '../../block-component';
-import type { CstNode, Document } from '../../core/nodes';
+import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
+import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
+import { normalizeItemMarkerToList, renumberOrderedList } from '../list/ordered-markers';
+import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
@@ -97,6 +100,42 @@ function hasSingleParagraphChild(node: CstNode): boolean {
 	return !!node.children && node.children.length === 1 && node.children[0].kind === 'paragraph';
 }
 
+/**
+ * Template pasted items' bullet glyph to a matching unordered `list` ancestor
+ * before they splice in, so a `*`/`+` paste into a `- ` list serializes as one
+ * list to reference parsers, not two. Markers are set on the not-yet-spliced
+ * items — Svelte-5's precompute-before-splice discipline (see `list-absorb`).
+ *
+ * Scoped to unordered lists: `matchesAncestor` requires equal ordered flags, so
+ * an unordered ancestor only ever receives unordered items; ordered ancestors
+ * keep the pasted numbering, and non-list containers (blockquote) have no
+ * listItem markers to touch.
+ */
+function normalizePastedListMarkers(items: CstNode[], outer: CstNode): void {
+	if (outer.kind !== 'list' || metadataOf(outer, 'list')?.ordered) return;
+	for (const item of items) normalizeItemMarkerToList(item, outer);
+}
+
+/**
+ * Ordered counterpart of normalizePastedListMarkers: number the pasted items to
+ * continue an ordered `list` ancestor's sequence from `firstIndex` (their splice
+ * position). No-op for unordered lists and non-list containers. Markers are set
+ * on the not-yet-spliced items — Svelte-5's precompute-before-splice discipline
+ * (see `list-absorb`); the caller renumbers the already-proxied tail after the
+ * splice with `renumberOrderedList`.
+ */
+function renumberPastedOrderedMarkers(items: CstNode[], outer: CstNode, firstIndex: number): void {
+	if (outer.kind !== 'list' || !metadataOf(outer, 'list')?.ordered) return;
+	const suffix = readOrderedSuffix(outer);
+	const base = orderedBaseOf(outer.children?.[0]);
+	items.forEach((item, i) => {
+		const meta = metadataOf(item, 'listItem');
+		if (!meta) return;
+		meta.marker = String(base + firstIndex + i) + suffix;
+		rebuildListItemRaw(item);
+	});
+}
+
 export async function applyContainerMatchingPaste(
 	unwrap: ContainerUnwrap,
 	ctx: PasteDispatchContext
@@ -111,9 +150,12 @@ export async function applyContainerMatchingPaste(
 		return;
 	}
 
+	normalizePastedListMarkers(unwrap.items, outer);
+	renumberPastedOrderedMarkers(unwrap.items, outer, unwrap.spliceIndex);
+
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
 		mutate: ([scopeView]) => {
 			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
@@ -123,6 +165,13 @@ export async function applyContainerMatchingPaste(
 				newCount: unwrap.items.length
 			};
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
+			// Renumber the already-proxied tail; the pasted items carry precomputed
+			// markers. No-op for unordered lists / non-list containers.
+			renumberOrderedList(
+				scopeView.node,
+				unwrap.spliceIndex + unwrap.items.length,
+				scopeView.sharing
+			);
 			return [change];
 		},
 		op: {
@@ -164,11 +213,16 @@ async function applyContainerMatchingMerge(
 	const firstItemText = trimTrailingLineEnding(firstLeaf.raw);
 
 	const remainingItems = unwrap.items.slice(1);
+	// The first item's content merges into the target leaf (keeping its marker);
+	// only the trailing siblings splice in, so only those need the glyph adopted /
+	// number assigned. They land after the target at spliceIndex + 1.
+	normalizePastedListMarkers(remainingItems, outer);
+	renumberPastedOrderedMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
 			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-			snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+			snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
 			mutate: ([scopeView]) => {
 				const sharing = scopeView.sharing;
 				// The merged leaf sits BELOW the scope node — own its full spine.
@@ -191,9 +245,10 @@ async function applyContainerMatchingMerge(
 	}
 
 	const lastItem = remainingItems[remainingItems.length - 1];
-	// findContainerMatchingUnwrap's hasSingleParagraphChild guard ensures this,
-	// but a future refactor that updates one guard but not the other would
-	// crash here — fail loudly instead of NPE-ing mid-commit.
+	// findContainerMatchingUnwrap's hasSingleParagraphChild guard ensures this;
+	// the bail keeps a refactor that updates one guard but not the other from
+	// NPE-ing mid-commit — it fires before commitMultiScope, so the paste is a
+	// clean no-op rather than a half-applied mutation.
 	const lastLeaf = lastItem.children?.[0];
 	if (!lastLeaf) return;
 	const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
@@ -201,7 +256,7 @@ async function applyContainerMatchingMerge(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { blockIndex: unwrap.outerPath[0], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			// The merged leaf sits BELOW the scope node — own its full spine.
@@ -225,6 +280,9 @@ async function applyContainerMatchingMerge(
 			};
 			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex + 1, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
+			// Renumber the already-proxied tail below the spliced siblings; the merged
+			// target keeps its number. No-op for unordered lists / non-list containers.
+			renumberOrderedList(scopeView.node, unwrap.spliceIndex + 1 + remainingItems.length, sharing);
 			return [change];
 		},
 		op: {

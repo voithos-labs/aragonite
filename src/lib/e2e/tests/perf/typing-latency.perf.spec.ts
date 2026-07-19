@@ -1,12 +1,18 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_SHAPES, type FixtureShape } from '../../../test/perf/fixtures/generate';
-import { measureTypingLatency } from './latency-harness';
+import { measureTypingLatency, measureDeepNestedTyping } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
-test.skip(!process.env.PERF, 'set PERF=1 to run the perf project');
+// Report-only rows: `perf:e2e` (PERF alone) runs them; the `perf:check` gate
+// (PERF_GATE) skips them — they gate nothing, so the gate job shouldn't pay their
+// runtime or flake risk.
+test.skip(
+	!process.env.PERF || !!process.env.PERF_GATE,
+	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
+);
 
 // All rows run against the dev server with DEV invariant assertions active,
 // so every number is a conservative upper bound on production latency.
@@ -62,6 +68,30 @@ test.describe('typing latency', () => {
 			});
 		}
 	}
+});
+
+// ── At-depth typing (concern-4 corroboration, report-only) ───────────────────
+
+// One report-only row: typing at the deepest leaf of a deep-nested document,
+// where the keystroke pays the full ancestry rebuild the top-level rows skip.
+// No gate, no baseline judgment — first end-to-end data on the ancestry tax.
+// depth 8 × 50KB/level is the realistic worst corner the vitest bench sweeps.
+test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	const m = await measureDeepNestedTyping(page, editor, 8, 50_000, 30);
+	writeResult('deep-nested-d8-50KB', 'at-depth', {
+		shape: 'deep-nested',
+		depth: 8,
+		bytesPerLevel: 50_000,
+		loadMs: round(m.loadMs),
+		keystrokes: 30,
+		keystrokeP50Ms: round(m.p50Ms),
+		keystrokeP95Ms: round(m.p95Ms),
+		rendersPerKeystroke: m.rendersPerKeystroke,
+		rebuildDepths: m.rebuildDepths,
+		note: DEV_CAVEAT
+	});
+	expect(m.samples).toHaveLength(30);
 });
 
 // ── Bridge sanity ───────────────────────────────────────────────────────────

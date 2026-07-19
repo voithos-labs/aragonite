@@ -1,25 +1,64 @@
-import type { Editor } from '$lib';
+import type { Editor, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { parseConverges } from '$lib/testing/parse-convergence';
 import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 import { findBlockPathForElement } from '$lib/selection/path-lookup';
 import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
-import type { BlockKind, CstNode } from '$lib/core/nodes';
+import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
+import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { registerBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor,
+	registerBlockKind,
+	tryGetBlockKindDescriptor
+} from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
-import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
+import {
+	dumpTree,
+	dumpUndoStack,
+	dumpInlineTree,
+	dumpOperationsLog,
+	dumpInteractionTrace
+} from '$lib/debug/inspect';
 import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
+import {
+	enableInteractionTrace,
+	disableInteractionTrace,
+	interactionTraceSnapshot
+} from '$lib/debug/interaction-trace';
+import type { ClosureBlock } from '$lib/schema/closure';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
+
+// Both forced probe kinds exist to trip one BlockHost fallback path each (the
+// no-component branch, the throwing-component boundary), never to be a real
+// editing surface — so every cross-cutting system is honestly not-supported.
+// mergeBackspace stays non-inherit to satisfy the not-mergeable coherence rule.
+const HARNESS_PROBE_CLOSURE: ClosureBlock = {
+	roundTrip: { mode: 'inherit-default' },
+	focus: {
+		mode: 'not-supported',
+		reason: 'harness probe — a single BlockHost fallback path, not an editing surface'
+	},
+	mergeBackspace: { mode: 'not-supported', reason: 'harness probe — not a real editing surface' },
+	selectionPaint: { mode: 'not-supported', reason: 'harness probe — visible-raw fallback' },
+	searchPaint: { mode: 'not-supported', reason: 'harness probe — not exercised by search' },
+	reorder: { mode: 'not-supported', reason: 'harness probe — not reorder-tested' },
+	undo: { mode: 'not-supported', reason: 'harness probe — not undo-tested' },
+	clipboard: { mode: 'not-supported', reason: 'harness probe — not clipboard-tested' },
+	simOracle: { mode: 'not-supported', reason: 'harness probe — drives the fallback path only' }
+};
 
 export interface TestProbeDeps {
 	editor: EditorInstance;
 	setSource: (md: string) => void;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
+	setPresentationMode: (mode: PresentationMode) => void;
 }
 
 // ── Selection inspection (shared with the DebugPanel getters) ──────────────
@@ -102,14 +141,95 @@ export function liveSelectionText(editor: EditorInstance | undefined): string {
 	return lines.join('\n');
 }
 
+// ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
+
+// The three closure columns the headless battery records as `boundary` — their
+// mechanisms are mounted-DOM-only, so the browser sweep executes them per kind.
+interface ConformanceSweepEntry {
+	kind: string;
+	fixture: string;
+	// A token drawn from the fixture's first text leaf: present in the block,
+	// absent from the neighbour paragraphs the sweep sandwiches it between, so a
+	// search match over it is attributable to this block. Null when the block
+	// carries no searchable text (e.g. a thematic break).
+	token: string | null;
+	cells: {
+		focus: { mode: string };
+		selectionPaint: { mode: string };
+		searchPaint: { mode: string };
+	};
+}
+
+function firstNodeOfKind(node: CstNode | Document, kind: string): CstNode | null {
+	if ('kind' in node && node.kind === kind) return node as CstNode;
+	for (const child of node.children ?? []) {
+		const found = firstNodeOfKind(child, kind);
+		if (found) return found;
+	}
+	return null;
+}
+
+// A search token from the first text-bearing LEAF of the subtree, not the node's
+// own raw: a container's opener syntax (`:::note`, `> `) is chrome the search
+// never scans, so a token drawn from it would never paint. Descend to a child
+// block whose raw is real searchable content.
+function firstTextLeafToken(node: CstNode): string | null {
+	if (node.children && node.children.length > 0) {
+		for (const child of node.children) {
+			const token = firstTextLeafToken(child);
+			if (token) return token;
+		}
+		return null;
+	}
+	return node.raw.match(/[A-Za-z0-9]+/)?.[0] ?? null;
+}
+
+// Live registry → one row per kind that declares a conformanceFixture. A kind is
+// enrolled the moment it registers with a fixture; a chrome/context-dependent
+// kind (no fixture) never appears. Parses in the ROUTE's registry, so a fixture
+// shadowed by another plugin's directive (admonition's `:::note` under the
+// co-registered callout) resolves to no node of the kind and carries a null token
+// — the sweep records that reachability gap rather than the bridge hiding it.
+function collectConformanceEntries(): ConformanceSweepEntry[] {
+	const entries: ConformanceSweepEntry[] = [];
+	for (const kind of getAllRegisteredKinds()) {
+		const descriptor = getBlockKindDescriptor(kind);
+		const fixture = descriptor.conformanceFixture;
+		if (fixture === undefined) continue;
+		const node = firstNodeOfKind(parse(fixture), kind);
+		entries.push({
+			kind,
+			fixture,
+			token: node ? firstTextLeafToken(node) : null,
+			cells: {
+				focus: { mode: descriptor.closure.focus.mode },
+				selectionPaint: { mode: descriptor.closure.selectionPaint.mode },
+				searchPaint: { mode: descriptor.closure.searchPaint.mode }
+			}
+		});
+	}
+	return entries;
+}
+
 // ── window.__test probe surface (backs the e2e suite) ──────────────────────
+
+type ProbeRect = { top: number; left: number; width: number; height: number } | null;
 
 let capturedErrorOrigins: string[] = [];
 let disposeErrorCapture: (() => void) | undefined;
+let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
+// Handles kept by source name so a spec can dispose/invalidate a source it
+// registered — the returned handle carries functions and can't cross page.evaluate.
+const decorationHandles = new Map<string, DecorationSourceHandle>();
 
 // Installs the e2e probe surface on `window.__test`. Behavior must stay
 // byte-for-byte stable — the e2e suite drives the editor through these.
-export function installTestProbes({ editor, setSource, setKeybindings }: TestProbeDeps): void {
+export function installTestProbes({
+	editor,
+	setSource,
+	setKeybindings,
+	setPresentationMode
+}: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
 	(window as any).__test = {
@@ -121,10 +241,18 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
 			setKeybindings(overrides);
 		},
-		getBlockCount: () => {
-			const doc = parse(editor.getSource());
-			return doc.children.length;
+		// Flip the live prop the way a consumer would — no DOM focus change, so this
+		// is the one path that exercises the editor's mode-reconcile of data-focused
+		// (the header toggles blur the editor, clearing it via focusout instead).
+		setPresentationMode: (mode: PresentationMode) => {
+			setPresentationMode(mode);
 		},
+		// getBlockCount / getBlockKind / dumpTree read the LIVE CST via getDocument()
+		// — not parse(getSource()). A reparse can't see a live-kind-vs-raw desync or a
+		// transient block the serializer trims, which is exactly what kind-transition
+		// specs assert. (dumpInlineTree stays on the reparse: it inspects inline
+		// structure within one block, not block-level liveness.)
+		getBlockCount: () => editor.__test.getDocument().children.length,
 		// Structurally splice the children of a NESTED container (by path) IN PLACE, ids
 		// kept in lockstep via the production helper, then retrigger that container's
 		// reactivity. Unlike setSource (a full reparse that resets scroll + model) or undo
@@ -132,7 +260,10 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		// windowing rebuild on a count change WITHOUT moving the scroll — the VR-2 above-fold
 		// anchor-remap path. `markdown` is parsed to top-level blocks and inserted as the
 		// container's children. Root-only paths are rejected (root ids live in a separate
-		// `blockIds` array this helper can't reach).
+		// `blockIds` array this helper can't reach). The container's own raw (and every
+		// ancestor's) stays STALE, so getSource()/roundTripStable() are blind to the splice
+		// — assert through getDocument(), or through parseConverged() which reads the live
+		// tree and DOES catch the stale-raw divergence the source-string checks miss.
 		spliceContainerChildren: (
 			path: number[],
 			at: number,
@@ -146,10 +277,11 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			spliceChildren(container, at, removeCount, ...inserted);
 			container.children = [...(container.children ?? [])];
 		},
-		getBlockKind: (index: number) => {
-			const doc = parse(editor.getSource());
-			return doc.children[index]?.kind ?? '';
-		},
+		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
+		// Live conformance-sweep rows: every registered kind with a fixture and its
+		// three DOM-column closure modes. The browser sweep consumes this via
+		// page.evaluate and runs each row headfully.
+		getConformanceEntries: (): ConformanceSweepEntry[] => collectConformanceEntries(),
 		// Force a top-level block to a kind with a descriptor but NO registered
 		// component, so it reaches BlockHost's no-component branch. Exercises the
 		// visible-raw fallback (a kind outside ALL_BLOCK_KINDS, so it doesn't
@@ -160,8 +292,8 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				registerBlockKind(kind, {
 					mergeRole: 'not-mergeable',
 					editable: true,
-					isContainer: false,
-					supportsInline: false
+					supportsInline: false,
+					closure: HARNESS_PROBE_CLOSURE
 				});
 			}
 			const doc = editor.__test.getDocument();
@@ -178,8 +310,8 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 				registerBlockKind(kind, {
 					mergeRole: 'not-mergeable',
 					editable: false,
-					isContainer: false,
-					supportsInline: false
+					supportsInline: false,
+					closure: HARNESS_PROBE_CLOSURE
 				});
 				// A throwing stub isn't a full BlockComponent, but it throws before
 				// any method is read.
@@ -215,14 +347,92 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
 		},
+		// The live-tree convergence oracle. roundTripStable above is a source-string
+		// FIXED POINT — valuable (it catches unserializable raw) but a tautology as a
+		// mutation oracle: serialize(parse(s)) === s holds for all valid GFM. This
+		// reads the LIVE CST and compares it structurally against a reparse of its
+		// own serialization, so a mutation that left the tree diverging from its raw
+		// (stale kind, stale grid, split-separator drift) is caught where the byte
+		// check is blind.
+		parseConverged: (): boolean => parseConverges(editor.__test.getDocument()),
+		// The bar shows a match count instead of "N replaced" whenever matches
+		// survive a replace (e.g. skipped container matches), so specs read the
+		// replaced count here.
+		getSearchReplacedCount: (): number | null => editor.getSearch().replacedCount,
+		// ── Decoration source probe (register sources without a plugin) ────
+		/**
+		 * Register a decoration source through the public registry so e2e can
+		 * drive overlay painting. Handle kept by source name for later
+		 * dispose/invalidate — the live handle can't cross the page boundary.
+		 */
+		decorations: {
+			addSource: (source: DecorationSource): void => {
+				decorationHandles.set(source.name, editor.getDecorations().addSource(source));
+			},
+			disposeSource: (name: string): void => {
+				decorationHandles.get(name)?.dispose();
+				decorationHandles.delete(name);
+			},
+			invalidateSource: (name: string): void => {
+				decorationHandles.get(name)?.invalidate();
+			}
+		},
+		// ── Rect API probe (drives editor.getRects() from e2e) ─────────────
+		// Thin faithful mirror of the instance door. DOMRects don't survive
+		// page.evaluate as class instances, so each spec extracts the numeric
+		// fields it needs inside its own evaluate.
+		rects: {
+			blockRect: (path: number[]): DOMRect | null => editor.getRects().blockRect(path),
+			rangeRects: (path: number[], start: number, end: number): DOMRect[] =>
+				editor.getRects().rangeRects(path, start, end),
+			caretRect: (): DOMRect | null => editor.getRects().caretRect(),
+			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path)
+		},
+		// ── Cross-block caretRect timing probe ─────────────────────────────
+		// Captures editor.getRects().caretRect() the first time a selectionChange
+		// snapshot turns cross-block — from INSIDE the synchronous handler, the
+		// window before the deferred data-cross-block $effect runs. Pins that
+		// caretRect reads SelectionState, not the lagging DOM mirror: reading the
+		// stale attribute mid-emit would leak the parked cross-block range.
+		startCrossBlockCaretProbe: (): void => {
+			const w = window as any;
+			w.__test._cbCaret = { captured: false, rect: null };
+			w.__test._cbCaretDispose?.();
+			w.__test._cbCaretDispose = editor.getEvents().on('selectionChange', (sel) => {
+				if (w.__test._cbCaret.captured || !sel || !isCrossBlockSnapshot(sel)) return;
+				const r = editor.getRects().caretRect();
+				w.__test._cbCaret = {
+					captured: true,
+					rect: r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null
+				};
+			});
+		},
+		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => {
+			const w = window as any;
+			w.__test._cbCaretDispose?.();
+			w.__test._cbCaretDispose = null;
+			return w.__test._cbCaret ?? { captured: false, rect: null };
+		},
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,
 			reset: resetPerfInstruments,
 			snapshot: perfSnapshot
 		},
+		// ── Interaction-trace surface ─────────────────────────────────────
+		trace: {
+			enable: enableInteractionTrace,
+			disable: disableInteractionTrace,
+			snapshot: interactionTraceSnapshot
+		},
+		// ── Consumer diagnostics door (real, not the extracted builder) ────
+		// Drives editor.getDiagnostics().serializeDiagnostics through the actual
+		// door so the includeSource `?? false` default is exercised where it lives.
+		serializeDiagnostics: (opts?: { includeSource?: boolean }) =>
+			editor.getDiagnostics().serializeDiagnostics(opts),
 		// ── Debug engine surface ──────────────────────────────────────────
-		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) => dumpTree(parse(editor.getSource()), opts),
+		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
+			dumpTree(editor.__test.getDocument(), opts),
 		dumpSelection: () => liveSelectionText(editor),
 		dumpInlineTree: () => {
 			const path = getFocusedBlockPath();
@@ -236,6 +446,7 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		},
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
+		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
 		// ── Edit-event counting probe ─────────────────────────────────────
 		/**
 		 * Begin accumulating structural edit events (op !== 'input').
@@ -297,9 +508,9 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 		getCapturedErrors: (): string[] => capturedErrorOrigins,
 		// ── List item id probe ────────────────────────────────────────────
 		/**
-		 * Return the innerBlockIds array for the first list node found at
-		 * the given top-level block index. Useful for identity-preservation
-		 * regression tests that check which id survives a cross-scope delete.
+		 * Return the innerBlockIds array of the container node at the given
+		 * top-level block index. Useful for identity-preservation regression
+		 * tests that check which id survives a cross-scope delete.
 		 */
 		getListItemIds: (blockIndex: number): string[] => {
 			const doc = editor.__test.getDocument();
@@ -307,6 +518,22 @@ export function installTestProbes({ editor, setSource, setKeybindings }: TestPro
 			if (!node) return [];
 			const state = getStateForNode(node);
 			return state ? [...state.innerBlockIds] : [];
+		},
+		// ── Stale ref-slot probes ────────────────────────────────────────
+		/**
+		 * Capture the mounted component at top-level `index` into page scope so
+		 * `replantBlockRef` can later write it back into a cleared slot —
+		 * deterministically forging the stale detached ref that the windowed
+		 * each-block's conditional cleanup only rarely leaves behind.
+		 */
+		captureBlockRef: (index: number): boolean => {
+			capturedBlockRef = editor.__test.getBlockComponent([index]);
+			return capturedBlockRef !== null;
+		},
+		replantBlockRef: (index: number): boolean => {
+			if (!capturedBlockRef) return false;
+			editor.__test.setBlockRefSlot(index, capturedBlockRef);
+			return true;
 		},
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**

@@ -17,6 +17,9 @@ regardless of the drag-handle toggle.
   up one position among the list's items.
 - Alt+ArrowDown on the first list item moves it down one position.
 - Alt+ArrowUp on a blockquote child moves it up among the blockquote's children.
+- Alt+ArrowDown on a focused fenced code block moves the whole block below its
+  next sibling; a single undo restores the pre-move source.
+- Alt+ArrowUp on a focused thematic break moves it above its previous sibling.
 
 ## Edge cases
 

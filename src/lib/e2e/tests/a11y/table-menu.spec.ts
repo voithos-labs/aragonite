@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
@@ -92,7 +92,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 
 		const focused = page.locator('[role="menu"] :focus');
 		await page.keyboard.press('ArrowDown'); // Insert row above
-		await page.keyboard.press('ArrowDown'); // Insert row below
+		await page.keyboard.press('ArrowDown');
 		await expect(focused).toHaveText('Insert row below');
 		await page.keyboard.press('ArrowDown'); // skips the disabled "Move row up"
 		await expect(focused).toHaveText('Move row down');

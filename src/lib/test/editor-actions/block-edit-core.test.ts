@@ -1,21 +1,37 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import type { CstNode } from '$lib/core/nodes';
+import type { BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 function leaf(raw: string): CstNode {
 	return parse(raw).children[0];
 }
 
+/** A ref that records the offsets it was focused at — for descend focus assertions. */
+function focusSpy() {
+	const calls: number[] = [];
+	const ref = { focus: (offset: number) => calls.push(offset) } as unknown as BlockComponent;
+	return { calls, ref };
+}
+
 /** Stub scope: runs the real mutate against a live children array, records commits. */
-function stubScope(children: CstNode[], collapseEmptyReplaceToDelete = true) {
+function stubScope(
+	children: CstNode[],
+	collapseEmptyReplaceToDelete = true,
+	refs: (BlockComponent | undefined)[] = []
+) {
 	const commits: ScopeCommitArgs[] = [];
 	const sharing = createSharingState();
 	const scope: CommitScope = {
 		children: () => children,
-		refAt: () => undefined,
+		refAt: (i) => refs[i],
 		collapseEmptyReplaceToDelete,
 		async commit(args) {
 			commits.push(args);
@@ -24,6 +40,7 @@ function stubScope(children: CstNode[], collapseEmptyReplaceToDelete = true) {
 				sharing,
 				unshareChild: (i) => children[i]
 			});
+			args.afterTick?.();
 		}
 	};
 	return { scope, commits, children };
@@ -39,11 +56,20 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
-	it('split at offset 0 of a non-empty block bumps trivia without adding a block', async () => {
-		const { scope, commits, children } = stubScope([leaf('hello\n')]);
+	it('split at offset 0 puts an empty block above and keeps the caret on the content', async () => {
+		const content = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('hello\n')], true, [
+			undefined,
+			content.ref
+		]);
 		await createBlockEditCore(scope).split(0, 0);
-		expect(children).toHaveLength(1);
+		expect(children).toHaveLength(2);
+		expect(children[0].raw).toBe('\n');
+		expect(children[0].kind).toBe('paragraph');
+		expect(children[1].raw).toBe('hello\n');
+		expect(commits[0].op.kind).toBe('split');
 		expect(commits[0].op.detail).toEqual({ at: 0 });
+		expect(content.calls).toEqual([0]);
 	});
 
 	it('merge-prev of two paragraphs is eligible and concatenates', async () => {
@@ -72,7 +98,9 @@ describe('block-edit core — shared structural decisions', () => {
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbor (i-1), not i — the not-editable-merge eventPath watch-point.
+		// The deleted neighbor (i-1), not i — both scope factories mint the
+		// emitted event path from this target (top-level parity pinned in
+		// top-level-event-paths.test.ts).
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
@@ -144,5 +172,102 @@ describe('block-edit core — shared structural decisions', () => {
 		const { scope, commits } = stubScope([leaf('hello\n')]);
 		await createBlockEditCore(scope).updateBlockMetadata(0, {});
 		expect(commits).toHaveLength(0);
+	});
+});
+
+// A whole-block-focus kind (opaque childless plugin block) is FOCUSED at offset 0
+// with no commit in either merge direction — the branch sits before the
+// `!isBlockEditable` check, so the policy overrides the delete-non-editable
+// fallback regardless of editability. Both directions are pinned: the dominant
+// bug class here is sibling-path parity (a rule enforced on one twin, missed on
+// the other). The non-editable cases give the cleanest red — pre-fix they delete;
+// the editable case is mermaid's real config, where pre-fix merge-prev moves the
+// caret to CURSOR_END into a childless container (the reported no-op dead-end).
+describe('block-edit core — whole-block-focus fallback', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	function wholeBlockNode(editable: boolean): CstNode {
+		const kind = declarePluginKind('spec-whole-block');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable,
+			supportsInline: false,
+			closure: testClosure,
+			blockFocus: 'whole-block'
+		});
+		return { kind, leadingTrivia: '', raw: 'diagram\n', children: [] };
+	}
+
+	it('merge-prev focuses a non-editable whole-block previous block instead of deleting it', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([wholeBlockNode(false), leaf('text\n')], true, [
+			focus.ref,
+			undefined
+		]);
+		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
+		expect(children).toHaveLength(2); // survives — pre-fix this deleted it
+		expect(commits).toHaveLength(0); // no undo entry — a focus move, not a mutation
+		expect(focus.calls).toEqual([0]); // whole-block focus at offset 0
+	});
+
+	it('merge-next focuses a non-editable whole-block next block instead of deleting it', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('text\n'), wholeBlockNode(false)], true, [
+			undefined,
+			focus.ref
+		]);
+		await createBlockEditCore(scope).mergeWithNextInterior(0);
+		expect(children).toHaveLength(2); // survives — pre-fix this deleted it
+		expect(commits).toHaveLength(0);
+		expect(focus.calls).toEqual([0]);
+	});
+
+	it('merge-prev into an editable whole-block block (mermaid) focuses it at 0, not CURSOR_END', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([wholeBlockNode(true), leaf('text\n')], true, [
+			focus.ref,
+			undefined
+		]);
+		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
+		expect(children).toHaveLength(2);
+		expect(commits).toHaveLength(0);
+		// Pre-fix the editable-but-unmergeable else branch moved the caret to
+		// CURSOR_END, which walked into the childless container and no-op'd.
+		expect(focus.calls).toEqual([0]);
+	});
+});
+
+describe('block-edit core — chrome.descendToBody', () => {
+	it('focuses the existing body sibling without minting or committing', async () => {
+		const body = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('Title\n'), leaf('Body\n')], true, [
+			undefined,
+			body.ref
+		]);
+		await createBlockEditCore(scope).descendToBody(0);
+		expect(commits).toHaveLength(0);
+		expect(children).toHaveLength(2);
+		expect(body.calls).toEqual([0]);
+	});
+
+	it('mints and focuses an empty body paragraph when the chrome has no body child', async () => {
+		const body = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('Title\n')], true, [undefined, body.ref]);
+		await createBlockEditCore(scope).descendToBody(0);
+		expect(children).toHaveLength(2);
+		expect(children[1].kind).toBe('paragraph');
+		expect(children[1].raw).toBe('\n');
+		expect(commits[0].op.kind).toBe('appendBlock');
+		expect(commits[0].eventTarget).toBe(1);
+		expect(body.calls).toEqual([0]);
+	});
+
+	it('consumes the key without minting when the body ref is windowed out', async () => {
+		// Body child exists in the array but its ref is off-window: the caret stays
+		// put (no focus lands) and nothing is created.
+		const { scope, commits, children } = stubScope([leaf('Title\n'), leaf('Body\n')], true, []);
+		await createBlockEditCore(scope).descendToBody(0);
+		expect(commits).toHaveLength(0);
+		expect(children).toHaveLength(2);
 	});
 });

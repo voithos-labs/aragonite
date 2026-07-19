@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
 import { deleteNode, updateNodeContent } from '../../tree-operations';
@@ -12,6 +13,24 @@ describe('updateNodeContent', () => {
 		const change = updateNodeContent(doc, 0, 'World\n');
 		expect(doc.children[0].raw).toBe('World\n');
 		expect(change).toEqual({ op: 'noop' });
+	});
+
+	// The same-kind path writes in place: routine typing must keep the node object,
+	// since the component instance, IME state, and the inline-cache WeakMap are all
+	// keyed on it. A mint-always refactor keeps raw/metadata and the noop return but
+	// silently breaks this — the covering tests above stay green, so pin it directly.
+	it('same-kind edit preserves the node object identity', () => {
+		const doc = parse('Hello\n');
+		const before = doc.children[0];
+		updateNodeContent(doc, 0, 'edited\n');
+		expect(doc.children[0]).toBe(before);
+	});
+
+	it('kind change swaps the node object (mint-and-replace)', () => {
+		const doc = parse('Hello\n');
+		const before = doc.children[0];
+		updateNodeContent(doc, 0, '## edited\n');
+		expect(doc.children[0]).not.toBe(before);
 	});
 
 	it('kind change from paragraph to heading returns a same-slot replace', () => {
@@ -63,14 +82,47 @@ describe('updateNodeContent', () => {
 		expect(change).toEqual({ op: 'noop' });
 	});
 
-	it('with multi-block content uses only first block kind', () => {
+	it('multi-block content splits into sibling blocks (kind change on first)', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
 		const change = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
-		expect(doc.children[0].raw).toBe('# Heading\n\nParagraph\n');
-		expect(doc.children[0].kind).toBe('heading');
-		expect(doc.children).toHaveLength(1);
-		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
+		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
+		expect(doc.children[0].raw).toBe('# Heading\n');
+		expect(doc.children[1].leadingTrivia).toBe('\n');
+		expect(doc.children[1].raw).toBe('Paragraph\n');
+		expect(change).toEqual(replacePreservingFirst(0, 1, 2));
+	});
+
+	// The stuck-fence class: an edit appending past a verbatim fence must split
+	// into fence + paragraph, not cram both into the fence node (a same-kind
+	// reparse used to be a raw-only write, leaving the CST disagreeing with
+	// parse(serialize(doc))).
+	it('same-kind multi-block content splits instead of cramming (fence + trailing paragraph)', () => {
+		const doc = parse('```\nx\n```\n');
+		const edited = '```\nx\n```\n\nhello\n';
+		const change = updateNodeContent(doc, 0, edited);
+		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'paragraph']);
+		expect(doc.children[0].raw).toBe('```\nx\n```\n');
+		expect(doc.children[1].leadingTrivia).toBe('\n');
+		expect(doc.children[1].raw).toBe('hello\n');
+		expect(change).toEqual(replacePreservingFirst(0, 1, 2));
+		expect(serialize(doc)).toBe(edited);
+	});
+
+	it('paragraph edit whose second line interrupts splits (hard break + heading)', () => {
+		const doc = parse('foo\n');
+		const change = updateNodeContent(doc, 0, 'foo\\\n# bar\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
+		expect(doc.children[0].raw).toBe('foo\\\n');
+		expect(doc.children[1].raw).toBe('# bar\n');
+		expect(change).toEqual(replacePreservingFirst(0, 1, 2));
+	});
+
+	it('multi-block split preserves the original leading trivia on the first block', () => {
+		const doc = parse('A\n\nB\n');
+		updateNodeContent(doc, 1, 'B\n\nC\n');
+		expect(doc.children[1].leadingTrivia).toBe('\n');
+		expect(serialize(doc)).toBe('A\n\nB\n\nC\n');
 	});
 
 	it('clears metadata when block type changes from heading to paragraph', () => {

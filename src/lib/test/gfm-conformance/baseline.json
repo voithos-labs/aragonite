@@ -1,0 +1,64 @@
+{
+	"referenceVersion": "0.31.2",
+	"normalizerReconciliations": [
+		{
+			"what": "empty link/image title coalesced with absent",
+			"why": "commonmark 0.31.2 AST cannot distinguish [a](/u \"\") from [a](/u); its own renderer drops both"
+		},
+		{
+			"what": "code-span content folded per spec §6.1 on the aragonite side only (line endings → spaces; one flanking space stripped); commonmark's code literal is already spec-folded",
+			"why": "styled-source display must keep raw bytes (textContent === raw); the spec-semantic content differs by design"
+		},
+		{
+			"what": "spaces (not tabs) before a softbreak newline trimmed from aragonite text only; the reference AST never carries them",
+			"why": "same byte-preserving display model; spec strips end-of-line spaces at the inline stage"
+		}
+	],
+	"entries": [
+		{
+			"input": "*#a𐄀_#\\!𐄀)_",
+			"class": "emphasis-flanking-astral",
+			"note": "deliberate, must not regress: ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "_`中b_𐄀中中(a ]",
+			"class": "emphasis-flanking-astral",
+			"note": "deliberate, must not regress: ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "𐄀*)*\"(''aé",
+			"class": "emphasis-flanking-astral",
+			"note": "deliberate, must not regress: ours classifies astral punctuation by code point per spec; commonmark.js reads UTF-16 units and misclassifies"
+		},
+		{
+			"input": "< https://foo.bar >",
+			"class": "gfm-bare-autolink",
+			"note": "deliberate: aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+		},
+		{
+			"input": "foo@bar.example.com",
+			"class": "gfm-bare-autolink",
+			"note": "deliberate: aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+		},
+		{
+			"input": "https://example.com",
+			"class": "gfm-bare-autolink",
+			"note": "deliberate: aragonite parses GFM bare www/http/email autolinks; the CommonMark 0.31.2 reference has no autolink extension"
+		},
+		{
+			"input": "![[[foo](uri1)](uri2)](uri3)",
+			"class": "image-alt-structure",
+			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
+		},
+		{
+			"input": "![foo ![bar](/url)](/url2)",
+			"class": "image-alt-structure",
+			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
+		},
+		{
+			"input": "![foo [bar](/url)](/url2)",
+			"class": "image-alt-structure",
+			"note": "deliberate: alt is the raw label bytes — the editor's product model; the spec's plain-text alt is a render-layer concern outside the scanner's contract"
+		}
+	]
+}

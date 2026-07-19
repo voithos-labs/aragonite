@@ -1,6 +1,7 @@
 import type { UndoEntryMode } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
+import { registerOnce } from '../schema/register-once';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -63,12 +64,11 @@ export interface PasteSurface {
 const surfaces = new Map<AnyBlockKind, PasteSurface>();
 
 export function registerPasteSurface(surface: PasteSurface): void {
-	if (surfaces.has(surface.kind)) {
-		throw new Error(
-			`registerPasteSurface: "${surface.kind}" is already registered. Paste surfaces are register-once.`
-		);
-	}
-	surfaces.set(surface.kind, surface);
+	registerOnce(
+		surfaces.has(surface.kind),
+		() => surfaces.set(surface.kind, surface),
+		`registerPasteSurface: "${surface.kind}" is already registered. Paste surfaces are register-once.`
+	);
 }
 
 export function getPasteSurface(kind: AnyBlockKind): PasteSurface | undefined {

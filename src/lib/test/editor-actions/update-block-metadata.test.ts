@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createHistoryActions } from '$lib/editor-actions/undo/history';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { rebuildListRaw } from '$lib/schema/container-rebuilders';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
@@ -59,7 +58,7 @@ describe('updateBlockMetadata', () => {
 
 	it('pushes exactly one undo snapshot, and undo/redo flip metadata back and forth', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeEditorActionsDeps([node]);
+		const { deps } = makeEditorActionsDeps([node]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
 		const history = createHistoryActions(deps, controller);
@@ -105,9 +104,57 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
+	// Wiring: the metadata commit returns `noop`, so the dev staleness oracle can't
+	// infer the touched node from the StructuralChange. The top-level scope must name
+	// it explicitly (the container scope's ceremony auto-derives), or the metadata→
+	// rebuildRaw resync gets zero G1.1/G1.12/G1.13 validation against [].
+	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
+		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
+		const { deps } = makeEditorActionsDeps([node]);
+		const controller = createUndoController(deps);
+		const spy = vi.spyOn(controller, 'commitStructural');
+		const actions = createBlockEditActions(deps, controller);
+
+		await actions.updateBlockMetadata(0, { taskChecked: true });
+
+		const args = spy.mock.calls[0][0];
+		expect(args.touchedNodes).toBeDefined();
+		expect(args.touchedNodes).toContain(deps.doc.children[0]);
+	});
+
+	it('runs the afterTick callback after committing (post-commit caret placement)', async () => {
+		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
+		const { deps } = makeEditorActionsDeps([node]);
+		const controller = createUndoController(deps);
+		const actions = createBlockEditActions(deps, controller);
+
+		const afterTick = vi.fn(() => {
+			// The commit is complete when afterTick fires: metadata is already live.
+			expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
+		});
+		await actions.updateBlockMetadata(0, { taskChecked: true }, { afterTick });
+
+		expect(afterTick).toHaveBeenCalledOnce();
+	});
+
+	it('skips afterTick when the patch is empty (no commit runs)', async () => {
+		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
+		const { deps } = makeEditorActionsDeps([node]);
+		const controller = createUndoController(deps);
+		const actions = createBlockEditActions(deps, controller);
+
+		const afterTick = vi.fn();
+		await actions.updateBlockMetadata(0, {}, { afterTick });
+
+		expect(afterTick).not.toHaveBeenCalled();
+	});
+
 	it('shallow-merge preserves untouched fields', async () => {
 		// Regression guard: a switch to `node.metadata = metadata` (no spread) would fail this.
-		const node = makeNode('list-item', '- [ ] task\n', {
+		// A leaf kind keeps the merge check kind-agnostic (the next test covers a real
+		// task listItem); the top-level dev oracle now validates the committed node, so
+		// the fixture must be a registered kind.
+		const node = makeNode('paragraph', 'hello\n', {
 			marker: '- ',
 			taskItem: true,
 			taskChecked: false

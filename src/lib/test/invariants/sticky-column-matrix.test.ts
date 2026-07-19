@@ -1,10 +1,9 @@
 import { describe, it, expect, type Mock } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import type { BlockEditActions } from '$lib/action-contracts';
 import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-column';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 
 // G2.10 sticky-column matrix. The idempotent-capture and non-finite guards live
 // on the state object itself and are covered in cursor/sticky-column.test.ts;
@@ -12,10 +11,6 @@ import type { CstNode } from '$lib/core/nodes';
 // (1) the key→action decision the shared keydown prelude enacts
 // (classifyStickyKey, which shared-keydown.ts consumes), and (2) the structural
 // reset policy — commit ceremony resets sticky on every structural op.
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 // ── Decision matrix (classifyStickyKey) ──────────────────────────────────────
 

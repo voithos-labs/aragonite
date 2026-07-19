@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 test.describe('image cross-block selection', () => {
@@ -47,5 +47,29 @@ test.describe('image cross-block selection', () => {
 		await page.keyboard.press('Backspace');
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceContains('![cat]');
+	});
+
+	// A pointer drag that STARTS on the image must reach the block's cross-block
+	// machinery. Before the widget stopped propagating its pointerdown, the block
+	// never saw the gesture and no drag could originate from an image.
+	test('drag starting on an image widget into the next block enters cross-block', async ({
+		page
+	}) => {
+		await editor.loadContent('![cat](/test-fixtures/sample.png)\n\nsecond paragraph\n');
+		const widget = page.locator('[data-image-widget]').first();
+		await widget.waitFor();
+		const box = await widget.boundingBox();
+		expect(box).not.toBeNull();
+		const start = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+		const end = await editor.pointForOffset([1], 6);
+
+		await page.mouse.move(start.x, start.y);
+		await page.mouse.down();
+		for (let i = 1; i <= 12; i++) {
+			const t = i / 12;
+			await page.mouse.move(start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t);
+		}
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		await page.mouse.up();
 	});
 });

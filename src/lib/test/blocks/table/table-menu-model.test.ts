@@ -201,6 +201,19 @@ describe('tableMenuItems: clipboard group', () => {
 		expect(clipItem(items, 'copy')?.enabled).toBe(true);
 	});
 
+	// An intra-table rectangle suppresses the cell's native selection, so hasSelection
+	// is false; the rect is exactly what Cut/Copy exist to serve, so they enable on it.
+	it('enables Cut/Copy for an active rectangle with no cell selection', () => {
+		const items = tableMenuItems(
+			{ rowIdx: 1, colIdx: 0 },
+			{ rowCount: 3, colCount: 2 },
+			['none', 'none'],
+			{ hasSelection: false, hasRect: true }
+		);
+		expect(clipItem(items, 'cut')?.enabled).toBe(true);
+		expect(clipItem(items, 'copy')?.enabled).toBe(true);
+	});
+
 	it('omits clipboard items for single-axis grip targets even when clipboard info is passed', () => {
 		const rowItems = tableMenuItems({ rowIdx: 1 }, { rowCount: 3, colCount: 2 }, ['none', 'none'], {
 			hasSelection: true

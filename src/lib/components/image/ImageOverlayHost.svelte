@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { Document } from '../../core/nodes';
+	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
-	import { LINK_REF_KEY, type LinkReferenceResolverRef } from '../../editor-keys';
+	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
 	import ImageProperties from './ImageProperties.svelte';
@@ -20,6 +21,7 @@
 		getDoc,
 		getEditorEl,
 		getSelectionIsCustomRendered,
+		getPresentationMode,
 		lifetime
 	}: {
 		widgetSelection: WidgetSelectionState;
@@ -28,12 +30,13 @@
 		getDoc: () => Document;
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
+		getPresentationMode: () => PresentationMode;
 		lifetime: AbortSignal;
 	} = $props();
 
 	let imageOverlayEl: HTMLDivElement | undefined = $state();
 
-	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	// Props are stable for the editor's lifetime; the committer captures them
 	// once on purpose — reactive values already cross as getters.
@@ -78,7 +81,9 @@
 	});
 </script>
 
-{#if widgetSelection.getSelected()}
+<!-- Selecting an image stays (selection-class); the overlay is resize handles +
+	properties popover — edit affordances — so reading mode never mounts it. -->
+{#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
 	{@const sel = widgetSelection.getSelected()!}
 	{@const ctx = imageEdit.getSelectedImageFields()}
 	{#if ctx?.widgetEl}

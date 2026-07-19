@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
 const TABLE_ALIGNED = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -43,6 +44,20 @@ test.describe('table block: clipboard out', () => {
 		await page.keyboard.press('Control+a');
 		await page.keyboard.press('Control+c');
 		await expect.poll(() => readClipboard(page)).toBe('1');
+	});
+
+	// Keyboard Copy and Cut must write the same payload. A cell's <br> renders as a
+	// zero-textContent widget, so Copy's old browser-default fallback dropped it
+	// while Cut's raw-slice arm kept it — copy→paste silently lost the line break.
+	test('Ctrl+C of a cell with a <br> keeps the widget bytes (Copy/Cut parity)', async ({
+		page
+	}) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| a<br>b | world |\n');
+		await page.locator('[role="cell"]').nth(2).click(); // "a<br>b"
+		await page.keyboard.press('Control+a'); // stage-1 select-all selects the cell content
+		await page.keyboard.press('Control+c');
+		// Before the fix the browser default copied rendered textContent ("ab").
+		await expect.poll(() => readClipboard(page)).toBe('a<br>b');
 	});
 
 	test('Ctrl+A in an empty cell copies an empty string', async ({ page }) => {

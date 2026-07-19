@@ -1,20 +1,15 @@
 import { getContext, setContext } from 'svelte';
 import {
-	EDITOR_ROOT_KEY,
-	FOCUSED_PATH_KEY,
-	HEIGHT_ORACLE_KEY,
+	EDITOR_DOC_KEY,
+	EDITOR_SERVICES_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
-	REVEAL_ANCHOR_KEY,
-	WIDTH_VERSION_KEY,
 	type BlockMeasureChannel,
-	type FocusedPathGetter,
-	type ParentScopeSink,
-	type WidthVersionGetter
+	type EditorDoc,
+	type EditorServices,
+	type ParentScopeSink
 } from '../editor-keys';
-import type { HeightOracle } from '../cursor/height-oracle';
-import type { RevealAnchorState } from '../cursor/reveal-anchor';
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
@@ -22,7 +17,7 @@ export interface ContainerWindowingOpts {
 	getIndex: () => number;
 	/** This scope's path; the leaf-channel depth is its length. `[]` at the root. */
 	getParentPath: () => number[];
-	getChildren: () => CstNode[];
+	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
 	/** The content-origin element that scrolls WITH this scope's children (inner `.block-list` / `.list-block` / `.table-block`). Never the viewport. */
 	getListEl: () => HTMLElement | null;
@@ -30,22 +25,26 @@ export interface ContainerWindowingOpts {
 	getOwnEl?: () => HTMLElement | null;
 	/** True when this scope's DIRECT children are `BlockHost`s (editor / blockquote / list-item) → shadow the leaf channel. False for direct-`{#each}` scopes (list / table). */
 	provideLeafChannel: boolean;
+	/** Collapse clamp — while true this scope mounts only its chrome row (child 0). See `ListWindowingDeps.isCollapsed`. */
+	isCollapsed?: () => boolean;
 }
 
 /**
  * One windowing wiring unit per BlockList-bearing OR direct-each container scope.
- * Reads the four VR contexts, builds `createListWindowing` with the shared
+ * Reads the windowing contexts, builds `createListWindowing` with the shared
  * constants, and provides the subtotal sink (+ the leaf channel for hosted
  * children). Call it synchronously during component init. Returns the handle the
  * component passes to its sliced render and to `createContainerBlockComponent`.
  */
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
-	const oracle = getContext<HeightOracle>(HEIGHT_ORACLE_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getFocusPath = getContext<FocusedPathGetter | undefined>(FOCUSED_PATH_KEY);
-	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
+	const {
+		heightOracle: oracle,
+		editorRoot: getEditorRoot,
+		focusedPath: getFocusPath,
+		widthVersion: getWidthVersion
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
-	const revealAnchor = getContext<RevealAnchorState | undefined>(REVEAL_ANCHOR_KEY);
+	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
 	// Single-claimant: only the ROOT scope holds the reveal anchor (path[0]); nested
 	// scopes keep top-of-viewport anchoring, or their deltas would fight over one scrollTop.
 	const isRoot = opts.getParentPath().length === 0;
@@ -69,6 +68,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		reportSelfHeight: parentSink
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
 			: undefined,
+		isCollapsed: opts.isCollapsed,
 		// A fling can outrun the deferred window recompute by more than the overscan
 		// band, briefly painting an empty spacer (VR-8). 6 widens the band without
 		// breaching the mounted-set ceiling (the < 60 flat e2e bound is the guard); a

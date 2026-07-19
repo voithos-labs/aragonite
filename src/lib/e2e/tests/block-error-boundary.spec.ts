@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
 test.describe('per-block error boundary', () => {
@@ -33,5 +33,41 @@ test.describe('per-block error boundary', () => {
 		expect(src).toContain('alpha');
 		expect(src).toContain('beta');
 		expect(src).toContain('gamma');
+	});
+
+	test('undo restoring healthy bytes retries the render on the same instance', async ({ page }) => {
+		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+		// An undoable edit to the block we then break, so a single undo restores BOTH
+		// the healthy bytes and the pre-break (paragraph) kind to the SAME mounted host
+		// — a small doc never windows the block out, so the boundary can't self-heal.
+		await editor.typeInBlock(1, 'X');
+		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
+		await editor.waitForRenderFlush();
+		await expect(page.locator('[data-failed-block]')).toHaveCount(1);
+
+		await editor.clickBlock(0);
+		await editor.undo();
+		await editor.waitForRenderFlush();
+
+		// Pre-fix the boundary stayed on the fallback for the life of the instance;
+		// reset-on-heal retries the render now that the bytes round-trip again.
+		await expect(page.locator('[data-failed-block]')).toHaveCount(0);
+		await expect(editor.getBlock(1)).toContainText('beta');
+		await expect(editor.getBlock(1)).toHaveAttribute('contenteditable', 'true');
+	});
+
+	test('keyboard traversal skips a failed block in both directions', async ({ page }) => {
+		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
+		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
+		await editor.waitForRenderFlush();
+
+		// Click (not programmatic focus) so the caret has a measurable rect for
+		// the visual-line boundary checks, as a real user's caret would.
+		await editor.clickBlock(0);
+		await page.keyboard.press('ArrowDown');
+		await expect(editor.getBlock(2)).toBeFocused();
+
+		await page.keyboard.press('ArrowUp');
+		await expect(editor.getBlock(0)).toBeFocused();
 	});
 });

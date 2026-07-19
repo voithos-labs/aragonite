@@ -1,6 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { attachErrorCollector, type ErrorCollector } from '../../simulation/error-collector';
+
+// This suite EXISTS to inject invariant fires and prove the collector trips on
+// them — the watcher fixture must not fail the injections it is here to observe.
+test.use({ expectInvariants: true });
 
 /**
  * Proves the simulation's proxy-bug oracle actually trips. A green session is

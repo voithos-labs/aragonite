@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext, tick } from 'svelte';
+	import { getContext, tick, untrack } from 'svelte';
 	import type {
 		BlockEditActions,
 		ContainerEditActions,
@@ -7,72 +7,64 @@
 		HistoryActions
 	} from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { DocumentView, NodeView } from '../../../core/node-views';
+	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		BROKEN_IMAGE_URLS_KEY,
-		DOC_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		IMAGE_LOAD_POLICY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		LINK_REF_KEY,
 		LIST_CONTEXT_KEY,
-		PASTE_COORDINATOR_KEY,
-		REORDER_ACTION_KEY,
-		RESOLVE_IMAGE_URL_KEY,
-		RESOLVE_LINK_URL_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		WIDGET_SELECTION_KEY,
-		type BlockElLookup,
-		type DocumentGetter,
-		type KeybindingOverridesGetter,
-		type LinkReferenceResolverRef,
-		type ReorderAction,
-		type ResolveImageUrl,
-		type ResolveLinkUrl,
-		type WidgetSelectionState
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import type { IndexedDecoration } from '../../../decorations/buckets';
+	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { isProseKind } from '../../../core/inline';
 	import { getInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
-	import { trimTrailingLineEnding } from '../../../core/lines';
+	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { toggleInlineFormat } from './format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
-	import { findFirstEdgeWidget, findLastEdgeWidget } from './widget-adjacency';
 	import { createWidgetInteraction } from './widget-interaction';
+	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
-		rawOffsetAtNode,
+		domTextOffsetAtNode,
 		rawTextOfNode,
-		createRangeAtRawOffsets
+		createRangeAtDomTextOffsets
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
+	import {
+		asRawOffset,
+		toClampedRawOffset,
+		toDomTextOffset
+	} from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { type CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import {
 		perfEnabled,
 		recordBlockRender,
 		markKeystrokeStart,
 		markKeystrokeSettle
 	} from '../../../perf/instruments';
+	import {
+		tracePendingCursorSet,
+		tracePendingCursorConsume
+	} from '../../../debug/interaction-trace';
 
 	let {
 		node,
@@ -81,11 +73,15 @@
 		blockClass = 'paragraph-block',
 		ambientPrefix = ''
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
 		blockClass?: string;
 		ambientPrefix?: AmbientPrefix;
+		// Accepted for BlockComponentProps parity — BlockHost passes `document` to
+		// every block uniformly; this surface reads the doc from the document facet,
+		// so the prop stays unbound (binding it would shadow the global `document`).
+		document?: DocumentView;
 	} = $props();
 
 	const ambientPrefixText = $derived(
@@ -93,35 +89,65 @@
 	);
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const reorder = getContext<ReorderAction>(REORDER_ACTION_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	// Present when this paragraph sits inside a list item — used to skip
 	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
 	const listContext = getContext(LIST_CONTEXT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
-	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
-	const resolveImageUrl = getContext<ResolveImageUrl>(RESOLVE_IMAGE_URL_KEY);
-	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
-	const imageLoadPolicy =
-		getContext<() => import('../../../core/inline-render').ImageLoadPolicy>(IMAGE_LOAD_POLICY_KEY);
-	const brokenUrlCache = getContext<Set<string>>(BROKEN_IMAGE_URLS_KEY);
-	const widgetSelection = getContext<WidgetSelectionState>(WIDGET_SELECTION_KEY);
-	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
+	const {
+		reorder,
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		selection,
+		widgetSelection,
+		events: editorEvents,
+		decorations: decorationEngine
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		keybindingOverrides,
+		resolveImageUrl,
+		resolveLinkUrl,
+		imageLoadPolicy,
+		brokenImageUrls: brokenUrlCache,
+		presentationMode: getPresentationMode
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor,
+		linkRef
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+	// The constant fallback keeps the zero-cost render path — an empty island set
+	// never enters the render key.
+	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
+	// True while an inline-widget's `$…$` source is revealed for editing: the edit
+	// is ephemeral DOM, so onInput (and IME compositionend) skip the per-keystroke
+	// CST commit — the block commits once on reveal exit.
+	let revealing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
+	// Survives the click→keydown gap when Chromium clears the caret at
+	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
+	let lastSnapTargetOffset = $state<number | null>(null);
+
+	// One funnel for every pending-cursor write, tagged with its source so the
+	// interaction trace names which gesture set the restore. The consume half lives
+	// in the render effect (applied vs skipped-on-focus-loss).
+	function setPendingCursorOffset(offset: number | null, source: string): void {
+		tracePendingCursorSet(source, offset);
+		pendingCursorOffset = offset;
+	}
 
 	const ambientLength = $derived(ambientPrefixText.length);
 
@@ -134,11 +160,16 @@
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		isInputSuppressed: () => revealing,
 		backend: {
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
 			buildRange: (start, end) =>
-				createRangeAtRawOffsets(el!, ambientLength + start, ambientLength + end)
+				createRangeAtDomTextOffsets(
+					el!,
+					toDomTextOffset(start, ambientLength),
+					toDomTextOffset(end, ambientLength)
+				)
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -150,9 +181,7 @@
 		setPreEditOffset: (offset) => {
 			preEditOffset = offset;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -164,19 +193,23 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		getPresentationMode: () => presentationMode,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => {
 			if (!el) return null;
 			const sel = window.getSelection();
 			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-			const content = rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-			return Math.max(0, content - ambientLength);
+			const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+			return toClampedRawOffset(content, ambientLength);
 		},
 		getTextLen: () => getDisplayText().length,
 		readText: () => readRawText(),
-		commitInput: (text, preEdit, saved) =>
-			blockEdit.updateBlockContent(index, text + '\n', preEdit, saved),
+		commitInput: (text, preEdit, saved) => {
+			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit, saved);
+		},
 		inputPrelude: () => {
 			markKeystrokeStart();
 			lastSnapTargetOffset = null;
@@ -185,32 +218,6 @@
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
-
-	const clipboardHandlers = createTextClipboard({
-		get node() {
-			return node;
-		},
-		get index() {
-			return index;
-		},
-		get myPath() {
-			return myPath;
-		},
-		cursor,
-		crossBlock,
-		selection,
-		stickyColumn,
-		blockEdit,
-		pasteCoordinator,
-		getDoc,
-		widgetSelection,
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
-		get linkRef() {
-			return linkRef;
-		}
-	});
 
 	const widgetInteraction = createWidgetInteraction({
 		get node() {
@@ -233,12 +240,86 @@
 		setSnapTarget: (offset) => {
 			lastSnapTargetOffset = offset;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'widget'),
+		readRawText: () => readRawText(),
+		setRevealing: (value) => {
+			revealing = value;
 		},
+		isCrossBlock: () => selection.isCrossBlock,
+		getPresentationMode: () => presentationMode,
 		get linkRef() {
 			return linkRef;
 		}
+	});
+
+	// After widgetInteraction so the reveal-fold seam is available: a clipboard
+	// mutation folds a live reveal before touching the CST.
+	const clipboardHandlers = createTextClipboard({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get myPath() {
+			return myPath;
+		},
+		cursor,
+		crossBlock,
+		selection,
+		stickyColumn,
+		blockEdit,
+		pasteCoordinator,
+		getDoc,
+		widgetSelection,
+		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
+		isReadOnly: () => readOnly,
+		commitRevealBeforeClipboard: () => widgetInteraction.commitRevealBeforeClipboard(),
+		get linkRef() {
+			return linkRef;
+		}
+	});
+
+	// preview-inline's marker reveal: caret-chain evaluation on selection cadence,
+	// CSS class flips only — no keys intercepted, no bytes touched.
+	const constructReveal = createConstructReveal({
+		get node() {
+			return node;
+		},
+		get linkRef() {
+			return linkRef;
+		},
+		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength,
+		getPresentationMode: () => presentationMode,
+		isCrossBlock: () => selection.isCrossBlock
+	});
+
+	// The one caret-edge dispatch: CST widget → decoration island → ambient overlap,
+	// each resolved against its declarative edge policy. Replaces the three former
+	// sibling seams; entry (reveal vs select) stays at widgetInteraction.enterWidget.
+	const edgeDispatch = createEdgePolicyDispatch({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get linkRef() {
+			return linkRef;
+		},
+		getEl: () => el ?? null,
+		getAmbientLength: () => ambientLength,
+		getRawSelection: () => cursor.getRawSelection(),
+		blockEdit,
+		setPendingCursor: (offset, source) => setPendingCursorOffset(offset, source),
+		setSnapTarget: (offset) => {
+			lastSnapTargetOffset = offset;
+		},
+		isRevealing: () => widgetInteraction.isRevealing(),
+		enterWidget: (widget, fromTrailingEdge) =>
+			widgetInteraction.enterWidget(widget, fromTrailingEdge),
+		isReading: () => readOnly
 	});
 
 	const textRender = createTextRender({
@@ -260,14 +341,27 @@
 		get imageLoadPolicy() {
 			return imageLoadPolicy();
 		},
+		get presentationMode() {
+			return presentationMode;
+		},
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
 		get linkSignature(): string {
 			return linkRef?.signature ?? '';
 		},
-		brokenUrlCache
+		get islands() {
+			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
+		},
+		brokenUrlCache,
+		reportRenderError: (error) =>
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
 	});
+
+	// Destroy the block's pooled widget instances when it unmounts (windowed out or
+	// document swap). Mirrors the parkFocus cleanup below: an effect cleanup fires on
+	// teardown, the seam block unmount reliably reaches.
+	$effect(() => () => textRender.dispose());
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -285,29 +379,11 @@
 		return widgetInteraction.isVerticallyTransparent();
 	}
 
-	export function selectEdgeWidget(side: 'start' | 'end'): boolean {
-		const inlines = getInlineContent(node, linkRef?.current, linkRef?.signature ?? '');
-		if (inlines.length === 0) return false;
-		const target =
-			side === 'start'
-				? findFirstEdgeWidget(inlines, node.raw)
-				: findLastEdgeWidget(inlines, node.raw);
-		if (!target) return false;
-		// Focus the contenteditable so subsequent key events route to this
-		// block's keydown handler, where the widget-selected branch can run.
-		el?.focus();
-		// Cross-block entry: the caret arrived at the boundary the user was
-		// stepping toward — start-side enters at target.start, end-side at
-		// target.end. Anchors undo at the visual landing position.
-		widgetSelection.select({
-			paragraphPath: myPath,
-			sourceStart: target.start,
-			preSelectOffset: side === 'start' ? target.start : target.end
-		});
-		return true;
+	export function enterEdgeWidget(side: 'start' | 'end'): boolean {
+		return widgetInteraction.enterEdgeWidget(side);
 	}
 
-	export function runCommand(id: CommandId, arg?: number): boolean {
+	export function runCommand(id: CommandId, arg?: unknown): boolean {
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so it would be stale here.
 		const offset = cursor.getRaw() ?? 0;
@@ -315,20 +391,22 @@
 			case 'block.split':
 				blockEdit.splitBlock(index, offset);
 				return true;
+			case 'chrome.descendToBody':
+				blockEdit.descendToBody(index);
+				return true;
 			case 'block.hardBreak': {
-				// GFM hard line break — trailing backslash before the newline.
 				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset);
-				pendingCursorOffset = caretOffset;
+				setPendingCursorOffset(caretOffset, 'hard-break');
 				return true;
 			}
 			case 'block.insertTab': {
 				// Inside a list item Tab is the list's indent — decline so it bubbles.
 				if (listContext) return false;
-				// Insert a literal tab; the browser default would move focus out of the editor.
+				// A literal tab, because the browser default moves focus out of the editor.
 				const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset);
-				pendingCursorOffset = caretOffset;
+				setPendingCursorOffset(caretOffset, 'insert-tab');
 				return true;
 			}
 			case 'block.mergePrev':
@@ -346,10 +424,14 @@
 				toggleFormat('emphasis');
 				return true;
 			case 'heading.cycle': {
-				// Replace any existing `#` prefix so repeated shortcuts cycle heading levels.
-				const { newRaw, caretOffset } = cycleHeading(node.raw, arg ?? 0, offset);
+				// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
+				// accept only an in-range level (0 strips to paragraph, 1–6 sets an ATX
+				// level). A non-number or out-of-range value would coerce wrong or throw a
+				// RangeError inside `#`.repeat, so fall back to the strip behavior.
+				const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
+				const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
 				blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
-				pendingCursorOffset = caretOffset;
+				setPendingCursorOffset(caretOffset, 'heading-cycle');
 				return true;
 			}
 			case 'block.moveUp':
@@ -370,7 +452,7 @@
 		getCursorOffset,
 		focusAtColumn,
 		isVerticallyTransparent,
-		selectEdgeWidget,
+		enterEdgeWidget,
 		runCommand
 	} satisfies BlockComponent);
 
@@ -392,9 +474,24 @@
 		if (perfEnabled()) recordBlockRender(performance.now() - t0, myPath);
 
 		if (pendingCursorOffset !== null) {
-			cursor.setRaw(pendingCursorOffset);
+			// Restore the caret only while this block still owns focus. A blur-commit
+			// (revealed source persisted as focus leaves) also sets a pending offset;
+			// without this guard the restore would yank the global selection back into
+			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
+			// The clear below runs in BOTH arms: a skipped restore is dropped, never
+			// re-armed, so a stale offset can't fire on a later unrelated render.
+			const applied = document.activeElement === el;
+			if (applied) cursor.setRaw(asRawOffset(pendingCursorOffset));
+			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
+		// A rebuild mints fresh spans with no reveal class; re-apply synchronously
+		// (before paint) or typing inside a revealed construct folds for one frame
+		// per keystroke. untracked: the caret chain must never join the effect's
+		// dependencies (selection and the inline cache are non-reactive anyway).
+		untrack(() => {
+			if (!composing) constructReveal.update(true);
+		});
 		markKeystrokeSettle();
 	});
 
@@ -422,8 +519,8 @@
 				lastSnapTargetOffset = null;
 				return;
 			}
-			const content = rawOffsetAtNode(root, range.startContainer, range.startOffset);
-			const off = Math.max(0, content - ambientLength);
+			const content = domTextOffsetAtNode(root, range.startContainer, range.startOffset);
+			const off = toClampedRawOffset(content, ambientLength);
 			if (off !== lastSnapTargetOffset) {
 				lastSnapTargetOffset = null;
 			}
@@ -475,6 +572,16 @@
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
+		// Synchronous construct-reveal backstop, before any default runs: rapid
+		// arrows outrun the async selectionchange reveal (input events outrank
+		// normal tasks), and a step computed against folded markers skips their
+		// bytes. Never consumes the key.
+		constructReveal.prepareForKeydown(e);
+
+		// Revealed `$…$` source: Escape cancels back to rendered, Enter commits +
+		// re-renders. Every other key edits the source natively (onInput suppressed).
+		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the
 		// native range, so getCursorOffset() reports 0 and would mis-trigger the
 		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
@@ -487,7 +594,10 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		if (widgetInteraction.handleWidgetAtCursorKeydown(e, cursor.getRaw())) return;
+		// Every caret-edge construct — CST widget, decoration island, ambient overlap —
+		// intercepts a plain edge key through this one dispatch, keeping native
+		// contenteditable from silently corrupting the atomic bytes each stands for.
+		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
 		// Home with an ambient marker: native Home lands at DOM 0 (before the
 		// marker span). Skip that — the user wants raw offset 0, i.e. the
@@ -498,40 +608,16 @@
 			return;
 		}
 
-		// Selections whose DOM range extends into the contenteditable="false"
-		// ambient span block native Backspace/Delete silently — the browser
-		// refuses to modify any range overlapping non-editable content, and
-		// no beforeinput fires. Perform the delete via the CST path instead.
-		if (
-			(e.key === 'Backspace' || e.key === 'Delete') &&
-			hasSelectionHelper() &&
-			el &&
-			ambientLength > 0
-		) {
-			const ambient = ambientSpanOf(el);
-			const sel = window.getSelection();
-			const touchesAmbient =
-				!!ambient &&
-				!!sel &&
-				sel.rangeCount > 0 &&
-				(ambient.contains(sel.anchorNode) || ambient.contains(sel.focusNode));
-			if (touchesAmbient) {
-				e.preventDefault();
-				const range = cursor.getRawSelection();
-				if (range && range.start < range.end) {
-					const display = getDisplayText();
-					const newDisplay = display.slice(0, range.start) + display.slice(range.end);
-					blockEdit.updateBlockContent(index, newDisplay + '\n', range.start, range.start);
-					pendingCursorOffset = range.start;
-				}
-				return;
-			}
-		}
-
 		const chord = eventToChord(e);
 		if (
 			chord &&
-			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+			dispatchKeyCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{ history, pluginEditor, getPresentationMode: () => presentationMode },
+				keybindingOverrides(),
+				onCommandError
+			)
 		) {
 			e.preventDefault();
 			return;
@@ -548,29 +634,56 @@
 	}
 
 	// Click past a block-level widget drops the caret outside the contenteditable
-	// (no text-node anchor); capture click X in pointerdown and snap to the
-	// nearest widget edge in onClick.
+	// (no text-node anchor); capture the click point in pointerdown and snap to the
+	// nearest widget edge in onClick. Y is load-bearing for the reveal hit-test — a
+	// column-aligned click on another visual line must not reveal a widget.
 	let lastClickClientX: number | null = null;
-	// Survives the click→keydown gap when Chromium clears the caret at
-	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
-	let lastSnapTargetOffset = $state<number | null>(null);
+	let lastClickClientY: number | null = null;
 
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 		lastClickClientX = e.clientX;
+		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
+		// A press on a reveal-source widget is an owned gesture: suppress the
+		// browser's caret-placement default so the only selection writer between
+		// here and the reveal's own placement is the reveal itself. Click still
+		// fires; snapClickToWidgetEdge dispatches the reveal from it.
+		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) e.preventDefault();
 	}
 
 	function onBlur(e: FocusEvent): void {
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
+		// Focus left the block with source still revealed — persist the edit before
+		// the caret is gone.
+		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
 	}
 
+	// Selection cadence for both reveal machines: a caret/selection move folds an
+	// escaped widget-source reveal and re-evaluates preview-inline's construct
+	// chain. Blur keeps owning the focus-leaving widget fold; a mid-IME selection
+	// move must neither commit nor flip marker visibility, so composition
+	// suppresses both like it suppresses onInput.
+	$effect(() => {
+		const root = el;
+		if (!root) return;
+		const handler = () => {
+			if (composing) return;
+			widgetInteraction.foldRevealIfSelectionEscaped();
+			constructReveal.update();
+		};
+		document.addEventListener('selectionchange', handler);
+		return () => document.removeEventListener('selectionchange', handler);
+	});
+
 	function onClick(): void {
 		const x = lastClickClientX;
+		const y = lastClickClientY;
 		lastClickClientX = null;
+		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		widgetInteraction.snapClickToWidgetEdge(x);
+		widgetInteraction.snapClickToWidgetEdge(x, y);
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
@@ -586,7 +699,7 @@
 			format
 		);
 
-		blockEdit.updateBlockContent(index, newDisplay + '\n', newSelStart);
+		blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart);
 
 		tick().then(() => {
 			setSelection(newSelStart, newSelEnd);
@@ -594,11 +707,15 @@
 	}
 </script>
 
+<!-- Reading mode flips contenteditable off: the whole browser-edit-path class
+	(beforeinput/input, IME, native paste/cut, drag-drop insertion) dies
+	structurally. tabindex/role are independent, so focus + arrow traversal stay. -->
 <div
 	bind:this={el}
 	tabindex="0"
 	class="text-editable-block {blockClass}"
-	contenteditable="true"
+	contenteditable={readOnly ? 'false' : 'true'}
+	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
 	style:text-indent={ambientPrefixText ? `-${ambientLength}ch` : null}
 	style:padding-left={ambientPrefixText ? `${ambientLength}ch` : null}
@@ -623,12 +740,6 @@
 		word-wrap: break-word;
 		min-height: 1.4em;
 		width: 100%;
-	}
-
-	.text-editable-block.paragraph-block:empty::before {
-		content: 'Start typing...';
-		color: var(--color-ui-dulled, #afb1b3);
-		pointer-events: none;
 	}
 
 	.text-editable-block.heading-1 {
@@ -679,7 +790,7 @@
 	}
 
 	.text-editable-block :global(.md-autolink) {
-		color: var(--color-accent, #567b67);
+		color: var(--syntax-url, var(--color-accent, #567b67));
 		text-decoration: underline;
 	}
 </style>

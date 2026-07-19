@@ -1,5 +1,3 @@
-// ── Types ────────────────────────────────────────────────────────────────────
-
 import type { OperationKind } from '../schema/operations';
 
 export interface OperationEntry {
@@ -14,8 +12,6 @@ export interface OperationsLog {
 	snapshot(): OperationEntry[];
 	subscribe(listener: (entry: OperationEntry) => void): () => void;
 }
-
-// ── Factory ──────────────────────────────────────────────────────────────────
 
 /** Bounded FIFO; oldest entries evicted past `capacity`. */
 export function createOperationsLog(capacity = 100): OperationsLog {

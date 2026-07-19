@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 test.describe('cross-block clipboard: paste basics', () => {
@@ -62,7 +62,11 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['Hello', '', '# Heading', '', 'New paragraph'].join('\n')
 		);
-		expect(await editor.bridge.getBlockCount()).toBe(3);
+		// Live-CST count, not the reparse count (which folds blank lines back into
+		// trivia and reads 3). The clipboard's internal blank line materializes as
+		// a real empty-paragraph row (paste-materializes-blank-lines), so the tree
+		// is Hello / heading / blank-row / New paragraph — four rendered blocks.
+		expect(await editor.bridge.getBlockCount()).toBe(4);
 	});
 
 	test('multi-block paste replaces selected text', async () => {

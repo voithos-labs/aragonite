@@ -2,6 +2,8 @@ import type { Page } from '@playwright/test';
 import type { EditorPage } from '../editor-page';
 import type { ExpectationTracker } from './expectation';
 import type { ErrorCollector } from './error-collector';
+import type { NoteFixture } from './notes/types';
+import { getContainerParityMismatches } from '../container-parity';
 
 export interface SimContext {
 	page: Page;
@@ -72,6 +74,24 @@ export async function assertNoErrors(ctx: SimContext): Promise<void> {
 	await ctx.errors.assertNone();
 }
 
+/**
+ * Container children/childIds parity across every keyed BlockList in the live
+ * tree. A structural mutation that extends `children` without extending
+ * `childIds` gives the trailing keyed-each entries `undefined` keys — Svelte's
+ * earliest signal of the desync class, caught here at checkpoint cadence rather
+ * than waiting for the boundary to throw mid-render. The walker throws (not
+ * returns `[]`) if the doc bridge is absent, so a missing probe is loud, never
+ * vacuously green.
+ */
+export async function assertContainerParity(ctx: SimContext): Promise<void> {
+	const mismatches = await getContainerParityMismatches(ctx.page);
+	if (mismatches.length) {
+		throw new Error(
+			`[${ctx.label}] container children/childIds parity broken:\n${JSON.stringify(mismatches, null, 2)}`
+		);
+	}
+}
+
 export async function assertNestedStateConsistent(ctx: SimContext): Promise<void> {
 	const violations = await ctx.page.evaluate(() =>
 		(window as any).__test.auditBlockListStateConsistency()
@@ -93,6 +113,34 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
 	}
 }
 
+/**
+ * Live-tree convergence oracle — the structural counterpart to
+ * assertRoundTripStable. The byte round-trip above is a source-string fixed
+ * point (a tautology for valid GFM); this compares the LIVE CST against a
+ * reparse of its own serialization, catching a gesture that left the tree
+ * diverging from its raw. Run at checkpoint cadence (not per keystroke), the
+ * same cost tier as the round-trip check.
+ *
+ * A note that declares `unconvergedReason` is exempt: its build is byte-faithful
+ * but intentionally non-convergent (an unclosed fenced code block whose trailing
+ * blocks GFM lazy-collapses on reload). The reason lives on the fixture, so this
+ * is a documented waiver, not a silent skip.
+ */
+export async function assertParseConvergence(ctx: SimContext, note: NoteFixture): Promise<void> {
+	if (note.unconvergedReason) return;
+	const converges = await ctx.page.evaluate(() => (window as any).__test.parseConverged());
+	if (!converges) {
+		const [source, tree] = await Promise.all([
+			ctx.editor.bridge.getSource(),
+			ctx.page.evaluate(() => (window as any).__test.dumpTree())
+		]);
+		throw new Error(
+			`[${ctx.label}] live CST diverges from a reparse of its serialization.\n` +
+				`SOURCE: ${JSON.stringify(source)}\n--- CST ---\n${tree}`
+		);
+	}
+}
+
 export async function assertFocusBlock(
 	ctx: SimContext,
 	expectedBlockPath: number[]
@@ -106,6 +154,71 @@ export async function assertFocusBlock(
 				`ACTUAL focus path:   ${JSON.stringify(actual)}`
 		);
 	}
+}
+
+/**
+ * Both selection endpoints resolve to a live CST node, with leaf offsets within
+ * that node's raw. A structural gesture that mutates the tree can leave an endpoint
+ * addressing a node that no longer exists or an offset past a now-shorter block —
+ * a dangling selection the next keystroke dereferences into corruption. Walks the
+ * live tree (not a reparse) against the public selection snapshot, so it catches a
+ * stale endpoint the source-string oracles are blind to. A null selection (nothing
+ * focused) is vacuously valid; only leaves carry the offset bound (container offsets
+ * index children, a different space).
+ */
+export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
+	const invalid = await ctx.page.evaluate(() => {
+		const probe = (window as any).__test;
+		const sel = probe.getSelectionPaths();
+		if (!sel) return null;
+		const doc = probe.getDocument();
+		const resolve = (path: number[]): { raw: unknown; isLeaf: boolean } | null => {
+			let node: { children?: unknown[]; raw?: unknown } = doc;
+			for (const index of path) {
+				const children = node.children;
+				if (!Array.isArray(children) || index < 0 || index >= children.length) return null;
+				node = children[index] as { children?: unknown[]; raw?: unknown };
+			}
+			const children = node.children;
+			return { raw: node.raw, isLeaf: !Array.isArray(children) || children.length === 0 };
+		};
+		for (const which of ['anchor', 'focus'] as const) {
+			const point = sel[which];
+			if (point.offset < 0) return { which, reason: 'negative offset', point };
+			const resolved = resolve(point.path);
+			if (!resolved) return { which, reason: 'path resolves to no live node', point };
+			if (
+				resolved.isLeaf &&
+				typeof resolved.raw === 'string' &&
+				point.offset > resolved.raw.length
+			) {
+				return {
+					which,
+					reason: 'offset exceeds leaf raw length',
+					point,
+					rawLength: resolved.raw.length
+				};
+			}
+		}
+		return null;
+	});
+	if (invalid) {
+		throw new Error(`[${ctx.label}] selection endpoint invalid: ${JSON.stringify(invalid)}`);
+	}
+}
+
+/**
+ * The oracle sweep the destructive cross-block and merge gestures run at the moment
+ * the tree is most likely corrupted — right after a range collapse or a merge, before
+ * the next gesture builds on it. Bundles the note-agnostic structural oracles;
+ * parse-convergence stays with the caller because its waiver lives on the note.
+ */
+export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> {
+	await assertNoErrors(ctx);
+	await assertContainerParity(ctx);
+	await assertNestedStateConsistent(ctx);
+	await assertRoundTripStable(ctx);
+	await assertSelectionValidity(ctx);
 }
 
 // ── History oracle ──────────────────────────────────────────────────────────

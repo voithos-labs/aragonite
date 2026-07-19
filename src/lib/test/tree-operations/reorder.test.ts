@@ -32,6 +32,20 @@ describe('reorderChildren', () => {
 		expect(reorderChildren(children, 1, 1)).toEqual({ op: 'noop' });
 		expect(children.map((c) => c.raw)).toEqual(['a', 'b']);
 	});
+
+	// A stale `from` (e.g. a mid-drag delete shrank the table) must never splice
+	// `undefined` into the $state tree — the invariant backstop no-ops instead.
+	it('is a guarded noop when `from` is out of bounds', () => {
+		const children = [node('a'), node('b')];
+		expect(reorderChildren(children, 5, 0)).toEqual({ op: 'noop' });
+		expect(children.map((c) => c.raw)).toEqual(['a', 'b']);
+	});
+
+	it('is a guarded noop when `to` is out of bounds', () => {
+		const children = [node('a'), node('b')];
+		expect(reorderChildren(children, 0, 9)).toEqual({ op: 'noop' });
+		expect(children.map((c) => c.raw)).toEqual(['a', 'b']);
+	});
 });
 
 describe('reorderChildrenWithTrivia', () => {
@@ -70,5 +84,26 @@ describe('reorderChildrenWithTrivia', () => {
 		expect(originals.map((c) => c.leadingTrivia)).toEqual(['', '\n']);
 		expect(children.every((c) => !originals.includes(c))).toBe(true);
 		expect(children.map((c) => c.leadingTrivia)).toEqual(['', '\n']);
+	});
+
+	// The OOB backstop must fire BEFORE the per-slot unshare loop — otherwise a
+	// stale index reads `.leadingTrivia` off `undefined` and throws before the
+	// guard in the delegated reorderChildren can no-op.
+	it('is a guarded noop when `from` is out of bounds, before any unshare', () => {
+		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
+		const originals = children.slice();
+		const s = sharing();
+		s.markSnapshotTaken(); // any unshare would replace the shared nodes in place
+
+		expect(reorderChildrenWithTrivia(children, 5, 0, s)).toEqual({ op: 'noop' });
+		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
+		// No slot was unshared: the array still holds the original shared nodes.
+		expect(children.every((c, i) => c === originals[i])).toBe(true);
+	});
+
+	it('is a guarded noop when `to` is out of bounds', () => {
+		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
+		expect(reorderChildrenWithTrivia(children, 0, 9, sharing())).toEqual({ op: 'noop' });
+		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
 	});
 });

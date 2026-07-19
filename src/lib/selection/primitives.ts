@@ -4,29 +4,52 @@
  * predicates live in `./path-math`.
  */
 
-import type { CstNode, Document } from '../core/nodes';
-import { isPathBetween } from './path-math';
+import type { DocumentView, NodeView } from '../core/node-views';
+import { comparePaths, isPathBetween } from './path-math';
+import {
+	asCellIndex,
+	asRawOffset,
+	type CellIndex,
+	type RawOffset
+} from '../cursor/coordinate-spaces';
 import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-/**
- * A single selection endpoint: path of child indices plus an offset whose
- * meaning depends on `cellCoordinate`. Empty path is the document root.
- *
- * `offset` is a character index into the leaf's `raw` by default. On a table
- * endpoint it is instead a row-major cell index (`cellCoordinate: true`), with
- * the path addressing the table block rather than a deep cell leaf. The generic
- * document-order ops here (`comparePaths`, `normalize`, `walkBetween`,
- * `classifyBlockForSelection`) compare offsets numerically and are correct under
- * either meaning. Sites that slice `raw` by `offset` must read it through
- * {@link assertCharOffset} so a stray cell coordinate is caught in DEV.
- */
-export interface SelectionPoint {
+/** Char-space endpoint: `offset` is a character index into the leaf's `raw`. */
+export interface CharSelectionPoint {
 	path: number[];
 	offset: number;
-	cellCoordinate?: boolean;
+	cellCoordinate?: false;
 }
+
+/** Cell-space endpoint: `offset` is a row-major table cell index; `path` addresses the table block. */
+export interface CellSelectionPoint {
+	path: number[];
+	offset: number;
+	cellCoordinate: true;
+}
+
+/**
+ * A single selection endpoint, discriminated on `cellCoordinate`. Empty path is
+ * the document root.
+ *
+ * `offset` keeps its name on both arms; its space is the discriminant's job. The
+ * union's teeth are on construction — a cell point needs the literal
+ * `cellCoordinate: true`, and a char-typed slot rejects a cell point. Reading the
+ * field in the wrong space stays a runtime concern: {@link charOffsetOf} /
+ * {@link cellIndexOf} mint the matching brand and DEV-warn on a mismatch. The
+ * generic document-order ops here (`normalize`, `walkBetween`,
+ * `classifyBlockForSelection`) compare offsets numerically and hold under either
+ * meaning.
+ *
+ * Intra-table selections are the deliberate exception: both endpoints share the
+ * table path and traffic in cell-valued offsets on UNFLAGGED points, established
+ * by their shared scope rather than the flag. Forcing the flag there was tried
+ * and reverted — it spurious-warned every same-table read — so the union governs
+ * the flagged cross-block world while intra-table stays context-established.
+ */
+export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 
 /**
  * Anchor/focus pair. Same path + same offset is collapsed; same path +
@@ -39,38 +62,28 @@ export interface EditorSelection {
 }
 
 /**
- * Pointerdown anchor of a potential cross-block drag before it has escaped
- * the original block. Null when no drag is active.
+ * Read a point's offset as a character index into the leaf's `raw` (the caller
+ * slices `raw` or places a caret by character). Warns in DEV if the point
+ * instead carries a cell coordinate — the space mismatch is the caret-corruption
+ * class the brand splits. Always returns the value, minted `RawOffset`.
  */
-export type SelectionDragStart = SelectionPoint | null;
-
-/**
- * Read a point's offset where it must be a character index (the caller slices
- * `raw` or places a caret by character). Warns in DEV if the point carries a
- * cell coordinate; always returns the raw offset value.
- */
-export function assertCharOffset(point: SelectionPoint, tag: string): number {
+export function charOffsetOf(point: SelectionPoint, tag: string): RawOffset {
 	if (point.cellCoordinate) {
 		devWarn(tag, 'char-offset site received a cell-coordinate SelectionPoint', point);
 	}
-	return point.offset;
+	return asRawOffset(point.offset);
 }
 
-// ── Path comparison ────────────────────────────────────────────────────────
-
 /**
- * Compare two paths in document order. Ancestor-before-descendant:
- * `[2]` comes before `[2, 0]` (container opens before children).
+ * Read a point's offset as a row-major table cell index (the caller decodes it
+ * into row/column). Warns in DEV when the point is NOT a cell coordinate — the
+ * mirror of {@link charOffsetOf}. Always returns the value, minted `CellIndex`.
  */
-export function comparePaths(a: number[], b: number[]): number {
-	const len = Math.min(a.length, b.length);
-	for (let i = 0; i < len; i++) {
-		if (a[i] < b[i]) return -1;
-		if (a[i] > b[i]) return 1;
+export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
+	if (!point.cellCoordinate) {
+		devWarn(tag, 'cell-index site received a char-offset SelectionPoint', point);
 	}
-	if (a.length < b.length) return -1;
-	if (a.length > b.length) return 1;
-	return 0;
+	return asCellIndex(point.offset);
 }
 
 // ── Normalization ──────────────────────────────────────────────────────────
@@ -97,12 +110,12 @@ export function normalize(selection: EditorSelection): {
  * Every block path strictly between `start` and `end` in document order
  * (exclusive of both endpoints). Walks every nesting level.
  */
-export function walkBetween(doc: Document, start: number[], end: number[]): number[][] {
+export function walkBetween(doc: DocumentView, start: number[], end: number[]): number[][] {
 	if (comparePaths(start, end) >= 0) return [];
 
 	const result: number[][] = [];
 
-	function visit(node: CstNode | Document, path: number[]): void {
+	function visit(node: NodeView | DocumentView, path: number[]): void {
 		if (isPathBetween(path, start, end)) {
 			result.push([...path]);
 		}

@@ -2,14 +2,20 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { arbRawString, arbCrlfString, arbDeepNesting, arbGfmDoc } from './arbitraries';
+import {
+	arbRawString,
+	arbCrlfString,
+	arbDeepNesting,
+	arbGfmDoc,
+	freshOrFixedSeed
+} from './arbitraries';
 
 // G2.1 marquee invariant: serialize(parse(s)) === s for ALL inputs. The parser
 // is total (never throws; unknown syntax becomes paragraph/unrecognized) and the
 // serializer is pure byte concatenation, so any counterexample is a real defect.
 // Seeds are fixed so a regression surfaces deterministically rather than flaking.
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 function roundTrips(source: string): boolean {
 	const doc = parse(source);
@@ -53,4 +59,25 @@ describe('G2.2 EOF edge states', () => {
 			expect(serialize(parse(source))).toBe(source);
 		});
 	}
+});
+
+// Adversarial fixed cases the generators cannot reach at useful sizes — their
+// nesting dial (arbDeepNesting) tops out around a dozen levels, well below the
+// container-depth cap these exercise.
+describe('G2.1 adversarial nesting', () => {
+	it('round-trips 2000-deep link bracket nesting', () => {
+		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
+		expect(serialize(parse(source))).toBe(source);
+	});
+
+	it('round-trips a blockquote flood past the container-depth cap', () => {
+		const source = '>'.repeat(5000) + ' x\n';
+		expect(serialize(parse(source))).toBe(source);
+	});
+
+	it('round-trips a nested-list flood past the container-depth cap', () => {
+		const source =
+			Array.from({ length: 700 }, (_, i) => ' '.repeat(2 * i) + '- x').join('\n') + '\n';
+		expect(serialize(parse(source))).toBe(source);
+	}, 30_000);
 });

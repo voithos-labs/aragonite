@@ -9,8 +9,7 @@ import type { NoteFixture } from './types';
  * exact shape the harness first caught a desync in), end-state equality,
  * round-trip stability, the undo/redo differential, and a checkpoint — while
  * staying well under the smoke wall-time budget. The headline BIOLOGY_NOTE adds
- * blockquote, fenced code, image resize, task toggle, and a click-back detour in
- * the gated capture spec.
+ * blockquote, fenced code, image resize, task toggle, and a click-back detour.
  */
 export const SMOKE_NOTE: NoteFixture = {
 	name: 'smoke-note',
@@ -42,5 +41,6 @@ export const SMOKE_NOTE: NoteFixture = {
 		'- Chloroplasts capture light\n' +
 		'- Water splits into oxygen\n' +
 		'- Glucose stores the energy\n' +
+		'\n' +
 		'Light and water drive the reaction.\n'
 };

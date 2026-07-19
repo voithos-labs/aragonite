@@ -1,9 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { compileMatcher } from '$lib/search/matcher';
+import { createGrammarView } from '$lib/schema/block-openers';
+import { scanDocument } from '$lib/search/document-scan';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
@@ -185,5 +191,72 @@ describe('replaceOne — single-subtree case', () => {
 		const sr = createSearchReplace(deps, createUndoController(deps));
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('heading');
+	});
+
+	// Parity with the top-level content commit: the reparse honors the instance
+	// grammar, so an introduced marker for a disabled kind stays unmaterialized.
+	it('honors the instance grammar — a disabled heading marker stays paragraph', async () => {
+		const doc = parse('title\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		deps.grammar = createGrammarView((kind) => kind !== 'heading');
+		const sr = createSearchReplace(deps, createUndoController(deps));
+		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
+		expect(deps.doc.children[0].kind).toBe('paragraph');
+	});
+});
+
+describe('replace — matches on childless opaque containers are skipped', () => {
+	// The real scanner (not scanForLiteral): only it produces the container
+	// matches whose replace behavior these tests pin.
+	function scanFor(doc: Document, q: string) {
+		const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
+		if (!r.ok) throw new Error(r.error);
+		return scanDocument(doc, r.matcher);
+	}
+
+	const DIAGRAM_RAW = '```diagram\ngraph cat\n```\n';
+	let diagramNode: CstNode;
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		const diagram = declarePluginKind('replace-diagram');
+		registerBlockKind(diagram, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			container: { contract: 'opaque', rebuildRaw: () => {} }
+		});
+		diagramNode = { kind: diagram, leadingTrivia: '\n', raw: DIAGRAM_RAW, children: [] };
+	});
+
+	it('replaceAll applies only leaf matches and reports the real count', async () => {
+		const para: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'prose cat\n' };
+		const { deps } = makeEditorActionsDeps([para, diagramNode]);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+
+		const matches = scanFor(deps.doc, 'cat');
+		expect(matches.map((m) => m.path)).toEqual([[0], [1]]); // leaf + container, so RED ≠ GREEN
+
+		const replaced = await sr.replaceAll(matches, 'dog');
+
+		expect(replaced).toBe(1);
+		expect(serialize(deps.doc)).toContain('prose dog');
+		expect(deps.doc.children[1].kind).toBe(diagramNode.kind);
+		expect(deps.doc.children[1].raw).toBe(DIAGRAM_RAW);
+		expect(deps.undoManager.getStacks().undo.length).toBe(1);
+	});
+
+	it('replaceOne on a container match is a no-op with no undo entry', async () => {
+		const { deps } = makeEditorActionsDeps([diagramNode]);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+
+		const match = scanFor(deps.doc, 'cat')[0];
+		expect(match.path).toEqual([0]);
+
+		const replaced = await sr.replaceOne(match, 'dog');
+
+		expect(replaced).toBe(0);
+		expect(deps.doc.children[0].raw).toBe(DIAGRAM_RAW);
+		expect(deps.undoManager.getStacks().undo.length).toBe(0);
 	});
 });

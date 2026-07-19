@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 test.describe('clipboard exploration: unusual content', () => {
@@ -66,7 +66,7 @@ test.describe('clipboard exploration: unusual content', () => {
 	});
 
 	test('paste after Ctrl+A selection (whole-document) replaces entire document', async ({
-		page
+		page: _page
 	}) => {
 		await editor.loadContent('existing para one\n\nexisting para two\n\nexisting para three\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('replacement content\n'));

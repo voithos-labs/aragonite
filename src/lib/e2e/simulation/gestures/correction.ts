@@ -26,8 +26,8 @@ export async function cancellingEditAtCaret(ctx: SimContext): Promise<void> {
 
 /**
  * Click back into an earlier top-level block and make a cancelling edit there. The
- * click reuses `clickToReposition`, which asserts the focus block path (CRITICAL-2:
- * a wrong-block landing must never be recorded as truth), so `targetBlockPath` must
+ * click reuses `clickToReposition`, which asserts the focus block path — a
+ * wrong-block landing must never be recorded as truth — so `targetBlockPath` must
  * be a single top-level index. Nets to identity, leaving the document unchanged.
  */
 export async function lateCorrection(

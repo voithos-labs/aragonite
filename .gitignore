@@ -3,6 +3,8 @@ node_modules
 /build
 /.svelte-kit
 /package
+dist/
+*.tgz
 .env
 .env.*
 !.env.example
@@ -19,11 +21,20 @@ playwright-report/
 # outside test-results/ so Playwright doesn't wipe them between runs.
 simulation-captures/
 
+# svelte-package emits a .d.mts beside any scripts/*.mjs that a compiled
+# src/lib/test file imports (pack-manifest.mjs, shared with verify-pack). Generated
+# build byproduct, pruned from the tarball — not source.
+scripts/*.d.mts
+
 # Raw perf harness output; curated numbers live in baseline.json
 perf-results/
 
-# Subagent-driven-development scratch (briefs, reports, progress ledger)
-.superpowers/
+# Raw conformance sweep output; the curated divergence set lives in baseline.json
+conformance-results/
 
-# Brainstorm/plan process artifacts — durable record lives in changelog + design docs
+# Personal agent workflow
+CLAUDE.md
+.claude/
+/superpowers/
 docs/superpowers/
+.superpowers/

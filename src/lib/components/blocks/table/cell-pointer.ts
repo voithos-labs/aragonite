@@ -5,7 +5,7 @@
  */
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { SelectionPoint } from '../../../selection/primitives';
+import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 import type { AnyBlockKind } from '../../../core/nodes';
 import { offsetFromViewportPoint } from '../../../selection/native-bridge';
 import { createAutoScroll } from '../../../selection/autoscroll';
@@ -52,7 +52,7 @@ export function installCellDragListener(
 	// anchored mid-row row-rounds the copy while the delete clears from the
 	// mid-cell, duplicating the leading cells. Same-table extends compare equal
 	// paths and short-circuit the snap, so the intra-table rectangle is untouched.
-	const anchorPoint: SelectionPoint = {
+	const anchorPoint: CellSelectionPoint = {
 		path: anchor.tablePath.slice(),
 		offset: anchorCellIdx,
 		cellCoordinate: true
@@ -133,7 +133,7 @@ export function installCellDragListener(
 			: offsetFromViewportPoint(hit.element, clientX, clientY);
 		if (offset === null) return;
 		const focusPoint: SelectionPoint = hit.foreignDragHitTest
-			? { path: hit.path, offset, cellCoordinate: true }
+			? ({ path: hit.path, offset, cellCoordinate: true } satisfies CellSelectionPoint)
 			: { path: hit.path, offset };
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
@@ -197,8 +197,16 @@ export function handleCellShiftClick(
 		selection.extendFocus({ path: tablePath, offset: focusCellIdx });
 		return;
 	}
+	// Flag the anchor as a row-major cell index, matching the drag anchor: an
+	// exit-the-table extend later needs it so the whole-row snap fires. The focus
+	// stays context-established (unflagged) — same-table extends short-circuit the
+	// snap, so the intra-table rectangle is untouched.
 	selection.enterCrossBlock(
-		{ path: tablePath.slice(), offset: anchorCellIdx },
+		{
+			path: tablePath.slice(),
+			offset: anchorCellIdx,
+			cellCoordinate: true
+		} satisfies CellSelectionPoint,
 		{ path: tablePath.slice(), offset: focusCellIdx }
 	);
 }

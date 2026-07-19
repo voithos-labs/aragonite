@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { describe, it, expect } from 'vitest';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
@@ -51,9 +51,9 @@ function makeSetup(childRaws: string[]) {
 	return { bundle, containerNode, containerState, controller, deps };
 }
 
-// ── B7: debounce batches break on focus change between sibling leaves ─────────
+// ── Debounce batches break on focus change between sibling leaves ─────────────
 
-describe('debounce batch key — sibling leaves inside one container (B7)', () => {
+describe('debounce batch key — sibling leaves inside one container', () => {
 	it('typing in leaf 0 then leaf 1 produces two undo entries (focus break)', async () => {
 		const { bundle, controller, deps } = makeSetup(['hello\n', 'world\n']);
 
@@ -67,7 +67,7 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		// Two snapshots: one before each leaf's typing batch.
 		expect(deps.undoManager.getStacks().undo).toHaveLength(2);
 		// Cleanup the still-pending debounce timer so vitest exits cleanly.
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 
 	it('typing in leaf 0, leaf 1, then leaf 0 again produces three undo entries', async () => {
@@ -78,7 +78,7 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		await bundle.blockEdit.updateBlockContent(0, 'a12\n', 2);
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(3);
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 
 	it('typing repeatedly into the same leaf still produces one batch (no spurious breaks)', async () => {
@@ -89,6 +89,6 @@ describe('debounce batch key — sibling leaves inside one container (B7)', () =
 		await bundle.blockEdit.updateBlockContent(0, 'hi123\n', 4);
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
-		controller.clearDebouncedCheckpoint();
+		controller.flushDebouncedCheckpoint();
 	});
 });
