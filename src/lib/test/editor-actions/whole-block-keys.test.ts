@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	handleWholeBlockKeys,
 	type WholeBlockKeyDeps
@@ -88,5 +88,66 @@ describe('handleWholeBlockKeys', () => {
 		expect(deleteBlock).not.toHaveBeenCalled();
 		expect(moveFocus).not.toHaveBeenCalled();
 		expect(e.preventDefault).not.toHaveBeenCalled();
+	});
+});
+
+describe('handleWholeBlockKeys — Mod+C / Mod+X clipboard', () => {
+	let writeText: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		writeText = vi.fn().mockResolvedValue(undefined);
+		vi.stubGlobal('navigator', { clipboard: { writeText } });
+	});
+	afterEach(() => vi.unstubAllGlobals());
+
+	it.each([{ ctrlKey: true }, { metaKey: true }])(
+		'Mod+C (%o) copies the trailing-trimmed raw and never deletes',
+		async (mod) => {
+			const { deps, deleteBlock } = makeDeps();
+			const e = press('c', mod);
+			handleWholeBlockKeys(e, deps);
+			expect(e.preventDefault).toHaveBeenCalled();
+			expect(writeText).toHaveBeenCalledWith('---');
+			await Promise.resolve();
+			expect(deleteBlock).not.toHaveBeenCalled();
+		}
+	);
+
+	it('Mod+X copies the raw and deletes the block after the write resolves', async () => {
+		const { deps, deleteBlock } = makeDeps();
+		const e = press('x', { ctrlKey: true });
+		handleWholeBlockKeys(e, deps);
+		expect(e.preventDefault).toHaveBeenCalled();
+		expect(writeText).toHaveBeenCalledWith('---');
+		await vi.waitFor(() => expect(deleteBlock).toHaveBeenCalledWith(2));
+	});
+
+	it('Mod+X in reading mode still copies but deletes nothing', async () => {
+		const { deps, deleteBlock } = makeDeps(() => true);
+		handleWholeBlockKeys(press('x', { ctrlKey: true }), deps);
+		expect(writeText).toHaveBeenCalledWith('---');
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(deleteBlock).not.toHaveBeenCalled();
+	});
+
+	it('Mod+X does not delete when the clipboard write rejects', async () => {
+		writeText.mockRejectedValueOnce(new Error('clipboard denied'));
+		const { deps, deleteBlock } = makeDeps();
+		handleWholeBlockKeys(press('x', { ctrlKey: true }), deps);
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(deleteBlock).not.toHaveBeenCalled();
+	});
+
+	it('leaves Mod+Shift+C and Alt+C untouched (not a copy chord)', () => {
+		const { deps } = makeDeps();
+		const shifted = press('c', { ctrlKey: true, shiftKey: true });
+		const alted = press('c', { ctrlKey: true, altKey: true });
+		handleWholeBlockKeys(shifted, deps);
+		handleWholeBlockKeys(alted, deps);
+		expect(writeText).not.toHaveBeenCalled();
+		expect(shifted.preventDefault).not.toHaveBeenCalled();
+		expect(alted.preventDefault).not.toHaveBeenCalled();
 	});
 });

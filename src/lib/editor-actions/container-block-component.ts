@@ -14,7 +14,7 @@ import {
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import { displayLength } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import { devWarn } from '../dev-warn';
 
@@ -104,6 +104,18 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		return;
 	}
 
+	// Mod+C / Mod+X — the atomic-unit twin of the cross-block sweep-and-copy: the
+	// focused block's own markdown, cut then deleting. A keydown carries no
+	// ClipboardEvent to setData through (the house-rule sync path is event-only),
+	// and owning the gesture in this shared tail avoids duplicating an oncopy
+	// handler on every whole-block surface. preventDefault suppresses the browser's
+	// own copy event, so writeText is the single writer.
+	if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'x')) {
+		e.preventDefault();
+		void copyFocusedWholeBlock(deps, e.key === 'x');
+		return;
+	}
+
 	const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
 	if (!plainArrow) return;
 	const index = deps.getIndex();
@@ -120,6 +132,19 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		e.preventDefault();
 		void deps.focus.moveFocus(index + 1, 'start');
 	}
+}
+
+// Copy is a read, so it never gates; cut's delete gates on reading mode and only
+// runs once the write resolves — a rejected write (a restricted webview refuses
+// writeText, see selection/cross-block/keydown.ts) dev-warns and leaves the block.
+async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(trimTrailingLineEnding(deps.getRaw()));
+	} catch (err) {
+		devWarn('container-block', 'whole-block clipboard write rejected', err);
+		return;
+	}
+	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex());
 }
 
 export interface ContainerBlockComponentDeps {
