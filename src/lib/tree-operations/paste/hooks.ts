@@ -9,6 +9,7 @@ import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nod
 import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
+import { focusIndexBeforeResidue } from './focus-target';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
@@ -97,9 +98,7 @@ export function pastedContentFocusIndex(
 		: display;
 	const effectiveOffset = cut ? preDelete.start : offset;
 	const hasTrailingResidue = effectiveOffset < effectiveDisplay.length;
-	return hasTrailingResidue && replacementLength >= 2
-		? replacementLength - 2
-		: replacementLength - 1;
+	return focusIndexBeforeResidue(replacementLength, hasTrailingResidue);
 }
 
 // Built-in kinds register on block-kind-descriptor import, which is transitively

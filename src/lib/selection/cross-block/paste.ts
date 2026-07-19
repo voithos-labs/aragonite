@@ -9,6 +9,7 @@ import type { CrossBlockMutationContext } from './ops';
 import type { Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
+import { CURSOR_END } from '../../block-component';
 import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
@@ -158,7 +159,7 @@ async function replaceTableWithPaste(
 		controller: ctx.pasteCoordinator,
 		undoEntry: 'join',
 		focusReplacementIndex: replacement.length - 1,
-		focusOffset: Number.MAX_SAFE_INTEGER,
+		focusOffset: CURSOR_END,
 		source: 'cross-block-paste-whole-table'
 	});
 }

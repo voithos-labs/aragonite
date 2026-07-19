@@ -157,36 +157,6 @@ the post-change coordinate and the top-level divergence want a joint look.
 seam and both content-commit factories together — a careful reconciliation, not a spot change.
 Fold into the history-seam pass (limestone internal integration).
 
-### Post-paste caret landing diverges across paste routes
-
-**Severity:** minor (caret placement; the document bytes are correct on every route)
-**Files:** `src/lib/tree-operations/paste/apply.ts`, `src/lib/tree-operations/paste/dispatch.ts`
-(inline `pendingCursorOffset` vs cross-block DOM restore vs structural internal focus)
-
-The post-paste caret lands through three mechanisms depending on the route; the audit flagged
-two of the five caret gates as placing the caret at a different relative position than the
-others for the same logical paste. The current landings are pinned by the clipboard e2e suite
-(post-paste source plus type-after-paste flows), so any parity change re-baselines those specs.
-
-**Why deferred:** the divergence is cosmetic (bytes are correct) and the current behavior is
-spec-pinned; unifying the caret target is a deliberate change that must re-pin the affected
-clipboard specs. Fold into the paste caret/transform pass.
-
-### caretNearestSurvivor parks a container survivor at a char offset on its own path
-
-**Severity:** minor (caret placement in a narrow table-delete edge; bytes are correct)
-**Files:** `src/lib/selection/range-delete-table.ts` (`caretNearestSurvivor`)
-
-When a table-aware range delete removes every block the caret could land in, the survivor
-before the range gets `{ path: [beforeIdx], offset: displayLength(before.raw) }`. Tables are
-special-cased to a deep cell caret, but a **container** survivor (blockquote/list) falls
-through: `before.raw` is the whole container's raw (nested markers included), so the offset is
-a container-path char offset that no leaf owns. The restore then clamps or mis-lands.
-
-**Why deferred:** needs a container last-leaf descent resolver (the table branch's
-`lastCellCaret` generalized) and a container-before-consumed-table cross-block-delete scenario;
-not a cheap one-liner. Fold into the caret-landing parity pass.
-
 ### Cross-block type-replace splices the surviving leaf's raw without re-deriving its kind
 
 **Severity:** minor (transient; the next reparse corrects it)

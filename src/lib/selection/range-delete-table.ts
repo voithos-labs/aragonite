@@ -37,6 +37,7 @@ import {
 	rebuildUnsharedChain
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
+import { findMergeTarget } from '../schema/merge-rules';
 import {
 	nearestChromeContainer,
 	isChromeChild,
@@ -569,7 +570,7 @@ function caretNearestSurvivor(
 	if (beforeIdx >= 0) {
 		const before = children[beforeIdx];
 		if (before.kind === 'table') return lastCellCaret(before, [beforeIdx]);
-		return { path: [beforeIdx], offset: displayLength(before.raw) };
+		return survivorEndCaret(before, [beforeIdx]);
 	}
 	if (children.length > 0) {
 		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
@@ -579,6 +580,21 @@ function caretNearestSurvivor(
 	sharing.stamp(filler);
 	doc.children.push(filler);
 	return { path: [0], offset: 0 };
+}
+
+// End-of-survivor caret, descending a container to the leaf that owns the
+// bytes. A container (blockquote/list) survivor resolved to a char offset on
+// its own path names bytes no leaf owns — the restore then clamps or mis-lands
+// (focus of a non-zero container offset falls to the last child's end, losing
+// the offset). The merge walk already knows the deepest focusable leaf; reuse
+// it. A prose / self-merge leaf resolves to itself; a not-mergeable leaf
+// (thematic break) keeps its own-end landing.
+function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
+	const merge = findMergeTarget(node);
+	if (merge) {
+		return { path: [...path, ...merge.path], offset: displayLength(merge.target.raw) };
+	}
+	return { path, offset: displayLength(node.raw) };
 }
 
 function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
