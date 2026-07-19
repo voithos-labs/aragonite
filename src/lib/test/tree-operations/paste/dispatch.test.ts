@@ -365,11 +365,9 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
 		};
 		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
-		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
-			async ({ mutate }) => {
-				mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
-			}
-		);
+		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(({ mutate }) => {
+			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
+		});
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
@@ -408,11 +406,9 @@ describe('pasteDispatch — paste transforms', () => {
 			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
 		};
 		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
-		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
-			async ({ mutate }) => {
-				mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
-			}
-		);
+		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(({ mutate }) => {
+			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
+		});
 
 		// A single-paragraph clipboard would paste inline; the transform makes it a
 		// heading, so dispatch must route structural instead.

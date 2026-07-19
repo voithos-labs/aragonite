@@ -162,7 +162,7 @@
 	style:top="{clamped ? clamped.y : y}px"
 	onkeydown={onMenuKeyDown}
 >
-	{#each items as item}
+	{#each items as item, i (i)}
 		{#if item.kind === 'action'}
 			<button
 				type="button"
@@ -191,7 +191,7 @@
 			<div class="table-action-menu-separator" role="separator"></div>
 		{:else}
 			<div class="table-action-menu-alignment" role="group" aria-label="Column alignment">
-				{#each alignmentSegments as seg}
+				{#each alignmentSegments as seg (seg.value)}
 					{@const active =
 						item.current === seg.value || (seg.value === 'left' && item.current === 'none')}
 					<button

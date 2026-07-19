@@ -7,7 +7,6 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
 import { assignChildIdsDeep } from '$lib/block-id';
 import {
 	mockRef,

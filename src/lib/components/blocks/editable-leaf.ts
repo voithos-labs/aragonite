@@ -179,7 +179,7 @@ export function buildLeafCommandContext(
 ): Omit<BlockCommandContext, 'arg'> {
 	return {
 		node: deps.getNode(),
-		updateMetadata: (patch) => blockEdit.updateBlockMetadata(deps.getIndex(), patch),
+		updateMetadata: (patch) => void blockEdit.updateBlockMetadata(deps.getIndex(), patch),
 		hooks: deps.commandHooks?.(),
 		editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')
 	};
@@ -288,7 +288,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			// !isReading: the leaf is the seam — even if a plain-mode component keeps
 			// its source editable in reading mode, nothing reaches the CST.
 			if (mode === 'plain' && !isReading()) {
-				blockEdit.updateBlockContent(
+				void blockEdit.updateBlockContent(
 					deps.getIndex(),
 					text + trailingLineEnding(deps.getNode().raw),
 					preEdit,
@@ -334,7 +334,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// One undo entry: the anchor is where the caret entered the edit; the
 		// post-edit caret follows the edit position (a structural split lands it
 		// in the block it falls in).
-		blockEdit.updateBlockContent(
+		void blockEdit.updateBlockContent(
 			deps.getIndex(),
 			edited + trailingLineEnding(deps.getNode().raw),
 			preEditOffset,
@@ -385,10 +385,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function runCommand(id: CommandId): boolean {
 		switch (id) {
 			case 'block.moveUp':
-				reorder.nudgeReorderUnit(deps.getPath(), -1);
+				void reorder.nudgeReorderUnit(deps.getPath(), -1);
 				return true;
 			case 'block.moveDown':
-				reorder.nudgeReorderUnit(deps.getPath(), 1);
+				void reorder.nudgeReorderUnit(deps.getPath(), 1);
 				return true;
 			default:
 				return false;

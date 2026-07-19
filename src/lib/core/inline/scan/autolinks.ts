@@ -78,6 +78,7 @@ export function isValidLeadingBoundary(raw: string, pos: number, regionStart: nu
 // commonmark.js 0.31.2 reEmailAutolink / reAutolink, tried in that order.
 const EMAIL_AUTOLINK =
 	/^<([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/;
+// eslint-disable-next-line no-control-regex -- commonmark reAutolink excludes control chars + space from the URI
 const URI_AUTOLINK = /^<[A-Za-z][A-Za-z0-9.+-]{1,31}:[^<>\x00-\x20]*>/;
 
 export function handleAngle(ctx: ScanContext): void {
@@ -272,8 +273,8 @@ function matchBareWwwAutolink(
 	return { kind: 'autolink', start: pos, end: urlEnd, url: 'http://' + raw.slice(pos, urlEnd) };
 }
 
-const EMAIL_LOCAL = /[A-Za-z0-9._+\-]/;
-const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9\-]/;
+const EMAIL_LOCAL = /[A-Za-z0-9._+-]/;
+const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9-]/;
 
 function matchBareEmailAutolink(
 	raw: string,

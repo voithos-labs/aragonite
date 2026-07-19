@@ -15,6 +15,7 @@
 	let { source }: InlineWidgetComponentProps = $props();
 	// svelte-ignore state_referenced_locally
 	const inner = source.slice(1, -1);
+	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
 	const mountId = nextMountId++;
 
 	let el: HTMLSpanElement;

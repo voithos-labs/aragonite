@@ -21,7 +21,7 @@ export interface SourceFile {
 }
 
 /**
- * Blank `//` and `/* *​/` comments to spaces (preserving offsets and newlines)
+ * Blank line and block comments to spaces (preserving offsets and newlines)
  * so a token inside a comment can't trip a code scan. Naive w.r.t. comment
  * markers inside string/regex literals — acceptable here: the scans match
  * specific call/read shapes, not bare tokens, so a marker in a literal won't

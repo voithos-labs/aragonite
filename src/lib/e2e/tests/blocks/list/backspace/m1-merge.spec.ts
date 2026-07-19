@@ -56,12 +56,12 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await dItem.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(/^    - CD/m);
+		await editor.bridge.waitForSourceMatches(/^ {4}- CD/m);
 
 		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^    - CD/m);
-		expect(source).toMatch(/^  - B/m);
-		expect(source).toMatch(/^  - E/m);
+		expect(source).toMatch(/^ {4}- CD/m);
+		expect(source).toMatch(/^ {2}- B/m);
+		expect(source).toMatch(/^ {2}- E/m);
 	});
 
 	test('M1 row 5: current item has non-listItem continuation paragraph; absorbed into target item children', async () => {
@@ -121,7 +121,7 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await dItem.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(/^    - CD/m);
+		await editor.bridge.waitForSourceMatches(/^ {4}- CD/m);
 
 		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);

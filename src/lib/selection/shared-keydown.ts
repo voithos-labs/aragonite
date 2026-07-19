@@ -114,7 +114,7 @@ export async function handleSharedKeydown(
 			}
 			if (!e.shiftKey && !e.altKey) {
 				e.preventDefault();
-				ctx.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+				void ctx.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 				return true;
 			}
 		}
@@ -134,7 +134,7 @@ export async function handleSharedKeydown(
 			}
 			if (!e.shiftKey && !e.altKey) {
 				e.preventDefault();
-				ctx.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+				void ctx.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return true;
 			}
 		}
@@ -156,7 +156,7 @@ export async function handleSharedKeydown(
 				return true;
 			}
 			e.preventDefault();
-			ctx.focus.moveFocus(index - 1, 'end');
+			void ctx.focus.moveFocus(index - 1, 'end');
 			return true;
 		}
 	}
@@ -172,7 +172,7 @@ export async function handleSharedKeydown(
 				return true;
 			}
 			e.preventDefault();
-			ctx.focus.moveFocus(index + 1, 'start');
+			void ctx.focus.moveFocus(index + 1, 'start');
 			return true;
 		}
 	}
@@ -193,12 +193,12 @@ export async function handleSharedBeforeInput(
 ): Promise<boolean> {
 	if (e.inputType === 'historyUndo') {
 		e.preventDefault();
-		ctx.history.requestUndo();
+		void ctx.history.requestUndo();
 		return true;
 	}
 	if (e.inputType === 'historyRedo') {
 		e.preventDefault();
-		ctx.history.requestRedo();
+		void ctx.history.requestRedo();
 		return true;
 	}
 	if (await ctx.crossBlock.handleBeforeInput(e)) return true;

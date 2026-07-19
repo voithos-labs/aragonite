@@ -127,7 +127,8 @@
 		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/gfm-conformance/full-sweep.test.ts",
 		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run src/lib/test/gfm-conformance/kind-differential.property.test.ts src/lib/test/invariants/inline-total-coverage.property.test.ts src/lib/test/invariants/inline-offsets.property.test.ts src/lib/test/invariants/round-trip.property.test.ts src/lib/test/invariants/textcontent-spine.property.test.ts src/lib/test/invariants/serialization-purity.property.test.ts src/lib/test/invariants/selection-partition.property.test.ts src/lib/test/core/directive/roundtrip-coverage.test.ts src/lib/test/undo/undo-restoration.property.test.ts src/lib/test/plugins/mermaid/round-trip.property.test.ts",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && npm run docs:pack:check",
+		"lint": "prettier --check . && npm run docs:pack:check && npm run lint:eslint",
+		"lint:eslint": "eslint .",
 		"docs:pack:check": "node scripts/build-docs-pack.mjs",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
 		"prepack": "npm run package"
@@ -136,9 +137,9 @@
 		"highlight.js": "^11.11.1"
 	},
 	"peerDependencies": {
-		"svelte": "^5.0.0",
 		"katex": "^0.17.0",
-		"mermaid": "^11.16.0"
+		"mermaid": "^11.16.0",
+		"svelte": "^5.0.0"
 	},
 	"peerDependenciesMeta": {
 		"katex": {
@@ -150,6 +151,7 @@
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.3",
+		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-static": "^3.0.0",
 		"@sveltejs/kit": "^2.55.0",
@@ -159,7 +161,10 @@
 		"@types/node": "^22.19.20",
 		"@vitest/browser": "^4.1.4",
 		"commonmark": "0.31.2",
+		"eslint": "^10.7.0",
+		"eslint-plugin-svelte": "^3.20.0",
 		"fast-check": "^4.8.0",
+		"globals": "^17.7.0",
 		"jsdom": "^29.0.2",
 		"katex": "^0.17.0",
 		"mermaid": "^11.16.0",
@@ -167,7 +172,9 @@
 		"prettier-plugin-svelte": "^3.5.1",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
+		"svelte-eslint-parser": "^1.8.0",
 		"typescript": "~5.6.2",
+		"typescript-eslint": "^8.64.0",
 		"vite": "^6.0.3",
 		"vitest": "^4.1.0"
 	}

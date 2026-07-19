@@ -337,6 +337,7 @@
 				}}
 			>
 				<div class="mermaid-canvas" style:transform={view.transform}>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					{@html rendered.svg}
 				</div>
 			</div>
@@ -383,6 +384,7 @@
 			>
 				<div class="mermaid-canvas" style:transform={overlayView.transform}>
 					{#if rendered?.svg}
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						{@html rendered.svg}
 					{:else}
 						<pre class="mermaid-static">{displayCode}</pre>

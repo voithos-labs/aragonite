@@ -320,7 +320,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			deps.setPendingCursor(caretAfter);
 			return caretAfter;
 		}
-		deps.blockEdit.updateBlockContent(
+		void deps.blockEdit.updateBlockContent(
 			deps.index,
 			editedDisplay + trailingLineEnding(deps.node.raw),
 			caretBefore,
@@ -559,7 +559,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				editorContentWidth: deps.getEditorContentWidth(),
 				presentationMode: deps.getPresentationMode?.() ?? 'source',
 				updateContent: (newRaw, caretBefore, caretAfter) =>
-					deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
+					void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretBefore, caretAfter)
 			});
 			if (consumed) return true;
 		}
@@ -600,7 +600,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			// Undo anchor at the pre-select caret position, not the far widget
 			// boundary — Ctrl+Z restores the caret where the user actually was
 			// when selection took over.
-			deps.blockEdit.updateBlockContent(
+			void deps.blockEdit.updateBlockContent(
 				deps.index,
 				newRaw,
 				selectedWidget.preSelectOffset,
@@ -620,7 +620,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			if (isReading()) return true;
 			const typed = e.key;
 			const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-			deps.blockEdit.updateBlockContent(
+			void deps.blockEdit.updateBlockContent(
 				deps.index,
 				newRaw,
 				selectedWidget.preSelectOffset,

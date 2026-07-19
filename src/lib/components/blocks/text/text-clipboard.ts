@@ -98,7 +98,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		if (selOffsets) {
 			const displayText = trimTrailingLineEnding(deps.node.raw);
 			const newDisplay = displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-			deps.blockEdit.updateBlockContent(
+			void deps.blockEdit.updateBlockContent(
 				deps.index,
 				newDisplay + trailingLineEnding(deps.node.raw),
 				selOffsets.start
@@ -137,7 +137,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 			if (inline) {
 				const newRaw =
 					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
-				deps.blockEdit.updateBlockContent(
+				void deps.blockEdit.updateBlockContent(
 					deps.index,
 					newRaw,
 					selectedWidget.preSelectOffset,

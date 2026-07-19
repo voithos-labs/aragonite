@@ -95,7 +95,7 @@
 	// the `source` prop — Editor re-initializes from source changes, which
 	// would wipe undo / selection / CST on every op.
 	const liveSource = $derived.by(() => {
-		panelTick;
+		void panelTick;
 		return editor?.getSource() ?? source;
 	});
 

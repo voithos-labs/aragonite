@@ -233,10 +233,7 @@
 	function canConvertSource(s: string): boolean {
 		return hasGithubAlert(s) && convertGithubAlertsInDocument(s).changed;
 	}
-	let canConvert = $state(false);
-	$effect(() => {
-		canConvert = canConvertSource(source);
-	});
+	let canConvert = $derived(canConvertSource(source));
 	$effect(() => {
 		if (!editor) return;
 		return editor.getEvents().on('edit', () => {

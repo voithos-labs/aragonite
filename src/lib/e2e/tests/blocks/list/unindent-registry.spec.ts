@@ -37,6 +37,6 @@ test.describe('list unindent — ref alignment via registry', () => {
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/- one\n- Xlonely nested\n- three/);
-		expect(src).not.toMatch(/- one\n  -\s*\n/);
+		expect(src).not.toMatch(/- one\n {2}-\s*\n/);
 	});
 });

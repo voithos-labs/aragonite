@@ -34,7 +34,7 @@ export function compileTimePins(editor: EditorContext): void {
 		name: 'pin-mutable-param',
 		// @ts-expect-error annotating the mutable Document is rejected — the view param
 		// checks contravariantly, so a source cannot hand itself write access
-		provide: (doc: Document) => []
+		provide: (_doc: Document) => []
 	};
 
 	// @ts-expect-error a read hook annotated with the mutable CstNode is rejected —

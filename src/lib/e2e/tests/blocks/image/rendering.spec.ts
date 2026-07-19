@@ -128,7 +128,7 @@ test.describe('image rendering', () => {
 		const aTop = await page.evaluate(() => {
 			const para = document.querySelector('[data-image-widget]')!.parentElement!;
 			const walker = document.createTreeWalker(para, NodeFilter.SHOW_TEXT);
-			let node: Text | null = null;
+			let node: Text | null;
 			while ((node = walker.nextNode() as Text | null)) {
 				if (node.textContent?.includes('a')) break;
 			}

@@ -49,7 +49,6 @@
 import type { ContainerEditActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
-import { serialize } from '../core/serializer';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
 import { createListContext } from '../editor-actions/list-context';
