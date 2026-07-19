@@ -6,28 +6,6 @@ or a **Why deferred** rationale (if not). Remove entries when shipped.
 
 ## Decoration & rendering
 
-### Islands (widget/replace decorations) do not render in table cells
-
-**Severity:** minor (parity gap; mark and block decorations serve cells today)
-**Files:** `src/lib/components/blocks/table/cell-render.ts` (applies no islands) vs
-`src/lib/components/blocks/text/text-render.ts` (the prose island seam)
-
-Only the prose text render path consumes `islandsForPath`; the cell surface runs its own
-inline pass and applies no island decorations, so a widget/replace decoration targeting a
-`tableCell` path renders nothing. `tableCell` is a prose kind, so the non-prose island
-dev-warn also stayed silent — the source seam now warns for cell paths, and the gap is
-e2e-pinned (`fold-and-badge.spec.ts`, islands-in-cells). Byte safety holds throughout:
-the targeted bytes never leave `getSource()`.
-
-**Fix direction:** apply `applyIslandDecorations` in the cell render path the way
-`text-render.ts` does (cell raw, ambient length 0 — the offset walk is shared); island
-editing semantics in cells then ride the same wire-up as the cell reveal gap below
-("Inline-widget source editing (reveal) is unwired in table cells").
-
-**Why deferred:** surfaced as the 0.9.22 islands-in-cells verification outcome. Cells
-already lag the prose surface on widget interaction, so island rendering folds into that
-same cell-surface parity pass rather than shipping render support without editing rules.
-
 ### HTML entities render as the literal source instead of the decoded character
 
 **Severity:** minor (rendering; deviates from author intent)
@@ -177,6 +155,29 @@ switch the tail to the proven copy-event fallback behind the same shared seam.
 **Why deferred:** watch-class; needs the real embedder to falsify.
 
 ## Code structure
+
+### A destructive key at a mid-cell `<br>` edge moves the caret instead of deleting the widget
+
+**Severity:** trivial (niche gesture; byte-safe, no corruption)
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` (the cell's
+`enterWidget` dep to the caret-edge dispatch)
+
+Threading the caret-edge dispatch through cells for inline reveal made it meet a
+`<br>` — a non-reveal widget with no cell affordance (images render as alt text).
+The cell's `enterWidget` sends non-reveal kinds to a caret move rather than the
+prose image select-then-delete path, which stranded focus off any cell. Observed:
+arrowing across a mid-cell `<br>` lands the caret in the adjacent cell (matching
+the pre-parity baseline — focus stays on a cell, the widget's bytes are untouched).
+But `enterWidget` receives only the entry side, not the key, so a Backspace/Delete
+at a `<br>` edge takes the same non-deleting path — the caret moves rather than the
+widget deleting (a second press then eats the adjacent real byte). Only reachable
+mid-cell; at the cell's text boundaries the plan owns the key.
+
+**Fix direction:** give the cell a key-aware caret-edge path for non-reveal
+widgets — a one-press atomic delete on Backspace/Delete, a caret move on arrows —
+which needs the dispatch to hand `enterWidget` the gesture kind (or a separate
+destructive hook). Bundled with the whole-table keymap migration below, since
+both want the cell keydown path expressed declaratively rather than special-cased.
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
@@ -352,25 +353,3 @@ the whole ref chain, across every block kind — blast radius only the simulatio
 
 **Target:** 1.2 — carry it with the container-seam ergonomics pass, not as a standalone pre-freeze
 change to the ref chain.
-
-## Plugin inline widgets
-
-### Inline-widget source editing (reveal) is unwired in table cells
-
-**Severity:** minor (parity gap; cells render widgets but cannot edit them)
-**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte`,
-`src/lib/components/blocks/table/cell-render.ts` vs
-`src/lib/components/blocks/text/widget-interaction.ts` (the prose seam)
-
-Cells gained widget rendering/pooling in 0.9.14 (`createSvelteWidgetPool`) but never wired
-`createWidgetInteraction`: no click-to-reveal, no Enter-reveal, no blur commit, and no
-containment-scoped fold. Verified on the `mathtable` seed — clicking a cell's inline `$x^2$`
-widget leaves it rendered; source editing is simply unavailable inside cells. Distinct from
-the reveal collapse/switch fix (which lives at the TextEditableBlock choke point and covers
-every reveal-source kind there); wiring cells means threading the same interaction bundle
-through the cell surface (its pending-cursor `$effect` already carries the
-`document.activeElement` guard the blur-commit path needs).
-
-**Why deferred:** cell reveal is a feature wire-up, not a regression. Cells already render
-widgets (0.9.14) and a `<br>` now paints as one, so the rendering half of the cell-inline
-work has landed; what remains is threading the interaction bundle through the cell surface.

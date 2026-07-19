@@ -151,6 +151,23 @@ export function applyIslandDecorations(
 	}
 }
 
+/** Gated island signature for a render key. No islands ⇒ '' — an undecorated
+ *  block's key stays byte-identical to the island-free format (the zero-cost
+ *  path; pinned by a parity test). Widget identity is deliberately untracked:
+ *  same position + class ⇒ equal signature (see DecorationWidgetSpec). Shared by
+ *  the prose and table-cell render paths. */
+export function islandRenderKeyPart(
+	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
+): string {
+	if (islands.length === 0) return '';
+	return `\0${islands.map((i) => islandSig(i.dec)).join(';')}`;
+}
+
+const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
+	d.type === 'widget'
+		? `w:${d.offset}:${d.side ?? 'after'}`
+		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
