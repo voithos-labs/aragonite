@@ -79,27 +79,6 @@ a curated set of interactive edits is a product question, not a gating bug.
 **Why deferred:** decided with the presentation-modes milestone's later rungs, where
 block/inline granularity forces the same "which interactions survive" call anyway.
 
-### Reading-mode code blocks show an empty line above and below the code
-
-**Severity:** minor (rendering; reading mode only, v1 acceptable)
-**Files:** `src/lib/styles/editor.css` (reading-mode fence hiding),
-`src/lib/components/blocks/code/code-renderer.ts` (`renderOpenerLine` / closer — the fence
-marker span plus that line's bare `\n`)
-
-In reading mode the fence lines hide by CSS (`.md-fence` / `.md-lang`), but each fence line's
-bare `\n` text node is CSS-unreachable — CSS cannot remove a text node and structural omission
-is forbidden (the raw-aware walk counts `.length` regardless of layout). The two symmetric
-empty lines read as box padding, one above and one below the code. Offsets survive throughout;
-only the visual carries an extra blank line each side.
-
-**Fix direction:** a render-path change, out of the CSS-first scope reading mode shipped under.
-The `\n` cannot leave the raw, so the likely shape is a CSS-reachable wrapper around each fence
-line (an element the reading-mode rule can collapse) instead of a bare text node — decided
-against the offset walk that reads those bytes.
-
-**Why deferred:** reads as padding, byte-safe, and reachable only in reading mode; the fix
-touches the code renderer's DOM shape, so it folds into a render-path pass, not a CSS tweak.
-
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)

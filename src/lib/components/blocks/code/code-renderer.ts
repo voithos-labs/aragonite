@@ -152,6 +152,17 @@ function makeMarkerSpan(text: string, extraClass?: string): HTMLSpanElement {
 	return span;
 }
 
+// A fence line's newline is a bare text node CSS cannot reach on its own; wrapping
+// the whole line lets reading/preview modes collapse it with `display: none` (the
+// `.directive-marker` block-level-span precedent). Layout-neutral in source mode —
+// an inline span under `white-space: pre` still breaks on its inner `\n`.
+function makeFenceLine(parts: Node[]): HTMLSpanElement {
+	const line = document.createElement('span');
+	line.className = 'md-fence-line';
+	for (const part of parts) line.appendChild(part);
+	return line;
+}
+
 function renderOpenerLine(
 	slice: FencedCodeSlice,
 	fenceMarker: '`' | '~',
@@ -169,29 +180,31 @@ function renderOpenerLine(
 	// (whole line in one span) — so textContent keeps every opener byte.
 	const indent = openerWithoutNewline.match(/^ {0,3}/)![0];
 
-	frag.appendChild(makeMarkerSpan(indent + fenceChars, 'md-fence'));
+	const parts: Node[] = [makeMarkerSpan(indent + fenceChars, 'md-fence')];
 
 	const afterFence = openerWithoutNewline.slice(indent.length + fenceChars.length);
 	if (afterFence.length > 0) {
-		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
+		parts.push(makeMarkerSpan(afterFence, 'md-lang'));
 	}
-
-	// Trailing opener newline lives as a bare text node, not inside a span:
-	// Chromium with `white-space: pre` mis-routes `insertText` when the caret
-	// sits at the end of a `\n` nested inside a styled span — the typed char
-	// lands BEFORE the \n. Top-level keeps the caret in a position the browser
-	// can extend correctly.
 	if (hasTrailingNewline) {
-		frag.appendChild(document.createTextNode('\n'));
+		parts.push(document.createTextNode('\n'));
 	}
 
+	frag.appendChild(makeFenceLine(parts));
 	return frag;
 }
 
-function renderCloserLine(slice: FencedCodeSlice): DocumentFragment {
+function renderCloserLine(slice: FencedCodeSlice, leadingNewline: boolean): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	if (slice.closerLine.length === 0) return frag;
-	frag.appendChild(makeMarkerSpan(slice.closerLine, 'md-fence'));
+
+	const parts: Node[] = [];
+	// The line break before the closer belongs to the closer's fence line, not the
+	// body's last code line; owning it here lets the wrapper hide both together.
+	if (leadingNewline) parts.push(document.createTextNode('\n'));
+	parts.push(makeMarkerSpan(slice.closerLine, 'md-fence'));
+
+	frag.appendChild(makeFenceLine(parts));
 	return frag;
 }
 
@@ -202,9 +215,17 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 	const meta = metadataOf(node, 'fencedCode');
 	const frag = document.createDocumentFragment();
 
+	// The newline separating the body's last line from the closer belongs to the
+	// closer's fence line — hand it to the closer wrapper so the wrapper collapses
+	// the bottom blank line too. Byte order is unchanged: the same `\n` in the same
+	// position, only re-homed.
+	const hasCloser = slice.closerLine.length > 0;
+	const separatorNewline = hasCloser && slice.body.endsWith('\n');
+	const bodyText = separatorNewline ? slice.body.slice(0, -1) : slice.body;
+
 	const openerFrag = renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength);
-	const bodyFrag = tokenizeBody(slice.body, slice.infoString);
-	const closerFrag = renderCloserLine(slice);
+	const bodyFrag = tokenizeBody(bodyText, slice.infoString);
+	const closerFrag = renderCloserLine(slice, separatorNewline);
 
 	// Preserve textContent === trimTrailingLineEnding(raw): strip one trailing
 	// \n from whichever fragment carries the tail — closer first, then body,
@@ -223,19 +244,23 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 }
 
 /**
- * Strip one trailing `\n` from the last text-bearing child. Returns true on
- * success so callers can chain priorities. Also removes the now-empty text
- * node so the cursor walker doesn't land in a zero-length node Chromium
- * treats as a non-target.
+ * Strip one trailing `\n` from the deepest trailing text node. Returns true on
+ * success so callers can chain priorities. Descends through the fence-line
+ * wrapper to reach the actual `\n` (setting textContent on the wrapper would
+ * flatten its marker spans). A now-empty text node is removed so the cursor
+ * walker doesn't land in a zero-length node Chromium treats as a non-target.
  */
 function stripTrailingNewline(frag: DocumentFragment): boolean {
-	const last = frag.lastChild;
-	if (last == null || !last.textContent?.endsWith('\n')) return false;
-	const trimmed = last.textContent.slice(0, -1);
-	if (trimmed.length === 0 && last.nodeType === Node.TEXT_NODE) {
-		frag.removeChild(last);
+	let node: Node | null = frag.lastChild;
+	while (node != null && node.nodeType === Node.ELEMENT_NODE && node.lastChild != null) {
+		node = node.lastChild;
+	}
+	if (node == null || !node.textContent?.endsWith('\n')) return false;
+	const trimmed = node.textContent.slice(0, -1);
+	if (trimmed.length === 0 && node.nodeType === Node.TEXT_NODE) {
+		node.parentNode?.removeChild(node);
 	} else {
-		last.textContent = trimmed;
+		node.textContent = trimmed;
 	}
 	return true;
 }

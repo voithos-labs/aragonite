@@ -116,6 +116,22 @@ test.describe('code block editing — happy paths', () => {
 		await editor.bridge.waitForSourceEquals('```\naaaaa\nbb\nXbbb\nccccc\n```\n');
 	});
 
+	test('typing at the body start (opener-line end) lands in the body, not the opener', async ({
+		page
+	}) => {
+		// Chromium under `white-space: pre` mis-routes an insertText when the caret
+		// sits at the end of a `\n` nested inside a styled span — the typed char lands
+		// BEFORE the `\n`, in the opener line. The renderer wraps each fence line in
+		// `.md-fence-line` so reading/preview can hide it; this pins that the wrapper
+		// did NOT reintroduce the mis-route. Caret at DOM offset 6 = end of the opener
+		// `\n` = body start.
+		await editor.loadContent('```js\nconst x = 1;\n```\n');
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
+		await editor.typeText('z');
+		await editor.bridge.waitForSourceEquals('```js\nzconst x = 1;\n```\n');
+	});
+
 	test('code block content round-trips through source', async () => {
 		await editor.loadContent('```python\ndef hello():\n    pass\n```\n');
 		await editor.getBlock(0).click();
