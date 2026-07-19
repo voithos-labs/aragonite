@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -57,7 +58,7 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([docScope]) => {
 					// Append a top-level block so the doc-scope publish rewrites blockIds
 					// (a fresh id) — the mutation the rollback must undo.

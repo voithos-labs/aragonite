@@ -9,6 +9,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
 import { createListContext } from '$lib/editor-actions/list-context';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -108,7 +109,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const fires = armInvariantChannel();
 		await controller.commitMultiScope({
 			scopes,
-			snapshot: { path: [0, 0, 0], offset: 0 },
+			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const beforeLens = views.map((v) => v.children.length);
 				rangeDelete(deps.doc, start, end, views[0].sharing);
@@ -122,7 +123,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 					)
 				);
 			},
-			op: { kind: 'delete', eventPath: [0] }
+			op: { kind: 'delete', eventPath: asDocPath([0]) }
 		});
 
 		expect(serialize(deps.doc)).toBe('- \n- target three\n- tail\n');
@@ -145,7 +146,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const fires = armInvariantChannel();
 		await controller.commitMultiScope({
 			scopes,
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const beforeLens = views.map((v) => v.children.length);
 				rangeDelete(deps.doc, start, end, views[0].sharing);
@@ -159,7 +160,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 					)
 				);
 			},
-			op: { kind: 'delete', eventPath: [0] }
+			op: { kind: 'delete', eventPath: asDocPath([0]) }
 		});
 
 		expect(serialize(deps.doc)).toBe('head\n');

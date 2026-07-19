@@ -25,6 +25,7 @@ import { rangeDelete } from '../range-delete';
 import type { StructuralChange } from '../../tree-operations/structural-change';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathHasPrefix, pathsEqual } from '../path-math';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { maybeCommitTableCoverageDelete } from '../range-delete-table-coverage';
@@ -190,7 +191,7 @@ async function commitPureTopLevelDelete(
 	const snapshot =
 		options?.undoEntry === 'join'
 			? ('skip' as const)
-			: { path: start.path.slice(), offset: start.offset };
+			: { path: docPathFrom(start.path), offset: start.offset };
 
 	await ctx.controller.commitStructural({
 		snapshot,
@@ -209,7 +210,7 @@ async function commitPureTopLevelDelete(
 			ctx.selection.collapse();
 			return topLevelStructuralChange(start.path, end.path, beforeLen, afterLen);
 		},
-		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: [start.path[0]] },
+		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 
@@ -263,7 +264,9 @@ async function commitCrossContainerDelete(
 		// The selection start survives the delete (start-wins collapse), so its
 		// deep path is a resolving restore coordinate.
 		snapshot:
-			options?.undoEntry === 'join' ? 'skip' : { path: start.path.slice(), offset: start.offset },
+			options?.undoEntry === 'join'
+				? 'skip'
+				: { path: docPathFrom(start.path), offset: start.offset },
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
 			// Read lengths BEFORE mutation. Paths go stale as rangeDelete
@@ -293,7 +296,7 @@ async function commitCrossContainerDelete(
 				);
 			});
 		},
-		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: [start.path[0]] },
+		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 

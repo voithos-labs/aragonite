@@ -30,6 +30,7 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { PasteDispatchContext } from './dispatch';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -131,7 +132,7 @@ export async function applyListAbsorb(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...plan.listPath], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);
@@ -156,7 +157,7 @@ export async function applyListAbsorb(
 		op: {
 			kind: 'paste',
 			detail: { source: 'list-absorb', listPath: plan.listPath },
-			eventPath: plan.listPath
+			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
 			const lastPastedIdx = pastedStart + pastedItems.length - 1;

@@ -49,6 +49,8 @@ export interface OperationDetailMap {
 	tableSetAlignment: { colIdx: number };
 }
 
+import type { DocPath } from '../selection/path-math';
+
 export type OperationKind = keyof OperationDetailMap;
 
 /** Correlated kind↔detail pair; detail is optional only where the map allows undefined. */
@@ -58,5 +60,9 @@ export type OpDescriptor = {
 		: { kind: K; detail: OperationDetailMap[K] };
 }[OperationKind];
 
-/** OpDescriptor plus the event path container/multi-scope commits carry. */
-export type ScopedOpDescriptor = OpDescriptor & { eventPath: number[] };
+/**
+ * OpDescriptor plus the doc-absolute event path container/multi-scope commits
+ * carry. `eventPath` is `DocPath` so the op families composing it can't decay
+ * to a raw `number[]`; it widens back to `number[]` at the public `EditEvent`.
+ */
+export type ScopedOpDescriptor = OpDescriptor & { eventPath: DocPath };

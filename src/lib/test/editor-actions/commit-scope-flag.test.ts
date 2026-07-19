@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
 import { beginCommit, endCommit, isCommitInProgress } from '$lib/invariants/commit-scope';
 import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
@@ -47,7 +48,7 @@ describe('commit-scope flag', () => {
 
 		let flagInsideMutate: boolean | null = null;
 		await controller.commitStructural({
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (children) => {
 				flagInsideMutate = isCommitInProgress();
 				children.push(makeNode('paragraph', 'world\n'));

@@ -9,6 +9,7 @@ import type { CstNode } from '../../core/nodes';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 
 export function createFocusActions(
 	deps: EditorActionsDeps,
@@ -30,7 +31,7 @@ export function createFocusActions(
 				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
 				// The appended slot (one past the end) is the coordinate for both the
 				// event and the restore fallback — it names the block this op creates.
-				const appendPath = [deps.doc.children.length];
+				const appendPath = docPathFrom([deps.doc.children.length]);
 				await controller.commitStructural({
 					snapshot: { path: appendPath, offset: 0 },
 					mutate: (children) => {

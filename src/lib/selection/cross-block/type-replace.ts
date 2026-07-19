@@ -19,6 +19,7 @@ import {
 	rebuildUnsharedChain
 } from '../../tree-operations/unshare';
 import { getStateForNode } from '../../reactivity/state-registry';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 
 export async function handleCrossBlockTypeReplace(
 	ctx: CrossBlockDispatchContext,
@@ -74,7 +75,7 @@ export async function handleCrossBlockTypeReplace(
 		op: {
 			kind: 'input',
 			detail: { byteLength: typed.length },
-			eventPath: caret.path
+			eventPath: docPathFrom(caret.path)
 		},
 		afterTick: () =>
 			applyCaretAtPath(ctx, { path: caret.path, offset: caret.offset + typed.length })

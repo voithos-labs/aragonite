@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -34,7 +35,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: () => {
 					throw new Error('boom');
 				}
@@ -56,7 +57,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		// redo and stay invisible to an undo-length-only assertion.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push({
 					kind: 'listItem',
@@ -75,7 +76,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: () => {
 					throw new Error('boom');
 				}
@@ -103,7 +104,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1);
 					return []; // wrong arity → production throw after the splice
@@ -124,7 +125,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		// children[0], which is now owned at the current epoch.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push({
 					kind: 'listItem',
@@ -172,7 +173,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1); // drop a top-level block
 					return []; // wrong arity → production throw after the splice
@@ -198,7 +199,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const appendItem = (raw: string, at: number): Promise<void> =>
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.push({
 						kind: 'listItem',
@@ -221,7 +222,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: (([scope]: readonly [{ children: unknown[] }]) => {
 					scope.children.splice(0, 1); // real live-tree mutation
 					return []; // wrong arity → production throw after the splice
