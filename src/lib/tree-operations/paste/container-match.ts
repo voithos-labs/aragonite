@@ -19,6 +19,7 @@ import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
+import { dispatchFocusByPath } from '../../editor-actions/focus/focus-dispatch';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 
 interface ContainerUnwrap {
@@ -241,7 +242,16 @@ async function applyContainerMatchingMerge(
 				eventPath: docPathFrom(unwrap.outerPath)
 			},
 			afterTick: () => {
-				outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
+				// End of the pasted content, before the reattached residue (displayAfter).
+				// The residue lives INSIDE the merged leaf, so this is a char offset in
+				// that leaf, not a block index — the container ref's focus(number) clamps
+				// a non-sentinel offset to the last child's end, so descend by path.
+				const subPath = merge.targetLeafPath.slice(unwrap.outerPath.length);
+				dispatchFocusByPath(
+					outerState.innerBlockRefs,
+					subPath,
+					displayBefore.length + firstItemText.length
+				);
 			}
 		});
 		return;
@@ -295,8 +305,11 @@ async function applyContainerMatchingMerge(
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
 		afterTick: () => {
+			// End of the pasted content: the last spliced item's paragraph, at the
+			// join before the reattached residue (displayAfter) — a char offset in
+			// that leaf, so descend by path rather than CURSOR_END on the item ref.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+			dispatchFocusByPath(outerState.innerBlockRefs, [lastInsertedIdx, 0], lastDisplay.length);
 		}
 	});
 }

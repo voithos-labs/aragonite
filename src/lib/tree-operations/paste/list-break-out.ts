@@ -24,6 +24,7 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
+import { focusIndexBeforeResidue } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { MultiScopeTarget } from './paste-deps';
 import type { PasteDispatchContext } from './dispatch';
@@ -86,7 +87,7 @@ export async function applyListBreakOut(
 	const list = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!list?.children) return;
 
-	const replacement = buildListBreakOutReplacement(
+	const { replacement, hasTrailingResidue } = buildListBreakOutReplacement(
 		list,
 		plan.itemIndex,
 		plan.innerIndex,
@@ -122,18 +123,30 @@ export async function applyListBreakOut(
 			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
-			const lastInsertedIdx = spliceIndex + replacement.length - 1;
-			parentScope.state.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+			// End of the pasted content: the last pasted block, before the second-half
+			// residue list — never the residue itself.
+			const lastPastedIdx =
+				spliceIndex + focusIndexBeforeResidue(replacement.length, hasTrailingResidue);
+			parentScope.state.innerBlockRefs[lastPastedIdx]?.focus(CURSOR_END);
 		}
 	});
 }
 
 // ── Replacement builder (pure, testable) ─────────────────────────────────────
 
+export interface ListBreakOutReplacement {
+	/** `[firstHalfList?, ...pastedBlocks, secondHalfList?]` — halves omitted when empty. */
+	replacement: CstNode[];
+	/** The second-half list (post-caret residue) is present as the last node. */
+	hasTrailingResidue: boolean;
+}
+
 /**
  * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks`
  * between the halves. Returns `[firstHalfList?, ...pastedBlocks, secondHalfList?]`
- * — halves are omitted when empty. Input nodes are cloned, not mutated.
+ * — halves are omitted when empty — plus whether the trailing residue half is
+ * present, so the caller can land the caret on the last pasted block rather than
+ * the residue. Input nodes are cloned, not mutated.
  */
 export function buildListBreakOutReplacement(
 	list: CstNode,
@@ -141,12 +154,12 @@ export function buildListBreakOutReplacement(
 	innerIndex: number,
 	offset: number,
 	pastedBlocks: CstNode[]
-): CstNode[] {
+): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];
-	if (!item?.children) return [];
+	if (!item?.children) return { replacement: [], hasTrailingResidue: false };
 	const targetLeaf = item.children[innerIndex];
-	if (!targetLeaf) return [];
+	if (!targetLeaf) return { replacement: [], hasTrailingResidue: false };
 
 	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } = splitLeafForPaste(
 		targetLeaf,
@@ -194,14 +207,15 @@ export function buildListBreakOutReplacement(
 		}
 		replacement.push(cloned);
 	}
-	if (secondHalfItems.length > 0) {
+	const hasTrailingResidue = secondHalfItems.length > 0;
+	if (hasTrailingResidue) {
 		// Continue numbering across the paste gap from the list's own base — the
 		// split item consumes one slot in each half, so the second half starts at
 		// base + (number of first-half items).
 		replacement.push(assembleListHalf(list, secondHalfItems, base + firstHalfItems.length));
 	}
 
-	return replacement;
+	return { replacement, hasTrailingResidue };
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
