@@ -559,8 +559,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setSelection: (start, end) => {
 			if (isRevealed()) surface.setSelection(start, end);
 		},
-		measurePartialRects: (startOffset, endOffset) =>
-			isRevealed() ? surface.measurePartialRects(startOffset, endOffset) : [],
+		measurePartialRects: (startOffset, endOffset) => {
+			if (isRevealed()) return surface.measurePartialRects(startOffset, endOffset);
+			// Folded render-primary leaf: no source text node to measure, so mirror the
+			// opaque single-unit container shim and cover the rendered block box for any
+			// non-empty range (SELECTION_END exceeds every real start, painting a to-end
+			// range through the same guard).
+			if (endOffset <= startOffset) return [];
+			const box = getBlockElByPath(deps.getPath());
+			return box ? [box.getBoundingClientRect()] : [];
+		},
 		runCommand,
 
 		onInput: editableSurface.onInput,

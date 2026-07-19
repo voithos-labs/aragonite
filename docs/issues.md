@@ -39,29 +39,6 @@ Per the inline-parsing spec, an `entityReference` node renders as a span holding
 
 **Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself and its atomic-delete consumer — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover. The `deleteGranularity: 'atomic'` policy field it needs is already re-added on `InlineWidgetEditingPolicy` (typed and honored by the caret-edge dispatch, awaiting this first consumer).
 
-### Search matches on render-primary leaf widgets are counted but not painted
-
-**Severity:** minor (search UX; the match is found and navigable, just not highlighted)
-**Files:** `src/lib/plugins/latex/latex-kind.ts` (`mathBlock`), `src/lib/plugins/toc/toc-plugin.ts` (`toc`)
-
-A render-primary leaf widget renders its source through a component (KaTeX, a rendered
-outline) rather than as editable text, so a search match inside its raw has no measurable
-DOM text node to cover. The document scan finds and counts the match and Enter navigates to
-it, but no `.match-overlay` rect paints on the block — a user sees `1 / 1` with nothing
-highlighted. A whole-block-focus opaque widget (`mermaid`) avoids this by painting a
-whole-block cover via the container shim; the leaf widgets have no equivalent. Surfaced by
-the 0.9.24 conformance browser sweep (`conformance-sweep.spec.ts`), which pins the current
-behaviour so wiring painting later flags the two cells for update. Their `searchPaint` `via`
-records the gap.
-
-**Fix direction:** paint a whole-block cover rect for a match on a render-primary leaf (the
-`mermaid` container-shim path), or reveal-and-measure the source range the way selection paint
-already does while the source is revealed.
-
-**Why deferred:** parity polish on a subsystem that already finds and navigates the match;
-the missing piece is only the highlight rect, and it folds into the render-primary paint pass
-alongside the cell-surface island gap above.
-
 ## Core editing
 
 ### Interactive reading mode (live task checkboxes) — deferred product question
