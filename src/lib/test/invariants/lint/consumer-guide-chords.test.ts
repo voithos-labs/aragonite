@@ -2,7 +2,7 @@
  * Consumer-guide chord coherence (drift guard). Every chord in consumer-guide.md
  * § Keyboard shortcuts must resolve in the code that actually dispatches it, so
  * the hand-listed table can't silently drift from the bindings. Chords route
- * through three owners, and each documented family is validated against its own:
+ * through several owners, and each documented family is validated against its own:
  *
  *   - Editing / Block reorder → the per-kind + global keymap registry
  *     (`resolveBinding`, which falls through to the global table).
@@ -15,6 +15,12 @@
  *     source (`schema/commands.ts`, read by the root handler via
  *     `isReservedUiChord`); these route outside the keymap by design, so an
  *     unknown find chord fails until it's wired.
+ *   - Clipboard → the whole-block key tail (`container-block-component.ts`) and
+ *     the text block's clipboard seam (`text-clipboard.ts`). A keydown carries no
+ *     ClipboardEvent, so Mod+C/Mod+X route outside the keymap: the tail writes a
+ *     viewport-focused block's own Markdown, and the same chords act on a selected
+ *     inline widget through the seam. Each chord must show its dispatch branch in
+ *     both owners' source, so deleting either drops the row it documents.
  *
  * A new documented chord with no dispatch, or a renamed family header, fails here.
  */
@@ -134,11 +140,37 @@ function searchResolves(chord: string): boolean {
 	return tokens !== undefined && tokens.every((t) => SEARCH_SOURCE.includes(t));
 }
 
+// Whole-block copy/cut routes outside the keymap: a keydown carries no
+// ClipboardEvent, so the whole-block key tail writes the focused block's own
+// Markdown on Mod+C/Mod+X, and the text block's clipboard seam runs the same
+// chords over a selected inline widget. Each chord names one token from the tail
+// branch and one from the widget branch; requiring both means deleting either
+// dispatch fails the row it documents (the tail token carries the load-bearing
+// teeth). Tokens are code shapes, so they survive comment-stripping.
+const CLIPBOARD_SOURCE = [
+	readEditorFile('editor-actions/container-block-component.ts').code,
+	readEditorFile('components/blocks/text/text-clipboard.ts').code
+].join('\n');
+const CLIPBOARD_CHORD_TOKENS: Record<string, string[]> = {
+	'Mod+C': ['(e.ctrlKey || e.metaKey)', "e.key === 'c'", 'widget.inline.start'],
+	'Mod+X': [
+		'(e.ctrlKey || e.metaKey)',
+		"e.key === 'x'",
+		'deps.node.raw.slice(inline.start, inline.end)'
+	]
+};
+
+function clipboardResolves(chord: string): boolean {
+	const tokens = CLIPBOARD_CHORD_TOKENS[chord];
+	return tokens !== undefined && tokens.every((t) => CLIPBOARD_SOURCE.includes(t));
+}
+
 const RESOLVERS: Record<string, (chord: string) => boolean> = {
 	Editing: keymapResolves,
 	'Block reorder': keymapResolves,
 	Tables: cellPlanResolves,
-	'Find / replace': searchResolves
+	'Find / replace': searchResolves,
+	Clipboard: clipboardResolves
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────
@@ -162,18 +194,20 @@ describe('consumer-guide § Keyboard shortcuts — every documented chord resolv
 describe('consumer-guide chord coherence — self-tests', () => {
 	it('parses every documented family with a representative chord', () => {
 		expect([...documented.keys()].sort()).toEqual(
-			['Block reorder', 'Editing', 'Find / replace', 'Tables'].sort()
+			['Block reorder', 'Clipboard', 'Editing', 'Find / replace', 'Tables'].sort()
 		);
 		expect(documented.get('Editing')).toContain('Mod+B');
 		expect(documented.get('Block reorder')).toContain('Alt+ArrowUp');
 		expect(documented.get('Find / replace')).toContain('Escape');
 		expect(documented.get('Tables')).toContain('Mod+Shift+A');
+		expect(documented.get('Clipboard')).toContain('Mod+C');
 	});
 
 	it('resolvers reject a chord that is dispatched nowhere', () => {
 		expect(keymapResolves('Mod+Q')).toBe(false);
 		expect(cellPlanResolves('Mod+Q')).toBe(false);
 		expect(searchResolves('Mod+Q')).toBe(false);
+		expect(clipboardResolves('Mod+Q')).toBe(false);
 	});
 
 	it('normalizes the doc display names the code never sees', () => {
