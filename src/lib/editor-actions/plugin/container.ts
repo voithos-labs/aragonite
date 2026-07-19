@@ -168,6 +168,8 @@ export interface ContainerBlock {
 	handleKeydown(e: KeyboardEvent): void;
 }
 
+// ── Collapse gates ───────────────────────────────────────────────────────────
+
 /**
  * Collapse-ness has ONE definition: the descriptor's `reservedChrome.isCollapsed`
  * probe. The window/focus clamp derives from it, so a container that declares the
@@ -234,6 +236,8 @@ export function gateMoveFocusOnCollapse(
 	};
 }
 
+// ── Kind-command target ──────────────────────────────────────────────────────
+
 /**
  * The kind-command target a plugin container bubbles into `dispatchKindCommand`.
  * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
@@ -264,6 +268,8 @@ export function buildContainerKindTarget(
 		})
 	};
 }
+
+// ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
