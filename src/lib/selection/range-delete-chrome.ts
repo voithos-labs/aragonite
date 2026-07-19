@@ -211,9 +211,8 @@ export function terminateLine(text: string, sourceRaw: string): string {
 	return text.endsWith('\n') ? text : text + lineEndingOf(sourceRaw);
 }
 
-// ── Internal ────────────────────────────────────────────────────────────────
-
-function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
+/** Reparse a truncated endpoint slice, preserving its leading trivia; empty → a bare paragraph. */
+export function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
 	const reparsed = parse(raw || '\n');
 	if (reparsed.children.length === 0) {
 		return [{ kind: 'paragraph', leadingTrivia, raw: '\n' }];
