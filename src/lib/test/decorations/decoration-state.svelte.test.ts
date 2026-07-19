@@ -223,14 +223,11 @@ describe('non-prose island dev-warn', () => {
 		);
 	});
 
-	it('warns for an island on a table cell — prose kind, but the cell surface applies no islands', () => {
+	it('stays silent for an island on a table cell — the cell surface applies islands', () => {
 		const tableDoc = parse('| a | b |\n| --- | --- |\n| c | d |\n');
 		const engine = createDecorationEngine({ getDoc: () => tableDoc });
 		engine.addSource({ name: 'cell', provide: () => [replace([0, 0, 0], 0, 1)] });
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("source 'cell' places a replace island on a tableCell block"),
-			{ path: [0, 0, 0] }
-		);
+		expect(warnSpy).not.toHaveBeenCalled();
 	});
 
 	it('stays silent for islands on a prose block and for mark/block decorations anywhere', () => {

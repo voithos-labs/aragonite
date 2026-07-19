@@ -3,10 +3,26 @@ import { describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
 import type { CstNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
+import type { IndexedDecoration } from '../../../decorations/buckets';
+import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+
+type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
 }
+
+const replaceIsland = (start: number, end: number, buildDom?: () => HTMLElement): Island => ({
+	index: 0,
+	dec: {
+		type: 'replace',
+		path: [0, 0, 0],
+		start,
+		end,
+		class: 'fold-island',
+		widget: buildDom ? { buildDom } : undefined
+	}
+});
 
 function mount(
 	raw: string,
@@ -15,6 +31,7 @@ function mount(
 ) {
 	const el = document.createElement('div');
 	let node = makeCell(raw);
+	let islands: Island[] = [];
 	const render = createCellRender({
 		get el() {
 			return el;
@@ -25,13 +42,19 @@ function mount(
 		get linkRef() {
 			return linkRef;
 		},
-		resolveLinkUrl
+		resolveLinkUrl,
+		get islands() {
+			return islands;
+		}
 	});
 	return {
 		el,
 		render,
 		setRaw(next: string) {
 			node = makeCell(next);
+		},
+		setIslands(next: Island[]) {
+			islands = next;
 		}
 	};
 }
@@ -134,5 +157,42 @@ describe('createCellRender', () => {
 		render.render();
 		// No bracket → signature not read into the key → memo holds, no rebuild.
 		expect(el.firstChild).toBe(child);
+	});
+
+	// ── Islands (parity with the prose render path, ambient length 0) ──────────
+
+	it('applies a replace island in a cell, covering the raw range', () => {
+		const { el, render, setIslands } = mount('a SECRET b');
+		setIslands([
+			replaceIsland(2, 8, () => Object.assign(document.createElement('span'), { textContent: '…' }))
+		]);
+		render.render();
+		const island = el.querySelector('[data-decoration-island]');
+		expect(island).not.toBeNull();
+		expect(island?.getAttribute('data-source-start')).toBe('2');
+		expect(island?.getAttribute('data-source-end')).toBe('8');
+		// The covered bytes leave the DOM text; the island stands for them.
+		expect(el.textContent).not.toContain('SECRET');
+	});
+
+	it('an empty island set contributes nothing to the render key (zero-cost parity)', () => {
+		const { el, render } = mount('plain');
+		render.render();
+		const firstChild = el.firstChild;
+		render.render();
+		expect(el.firstChild).toBe(firstChild);
+	});
+
+	it('a signature change rebuilds; an equal signature does not', () => {
+		const { el, render, setIslands } = mount('a SECRET b');
+		setIslands([replaceIsland(2, 8)]);
+		render.render();
+		const island = el.querySelector('[data-decoration-island]');
+		setIslands([replaceIsland(2, 8)]); // fresh objects, equal signature
+		render.render();
+		expect(el.querySelector('[data-decoration-island]')).toBe(island);
+		setIslands([replaceIsland(0, 1)]); // moved → new signature
+		render.render();
+		expect(el.querySelector('[data-decoration-island]')).not.toBe(island);
 	});
 });

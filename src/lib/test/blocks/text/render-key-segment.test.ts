@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderKeySegmentDiff, islandRenderKeyPart } from '$lib/components/blocks/text/text-render';
+import { renderKeySegmentDiff } from '$lib/components/blocks/text/text-render';
+import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
 

@@ -68,6 +68,11 @@
 		type CellAnchor
 	} from './cell-pointer';
 	import { createCellRender } from './cell-render';
+	import type { IndexedDecoration } from '../../../decorations/buckets';
+	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+	import { createWidgetInteraction } from '../text/widget-interaction';
+	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
+	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -105,7 +110,9 @@
 		pasteCoordinator,
 		stickyColumn,
 		selection,
-		events: editorEvents
+		widgetSelection,
+		events: editorEvents,
+		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		keybindingOverrides,
@@ -123,10 +130,22 @@
 	const readOnly = $derived(getPresentationMode?.() === 'reading');
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
+	// The constant fallback keeps the zero-cost render path — an empty island set
+	// never enters the render key.
+	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
+
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
+	// True while an inline-widget's `$…$` source is revealed for editing: the edit
+	// is ephemeral DOM, so onInput skips the per-keystroke CST commit — the cell
+	// commits once on reveal exit (mirrors TextEditableBlock).
+	let revealing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let preEditOffset = 0;
+	// Click point captured in pointerdown; Y is load-bearing for the reveal
+	// hit-test — a column-aligned click on another visual line must not reveal.
+	let lastClickClientX: number | null = null;
+	let lastClickClientY: number | null = null;
 
 	// Cells carry no ambient marker; at zero ambient the factory is plain
 	// widget-aware raw-unit cursor IO (textContent math undercounts widget bytes).
@@ -138,6 +157,7 @@
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
+		isInputSuppressed: () => revealing,
 		backend: {
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
@@ -189,6 +209,99 @@
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
+
+	// The reveal / caret-edge / selected-widget factories are prose-shaped: they
+	// commit through `blockEdit` directly, appending a trailing line ending and
+	// leaving pipes bare. A cell carries neither — a raw `\n` is invalid and a bare
+	// `|` splits the row (`rebuildTableRowRaw` joins cell raws verbatim). This wrapper
+	// makes those commits cell-safe: strip the appended ending, then escape unescaped
+	// pipes like the keystroke path (`commitInput`), shifting the post-caret past the
+	// inserted backslashes. `escapeUnescapedPipes` is idempotent, so delete-path slices
+	// from the already-escaped raw pass untouched.
+	const cellBlockEdit: BlockEditActions = {
+		...blockEdit,
+		updateBlockContent(i, text, caretBefore, caretAfter) {
+			const cellText = trimTrailingLineEnding(text);
+			const caret = Math.min(caretAfter ?? cellText.length, cellText.length);
+			const committed = escapeCellCommit(cellText, caret);
+			return blockEdit.updateBlockContent(i, committed.text, caretBefore, committed.caret);
+		}
+	};
+
+	// The prose inline-widget seams, threaded with cell-shaped deps: zero ambient,
+	// no snap overlay (cells render no image widgets), and the escaping blockEdit.
+	// Reveal targets the widget kinds cells render as widgets — inline math and
+	// inline directives opt into `revealSource`; a `<br>` is selected instead.
+	const widgetInteraction = createWidgetInteraction({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get myPath() {
+			return myPath;
+		},
+		getEl: () => el ?? null,
+		getAmbientLength: () => 0,
+		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? 800,
+		cursor,
+		widgetSelection,
+		blockEdit: cellBlockEdit,
+		focusActions,
+		getSnapTarget: () => null,
+		setSnapTarget: () => {},
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		},
+		readRawText: () => readCellText(),
+		setRevealing: (value) => {
+			revealing = value;
+		},
+		isCrossBlock: () => selection.isCrossBlock,
+		getPresentationMode,
+		get linkRef() {
+			return linkRef;
+		}
+	});
+
+	// The one caret-edge dispatch: a plain edge key against a CST widget, a
+	// decoration island, or (n/a for a zero-ambient cell) an ambient marker resolves
+	// against its declarative policy — reveal entry for math/directives, edge
+	// select-then-delete for replace islands. Same seam prose uses.
+	const edgeDispatch = createEdgePolicyDispatch({
+		get node() {
+			return node;
+		},
+		get index() {
+			return index;
+		},
+		get linkRef() {
+			return linkRef;
+		},
+		getEl: () => el ?? null,
+		getAmbientLength: () => 0,
+		getRawSelection: () => cursor.getRawSelection(),
+		blockEdit: cellBlockEdit,
+		setPendingCursor: (offset) => {
+			pendingCursorOffset = offset;
+		},
+		setSnapTarget: () => {},
+		isRevealing: () => widgetInteraction.isRevealing(),
+		// Reveal-capable kinds (math, directive) reveal their source; a non-reveal CST
+		// widget in a cell is only `<br>` (images render as alt text here), and the
+		// prose image model — select whole, second press deletes — has no cell
+		// affordance and strands focus, so step the caret over it like native
+		// contenteditable instead. `fromTrailingEdge` is the entry side.
+		enterWidget: (widget, fromTrailingEdge) => {
+			if (getInlineWidgetEditing(widget.kind)?.revealSource) {
+				widgetInteraction.enterWidget(widget, fromTrailingEdge);
+			} else {
+				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end));
+			}
+		},
+		isReading: () => readOnly
+	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -279,6 +392,9 @@
 			return linkRef;
 		},
 		resolveLinkUrl,
+		get islands() {
+			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
+		},
 		reportRenderError: (error) =>
 			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
 	});
@@ -304,6 +420,20 @@
 	$effect(() => {
 		const blockEl = el;
 		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
+	});
+
+	// While source is revealed, a caret/selection move that leaves the source but
+	// stays inside the cell folds the reveal (blur owns the focus-leaving fold; a
+	// cross-block sweep keeps it revealed). Composition suppresses it like onInput.
+	$effect(() => {
+		const root = el;
+		if (!root) return;
+		const handler = () => {
+			if (composing) return;
+			widgetInteraction.foldRevealIfSelectionEscaped();
+		};
+		document.addEventListener('selectionchange', handler);
+		return () => document.removeEventListener('selectionchange', handler);
 	});
 
 	// Walk children rather than reading textContent: a rendered widget (e.g. the
@@ -343,6 +473,15 @@
 		// untouched.
 		if (selection.isCrossBlock && (await crossBlock.handleKeyDown(e))) return;
 
+		// Inline-widget reveal/selection intercepts before the cell plan claims the
+		// key: while source is revealed Enter/Escape commit/cancel and every other key
+		// edits the source natively (onInput suppressed); a selected widget and a
+		// Shift+Arrow into a widget own their keys too. cellKeydownPlan would otherwise
+		// treat Enter as a row hop and ArrowUp/Down as cell nav mid-reveal.
+		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
+		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
+
 		preEditOffset = cursor.getRaw() ?? 0;
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
@@ -378,6 +517,12 @@
 					return;
 				}
 				if (await handleSharedKeydown(e, sharedCtx)) return;
+				// A plain edge key against a caret-adjacent CST widget or decoration
+				// island: reveal entry for math/directives, edge select-then-delete for a
+				// replace island. Runs where cellKeydownPlan yields 'native' — at the cell
+				// text boundaries it claims (offset 0 / textLen) the entered widget sits
+				// outside the boundary, so the dispatch declines and cell nav proceeds.
+				if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 				// Cells route navigation through cellKeydownPlan, but inline-format
 				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
 				// other editable surface.
@@ -514,6 +659,17 @@
 		// act on it. The clear + drag-install below would collapse it first, before
 		// contextmenu fires.
 		if (e.button === 2) return;
+		// Capture the click point for onClick's widget-edge reveal/snap (Y is
+		// load-bearing for the reveal hit-test's visual-line disambiguation).
+		lastClickClientX = e.clientX;
+		lastClickClientY = e.clientY;
+		// A press on a reveal-source widget is an owned gesture: suppress the browser
+		// caret default and skip the cell-selection drag so nothing races the reveal's
+		// own placement; onClick dispatches the reveal from the captured point.
+		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) {
+			e.preventDefault();
+			return;
+		}
 		const tableEl = el.closest('[role="table"]') as HTMLElement | null;
 		if (!tableEl) {
 			crossBlock.handlePointerDown(e);
@@ -570,12 +726,16 @@
 
 		// Intra-cell: write the raw slice (preserves widget bytes like <br> that the
 		// browser's rendered-textContent copy drops). Mirrors onCut's intra-cell arm,
-		// so Copy and Cut write the same payload.
+		// so Copy and Cut write the same payload. During a reveal the swapped DOM holds
+		// an uncommitted edit node.raw hasn't seen, so slice the live cell text — copy
+		// never mutates, so it reads the live DOM rather than folding first.
 		if (!el) return;
 		const offsets = cursor.getRawSelection();
 		if (!offsets || offsets.start === offsets.end) return;
 		e.preventDefault();
-		const display = trimTrailingLineEnding(node.raw);
+		const display = widgetInteraction.isRevealing()
+			? readCellText()
+			: trimTrailingLineEnding(node.raw);
 		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
 	}
 
@@ -589,6 +749,11 @@
 			onCopy(e);
 			return;
 		}
+
+		// Fold any live reveal before the cut mutates, so it runs against a CST
+		// consistent with the swapped DOM (the fold collapses the selection, so a
+		// cut-during-reveal degrades to a no-op — acceptable; never corrupts).
+		if (widgetInteraction.commitRevealBeforeClipboard() !== null) await tick();
 
 		// Intra-table multi-cell rectangle: write a GFM sub-table, then route the
 		// delete through the cross-block path *without* tableCoverageDelete so
@@ -618,6 +783,12 @@
 		if (readOnly) {
 			e.preventDefault();
 			return;
+		}
+		// Fold any live reveal before the paste mutates; preventDefault before the
+		// fold tick so a native paste can't fire during it (parity with onCut).
+		if (widgetInteraction.isRevealing()) {
+			e.preventDefault();
+			if (widgetInteraction.commitRevealBeforeClipboard() !== null) await tick();
 		}
 		if (await crossBlock.handlePaste(e)) return;
 
@@ -717,11 +888,30 @@
 		if (action === 'cut') deleteCellRange(sel.start, sel.end);
 	}
 
+	// Click past a widget drops the caret at an element-level position with no text
+	// anchor; snap to the nearest widget edge, or open a reveal when the click landed
+	// on a reveal-source widget. The captured pointerdown point carries the Y the
+	// hit-test needs; normal text clicks fall through untouched (native caret).
+	function onClick(): void {
+		const x = lastClickClientX;
+		const y = lastClickClientY;
+		lastClickClientX = null;
+		lastClickClientY = null;
+		widgetInteraction.snapClickToWidgetEdge(x, y);
+	}
+
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
 	}
 
-	function onBlur(): void {
+	function onBlur(e: FocusEvent): void {
+		// Focus left the cell with source still revealed — persist the edit before the
+		// caret is gone (the render effect's activeElement guard drops the caret
+		// restore, so the commit doesn't yank focus back). A focus move that stays
+		// inside the cell keeps the reveal open.
+		if (!(el && e.relatedTarget && el.contains(e.relatedTarget as Node))) {
+			widgetInteraction.commitRevealOnBlur();
+		}
 		tableContext.notifyCellBlurred();
 	}
 </script>
@@ -737,6 +927,7 @@
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
 	onpointerdown={onPointerDown}
+	onclick={onClick}
 	oncopy={onCopy}
 	oncut={onCut}
 	onpaste={onPaste}
