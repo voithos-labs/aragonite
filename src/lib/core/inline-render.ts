@@ -262,10 +262,18 @@ export function renderInlineNodes(
 			}
 
 			case 'entityReference': {
-				const span = document.createElement('span');
-				span.className = 'md-entity';
-				span.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(span);
+				// A visibly-rendering reference builds an atomic widget of its decoded
+				// glyph; an invisible one (whitespace/control decoding) is not a widget,
+				// so buildCoreInlineWidget returns null and it keeps its literal-source span.
+				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
+				if (widget) {
+					frag.appendChild(widget);
+				} else {
+					const span = document.createElement('span');
+					span.className = 'md-entity';
+					span.textContent = raw.slice(node.start, node.end);
+					frag.appendChild(span);
+				}
 				break;
 			}
 

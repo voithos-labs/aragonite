@@ -40,11 +40,20 @@ describe('isInlineWidget — registry-driven recognition', () => {
 		{ kind: 'text', extra: { text: 'foo' } },
 		{ kind: 'emphasis', extra: { children: [] } },
 		{ kind: 'link', extra: { children: [], url: 'x' } },
-		{ kind: 'autolink', extra: { url: 'x' } },
-		{ kind: 'entityReference', extra: { decoded: '©' } }
+		{ kind: 'autolink', extra: { url: 'x' } }
 	] as const)('treats $kind as not a widget', ({ kind, extra }) => {
 		const node = { kind, start: 0, end: 3, ...extra } as InlineNode;
 		expect(isInlineWidget(node, 'foo')).toBe(false);
+	});
+
+	it('treats a visible-glyph entity as a widget', () => {
+		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: '©' };
+		expect(isInlineWidget(node, '&copy;')).toBe(true);
+	});
+
+	it('treats a whitespace-decoding entity (&nbsp;) as not a widget', () => {
+		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: ' ' };
+		expect(isInlineWidget(node, '&nbsp;')).toBe(false);
 	});
 });
 
@@ -66,6 +75,22 @@ describe('buildCoreInlineWidget — core-layer builder dispatch', () => {
 	it('returns null for a non-widget rawHtml tag', () => {
 		const raw = '<span>';
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
+		expect(buildCoreInlineWidget(node, raw)).toBeNull();
+	});
+
+	it('builds the decoded-glyph widget for a visible entity, carrying its source span', () => {
+		const raw = '&copy;';
+		const node: InlineNode = { kind: 'entityReference', start: 0, end: raw.length, decoded: '©' };
+		const el = buildCoreInlineWidget(node, raw);
+		expect(el?.hasAttribute('data-inline-widget')).toBe(true);
+		expect(el?.textContent).toBe('©');
+		expect(el?.dataset.sourceStart).toBe('0');
+		expect(el?.dataset.sourceEnd).toBe('6');
+	});
+
+	it('returns null for a whitespace-decoding entity (keeps its literal span)', () => {
+		const raw = '&nbsp;';
+		const node: InlineNode = { kind: 'entityReference', start: 0, end: raw.length, decoded: ' ' };
 		expect(buildCoreInlineWidget(node, raw)).toBeNull();
 	});
 });
@@ -170,6 +195,13 @@ describe('getInlineWidgetEditing — per-kind editing policy', () => {
 	it('exposes the built-in editing policies: image carries a base, rawHtml carries none', () => {
 		expect(getInlineWidgetEditing('image')).toEqual({});
 		expect(getInlineWidgetEditing('rawHtml')).toBeUndefined();
+	});
+
+	it('entityReference is the shipped atomic + step-over consumer', () => {
+		expect(getInlineWidgetEditing('entityReference')).toEqual({
+			deleteGranularity: 'atomic',
+			onEdge: 'step-over'
+		});
 	});
 });
 

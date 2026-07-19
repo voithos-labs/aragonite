@@ -153,6 +153,13 @@
 	opacity: var(--syntax-marker-dim, 0.4);
 }
 
+/* Decoded-entity glyph (`&copy;` → ©): an atomic island rendering as a plain
+   inline character, no card chrome. user-select:none keeps it whole — no caret
+   lands inside the glyph. */
+:where(.editor) .md-entity-widget {
+	user-select: none;
+}
+
 :where(.editor) .md-image-widget img {
 	max-width: 100%;
 	height: auto;

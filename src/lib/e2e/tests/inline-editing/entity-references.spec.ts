@@ -1,6 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
+// Recognition + composition of character references (requirements/inline-editing/
+// entity-references.md). A visible-glyph reference renders as an atomic
+// `[data-inline-widget]`; its atomic caret/delete behavior is a separate concern
+// pinned in entity-widget.spec.ts. Invisible decodings and non-references stay text.
+
 test.describe('inline editing — entity references', () => {
 	let editor: EditorPage;
 
@@ -11,66 +16,56 @@ test.describe('inline editing — entity references', () => {
 		await editor.focusBlockAtPath([0], 0);
 	});
 
-	test('named entity renders styled with source intact', async () => {
+	test('named entity renders as its glyph widget with source intact', async () => {
 		await editor.typeText('a &copy; b');
 		await editor.bridge.waitForSourceContains('a &copy; b');
 
-		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(1);
-		await expect(block.locator('.md-entity')).toHaveText('&copy;');
+		const widget = editor.getBlock(0).locator('[data-inline-widget]');
+		await expect(widget).toHaveCount(1);
+		await expect(widget).toHaveText('©');
 		expect((await editor.bridge.getSource()).trim()).toBe('a &copy; b');
 	});
 
-	test('decimal numeric entity recognized', async () => {
+	test('decimal numeric entity renders its glyph', async () => {
 		await editor.typeText('quote &#39; here');
 		await editor.bridge.waitForSourceContains('quote &#39; here');
-
-		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(1);
+		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
 	});
 
-	test('hex numeric entity (lowercase x) recognized', async () => {
+	test('hex numeric entity (lowercase x) renders its glyph', async () => {
 		await editor.typeText('quote &#x22; here');
 		await editor.bridge.waitForSourceContains('quote &#x22; here');
-
-		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(1);
+		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
 	});
 
-	test('hex numeric entity (uppercase X) recognized', async () => {
+	test('hex numeric entity (uppercase X) renders its glyph', async () => {
 		await editor.typeText('quote &#X22; here');
 		await editor.bridge.waitForSourceContains('quote &#X22; here');
-
-		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(1);
+		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
 	});
 
-	test('partial entity stays as text and resolves once closed', async () => {
+	test('partial entity stays as text and renders its glyph once closed', async () => {
 		await editor.typeText('&am');
 		await editor.bridge.waitForSourceContains('&am');
 
 		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(0);
+		await expect(block.locator('[data-inline-widget]')).toHaveCount(0);
 
 		await editor.typeText('p;');
 		await editor.bridge.waitForSourceContains('&amp;');
-		await expect(block.locator('.md-entity')).toHaveCount(1);
+		await expect(block.locator('[data-inline-widget]')).toHaveCount(1);
 	});
 
 	test('invalid entity stays as text', async () => {
 		await editor.typeText('foo &notreal; bar');
 		await editor.bridge.waitForSourceContains('foo &notreal; bar');
-
-		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(0);
+		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(0);
 	});
 
 	test('entity composes with surrounding emphasis', async () => {
 		await editor.typeText('*&copy;*');
 		await editor.bridge.waitForSourceContains('*&copy;*');
-
-		const block = editor.getBlock(0);
-		await expect(block.locator('em > .md-entity')).toHaveCount(1);
+		await expect(editor.getBlock(0).locator('em > [data-inline-widget]')).toHaveCount(1);
 	});
 
 	test('entity inside code span is inert', async () => {
@@ -78,7 +73,7 @@ test.describe('inline editing — entity references', () => {
 		await editor.bridge.waitForSourceContains('`&copy;`');
 
 		const block = editor.getBlock(0);
-		await expect(block.locator('.md-entity')).toHaveCount(0);
+		await expect(block.locator('[data-inline-widget]')).toHaveCount(0);
 		await expect(block.locator('code.inline-code-content')).toHaveCount(1);
 	});
 
@@ -90,19 +85,9 @@ test.describe('inline editing — entity references', () => {
 		});
 	}
 
-	test('entity inside link text renders inside anchor', async () => {
+	test('entity inside link text renders its glyph inside the anchor', async () => {
 		await editor.typeText('[&copy; me](https://example.com)');
 		await editor.bridge.waitForSourceContains('[&copy; me](https://example.com)');
-		const block = editor.getBlock(0);
-		expect(await block.locator('a .md-entity').count()).toBe(1);
-	});
-
-	test('backspacing the closing ; collapses entity to plain text', async () => {
-		await editor.loadContent('&copy;\n');
-		await editor.focusBlockAtPath([0], 6);
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('&copy');
-		const block = editor.getBlock(0);
-		expect(await block.locator('.md-entity').count()).toBe(0);
+		expect(await editor.getBlock(0).locator('a [data-inline-widget]').count()).toBe(1);
 	});
 });
