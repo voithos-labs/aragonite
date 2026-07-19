@@ -248,7 +248,7 @@ The $\Theta(L)$ term is the DOM read-back, inline reparse, and span rebuild of t
 
 **Remark (tradeoff).** Materialized container raw costs space. Define the amplification factor
 
-$$\alpha = \frac{1}{N} \sum_{c \in \mathcal{C}} \lvert \operatorname{raw}(c) \rvert,$$
+$$\alpha = \frac{1}{N} \sum_{c \in \mathcal{C}} \lvert \mathit{raw}(c) \rvert,$$
 
 the bytes containers store over again relative to the document itself: $\alpha$ measures 3.55 on the nested-container fixture and 1.96 on the table-heavy one, and the commit gate holds both under ceilings with ×1.1 headroom. What the space buys is not asymptotic, since a serializer that re-derived container bytes on demand would still be $\Theta(N)$. The purchase is where the risk lives: serialization stays a non-recursive concatenation (Proposition 1) with nowhere for a bug to hide, and every byte consumer (a save, a clipboard slice, an undo restore) reads stored bytes instead of re-deriving them. Deriving container raw from children would fix the cheap problem (space) and hand the expensive one (round-trip risk) back to the serializer.
 
