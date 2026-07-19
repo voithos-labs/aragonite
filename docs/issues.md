@@ -79,48 +79,30 @@ a curated set of interactive edits is a product question, not a gating bug.
 **Why deferred:** decided with the presentation-modes milestone's later rungs, where
 block/inline granularity forces the same "which interactions survive" call anyway.
 
-### CRLF fenced code renders a stray trailing `\r` into textContent
+### Language-highlighted CRLF code drops interior carriage returns on render
 
-**Severity:** minor (latent; reachable only by CRLF-internal documents)
-**Files:** `src/lib/components/blocks/code/code-renderer.ts` (`stripTrailingNewline` strips one
-`\n`), `src/lib/core/lines.ts` (`trimTrailingLineEnding` strips a full `\r\n`),
-`src/lib/components/blocks/code/CodeBlock.svelte` (commits from `el.textContent`)
+**Severity:** minor (latent; reachable only by a CRLF-authored, language-tagged block)
+**Files:** `src/lib/components/blocks/code/code-renderer.ts` (`tokenizeBody` builds the
+highlighted body via `template.innerHTML`), `src/lib/components/blocks/code/CodeBlock.svelte`
+(commits from `el.textContent`)
 
-For CRLF raw (` ```\r\ncode\r\n```\r\n `) the rendered `textContent` ends ` ```\r ` while
-`trimTrailingLineEnding(raw)` ends ` ``` ` — the renderer strips one `\n`, the line helpers
-strip the full `\r\n`. `CodeBlock` reads `textContent` back as raw on commit, so this is a
-CRLF round-trip vector, though the CRLF-commit suite's gestures currently pass (masked). Not a
-regression of the fence-line wrapper fix — reproduces identically under the pre-fix renderer —
-but that fix's commit message overclaims "textContent equals `trimTrailingLineEnding(raw)`
-across every fence shape"; it holds for LF only. Surfaced by the fence-line review's byte-parity
-probe (11 shapes, 10 exact).
+For a CRLF body with a recognized info string, `tokenizeBody` sets `template.innerHTML` to the
+highlighter output; the HTML parser normalizes every `\r\n` → `\n`, so the rendered
+`textContent` loses all interior carriage returns (` ```js\r\na\r\nb\r\n```\r\n ` renders a body
+of `a\nb`). `CodeBlock` reads `textContent` back as raw on commit, making this a CRLF
+round-trip vector for language-tagged blocks. The no-grammar path preserves `\r` (plain text
+node) and the trailing-line-ending strip is byte-exact for CRLF — only the highlight path
+mangles. Surfaced while fixing the trailing-`\r` strip; pinned by a standing unit case in
+`code-render.test.ts` ("CRLF interior mangle in the language path").
 
-**Fix direction:** make `stripTrailingNewline` line-ending-aware (strip `\r\n` as a unit when
-the raw carries CRLF), landed red-first with CRLF commit-gesture coverage; the G4.20
-trailing-line-ending parity lint is the adjacent guard family.
+**Fix direction:** highlight an LF-normalized copy of the body (whitespace tokenization is
+identical), then re-expand the fragment's text-node newlines to the body's original per-line
+endings — gated on the body carrying a `\r` so LF bodies pay nothing. The token structure is
+line-ending-agnostic, so a positional re-expand restores byte parity, mixed endings included.
 
-**Why deferred:** the review protocol forbids adding a red test to a passing branch; the fix
-wants its own red-first pass, not a rider on the wrapper change.
-
-### All-blank code content collapses one line short in reading mode
-
-**Severity:** minor (cosmetic; degenerate all-blank-body fences, reading/unfocused-preview only)
-**Files:** `src/lib/components/blocks/code/code-renderer.ts` (`separatorNewline` — the body's
-terminating line break now lives in the hidden closer wrapper)
-
-A fenced block whose body is only blank lines loses one visible line when the fence lines hide:
-` ```\n\n```\n ` (one blank line of content) renders a zero-line box in reading mode,
-` ```\n\n\n```\n ` shows one blank instead of two. Introduced by the fence-line wrapper fix —
-the closer wrapper owns its preceding line break, which for an all-blank body is the last
-content line's break. Byte parity, offsets, and selection are intact; non-degenerate content
-renders correctly.
-
-**Fix direction:** either keep the separator in the body fragment when every body line is
-blank, or accept and pin the collapsed rendering — decided against the caret paths that walk
-those text nodes, not as a conditional patched into the renderer hot path.
-
-**Why deferred:** degenerate shape with no content loss, reading-only; the conditional-ownership
-call deserves its own look rather than shipping inside the artifact fix.
+**Why deferred:** a distinct class (highlighter HTML-parse normalization) in a different
+function from the trailing-strip fix it was found beside; the review protocol wants it landed
+red-first on its own pass, not ridered onto the renderer-pair commit.
 
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
