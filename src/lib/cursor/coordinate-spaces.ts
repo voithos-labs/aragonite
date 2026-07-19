@@ -12,9 +12,12 @@
  *   and mint once at entry. `asRawOffset|asDomTextOffset|asEditorX|asViewportX|asCellIndex`
  *   greps to every door; the coordinate-brand-mints lint holds that list closed.
  *
- * `DocPath` (the doc-absolute path brand) is an array, not a number, so it lives
- * with the path arithmetic in `selection/path-math.ts` rather than here — the
- * lint tracks its mint from that home.
+ * `DocPath` (the doc-absolute path brand) is an array, not a number: its type
+ * and base mint (`asDocPath`) live with the path arithmetic in
+ * `selection/path-math.ts`. Its *composition* helpers live here, at the bottom,
+ * because this is the neutral coordinate leaf every op family — including
+ * `tree-operations`, which must not depend on `selection/` — can reach. The
+ * lint tracks the DocPath cast from both homes.
  *
  * CURSOR_END rides through public doors as a plain number and is deliberately
  * laundered into RawOffset by the door mint: the offset walkers clamp any
@@ -22,6 +25,8 @@
  * branded signatures. A future branded seam that must accept it explicitly
  * takes `RawOffset | CursorEnd`.
  */
+
+import type { DocPath } from '../selection/path-math';
 
 // ── Brands ───────────────────────────────────────────────────────────────────
 
@@ -99,4 +104,26 @@ export function asViewportX(n: number): ViewportX {
 
 export function asCellIndex(n: number): CellIndex {
 	return n as CellIndex;
+}
+
+// ── DocPath composition (the doc-absolute path helpers, at the neutral leaf) ──
+//
+// Bare `as DocPath` casts, not `asDocPath` calls: importing that runtime mint
+// from `selection/` would give this leaf a runtime edge into `selection/` and
+// reopen the cursor↔selection cycle. `DocPath` enters type-only, so the edge is
+// erased.
+
+/** Append a child index to a parent path, yielding a doc-absolute path. */
+export function extendDocPath(parent: readonly number[], index: number): DocPath {
+	return [...parent, index] as DocPath;
+}
+
+/**
+ * Brand a complete doc-absolute path (copied) for composers that already hold
+ * one — an ancestor's own path reused as the event target, or a fresh literal
+ * assembled from resolved indices. `extendDocPath` covers the parent-plus-index
+ * case; this covers the rest.
+ */
+export function docPathFrom(indices: readonly number[]): DocPath {
+	return [...indices] as DocPath;
 }

@@ -17,6 +17,7 @@ import {
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import { mergedElseFocusPrevious } from './merge-fallback';
+import { extendDocPath } from '../cursor/coordinate-spaces';
 
 export interface UnwrapStrategyDeps {
 	deps: NestedActionsDeps;
@@ -59,13 +60,13 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 			containerNode: node,
 			path: deps.path,
 			state,
-			snapshot: { path: [...deps.path, 0], offset: 0 },
+			snapshot: { path: extendDocPath(deps.path, 0), offset: 0 },
 			mutate: (scope) => {
 				const change = performDelete({ children: scope.children }, 0, scope.sharing);
 				renumberOrderedList(scope.node, 0, scope.sharing);
 				return change;
 			},
-			op: { kind: 'delete', eventPath: [...deps.path, 0] },
+			op: { kind: 'delete', eventPath: extendDocPath(deps.path, 0) },
 			afterTick: () => {
 				state.innerBlockRefs[0]?.focus(0);
 			}
@@ -99,13 +100,13 @@ async function listItemCascadeMiddle(
 			containerNode: node,
 			path: deps.path,
 			state,
-			snapshot: { path: [...deps.path, itemIndex], offset: 0 },
+			snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 			mutate: (scope) => {
 				const change = performDelete({ children: scope.children }, itemIndex, scope.sharing);
 				renumberOrderedList(scope.node, itemIndex, scope.sharing);
 				return change;
 			},
-			op: { kind: 'delete', eventPath: [...deps.path, itemIndex] },
+			op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
 			afterTick: () => {
 				state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 			}
@@ -122,7 +123,7 @@ async function listItemCascadeMiddle(
 		containerNode: node,
 		path: deps.path,
 		state,
-		snapshot: { path: [...deps.path, itemIndex], offset: 0 },
+		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 		mutate: (scope) => {
 			const result = mergeListItemIntoPrevious(
 				scope.node,
@@ -136,7 +137,7 @@ async function listItemCascadeMiddle(
 		op: {
 			kind: 'merge',
 			detail: { direction: 'prev' },
-			eventPath: [...deps.path, itemIndex]
+			eventPath: extendDocPath(deps.path, itemIndex)
 		},
 		afterTick: () => {
 			const merged = mergedElseFocusPrevious(mergePoint, state.innerBlockRefs[itemIndex - 1]);

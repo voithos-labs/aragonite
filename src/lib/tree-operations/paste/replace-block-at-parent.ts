@@ -12,6 +12,7 @@ import type { OperationDetailMap } from '../../schema/operations';
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteCommitCoordinator, MultiScopeTarget } from './paste-deps';
 import { nodeAt } from '../node-ops';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
@@ -59,7 +60,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	await controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: undoEntry === 'join' ? 'skip' : { path: blockPath.slice(), offset: 0 },
+		snapshot: undoEntry === 'join' ? 'skip' : { path: docPathFrom(blockPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(blockIdx, 1, ...replacement);
 			// Identity preservation only helps when the kind matches — different
@@ -73,7 +74,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		op: {
 			kind: 'replaceBlock',
 			detail: { source },
-			eventPath: blockPath
+			eventPath: docPathFrom(blockPath)
 		},
 		afterTick: () => {
 			const focusIdx = blockIdx + focusReplacementIndex;

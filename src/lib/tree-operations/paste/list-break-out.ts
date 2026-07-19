@@ -24,6 +24,7 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { MultiScopeTarget } from './paste-deps';
 import type { PasteDispatchContext } from './dispatch';
 
@@ -103,7 +104,7 @@ export async function applyListBreakOut(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...plan.listPath], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(spliceIndex, 1, ...replacement);
 			const change: StructuralChange = {
@@ -118,7 +119,7 @@ export async function applyListBreakOut(
 		op: {
 			kind: 'paste',
 			detail: { source: 'list-break-out', listPath: plan.listPath },
-			eventPath: plan.listPath
+			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
 			const lastInsertedIdx = spliceIndex + replacement.length - 1;
