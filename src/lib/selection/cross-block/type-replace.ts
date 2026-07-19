@@ -1,9 +1,10 @@
 /**
  * Cross-block type-replace: the user typed a character with a cross-block
  * selection active. Delete the range, splice the typed character into the
- * surviving leaf's raw, and rebuild ancestry when the leaf sits inside a
- * container. Routed through commitMultiScope so the mutation matches the
- * single-block update path (ids/refs reactivity, op:'input' emission).
+ * surviving leaf's raw, and re-parse it so a marker at offset 0 re-derives the
+ * kind (parity with the single-block type path). Routed through commitMultiScope
+ * so the mutation matches the single-block update path — a kind change mints a
+ * fresh node into the slot, ids/refs stay synced, op:'input' is emitted.
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
@@ -11,15 +12,18 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { blockNodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt, updateNodeContent } from '../../tree-operations/node-ops';
 import { applyCollapsedCaret } from '../native-bridge';
 import {
+	ensureUnsharedChild,
 	ensureUnsharedNode,
 	ensureUnsharedPath,
 	rebuildUnsharedChain
 } from '../../tree-operations/unshare';
+import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { getStateForNode } from '../../reactivity/state-registry';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { devWarn } from '../../dev-warn';
 
 export async function handleCrossBlockTypeReplace(
 	ctx: CrossBlockDispatchContext,
@@ -58,19 +62,52 @@ export async function handleCrossBlockTypeReplace(
 		return true;
 	}
 
+	// resolveTypedCharScope returns the leaf's IMMEDIATE parent — every mounted
+	// container registers a BlockListState, so the deepest-registered ancestor is
+	// the parent, and the document root stands in for a top-level leaf (scope path
+	// []). The re-parse-and-replace below therefore lands in the scope's own
+	// children and its StructuralChange syncs the scope's ids/refs. The guard is
+	// the enforcement belt: an unregistered ancestor would make `scope` a
+	// grandparent, and the replace would splice the wrong slot — degrade to the
+	// raw-only splice (transient stale kind, non-corrupting) rather than corrupt.
+	const leafIndex = caret.path[caret.path.length - 1];
+	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
+
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: 'skip',
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			const charOffset = charOffsetOf(caret, 'cross-block-type-replace:slice');
-			const chain = ensureUnsharedPath(doc, caret.path, sharing);
-			// caret.path resolved above, so the chain reaches the leaf; the
-			// fallback still routes through the unshare seam, never a raw capture.
-			const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
-			owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
-			rebuildUnsharedChain(chain, sharing);
-			return [{ op: 'noop' }];
+
+			if (!scopeIsImmediateParent) {
+				devWarn(
+					'cross-block-type-replace',
+					`scope [${scope.path.join(',')}] is not the immediate parent of leaf [${caret.path.join(',')}]; splicing raw without kind re-derivation`
+				);
+				const chain = ensureUnsharedPath(doc, caret.path, sharing);
+				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
+				owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
+				rebuildUnsharedChain(chain, sharing);
+				return [{ op: 'noop' }];
+			}
+
+			// Re-parse the spliced leaf inside the commit so a marker at offset 0
+			// re-derives the kind — parity with the single-block type path
+			// (updateNodeContent mints a fresh node on a kind change, writes fields
+			// in place otherwise). A single typed character never introduces a blank
+			// line, so the multi-block replacement arm is unreachable: the survivor
+			// stays one slot and afterTick restores one caret.
+			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
+			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
+			const change = updateNodeContent(
+				{ children: scopeView.children },
+				leafIndex,
+				newText,
+				ctx.grammar
+			);
+			stampStructuralChange(scopeView.children, change, sharing);
+			return [change];
 		},
 		op: {
 			kind: 'input',

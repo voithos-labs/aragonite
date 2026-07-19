@@ -177,3 +177,37 @@ describe('cross-block typed character — A2/A3 event symmetry', () => {
 		expect(snapshotSource).toBe(before);
 	});
 });
+
+// The typed splice re-parses the surviving leaf inside the commit, so a marker at
+// offset 0 re-derives the kind (parity with the single-block type path). Before the
+// fix the raw was spliced with the kind held stale until the next full re-parse.
+describe('cross-block typed character — kind re-derivation at offset 0', () => {
+	it('a marker at offset 0 of an emptied survivor re-parses to the new kind', async () => {
+		const env = makeEnv('aaa\n\nbbb\n');
+
+		// Select both blocks whole; the delete empties the survivor at [0] offset 0.
+		env.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 3 });
+
+		const handlers = makeHandlers(env, [0]);
+		await handlers.handleBeforeInput(makeBeforeInputEvent('#'));
+
+		expect(env.doc.children).toHaveLength(1);
+		const survivor = env.doc.children[0] as CstNode;
+		expect(survivor.kind).toBe('heading');
+		expect(survivor.raw.replace(/\s+$/, '')).toBe('#');
+	});
+
+	it('a non-marker character keeps the kind: the fast path stays in place', async () => {
+		const env = makeEnv('aaa\n\nbbb\n');
+
+		env.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 3 });
+
+		const handlers = makeHandlers(env, [0]);
+		await handlers.handleBeforeInput(makeBeforeInputEvent('x'));
+
+		expect(env.doc.children).toHaveLength(1);
+		const survivor = env.doc.children[0] as CstNode;
+		expect(survivor.kind).toBe('paragraph');
+		expect(survivor.raw.replace(/\s+$/, '')).toBe('x');
+	});
+});

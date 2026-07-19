@@ -44,6 +44,12 @@ export interface TextClipboardDeps {
 	 *  a CST consistent with the swapped DOM. Returns the committed caret, or null when
 	 *  no reveal was open. */
 	commitRevealBeforeClipboard: () => number | null;
+	/** True while an inline-widget source reveal is active on this block. */
+	isRevealing: () => boolean;
+	/** The block's live DOM read as raw text (widget-aware) — the reveal-aware copy
+	 *  reads it so a selection over the revealed (uncommitted) edit yields what the
+	 *  user sees, not the stale raw slice. */
+	readRevealedText: () => string;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
@@ -101,6 +107,20 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		// Sync write via e.clipboardData — navigator.clipboard.writeText is async/permission-gated
 		// and unreliable in Tauri's wry webview.
 		if (writeCrossBlockCopy(e, deps)) return;
+		// A within-block selection over an ACTIVE reveal shows the uncommitted source
+		// edit in the DOM, so slice the live DOM text, not the stale node.raw. This is
+		// the READ half of the fold seam cut/paste mutate at — but it sits LAST, not
+		// first: cut/paste fold the reveal and then operate on a consistent CST, while
+		// copy must never mutate, so it reads the live DOM as the terminal within-block
+		// branch (cross-block routed above; a reveal excludes a selected widget).
+		if (deps.isRevealing()) {
+			const offsets = deps.cursor.getRawSelection();
+			e.clipboardData?.setData(
+				'text/plain',
+				offsets ? deps.readRevealedText().slice(offsets.start, offsets.end) : ''
+			);
+			return;
+		}
 		e.clipboardData?.setData('text/plain', getSelectedTextFromRaw());
 	}
 
