@@ -288,23 +288,6 @@ switch the tail to the proven copy-event fallback behind the same shared seam.
 
 ## Code structure
 
-### Focused-block copy chords are undocumented in the consumer guide
-
-**Severity:** trivial (docs gap; the gesture shipped)
-**Files:** `docs/guide/consumer-guide.md` (keyboard table),
-`src/lib/test/invariants/lint/consumer-guide-chords.test.ts` (G4.8)
-
-Mod+C/Mod+X on a focused whole-block block or selected inline widget ship in the whole-block
-key tail and the prose clipboard seam — outside the three dispatch surfaces G4.8 resolves the
-guide's keyboard table against (keymap registry, table cell plan, search components). Adding the
-rows today would fail the lint; omitting them under-documents shipped chords.
-
-**Fix direction:** teach G4.8 the whole-block tail as a recognized dispatch surface, then add
-the rows in the same change.
-
-**Why deferred:** routed from the copy/cut implementation per its brief — the lint change is its
-own small deliberate edit, not a rider on the feature commit.
-
 ### DocPath brand adoption stops at the scope factories
 
 **Severity:** minor (enforcement depth; the runtime guard covers the rest)
