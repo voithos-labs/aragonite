@@ -1,11 +1,13 @@
 /**
- * Inline + scoped-structural paste hooks for tableCell, exposed as a
- * PasteSurface that the editor mount registers (see built-in-blocks.ts).
+ * Cell text ingestion for tableCell: the pipe-escaping primitive shared by every
+ * write path, the caret-aware keystroke-commit wrapper, plus the inline +
+ * scoped-structural paste hooks exposed as a PasteSurface the editor mount
+ * registers (see built-in-blocks.ts).
  */
 
 import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
-import { nodeAt } from '../../../tree-operations/node-ops';
+import { blockNodeAt } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
@@ -34,6 +36,20 @@ export function escapeUnescapedPipes(s: string): string {
 
 export function normalizeWhitespace(s: string): string {
 	return s.replace(/\n+/g, ' ').trim();
+}
+
+/**
+ * Escape unescaped pipes in a cell's committed text and report where `caret`
+ * lands once the backslashes are inserted. Typing (and IME commit) must produce
+ * the same `\|` bytes a paste does — an unescaped `|` splits the row into extra
+ * cells on reparse, shifting or dropping every cell after it. The caret shifts by
+ * the backslashes inserted before it, so the re-render from raw seats it after
+ * the escape it just typed, not inside the `\|` pair.
+ */
+export function escapeCellCommit(text: string, caret: number): { text: string; caret: number } {
+	const escaped = escapeUnescapedPipes(text);
+	if (escaped === text) return { text, caret };
+	return { text: escaped, caret: escapeUnescapedPipes(text.slice(0, caret)).length };
 }
 
 export function tableCellInlinePaste(
@@ -73,7 +89,7 @@ export const tableCellPasteSurface: PasteSurface = {
 async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput): Promise<void> {
 	const tablePath = input.targetPath.slice(0, -2);
 	const rowIdx = input.targetPath[input.targetPath.length - 2];
-	const table = nodeAt(input.doc, tablePath) as CstNode | null;
+	const table = blockNodeAt(input.doc, tablePath);
 	// Malformed path: swallow the paste.
 	if (!table || table.kind !== 'table') return;
 

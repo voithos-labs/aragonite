@@ -3,10 +3,10 @@ import {
 	getCommand,
 	GLOBAL_KEYMAP,
 	resolveBinding,
-	resolveKindBinding,
-	dispatchKeyCommand
+	resolveKindBinding
 } from '$lib/schema/commands';
-import { augmentBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { dispatchKeyCommand } from '$lib/schema/block-commands';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {
@@ -40,7 +40,7 @@ describe('dispatchKeyCommand', () => {
 		const real = tryGetBlockKindDescriptor('paragraph')!;
 		const runCommand = vi.fn(() => true);
 		try {
-			augmentBlockKind('paragraph', {
+			augmentBuiltin('paragraph', {
 				keymap: [
 					{ chord: 'Mod+B', command: 'format.toggleStrong' },
 					{ chord: 'Mod+3', command: 'heading.cycle', arg: 3 }
@@ -51,7 +51,7 @@ describe('dispatchKeyCommand', () => {
 			expect(dispatchKeyCommand('Mod+3', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
 			expect(runCommand).toHaveBeenLastCalledWith('heading.cycle', 3);
 		} finally {
-			augmentBlockKind('paragraph', { keymap: real.keymap });
+			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}
 	});
 });
@@ -60,12 +60,12 @@ describe('resolveBinding order', () => {
 	it('per-kind binding shadows the global table, falls through otherwise', () => {
 		const real = tryGetBlockKindDescriptor('paragraph')!;
 		try {
-			augmentBlockKind('paragraph', {
+			augmentBuiltin('paragraph', {
 				keymap: [{ chord: 'Mod+Z', command: 'block.split' }]
 			});
 			expect(resolveBinding('Mod+Z', 'paragraph')?.command).toBe('block.split');
 		} finally {
-			augmentBlockKind('paragraph', { keymap: real.keymap });
+			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}
 		// fencedCode doesn't bind Mod+Z → falls through to the global table
 		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
@@ -93,6 +93,9 @@ describe('fencedCode keymap', () => {
 		['Shift+Tab', 'code.dedent'],
 		['Backspace', 'code.backspace'],
 		['Delete', 'code.delete'],
+		// Keyboard reorder parity with prose: the drag handle promises Alt+↑/↓.
+		['Alt+ArrowUp', 'block.moveUp'],
+		['Alt+ArrowDown', 'block.moveDown'],
 		['Mod+B', 'format.toggleStrong'],
 		['Mod+I', 'format.toggleEmphasis']
 	] as const;
@@ -101,6 +104,18 @@ describe('fencedCode keymap', () => {
 		for (const [chord, command] of FENCED_CODE_BINDINGS) {
 			expect(resolveBinding(chord, 'fencedCode')?.command).toBe(command);
 		}
+	});
+});
+
+describe('thematicBreak keymap — keyboard reorder', () => {
+	// The hr renders a drag handle whose tooltip promises Alt+↑/↓; those chords
+	// must resolve to the block-move commands. Plain arrows stay unbound so the
+	// component's own focus-navigation handles them.
+	it('binds Alt+↑/↓ to block move and leaves plain arrows unbound', () => {
+		expect(resolveBinding('Alt+ArrowUp', 'thematicBreak')?.command).toBe('block.moveUp');
+		expect(resolveBinding('Alt+ArrowDown', 'thematicBreak')?.command).toBe('block.moveDown');
+		expect(resolveBinding('ArrowUp', 'thematicBreak')).toBeNull();
+		expect(resolveBinding('ArrowDown', 'thematicBreak')).toBeNull();
 	});
 });
 
@@ -114,8 +129,8 @@ describe('listItem keymap', () => {
 });
 
 describe('tableCell keymap', () => {
-	// Enter/Tab/Shift+Tab resolve to cell commands so IMPL-7's cross-block
-	// dispatch can route a post-delete chord to a focused cell's runCommand.
+	// Enter/Tab/Shift+Tab resolve to cell commands so the cross-block dispatch
+	// can route a post-delete chord to a focused cell's runCommand.
 	it('resolves Enter/Tab/Shift+Tab to cell commands', () => {
 		expect(resolveBinding('Enter', 'tableCell')?.command).toBe('cell.enter');
 		expect(resolveBinding('Tab', 'tableCell')?.command).toBe('cell.tab');

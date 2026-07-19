@@ -6,6 +6,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
 import {
@@ -71,9 +72,34 @@ export function defaultStructuralHook(
 	const replacement = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 	return {
 		replacement,
-		focusReplacementIndex: replacement.length - 1,
+		focusReplacementIndex: pastedContentFocusIndex(node, offset, preDelete, replacement.length),
 		focusOffset: CURSOR_END
 	};
+}
+
+/**
+ * Caret target for a structural paste: the end of the PASTED content, not the
+ * trailing residue. A caret that sat mid-block appends the post-caret slice as
+ * the replacement's last node (buildPastedReplacement), so the pasted content
+ * ends one node earlier; an end-of-block paste has no residue and lands on the
+ * last node as before.
+ */
+export function pastedContentFocusIndex(
+	node: NodeView,
+	offset: number,
+	preDelete: PasteRange | undefined,
+	replacementLength: number
+): number {
+	const display = trimTrailingLineEnding(node.raw);
+	const cut = preDelete && preDelete.start < preDelete.end;
+	const effectiveDisplay = cut
+		? display.slice(0, preDelete.start) + display.slice(preDelete.end)
+		: display;
+	const effectiveOffset = cut ? preDelete.start : offset;
+	const hasTrailingResidue = effectiveOffset < effectiveDisplay.length;
+	return hasTrailingResidue && replacementLength >= 2
+		? replacementLength - 2
+		: replacementLength - 1;
 }
 
 // Built-in kinds register on block-kind-descriptor import, which is transitively

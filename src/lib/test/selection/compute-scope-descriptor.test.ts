@@ -1,5 +1,5 @@
 /**
- * Audit for B5: mixed-depth cross-block delete + cascade cleanup. Exercises
+ * Mixed-depth cross-block delete + cascade cleanup. Exercises
  * every documented branch of computeScopeDescriptor with the shapes that
  * actually arise from rangeDelete + cascade — both-descend, only-end-descends
  * (with and without surviving siblings past endIdx), only-start-descends,
@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { __computeScopeDescriptorForTests as computeScopeDescriptor } from '../../selection/cross-block/ops';
 
-describe('computeScopeDescriptor — mixed-depth audit (B5)', () => {
+describe('computeScopeDescriptor — mixed-depth audit', () => {
 	// ── Both endpoints descend (no mixed-depth branch) ────────────────────
 
 	it('shared-ancestor scope: start and end both descend, middle range replaced', () => {
@@ -83,6 +83,32 @@ describe('computeScopeDescriptor — mixed-depth audit (B5)', () => {
 	it('noop when scope is outside the selection path', () => {
 		const d = computeScopeDescriptor([2], [0], [1, 2, 3], 5, 5);
 		expect(d.op).toBe('noop');
+	});
+
+	// ── No net removal in the scope ───────────────────────────────────────
+
+	it('noop when the scope lost no children: every slot survived in place', () => {
+		// Doc scope for start=[0] truncated in place, end=[1] a surviving table
+		// (or a replaced-in-slot leaf): ids/refs must be kept as-is, matching
+		// the pure top-level path's convention.
+		const d = computeScopeDescriptor([], [0], [1], 2, 2);
+		expect(d).toEqual({ op: 'noop' });
+	});
+
+	// ── Table endpoint (caller passes the endpoint one level deeper) ──────
+
+	it('surviving end table keeps its id past a removed middle block', () => {
+		// start=[0], end table at [2] — the caller deepens the cell-coordinate
+		// endpoint to [2,0] so the table counts as "descends deeper" (survives
+		// in place unless fully consumed). Middle [1] removed.
+		const d = computeScopeDescriptor([], [0], [2, 0], 3, 2);
+		expect(d).toEqual({
+			op: 'replace',
+			at: 0,
+			count: 3,
+			newCount: 2,
+			idMap: { 0: 0, 1: 2 }
+		});
 	});
 
 	// ── Invariant audit across the mixed-depth branch ────────────────────

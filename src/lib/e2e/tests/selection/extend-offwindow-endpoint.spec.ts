@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
@@ -42,14 +43,13 @@ test('Shift+Ctrl+End extends to an off-window endpoint and scrolls it into view,
 	await editor.clickBlock(0);
 	await page.keyboard.press(`${primaryModifier}+Shift+End`);
 	await editor.waitForRenderFlush();
-	await page.waitForTimeout(200);
 
+	// Poll the mount+scroll the reveal performs rather than a fixed wait; the
+	// endpoint must land mounted AND in view.
+	await expect.poll(() => markerInView(page)).toEqual({ mounted: true, inView: true });
 	expect(await page.evaluate(() => (window as any).__test.isCrossBlockSelection?.() ?? false)).toBe(
 		true
 	);
-	const view = await markerInView(page);
-	expect(view.mounted).toBe(true); // the endpoint mounted
-	expect(view.inView).toBe(true); // and scrolled into view
 
 	// A following unshifted arrow collapses the selection (focus routing intact).
 	await page.keyboard.press('ArrowLeft');

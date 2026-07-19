@@ -9,7 +9,7 @@ import type { EditorSelection } from '../selection/primitives';
 export interface UndoEntry {
 	snapshot: Document;
 	blockIds: string[];
-	/** Effective selection at push. See docs/design/editor/editor.md — Undo/Redo. */
+	/** Effective selection at push. See docs/design/editor.md — Undo/Redo. */
 	selection: EditorSelection;
 	/** DEV-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
 	integrity?: number;
@@ -26,8 +26,7 @@ export interface UndoManager {
 	getStacks(): { undo: UndoEntry[]; redo: UndoEntry[] };
 	/**
 	 * Restore both stacks in place to a snapshot captured via `getStacks()`.
-	 * Used by the commit ceremony to roll back a push when its mutation throws —
-	 * a wholesale restore (not a pop) because `push` may have evicted the oldest
+	 * A wholesale restore (not a pop) because `push` may have evicted the oldest
 	 * entry at MAX_UNDO.
 	 */
 	restoreStacks(stacks: { undo: UndoEntry[]; redo: UndoEntry[] }): void;

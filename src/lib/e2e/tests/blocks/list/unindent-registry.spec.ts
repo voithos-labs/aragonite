@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 test.describe('list unindent — ref alignment via registry', () => {
@@ -37,6 +37,6 @@ test.describe('list unindent — ref alignment via registry', () => {
 
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/- one\n- Xlonely nested\n- three/);
-		expect(src).not.toMatch(/- one\n  -\s*\n/);
+		expect(src).not.toMatch(/- one\n {2}-\s*\n/);
 	});
 });

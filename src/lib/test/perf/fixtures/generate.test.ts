@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import type { CstNode } from '../../../core/nodes';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
-import { FIXTURE_SHAPES, generateFixture, generateUniformBlocks } from './generate';
+import { docByteLength } from '../../../perf/instruments';
+import { containerRawBytes } from '../container-raw-bytes';
+import {
+	FIXTURE_SHAPES,
+	generateFixture,
+	generateUniformBlocks,
+	generateDeepNested,
+	deepNestedLeafPath
+} from './generate';
 
 describe('fixture generators', () => {
 	for (const shape of FIXTURE_SHAPES) {
@@ -205,5 +214,89 @@ describe('generateUniformBlocks', () => {
 		expect(parse(small).children).toHaveLength(10);
 		expect(parse(large).children).toHaveLength(10);
 		expect(large.length).toBeGreaterThan(small.length * 5);
+	});
+});
+
+// Walk the descent spine, collecting each container's raw length outermost-first.
+function spineContainerRaws(root: CstNode): number[] {
+	const raws: number[] = [];
+	let node: CstNode | undefined = root;
+	while (node?.children) {
+		raws.push(node.raw.length);
+		node = node.children.find((c) => c.children);
+	}
+	return raws;
+}
+
+function nodeAtPath(root: CstNode, path: number[]): CstNode {
+	let node = root as CstNode;
+	for (const i of path) node = node.children![i];
+	return node;
+}
+
+describe('generateDeepNested', () => {
+	it('is deterministic for the same args', () => {
+		expect(generateDeepNested(8, 2_000, 7)).toBe(generateDeepNested(8, 2_000, 7));
+	});
+
+	it('a different seed differs', () => {
+		expect(generateDeepNested(8, 2_000, 7)).not.toBe(generateDeepNested(8, 2_000, 8));
+	});
+
+	for (const [depth, bytes] of [
+		[6, 2_000],
+		[12, 10_000]
+	] as const) {
+		it(`round-trips losslessly @ depth ${depth} × ${bytes}B`, () => {
+			const src = generateDeepNested(depth, bytes, 7);
+			expect(serialize(parse(src))).toBe(src);
+		});
+	}
+
+	it('is one deep container, not a flat pile', () => {
+		const doc = parse(generateDeepNested(8, 4_000, 7));
+		expect(doc.children).toHaveLength(1);
+		expect(doc.children[0].children).toBeDefined();
+	});
+
+	it('the deepest leaf is a typeable paragraph at deepNestedLeafPath', () => {
+		const depth = 8;
+		const doc = parse(generateDeepNested(depth, 4_000, 7));
+		const leaf = nodeAtPath(doc.children[0] as CstNode, deepNestedLeafPath(depth).slice(1));
+		expect(leaf.kind).toBe('paragraph');
+		expect(leaf.children).toBeUndefined();
+	});
+
+	// The load-bearing property: every level carries sibling bytes, so each spine
+	// container's raw materializes everything from its level inward and sheds one
+	// level's worth going deeper. A spine-only tree (tiny per-level raw) would fail
+	// this and silently understate the ancestry-rebuild tax the bench measures.
+	it('each level carries bytes: spine raws non-increasing, outermost ≈ whole doc', () => {
+		const doc = parse(generateDeepNested(8, 10_000, 7));
+		const raws = spineContainerRaws(doc.children[0]);
+		expect(raws[0]).toBeGreaterThanOrEqual(docByteLength(doc) * 0.95);
+		for (let i = 1; i < raws.length; i++) expect(raws[i]).toBeLessThanOrEqual(raws[i - 1]);
+		expect(raws[raws.length - 1]).toBeLessThan(raws[0] / 3);
+	});
+
+	it('redundant storage scales with depth', () => {
+		const amp = (depth: number) => {
+			const doc = parse(generateDeepNested(depth, 10_000, 7));
+			return containerRawBytes(doc.children) / docByteLength(doc);
+		};
+		expect(amp(10)).toBeGreaterThan(amp(4));
+	});
+
+	it('exact output pinned', () => {
+		expect(generateDeepNested(3, 40, 7)).toMatchInlineSnapshot(`
+			"> foxtrot echo india echo papa delta
+			>
+			> - lima echo charlie mike india delta
+			>
+			>   > lima india golf hotel delta india
+			>   >
+			>   > alpha alpha papa
+			"
+		`);
 	});
 });

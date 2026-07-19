@@ -1,19 +1,23 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
-	import type { CstNode } from '../core/nodes';
-	import type { EditorEvents } from '../editor-events';
+	import type { NodeView } from '../core/node-views';
+	import type { BlockDecoration } from '../decorations/types';
+	import { mountDecorationWidget } from '../decorations/widget-dom';
 	import SelectionOverlay from './SelectionOverlay.svelte';
-	import MatchOverlay from './MatchOverlay.svelte';
+	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
-	import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-	import { getBlockComponent } from '../schema/block-component-registry';
+	import { defaultRegistryView } from '../schema/registry-view';
 	import {
-		BLOCK_DRAG_HANDLES_KEY,
-		EDITOR_EVENTS_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		RECORD_BLOCK_HEIGHT_KEY,
-		type BlockMeasureChannel
+		type BlockMeasureChannel,
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../editor-keys';
 	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
@@ -29,7 +33,7 @@
 		getRef,
 		reorderable = false
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		id: string;
 		parentPath?: number[];
@@ -39,22 +43,69 @@
 		reorderable?: boolean;
 	} = $props();
 
-	const editorEvents = getContext<EditorEvents | undefined>(EDITOR_EVENTS_KEY);
-	const dragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY)?.() ?? false;
+	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
+	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	const editorEvents = services?.events;
+	const engine = services?.decorations;
+	// The instance's registry view resolves component + descriptor, so per-instance
+	// enablement reaches the render path. Bare mounts (unit harnesses, conformance
+	// kit) get no provider and read the global default — behavior-preserving.
+	const registryView = services?.registryView ?? defaultRegistryView;
+	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
+	const getDragHandles = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.blockDragHandles;
+	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
+	// that window in and out after the change, not just those mounted at mount.
+	const dragHandles = $derived(getDragHandles?.() ?? false);
 
 	let myPath = $derived([...parentPath, index]);
 
-	let isContainer = $derived(getBlockKindDescriptor(node.kind).isContainer);
+	const NO_BLOCK_DECORATIONS: BlockDecoration[] = [];
+	const blockDecs = $derived(
+		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
+	);
+
+	let isContainer = $derived(registryView.descriptor(node.kind).isContainer);
+	// A childless container (render-primary plugin block) mounts no child hosts,
+	// so overlay painting can't be delegated downward — see SelectionOverlay.
+	let hasChildHosts = $derived(isContainer && (node.children?.length ?? 0) > 0);
 
 	let hostEl: HTMLElement | null = $state(null);
 	let ref: BlockComponent | undefined = $state();
 
-	let entry = $derived(getBlockComponent(node.kind));
+	let entry = $derived(registryView.component(node.kind));
 
 	// A kind with no registered component falls back to a visible raw-editable
 	// surface (below) rather than silently rendering nothing.
 	$effect(() => {
 		if (!entry) devWarn('block-host', 'no component for kind, rendering raw', node.kind);
+	});
+
+	// A component that throws leaves <svelte:boundary> on the fallback for the life of
+	// this mounted host — it never re-renders its content until reset() runs. When
+	// undo/redo restores DIFFERENT bytes to this same instance (windowing would remount
+	// and heal it; a small doc never windows it out), retry the render. A re-throw
+	// safely re-enters the fallback — onerror recaptures the fresh reset and failing
+	// raw — and an unchanged raw never resets, so a genuinely broken block can't loop.
+	// Plain lets, not $state: the effect keys on node.raw alone and reads these live.
+	let failedRaw: string | null = null;
+	let retryFailedRender: (() => void) | null = null;
+
+	function onRenderError(error: unknown, reset: () => void): void {
+		failedRaw = node.raw;
+		retryFailedRender = reset;
+		editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } });
+	}
+
+	$effect(() => {
+		const raw = node.raw;
+		if (retryFailedRender && failedRaw !== null && raw !== failedRaw) {
+			const retry = retryFailedRender;
+			retryFailedRender = null;
+			failedRaw = null;
+			retry();
+		}
 	});
 
 	$effect(() => {
@@ -117,19 +168,70 @@
 		observer.observe(hostEl);
 		return () => observer.disconnect();
 	});
+
+	// Decoration attrs are set imperatively (not spread) so a source change or
+	// dispose removes exactly the keys it applied, leaving the host's own
+	// attributes untouched.
+	$effect(() => {
+		const decs = blockDecs;
+		const el = hostEl;
+		if (!el || decs.length === 0) return;
+		const appliedKeys: string[] = [];
+		for (const dec of decs) {
+			for (const [key, value] of Object.entries(dec.attrs ?? {})) {
+				el.setAttribute(key, value);
+				appliedKeys.push(key);
+			}
+		}
+		return () => {
+			for (const key of appliedKeys) el.removeAttribute(key);
+		};
+	});
+
+	// Badges prepend BEFORE the block component; every first-non-overlay-child
+	// lookup excludes `.decoration-badge` (Editor.getBlockElByPath and the e2e
+	// helpers) — keep them in step if this wrapper class ever changes.
+	$effect(() => {
+		const decs = blockDecs;
+		const el = hostEl;
+		if (!el) return;
+		const destroys: Array<() => void> = [];
+		const badges = document.createDocumentFragment();
+		for (const dec of decs) {
+			if (!dec.badge) continue;
+			const handle = mountDecorationWidget(dec.badge, dec, (error) =>
+				editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
+			);
+			if (!handle) continue;
+			const wrapper = document.createElement('div');
+			wrapper.className = 'decoration-badge';
+			wrapper.setAttribute('contenteditable', 'false');
+			wrapper.appendChild(handle.el);
+			badges.appendChild(wrapper);
+			destroys.push(() => {
+				handle.destroy();
+				wrapper.remove();
+			});
+		}
+		if (destroys.length === 0) return;
+		el.insertBefore(badges, el.firstChild);
+		return () => {
+			for (const destroy of destroys) destroy();
+		};
+	});
 </script>
 
 <div
-	class="block-host"
-	class:reorder-host={reorderable && dragHandles}
+	class={[
+		'block-host',
+		{ 'reorder-host': reorderable && dragHandles },
+		...blockDecs.flatMap((d) => d.class ?? [])
+	]}
 	data-block-path={JSON.stringify(myPath)}
 	data-block-kind={node.kind}
 	bind:this={hostEl}
 >
-	<svelte:boundary
-		onerror={(error) =>
-			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })}
-	>
+	<svelte:boundary onerror={onRenderError}>
 		{#if entry}
 			{@const Comp = entry.component}
 			<Comp
@@ -137,6 +239,7 @@
 				{index}
 				{myPath}
 				{ambientPrefix}
+				document={getDoc?.()}
 				bind:this={ref}
 				{...entry.extraProps?.(node) ?? {}}
 			/>
@@ -146,6 +249,7 @@
 				{index}
 				{myPath}
 				{ambientPrefix}
+				document={getDoc?.()}
 				bind:this={ref}
 				blockClass="raw-block"
 			/>
@@ -161,10 +265,10 @@
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural
 		 mount. The overlay's $effect guards on !blockEl. -->
-	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
-	<MatchOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} />
-	<!-- Rendered LAST so `:scope > :not(.selection-overlay)` (block-el lookup,
-		 caret placement) still resolves the block content as its first match. -->
+	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
+	<DecorationOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
+	<!-- Rendered LAST so the block-el lookup (`:scope >` excluding overlays and
+		 decoration badges) still resolves the block content as its first match. -->
 	{#if reorderable && dragHandles}
 		<BlockDragHandle />
 	{/if}
@@ -175,8 +279,8 @@
 		position: relative;
 	}
 
-	/* Pure-CSS hover reveal: no per-block reactive state on a path the 0.8 work
-	   proved scales with mounted-component count. Global (not scoped) because
+	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost
+	   scales with mounted-component count. Global (not scoped) because
 	   reorder hosts nest across components (blockquote > child, list item >
 	   sub-item). `.reorder-host` marks any host that renders a handle (BlockHost
 	   when reorderable, plus ListItemBlock); `:not(:has(.reorder-host:hover))`
@@ -196,7 +300,7 @@
 	.failed-block-notice {
 		display: block;
 		font-size: 0.85em;
-		color: var(--color-text-secondary, #e6e5e5);
+		color: var(--color-text-muted, #aaa);
 	}
 	.failed-block-raw {
 		margin: 0.25rem 0 0;

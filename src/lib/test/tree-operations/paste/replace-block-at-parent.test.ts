@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { parse } from '$lib/core/parser';
@@ -12,7 +12,7 @@ function makePara(raw: string): CstNode {
 }
 
 function makeHeading(raw: string): CstNode {
-	return { kind: 'heading', leadingTrivia: '', raw };
+	return { kind: 'heading', leadingTrivia: '', raw, metadata: { level: 1 } };
 }
 
 describe('replaceBlockAtParent — id preservation', () => {

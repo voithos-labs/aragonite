@@ -235,7 +235,7 @@ Broken image (404) — note the styled error state:
 
 ## Inline HTML
 
-CommonMark §6.10 inline HTML parses inside paragraphs. Most tags render as styled-literal source — \`<span class="hl">like this</span>\` — preserving the editor's always-visible-source philosophy.
+CommonMark §6.6 inline HTML parses inside paragraphs. Most tags render as styled-literal source — \`<span class="hl">like this</span>\` — preserving the editor's always-visible-source philosophy.
 
 The \`<br>\` tag is in the live allowlist: \`Line one<br>Line two\` produces an actual line break inside this paragraph: Line one<br>Line two.
 

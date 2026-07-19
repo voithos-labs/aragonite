@@ -30,7 +30,8 @@ describe('widgetAtCursor', () => {
 		expect(widgetAtCursor(0, imageInlines, IMAGE_RAW)).toEqual({
 			start: 0,
 			end: 11,
-			atRight: false
+			atRight: false,
+			kind: 'image'
 		});
 	});
 
@@ -38,7 +39,8 @@ describe('widgetAtCursor', () => {
 		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW)).toEqual({
 			start: 0,
 			end: 11,
-			atRight: true
+			atRight: true,
+			kind: 'image'
 		});
 	});
 
@@ -57,11 +59,61 @@ describe('widgetAtCursor', () => {
 	it('treats a <br> rawHtml node as a live widget but a non-live tag as plain', () => {
 		const brRaw = 'a<br>b';
 		const brInlines = [text(0, 1, 'a'), rawHtml(1, 5), text(5, 6, 'b')];
-		expect(widgetAtCursor(1, brInlines, brRaw)).toEqual({ start: 1, end: 5, atRight: false });
+		expect(widgetAtCursor(1, brInlines, brRaw)).toEqual({
+			start: 1,
+			end: 5,
+			atRight: false,
+			kind: 'rawHtml'
+		});
 
 		const spanRaw = 'a<span>b';
 		const spanInlines = [text(0, 1, 'a'), rawHtml(1, 7), text(7, 8, 'b')];
 		expect(widgetAtCursor(1, spanInlines, spanRaw)).toBeNull();
+	});
+});
+
+// Two adjacent widgets share a boundary (A.end === B.start). A forward key must
+// enter B (its leading edge); a backward key must enter A (its trailing edge). The
+// old document-order pick always returned A, so a forward Delete fell through to
+// native contenteditable and wiped B's whole island in one press.
+describe('widgetAtCursor at a shared widget boundary', () => {
+	const TWO_IMAGES = '![a](x.png)![b](y.png)\n';
+	const adjacentInlines: InlineNode[] = [image(0, 11), image(11, 22)];
+
+	it('forward keys resolve the boundary to the following widget (B, leading edge)', () => {
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'forward')).toEqual({
+			start: 11,
+			end: 22,
+			atRight: false,
+			kind: 'image'
+		});
+	});
+
+	it('backward keys resolve the boundary to the preceding widget (A, trailing edge)', () => {
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES, 'backward')).toEqual({
+			start: 0,
+			end: 11,
+			atRight: true,
+			kind: 'image'
+		});
+	});
+
+	it('defaults to the preceding widget (backward) when no direction is given', () => {
+		expect(widgetAtCursor(11, adjacentInlines, TWO_IMAGES)).toEqual({
+			start: 0,
+			end: 11,
+			atRight: true,
+			kind: 'image'
+		});
+	});
+
+	it('direction is inert away from a shared boundary (single trailing edge)', () => {
+		expect(widgetAtCursor(11, imageInlines, IMAGE_RAW, 'forward')).toEqual({
+			start: 0,
+			end: 11,
+			atRight: true,
+			kind: 'image'
+		});
 	});
 });
 
@@ -105,7 +157,8 @@ describe('widget nested inside a link node', () => {
 		expect(widgetAtCursor(1, nestedInlines, NESTED_RAW)).toEqual({
 			start: 1,
 			end: 13,
-			atRight: false
+			atRight: false,
+			kind: 'image'
 		});
 	});
 
@@ -113,7 +166,8 @@ describe('widget nested inside a link node', () => {
 		expect(widgetAtCursor(13, nestedInlines, NESTED_RAW)).toEqual({
 			start: 1,
 			end: 13,
-			atRight: true
+			atRight: true,
+			kind: 'image'
 		});
 	});
 });
@@ -122,13 +176,13 @@ describe('findFirstEdgeWidget / findLastEdgeWidget', () => {
 	it('finds a leading widget after skipping blank text', () => {
 		const raw = '  ![a](x.png)\n';
 		const inlines = [text(0, 2, '  '), image(2, 13)];
-		expect(findFirstEdgeWidget(inlines, raw)).toEqual({ start: 2, end: 13 });
+		expect(findFirstEdgeWidget(inlines, raw)).toMatchObject({ start: 2, end: 13, kind: 'image' });
 	});
 
 	it('finds a trailing widget after skipping blank text', () => {
 		const raw = '![a](x.png)  \n';
 		const inlines = [image(0, 11), text(11, 13, '  ')];
-		expect(findLastEdgeWidget(inlines, raw)).toEqual({ start: 0, end: 11 });
+		expect(findLastEdgeWidget(inlines, raw)).toMatchObject({ start: 0, end: 11, kind: 'image' });
 	});
 
 	it('returns null when non-blank text precedes the first widget', () => {

@@ -104,3 +104,26 @@ export function cycleAlignment(table: CstNode, colIdx: number): void {
 	const idx = ALIGN_CYCLE.indexOf(current);
 	meta.alignments[colIdx] = ALIGN_CYCLE[(idx + 1) % ALIGN_CYCLE.length];
 }
+
+// ── Delete-enablement predicates ─────────────────────────────────────────────
+// Single source of truth for the deletion-refusal rules, shared by the action
+// menu, the commit wrappers (editor-actions/table-context), and the
+// selection-layer coverage delete (selection/range-delete-table-coverage). They
+// live here — the layer all three import — so selection/ never reaches into
+// editor-actions/ for them.
+
+/**
+ * Whether a row delete is allowed. rowCount is the FULL row count (header at
+ * index 0 + body rows). A header delete promotes the next row, so it only needs
+ * a second row; a body delete needs a second body row, else the last body row
+ * would leave a header-only table.
+ */
+export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
+	if (rowCount <= 1) return false;
+	return rowIdx === 0 || rowCount - 1 > 1;
+}
+
+/** Whether a column delete is allowed: a table must keep at least one column. */
+export function canDeleteColumn(colCount: number): boolean {
+	return colCount > 1;
+}

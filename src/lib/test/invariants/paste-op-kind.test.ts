@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, type Mock } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
@@ -8,7 +8,8 @@ import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
-	makeEditorActionsDeps
+	makeEditorActionsDeps,
+	makeNode
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 import type { CstNode } from '$lib/core/nodes';
@@ -18,10 +19,6 @@ import type { CstNode } from '$lib/core/nodes';
 // emits `replaceBlock` (it routes through the nested replaceBlock path). Both
 // matter — a consumer watching only one kind misses half the pastes — so each
 // case asserts its kind fires AND the other does not.
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 function editKinds(handler: Mock<(e: EditEvent) => void>): string[] {
 	return handler.mock.calls.map(([event]) => event.op);

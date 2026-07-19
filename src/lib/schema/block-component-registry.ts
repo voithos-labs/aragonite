@@ -4,8 +4,10 @@
  */
 
 import type { Component } from 'svelte';
-import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
-import type { BlockComponent } from '../block-component';
+import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
+import type { BlockComponent, BlockComponentProps } from '../block-component';
+import { registerOnce } from './register-once';
 
 export interface BlockComponentEntry {
 	/**
@@ -16,20 +18,23 @@ export interface BlockComponentEntry {
 	 * holds — this just surfaces it to Svelte's dynamic-component typing.
 	 */
 	component: Component<Record<string, unknown>, BlockComponent>;
-	extraProps?: (node: CstNode) => Record<string, unknown>;
+	extraProps?: (node: NodeView) => Record<string, unknown>;
 }
 
 /**
  * Typed constructor for a component-registry entry. The `Component<P, BlockComponent>`
- * parameter enforces the one invariant that matters — the component's exported
- * surface is `BlockComponent` — at the call site. The single internal cast widens
- * props to the registry's `Record<string, unknown>`; props are contravariant, so
- * a component with specific props can't be assigned directly, but BlockHost always
- * supplies the correct props at runtime.
+ * parameter enforces the two invariants that matter at the call site — the
+ * component's exported surface is `BlockComponent`, and its props are a subset of
+ * the `BlockComponentProps` BlockHost passes (plus any registry `extraProps`). The
+ * single internal cast widens props to the registry's `Record<string, unknown>`;
+ * props are contravariant, so a component with specific props can't be assigned
+ * directly, but BlockHost always supplies the correct props at runtime.
  */
-export function defineBlockComponent<P extends Record<string, unknown>>(
+export function defineBlockComponent<
+	P extends Partial<BlockComponentProps> & Record<string, unknown>
+>(
 	component: Component<P, BlockComponent>,
-	extraProps?: (node: CstNode) => Record<string, unknown>
+	extraProps?: (node: NodeView) => Record<string, unknown>
 ): BlockComponentEntry {
 	return { component: component as BlockComponentEntry['component'], extraProps };
 }
@@ -37,16 +42,24 @@ export function defineBlockComponent<P extends Record<string, unknown>>(
 const registry = new Map<AnyBlockKind, BlockComponentEntry>();
 
 export function registerBlockComponent(kind: AnyBlockKind, entry: BlockComponentEntry): void {
-	if (registry.has(kind)) {
-		throw new Error(
-			`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
-		);
-	}
-	registry.set(kind, entry);
+	registerOnce(
+		registry.has(kind),
+		() => registry.set(kind, entry),
+		`registerBlockComponent: "${kind}" is already registered. Components are register-once.`
+	);
 }
 
 export function getBlockComponent(kind: AnyBlockKind): BlockComponentEntry | undefined {
 	return registry.get(kind);
+}
+
+/**
+ * Probe by name whether a component is registered. `registerBlockComponent`
+ * throws on duplicate, so a plugin registering idempotently (HMR / re-import)
+ * guards on this. Accepts a plain name so callers needn't pre-brand the kind.
+ */
+export function isBlockComponentRegistered(kind: string): boolean {
+	return registry.has(kind as AnyBlockKind);
 }
 
 /** Test-only. Removes every non-built-in component entry; built-ins survive. */

@@ -1,95 +1,72 @@
 /**
- * Svelte context-key symbols shared across the editor tree, plus the
- * value-shape types for the keys that have a stable contract (lookup
- * helpers — action interfaces are typed at the getContext site).
+ * Svelte context-key symbols shared across the editor tree.
+ *
+ * The block↔editor interface rides three named facets — services, policies,
+ * document — plus the per-key survivors whose individual granularity is
+ * load-bearing: the action triple a container re-provides, HISTORY (G1.4's
+ * single-provider subject), and the scope-provided list/table/measure channels.
+ * Each facet is ONE key holding a plain object of the values the root provides
+ * once; getters stay getters and bundles stay bundles, and the facet object
+ * itself is not reactive — the reactivity lives in the getters it carries.
  *
  * Internal: these symbols are editor-internal wiring, not a plugin extension
- * point. The supported extension surface is the 1.2 plugin API.
+ * point. The supported extension surface is the `aragonite/plugin` barrel.
  */
 
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
-import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
+import type { ImageLoadPolicy } from './core/inline-render';
+import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
+import type { EditorContext } from './schema/plugin-install';
+import type { RegistryView } from './schema/registry-view';
+import type { EditorEvents } from './editor-events';
+import type { UndoController } from './editor-actions/deps';
+import type { ReorderAction } from './editor-actions/reorder-action';
+import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps';
+import type { SelectionState } from './selection/selection-state.svelte';
+import type { SearchState } from './search/search-state.svelte';
+import type { DecorationEngine } from './decorations/decoration-state.svelte';
+import type { StickyColumnState } from './cursor/sticky-column';
+import type { RevealAnchorState } from './cursor/reveal-anchor';
+import type { HeightOracle } from './cursor/height-oracle';
+import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
 
-export const LIST_CONTEXT_KEY = Symbol('list-context');
+// ── Shared value-shape types ─────────────────────────────────────────────────
 
-export const TABLE_CONTEXT_KEY = Symbol('table-context');
+export type ReorderAnnounce = (message: string) => void;
+export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
+export type ResolveImageUrl = (rawUrl: string) => string;
+export type ResolveLinkUrl = (rawUrl: string) => string;
+export type PresentationModeGetter = () => PresentationMode;
+export type PluginEditorLookup = (pluginName: string) => EditorContext;
+export type BlockElLookup = (path: number[]) => HTMLElement | null;
+export type DocumentGetter = () => Document;
+export type FocusedPathGetter = () => number[] | null;
+export type WidthVersionGetter = () => number;
 
-export const STICKY_COLUMN_KEY = Symbol('sticky-column');
-export const REVEAL_ANCHOR_KEY = Symbol('reveal-anchor');
+/** Resolver ref read by inline parsers in block components. Wrapped in a
+ *  `{ current }` accessor so the shell can rebuild the resolver after each
+ *  commit without invalidating descendants' getContext bindings. `signature`
+ *  is the LRD-set snapshot that reference-bearing render memos key on so they
+ *  re-render when a definition elsewhere changes. */
+export type LinkReferenceResolverRef = { current?: LinkReferenceResolver; signature?: string };
+
+// ── Action triple (per-key: containers re-provide these three) ───────────────
 
 export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
 export const FOCUS_KEY = Symbol('focus-actions');
-export const HISTORY_KEY = Symbol('history-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
-/** Sibling-reorder action shared by the keyboard nudge and the drag handle. */
-export const REORDER_ACTION_KEY = Symbol('reorder-action');
-export type { ReorderAction } from './editor-actions/reorder-action';
+/** G1.4's subject: only the editor root provides history, so undo/redo resolve
+ *  to one stack. Folding it into a facet a container could re-provide is the
+ *  exact violation — it stays its own key, individually distinguishable. */
+export const HISTORY_KEY = Symbol('history-actions');
 
-/** Announce a reorder into the editor's polite live region. Shared so the
- *  table-row path (which bypasses the generic reorder action) reuses the one
- *  `.editor-sr-live-reorder` region instead of growing a second channel. */
-export const REORDER_ANNOUNCE_KEY = Symbol('reorder-announce');
-export type ReorderAnnounce = (message: string) => void;
+// ── Scope-provided channels (per-key: scope provision IS their mechanism) ────
 
-/** Getter-wrapped set-once flag: render the mouse-only hover drag handle. False
- *  hides it; keyboard reorder stays available regardless. */
-export const BLOCK_DRAG_HANDLES_KEY = Symbol('block-drag-handles');
-
-/** Per-instance keybinding overrides, getter-wrapped so dispatch sites read the latest derived map. */
-export const KEYBINDING_OVERRIDES_KEY = Symbol('keybinding-overrides');
-export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
-
-export const SELECTION_KEY = Symbol('selection');
-export type { EditorSelection } from './selection/primitives';
-
-export const SEARCH_KEY = Symbol('search');
-export type { SearchState } from './reactivity/search-state.svelte';
-
-export const WIDGET_SELECTION_KEY = Symbol('widget-selection');
-export type { WidgetSelectionState };
-
-export const RESOLVE_IMAGE_URL_KEY = Symbol('resolve-image-url');
-export type ResolveImageUrl = (rawUrl: string) => string;
-
-export const RESOLVE_LINK_URL_KEY = Symbol('resolve-link-url');
-export type ResolveLinkUrl = (rawUrl: string) => string;
-
-export const IMAGE_LOAD_POLICY_KEY = Symbol('image-load-policy');
-
-/**
- * Per-editor cache of resolved image URLs that failed to load this session.
- * Mutable runtime state — one Set per editor instance so a failed load in one
- * editor never suppresses another's broken-state recompute. See
- * `components/image/widget-dom.ts` for why the cache exists.
- */
-export const BROKEN_IMAGE_URLS_KEY = Symbol('broken-image-urls');
-
-/** Internal — editor event seam handed to BlockHost's error boundary. Not a plugin extension point. */
-export const EDITOR_EVENTS_KEY = Symbol('editor-events');
-
-export const EDITOR_ROOT_KEY = Symbol('editor-root');
-
-/**
- * AbortSignal tied to the editor's mount lifetime. Document-level listeners
- * (drag-pointer, etc.) observe this to tear themselves down if the editor
- * unmounts mid-operation.
- */
-export const EDITOR_LIFETIME_KEY = Symbol('editor-lifetime');
-
-export const CONTROLLER_KEY = Symbol('undo-controller');
-
-/** Narrow paste-side view of the controller; supplied so paste call sites depend on the explicit interface. */
-export const PASTE_COORDINATOR_KEY = Symbol('paste-coordinator');
-
-export const BLOCK_EL_LOOKUP_KEY = Symbol('block-el-lookup');
-export type BlockElLookup = (path: number[]) => HTMLElement | null;
-
-/** Getter-wrapped so block components always read the latest reactive Document. */
-export const DOC_KEY = Symbol('editor-doc');
-export type DocumentGetter = () => Document;
+export const LIST_CONTEXT_KEY = Symbol('list-context');
+export const TABLE_CONTEXT_KEY = Symbol('table-context');
 
 /**
  * @internal A hosted block enrolls itself in its scope's batched measure pass.
@@ -109,21 +86,6 @@ export type BlockMeasureChannel = {
 	measureOnResize: (id: string, observedHeight: number) => void;
 };
 
-/** @internal Live getter for the focused block's full path; drives per-level VR pins. */
-export const FOCUSED_PATH_KEY = Symbol('focused-path');
-export type FocusedPathGetter = () => number[] | null;
-
-/**
- * @internal Monotonic counter the editor root bumps when its scroll element's WIDTH
- * changes (a `ResizeObserver` on `.editor`). Prose re-wraps at a new width, so every
- * windowing scope reads it to rebuild its model and re-measure mounted blocks at the
- * new width. Sourced once at the root; height-only resizes don't bump it.
- */
-export const WIDTH_VERSION_KEY = Symbol('width-version');
-export type WidthVersionGetter = () => number;
-
-/** @internal Per-kind height oracle (Editor-constructed); read by nested windowing scopes. */
-export const HEIGHT_ORACLE_KEY = Symbol('height-oracle');
 /**
  * @internal A child reports up to its parent scope. A nested CONTAINER pushes its own
  * box subtotal by index (`setChildSubtotal`). A `display:contents` ROW (no box of its
@@ -142,10 +104,68 @@ export type ParentScopeSink = {
 	measureRowNow: (id: string) => void;
 };
 
-/** Resolver ref read by inline parsers in block components. Wrapped in a
- *  `{ current }` accessor so the shell can rebuild the resolver after each
- *  commit without invalidating descendants' getContext bindings. `signature`
- *  is the LRD-set snapshot that reference-bearing render memos key on so they
- *  re-render when a definition elsewhere changes. */
-export const LINK_REF_KEY = Symbol('link-ref');
-export type LinkReferenceResolverRef = { current?: LinkReferenceResolver; signature?: string };
+// ── Facets ───────────────────────────────────────────────────────────────────
+
+/** Cross-cutting editor services: event seam, view-state stores, and the
+ *  cross-scope commit/reorder primitives. Root-provided once. */
+export const EDITOR_SERVICES_KEY = Symbol('editor-services');
+export interface EditorServices {
+	events: EditorEvents;
+	decorations: DecorationEngine;
+	selection: SelectionState;
+	search: SearchState;
+	stickyColumn: StickyColumnState;
+	revealAnchor: RevealAnchorState;
+	widgetSelection: WidgetSelectionState;
+	controller: UndoController;
+	pasteCoordinator: PasteCommitCoordinator;
+	reorder: ReorderAction;
+	reorderAnnounce: ReorderAnnounce;
+	/** The instance's resolution over the global block definitions:
+	 *  BlockHost resolves component/descriptor through it so a per-instance
+	 *  enablement filter reaches the render path. */
+	registryView: RegistryView;
+}
+
+/** Host-supplied render/behavior policies: URL resolution, load and drag-handle
+ *  gates, presentation mode, keybinding overrides, and the broken-image cache.
+ *  The getter members read live editor state on each call. */
+export const EDITOR_POLICIES_KEY = Symbol('editor-policies');
+export interface EditorPolicies {
+	resolveImageUrl: ResolveImageUrl;
+	resolveLinkUrl: ResolveLinkUrl;
+	imageLoadPolicy: () => ImageLoadPolicy;
+	/** Getter-wrapped set-once flag: render the mouse-only hover drag handle.
+	 *  False hides it; keyboard reorder stays available regardless. */
+	blockDragHandles: () => boolean;
+	presentationMode: PresentationModeGetter;
+	keybindingOverrides: KeybindingOverridesGetter;
+	/** Per-editor cache of resolved image URLs that failed to load this session —
+	 *  one Set per instance so a failed load never suppresses another editor's
+	 *  broken-state recompute (`components/image/widget-dom.ts`). */
+	brokenImageUrls: Set<string>;
+}
+
+/** Document identity and the per-instance lookups that hang off it: the live
+ *  doc getter, link-reference resolver ref, plugin-context resolver, mount
+ *  lifetime, DOM anchors, and the windowing oracle/version signals. */
+export const EDITOR_DOC_KEY = Symbol('editor-doc');
+export interface EditorDoc {
+	doc: DocumentGetter;
+	linkRef: LinkReferenceResolverRef;
+	/** Resolves a plugin's per-instance EditorContext — the one identity onEditor
+	 *  callbacks, global-command handlers, and BlockCommandContext.editor share. */
+	pluginEditor: PluginEditorLookup;
+	/** AbortSignal tied to the editor's mount lifetime; document-level listeners
+	 *  observe it to tear down if the editor unmounts mid-operation. */
+	lifetime: AbortSignal;
+	editorRoot: () => HTMLElement | null;
+	blockElLookup: BlockElLookup;
+	/** Live getter for the focused block's full path; drives per-level VR pins. */
+	focusedPath: FocusedPathGetter;
+	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
+	heightOracle: HeightOracle;
+	/** Monotonic width-change counter the root bumps on an editor width resize, so
+	 *  every windowing scope rebuilds its model and re-measures at the new width. */
+	widthVersion: WidthVersionGetter;
+}

@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/action-contracts';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EditorActionsDeps } from '$lib/editor-actions/deps';
 import type { EditorEvents } from '$lib/editor-events';
@@ -12,6 +13,13 @@ import { createUndoManager } from '$lib/undo/manager';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createEditorEvents } from '$lib/editor-events';
+
+// ── CST node factory ─────────────────────────────────────────────────────────
+
+/** A minimal leaf CST node for editor-action and invariant unit fixtures. */
+export function makeNode(kind: string, raw: string): CstNode {
+	return { kind, leadingTrivia: '', raw } as CstNode;
+}
 
 // ── BlockComponent / sticky-column stubs ─────────────────────────────────────
 
@@ -26,7 +34,8 @@ export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent
 }
 
 export function makeStickyColumn(x: number | null = null): StickyColumnState {
-	return { get: () => x, reset: vi.fn(), capture: vi.fn() };
+	const stickyX = x === null ? null : asEditorX(x);
+	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn() };
 }
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
@@ -62,6 +71,7 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 export function makeStubBlockEdit(): BlockEditActions {
 	return {
 		splitBlock: vi.fn(),
+		descendToBody: vi.fn(),
 		mergeWithPrevious: vi.fn(),
 		mergeWithNext: vi.fn(),
 		deleteBlock: vi.fn(),

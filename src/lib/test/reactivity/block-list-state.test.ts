@@ -7,6 +7,7 @@ function makeNode(children: CstNode[]): CstNode {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: '',
+		metadata: { quoteDepth: 1 },
 		children,
 		innerPrefix: '',
 		innerSuffix: ''
@@ -23,11 +24,5 @@ describe('createBlockListState', () => {
 		const state = createBlockListState(() => node);
 		expect(state.innerBlockIds).toHaveLength(3);
 		expect(new Set(state.innerBlockIds).size).toBe(3);
-	});
-
-	it('seeds innerBlockRefs as an empty array', () => {
-		const node = makeNode([makePara('a\n')]);
-		const state = createBlockListState(() => node);
-		expect(state.innerBlockRefs).toEqual([]);
 	});
 });

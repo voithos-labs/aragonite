@@ -1,11 +1,5 @@
-/**
- * Parent-level replacement builder for Enter on an empty-first-paragraph list
- * item: splits the surrounding list, lifts the exiting item as a paragraph,
- * and re-merges matching-type nested sub-list items into the surviving halves
- * while preserving the ordered-marker sequence across the gap.
- */
-
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { cloneNode } from '../clone';
 import { assembleListHalf, orderedBaseOf } from './list-builders';
@@ -21,7 +15,7 @@ import { assembleListHalf, orderedBaseOf } from './list-builders';
  * the focus target. Input is not mutated.
  */
 export function buildExitReplacement(
-	list: CstNode,
+	list: NodeView,
 	itemIndex: number
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	const items = list.children ?? [];
@@ -67,6 +61,9 @@ export function buildExitReplacement(
 	const blocks: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
 		blocks.push(assembleListHalf(list, firstHalfItems, base));
+		// The exit paragraph follows the surviving list; without a blank line the
+		// parser lazy-continues a typed line into the list's last item on reload.
+		exitParagraph.leadingTrivia = '\n';
 	}
 	const paragraphIndex = blocks.length;
 	blocks.push(exitParagraph);

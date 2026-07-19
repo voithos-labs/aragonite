@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS, type BlockKind } from '../../core/nodes';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import {
-	checkRegistryCompleteness,
-	checkIsContainerIffRebuildRaw
-} from '../../invariants/registry';
+import { checkRegistryCompleteness } from '../../invariants/registry';
 
 const KINDS: BlockKind[] = ['paragraph', 'blockquote', 'list'];
 
@@ -80,28 +77,5 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 			(k) => k !== 'list'
 		);
 		expect(violation?.detail).toEqual({ kind: 'list', missing: 'component' });
-	});
-});
-
-describe('checkIsContainerIffRebuildRaw (G1.3)', () => {
-	it('fires for a container kind missing rebuildRaw', () => {
-		const violation = checkIsContainerIffRebuildRaw(['blockquote'], () => ({
-			isContainer: true,
-			hasRebuildRaw: false
-		}));
-		expect(violation?.code).toBe('container-rebuild-pairing');
-		expect(violation?.detail).toMatchObject({ kind: 'blockquote', isContainer: true });
-	});
-
-	it('fires for a leaf kind that has rebuildRaw', () => {
-		const violation = checkIsContainerIffRebuildRaw(['paragraph'], () => ({
-			isContainer: false,
-			hasRebuildRaw: true
-		}));
-		expect(violation?.detail).toMatchObject({ kind: 'paragraph', isContainer: false });
-	});
-
-	it('passes over the real registries', () => {
-		expect(checkIsContainerIffRebuildRaw()).toBeNull();
 	});
 });

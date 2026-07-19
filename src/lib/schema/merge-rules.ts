@@ -1,6 +1,6 @@
 /**
  * Merge eligibility and target resolution for Backspace-at-start.
- * See docs/design/editor/editor.md — Structural Operations.
+ * See docs/design/editor.md — Merge eligibility: roles, not pairs.
  *
  * Per-kind `MergeRole` assignment lives on `BlockKindDescriptor`; this file
  * owns the role-pair eligibility rules and the target-finding walker.
@@ -8,6 +8,7 @@
 
 import type { CstNode } from '../core/nodes';
 import { getBlockKindDescriptor, type MergeRole } from './block-kind-descriptor';
+import { isCollapsedContainer } from './reserved-chrome';
 
 // ── Merge Eligibility ───────────────────────────────────────────────────────
 
@@ -50,7 +51,10 @@ export interface MergeTarget {
  * Descend `node` into its last child at every step until landing on a prose
  * / prose-absorber leaf, or returning null on a not-mergeable leaf / empty container.
  * Uniform last-child descent works because blockquote, list, and list-item
- * children all place the visually-last element at children[length-1].
+ * children all place the visually-last element at children[length-1]. A
+ * collapsed container clamps its body out of view, so there the walk descends
+ * to the chrome leaf (child 0) instead — its not-mergeable role turns the
+ * merge into the caller's focus-move fallback rather than a hidden-body write.
  */
 export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarget | null {
 	const role = getMergeRole(node.kind);
@@ -60,8 +64,8 @@ export function walkToDeepestMergeLeaf(node: CstNode, path: number[]): MergeTarg
 	if (!node.children || node.children.length === 0) {
 		return null;
 	}
-	const lastIndex = node.children.length - 1;
-	return walkToDeepestMergeLeaf(node.children[lastIndex], [...path, lastIndex]);
+	const nextIndex = isCollapsedContainer(node) ? 0 : node.children.length - 1;
+	return walkToDeepestMergeLeaf(node.children[nextIndex], [...path, nextIndex]);
 }
 
 /**

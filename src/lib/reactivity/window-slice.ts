@@ -2,9 +2,9 @@
  * The single source of truth for the windowed-slice bounds. A consumer renders
  * `children.slice(start, end)` and MUST key/index each rendered child by its
  * ABSOLUTE index `start + localIndex` — never the local loop index. Leaking the
- * local index corrupts paths and structural ops invisibly (spec: "the single
- * most dangerous implementation detail"). Every windowed consumer derives its
- * bounds here so that contract lives in exactly one place.
+ * local index corrupts paths and structural ops invisibly ("the single most
+ * dangerous detail in the feature" — `docs/design/virtual-rendering.md`). Every
+ * windowed consumer derives its bounds here so that contract lives in one place.
  */
 import type { WindowResult } from './block-window.svelte';
 

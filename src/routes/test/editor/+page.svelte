@@ -1,14 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Editor } from '$lib';
+	import { Editor, type PresentationMode } from '$lib';
 	import { parse } from '$lib/core/parser';
 	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
-	import { dumpTree, dumpUndoStack, dumpInlineTree, dumpOperationsLog } from '$lib/debug/inspect';
+	import {
+		dumpTree,
+		dumpUndoStack,
+		dumpInlineTree,
+		dumpOperationsLog,
+		dumpInteractionTrace
+	} from '$lib/debug/inspect';
+	import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
 	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
 	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
+	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { installTestProbes, getFocusedBlockPath, liveSelectionText } from './test-probes';
 
 	let source = $state(SHOWCASE_CONTENT);
@@ -16,6 +24,7 @@
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
+	let editorSlot = $state<HTMLElement>();
 
 	// `?dragHandles=false` starts with the hover drag handle disabled (the
 	// reorder-handle e2e covers the off path). The header checkbox flips it live;
@@ -29,6 +38,27 @@
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
 		dragHandlesOn = !dragHandlesOn;
+	}
+
+	// `?presentationMode=reading|preview-block|preview-inline` starts in that mode;
+	// the header toggles flip it live (the prop reads live — no remount, unlike
+	// blockDragHandles).
+	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
+	let presentationMode = $state<PresentationMode>(
+		(typeof window !== 'undefined' &&
+			(PARAM_MODES.find(
+				(m) => m === new URLSearchParams(window.location.search).get('presentationMode')
+			) as PresentationMode | undefined)) ||
+			'source'
+	);
+
+	// Reading-mode link activation records to a page-scoped sink instead of opening a
+	// window, so the presentation e2e can assert the handler fired on a plain click.
+	// Wired ONLY in reading mode (below): onLinkActivate REPLACES the default
+	// open-in-tab, so wiring it in source mode would swallow the native activation
+	// the link-clickability specs assert.
+	function recordLinkActivation(url: string) {
+		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
 
 	// Single reactive counter that retriggers panel getters. Bumped by BOTH
@@ -65,7 +95,7 @@
 	// the `source` prop — Editor re-initializes from source changes, which
 	// would wipe undo / selection / CST on every op.
 	const liveSource = $derived.by(() => {
-		panelTick;
+		void panelTick;
 		return editor?.getSource() ?? source;
 	});
 
@@ -78,6 +108,9 @@
 			},
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
+			},
+			setPresentationMode: (mode) => {
+				presentationMode = mode;
 			}
 		});
 	});
@@ -96,18 +129,50 @@
 			<input type="checkbox" checked={dragHandlesOn} onchange={toggleDragHandles} />
 			Drag handles
 		</label>
+		<label class="demo-toggle">
+			<input
+				type="checkbox"
+				data-testid="presentation-toggle"
+				checked={presentationMode === 'reading'}
+				onchange={() => (presentationMode = presentationMode === 'reading' ? 'source' : 'reading')}
+			/>
+			Reading mode
+		</label>
+		<label class="demo-toggle">
+			<input
+				type="checkbox"
+				data-testid="preview-block-toggle"
+				checked={presentationMode === 'preview-block'}
+				onchange={() =>
+					(presentationMode = presentationMode === 'preview-block' ? 'source' : 'preview-block')}
+			/>
+			Block preview
+		</label>
+		<label class="demo-toggle">
+			<input
+				type="checkbox"
+				data-testid="preview-inline-toggle"
+				checked={presentationMode === 'preview-inline'}
+				onchange={() =>
+					(presentationMode = presentationMode === 'preview-inline' ? 'source' : 'preview-inline')}
+			/>
+			Inline preview
+		</label>
 	</header>
 	<div class="demo-body">
-		<div class="editor-slot">
+		<div class="editor-slot" bind:this={editorSlot}>
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
 					{source}
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
+					{presentationMode}
+					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
 					theme={$currentThemeType}
 				/>
 			{/key}
+			<SelectionToolbar {editor} />
 		</div>
 		<DebugPanel
 			rawSource={liveSource}
@@ -141,6 +206,12 @@
 			getOpsLog={() => {
 				const log = editor?.__test?.getOperationsLog?.();
 				return log ? dumpOperationsLog(log) : '';
+			}}
+			getTrace={() => {
+				// Module-global trace; refreshed on the shared panelTick. The section's
+				// expand arms the recorder (DebugPanel.toggleTrace).
+				void panelTick;
+				return dumpInteractionTrace(interactionTraceSnapshot());
 			}}
 			opsLogTick={panelTick}
 		/>

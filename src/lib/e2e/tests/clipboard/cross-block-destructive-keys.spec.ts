@@ -3,7 +3,7 @@
 // block-level behavior at the collapsed caret. Before the fix, these keys
 // fell through to the originating block's onKeyDown, which applied the op
 // to one single-block raw while the cross-block selection visually persisted.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 test.describe('cross-block destructive-key dispatch (A1)', () => {

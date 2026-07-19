@@ -1,11 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/undo/history';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import type { CstNode } from '$lib/core/nodes';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
@@ -53,9 +59,13 @@ function makeContainer(source: string) {
 		deps: harness.deps,
 		undo: history.requestUndo,
 		ids: () => state.innerBlockIds,
-		stable() {
+		// Convergence, not just a byte round-trip: after a reorder the live tree
+		// must match a fresh parse of its bytes, so a permutation that leaves a
+		// stale container raw or a renumber-desynced marker is caught.
+		assertStable() {
+			expectParseConverged(harness.doc);
 			const live = serialize(harness.doc);
-			return serialize(parse(live)) === live;
+			expect(serialize(parse(live))).toBe(live);
 		}
 	};
 }
@@ -106,6 +116,7 @@ describe('reorder action — top level', () => {
 
 		const live = serialize(harness.doc);
 		expect(live).toBe('- two\n\n- three\n\n- one\n');
+		expectParseConverged(harness.doc); // live tree converges with a reparse of its bytes
 		expect(serialize(parse(live))).toBe(live); // byte-stable round-trip
 	});
 });
@@ -133,7 +144,7 @@ describe('reorder action — list', () => {
 		const h = makeContainer('1. one\n2. two\n3. three\n');
 		await h.reorder.nudgeReorderUnit([0, 2, 0], -1); // three up
 		expect(serialize(h.doc)).toBe('1. one\n2. three\n3. two\n');
-		expect(h.stable()).toBe(true);
+		h.assertStable();
 	});
 });
 
@@ -162,5 +173,78 @@ describe('reorder action — blockquote', () => {
 		await h.reorder.moveReorderUnit([0, 0], 2); // drag bq child 0 -> last
 		const { undo } = h.deps.undoManager.getStacks();
 		expect(undo.at(-1)?.selection.focus.path).toEqual([0, 0]); // into the blockquote, not [0]
+	});
+});
+
+describe('reorder action — plugin (opaque) container declines', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	// TOP / :::spec (reserved chrome + one body) / BOTTOM — the teleport seed. A
+	// pre-decline resolver hands back the container's DOCUMENT slot, so a body-leaf
+	// nudge/move permutes the top-level array (the teleport). The decline returns
+	// null, so run() bails before commit: no permutation, no undo, no edit.
+	function makeDeclineHarness() {
+		const chromeKind = declarePluginKind('spec-chrome');
+		const containerKind = declarePluginKind('spec-container');
+		registerBlockKind(chromeKind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			contextDependentKind: true
+		});
+		registerBlockKind(containerKind, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			container: { contract: 'opaque', rebuildRaw: () => {}, reservedChrome: { kind: chromeKind } }
+		});
+		const container: CstNode = {
+			kind: containerKind,
+			leadingTrivia: '\n',
+			raw: ':::spec\nBody\n:::\n',
+			children: [
+				{ kind: chromeKind, leadingTrivia: '', raw: '\n' },
+				{ kind: 'paragraph', leadingTrivia: '', raw: 'Body\n' }
+			]
+		};
+		const harness = makeEditorActionsDeps([
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'TOP\n' },
+			container,
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'BOTTOM\n' }
+		]);
+		const controller = createUndoController(harness.deps);
+		const reorder = createReorderAction(harness.deps, controller);
+		return { harness, reorder };
+	}
+
+	it('a body-leaf nudge is a no-op: no permutation, no undo entry, no edit event', async () => {
+		const { harness, reorder } = makeDeclineHarness();
+		const before = serialize(harness.doc);
+		let edits = 0;
+		harness.events.on('edit', () => edits++);
+
+		await reorder.nudgeReorderUnit([1, 1], -1); // body paragraph "up"
+
+		// Assertions ordered so each fails independently under the pre-fix teleport:
+		// the commit emits an edit + pushes an undo entry BEFORE the permutation shows
+		// in the bytes, so checking those first keeps `edits`/`undo` non-vacuous.
+		expect(edits).toBe(0);
+		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(serialize(harness.doc)).toBe(before);
+	});
+
+	it('a body-leaf drag move is a no-op — the teleport is gone', async () => {
+		const { harness, reorder } = makeDeclineHarness();
+		const before = serialize(harness.doc);
+		let edits = 0;
+		harness.events.on('edit', () => edits++);
+
+		await reorder.moveReorderUnit([1, 1], 0); // body paragraph dragged to index 0
+
+		expect(edits).toBe(0);
+		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
+		expect(serialize(harness.doc)).toBe(before);
 	});
 });

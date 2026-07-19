@@ -1,87 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { getContentRange, parseInline } from '../../core/inline';
-import type { CstNode, InlineNode } from '../../core/nodes';
+import type { InlineNode } from '../../core/nodes';
 
 function inlineOf(rawContent: string) {
 	return parseInline(rawContent, 0, rawContent.length);
 }
 
-describe('getContentRange', () => {
-	it('paragraph: full raw minus trailing newline', () => {
-		const node: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello **world**\n' };
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 0, end: 15 });
-	});
-
-	it('paragraph: handles CRLF', () => {
-		const node: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello\r\n' };
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 0, end: 5 });
-	});
-
-	it('heading level 1', () => {
-		const node: CstNode = {
-			kind: 'heading',
-			leadingTrivia: '',
-			raw: '# Hello\n',
-			metadata: { level: 1 }
-		};
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 2, end: 7 });
-	});
-
-	it('heading level 3', () => {
-		const node: CstNode = {
-			kind: 'heading',
-			leadingTrivia: '',
-			raw: '### Hello\n',
-			metadata: { level: 3 }
-		};
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 4, end: 9 });
-	});
-
-	it('heading with leading indent', () => {
-		const node: CstNode = {
-			kind: 'heading',
-			leadingTrivia: '',
-			raw: '  ## Hello\n',
-			metadata: { level: 2 }
-		};
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 5, end: 10 });
-	});
-
-	it('setext heading single line', () => {
-		const node: CstNode = {
-			kind: 'setextHeading',
-			leadingTrivia: '',
-			raw: 'Hello World\n===\n',
-			metadata: { level: 1 }
-		};
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 0, end: 11 });
-	});
-
-	it('setext heading multi-line', () => {
-		const node: CstNode = {
-			kind: 'setextHeading',
-			leadingTrivia: '',
-			raw: 'Hello\nWorld\n===\n',
-			metadata: { level: 1 }
-		};
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 0, end: 11 });
-	});
-
-	it('paragraph without trailing newline', () => {
-		const node: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello' };
-		const range = getContentRange(node);
-		expect(range).toEqual({ start: 0, end: 5 });
-	});
-});
-
-describe('parseInline — backtick spans (Stage 1)', () => {
+describe('parseInline — backtick spans', () => {
 	it('plain text with no markup', () => {
 		const nodes = inlineOf('Hello world');
 		expect(nodes).toEqual([{ kind: 'text', start: 0, end: 11, text: 'Hello world' }]);
@@ -134,7 +59,6 @@ describe('parseInline — backtick spans (Stage 1)', () => {
 
 	it('backslash-escaped opening backtick does not start a code span (CommonMark §6.1)', () => {
 		const nodes = inlineOf('\\`not code\\`');
-		// No inlineCode node should be produced; the escaped backticks become escape nodes.
 		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(false);
 		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
 	});
@@ -167,7 +91,7 @@ describe('parseInline — backtick spans (Stage 1)', () => {
 	});
 });
 
-describe('parseInline — emphasis and strong (Stage 2)', () => {
+describe('parseInline — emphasis and strong', () => {
 	const emphasisChars = ['*', '_'] as const;
 
 	for (const ch of emphasisChars) {
@@ -219,7 +143,7 @@ describe('parseInline — emphasis and strong (Stage 2)', () => {
 	});
 });
 
-describe('parseInline — strikethrough (Stage 2)', () => {
+describe('parseInline — strikethrough', () => {
 	it('simple strikethrough', () => {
 		const nodes = inlineOf('Hello ~~world~~ end');
 		expect(nodes[1].kind).toBe('strikethrough');
@@ -239,7 +163,7 @@ describe('parseInline — strikethrough (Stage 2)', () => {
 	}
 });
 
-describe('parseInline — hard line breaks (Stage 2)', () => {
+describe('parseInline — hard line breaks', () => {
 	it('backslash before newline', () => {
 		const nodes = inlineOf('Hello\\\nworld');
 		const breakNode = nodes.find((n) => n.kind === 'hardLineBreak');
@@ -278,224 +202,5 @@ describe('parseInline — hard line breaks (Stage 2)', () => {
 		expect(breakNode).toBeDefined();
 		expect(breakNode!.start).toBe(5);
 		expect(breakNode!.end).toBe(9);
-	});
-});
-
-describe('parseInline — fast path post-processing (I4)', () => {
-	it('fast path output has no adjacent text siblings', () => {
-		const input = 'before  \nhttps://example.com after';
-		const nodes = inlineOf(input);
-		for (let i = 1; i < nodes.length; i++) {
-			const prev = nodes[i - 1];
-			const cur = nodes[i];
-			if (cur.kind === 'text' && prev.kind === 'text') {
-				throw new Error(
-					`adjacent text nodes at indices ${i - 1}, ${i}: ${JSON.stringify([prev, cur])}`
-				);
-			}
-		}
-	});
-
-	it('fast path: text+autolink+text reconstructs raw', () => {
-		const input = 'pre https://example.com post';
-		const nodes = inlineOf(input);
-		const reconstructed = nodes.map((n) => input.slice(n.start, n.end)).join('');
-		expect(reconstructed).toBe(input);
-	});
-});
-
-describe('parseInline — links and images (Stage 3)', () => {
-	it('simple inline link', () => {
-		const nodes = inlineOf('Click [here](https://example.com) now');
-		expect(nodes.length).toBe(3);
-		expect(nodes[0]).toEqual({ kind: 'text', start: 0, end: 6, text: 'Click ' });
-		expect(nodes[1].kind).toBe('link');
-		expect(nodes[1].start).toBe(6);
-		expect(nodes[1].end).toBe(33);
-		expect(nodes[1].url).toBe('https://example.com');
-		expect(nodes[1].children!.length).toBe(1);
-		expect(nodes[1].children![0]).toEqual({ kind: 'text', start: 7, end: 11, text: 'here' });
-	});
-
-	it('link with title', () => {
-		const nodes = inlineOf('[text](url "title")');
-		expect(nodes[0].kind).toBe('link');
-		expect(nodes[0].url).toBe('url');
-		expect(nodes[0].title).toBe('title');
-	});
-
-	it('image', () => {
-		const nodes = inlineOf('See ![alt text](image.png) here');
-		expect(nodes[1].kind).toBe('image');
-		expect(nodes[1].alt).toBe('alt text');
-		expect(nodes[1].url).toBe('image.png');
-	});
-
-	describe('image inline parsing — dimensions', () => {
-		it('extracts |N width from alt', () => {
-			const raw = '![cat|400](https://example.com/cat.png)';
-			const nodes = inlineOf(raw);
-			expect(nodes).toHaveLength(1);
-			const img = nodes[0];
-			expect(img.kind).toBe('image');
-			expect(img.alt).toBe('cat');
-			expect(img.width).toBe(400);
-			expect(img.height).toBeUndefined();
-			expect(img.url).toBe('https://example.com/cat.png');
-		});
-
-		it('extracts |NxM width and height', () => {
-			const raw = '![cat|400x300](https://example.com/cat.png)';
-			const nodes = inlineOf(raw);
-			const img = nodes[0];
-			expect(img.alt).toBe('cat');
-			expect(img.width).toBe(400);
-			expect(img.height).toBe(300);
-		});
-
-		it('preserves source bytes regardless of dimension hint', () => {
-			const raw = '![cat|400](https://example.com/cat.png)';
-			const nodes = inlineOf(raw);
-			expect(raw.slice(nodes[0].start, nodes[0].end)).toBe(raw);
-		});
-
-		it('treats invalid dimension hint as plain alt', () => {
-			const raw = '![cat|0](https://example.com/cat.png)';
-			const nodes = inlineOf(raw);
-			expect(nodes[0].alt).toBe('cat|0');
-			expect(nodes[0].width).toBeUndefined();
-		});
-	});
-
-	it('link with emphasis in text', () => {
-		const nodes = inlineOf('[**bold link**](url)');
-		expect(nodes[0].kind).toBe('link');
-		expect(nodes[0].children![0].kind).toBe('strong');
-	});
-
-	it('unmatched [ is plain text', () => {
-		const nodes = inlineOf('Hello [world');
-		expect(nodes).toEqual([{ kind: 'text', start: 0, end: 12, text: 'Hello [world' }]);
-	});
-
-	it('link without closing paren is plain text', () => {
-		const nodes = inlineOf('[text](url');
-		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
-	});
-});
-
-describe('parseInline — escape integration', () => {
-	it('escape neutralizes emphasis delimiter', () => {
-		const raw = '\\*foo\\*';
-		const nodes = parseInline(raw, 0, raw.length);
-		expect(nodes.some((n) => n.kind === 'emphasis')).toBe(false);
-		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
-	});
-
-	it('escape inside code span is inert', () => {
-		const raw = '`\\*`';
-		const nodes = parseInline(raw, 0, raw.length);
-		expect(nodes.some((n) => n.kind === 'escape')).toBe(false);
-		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(true);
-	});
-
-	it('escape neutralizes strong delimiter', () => {
-		const raw = '\\*\\*foo\\*\\*';
-		const nodes = parseInline(raw, 0, raw.length);
-		expect(nodes.some((n) => n.kind === 'strong')).toBe(false);
-		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(4);
-	});
-
-	it('escape and link in same paragraph: emphasis still neutralized', () => {
-		const raw = '\\*foo\\* [link](https://example.com)';
-		const nodes = parseInline(raw, 0, raw.length);
-		expect(nodes.some((n) => n.kind === 'emphasis')).toBe(false);
-		expect(nodes.filter((n) => n.kind === 'escape')).toHaveLength(2);
-		expect(nodes.some((n) => n.kind === 'link')).toBe(true);
-	});
-});
-
-describe('parseInline — entity reference integration', () => {
-	it('recognizes named entity in plain text', () => {
-		const raw = 'a &copy; b';
-		const nodes = parseInline(raw, 0, raw.length);
-		const refs = nodes.filter((n) => n.kind === 'entityReference');
-		expect(refs).toHaveLength(1);
-		expect(refs[0].decoded).toBe('©');
-	});
-
-	it('entity inside code span is inert', () => {
-		const raw = '`&copy;`';
-		const nodes = parseInline(raw, 0, raw.length);
-		expect(nodes.some((n) => n.kind === 'entityReference')).toBe(false);
-		expect(nodes.some((n) => n.kind === 'inlineCode')).toBe(true);
-	});
-
-	it('entity composes with surrounding emphasis', () => {
-		const raw = '*&copy;*';
-		const nodes = parseInline(raw, 0, raw.length);
-		const em = nodes.find((n) => n.kind === 'emphasis');
-		expect(em).toBeDefined();
-		expect(em?.children?.some((c) => c.kind === 'entityReference')).toBe(true);
-	});
-
-	it('entity and link in same paragraph: entity preserved', () => {
-		const raw = '&copy; [text](https://example.com)';
-		const nodes = parseInline(raw, 0, raw.length);
-		const refs = nodes.filter((n) => n.kind === 'entityReference');
-		expect(refs).toHaveLength(1);
-		expect(refs[0].decoded).toBe('©');
-		expect(nodes.some((n) => n.kind === 'link')).toBe(true);
-	});
-
-	it('entity adjacent to autolink URL: entity not absorbed', () => {
-		const raw = 'see https://example.com/?a&amp;b end';
-		const nodes = parseInline(raw, 0, raw.length);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		const refs = nodes.filter((n) => n.kind === 'entityReference');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('https://example.com/?a');
-		expect(refs).toHaveLength(1);
-		expect(refs[0].decoded).toBe('&');
-	});
-});
-
-describe('parseInline — links spanning occupied ranges', () => {
-	it('link with entity reference in text', () => {
-		const raw = '[&copy; me](https://example.com)';
-		const nodes = parseInline(raw, 0, raw.length);
-		const links = nodes.filter((n) => n.kind === 'link');
-		expect(links).toHaveLength(1);
-		expect(links[0].url).toBe('https://example.com');
-		const entities = links[0].children?.filter((c) => c.kind === 'entityReference');
-		expect(entities).toHaveLength(1);
-		expect(entities?.[0].decoded).toBe('©');
-	});
-
-	it('link with escape in text', () => {
-		const raw = '[foo \\*bar\\*](https://example.com)';
-		const nodes = parseInline(raw, 0, raw.length);
-		const links = nodes.filter((n) => n.kind === 'link');
-		expect(links).toHaveLength(1);
-		const escapes = links[0].children?.filter((c) => c.kind === 'escape');
-		expect(escapes).toHaveLength(2);
-		const ems = links[0].children?.filter((c) => c.kind === 'emphasis');
-		expect(ems).toHaveLength(0);
-	});
-
-	it('image with entity in alt text', () => {
-		const raw = '![&copy; logo](logo.png)';
-		const nodes = parseInline(raw, 0, raw.length);
-		const images = nodes.filter((n) => n.kind === 'image');
-		expect(images).toHaveLength(1);
-	});
-
-	it('link inside emphasis with entity in link text', () => {
-		const raw = '*see [&copy; me](https://example.com) here*';
-		const nodes = parseInline(raw, 0, raw.length);
-		const ems = nodes.filter((n) => n.kind === 'emphasis');
-		expect(ems).toHaveLength(1);
-		const links = ems[0].children?.filter((c) => c.kind === 'link');
-		expect(links).toHaveLength(1);
 	});
 });

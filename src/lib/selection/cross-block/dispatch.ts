@@ -1,11 +1,11 @@
 /**
- * Cross-block event dispatch shared by TextEditableBlock and CodeBlock.
- * Factory returns handler functions each block component calls at the top
- * of its own event handlers; single-block handling stays in each component.
+ * Cross-block event dispatch, wired by `components/blocks/editable-surface.ts`
+ * (every editable block) and by `Editor.svelte` for editor-root routing. The
+ * factory returns handlers each caller runs at the top of its own event
+ * handlers; single-block handling stays with the caller.
  *
- * This file is the composer: keydown lives in keydown.ts,
- * pointer in pointer.ts, and paste / type-replace are tiny
- * passthroughs to their dedicated modules.
+ * This file is the composer: keydown lives in keydown.ts, pointer in pointer.ts,
+ * and paste / type-replace are passthroughs to their dedicated modules.
  */
 
 import type {
@@ -14,14 +14,21 @@ import type {
 	HistoryActions
 } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
-import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type {
+	BlockElLookup,
+	DocumentGetter,
+	PluginEditorLookup,
+	PresentationModeGetter
+} from '../../editor-keys';
 import type { SelectionState } from '../selection-state.svelte';
-import type { CstNode } from '../../core/nodes';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
+import type { CommandErrorSink } from '../../schema/block-commands';
+import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import { isReadingMode } from '../../presentation-mode';
 import { performCrossBlockDelete } from './ops';
 import { handleCrossBlockPaste } from './paste';
 import { handleCrossBlockTypeReplace } from './type-replace';
@@ -40,15 +47,28 @@ export interface CrossBlockDispatchContext {
 	getBlockElByPath: BlockElLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
-	/** Aborted when the owning editor unmounts. See EDITOR_LIFETIME_KEY. */
+	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
 	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
+	// Threaded so a post-delete command dispatch reaches a plugin-global handler and
+	// contains its throw — required fields (undefinable value) so a new cross-block
+	// context constructor can't silently skip the thread (sibling-path parity).
+	pluginEditor: PluginEditorLookup | undefined;
+	/** The effective presentation mode — the destructive-branch reading gate keys off
+	 *  this, a sibling thread to `pluginEditor` (never the lookup). */
+	getPresentationMode: PresentationModeGetter | undefined;
+	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
+	/** The instance's block grammar, forwarded to the join-paste reparse so a disabled
+	 *  kind's opener stays skipped when a cross-block paste completes marker syntax.
+	 *  Required-nullable like `pluginEditor` so a new construction site can't silently
+	 *  skip the thread; `undefined` = the global grammar. */
+	grammar: GrammarView | undefined;
 
 	getCursorOffset: () => number | null;
 
@@ -85,13 +105,35 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
 	const pointer = createCrossBlockPointer(ctx);
 
+	// Reading-mode gates for the mutating halves live here at the composer, so
+	// every construction site (each editable surface, the editor root) inherits
+	// them. Keydown gates its own destructive branches — it also carries
+	// navigation, which stays live. The mode arrives through ctx.getPresentationMode,
+	// the dedicated getter this context threads beside the plugin lookup.
+	const reading = () => isReadingMode(ctx.getPresentationMode);
+
 	return {
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
 		handlePointerDown: pointer.handlePointerDown,
-		handlePaste: (e) => handleCrossBlockPaste(ctx, mutationCtx, e),
-		handleBeforeInput: (e) => handleCrossBlockTypeReplace(ctx, mutationCtx, e),
+		handlePaste: async (e) => {
+			if (reading()) {
+				e.preventDefault();
+				return true;
+			}
+			return handleCrossBlockPaste(ctx, mutationCtx, e);
+		},
+		handleBeforeInput: async (e) => {
+			if (reading()) {
+				e.preventDefault();
+				return true;
+			}
+			return handleCrossBlockTypeReplace(ctx, mutationCtx, e);
+		},
 		performCrossBlockDeleteFromEvent: async () => {
+			// Reached from cut handlers after the clipboard write — declining the
+			// delete degrades a reading-mode cut to a copy.
+			if (reading()) return;
 			await performCrossBlockDelete(mutationCtx);
 		}
 	};

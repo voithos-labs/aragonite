@@ -38,7 +38,7 @@ describe('checkCategoryFields (G1.5)', () => {
 
 	it('accepts ownerEpoch on every kind', () => {
 		for (const kind of ALL_BLOCK_KINDS) {
-			const node: CstNode = { kind, leadingTrivia: '', raw: '', ownerEpoch: 0 };
+			const node: CstNode = { kind, leadingTrivia: '', raw: '', ownerEpoch: 0 } as CstNode;
 			expect(checkCategoryFields(node)).toBeNull();
 		}
 	});

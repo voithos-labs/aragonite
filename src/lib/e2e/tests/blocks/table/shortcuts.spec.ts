@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 
@@ -121,11 +121,9 @@ test.describe('table block: keyboard vocabulary', () => {
 	});
 
 	test('Shift+Enter inside a cell inserts a literal <br> at the cursor', async ({ page }) => {
-		// 0.6.7.1: inline raw HTML parsing makes <br> a recognized rawHtml node,
-		// so cells can carry it without confusing it with markup. Visible
-		// line-break rendering in cells depends on a follow-up cell-inline-render
-		// migration (see docs/issues.md); the byte-level insertion is the
-		// current ship.
+		// Inline raw-HTML parsing makes <br> a recognized rawHtml node, so a cell can
+		// carry it without confusing it with markup. This pins the byte-level
+		// insertion; the rendered widget is cell-line-break.spec.ts.
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');

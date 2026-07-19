@@ -6,20 +6,24 @@
 
 import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { CstNode, Document } from '../../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
+import { isBlockNode } from '../../tree-operations/node-ops';
+import { isReadingMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
-import { dispatchKeyCommand } from '../../schema/commands';
+import { dispatchKeyCommand } from '../../schema/block-commands';
 import {
 	collapseCrossBlock,
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock,
 	extendFocusToDocEdge,
 	selectWholeDocument,
-	scrollFocusBlockIntoView,
-	cellEndpointDeepPath
+	scrollFocusBlockIntoView
 } from '../keyboard-extend';
+import { cellEndpointDeepPath } from '../table-endpoint-snap';
+import { intraTableRectExtension } from '../table-rect-extend';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -73,24 +77,21 @@ async function handleCrossBlockActive(
 	// e.clipboardData.setData. Tauri's wry webview refuses
 	// navigator.clipboard.writeText in some contexts.
 
+	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
+		if (isReadingMode(ctx.getPresentationMode)) return true;
 		await performCrossBlockDelete(mutCtx, { tableCoverageDelete: true });
 		return true;
 	}
 
-	// Enter, Shift+Enter, Tab, Ctrl+B, Ctrl+I, Ctrl+0..6 are transformative
-	// operations the block-level handler resolves at the collapsed caret. Run
-	// them on the merged block after the delete, not on the originating block's
-	// stale single-block raw while the cross-block selection visually persists.
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
-		// Reveal at the delete's own caret, not a pre-delete start path. rangeDelete
-		// returns the authoritative post-delete position against the merged tree; for a
-		// table endpoint that is the deep [table,row,col] cell whose runCommand exists.
-		// The old code revealed selection.start.path, which for a table is [tableIdx] —
-		// the table wrapper, which has no runCommand, so the command was silently
-		// dropped after the destructive delete.
+		if (isReadingMode(ctx.getPresentationMode)) return true;
+		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete
+		// returns the authoritative post-delete position against the merged tree, and
+		// for a table endpoint that is the deep [table,row,col] cell whose runCommand
+		// exists — the pre-delete [tableIdx] path is the wrapper, which has none.
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		const collapsedCaret = await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();
@@ -102,8 +103,13 @@ async function handleCrossBlockActive(
 			dispatchKeyCommand(
 				chord,
 				{ kind: kindOfPath(revealTarget, postDeleteDoc), runCommand: target.runCommand },
-				{ history: ctx.history },
-				ctx.getKeybindingOverrides()
+				{
+					history: ctx.history,
+					pluginEditor: ctx.pluginEditor,
+					getPresentationMode: ctx.getPresentationMode
+				},
+				ctx.getKeybindingOverrides(),
+				ctx.onCommandError
 			);
 		}
 		return true;
@@ -112,12 +118,37 @@ async function handleCrossBlockActive(
 	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
 	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
 
+	// Intra-table rectangle: Shift+Arrow grows the rectangle cell-by-cell and exits
+	// at the vertical edge. Must precede the generic block-level extend, which walks
+	// the table's own first cell and snaps the focus back to cellIdx 0.
+	if (
+		e.shiftKey &&
+		(e.key === 'ArrowUp' ||
+			e.key === 'ArrowDown' ||
+			e.key === 'ArrowLeft' ||
+			e.key === 'ArrowRight')
+	) {
+		const ext = intraTableRectExtension(doc, selection.anchor, selection.focus, e.key);
+		if (ext) {
+			e.preventDefault();
+			if (ext.kind === 'cell') {
+				selection.extendFocus({ path: selection.focus!.path.slice(), offset: ext.offset });
+			} else if (ext.direction === 'forward') {
+				extendFocusToNextBlock(selection, doc, el, ext.fromCellPath, 'vertical');
+			} else {
+				extendFocusToPreviousBlock(selection, doc, el, ext.fromCellPath, 'start');
+			}
+			await revealActiveEndpoint(ctx);
+			return true;
+		}
+	}
+
 	if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
 		e.preventDefault();
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const axis = e.key === 'ArrowDown' ? ('vertical' as const) : ('horizontal' as const);
-		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis);
+		extendFocusToNextBlock(selection, doc, focusEl, focusPath, axis, getBlockElByPath);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -126,7 +157,7 @@ async function handleCrossBlockActive(
 		const focusPath = selection.focus?.path ?? myPath;
 		const focusEl = getBlockElByPath(focusPath) ?? el;
 		const side = e.key === 'ArrowUp' ? ('start' as const) : ('end' as const);
-		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side);
+		extendFocusToPreviousBlock(selection, doc, focusEl, focusPath, side, getBlockElByPath);
 		await revealActiveEndpoint(ctx);
 		return true;
 	}
@@ -204,14 +235,16 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	return false;
 }
 
-function kindOfPath(path: number[], doc: Document): CstNode['kind'] {
-	let node: CstNode = doc as unknown as CstNode;
+/** Deepest resolvable node's kind; an empty/unresolvable path reads the document root's own kind. */
+function kindOfPath(path: number[], doc: Document): AnyBlockKind {
+	let node: CstNode | Document = doc;
 	for (const i of path) {
-		const child = node.children?.[i];
+		const child: CstNode | undefined = node.children?.[i];
 		if (!child) break;
 		node = child;
 	}
-	return node.kind;
+	// The root's 'document' kind is outside AnyBlockKind; dispatch treats it as an unknown kind.
+	return isBlockNode(node) ? node.kind : (node.kind as AnyBlockKind);
 }
 
 /**
@@ -226,7 +259,8 @@ function selectFirstPressContent(el: HTMLElement): void {
 
 	if (ambient && textLen > ambientLen) {
 		if (!placeCaretAfterAmbientSpan(el)) return;
-		const endRange = createRangeFromOffsets(el, textLen, textLen);
+		// textLen counts the full textContent (marker included) — a DomTextOffset by construction.
+		const endRange = createRangeFromOffsets(el, asDomTextOffset(textLen), asDomTextOffset(textLen));
 		if (endRange) {
 			window.getSelection()?.extend(endRange.endContainer, endRange.endOffset);
 		}
@@ -286,7 +320,14 @@ async function handleDocEdgeExtend(
 	const el = ctx.getEl();
 	if (!el) return false;
 	e.preventDefault();
-	extendFocusToDocEdge(ctx.selection, ctx.getDoc(), el, ctx.getMyPath(), direction);
+	extendFocusToDocEdge(
+		ctx.selection,
+		ctx.getDoc(),
+		el,
+		ctx.getMyPath(),
+		direction,
+		ctx.getBlockElByPath
+	);
 	await revealActiveEndpoint(ctx);
 	return true;
 }
@@ -299,6 +340,7 @@ function handleCompositionStart(
 ): boolean {
 	ctx.stickyColumn.reset();
 	if (!ctx.selection.isCrossBlock) return false;
+	if (isReadingMode(ctx.getPresentationMode)) return false;
 	performCrossBlockDeleteSync(mutCtx);
 	return true;
 }

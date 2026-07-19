@@ -1,7 +1,7 @@
 {
-	"recorded": "2026-06-20",
+	"recorded": "2026-07-16",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
-	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`) and `counters` (structural amplification, asserted by amplification.test.ts). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest.",
+	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. Bench time rows last refreshed 2026-06-20; e2e rows re-blessed 2026-07-16.",
 	"parse": {
 		"flat-prose-100KB": {
 			"mean-ms": 0.2944,
@@ -234,141 +234,141 @@
 		"table-heavy-1MB-amplification": 1.96
 	},
 	"e2e": {
-		"note": "Dev server with DEV invariant assertions active — conservative upper bounds. Re-blessed 2026-06-21: the per-keystroke settle now reads the edited block's own length term (leadingTrivia+raw) instead of summing docLengthInPage over the whole $state-proxy children array. That O(children) sum was a harness artifact that inflated flat high-block-count rows — many-small-blocks-10MB read 231ms where the editor cost is ~3ms (attribution axisS: mounted/renders flat across block count; CDP ScriptDuration/key flat ~0.3ms). Every shape's keystroke is now O(viewport), ~2.4-3.6ms at all sizes; single-giant-paragraph is the one non-viewport-bounded keystroke axis (intra-block span rebuild, Axis 5: ~177ms @ 1MB), recorded-not-gated. Load is O(node-count) reactive-tree materialization (script-bound; mount VR-bounded), sub-second at realistic sizes, ~22s only at the 392k-block 10MB many-small-blocks extreme. The perf gate now enforces every renderable shape at <=1MB and at 10MB — flat shapes included (the artifact that forced their exclusion is fixed). 10MB rows: 15 keystrokes; others 30.",
+		"note": "Dev server with DEV invariant assertions active — conservative upper bounds. Re-blessed 2026-07-16 from the overnight perf:e2e run — the first re-measure after the 0.9.26/0.9.27 milestones, which the 2026-06 baseline predated. Keystroke p50 stays O(viewport), ~2.5-4.4ms for every shape at every size; single-giant-paragraph remains the one non-viewport-bounded keystroke axis (intra-block span rebuild, ~117ms @ 1MB, ~1.2s @ 10MB), recorded-not-gated. Load is O(node-count) reactive-tree materialization (script-bound; mount VR-bounded), sub-second at realistic sizes, ~4.5s at the 392k-block 10MB many-small-blocks extreme (22s in the 2026-06 baseline). History: the 2026-06-21 re-bless removed a harness artifact (the per-keystroke settle summed docLengthInPage over the whole $state-proxy children array), which is why flat 10MB rows were once excluded from the gate. The perf gate enforces every renderable shape at <=1MB and at 10MB. 10MB rows: 15 keystrokes; others 30.",
 		"flat-prose-100KB": {
-			"loadMs": 46.4,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 6.2
+			"loadMs": 54,
+			"keystrokeP50Ms": 3.6,
+			"keystrokeP95Ms": 6.3
 		},
 		"flat-prose-1MB": {
-			"loadMs": 94.3,
-			"keystrokeP50Ms": 2.7,
-			"keystrokeP95Ms": 6.4
+			"loadMs": 102.6,
+			"keystrokeP50Ms": 4,
+			"keystrokeP95Ms": 8
 		},
 		"flat-prose-10MB": {
-			"loadMs": 994,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 127.9
+			"loadMs": 785.4,
+			"keystrokeP50Ms": 3.7,
+			"keystrokeP95Ms": 143.5
 		},
 		"nested-containers-100KB": {
-			"loadMs": 103.3,
-			"keystrokeP50Ms": 2.5,
-			"keystrokeP95Ms": 4.7
+			"loadMs": 175.3,
+			"keystrokeP50Ms": 3.6,
+			"keystrokeP95Ms": 7
 		},
 		"nested-containers-1MB": {
-			"loadMs": 204.6,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 2.8
+			"loadMs": 308,
+			"keystrokeP50Ms": 3.4,
+			"keystrokeP95Ms": 5.4
 		},
 		"nested-containers-10MB": {
-			"loadMs": 1821,
-			"keystrokeP50Ms": 2.5,
-			"keystrokeP95Ms": 79.5
+			"loadMs": 1470.5,
+			"keystrokeP50Ms": 4.4,
+			"keystrokeP95Ms": 90.4
 		},
 		"many-small-blocks-100KB": {
-			"loadMs": 58.8,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 3
+			"loadMs": 66.3,
+			"keystrokeP50Ms": 3.2,
+			"keystrokeP95Ms": 5.6
 		},
 		"many-small-blocks-1MB": {
-			"loadMs": 501.8,
-			"keystrokeP50Ms": 2.5,
-			"keystrokeP95Ms": 4.5
-		},
-		"many-small-blocks-10MB": {
-			"loadMs": 22060.5,
-			"keystrokeP50Ms": 3.1,
-			"keystrokeP95Ms": 360.9
-		},
-		"single-giant-paragraph-100KB": {
-			"loadMs": 56.5,
-			"keystrokeP50Ms": 20.5,
-			"keystrokeP95Ms": 26.2
-		},
-		"single-giant-paragraph-1MB": {
-			"loadMs": 164.6,
-			"keystrokeP50Ms": 177.1,
-			"keystrokeP95Ms": 196.3
-		},
-		"single-giant-paragraph-10MB": {
-			"loadMs": 1312.1,
-			"keystrokeP50Ms": 1817.7,
-			"keystrokeP95Ms": 2431.2
-		},
-		"reference-heavy-100KB": {
-			"loadMs": 57.9,
-			"keystrokeP50Ms": 3.2,
-			"keystrokeP95Ms": 5.1
-		},
-		"reference-heavy-1MB": {
-			"loadMs": 139.6,
-			"keystrokeP50Ms": 2.9,
-			"keystrokeP95Ms": 5.3
-		},
-		"reference-heavy-10MB": {
-			"loadMs": 2467.6,
-			"keystrokeP50Ms": 3.6,
-			"keystrokeP95Ms": 146.6
-		},
-		"table-heavy-100KB": {
-			"loadMs": 112.3,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 5.9
-		},
-		"table-heavy-1MB": {
-			"loadMs": 163.7,
-			"keystrokeP50Ms": 2.3,
-			"keystrokeP95Ms": 3.7
-		},
-		"table-heavy-10MB": {
-			"loadMs": 712.1,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 84.9
-		},
-		"giant-single-list-100KB": {
-			"loadMs": 89.9,
-			"keystrokeP50Ms": 2.3,
-			"keystrokeP95Ms": 3.7
-		},
-		"giant-single-list-1MB": {
-			"loadMs": 279.5,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 3.5
-		},
-		"giant-single-list-10MB": {
-			"loadMs": 2431.3,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 70.4
-		},
-		"giant-single-blockquote-100KB": {
-			"loadMs": 57.8,
-			"keystrokeP50Ms": 2.3,
+			"loadMs": 365.5,
+			"keystrokeP50Ms": 2.7,
 			"keystrokeP95Ms": 4.6
 		},
-		"giant-single-blockquote-1MB": {
-			"loadMs": 211,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 3.7
+		"many-small-blocks-10MB": {
+			"loadMs": 4541.7,
+			"keystrokeP50Ms": 3.4,
+			"keystrokeP95Ms": 394.9
 		},
-		"giant-single-blockquote-10MB": {
-			"loadMs": 1792.1,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 78.5
+		"single-giant-paragraph-100KB": {
+			"loadMs": 37.9,
+			"keystrokeP50Ms": 14.4,
+			"keystrokeP95Ms": 20.6
 		},
-		"giant-single-table-100KB": {
-			"loadMs": 62.5,
-			"keystrokeP50Ms": 2.3,
-			"keystrokeP95Ms": 3.2
+		"single-giant-paragraph-1MB": {
+			"loadMs": 125.6,
+			"keystrokeP50Ms": 117.4,
+			"keystrokeP95Ms": 145
 		},
-		"giant-single-table-1MB": {
-			"loadMs": 227,
-			"keystrokeP50Ms": 2.3,
+		"single-giant-paragraph-10MB": {
+			"loadMs": 1005,
+			"keystrokeP50Ms": 1184.8,
+			"keystrokeP95Ms": 1477
+		},
+		"reference-heavy-100KB": {
+			"loadMs": 45.1,
+			"keystrokeP50Ms": 3,
 			"keystrokeP95Ms": 5.9
 		},
+		"reference-heavy-1MB": {
+			"loadMs": 130.6,
+			"keystrokeP50Ms": 3.3,
+			"keystrokeP95Ms": 5.4
+		},
+		"reference-heavy-10MB": {
+			"loadMs": 1119.9,
+			"keystrokeP50Ms": 3.9,
+			"keystrokeP95Ms": 144
+		},
+		"table-heavy-100KB": {
+			"loadMs": 119.3,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.7
+		},
+		"table-heavy-1MB": {
+			"loadMs": 159.5,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.2
+		},
+		"table-heavy-10MB": {
+			"loadMs": 655.7,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 92
+		},
+		"giant-single-list-100KB": {
+			"loadMs": 100.8,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.2
+		},
+		"giant-single-list-1MB": {
+			"loadMs": 321.6,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 3.9
+		},
+		"giant-single-list-10MB": {
+			"loadMs": 2834.6,
+			"keystrokeP50Ms": 3.1,
+			"keystrokeP95Ms": 66.5
+		},
+		"giant-single-blockquote-100KB": {
+			"loadMs": 67.3,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 5.9
+		},
+		"giant-single-blockquote-1MB": {
+			"loadMs": 213.2,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.6
+		},
+		"giant-single-blockquote-10MB": {
+			"loadMs": 1861.8,
+			"keystrokeP50Ms": 3.6,
+			"keystrokeP95Ms": 73.7
+		},
+		"giant-single-table-100KB": {
+			"loadMs": 67.3,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 6.1
+		},
+		"giant-single-table-1MB": {
+			"loadMs": 243.9,
+			"keystrokeP50Ms": 2.9,
+			"keystrokeP95Ms": 8.5
+		},
 		"giant-single-table-10MB": {
-			"loadMs": 2066.8,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 71.5
+			"loadMs": 2169.1,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 69
 		}
 	}
 }

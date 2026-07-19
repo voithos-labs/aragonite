@@ -200,10 +200,16 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		sel.addRange(range);
 	}
 
-	it('returns false when there is no selection range', () => {
+	it('resolves via the fallback offset when the selection range is dropped', () => {
+		// Chromium drops the caret range adjacent to atomic contenteditable=false
+		// islands under load; a hard-false there strands the caret at the boundary
+		// forever. With no range the reader trusts the snapped fallback offset —
+		// the same shape the geometry-null branch already uses.
 		window.getSelection()?.removeAllRanges();
-		expect(isAtFirstVisualLine(block, 0)).toBe(false);
-		expect(isAtLastVisualLine(block, 0, 11)).toBe(false);
+		expect(isAtFirstVisualLine(block, 0)).toBe(true);
+		expect(isAtFirstVisualLine(block, 5)).toBe(false);
+		expect(isAtLastVisualLine(block, 11, 11)).toBe(true);
+		expect(isAtLastVisualLine(block, 5, 11)).toBe(false);
 	});
 
 	it('returns true for an empty container regardless of geometry', () => {

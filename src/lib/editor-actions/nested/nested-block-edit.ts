@@ -9,20 +9,29 @@
  */
 
 import type { BlockEditActions } from '../../action-contracts';
+import { makeBlockNode } from '../../core/nodes';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
 	updateNodeContent as performUpdate,
+	focusTargetInReplacement,
 	ensureUnsharedChild,
 	reconcileTaskMetadata,
 	foldPasteReplacement
 } from '../../tree-operations';
+import {
+	stampStructuralChange,
+	type StructuralChange
+} from '../../tree-operations/structural-change';
+import { pastedContentFocusIndex } from '../../tree-operations/paste/hooks';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { assertInvariant } from '../../invariants/assert';
 import { CURSOR_END } from '../../block-component';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';
 import { createBlockEditCore } from '../block-edit-core';
+import { focusMovedOutsideReplacement } from '../replacement-focus';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -37,6 +46,11 @@ export function createNestedBlockEdit(
 		async splitBlock(innerIndex, offset) {
 			if (!deps.node.children) return;
 			await core.split(innerIndex, offset);
+		},
+
+		async descendToBody(innerIndex) {
+			if (!deps.node.children) return;
+			await core.descendToBody(innerIndex);
 		},
 
 		async mergeWithPrevious(innerIndex) {
@@ -74,6 +88,17 @@ export function createNestedBlockEdit(
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
+			// A collapsed container's body children are unmounted, so the chrome row is
+			// the last VISIBLE child. Forward-Delete exits past the container rather than
+			// merging into (or dead-ending on) the invisible body — an I-1-consistent
+			// focus move, no mutation (mirrors gateMoveFocusOnCollapse). `append: false`
+			// keeps the last-block case inert: without it, exiting past the final block
+			// mints a trailing paragraph (root focus append path), mutating on a Delete.
+			if (isCollapsedContainer(deps.node)) {
+				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
+				return;
+			}
+
 			await core.mergeWithNextInterior(innerIndex);
 		},
 
@@ -98,21 +123,20 @@ export function createNestedBlockEdit(
 			if (!deps.node.children || blocks.length === 0) return;
 			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
 
-			const replacement = foldPasteReplacement(
-				deps.node.children[innerIndex],
-				offset,
-				blocks,
-				preDelete
-			);
+			const target = deps.node.children[innerIndex];
+			const replacement = foldPasteReplacement(target, offset, blocks, preDelete);
 			await core.replaceBlock(
 				innerIndex,
 				replacement,
-				{ replacementIndex: replacement.length - 1, offset: CURSOR_END },
+				{
+					replacementIndex: pastedContentFocusIndex(target, offset, preDelete, replacement.length),
+					offset: CURSOR_END
+				},
 				options
 			);
 		},
 
-		// ── In-place leaf edits (per-level; unification deferred) ──────────────
+		// ── In-place leaf edits (per-level) ────────────────────────────────────
 		async updateBlockContent(
 			innerIndex: number,
 			text: string,
@@ -121,29 +145,49 @@ export function createNestedBlockEdit(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
-			// Preview on a shallow clone of the target child — the only node
-			// performUpdate reads — to pick between structural (kind-changing)
-			// commit and routine typing path. Live tree is not mutated here —
-			// the chosen branch runs the real mutation below.
-			const preview = performUpdate({ children: [{ ...deps.node.children[innerIndex] }] }, 0, text);
+			// Preview on a minimal probe (kind + raw are all performUpdate reads)
+			// to pick between structural (kind-changing) commit and routine typing
+			// path. Live tree is not mutated here — the chosen branch runs the
+			// real mutation below.
+			const child = deps.node.children[innerIndex];
+			const probe = makeBlockNode({
+				kind: child.kind,
+				leadingTrivia: child.leadingTrivia,
+				raw: child.raw
+			});
+			const preview = performUpdate({ children: [probe] }, 0, text, deps.grammar);
+
+			const leafPath = [...deps.path, innerIndex];
 
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
+				let change: StructuralChange = { op: 'noop' };
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
 					path: deps.path,
 					state,
-					snapshot: { blockIndex: deps.index, offset: preEditOffset ?? 0 },
+					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						return performUpdate({ children: scope.children }, innerIndex, text);
+						change = performUpdate({ children: scope.children }, innerIndex, text, deps.grammar);
+						stampStructuralChange(scope.children, change, scope.sharing);
+						return change;
 					},
 					op: {
 						kind: 'updateContent',
 						detail: { length: text.length },
-						eventPath: [deps.index, innerIndex]
+						eventPath: leafPath
 					},
 					afterTick: () => {
+						const count = change.op === 'replace' ? change.newCount : 1;
+						if (focusMovedOutsideReplacement(deps.path, innerIndex, count)) return;
+						if (change.op === 'replace' && change.newCount > 1) {
+							const children = deps.node.children ?? [];
+							const blocks = children.slice(change.at, change.at + change.newCount);
+							const target = focusTargetInReplacement(blocks, focusOffset);
+							state.innerBlockRefs[change.at + target.index]?.focus(target.offset);
+							return;
+						}
 						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
 					}
 				});
@@ -154,11 +198,10 @@ export function createNestedBlockEdit(
 			// the inner leaf's id as the batch key so focus moves between
 			// sibling leaves inside this container break the typing batch.
 			parent.containerEdit.pushDebouncedCheckpoint(
-				deps.index,
+				leafPath,
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
-			const leafPath = [...deps.path, innerIndex];
 			parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
 				assertInvariant('unshared-spine-depth', () =>
 					chain.length === leafPath.length
@@ -170,7 +213,7 @@ export function createNestedBlockEdit(
 				);
 				const ownedContainer = chain[leafPath.length - 2];
 				if (!ownedContainer?.children) return;
-				performUpdate({ children: ownedContainer.children }, innerIndex, text);
+				performUpdate({ children: ownedContainer.children }, innerIndex, text, deps.grammar);
 				// listItem's taskItem metadata is extracted at parse time from the
 				// first stripped line; live typing into the inner paragraph would
 				// otherwise leave metadata frozen while serialized source drifts.

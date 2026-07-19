@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CURSOR_END, SELECTION_END } from '../block-component';
 
-// The focus/selection walkers (findRawOffsetTarget, createRangeFromOffsets) fall
+// The focus/selection walkers (findDomTextOffsetTarget, createRangeFromOffsets) fall
 // through to end-of-content whenever the requested offset exceeds the block
 // length. These sentinels must therefore dominate any realistic content length so
 // "go to end" holds for a block of any size — the former finite CURSOR_END

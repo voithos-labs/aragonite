@@ -1,16 +1,15 @@
 /**
  * Observer-pattern event surface reached via the editor component's
- * `getEvents()` accessor. Events fire synchronously; handlers must NOT
- * mutate the document.
- *
- * Emission sites:
- *   - `edit` structural op: inside `__commit`, after publish.
- *   - `edit` op='input': from the keystroke-debounce flush.
- *   - `selectionChange`: from the selection-state change path.
+ * `getEvents()` accessor. Events fire synchronously; handlers must NOT mutate
+ * the document. An `edit` event fires after its mutation is published, so its
+ * handler sees the updated document.
  */
 
+import type { AnyBlockKind } from './core/nodes';
+import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
+import { pluginKindOwner } from './schema/plugin-install';
 
 // ── Edit event union ─────────────────────────────────────────────────────
 
@@ -32,10 +31,22 @@ export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number)
 export type SelectionChangeEvent = EditorSelection | null;
 
 export interface EditorError {
-	origin: 'subscriber' | 'render' | 'commit';
+	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration';
 	error: unknown;
-	/** Origin-specific context: block path for render, op kind + event path for commit. */
-	context?: { path?: number[]; op?: OperationKind };
+	/**
+	 * Origin-specific context: block path for render, op kind + event path for
+	 * commit, the block kind + command id (+ owning plugin, when recorded) for a
+	 * contained plugin block-command throw, and the source name for a decoration
+	 * provide that threw.
+	 */
+	context?: {
+		path?: number[];
+		op?: OperationKind;
+		kind?: AnyBlockKind;
+		command?: string;
+		plugin?: string;
+		source?: string;
+	};
 }
 
 // ── Map of event name → handler payload ─────────────────────────────────
@@ -44,6 +55,8 @@ export interface EditorEventMap {
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
 	error: EditorError;
+	/** The EFFECTIVE mode after a `presentationMode` prop change (never fired at mount). */
+	presentationModeChange: PresentationMode;
 }
 
 export interface EditorEvents {
@@ -101,4 +114,34 @@ export function createEditorEvents(): EditorEvents {
 	}
 
 	return { on, emit };
+}
+
+// ── Command-error routing ──────────────────────────────────────────────────
+
+/**
+ * Route a contained command throw to the `error` channel as an `origin: 'command'`
+ * event, attributing the command id and its owning plugin. The single place the
+ * dispatch seam's `CommandErrorSink` reaches the editor's event surface; no-ops
+ * when no events surface is present (a mount without the context). Kept here, not
+ * in the schema dispatch layer, so the attribution + emit live with the shell that
+ * owns the channel.
+ *
+ * Attribution: a global command reports its own `plugin` and carries no kind, so
+ * that owner wins; a block command reports its `kind`, and the owner is resolved
+ * by kind lookup. The direct `plugin` therefore never gets clobbered by a lookup.
+ */
+export function emitCommandError(
+	events: EditorEvents | undefined,
+	report: { kind?: AnyBlockKind; command: string; plugin?: string; error: unknown }
+): void {
+	events?.emit('error', {
+		origin: 'command',
+		error: report.error,
+		context: {
+			kind: report.kind,
+			command: report.command,
+			plugin:
+				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
+		}
+	});
 }

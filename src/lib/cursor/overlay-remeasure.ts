@@ -1,5 +1,5 @@
 /**
- * Shared scroll-listener helper for MatchOverlay and SelectionOverlay.
+ * Shared scroll-listener helper for DecorationOverlay and SelectionOverlay.
  *
  * Three triggers call measure():
  *   1. Immediate call on mount (covers the initial paint).

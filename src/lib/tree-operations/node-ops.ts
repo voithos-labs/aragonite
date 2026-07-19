@@ -23,10 +23,15 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
+import type { GrammarView } from '../schema/block-openers';
 import { trimTrailingLineEnding } from '../core/lines';
+import { devWarn } from '../dev-warn';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
@@ -37,8 +42,12 @@ export type NodeParent = { children: CstNode[] };
 
 // ── Path resolution ──
 
-export function nodeAt(doc: Document, path: number[]): CstNode | Document | null {
-	let cur: CstNode | Document = doc;
+// Overloaded rather than view-only so a mutable document yields mutable nodes:
+// a walk cannot introduce sharing, so the input's writability is the output's.
+export function nodeAt(doc: Document, path: number[]): CstNode | Document | null;
+export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentView | null;
+export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentView | null {
+	let cur: NodeView | DocumentView = doc;
 	for (const idx of path) {
 		if (!cur.children || idx >= cur.children.length) return null;
 		cur = cur.children[idx];
@@ -46,12 +55,22 @@ export function nodeAt(doc: Document, path: number[]): CstNode | Document | null
 	return cur;
 }
 
+/** `nodeAt` pre-narrowed through `isBlockNode`: null when the path resolves to the document root or nothing. */
+export function blockNodeAt(doc: Document, path: number[]): CstNode | null;
+export function blockNodeAt(doc: DocumentView, path: number[]): NodeView | null;
+export function blockNodeAt(doc: DocumentView, path: number[]): NodeView | null {
+	const node = nodeAt(doc, path);
+	return node !== null && isBlockNode(node) ? node : null;
+}
+
 /**
  * Narrow a `nodeAt` result to `CstNode`. Structural, not kind-based: a plugin
  * may mint `'document'` as a block kind, so `kind` no longer discriminates
  * `CstNode` from `Document` — only `Document` lacks `raw`.
  */
-export function isBlockNode(node: CstNode | Document): node is CstNode {
+export function isBlockNode(node: CstNode | Document): node is CstNode;
+export function isBlockNode(node: NodeView | DocumentView): node is NodeView;
+export function isBlockNode(node: NodeView | DocumentView): boolean {
 	return 'raw' in node;
 }
 
@@ -61,13 +80,10 @@ export function isBlockNode(node: CstNode | Document): node is CstNode {
  * Split the node at `blockIndex` into two at raw `offset` (display-relative,
  * line-ending preserved). First half inherits the original ID.
  *
- * Round-trip caveat at `offset === 0` on a non-empty block: the leading half
- * is `'\n'`, which reparses as an empty paragraph and collapses into trivia
- * on `parse(serialize(...))`. `splitBlock` routes that case to
- * `bumpLeadingTrivia` instead. The list `splitItemAtOffset` path keeps the
- * two-output shape — the empty first half becomes the empty list-item above
- * the new sibling, which the list serializer represents as `- \n` and
- * reparses back to the same shape.
+ * At `offset === 0` the leading half is `'\n'` — an empty paragraph that
+ * collapses into trivia on `parse(serialize(...))`. The live-vs-reparse shape
+ * difference is a tolerated transient state (Enter-at-end produces the same
+ * one); serialize stays byte-stable on the actual source.
  */
 export function splitNode(
 	parent: NodeParent,
@@ -77,6 +93,14 @@ export function splitNode(
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const node = parent.children[blockIndex];
+
+	// A context-dependent kind (tableCell, container chrome) has no standalone
+	// recognizer — reparseAsNode would destroy BOTH halves, and chrome is
+	// single-line by serialization (its bytes live in the container's opener
+	// line), so a split is unrepresentable. No-op; the Enter gesture routes to
+	// chrome.descendToBody instead. Also shields the list-context split caller.
+	if (getBlockKindDescriptor(node.kind).contextDependentKind) return { op: 'noop' };
+
 	const rawText = node.raw;
 
 	const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
@@ -101,20 +125,6 @@ export function splitNode(
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
 	return replacePreservingFirst(blockIndex, 1, 2);
-}
-
-/**
- * Enter-at-block-start companion to `splitNode`. Prepends a blank line into
- * the block's `leadingTrivia` and keeps the node in place — the round-trip
- * shape matches what `parse(serialize(tree))` would produce for a leading
- * blank line.
- */
-export function bumpLeadingTrivia(parent: NodeParent, blockIndex: number): StructuralChange {
-	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
-	const node = parent.children[blockIndex];
-	const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
-	node.leadingTrivia = (node.leadingTrivia ?? '') + lineEnding;
-	return replacePreservingFirst(blockIndex, 1, 1);
 }
 
 // ── Merge ──
@@ -237,34 +247,103 @@ export function deleteNode(
 
 // ── Update Content ──
 
-/** Update raw and re-parse. Kind changes return replacePreservingFirst (same slot, id kept); otherwise noop. */
+/**
+ * Update raw and re-parse. The sole re-parse transfer funnel: a kind change
+ * mints the reparsed block into the slot rather than reassigning `kind` in
+ * place, and multi-block text mints every parsed block. Only a same-kind
+ * single-block edit writes fields in place (routine typing keeps the node's
+ * object identity). A minted first block preserves the slot's position and
+ * trivia; `replacePreservingFirst` carries the id/ref across the swap.
+ *
+ * Multi-block replacement folds text-leading blanks into the first block's raw
+ * (the single-block shape); the rest keep their own trivia. A same-kind first
+ * block used to be a raw-only write, cramming the trailing blocks into one node
+ * and desyncing the live CST from parse(serialize(doc)) — the block-math
+ * stuck-fence class, equally reachable by paragraph hard-break + interrupter
+ * typing.
+ */
 export function updateNodeContent(
 	parent: NodeParent,
 	blockIndex: number,
-	newText: string
+	newText: string,
+	grammar?: GrammarView
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 
-	// tableCell is context-dependent — `parse("foo")` produces a paragraph,
-	// not a cell. The row's rebuildRaw owns the surrounding `| ... |` shape,
-	// so cells just carry their inner text.
-	if (oldKind === 'tableCell') {
+	// A context-dependent kind (tableCell, plugin chrome) has no standalone
+	// recognizer, so reparsing would downgrade it. Its container's rebuildRaw
+	// owns the surrounding syntax; keep the kind and just write raw.
+	if (getBlockKindDescriptor(oldKind).contextDependentKind) {
 		node.raw = newText;
 		return { op: 'noop' };
 	}
 
-	const reparsed = reparseAsNode(newText, node.leadingTrivia);
+	// The instance grammar reaches the routine content-commit reparse;
+	// absent (paste, split/merge reparse) defaults to the global grammar.
+	const parsed = parse(newText, { grammar }).children;
+	const first: CstNode | undefined = parsed[0];
+	if (first) ensureEditableContainers(first);
 
-	// Copy all fields so leaf↔container transitions propagate children and container structure.
-	node.raw = newText;
-	node.kind = reparsed.kind;
-	node.metadata = reparsed.metadata;
-	node.children = reparsed.children;
-	node.innerPrefix = reparsed.innerPrefix;
-	node.innerSuffix = reparsed.innerSuffix;
+	// Multi-block: replace the slot with every parsed block. The first block is
+	// minted, not the old node reassigned, so a kind change never rewrites `kind`
+	// in place. It inherits the slot's trivia (text-leading blanks fold into its
+	// raw, the single-block shape); the rest keep their own trivia.
+	if (parsed.length > 1) {
+		const rest = parsed.slice(1);
+		for (const sibling of rest) ensureEditableContainers(sibling);
+		first.raw = first.leadingTrivia + first.raw;
+		first.leadingTrivia = node.leadingTrivia;
+		parent.children.splice(blockIndex, 1, first, ...rest);
+		return replacePreservingFirst(blockIndex, 1, parsed.length);
+	}
 
-	return node.kind !== oldKind ? replacePreservingFirst(blockIndex, 1, 1) : { op: 'noop' };
+	const newKind = first?.kind ?? 'paragraph';
+
+	// Same-kind edit (routine typing): refresh content fields in place so the node
+	// keeps its object identity — the component, IME state, and inline cache are
+	// keyed on it — and report no structural change.
+	if (newKind === oldKind) {
+		node.raw = newText;
+		node.metadata = first?.metadata;
+		node.children = first?.children;
+		node.innerPrefix = first?.innerPrefix;
+		node.innerSuffix = first?.innerSuffix;
+		return { op: 'noop' };
+	}
+
+	// Kind change: mint the reparsed block into the slot. This is the sole
+	// re-parse transfer, and it replaces the node rather than reassigning `kind` in
+	// place — the discriminated union carries no in-place kind write.
+	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
+	replacement.raw = newText;
+	replacement.leadingTrivia = node.leadingTrivia;
+	parent.children.splice(blockIndex, 1, replacement);
+	return replacePreservingFirst(blockIndex, 1, 1);
+}
+
+/**
+ * Map a post-edit caret offset (in the committed text) to the parsed block it
+ * falls in, as a local display offset. The first block's body starts at 0
+ * (`updateNodeContent` folds text-leading blanks into its raw); an offset
+ * inside inter-block trivia lands at the next block's start; past-the-end
+ * clamps to the last block's end.
+ */
+export function focusTargetInReplacement(
+	nodes: readonly NodeView[],
+	offset: number
+): { index: number; offset: number } {
+	let pos = 0;
+	for (let i = 0; i < nodes.length; i++) {
+		const bodyStart = i === 0 ? 0 : pos + nodes[i].leadingTrivia.length;
+		const bodyEnd = bodyStart + trimTrailingLineEnding(nodes[i].raw).length;
+		if (offset <= bodyEnd) {
+			return { index: i, offset: Math.max(0, offset - bodyStart) };
+		}
+		pos = bodyStart + nodes[i].raw.length;
+	}
+	const last = nodes.length - 1;
+	return { index: last, offset: trimTrailingLineEnding(nodes[last].raw).length };
 }
 
 // ── Reparse helper (private) ──
@@ -272,6 +351,16 @@ export function updateNodeContent(
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	const doc = parse(raw);
 	if (doc.children.length > 0) {
+		if (import.meta.env.DEV && doc.children.length > 1) {
+			// Split/merge halves are single-block for every reachable gesture; a
+			// multi-block half here silently DROPS blocks past the first. Fail
+			// loud if a future gesture reaches it — updateNodeContent is the
+			// multi-block-aware path.
+			devWarn(
+				'tree-ops',
+				`reparseAsNode: raw parsed to ${doc.children.length} blocks; all but the first are dropped`
+			);
+		}
 		const node = doc.children[0];
 		node.leadingTrivia = leadingTrivia;
 		ensureEditableContainers(node);
@@ -303,9 +392,21 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
  * has a target (a list item with no content after the marker, etc.).
  */
 export function ensureEditableContainers(node: CstNode): void {
+	// A whole-block-focus kind (opaque childless diagram) is childless by design —
+	// the block itself is the caret target. Backfilling it would strand a phantom
+	// paragraph its raw can never account for (opaque-stale-raw fires on the
+	// first commit that checks the node).
+	if (getBlockKindDescriptor(node.kind).blockFocus === 'whole-block') return;
 	if (node.children !== undefined) {
 		if (node.children.length === 0) {
 			// discovered-descendant mutation, see file header
+			const chromeKind = reservedChromeKindOf(node.kind);
+			// A chrome-declaring container must re-mint its child-0 leaf too, or the
+			// backfilled paragraph would occupy the reserved slot and violate G1.14.
+			if (chromeKind !== undefined) {
+				// Runtime chrome kind — generic-mint cast (the paragraph below is a literal arm).
+				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' } as CstNode);
+			}
 			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
 			// The synthesized paragraph's '\n' already represents the trailing
 			// blank that parseBlocks routed into innerPrefix when there were no

@@ -7,28 +7,21 @@
 		HistoryActions
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
+	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		DOC_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		PASTE_COORDINATOR_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		type BlockElLookup,
-		type DocumentGetter,
-		type KeybindingOverridesGetter
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { asDomTextOffset, asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -38,7 +31,6 @@
 		hasSelection as hasSelectionHelper
 	} from '../../../cursor/content-offsets';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
@@ -55,30 +47,45 @@
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
 	import { computeFenceExit } from './code-fence-exit';
-	import { classifyFenceBoundary } from './code-fence-boundary';
+	import { classifyFenceBoundary, clampEnterOffsetToBody } from './code-fence-boundary';
 	import { metadataOf } from '../../../core/nodes';
-	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
+	import {
+		trimTrailingLineEnding,
+		normalizeLineEndings,
+		trailingLineEnding
+	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { type CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const {
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		reorder,
+		selection,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { keybindingOverrides, presentationMode: getPresentationMode } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
@@ -86,15 +93,28 @@
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
+	// A zero-ambient, widget-free surface: its DOM-text space IS its raw space.
+	// Every DOM caret read door-mints across the identity here, once.
+	function readCaretOffset(): RawOffset | null {
+		const offset = el ? getCursorOffsetHelper(el) : null;
+		return offset === null ? null : asRawOffset(offset);
+	}
+
+	function readFocusOffset(): RawOffset | null {
+		const offset = el ? getSelectionFocusOffsetHelper(el) : null;
+		return offset === null ? null : asRawOffset(offset);
+	}
+
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
 		backend: {
-			getRaw: () => (el ? (getCursorOffsetHelper(el) ?? null) : null),
+			getRaw: readCaretOffset,
 			setRaw: (offset) => {
-				if (el) setCursorOffsetHelper(el, offset);
+				if (el) setCursorOffsetHelper(el, asDomTextOffset(offset));
 			},
-			buildRange: (start, end) => (el ? createRangeFromOffsets(el, start, end) : null)
+			buildRange: (start, end) =>
+				el ? createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end)) : null
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -120,14 +140,19 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		getPresentationMode,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
-		getFocusOffset: () => (el ? getSelectionFocusOffsetHelper(el) : null),
+		getFocusOffset: readFocusOffset,
 		getTextLen: () => (el?.textContent ?? '').length,
 		readText: () => el?.textContent ?? '',
 		// Code anchors undo at preEditOffset only; it has no kind-change remount to
 		// re-focus, so it passes no saved offset (the omitted 4th argument).
-		commitInput: (text, preEdit) => blockEdit.updateBlockContent(index, text + '\n', preEdit)
+		commitInput: (text, preEdit) => {
+			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit);
+		}
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -161,16 +186,32 @@
 		lastRenderedRaw = node.raw;
 
 		if (pendingSelection !== null) {
-			const range = createRangeFromOffsets(el, pendingSelection.start, pendingSelection.end);
-			if (range) {
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(range);
+			// Restore only while this block still owns focus: an async flush after
+			// focus left would yank the global selection back into the just-blurred
+			// block. Sibling of the pendingCursorOffset guard below; the clear runs
+			// regardless so a skipped restore is dropped, never re-armed.
+			if (document.activeElement === el) {
+				const range = createRangeFromOffsets(
+					el,
+					asDomTextOffset(pendingSelection.start),
+					asDomTextOffset(pendingSelection.end)
+				);
+				if (range) {
+					const sel = window.getSelection();
+					sel?.removeAllRanges();
+					sel?.addRange(range);
+				}
 			}
 			pendingSelection = null;
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
-			setCursorOffsetHelper(el, pendingCursorOffset);
+			// Restore only while this block still owns focus: an edit whose text
+			// reparses to multiple blocks moves the caret to the split-off sibling
+			// (structural commit's afterTick); an unguarded restore would yank it
+			// back. Mirrors TextEditableBlock's activeElement guard.
+			if (document.activeElement === el) {
+				setCursorOffsetHelper(el, asDomTextOffset(pendingCursorOffset));
+			}
 			pendingCursorOffset = null;
 		}
 	});
@@ -205,17 +246,30 @@
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
-		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak without a preceding keydown.
-		if (e.inputType === 'insertLineBreak' && el) {
+		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak
+		// without a preceding keydown. Gated on !composing like the insertText arm
+		// below: an IME emitting insertLineBreak mid-composition must not sync
+		// (its mobile-Enter purpose applies post-compositionend, composing false).
+		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
 			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
-			const branchPreEditOffset = getCursorOffsetHelper(el) ?? 0;
+			const branchPreEditOffset = readCaretOffset() ?? 0;
+			// Sibling of codeNewline's opener guard: a soft break splices the same
+			// `\n`, so its selection clamps out of the opener line too.
+			const range = currentRange();
 			const result = computeCodeEnter({
 				display: getDisplayText(),
-				selection: currentRange(),
+				selection: {
+					start: clampEnterOffsetToBody(node, range.start),
+					end: clampEnterOffsetToBody(node, range.end)
+				},
 				mode: 'soft'
 			});
-			blockEdit.updateBlockContent(index, result.newText + '\n', branchPreEditOffset);
+			blockEdit.updateBlockContent(
+				index,
+				result.newText + trailingLineEnding(node.raw),
+				branchPreEditOffset
+			);
 			pendingCursorOffset = result.newCursor;
 			return;
 		}
@@ -225,7 +279,7 @@
 
 		const text = getDisplayText();
 		const selOffsets = getSelectionOffsetsHelper(el);
-		const offset = selOffsets ? selOffsets.start : (getCursorOffsetHelper(el) ?? 0);
+		const offset = selOffsets ? selOffsets.start : (readCaretOffset() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
 		const result = computeAutoPair({
@@ -238,10 +292,14 @@
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
-			setCursorOffsetHelper(el, result.caretOffset);
+			setCursorOffsetHelper(el, asDomTextOffset(result.caretOffset));
 			return;
 		}
-		blockEdit.updateBlockContent(index, result.newText + '\n', preEditOffset);
+		blockEdit.updateBlockContent(
+			index,
+			result.newText + trailingLineEnding(node.raw),
+			preEditOffset
+		);
 		if (result.kind === 'wrap') {
 			pendingSelection = result.selection;
 		} else {
@@ -253,14 +311,20 @@
 		if (composing) return;
 		if (!el) return;
 
-		preEditOffset = getCursorOffsetHelper(el) ?? 0;
+		preEditOffset = readCaretOffset() ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
 		const chord = eventToChord(e);
 		if (
 			chord &&
-			dispatchKeyCommand(chord, { kind: node.kind, runCommand }, { history }, keybindingOverrides())
+			dispatchKeyCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{ history, pluginEditor, getPresentationMode },
+				keybindingOverrides(),
+				onCommandError
+			)
 		) {
 			e.preventDefault();
 			return;
@@ -286,6 +350,12 @@
 				return codeBackspace();
 			case 'code.delete':
 				return codeDelete();
+			case 'block.moveUp':
+				reorder.nudgeReorderUnit(myPath, -1);
+				return true;
+			case 'block.moveDown':
+				reorder.nudgeReorderUnit(myPath, 1);
+				return true;
 			default:
 				return false;
 		}
@@ -293,7 +363,7 @@
 
 	function codeBackspace(): boolean {
 		if (!el || hasSelectionHelper()) return false;
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = readCaretOffset() ?? 0;
 		// offset===0 is the universal contract; offset===bodyStart catches the
 		// fence-boundary case (Home from the body lands there, and native
 		// Backspace would delete the opener's terminating `\n`).
@@ -309,7 +379,7 @@
 		const text = getDisplayText();
 		if (isBetweenEmptyPair(text, offset)) {
 			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-			blockEdit.updateBlockContent(index, newText + '\n', preEditOffset);
+			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), preEditOffset);
 			pendingCursorOffset = offset - 1;
 			return true;
 		}
@@ -318,7 +388,7 @@
 
 	function codeDelete(): boolean {
 		if (!el || hasSelectionHelper()) return false;
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = readCaretOffset() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// Mirror of codeBackspace's unconditional moveFocus(index - 1), but the
 			// root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -336,36 +406,41 @@
 		if (!el) return false;
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so the undo anchor must read fresh.
-		const offset = getCursorOffsetHelper(el) ?? 0;
+		const offset = readCaretOffset() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
 
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind !== 'none') {
 			if (exit.kind === 'exitWithEdit') {
-				blockEdit.updateBlockContent(index, exit.newText + '\n', offset);
+				blockEdit.updateBlockContent(index, exit.newText + trailingLineEnding(node.raw), offset);
 			}
 			focusActions.moveFocus(index + 1, 'start');
 			return true;
 		}
 
+		// Opener-side mirror of the closer guards above: a `\n` spliced into the
+		// opener line corrupts the fence, so the splice clamps to the body start.
+		// The undo anchor stays on the true pre-edit caret (`offset`).
+		const splice = clampEnterOffsetToBody(node, offset);
+
 		// Electric indent: between an empty bracket pair, expand into three lines
 		// with an extra indent on the middle line. Quote pairs stay inline.
-		if (isBetweenEmptyBracketPair(text, offset)) {
-			const indent = getLineLeadingWhitespace(text, offset);
+		if (isBetweenEmptyBracketPair(text, splice)) {
+			const indent = getLineLeadingWhitespace(text, splice);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
-			const newText = text.slice(0, offset) + '\n' + inner + '\n' + indent + text.slice(offset);
-			blockEdit.updateBlockContent(index, newText + '\n', offset);
-			pendingCursorOffset = offset + 1 + inner.length;
+			const newText = text.slice(0, splice) + '\n' + inner + '\n' + indent + text.slice(splice);
+			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), offset);
+			pendingCursorOffset = splice + 1 + inner.length;
 			return true;
 		}
 
 		const enter = computeCodeEnter({
 			display: text,
-			selection: { start: offset, end: offset },
+			selection: { start: splice, end: splice },
 			mode: 'normal'
 		});
-		blockEdit.updateBlockContent(index, enter.newText + '\n', offset);
+		blockEdit.updateBlockContent(index, enter.newText + trailingLineEnding(node.raw), offset);
 		pendingCursorOffset = enter.newCursor;
 		return true;
 	}
@@ -383,12 +458,16 @@
 		if (!el) return { start: 0, end: 0 };
 		const sel = getSelectionOffsetsHelper(el);
 		if (sel) return sel;
-		const cursor = getCursorOffsetHelper(el) ?? 0;
+		const cursor = readCaretOffset() ?? 0;
 		return { start: cursor, end: cursor };
 	}
 
 	function applyIndentResult(result: IndentResult): void {
-		blockEdit.updateBlockContent(index, result.text + '\n', result.selection.start);
+		blockEdit.updateBlockContent(
+			index,
+			result.text + trailingLineEnding(node.raw),
+			result.selection.start
+		);
 		if (result.selection.start === result.selection.end) {
 			pendingCursorOffset = result.selection.start;
 		} else {
@@ -405,9 +484,11 @@
 		if (!el) return;
 		const text = el.textContent ?? '';
 		const result = dedentLines(text, currentRange());
-		if (result.text === text) return; // no-op: nothing to dedent
+		if (result.text === text) return;
 		applyIndentResult(result);
 	}
+
+	// ── Pointer + clipboard ─────────────────────────────────────────────
 
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
@@ -420,6 +501,12 @@
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
 		e.preventDefault();
+		// Reading mode copies the rendered selection, never the markdown-source
+		// cross-block payload.
+		if (readOnly) {
+			e.clipboardData?.setData('text/plain', getCopyPayload());
+			return;
+		}
 		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 	}
@@ -427,6 +514,12 @@
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+		// Reading mode: cut degrades to copy (the event still fires on a
+		// non-editable surface).
+		if (readOnly) {
+			onCopy(e);
+			return;
+		}
 		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
 		e.clipboardData?.setData('text/plain', getCopyPayload());
 
@@ -435,12 +528,20 @@
 		if (selOffsets) {
 			const display = getDisplayText();
 			const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
-			blockEdit.updateBlockContent(index, newDisplay + '\n', selOffsets.start);
+			blockEdit.updateBlockContent(
+				index,
+				newDisplay + trailingLineEnding(node.raw),
+				selOffsets.start
+			);
 			pendingCursorOffset = selOffsets.start;
 		}
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (readOnly) {
+			e.preventDefault();
+			return;
+		}
 		if (await crossBlock.handlePaste(e)) return;
 
 		stickyColumn.reset();
@@ -474,7 +575,8 @@
 	bind:this={el}
 	tabindex="0"
 	class="code-block"
-	contenteditable="true"
+	contenteditable={readOnly ? 'false' : 'true'}
+	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
 	spellcheck="false"
 	oninput={onInput}

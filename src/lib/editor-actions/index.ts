@@ -11,10 +11,10 @@ import type {
 } from '../action-contracts';
 import type { UndoEntry } from '../undo/types';
 import type { EditorActionsDeps, UndoController } from './deps';
-import { createUndoController } from './undo/undo-controller';
+import { createUndoController } from './commit/undo-controller';
 import { createBlockEditActions } from './block-edit';
-import { createFocusActions } from './focus';
-import { createHistoryActions } from './undo/history';
+import { createFocusActions } from './focus/focus';
+import { createHistoryActions } from './commit/history';
 import { createContainerEditActions } from './container-edit';
 
 export interface EditorActionsBundle {

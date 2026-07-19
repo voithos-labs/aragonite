@@ -33,11 +33,14 @@ export function sliceTableAtRow(
 
 function buildHalf(rows: CstNode[], sourceMeta: TableMetadata): CstNode | null {
 	if (rows.length === 0) return null;
-	const cloned = rows.map((row, idx) => ({
-		...row,
-		metadata: { isHeader: idx === 0 } as TableRowMetadata,
-		children: row.children!.map((cell) => ({ ...cell }))
-	}));
+	const cloned: CstNode[] = rows.map(
+		(row, idx) =>
+			({
+				...row,
+				metadata: { isHeader: idx === 0 } as TableRowMetadata,
+				children: row.children!.map((cell) => ({ ...cell }) as CstNode)
+			}) as CstNode
+	);
 	return {
 		kind: 'table',
 		leadingTrivia: '',

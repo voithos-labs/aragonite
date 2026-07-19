@@ -2,6 +2,7 @@
 // Visual-line geometry and sticky-measure pixel X require real browser layout — covered by e2e.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
 	createRangeFromOffsets,
 	setCursorOffset,
@@ -26,27 +27,31 @@ describe('content-offsets', () => {
 	describe('createRangeFromOffsets', () => {
 		it('builds a range spanning two offsets in plain text', () => {
 			container.textContent = 'hello world';
-			const range = createRangeFromOffsets(container, 6, 11);
+			const range = createRangeFromOffsets(container, asDomTextOffset(6), asDomTextOffset(11));
 			expect(range).not.toBeNull();
 			expect(range!.toString()).toBe('world');
 		});
 
 		it('walks nested element structure and counts characters correctly', () => {
 			container.innerHTML = '<span>foo</span> <em>bar</em>';
-			const range = createRangeFromOffsets(container, 4, 7);
+			const range = createRangeFromOffsets(container, asDomTextOffset(4), asDomTextOffset(7));
 			expect(range!.toString()).toBe('bar');
 		});
 
 		it('clamps offsets beyond content to the end', () => {
 			container.textContent = 'abc';
-			const range = createRangeFromOffsets(container, 100, 200);
+			const range = createRangeFromOffsets(container, asDomTextOffset(100), asDomTextOffset(200));
 			expect(range).not.toBeNull();
 			expect(range!.collapsed).toBe(true);
 		});
 
 		it('clamps end offset beyond content length to end of content', () => {
 			container.textContent = 'hello world';
-			const range = createRangeFromOffsets(container, 6, Number.MAX_SAFE_INTEGER);
+			const range = createRangeFromOffsets(
+				container,
+				asDomTextOffset(6),
+				asDomTextOffset(Number.MAX_SAFE_INTEGER)
+			);
 			expect(range).not.toBeNull();
 			expect(range!.startOffset).toBe(6);
 			expect(range!.collapsed).toBe(false);
@@ -62,10 +67,10 @@ describe('content-offsets', () => {
 				container.textContent = 'hello world';
 				container.focus();
 
-				setCursorOffset(container, 6);
+				setCursorOffset(container, asDomTextOffset(6));
 				expect(getCursorOffset(container)).toBe(6);
 
-				setCursorOffset(container, 0);
+				setCursorOffset(container, asDomTextOffset(0));
 				expect(getCursorOffset(container)).toBe(0);
 			}
 		);
@@ -81,7 +86,7 @@ describe('content-offsets', () => {
 			container.textContent = 'abcdef';
 			container.focus();
 
-			const range = createRangeFromOffsets(container, 2, 5);
+			const range = createRangeFromOffsets(container, asDomTextOffset(2), asDomTextOffset(5));
 			const sel = window.getSelection()!;
 			sel.removeAllRanges();
 			sel.addRange(range!);
@@ -93,7 +98,7 @@ describe('content-offsets', () => {
 		it('returns null for a collapsed selection', () => {
 			container.textContent = 'abc';
 			container.focus();
-			setCursorOffset(container, 1);
+			setCursorOffset(container, asDomTextOffset(1));
 			expect(getSelectionOffsets(container)).toBeNull();
 		});
 	});
@@ -102,7 +107,7 @@ describe('content-offsets', () => {
 		it('returns true when a non-collapsed selection exists', () => {
 			container.textContent = 'abcdef';
 			container.focus();
-			const range = createRangeFromOffsets(container, 1, 4);
+			const range = createRangeFromOffsets(container, asDomTextOffset(1), asDomTextOffset(4));
 			window.getSelection()!.removeAllRanges();
 			window.getSelection()!.addRange(range!);
 			expect(hasSelection()).toBe(true);
@@ -111,7 +116,7 @@ describe('content-offsets', () => {
 		it('returns false when the selection is collapsed', () => {
 			container.textContent = 'abc';
 			container.focus();
-			setCursorOffset(container, 1);
+			setCursorOffset(container, asDomTextOffset(1));
 			expect(hasSelection()).toBe(false);
 		});
 	});

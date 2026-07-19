@@ -49,6 +49,10 @@ export function compileMatcher(query: string, opts: MatcherOptions): CompileResu
 		matcher: {
 			findAll(text) {
 				const hay = opts.caseSensitive ? text : text.toLowerCase();
+				// Case folding is not length-preserving ('İ' → 2 code units), so a
+				// folded haystack's indices can drift off the original string. Match
+				// with a case-insensitive regex over the original instead.
+				if (hay.length !== text.length) return foldSafeFindAll(text, query, opts.wholeWord);
 				const out: RawRange[] = [];
 				let from = 0;
 				let at: number;
@@ -63,4 +67,15 @@ export function compileMatcher(query: string, opts: MatcherOptions): CompileResu
 			}
 		}
 	};
+}
+
+function foldSafeFindAll(text: string, query: string, wholeWord: boolean): RawRange[] {
+	const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const re = new RegExp(wholeWord ? `\\b(?:${escaped})\\b` : escaped, 'gi');
+	const out: RawRange[] = [];
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text)) !== null) {
+		out.push({ start: m.index, end: m.index + m[0].length });
+	}
+	return out;
 }

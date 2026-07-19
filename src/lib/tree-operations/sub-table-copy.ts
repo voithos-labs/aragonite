@@ -1,4 +1,5 @@
-import type { CstNode, TableAlignment } from '../core/nodes';
+import type { TableAlignment } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 
 export interface CellPos {
@@ -6,7 +7,7 @@ export interface CellPos {
 	colIdx: number;
 }
 
-export function copyRectangleAsSubTable(table: CstNode, a: CellPos, b: CellPos): string {
+export function copyRectangleAsSubTable(table: NodeView, a: CellPos, b: CellPos): string {
 	const minRow = Math.min(a.rowIdx, b.rowIdx);
 	const maxRow = Math.max(a.rowIdx, b.rowIdx);
 	const minCol = Math.min(a.colIdx, b.colIdx);

@@ -1,9 +1,79 @@
 {
 	"name": "aragonite",
-	"version": "0.9.1",
+	"version": "0.9.30",
 	"description": "CST block editor for GFM Markdown",
 	"type": "module",
 	"license": "MIT",
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./plugin": {
+			"types": "./dist/plugin.d.ts",
+			"svelte": "./dist/plugin.js",
+			"default": "./dist/plugin.js"
+		},
+		"./plugins/admonitions": {
+			"types": "./dist/plugins/admonitions/index.d.ts",
+			"svelte": "./dist/plugins/admonitions/index.js",
+			"default": "./dist/plugins/admonitions/index.js"
+		},
+		"./plugins/details": {
+			"types": "./dist/plugins/details/index.d.ts",
+			"svelte": "./dist/plugins/details/index.js",
+			"default": "./dist/plugins/details/index.js"
+		},
+		"./plugins/latex": {
+			"types": "./dist/plugins/latex/index.d.ts",
+			"svelte": "./dist/plugins/latex/index.js",
+			"default": "./dist/plugins/latex/index.js"
+		},
+		"./plugins/latex/renderer": {
+			"types": "./dist/plugins/latex/renderer.d.ts",
+			"svelte": "./dist/plugins/latex/renderer.js",
+			"default": "./dist/plugins/latex/renderer.js"
+		},
+		"./plugins/mermaid": {
+			"types": "./dist/plugins/mermaid/index.d.ts",
+			"svelte": "./dist/plugins/mermaid/index.js",
+			"default": "./dist/plugins/mermaid/index.js"
+		},
+		"./plugins/mermaid/renderer": {
+			"types": "./dist/plugins/mermaid/renderer.d.ts",
+			"svelte": "./dist/plugins/mermaid/renderer.js",
+			"default": "./dist/plugins/mermaid/renderer.js"
+		},
+		"./plugins/toc": {
+			"types": "./dist/plugins/toc/index.d.ts",
+			"svelte": "./dist/plugins/toc/index.js",
+			"default": "./dist/plugins/toc/index.js"
+		},
+		"./plugins/highlight-occurrences": {
+			"types": "./dist/plugins/highlight-occurrences/index.d.ts",
+			"svelte": "./dist/plugins/highlight-occurrences/index.js",
+			"default": "./dist/plugins/highlight-occurrences/index.js"
+		},
+		"./testing": {
+			"types": "./dist/testing.d.ts",
+			"svelte": "./dist/testing.js",
+			"default": "./dist/testing.js"
+		},
+		"./styles/editor-theme.css": "./dist/styles/editor-theme.css"
+	},
+	"files": [
+		"dist"
+	],
+	"sideEffects": [
+		"**/*.css",
+		"./dist/components/built-in-blocks.js",
+		"./dist/core/parsers/built-in-openers.js",
+		"./dist/schema/built-in-descriptors.js",
+		"./dist/plugins/latex/renderer.js"
+	],
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -11,25 +81,32 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "npm run test:editor && npm run test:e2e",
-		"test:editor": "vitest run --passWithNoTests",
-		"test:editor:core": "vitest run src/lib/test/core --passWithNoTests",
-		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations --passWithNoTests",
-		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions --passWithNoTests",
-		"test:editor:ambient": "vitest run src/lib/test/ambient --passWithNoTests",
-		"test:editor:cursor": "vitest run src/lib/test/cursor --passWithNoTests",
-		"test:editor:schema": "vitest run src/lib/test/schema --passWithNoTests",
-		"test:editor:reactivity": "vitest run src/lib/test/reactivity --passWithNoTests",
-		"test:editor:selection": "vitest run src/lib/test/selection --passWithNoTests",
-		"test:editor:blocks": "vitest run src/lib/test/blocks --passWithNoTests",
-		"test:editor:image": "vitest run src/lib/test/image --passWithNoTests",
-		"test:editor:undo": "vitest run src/lib/test/undo --passWithNoTests",
-		"test:editor:debug": "vitest run src/lib/test/debug --passWithNoTests",
-		"test:editor:invariants": "vitest run src/lib/test/invariants --passWithNoTests",
-		"test:editor:search": "vitest run src/lib/test/search --passWithNoTests",
-		"test:editor:perf": "vitest run src/lib/test/perf --passWithNoTests",
+		"test:editor": "vitest run",
+		"test:editor:conformance": "vitest run src/lib/test/gfm-conformance",
+		"test:editor:core": "vitest run src/lib/test/core",
+		"test:editor:decorations": "vitest run src/lib/test/decorations",
+		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations",
+		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions",
+		"test:editor:ambient": "vitest run src/lib/test/ambient",
+		"test:editor:cursor": "vitest run src/lib/test/cursor",
+		"test:editor:schema": "vitest run src/lib/test/schema",
+		"test:editor:reactivity": "vitest run src/lib/test/reactivity",
+		"test:editor:selection": "vitest run src/lib/test/selection",
+		"test:editor:blocks": "vitest run src/lib/test/blocks",
+		"test:editor:image": "vitest run src/lib/test/image",
+		"test:editor:plugins": "vitest run src/lib/test/plugins",
+		"test:editor:simulation": "vitest run src/lib/test/simulation",
+		"test:editor:undo": "vitest run src/lib/test/undo",
+		"test:editor:debug": "vitest run src/lib/test/debug",
+		"test:editor:invariants": "vitest run src/lib/test/invariants",
+		"test:editor:search": "vitest run src/lib/test/search",
+		"test:editor:perf": "vitest run src/lib/test/perf",
 		"test:e2e": "playwright test",
 		"test:e2e:top": "playwright test --project=e2e-top",
 		"test:e2e:blocks": "playwright test --project=e2e-blocks",
+		"test:e2e:decorations": "playwright test --project=e2e-decorations",
+		"test:e2e:plugins": "playwright test --project=e2e-plugins",
+		"test:e2e:presentation": "playwright test --project=e2e-presentation",
 		"test:e2e:blocks:list": "playwright test --project=e2e-blocks blocks/list",
 		"test:e2e:blocks:code": "playwright test --project=e2e-blocks blocks/code",
 		"test:e2e:blocks:table": "playwright test --project=e2e-blocks blocks/table",
@@ -43,27 +120,61 @@
 		"test:e2e:a11y": "playwright test --project=e2e-a11y",
 		"test:e2e:search": "playwright test --project=e2e-search",
 		"test:e2e:vr": "playwright test --project=e2e-vr",
+		"perf:editor": "vitest bench --run src/lib/test/perf",
+		"perf:e2e": "node scripts/run-with-env.mjs PERF=1 -- playwright test --project=e2e-perf",
+		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 -- playwright test --project=e2e-perf",
+		"perf:check:prod": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 PERF_PROD=1 -- playwright test --project=e2e-perf-prod",
+		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/gfm-conformance/full-sweep.test.ts",
+		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run src/lib/test/gfm-conformance/kind-differential.property.test.ts src/lib/test/invariants/inline-total-coverage.property.test.ts src/lib/test/invariants/inline-offsets.property.test.ts src/lib/test/invariants/round-trip.property.test.ts src/lib/test/invariants/textcontent-spine.property.test.ts src/lib/test/invariants/serialization-purity.property.test.ts src/lib/test/invariants/selection-partition.property.test.ts src/lib/test/core/directive/roundtrip-coverage.test.ts src/lib/test/undo/undo-restoration.property.test.ts src/lib/test/plugins/mermaid/round-trip.property.test.ts",
 		"format": "prettier --write .",
-		"lint": "prettier --check ."
+		"lint": "prettier --check . && npm run docs:pack:check && npm run lint:eslint",
+		"lint:eslint": "eslint .",
+		"docs:pack:check": "node scripts/build-docs-pack.mjs",
+		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
+		"prepack": "npm run package"
 	},
 	"dependencies": {
-		"highlight.js": "^11.11.1",
+		"highlight.js": "^11.11.1"
+	},
+	"peerDependencies": {
+		"katex": "^0.17.0",
+		"mermaid": "^11.16.0",
 		"svelte": "^5.0.0"
+	},
+	"peerDependenciesMeta": {
+		"katex": {
+			"optional": true
+		},
+		"mermaid": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.3",
+		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-static": "^3.0.0",
 		"@sveltejs/kit": "^2.55.0",
+		"@sveltejs/package": "^2.5.8",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"@types/commonmark": "^0.27.10",
 		"@types/node": "^22.19.20",
 		"@vitest/browser": "^4.1.4",
+		"commonmark": "0.31.2",
+		"eslint": "^10.7.0",
+		"eslint-plugin-svelte": "^3.20.0",
 		"fast-check": "^4.8.0",
+		"globals": "^17.7.0",
 		"jsdom": "^29.0.2",
+		"katex": "^0.17.0",
+		"mermaid": "^11.16.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
+		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
+		"svelte-eslint-parser": "^1.8.0",
 		"typescript": "~5.6.2",
+		"typescript-eslint": "^8.64.0",
 		"vite": "^6.0.3",
 		"vitest": "^4.1.0"
 	}

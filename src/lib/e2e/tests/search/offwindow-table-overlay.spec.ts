@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
@@ -100,12 +101,11 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 		ed.scrollTop = ed.scrollHeight;
 	});
 	await editor.waitForRenderFlush();
-	await page.waitForTimeout(150);
 
-	expect(await row180Mounted(page)).toBe(true); // the deep row mounted
-	const res = await deepNeedleCovered(page);
-	expect(res.found).toBe(true); // a needle cell is visible in the viewport
-	expect(res.covered).toBe(true); // and its match highlight repainted over it
+	// Poll the scroll-in outcome directly: the deep row mounts, then a needle cell
+	// is visible with its match highlight repainted over it.
+	await expect.poll(() => row180Mounted(page)).toBe(true);
+	await expect.poll(() => deepNeedleCovered(page)).toEqual({ found: true, covered: true });
 	expect(pageErrors).toEqual([]);
 });
 
@@ -168,11 +168,10 @@ test('a cross-block selection repaints over a deep off-window table row after sc
 		ed.scrollTop = ed.scrollHeight;
 	});
 	await editor.waitForRenderFlush();
-	await page.waitForTimeout(150);
 
-	expect(await row180Mounted(page)).toBe(true);
-	const res = await visibleCellCovered(page);
-	expect(res.found).toBe(true); // a deep cell is visible
-	expect(res.covered).toBe(true); // and the selection highlight repainted over it
+	// Poll the scroll-in outcome directly: the deep row mounts, then a visible cell
+	// carries the repainted selection highlight.
+	await expect.poll(() => row180Mounted(page)).toBe(true);
+	await expect.poll(() => visibleCellCovered(page)).toEqual({ found: true, covered: true });
 	expect(pageErrors).toEqual([]);
 });

@@ -69,7 +69,6 @@ export async function handleSharedKeydown(
 	const el = ctx.getEl();
 	if (!el) return false;
 
-	// ── Sticky column: capture on vertical arrows, reset on non-preserve keys ──
 	// Alt+Arrow is the block-reorder chord, not caret nav — leave the sticky
 	// column untouched and let it fall through to dispatchKeyCommand.
 	const stickyAction = classifyStickyKey(e.key);
@@ -80,7 +79,8 @@ export async function handleSharedKeydown(
 		ctx.stickyColumn.reset();
 	}
 
-	// The editor owns undo/redo: native contenteditable history stays suppressed
+	// The editor owns every editor-global chord — undo/redo and plugin-global
+	// commands alike: native contenteditable history stays suppressed
 	// (preventDefault on keydown — Ctrl+Y doesn't fire beforeinput historyRedo in
 	// Chromium/WebView2, so keydown is the reliable layer). Precise chord matching
 	// (not a loose key check, which also caught Ctrl+Alt+Y) then defers the command
@@ -114,7 +114,7 @@ export async function handleSharedKeydown(
 			}
 			if (!e.shiftKey && !e.altKey) {
 				e.preventDefault();
-				ctx.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+				void ctx.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 				return true;
 			}
 		}
@@ -134,7 +134,7 @@ export async function handleSharedKeydown(
 			}
 			if (!e.shiftKey && !e.altKey) {
 				e.preventDefault();
-				ctx.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+				void ctx.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
 				return true;
 			}
 		}
@@ -156,7 +156,7 @@ export async function handleSharedKeydown(
 				return true;
 			}
 			e.preventDefault();
-			ctx.focus.moveFocus(index - 1, 'end');
+			void ctx.focus.moveFocus(index - 1, 'end');
 			return true;
 		}
 	}
@@ -172,7 +172,7 @@ export async function handleSharedKeydown(
 				return true;
 			}
 			e.preventDefault();
-			ctx.focus.moveFocus(index + 1, 'start');
+			void ctx.focus.moveFocus(index + 1, 'start');
 			return true;
 		}
 	}
@@ -193,12 +193,12 @@ export async function handleSharedBeforeInput(
 ): Promise<boolean> {
 	if (e.inputType === 'historyUndo') {
 		e.preventDefault();
-		ctx.history.requestUndo();
+		void ctx.history.requestUndo();
 		return true;
 	}
 	if (e.inputType === 'historyRedo') {
 		e.preventDefault();
-		ctx.history.requestRedo();
+		void ctx.history.requestRedo();
 		return true;
 	}
 	if (await ctx.crossBlock.handleBeforeInput(e)) return true;

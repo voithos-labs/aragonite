@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { describe, it, expect } from 'vitest';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
@@ -10,15 +10,12 @@ import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
-	makeEditorActionsDeps
+	makeEditorActionsDeps,
+	makeNode
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
-
-// ── B2: top-level replaceBlock preserves id ──────────────────────────────────
+// ── Top-level replaceBlock preserves id ──────────────────────────────────────
 
 describe('top-level replaceBlock id preservation', () => {
 	it('first replacement inherits the original block id (single replacement)', async () => {
@@ -86,7 +83,7 @@ describe('top-level replaceBlock id preservation', () => {
 	});
 });
 
-// ── B3 + B10: nested replaceBlock id preservation + ensureEditableContainers ─
+// ── Nested replaceBlock id preservation + ensureEditableContainers ───────────
 
 function makeNestedSetup() {
 	const innerPara = makeNode('paragraph', 'hello\n');
@@ -147,7 +144,7 @@ describe('nested replaceBlock id preservation', () => {
 	});
 });
 
-describe('nested replaceBlock ensureEditableContainers (B10)', () => {
+describe('nested replaceBlock ensureEditableContainers', () => {
 	it('synthesized empty list/listItem replacement gets a child paragraph cursor target', async () => {
 		const { bundle, deps } = makeNestedSetup();
 
@@ -164,7 +161,7 @@ describe('nested replaceBlock ensureEditableContainers (B10)', () => {
 					kind: 'listItem',
 					leadingTrivia: '',
 					raw: '',
-					metadata: { marker: '- ', taskItem: false, taskChecked: false },
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 					innerPrefix: '',
 					children: [],
 					innerSuffix: ''
@@ -184,7 +181,7 @@ describe('nested replaceBlock ensureEditableContainers (B10)', () => {
 	});
 });
 
-// ── C3: list-overrides replaceBlock preserves the surviving item's id ────────
+// ── List-overrides replaceBlock preserves the surviving item's id ────────────
 
 // The surviving first item must keep its id so Svelte's keyed {#each} preserves
 // the component (IME / pending input) instead of destroy+recreate.

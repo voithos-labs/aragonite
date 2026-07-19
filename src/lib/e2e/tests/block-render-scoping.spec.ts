@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
 // The block render path subscribes to the document-level LRD resolver. The

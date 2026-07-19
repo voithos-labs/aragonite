@@ -13,3 +13,7 @@ Same serialized source (`"one\n\ntwo\n"`), same rendered result (three DOM block
 
 - Multiple blank lines on clipboard: each `\n` in leadingTrivia materializes one additional empty paragraph.
 - Pasted content with non-blank-separated adjacent blocks (trivia empty): retains existing block-separation behavior (no extra empty paragraphs inserted).
+
+## Caret placement
+
+- Pasting multi-block content into the MIDDLE of a non-empty paragraph lands the caret at the end of the PASTED content, not the trailing residue that sat after the caret. Typing immediately after the paste appends to the pasted content (end-of-block pastes, which have no residue, are unchanged).

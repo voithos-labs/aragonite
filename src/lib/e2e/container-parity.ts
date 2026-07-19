@@ -13,10 +13,15 @@
  * on the editor harness, not on the doc node). The walker starts from each
  * top-level CST node and descends from there.
  *
- * Returns mismatches instead of asserting so the test file owns the diff —
- * Playwright's assertion output is more useful when the expectation lives in
- * the test, and composing with other checks (pageerror, console filters)
- * stays in the test's hands.
+ * `childIds` is minted lazily when a container's keyed BlockList mounts
+ * (`createBlockListState`), so a windowed-out / never-mounted container carries
+ * `childIds === undefined` — not a desync, and unable to render the keyed each
+ * that would throw `each_key_duplicate`. The walk skips those and flags only a
+ * DEFINED-but-mismatched `childIds` (the mounted-container drift class).
+ *
+ * Returns mismatches instead of asserting so the spec owns the diff: Playwright's
+ * assertion output reads better when the expectation lives in the test, and
+ * composing with other checks (pageerror, console filters) stays in its hands.
  *
  * Use after any structural mutation on a keyed container (M1 merge, list
  * indent/unindent, table row/column ops) to gate the invariant in tests.
@@ -35,14 +40,27 @@ export async function getContainerParityMismatches(page: Page): Promise<ParityMi
 		const mismatches: ParityMismatch[] = [];
 		const walk = (n: { kind?: string; children?: unknown[]; childIds?: unknown[] }) => {
 			if (!n.children) return;
-			const children = n.children.length;
-			const ids = n.childIds?.length ?? 0;
-			if (children !== ids) mismatches.push({ kind: n.kind ?? '?', children, ids });
+			// An unmounted container has no minted childIds yet — not a desync, and it
+			// renders no keyed each to break. Only a defined-but-mismatched array is.
+			if (n.childIds !== undefined && n.children.length !== n.childIds.length) {
+				mismatches.push({
+					kind: n.kind ?? '?',
+					children: n.children.length,
+					ids: n.childIds.length
+				});
+			}
 			for (const c of n.children) walk(c as Parameters<typeof walk>[0]);
 		};
-		const doc = (
-			window as { __test?: { getDocument?: () => { children?: unknown[] } } }
-		).__test?.getDocument?.();
+		const test = (window as { __test?: { getDocument?: () => { children?: unknown[] } } }).__test;
+		// A missing bridge means the walk would visit nothing and report `[]` — a
+		// vacuous green that hides the desync class this probe exists to catch.
+		// Callers that may run on a bridge-less route gate on presence BEFORE calling.
+		if (typeof test?.getDocument !== 'function') {
+			throw new Error(
+				'container-parity: __test.getDocument is unavailable; the parity walk cannot run and must not report vacuous success'
+			);
+		}
+		const doc = test.getDocument();
 		for (const top of doc?.children ?? []) walk(top as Parameters<typeof walk>[0]);
 		return mismatches;
 	});

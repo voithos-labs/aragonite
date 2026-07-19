@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 const TABLE_1COL = '| H |\n| :- |\n| Left |\n';
@@ -15,7 +15,6 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 		await editor.loadContent(TABLE_1COL);
 		// Focus the data cell (header is nth(0), data is nth(1) for a 1-column table).
 		await page.locator('[role="cell"]').nth(1).click();
-		// Move caret to end of "Left" before pressing Shift+Enter.
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+Enter');
 		await editor.typeText('Right');

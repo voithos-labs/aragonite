@@ -21,3 +21,10 @@ The worked examples above are the ground truth for the expected reshuffling; see
 ### Ordered list numbering on M1
 
 - Deleting an item via M1 renumbers subsequent items
+
+## Opaque previous leaf — fall back to move-focus (no merge)
+
+When the previous item's deepest leaf is opaque (not a text-bearing paragraph — a fenced code block, or a collapsed container's chrome), M1 finds no merge target. The gesture makes no structural change and never crashes or dead-keys: the tree is left intact and the caret moves to the end of the previous item's deepest leaf.
+
+- Backspace at start of `text` where the previous item is a fenced code block (` - ```…``` ` then `- text`): no merge, both items survive, caret lands at the end of the previous item's fenced code block.
+- Backspace at start of `text` where the previous item's last child is a collapsed container (a collapsed `<details>`): no merge, both items survive, caret lands at the end of the collapsed container's summary (its body stays unmounted). Covered at the unit level by `src/lib/test/tree-operations/merge-list-item.test.ts` (the M1 no-target null) and `src/lib/test/schema/merge-rules-collapse.test.ts` (the walker stopping at the collapsed chrome rather than descending into the unmounted body).

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
@@ -81,8 +81,12 @@ function makeHandlers(
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },
+		pluginEditor: undefined,
+		getPresentationMode: () => 'source' as const,
+		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller),
+		grammar: undefined,
 		getCursorOffset,
 		afterReactivity: async () => {},
 		setPendingCursor: () => {}

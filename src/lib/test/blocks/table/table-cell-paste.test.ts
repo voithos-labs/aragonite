@@ -1,13 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '../../../core/nodes';
 import {
+	escapeCellCommit,
 	escapeUnescapedPipes,
 	normalizeWhitespace,
 	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
+import { rebuildTableRowRaw } from '../../../schema/container-rebuilders';
+import { splitRowCells } from '../../../core/parsers/table';
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
+}
+
+function makeRow(cellRaws: string[]): CstNode {
+	return {
+		kind: 'tableRow',
+		leadingTrivia: '',
+		raw: '',
+		metadata: { isHeader: false },
+		children: cellRaws.map(makeCell)
+	};
 }
 
 describe('escapeUnescapedPipes', () => {
@@ -51,6 +64,31 @@ describe('normalizeWhitespace', () => {
 
 	it('preserves internal single spaces', () => {
 		expect(normalizeWhitespace('a b c')).toBe('a b c');
+	});
+});
+
+describe('escapeCellCommit — typed pipe survives rebuild + reparse', () => {
+	it('escapes a typed pipe and shifts the caret past the inserted backslash', () => {
+		// Cell was "ab"; the user typed "|" between a and b, DOM caret at 2.
+		const committed = escapeCellCommit('a|b', 2);
+		expect(committed.text).toBe('a\\|b');
+		expect(committed.caret).toBe(3);
+	});
+
+	it('leaves pipe-free input and its caret untouched', () => {
+		expect(escapeCellCommit('hello', 2)).toEqual({ text: 'hello', caret: 2 });
+	});
+
+	it('escaped cell keeps the row column count on reparse (U7 — no cell drop)', () => {
+		// Without escaping, a cell of "a|b" makes the row raw "| a|b | y |", which
+		// reparses to three cells — a 2-col table then truncates, dropping "y".
+		expect(splitRowCells('| a|b | y |\n')).toEqual(['a', 'b', 'y']);
+
+		const { text } = escapeCellCommit('a|b', 2);
+		const row = makeRow([text, 'y']);
+		rebuildTableRowRaw(row);
+		expect(row.raw).toBe('| a\\|b | y |\n');
+		expect(splitRowCells(row.raw)).toEqual(['a\\|b', 'y']);
 	});
 });
 

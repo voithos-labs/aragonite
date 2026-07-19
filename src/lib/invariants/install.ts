@@ -4,15 +4,18 @@
  * pure and unaware of the channel.
  */
 
-import type { CstNode } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
+import type { DocPath } from '../selection/path-math';
 import { assertInvariant } from './assert';
+import { checkCommitPathAddressable } from './commit-paths';
+import { flushPendingRegistrationChecks } from '../schema/registration-checks';
 import {
-	checkRegistryCompleteness,
-	checkIsContainerIffRebuildRaw,
-	checkOpenerRegistry,
-	checkKeymapCoherence
-} from './registry';
-import { checkStaleRaw, checkCategoryFields } from './node-shape';
+	checkStaleRaw,
+	checkOpaqueStaleRaw,
+	checkOpaqueRebuildDeterminism,
+	checkReservedChromeSlot,
+	checkCategoryFields
+} from './node-shape';
 import { checkContentRange } from './descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
@@ -25,8 +28,33 @@ import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity
 export function assertCommittedNodes(nodes: CstNode[]): void {
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node));
+		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node));
+		assertInvariant('opaque-rebuild-determinism', () => checkOpaqueRebuildDeterminism(node));
+		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
+	}
+}
+
+/**
+ * Pre-mutate commit-seam check: both declared commit coordinates must be
+ * doc-absolute (see invariants/commit-paths.ts). Null skips a coordinate the
+ * commit doesn't carry ('skip' snapshot, op-less commit).
+ */
+export function assertCommitPaths(
+	doc: Document,
+	snapshotPath: DocPath | null,
+	eventPath: DocPath | null
+): void {
+	if (snapshotPath) {
+		assertInvariant('commit-path-dialect', () =>
+			checkCommitPathAddressable(doc, snapshotPath, 'snapshot.path')
+		);
+	}
+	if (eventPath) {
+		assertInvariant('commit-path-dialect', () =>
+			checkCommitPathAddressable(doc, eventPath, 'eventPath')
+		);
 	}
 }
 
@@ -34,21 +62,18 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
  * G1.9 per-commit seam: the freshest undo entry is the one the commit's
  * mutations could have corrupted, so its digest is re-verified after each
  * commit (one digest over top-level rows). Deeper entries stay covered by
- * the restore-time check in editor-actions/undo/history.ts.
+ * the restore-time check in editor-actions/commit/history.ts.
  */
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
 	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
 }
 
-let didStartupCheck = false;
-
-/** Registry-wide checks, run once after built-in registration. */
+/**
+ * Registry-wide checks at the mount seam. The registration-check flush owns
+ * the once-latch: the first flush sweeps the whole world; later mounts
+ * validate only registrations that arrived since the previous flush.
+ */
 export function runStartupInvariantChecks(): void {
-	if (didStartupCheck) return;
-	didStartupCheck = true;
-	assertInvariant('registry-completeness', checkRegistryCompleteness);
-	assertInvariant('container-rebuild-pairing', checkIsContainerIffRebuildRaw);
-	assertInvariant('opener-registry', checkOpenerRegistry);
-	assertInvariant('keymap-coherence', checkKeymapCoherence);
+	flushPendingRegistrationChecks();
 }

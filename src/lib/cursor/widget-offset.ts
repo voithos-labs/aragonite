@@ -1,13 +1,21 @@
 /**
- * DOM Range ↔ raw-content offset translation for atomic inline widgets.
+ * DOM Range ↔ walk-space offset translation for atomic inline widgets.
  * Widgets contribute their raw bytes via data-source-start / data-source-end
  * without contributing to textContent; the walker accumulates text-node
- * lengths plus widget raw lengths. `ambient/` adds the marker prefix on top.
+ * lengths — including a leading ambient marker span's text — plus widget raw
+ * lengths. Walk positions are therefore `DomTextOffset` (raw + ambient prefix);
+ * `ambient/ambient-cursor.ts` owns the ± ambientLength translation to raw.
  */
+
+import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
-export function rawOffsetAtNode(container: HTMLElement, node: Node, offset: number): number {
+export function domTextOffsetAtNode(
+	container: HTMLElement,
+	node: Node,
+	offset: number
+): DomTextOffset {
 	let count = 0;
 	let stopped = false;
 
@@ -43,7 +51,7 @@ export function rawOffsetAtNode(container: HTMLElement, node: Node, offset: numb
 	}
 
 	visit(container);
-	return count;
+	return asDomTextOffset(count);
 }
 
 export interface DomPosition {
@@ -52,11 +60,16 @@ export interface DomPosition {
 }
 
 /**
- * DOM-layer lookup: maps a raw offset to a live `(node, offset)` DOM position.
- * The model-layer counterpart is `core/inline-render.ts` `findNodeAtOffset`,
- * which maps the same offset to a CST inline node without touching the DOM.
+ * DOM-layer lookup: maps a walk-space offset to a live `(node, offset)` DOM
+ * position. The model-layer counterpart is `core/inline-render.ts`
+ * `findNodeAtOffset`, which maps the same offset to a CST inline node without
+ * touching the DOM. Accepts a detached fragment (island application walks
+ * builds in progress) with the same arithmetic as a live block element.
  */
-export function findRawOffsetTarget(container: HTMLElement, target: number): DomPosition | null {
+export function findDomTextOffsetTarget(
+	container: ParentNode,
+	target: DomTextOffset
+): DomPosition | null {
 	let count = 0;
 	let last: DomPosition | null = null;
 
@@ -104,26 +117,30 @@ export function findRawOffsetTarget(container: HTMLElement, target: number): Dom
 		return null;
 	}
 
-	const found = visit(container);
-	if (found) return found;
+	// Iterate children rather than visiting `container` itself: a fragment root
+	// matches neither node-type branch, and the container is never a widget.
+	for (const child of container.childNodes) {
+		const found = visit(child);
+		if (found) return found;
+	}
 	return last;
 }
 
 /**
  * Atomic inline widgets in `container` whose raw source range intersects
  * [start, end). A widget contributes 0 chars to textContent, so a range lying
- * entirely inside one collapses to zero width via `createRangeAtRawOffsets` and
- * yields no client rect; callers that must cover the widget (search highlight,
- * cross-block selection) take its bounding box instead. Offsets are the same
- * ambient-included raw positions `findRawOffsetTarget` walks — text-node lengths
- * (including marker-span text) plus widget raw lengths — so a widget's position
- * is the running walk offset, not a naive compare of `data-source-*` against the
- * ambient-adjusted argument.
+ * entirely inside one collapses to zero width via `createRangeAtDomTextOffsets`
+ * and yields no client rect; callers that must cover the widget (search
+ * highlight, cross-block selection) take its bounding box instead. Offsets are
+ * the same walk-space positions `findDomTextOffsetTarget` walks — text-node
+ * lengths (including marker-span text) plus widget raw lengths — so a widget's
+ * position is the running walk offset, not a naive compare of `data-source-*`
+ * against the ambient-adjusted argument.
  */
 export function widgetsIntersectingRange(
 	container: HTMLElement,
-	start: number,
-	end: number
+	start: DomTextOffset,
+	end: DomTextOffset
 ): HTMLElement[] {
 	const out: HTMLElement[] = [];
 	let count = 0;
@@ -151,7 +168,8 @@ export function widgetsIntersectingRange(
 	return out;
 }
 
-export function containerRawLength(container: HTMLElement): number {
+/** Total walk length of `container` — its one-past-end walk position. */
+export function containerDomTextLength(container: ParentNode): DomTextOffset {
 	let count = 0;
 	function visit(node: Node): void {
 		if (node.nodeType === Node.TEXT_NODE) {
@@ -167,8 +185,43 @@ export function containerRawLength(container: HTMLElement): number {
 			for (const child of node.childNodes) visit(child);
 		}
 	}
-	visit(container);
-	return count;
+	for (const child of container.childNodes) visit(child);
+	return asDomTextOffset(count);
+}
+
+/**
+ * Walk-space span of the atomic widget strictly containing `offset`, or null
+ * when the offset sits in text or exactly on a widget boundary. Island
+ * application snaps replace boundaries outward with this — a text-position
+ * range cannot split an atomic widget.
+ */
+export function widgetSpanContainingOffset(
+	container: ParentNode,
+	offset: DomTextOffset
+): { start: DomTextOffset; end: DomTextOffset } | null {
+	let count = 0;
+	let found: { start: DomTextOffset; end: DomTextOffset } | null = null;
+	function visit(node: Node): void {
+		if (found || count > offset) return;
+		if (node.nodeType === Node.TEXT_NODE) {
+			count += node.textContent?.length ?? 0;
+			return;
+		}
+		if (node.nodeType === Node.ELEMENT_NODE) {
+			const el = node as Element;
+			if (el.matches?.(WIDGET_SELECTOR)) {
+				const len = widgetRawLength(el);
+				if (len > 0 && count < offset && offset < count + len) {
+					found = { start: asDomTextOffset(count), end: asDomTextOffset(count + len) };
+				}
+				count += len;
+				return;
+			}
+			for (const child of node.childNodes) visit(child);
+		}
+	}
+	for (const child of container.childNodes) visit(child);
+	return found;
 }
 
 /** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
@@ -184,16 +237,26 @@ export function rawTextOfNode(domNode: Node, raw: string): string {
 		for (const child of Array.from(el.childNodes)) out += rawTextOfNode(child, raw);
 		return out;
 	}
+	if (domNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+		let out = '';
+		for (const child of Array.from(domNode.childNodes)) out += rawTextOfNode(child, raw);
+		return out;
+	}
 	return '';
 }
 
-export function createRangeAtRawOffsets(
-	container: HTMLElement,
-	start: number,
-	end: number
+export function createRangeAtDomTextOffsets(
+	container: ParentNode,
+	start: DomTextOffset,
+	end: DomTextOffset
 ): Range | null {
 	const range = document.createRange();
-	const startPos = findRawOffsetTarget(container, start);
+	// A detached fragment has no parent for setEndAfter; end inside it instead.
+	const setEndAtContainerEnd = () => {
+		if (container instanceof Element) range.setEndAfter(container);
+		else range.setEnd(container, container.childNodes.length);
+	};
+	const startPos = findDomTextOffsetTarget(container, start);
 	if (!startPos) {
 		range.selectNodeContents(container);
 		range.collapse(false);
@@ -208,15 +271,15 @@ export function createRangeAtRawOffsets(
 		range.collapse(true);
 		return range;
 	}
-	const endPos = findRawOffsetTarget(container, end);
+	const endPos = findDomTextOffsetTarget(container, end);
 	if (endPos) {
 		try {
 			range.setEnd(endPos.node, endPos.offset);
 		} catch {
-			range.setEndAfter(container);
+			setEndAtContainerEnd();
 		}
 	} else {
-		range.setEndAfter(container);
+		setEndAtContainerEnd();
 	}
 	return range;
 }

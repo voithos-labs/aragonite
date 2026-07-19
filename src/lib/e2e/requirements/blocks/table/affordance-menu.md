@@ -14,6 +14,7 @@ action items dispatch the committed table mutations.
 - Column grip → "Delete column" removes the grip's column when at least two columns remain.
 - The column menu lists the column actions (insert left/right, move left/right, delete) plus an alignment control reflecting the column's current alignment.
 - Column grip → alignment control: clicking a segment (L/C/R) sets the targeted (non-first) column's alignment and closes the menu, leaving the other columns plain — Center serializes that column's delimiter to `:---:`, Right to `---:`.
+- Alignment via the keyboard-opened cell menu (focus a cell → Shift+F10 → arrow through the menu's roving focus to an L/C/R segment → Enter) closes the menu, restores keyboard focus to a cell in that column instead of dropping it to `<body>`, and announces "Column aligned left/center/right" in the live region (a11y).
 - Hovering the table reveals one row grip per row (header + body rows; the delimiter line is not a row); clicking a grip opens the menu for that row.
 - Row grip → "Delete row" removes that body row.
 - Row grip → "Insert row below"/"Insert row above" adds a body row after/before the grip's row.
@@ -25,6 +26,7 @@ action items dispatch the committed table mutations.
 - Right-click → "Delete column" removes the clicked cell's column (routed by the clicked colIdx, independent of any row action).
 - Right-click → "Delete row" removes the clicked cell's row (routed by the clicked rowIdx, independent of any column action).
 - Right-clicking outside the table (e.g. a paragraph) does not open the affordance menu — the contextmenu handler is scoped to the table grid, and only suppresses the native menu when the pointer is over a cell.
+- Right-clicking a cell inside an active intra-table rectangle selection opens the menu WITHOUT collapsing the rectangle — the pointerdown clear + drag-install are skipped for the secondary button, so the menu's Cut/Copy still see the rectangle.
 
 ## Edge cases
 

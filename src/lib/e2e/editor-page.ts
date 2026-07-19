@@ -42,11 +42,10 @@ export class EditorPage {
 	 * Load a multi-MB generated fixture for virtual-rendering tests. `loadContent`
 	 * polls a full-document serialize with a 2s timeout, which times out at MB
 	 * scale; this settles on a cheap in-page doc-length probe (Σ leadingTrivia +
-	 * raw, plus prefix/suffix) with a long timeout instead. Returns the doc's
-	 * top-level block count. The fixture is set via `setSource` (state setup, not
-	 * a simulated edit) — windowing activates when the estimated height clears the
-	 * editor's watermark. `suffix` appends trailing markdown (e.g. a paragraph
-	 * below the fixture) so a sibling block exists for cross-block navigation.
+	 * raw, plus prefix/suffix) with a long timeout instead. The fixture is set via
+	 * `setSource` (state setup, not a simulated edit) — windowing activates when the
+	 * estimated height clears the editor's watermark. `suffix` appends trailing
+	 * markdown so a sibling block exists for cross-block navigation.
 	 */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
 		const fixture = generateFixture(shape, bytes) + suffix;
@@ -88,14 +87,14 @@ export class EditorPage {
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
-			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle)')
+			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle):not(.decoration-badge)')
 			.first();
 	}
 
 	getBlocks(): Locator {
 		return this.page
 			.locator('[data-block-path]:not([data-block-path*=","])')
-			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle)');
+			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle):not(.decoration-badge)');
 	}
 
 	async getDomBlockCount(): Promise<number> {
@@ -106,11 +105,13 @@ export class EditorPage {
 		return (await this.getBlock(index).textContent()) ?? '';
 	}
 
+	// 5s to match expect()'s default — a wait is a ceiling, not a measurement,
+	// and 2s under-provisioned saturated parallel-worker runs.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 2000 });
+			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
 		} else {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 2000 });
+			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 5000 });
 		}
 	}
 
@@ -128,6 +129,11 @@ export class EditorPage {
 		await this.placeCaretInBlock(index, 'start');
 	}
 
+	// COORDINATE-SPACE WARNING: a numeric `position` here counts ALL text nodes,
+	// including `.md-marker` ambient spans — a DOM-textContent offset, NOT the
+	// raw-semantic offset `focusBlockAtPath`/`pointForOffset` use (those filter
+	// markers). The two spaces are NOT interchangeable on marker-bearing blocks.
+	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
 	private async placeCaretInBlock(
 		index: number,
 		position: 'start' | 'end' | number
@@ -136,9 +142,12 @@ export class EditorPage {
 			({ pathAttr, position }) => {
 				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
 				const block = wrapper?.querySelector(
-					':scope > :not(.selection-overlay)'
+					':scope > :not(.selection-overlay):not(.decoration-badge)'
 				) as HTMLElement | null;
-				if (!block) return;
+				// Throw, never silently return: a selector drift (missing wrapper or
+				// editable) must fail the spec, not let a downstream absence-assertion
+				// pass for the wrong reason. Mirrors pointForOffset.
+				if (!block) throw new Error(`placeCaretInBlock: no editable at ${pathAttr}`);
 				block.focus();
 
 				const range = document.createRange();
@@ -177,16 +186,22 @@ export class EditorPage {
 		);
 	}
 
+	// COORDINATE-SPACE WARNING: `offset` here is RAW-SEMANTIC — the tree walk
+	// filters `.md-marker` ambient spans (see acceptNode below). This is NOT the
+	// marker-counting DOM-textContent space `placeCaretInBlock(index, number)` uses.
+	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
 			({ path, offset }) => {
 				const attr = JSON.stringify(path);
 				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
-				if (!wrapper) return;
+				// Throw, never silently return: selector drift must fail the spec, not
+				// green an absence-assertion for the wrong reason. Mirrors pointForOffset.
+				if (!wrapper) throw new Error(`focusBlockAtPath: no block wrapper at ${attr}`);
 				const block = wrapper.querySelector(
-					':scope > :not(.selection-overlay)'
+					':scope > :not(.selection-overlay):not(.decoration-badge)'
 				) as HTMLElement | null;
-				if (!block) return;
+				if (!block) throw new Error(`focusBlockAtPath: no editable at ${attr}`);
 				block.focus();
 
 				const range = document.createRange();
@@ -239,7 +254,6 @@ export class EditorPage {
 	 */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
 		const point = await this.pointForOffset(path, offset);
-		if (!point) throw new Error('clickBlockAtPath: could not resolve point');
 		await this.page.mouse.click(point.x, point.y);
 		await this.waitForRenderFlush();
 	}
@@ -289,7 +303,6 @@ export class EditorPage {
 	): Promise<void> {
 		const start = await this.pointForOffset(startPath, startOffset);
 		const end = await this.pointForOffset(endPath, endOffset);
-		if (!start || !end) throw new Error('dragFromTo: could not resolve block offsets');
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -314,7 +327,6 @@ export class EditorPage {
 		const start = await this.pointForOffset(startPath, startOffset);
 		const mid = await this.pointForOffset(midPath, midOffset);
 		const end = await this.pointForOffset(endPath, endOffset);
-		if (!start || !mid || !end) throw new Error('dragFromToThenTo: could not resolve offsets');
 
 		await this.page.mouse.move(start.x, start.y);
 		await this.page.mouse.down();
@@ -337,18 +349,15 @@ export class EditorPage {
 
 	async shiftClickBlock(path: number[], offset: number): Promise<void> {
 		const point = await this.pointForOffset(path, offset);
-		if (!point) throw new Error('shiftClickBlock: could not resolve point');
 		await this.page.keyboard.down('Shift');
 		await this.page.mouse.click(point.x, point.y);
 		await this.page.keyboard.up('Shift');
 		await this.waitForRenderFlush();
 	}
 
-	private async pointForOffset(
-		path: number[],
-		offset: number
-	): Promise<{ x: number; y: number } | null> {
-		return this.page.evaluate(
+	/** Pixel point of a raw-semantic offset inside any `data-block-path` block. */
+	async pointForOffset(path: number[], offset: number): Promise<{ x: number; y: number }> {
+		const point = await this.page.evaluate(
 			({ path, offset }) => {
 				const wrapper = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
 				const editable = wrapper?.querySelector('[contenteditable]') as HTMLElement | null;
@@ -382,6 +391,10 @@ export class EditorPage {
 			},
 			{ path, offset }
 		);
+		if (!point) {
+			throw new Error(`pointForOffset: could not resolve ${JSON.stringify(path)} @ ${offset}`);
+		}
+		return point;
 	}
 
 	async getCaretPixelX(): Promise<number> {
@@ -486,7 +499,7 @@ export class EditorPage {
 	 * changes, so no bridge predicate can observe it. Call before
 	 * `navigator.clipboard.readText()` or before a subsequent Ctrl+V that
 	 * must see the fresh payload. This is the copy-only carve-out documented
-	 * in docs/testing.md § Key Patterns and Gotchas.
+	 * in docs/contributing/testing.md § Patterns and gotchas.
 	 */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);

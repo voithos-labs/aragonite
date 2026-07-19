@@ -12,15 +12,15 @@ import type { HeightOracle } from '../cursor/height-oracle';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
 import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 
 export interface ListWindowingDeps {
 	oracle: HeightOracle;
-	getChildren: () => CstNode[];
+	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
 	/** This scope's own list element — its top within the scroll content maps root scrollTop to local. */
 	getListEl: () => HTMLElement | null;
-	/** The single editor scroll element (EDITOR_ROOT_KEY). */
+	/** The single editor scroll element (the document facet's `editorRoot`). */
 	getScrollEl: () => HTMLElement | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;
@@ -38,6 +38,11 @@ export interface ListWindowingDeps {
 	getOwnEl?: () => HTMLElement | null;
 	/** Report this scope's own box height to the parent scope's setChildSubtotal (undefined at top level). */
 	reportSelfHeight?: (height: number) => void;
+	/** Collapse clamp: while true this scope mounts ONLY its chrome row (child 0) —
+	 *  the returned window is a fixed [0,1) with zero spacers. The window math is
+	 *  bypassed, not fed (collapse is height removal; a clamped slice through
+	 *  `computeWindow` would emit the hidden body as a giant bottom spacer). */
+	isCollapsed?: () => boolean;
 	overscan: number;
 	pinExtensionCap: number;
 	activateAbovePx: number;
@@ -55,7 +60,7 @@ export interface ListWindowing {
 	readonly window: WindowResult;
 	/** A DIRECTLY-MEASURED leaf: oracle (by id) + model slot. Passive — no scrollTop write. */
 	recordMeasuredChild(index: number, id: string, height: number): void;
-	/** A PROPAGATED child-container subtotal: model slot ONLY, by index. No oracle, no id, no anchor. */
+	/** A PROPAGATED child-container subtotal: oracle + model slot, addressed by index. No anchor correction. */
 	setChildSubtotal(index: number, total: number): void;
 	/** Enroll a child in this scope's batched measure pass; returns an unregister fn
 	 *  to call on the child's unmount. The child is measured on the next pass. */
@@ -69,8 +74,9 @@ export interface ListWindowing {
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
 	/** True iff `index` is in the CURRENT mounted window `[start, end)` (inactive ⇒ all
-	 *  children mount, so always true). Read after `revealChild` to prove a reveal landed
-	 *  before waiting on a mount that can otherwise never come (VR-5 termination). */
+	 *  children mount, so always true; collapsed ⇒ only the chrome row, index 0). Read
+	 *  after `revealChild` to prove a reveal landed before waiting on a mount that can
+	 *  otherwise never come (VR-5 termination). */
 	isInWindow(index: number): boolean;
 	dispose(): void;
 }
@@ -90,6 +96,16 @@ export function shouldRemeasureOnResize(recorded: number | undefined, observed: 
 	if (observed <= 0 || recorded === undefined) return false;
 	return Math.abs(recorded - observed) >= 1;
 }
+
+// One shared result backs every collapsed scope — frozen so a consumer mutating
+// its window cannot silently corrupt sibling scopes through the singleton.
+const collapsedWindow: WindowResult = Object.freeze({
+	active: true,
+	start: 0,
+	end: 1,
+	topSpacerPx: 0,
+	bottomSpacerPx: 0
+});
 
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// The id list index-aligned with the CURRENT `model`. Snapshotted (not read live)
@@ -181,16 +197,22 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
 	}
 
-	// Rebuild on structural child-count change or an editor WIDTH change (prose re-wraps, so
-	// every height the oracle cached is stale; `widthVersion` is bumped after the cache is
-	// cleared). Never per keystroke. Build inside `untrack` so the effect doesn't subscribe
-	// to every child's raw via the oracle. The rebuild reseeds EVERY slot, a wholesale offset
-	// shift the flush-pass correction can't see (its before-snapshot is captured after this
-	// ran), so anchor-correct the reseed itself to keep the viewport stable — by stable id, so
-	// an insert/delete above the anchor remaps to the surviving block instead of index N's new
-	// occupant.
+	// Rebuild on ANY structural child change — count OR a same-length permutation
+	// (reorder) — or an editor WIDTH change (prose re-wraps, so every height the oracle
+	// cached is stale; `widthVersion` is bumped after the cache is cleared). Never per
+	// keystroke. Keying on the id SEQUENCE (not just its length) is load-bearing: a
+	// reorder that left the count unchanged would otherwise skip the rebuild, stranding
+	// `modelChildIds` and the per-index heights in the old order until the next
+	// count-change rebuild remapped the anchor off a stale id (a one-shot scroll jump).
+	// Build inside `untrack` so the effect doesn't subscribe to every child's raw via the
+	// oracle. The rebuild reseeds EVERY slot, a wholesale offset shift the flush-pass
+	// correction can't see (its before-snapshot is captured after this ran), so
+	// anchor-correct the reseed itself to keep the viewport stable — by stable id, so an
+	// insert/delete/reorder above the anchor remaps to the surviving block instead of
+	// index N's new occupant.
 	$effect(() => {
-		void deps.getChildren().length;
+		const ids = deps.getChildIds();
+		for (let i = 0; i < ids.length; i++) void ids[i];
 		void deps.getScrollEl();
 		void deps.getWidthVersion();
 		untrack(() => {
@@ -258,6 +280,12 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		deactivateBelowPx: deps.deactivateBelowPx
 	});
 
+	// The EFFECTIVE window — the collapse clamp substituted at the returned surface.
+	// A derived over `isCollapsed()`, so a metadata-driven flip re-renders with no
+	// extra plumbing; while collapsed it doesn't read `win.result`, so the bypassed
+	// math (and createBlockWindow's hysteresis tracking) never observes the clamp.
+	const effectiveWindow = $derived.by(() => (deps.isCollapsed?.() ? collapsedWindow : win.result));
+
 	// Report this scope's own BOX height upward when its inner window reflows.
 	// Children measuring in resize the spacers, so the box height the parent measured
 	// at this container's mount goes stale; re-measure on heightVersion and push it up.
@@ -275,12 +303,14 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// post-render, so this fires after a flush mounts children — the framework-native
 	// trigger the spec requires (no microtask/rAF/timeout).
 	//
-	// It tracks the WINDOW only — a coalesced signal that already moves when the mounted set
-	// slides. Registration deliberately does NOT bump reactive state: the mount that
+	// It tracks the EFFECTIVE window only — a coalesced signal that already moves when the
+	// mounted set slides, including the collapse flip (the raw result can be identical across
+	// an expand, stranding the remounted children's measurements in `pending` until the next
+	// scroll). Registration deliberately does NOT bump reactive state: the mount that
 	// registers a child already moved the window, so a per-child trigger would re-enter this
 	// effect O(children) times in one flush and trip Svelte's update-depth guard.
 	$effect(() => {
-		void win.result;
+		void effectiveWindow;
 		untrack(() => flushMeasurements());
 	});
 
@@ -325,10 +355,10 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	return {
 		get window() {
-			return win.result;
+			return effectiveWindow;
 		},
-		// Directly-measured leaf. PASSIVE — no active scrollTop correction, matching
-		// Phase 2's measure path (anchor stability rides estimate quality + spacers).
+		// Directly-measured leaf. PASSIVE — no scrollTop correction here; anchor
+		// stability rides estimate quality plus the spacers.
 		recordMeasuredChild(index, id, height) {
 			deps.oracle.recordMeasured(id, height);
 			if (index < model.size && model.heightOf(index) !== height) {
@@ -377,6 +407,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			if (shouldRemeasureOnResize(deps.oracle.measured(id), observedHeight)) measureOne(id);
 		},
 		async revealChild(index) {
+			// A clamped-out body child can never mount — no scroll can reveal it, so
+			// degrade (the caller falls back to path state) instead of scroll-and-wait.
+			if (index >= 1 && deps.isCollapsed?.()) return;
 			const scrollEl = deps.getScrollEl();
 			const listEl = deps.getListEl();
 			if (!scrollEl || !listEl) return;
@@ -389,7 +422,11 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			await tick();
 		},
 		isInWindow(index) {
-			const { start, end } = win.result;
+			// Reads the EFFECTIVE result: while collapsed only index 0 is a member.
+			// Mandatory — the unclamped inactive-window oracle answers true for every
+			// index, so revealChildOrWait's degrade check would never fire and a reveal
+			// into the collapsed body would await a mount that can never come (VR-5).
+			const { start, end } = effectiveWindow;
 			return index >= start && index < end;
 		},
 		dispose() {

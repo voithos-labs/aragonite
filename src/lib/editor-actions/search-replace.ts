@@ -5,11 +5,13 @@
  * entry. O(affected subtrees), not O(document). Identity holds for every unaffected
  * top-level block. Aliasing-safe by construction: the live commit replaces a slot
  * with freshly-parsed nodes (the clone is private), never writing through a
- * snapshot-shared node — so no carry-through into a stamped window.
+ * snapshot-shared node — so no carry-through into a stamped window. Both entries
+ * return the count actually replaced — matches on container nodes are skipped.
  */
 import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import {
 	replacePreservingFirst,
@@ -65,16 +67,28 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			if (rel.length > 0) rebuildAncestryRaw(child, rel);
 		}
-		const newNodes = parse(child.raw).children;
+		const newNodes = parse(child.raw, { grammar: deps.grammar }).children;
 		// leadingTrivia is positional (the separator before this block) and lives off
 		// `raw`, so parsing `child.raw` alone drops it — carry it onto the first node.
 		if (newNodes[0]) newNodes[0].leadingTrivia = child.leadingTrivia;
 		return newNodes;
 	}
 
-	async function replaceSubtrees(groups: Map<number, Match[]>, template: string): Promise<void> {
+	// A match can land on a container node itself — a childless opaque container is
+	// scanned as a leaf — but its raw is metadata-derived (rebuildRaw), and a direct
+	// raw substitution would drift from metadata and trip the G1.12/G1.13 staleness
+	// probes. Skipped until a kind-aware write path exists (see docs/issues.md).
+	function isReplaceable(match: Match): boolean {
+		const top: CstNode | undefined = deps.doc.children[match.path[0]];
+		const node = top ? descend(top, match.path.slice(1)) : null;
+		return node !== null && !getBlockKindDescriptor(node.kind).isContainer;
+	}
+
+	async function replaceSubtrees(matches: Match[], template: string): Promise<number> {
+		const replaceable = matches.filter(isReplaceable);
+		const groups = groupBy(replaceable, (m) => m.path[0]);
 		const indices = [...groups.keys()].sort((a, b) => b - a); // last-first keeps lower indices valid
-		if (indices.length === 0) return;
+		if (indices.length === 0) return 0;
 		const seed = groups.get(indices[indices.length - 1])![0];
 		// One pushed snapshot + per-subtree skip-commits = one undo entry. A throw
 		// mid-batch leaves earlier subtrees applied, but this single snapshot still
@@ -100,20 +114,11 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			'edit',
 			toEditEvent({ kind: 'replaceBlock', detail: { count: total } }, [], Date.now())
 		);
+		return replaceable.length;
 	}
 
 	return {
-		replaceOne: (match: Match, template: string) =>
-			replaceSubtrees(
-				groupBy([match], (m) => m.path[0]),
-				template
-			),
-		replaceAll: (matches: Match[], template: string) =>
-			matches.length === 0
-				? Promise.resolve()
-				: replaceSubtrees(
-						groupBy(matches, (m) => m.path[0]),
-						template
-					)
+		replaceOne: (match: Match, template: string) => replaceSubtrees([match], template),
+		replaceAll: (matches: Match[], template: string) => replaceSubtrees(matches, template)
 	};
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { splitNode, bumpLeadingTrivia } from '../../tree-operations';
+import { splitNode } from '../../tree-operations';
 import { generateBlockId } from '../../block-id';
 
 function applyReplace(
@@ -169,57 +169,5 @@ describe('splitNode on arbitrary parent', () => {
 		expect(parent.children).toHaveLength(2);
 		expect(parent.children[0].raw).toBe('Hello\n');
 		expect(parent.children[1].raw).toBe(' World\n');
-	});
-});
-
-describe('bumpLeadingTrivia', () => {
-	it('prepends a line ending into leadingTrivia and reports a single-id-preserving replace', () => {
-		const doc = parse('Content\n');
-		const change = bumpLeadingTrivia(doc, 0);
-		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 1, idMap: { 0: 0 } });
-		expect(doc.children).toHaveLength(1);
-		expect(doc.children[0].raw).toBe('Content\n');
-		expect(doc.children[0].leadingTrivia).toBe('\n');
-	});
-
-	it('round-trips: serialize is byte-stable, reparse preserves the block count', () => {
-		// Leading blank line on the first block reparses into doc.prefix instead
-		// of children[0].leadingTrivia; both serialize to the same bytes, so the
-		// tree-as-truth invariant `serialize(parse(source)) === source` holds.
-		const doc = parse('Content\n');
-		bumpLeadingTrivia(doc, 0);
-		const reparsed = parse(serialize(doc));
-		expect(serialize(reparsed)).toBe(serialize(doc));
-		expect(reparsed.children).toHaveLength(doc.children.length);
-		expect(reparsed.children[0].raw).toBe(doc.children[0].raw);
-	});
-
-	it('round-trips: leading trivia on a non-first block survives reparse on the same block', () => {
-		// For non-first blocks the parser keeps the blank line on the child's
-		// leadingTrivia (not doc.prefix), so the tree shape itself round-trips.
-		const doc = parse('First\n\nSecond\n');
-		bumpLeadingTrivia(doc, 1);
-		const reparsed = parse(serialize(doc));
-		expect(reparsed.children).toHaveLength(2);
-		expect(reparsed.children[1].leadingTrivia).toBe('\n\n');
-		expect(reparsed.children[1].raw).toBe('Second\n');
-	});
-
-	it('preserves CRLF line ending when the block already uses one', () => {
-		const doc = parse('Line\r\n');
-		bumpLeadingTrivia(doc, 0);
-		expect(doc.children[0].leadingTrivia).toBe('\r\n');
-	});
-
-	it('stacks onto existing leadingTrivia', () => {
-		const doc = parse('First\n\nSecond\n');
-		bumpLeadingTrivia(doc, 1);
-		expect(doc.children[1].leadingTrivia).toBe('\n\n');
-	});
-
-	it('is a noop at an out-of-range index', () => {
-		const doc = parse('Content\n');
-		expect(bumpLeadingTrivia(doc, 5)).toEqual({ op: 'noop' });
-		expect(doc.children[0].leadingTrivia).toBe('');
 	});
 });

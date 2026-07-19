@@ -1,24 +1,31 @@
 /**
  * Lazy `inlineContent` accessor for non-render consumers, backed by a
- * node-keyed, non-reactive WeakMap keyed on (raw, LRD-signature). Non-reactive
- * by design: never call from the render path (which uses computeInlineContent) —
- * a reactive read+write here would re-introduce the keyed-`{#each}` corruption
- * that invariant G4.2 guards against.
+ * node-keyed, non-reactive WeakMap. Non-reactive by design: never call from the
+ * render path (which uses computeInlineContent) — a reactive read+write here
+ * would re-introduce the keyed-`{#each}` corruption that invariant G4.2 guards
+ * against.
+ *
+ * Each node holds one sub-entry per signature space so the resolver-less callers
+ * and the signature-bearing callers stop evicting each other on a bracket-
+ * bearing block: `plain` keys on raw alone (signature ''), `resolved` keys on
+ * raw plus the live LRD signature. A raw change invalidates each side through
+ * its own raw check. Memory: up to two content arrays per node, and the second
+ * only for a bracket block actually read through both signature spaces.
  */
-import type { CstNode, InlineNode } from '../nodes';
+import type { InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { computeInlineContent, isProseKind } from './index';
 
 interface CacheEntry {
-	raw: string;
-	signature: string;
-	content: InlineNode[];
+	plain?: { raw: string; content: InlineNode[] };
+	resolved?: { raw: string; signature: string; content: InlineNode[] };
 }
 
-const cache = new WeakMap<CstNode, CacheEntry>();
+const cache = new WeakMap<NodeView, CacheEntry>();
 
 export function getInlineContent(
-	node: CstNode,
+	node: NodeView,
 	resolver?: LinkReferenceResolver,
 	signature = ''
 ): InlineNode[] {
@@ -28,9 +35,20 @@ export function getInlineContent(
 	// the signature.
 	const hasRef = node.raw.includes('[');
 	const sig = hasRef ? signature : '';
-	const hit = cache.get(node);
+	const effectiveResolver = hasRef ? resolver : undefined;
+	const entry = cache.get(node);
+
+	if (sig === '') {
+		const hit = entry?.plain;
+		if (hit && hit.raw === node.raw) return hit.content;
+		const content = computeInlineContent(node, effectiveResolver);
+		cache.set(node, { plain: { raw: node.raw, content }, resolved: entry?.resolved });
+		return content;
+	}
+
+	const hit = entry?.resolved;
 	if (hit && hit.raw === node.raw && hit.signature === sig) return hit.content;
-	const content = computeInlineContent(node, hasRef ? resolver : undefined);
-	cache.set(node, { raw: node.raw, signature: sig, content });
+	const content = computeInlineContent(node, effectiveResolver);
+	cache.set(node, { plain: entry?.plain, resolved: { raw: node.raw, signature: sig, content } });
 	return content;
 }

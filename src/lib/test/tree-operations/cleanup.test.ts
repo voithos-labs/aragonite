@@ -13,6 +13,7 @@ function bq(children: CstNode[]): CstNode {
 		kind: 'blockquote',
 		leadingTrivia: '',
 		raw: '',
+		metadata: { quoteDepth: 1 },
 		children,
 		innerPrefix: '',
 		innerSuffix: ''

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { createUndoController } from '../../editor-actions/undo/undo-controller';
+import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createListContext } from '../../editor-actions/list-context';
 import { registerBlockListState } from '../../reactivity/state-registry';

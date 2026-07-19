@@ -11,7 +11,12 @@ import {
 	__resetPasteSurfacesForTests,
 	registerPasteSurface
 } from '../../../tree-operations/paste-surfaces';
+import {
+	__resetPasteTransformsForTests,
+	registerPasteTransform
+} from '../../../tree-operations/paste/paste-transforms';
 import { parse } from '../../../core/parser';
+import { createGrammarView } from '../../../schema/block-openers';
 import { createSharingState } from '../../../tree-operations/sharing';
 import {
 	expectStateForNode,
@@ -113,7 +118,7 @@ function makeDocWithOneBlock(kind: BlockKind, raw: string): Document {
 				kind,
 				leadingTrivia: '',
 				raw
-			}
+			} as CstNode
 		]
 	};
 }
@@ -129,7 +134,6 @@ function makeStubController(): UndoController & PasteCommitCoordinator {
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
 		collapsedSelectionAt: vi.fn(),
-		clearDebouncedCheckpoint: vi.fn(),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode
 	} as unknown as UndoController & PasteCommitCoordinator;
@@ -180,7 +184,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 	});
 });
 
-// ── B6: container-matching merge runs its raw mutation inside commitMultiScope ─
+// ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 
 function makeStubBlockListState(node: CstNode) {
 	const state: any = {
@@ -228,7 +232,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 
 		expect(captured.mutate).not.toBeNull();
 		// commitMultiScope was invoked with the pre-mutation raw — proves the
-		// snapshot would capture pre-mutation state (B6 fix).
+		// snapshot would capture pre-mutation state.
 		expect(rawAtCommitInvocation).toBe(rawBefore);
 		// After mutate ran inside the stub's call, the raw is now updated.
 		expect(targetLeaf.raw).not.toBe(rawBefore);
@@ -276,6 +280,52 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 	});
 });
 
+// ── Cross-block inline join reparse ──────────────────────────────────────────
+
+describe('pasteDispatch — cross-block inline join reparse', () => {
+	beforeEach(() => {
+		__resetPasteSurfacesForTests();
+		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	});
+
+	// A join paste that completes marker syntax at offset 0 must re-mint the slot
+	// at the reparsed kind, not leave a paragraph-typed node holding list bytes
+	// (parse(serialize(live)) would then diverge). The non-join sibling routes
+	// through updateBlockContent → the funnel; the join branch must mirror it.
+	it('completing an ordered-list marker re-mints the block as a list', async () => {
+		const doc = parse('. item\n');
+		expect(doc.children[0].kind).toBe('paragraph');
+
+		await pasteDispatch(
+			{ pastedText: '1', targetPath: [0], offset: 0 },
+			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController(), undoEntry: 'join' }
+		);
+
+		expect(doc.children[0].raw).toBe('1. item\n');
+		expect(doc.children[0].kind).toBe('list');
+	});
+
+	// The join reparse is content-commit-class, so it threads the instance grammar:
+	// an instance whose grammar drops the list opener keeps the completion a paragraph.
+	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
+		const doc = parse('. item\n');
+
+		await pasteDispatch(
+			{ pastedText: '1', targetPath: [0], offset: 0 },
+			{
+				doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: makeStubController(),
+				undoEntry: 'join',
+				grammar: createGrammarView((kind) => kind !== 'list')
+			}
+		);
+
+		expect(doc.children[0].raw).toBe('1. item\n');
+		expect(doc.children[0].kind).toBe('paragraph');
+	});
+});
+
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
 describe('pasteDispatch — strategy routing end-to-end', () => {
@@ -315,11 +365,9 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
 		};
 		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
-		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(
-			async ({ mutate }) => {
-				mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
-			}
-		);
+		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(({ mutate }) => {
+			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
+		});
 
 		await pasteDispatch(
 			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
@@ -335,5 +383,58 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+});
+
+// ── Paste transforms rewrite the clipboard text before strategy selection ────
+
+describe('pasteDispatch — paste transforms', () => {
+	beforeEach(() => {
+		__resetPasteSurfacesForTests();
+		__resetPasteTransformsForTests();
+		registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	});
+
+	it('a transform that rewrites prose into a heading flips the paste inline → structural', async () => {
+		registerPasteTransform({ name: 'headingize', transform: () => '# heading\n' });
+
+		const doc = parse('target\n');
+		const blockEdit = makeStubBlockEdit();
+		const controller = makeStubController();
+		const docScope = {
+			node: doc,
+			state: { innerBlockIds: ['iid-0'], innerBlockRefs: [undefined] }
+		};
+		(controller.getDocScope as ReturnType<typeof vi.fn>).mockReturnValue(docScope);
+		(controller.commitMultiScope as ReturnType<typeof vi.fn>).mockImplementation(({ mutate }) => {
+			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
+		});
+
+		// A single-paragraph clipboard would paste inline; the transform makes it a
+		// heading, so dispatch must route structural instead.
+		await pasteDispatch(
+			{ pastedText: 'plain prose', targetPath: [0], offset: 6 },
+			{ doc, blockEdit, controller }
+		);
+
+		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
+		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+
+	it('a transform that empties the text makes the paste a no-op', async () => {
+		registerPasteTransform({ name: 'eraser', transform: () => '' });
+
+		const doc = parse('hello world\n');
+		const blockEdit = makeStubBlockEdit();
+		const controller = makeStubController();
+
+		const result = await pasteDispatch(
+			{ pastedText: 'anything', targetPath: [0], offset: 0 },
+			{ doc, blockEdit, controller }
+		);
+
+		expect(result).toEqual({});
+		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(controller.commitMultiScope).not.toHaveBeenCalled();
 	});
 });

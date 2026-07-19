@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '../../core/nodes';
 import { serialize } from '../../core/serializer';
-import { arbParsedDoc } from './arbitraries';
+import { arbParsedDoc, freshOrFixedSeed } from './arbitraries';
 
 // G2.6: the serializer reads ONLY raw / trivia / prefix / suffix — never
 // `metadata` or editor-level fields (`ownerEpoch`), and never recurses into
@@ -11,7 +11,7 @@ import { arbParsedDoc } from './arbitraries';
 // byte-identical. Guards the raw-as-truth decision against Phase-3 creep where a
 // serializer might start reconstructing output from parsed fields.
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 const JUNK = { poisoned: true, nested: { deep: [1, 2, 3] } } as const;
 

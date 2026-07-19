@@ -1,10 +1,11 @@
 /**
- * Shared editable-surface plumbing for the three contenteditable blocks
- * (TextEditableBlock, CodeBlock, table/TableCellBlock). Owns the cross-block
- * handler wiring, the SharedKeydownContext, the BlockComponent surface methods,
- * and the input/composition skeleton. Each component constructs a CursorBackend
- * for its own coordinate system (ambient-aware, content-offset, or cell raw
- * walker) and supplies the per-surface input commit; the rest is identical.
+ * Shared editable-surface plumbing for the core contenteditable blocks
+ * (TextEditableBlock, CodeBlock, table/TableCellBlock) and the `editable-leaf`
+ * seam plugin leaves build on. Owns the cross-block handler wiring, the
+ * SharedKeydownContext, the BlockComponent surface methods, and the
+ * input/composition skeleton. Each consumer constructs a CursorBackend for its
+ * own coordinate system (ambient-aware, content-offset, or cell raw walker) and
+ * supplies the per-surface input commit; the rest is identical.
  *
  * The component keeps its markup, render `$effect`, the F2 focus-park `$effect`,
  * and its block-specific keydown branches. Mutable block state — `index`,
@@ -19,14 +20,27 @@ import type {
 	FocusActions,
 	HistoryActions
 } from '../../action-contracts';
-import type { BlockComponent, StickyColumnDirection } from '../../block-component';
-import type { CstNode } from '../../core/nodes';
-import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
+import type { StickyColumnDirection } from '../../block-component';
+import type {
+	BlockElLookup,
+	DocumentGetter,
+	PluginEditorLookup,
+	PresentationModeGetter
+} from '../../editor-keys';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
+import type { CommandErrorSink } from '../../schema/block-commands';
+import type { GrammarView } from '../../schema/block-openers';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import {
+	asEditorX,
+	asRawOffset,
+	toClampedRawOffset,
+	toDomTextOffset,
+	type RawOffset
+} from '../../cursor/coordinate-spaces';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
 import {
@@ -34,6 +48,9 @@ import {
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
+import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
+import { assertInvariant } from '../../invariants/assert';
+import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 
 /**
  * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).
@@ -41,9 +58,9 @@ import type { SharedKeydownContext } from '../../selection/shared-keydown';
  * `buildRange` maps a raw-offset span to a DOM Range for selection writes.
  */
 export interface CursorBackend {
-	getRaw(): number | null;
-	setRaw(offset: number): void;
-	buildRange(start: number, end: number): Range | null;
+	getRaw(): RawOffset | null;
+	setRaw(offset: RawOffset): void;
+	buildRange(start: RawOffset, end: RawOffset): Range | null;
 }
 
 export interface EditableSurfaceDeps {
@@ -51,6 +68,11 @@ export interface EditableSurfaceDeps {
 	/** Ambient marker length in raw units — 0 for code/cell, prose marker width for text. */
 	getAmbientLength: () => number;
 	backend: CursorBackend;
+	/** True while an ephemeral edit (inline-math source reveal) owns the DOM: the
+	 *  block commits on exit, not per-keystroke, so both keyboard input and IME
+	 *  compositionend must skip the CST commit here — the one choke point both
+	 *  paths funnel through (compositionend calls this same internal onInput). */
+	isInputSuppressed?: () => boolean;
 
 	// ── Live block state (thunks — never snapshot) ────────────────────────────
 	getMyPath: () => number[];
@@ -73,18 +95,35 @@ export interface EditableSurfaceDeps {
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
+	// Per-instance plugin context + command-error sink, threaded into the cross-block
+	// dispatch tier. Required fields (undefinable value) so a surface can't skip the
+	// thread — the cross-block path would otherwise contain plugin throws silently.
+	pluginEditor: PluginEditorLookup | undefined;
+	/** The effective presentation mode, threaded to the cross-block reading gate — a
+	 *  sibling to `pluginEditor`, never smuggled through it. */
+	getPresentationMode: PresentationModeGetter | undefined;
+	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
+	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
+	 *  Optional at this seam: a leaf that omits it falls back to the global grammar
+	 *  (byte-identical). Supplied via `registryView.grammar` where a surface wires it. */
+	grammar?: GrammarView;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
-	getFocusOffset: () => number | null;
+	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
+	getFocusOffset: () => RawOffset | null;
 	getTextLen: () => number;
 
 	// ── Input skeleton (per-surface) ──────────────────────────────────────────
 	/** Read the current DOM content as raw text for the input commit. */
 	readText: () => string;
-	/** Commit the read text to the CST; owns the trailing-newline and saved-offset shape. */
-	commitInput: (text: string, preEditOffset: number, savedOffset: number) => void;
+	/**
+	 * Commit the read text to the CST; owns the trailing-newline and saved-offset
+	 * shape. Returns the caret offset to restore when the committed bytes differ
+	 * from the DOM (a cell escaping a typed `|` to `\|`); void keeps the DOM caret.
+	 */
+	commitInput: (text: string, preEditOffset: number, savedOffset: number) => number | void;
 	/** Extra input prelude before the shared body (text resets snap target + keystroke mark). */
 	inputPrelude?: () => void;
 }
@@ -124,8 +163,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		history: deps.history,
+		pluginEditor: deps.pluginEditor,
+		getPresentationMode: deps.getPresentationMode,
+		onCommandError: deps.onCommandError,
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
+		grammar: deps.grammar,
 		getCursorOffset: () => deps.backend.getRaw(),
 		afterReactivity: () => tick(),
 		setPendingCursor: (offset) => deps.setPendingCursor(offset)
@@ -153,7 +196,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus();
-		deps.backend.setRaw(Math.max(0, offset));
+		deps.backend.setRaw(asRawOffset(Math.max(0, offset)));
 	}
 
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -161,9 +204,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (!el) return;
 		el.focus();
 		const ambientLength = deps.getAmbientLength();
-		// minOffset = ambientLength keeps the scan out of the marker region (0 for code/cell).
-		const contentOffset = findOffsetNearestX(el, x, from, ambientLength);
-		deps.backend.setRaw(Math.max(0, contentOffset - ambientLength));
+		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
+		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);
+		const walkOffset = findOffsetNearestX(el, asEditorX(x), from, minOffset);
+		deps.backend.setRaw(toClampedRawOffset(walkOffset, ambientLength));
 	}
 
 	function getCursorOffset(): number | null {
@@ -179,7 +223,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function setSelection(start: number, end: number): void {
 		if (!deps.getEl()) return;
-		const range = deps.backend.buildRange(start, end);
+		const range = deps.backend.buildRange(asRawOffset(start), asRawOffset(end));
 		if (!range) return;
 		const sel = window.getSelection();
 		sel?.removeAllRanges();
@@ -192,8 +236,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const ambientLength = deps.getAmbientLength();
 		return measurePartialRectsInContentEditable(
 			el,
-			ambientLength + startOffset,
-			ambientLength + endOffset
+			toDomTextOffset(asRawOffset(startOffset), ambientLength),
+			toDomTextOffset(asRawOffset(endOffset), ambientLength)
 		);
 	}
 
@@ -209,19 +253,22 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// ── Input / composition skeleton ──────────────────────────────────────────
 
 	function onInput(): void {
+		if (deps.isInputSuppressed?.()) return;
 		deps.inputPrelude?.();
 		deps.stickyColumn.reset();
 		if (deps.getComposing() || !deps.getEl()) return;
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
 		// preEdit anchors the undo snapshot; savedOffset drives focus when a kind
-		// change remounts the block.
-		deps.commitInput(text, deps.getPreEditOffset(), savedOffset);
-		deps.setPendingCursor(savedOffset);
+		// change remounts the block. A commit that rewrites the bytes (cell pipe
+		// escape) reports the post-rewrite caret so the re-render seats it correctly.
+		const committedCaret = deps.commitInput(text, deps.getPreEditOffset(), savedOffset);
+		deps.setPendingCursor(committedCaret ?? savedOffset);
 	}
 
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
+		traceCompositionStart();
 		// Capture before crossBlock.handleCompositionStart() — sync delete moves the caret.
 		deps.setPreEditOffset(deps.backend.getRaw() ?? 0);
 		crossBlock.handleCompositionStart();
@@ -229,6 +276,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	function onCompositionEnd(): void {
+		// Browsers pair composition events per element and onCompositionStart always
+		// arms the flag, so an unpaired end means a consumer wired compositionend
+		// without compositionstart — both are exposed for plugin markup (G1.27).
+		// Caveat: Safari has shipped duplicate compositionend fires; if that
+		// false-fires in the field, relax to once-per-focus (issues.md § G1.27).
+		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
+		traceCompositionEnd();
 		deps.setComposing(false);
 		onInput();
 	}

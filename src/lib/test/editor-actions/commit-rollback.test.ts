@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
@@ -34,7 +34,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-				snapshot: { blockIndex: 0, offset: 0 },
+				snapshot: { path: [0], offset: 0 },
 				mutate: () => {
 					throw new Error('boom');
 				}
@@ -56,9 +56,14 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		// redo and stay invisible to an undo-length-only assertion.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				scope.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- c\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
 				return [{ op: 'insert', at: 2, count: 1 }];
 			}
 		});
@@ -70,7 +75,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-				snapshot: { blockIndex: 0, offset: 0 },
+				snapshot: { path: [0], offset: 0 },
 				mutate: () => {
 					throw new Error('boom');
 				}
@@ -91,14 +96,14 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const childrenBefore = concatChildren(originalContainer.children ?? []);
 
 		// Splice the live scope view, then trip the production arity check — the
-		// real "throws AFTER all splices completed" path F13 calls out. Without the
-		// rollback the spliced copy stays in deps.doc with stale ancestor raw.
+		// real "throws AFTER all splices completed" path. Without the rollback the
+		// spliced copy stays in deps.doc with stale ancestor raw.
 		// Array (not tuple) typing degrades the return so the wrong arity compiles.
 		const scopes: MultiScopeTarget[] = [{ node: originalContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { blockIndex: 0, offset: 0 },
+				snapshot: { path: [0], offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1);
 					return []; // wrong arity → production throw after the splice
@@ -119,9 +124,14 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		// children[0], which is now owned at the current epoch.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { blockIndex: 0, offset: 0 },
+			snapshot: { path: [0], offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({ kind: 'listItem', leadingTrivia: '', raw: '- c\n' });
+				scope.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- c\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
 				return [{ op: 'insert', at: 2, count: 1 }];
 			}
 		});
@@ -162,7 +172,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { blockIndex: 0, offset: 0 },
+				snapshot: { path: [0], offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1); // drop a top-level block
 					return []; // wrong arity → production throw after the splice
@@ -171,5 +181,57 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
 
 		expect(serialize(deps.doc)).toBe(serializedBefore);
+	});
+
+	// Integrated frame guard: one throw must recover the document AND both stacks
+	// at once. The other tests split the concern — test 2 pins the stacks with no
+	// tree change; the splice tests pin the tree but start with empty stacks and
+	// never assert them. Here a snapshot is pushed (clearing redo) and the live
+	// tree is spliced before the throw, so dropping either register from the
+	// consolidated rollback surfaces here.
+	it('a splice-then-throw restores the document AND both stacks together', async () => {
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
+		const controller = createUndoController(deps);
+
+		// Two real commits then one undo leaves undo AND redo non-empty.
+		const appendItem = (raw: string, at: number): Promise<void> =>
+			controller.commitMultiScope({
+				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
+				snapshot: { path: [0], offset: 0 },
+				mutate: ([scope]) => {
+					scope.children.push({
+						kind: 'listItem',
+						leadingTrivia: '',
+						raw,
+						metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+					});
+					return [{ op: 'insert', at, count: 1 }];
+				}
+			});
+		await appendItem('- c\n', 2);
+		await appendItem('- d\n', 3);
+		deps.undoManager.undo(controller.captureCurrentState());
+
+		const before = deps.undoManager.getStacks();
+		expect(before.undo).toHaveLength(1);
+		expect(before.redo).toHaveLength(1);
+		const serializedBefore = serialize(deps.doc);
+
+		await expect(
+			controller.commitMultiScope({
+				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
+				snapshot: { path: [0], offset: 0 },
+				mutate: (([scope]: readonly [{ children: unknown[] }]) => {
+					scope.children.splice(0, 1); // real live-tree mutation
+					return []; // wrong arity → production throw after the splice
+				}) as never
+			})
+		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
+
+		const after = deps.undoManager.getStacks();
+		expect(serialize(deps.doc)).toBe(serializedBefore);
+		expect(stackBytes(after.undo)).toEqual(stackBytes(before.undo));
+		expect(stackBytes(after.redo)).toEqual(stackBytes(before.redo));
 	});
 });

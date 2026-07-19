@@ -69,6 +69,64 @@ describe('parseLinkReferenceDefinition — destination', () => {
 	});
 });
 
+// ── Trailing garbage + block-opener interruption (CommonMark §4.7) ───────────
+
+describe('parseLinkReferenceDefinition — invalidating tails and interruptions', () => {
+	function parseOne(source: string) {
+		const lines = splitLines(source);
+		return parseLinkReferenceDefinition(lines, 0, lines.length, '');
+	}
+
+	it('rejects non-whitespace after the destination that is not a title', () => {
+		expect(parseOne('[foo]: /url junk\n')).toBeNull();
+	});
+
+	it('rejects a title followed by non-whitespace on the same line', () => {
+		expect(parseOne('[foo]: /url "title" ok\n')).toBeNull();
+	});
+
+	it('does not swallow a following block opener as a next-line destination', () => {
+		// `# heading` opens an ATX heading — it must not be consumed as the url.
+		expect(parseOne('[foo]:\n# heading\n')).toBeNull();
+	});
+
+	it('declines the next-line destination when the line opens a block (clean-url case)', () => {
+		// `#` parses cleanly as a url (no trailing garbage), but it is an empty
+		// ATX heading — the block opener wins, so this is not a definition.
+		expect(parseOne('[foo]:\n#\n')).toBeNull();
+	});
+
+	it('garbage-tail definition falls through to a paragraph, registering no reference', () => {
+		const doc = parse('[foo]: /url junk\n\nSee [foo] here.\n');
+		expect(doc.children.map((n) => n.kind)).toEqual(['paragraph', 'paragraph']);
+		const map = buildLinkReferenceMap(doc.children);
+		expect(map.resolve('foo')).toBeUndefined();
+	});
+
+	it('leaves the block opener intact after a bare label line', () => {
+		const doc = parse('[foo]:\n# heading\n');
+		expect(doc.children.map((n) => n.kind)).toEqual(['paragraph', 'heading']);
+	});
+
+	it('still accepts a next-line fragment destination (not a block opener)', () => {
+		const result = parseOne('[foo]:\n#anchor\n');
+		expect(result).not.toBeNull();
+		expect(metadataOf(result!.node, 'linkReferenceDefinition').url).toBe('#anchor');
+	});
+
+	it('still accepts a plain same-line and next-line definition', () => {
+		expect(parseOne('[foo]: /url\n')).not.toBeNull();
+		expect(parseOne('[foo]: /url "title"\n')).not.toBeNull();
+		expect(parseOne('[foo]:\n/url\n')).not.toBeNull();
+	});
+
+	it('round-trips a garbage-tail line as a paragraph', () => {
+		for (const source of ['[foo]: /url junk\n', '[foo]:\n# heading\n', '[foo]: /url "t" x\n']) {
+			expect(serialize(parse(source))).toBe(source);
+		}
+	});
+});
+
 describe('round-trip: link reference definition with escaped brackets', () => {
 	const cases = [
 		{ name: '\\] in label', source: '[foo\\]bar]: /url\n' },

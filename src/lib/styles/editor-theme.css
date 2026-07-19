@@ -39,19 +39,26 @@
 	--color-ui-dulled: #afb1b3;
 	--color-accent: #567b67;
 	--color-danger: #e06c75;
+	--color-ui-faint: rgba(100, 150, 255, 0.14);
 
-	/* Markdown syntax highlighting (dark defaults) */
-	--syntax-heading: #a6e22e;
-	--syntax-emphasis: #66d9ef;
-	--syntax-link: #ae81ff;
-	--syntax-url: #d33682;
-	--syntax-quote: #f92672;
-	--syntax-code: #a6e22e;
-	--syntax-comment: #75715e;
-	--syntax-list: #66d9ef;
-	--syntax-separator: #a6e22e;
-	--syntax-task: #66d9ef;
-	--syntax-task-done: #4a7078;
+	/* Markdown syntax semantic tokens — override points for the constructs the
+	   structural rules color (headings, emphasis, links, quote bar, inline code,
+	   raw HTML, list/task markers, thematic break). Defaults are deliberately
+	   neutral — currentColor, or the chrome token the rule read before these
+	   were wired — so the default rendering carries no extra palette; override
+	   any of them to actually colorize. Mode-independent by construction (the
+	   chrome tokens they chain to carry the light/dark split). */
+	--syntax-heading: currentColor;
+	--syntax-emphasis: currentColor;
+	--syntax-link: var(--color-accent, #567b67);
+	--syntax-url: var(--color-accent, #567b67);
+	--syntax-quote: var(--color-ui-muted, #a4a4a4);
+	--syntax-code: currentColor;
+	--syntax-comment: currentColor;
+	--syntax-list: currentColor;
+	--syntax-separator: var(--color-ui-muted, #a4a4a4);
+	--syntax-task: currentColor;
+	--syntax-task-done: rgba(128, 128, 128, 0.7);
 
 	/* Code block syntax highlighting — monokai-inspired palette */
 	--code-tok-keyword: #f92672;
@@ -75,7 +82,7 @@
 	--code-tok-link: #66d9ef;
 	--code-tok-unknown: inherit;
 
-	/* Presentational tokens (mode-independent). Previously inline-only fallbacks. */
+	/* Presentational tokens (mode-independent). */
 	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
 	--search-match-bg: rgba(120, 150, 255, 0.22);
 	/* Painted on top of the match text (overlay is z-index:1, pointer-events:none),
@@ -91,7 +98,7 @@
 	   the reorder accent (not neutral grey) so the hue + lightness shift stays
 	   perceptible for low-contrast vision, while remaining a soft transient wash. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
-	--syntax-marker-dim: 0.4;
+	--syntax-marker-dim: 0.65;
 
 	/* Faint placeholder tint behind off-window content (VR-8): a fling can outrun
 	   the window recompute and paint a bare spacer for one frame; the tint reads as
@@ -115,19 +122,9 @@
 	--color-ui-dulled: #8c959f;
 	--color-accent: #567b67;
 	--color-danger: #cf222e;
+	--color-ui-faint: rgba(100, 150, 255, 0.14);
 
-	/* Markdown syntax highlighting (light) */
-	--syntax-heading: #3f6e1a;
-	--syntax-emphasis: #0369a1;
-	--syntax-link: #6d28d9;
-	--syntax-url: #be185d;
-	--syntax-quote: #b91c1c;
-	--syntax-code: #166534;
-	--syntax-comment: #64748b;
-	--syntax-list: #0369a1;
-	--syntax-separator: #3f6e1a;
-	--syntax-task: #0369a1;
-	--syntax-task-done: #7c8791;
+	/* --syntax-* tokens are mode-independent (see the base block) — no light overrides. */
 
 	/* Code block syntax highlighting — GitHub Light-inspired palette */
 	--code-tok-keyword: #cf222e;

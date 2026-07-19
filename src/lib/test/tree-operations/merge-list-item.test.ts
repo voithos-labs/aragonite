@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeListItemIntoPrevious } from '../../tree-operations';
+import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
+import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 
 // Backspace-at-start-of-list-item merge semantics: flat merges, nested-sublist
@@ -18,10 +21,18 @@ describe('mergeListItemIntoPrevious', () => {
 		return list;
 	}
 
+	// Every worked-example row reaches a text-bearing target; unwrap the result
+	// or fail loudly. The opaque-leaf null path has its own case below.
+	function mergeExpectingTarget(list: CstNode, children: CstNode[], currentIndex: number) {
+		const result = mergeListItemIntoPrevious(list, children, currentIndex);
+		if (!result) throw new Error('expected a merge target');
+		return result;
+	}
+
 	it('row 1: flat merge of two paragraphs', () => {
 		const list = parseList('- A\n- B\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const mergedRaw = list.children?.[0].raw ?? '';
@@ -33,7 +44,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('row 2: current item has nested sub-list; it nests under target item (absorb)', () => {
 		const list = parseList('- A\n- B\n  - C\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const mergedItem = list.children?.[0];
@@ -48,7 +59,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it("row 3: target is nested inside previous item; merged text appends to nested paragraph; current's nested children become sibling of target", () => {
 		const list = parseList('- A\n  - AA\n- B\n  - C\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const parentItem = list.children?.[0];
@@ -67,7 +78,7 @@ describe('mergeListItemIntoPrevious', () => {
 		// absolute depth 1, not deepen it to match C's depth 2.
 		const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const aItem = list.children?.[0];
@@ -84,7 +95,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('row 5: current has non-listItem extra paragraph; absorbed into target item children', () => {
 		const list = parseList('- A\n- B\n\n  extra\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const target = list.children?.[0];
@@ -99,7 +110,7 @@ describe('mergeListItemIntoPrevious', () => {
 		// A.children[1]; a prior path-slice bug cascaded focus to A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(1);
 		const target = list.children?.[0];
@@ -113,7 +124,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: remaining items renumber after the merged item is deleted', () => {
 		const list = parseList('1. First\n2. Second\n3. Third\n');
 
-		const { mergePoint } = mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
 
 		expect(list.children?.length).toBe(2);
 		expect((list.children?.[0].children?.[0].raw ?? '').trim()).toBe('FirstSecond');
@@ -147,5 +158,48 @@ describe('mergeListItemIntoPrevious', () => {
 		const list = parseList('- A\n- B\n');
 
 		expect(() => mergeListItemIntoPrevious(list, list.children!.slice(), 0)).toThrow();
+	});
+
+	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
+		// The previous item is a fenced code block — not-mergeable, so the walker
+		// finds no text-bearing leaf. M1 must report no-target for the caller's
+		// focus-move fallback, not throw inside the commit ceremony.
+		const list = parseList('- ```\n  code\n  ```\n- text\n');
+		const children = list.children!.slice();
+		const before = children.length;
+
+		const result = mergeListItemIntoPrevious(list, children, 1);
+
+		expect(result).toBeNull();
+		expect(children.length).toBe(before);
+		expect(list.children?.length).toBe(before);
+	});
+});
+
+// The details dogfood kind must be registered for the walker's collapse probe to
+// read the summary chrome as opaque — hence the isolated describe.
+describe('mergeListItemIntoPrevious — collapsed container as previous leaf', () => {
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+		registerDetailsKind();
+	});
+
+	it('previous item ends in a collapsed <details>: returns null without mutating', () => {
+		// The preceding item's last child is a collapsed details; its only reachable
+		// leaf is the summary chrome (opaque), so — like the fenced-code case — M1
+		// reports no target and the caret falls back to the previous item's end.
+		const list = parse(
+			'- <details>\n  <summary>Sum</summary>\n\n  Hidden\n\n  </details>\n- text\n'
+		).children[0];
+		expect(list.children?.[0].children?.at(-1)?.kind).toBe('details');
+		const children = list.children!.slice();
+		const before = children.length;
+
+		const result = mergeListItemIntoPrevious(list, children, 1);
+
+		expect(result).toBeNull();
+		expect(children.length).toBe(before);
+		expect(list.children?.length).toBe(before);
 	});
 });

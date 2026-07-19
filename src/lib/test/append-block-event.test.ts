@@ -4,8 +4,8 @@ import type { EditEvent } from '$lib/editor-events';
 describe('moveFocus past the last block', () => {
 	it('emits op=appendBlock and no op=split', async () => {
 		const { createEditorEvents } = await import('$lib/editor-events');
-		const { createUndoController } = await import('$lib/editor-actions/undo/undo-controller');
-		const { createFocusActions } = await import('$lib/editor-actions/focus');
+		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
+		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
 		const { createUndoManager } = await import('$lib/undo/manager');
 		const { createSharingState } = await import('$lib/tree-operations/sharing');
 		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
@@ -73,8 +73,8 @@ describe('moveFocus past the last block', () => {
 	});
 
 	it('with { append: false } is a no-op at the document end — no block, no event', async () => {
-		const { createUndoController } = await import('$lib/editor-actions/undo/undo-controller');
-		const { createFocusActions } = await import('$lib/editor-actions/focus');
+		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
+		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
 		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
 
 		const { deps, doc, events } = makeEditorActionsDeps([

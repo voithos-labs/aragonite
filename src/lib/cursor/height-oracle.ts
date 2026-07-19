@@ -5,7 +5,9 @@
  * on mount, supersede estimates and are keyed by stable block id, so structural
  * index shifts and undo don't invalidate them.
  */
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
+import { isCollapsedContainer } from '../schema/reserved-chrome';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // Any image: inline `![alt](url)`, reference `![alt][ref]`, or shortcut
 // `![ref]`. Captures the alt segment so a `|WxH` size hint can be read. The
@@ -20,15 +22,15 @@ export interface HeightOracleOptions {
 	codeLineHeight: number; // px per code source line
 	avgCharWidth: number; // px, for chars-per-line from width
 	blockChrome: number; // px of margin/padding per block
-	imageBlockMinHeight: number; // px floor for an image-bearing paragraph (raw chars badly undercount a rendered image)
+	imageBlockMinHeight: number; // px floor for an image-bearing paragraph
 }
 
 export interface HeightOracle {
-	estimate(node: CstNode, width: number): number;
+	estimate(node: NodeView, width: number): number;
 	measured(id: string): number | undefined;
 	recordMeasured(id: string, height: number): void;
 	/** measured(id) ?? estimate(node, width). */
-	height(id: string, node: CstNode, width: number): number;
+	height(id: string, node: NodeView, width: number): number;
 	/** Drop measured heights (call on container width change — wrap depends on width). */
 	invalidateWidth(): void;
 	clear(): void;
@@ -64,7 +66,17 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		return total;
 	}
 
-	function estimate(node: CstNode, width: number): number {
+	function estimate(node: NodeView, width: number): number {
+		// A collapsed container mounts only its chrome row; its body lives in `raw`
+		// but never renders, so estimating from full `raw` over-counts it several-
+		// fold. One chrome line + block chrome is the tight estimate, matching what
+		// the summary/title row actually paints. Reads the declared collapse probe,
+		// so no per-kind arm is needed (cursor/ reading schema/ is layer-legal).
+		if (isCollapsedContainer(node)) return opts.lineHeight + opts.blockChrome;
+		// A descriptor's own O(1) estimate supersedes the built-in arms (a rendered
+		// artifact is far taller than its source text); the oracle still adds chrome.
+		const custom = tryGetBlockKindDescriptor(node.kind)?.estimateHeight;
+		if (custom) return custom(node, { width }) + opts.blockChrome;
 		const kind = node.kind;
 		const raw = node.raw;
 		switch (kind) {
@@ -87,9 +99,9 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			case 'listItem': {
 				// O(1), no subtree walk: a container is at least one line + chrome per
 				// child, and at least its materialized text wrapped as a blob. The blob
-				// term alone (the prior `default` fall-through) ignored every newline and
-				// per-child chrome, undercounting a stacked container several-fold; the
-				// child-count term alone ignores wrap. `children` is already on the node.
+				// term alone ignores every newline and per-child chrome, undercounting a
+				// stacked container several-fold; the child-count term alone ignores wrap.
+				// `children` is already on the node.
 				const childCount = Math.max(1, node.children?.length ?? 1);
 				const byChildren = childCount * (opts.lineHeight + opts.blockChrome);
 				const byText = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;

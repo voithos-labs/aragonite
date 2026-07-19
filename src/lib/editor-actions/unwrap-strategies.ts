@@ -16,6 +16,7 @@ import {
 } from '../tree-operations';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
+import { mergedElseFocusPrevious } from './merge-fallback';
 
 export interface UnwrapStrategyDeps {
 	deps: NestedActionsDeps;
@@ -58,13 +59,13 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 			containerNode: node,
 			path: deps.path,
 			state,
-			snapshot: { blockIndex: index, offset: 0 },
+			snapshot: { path: [...deps.path, 0], offset: 0 },
 			mutate: (scope) => {
 				const change = performDelete({ children: scope.children }, 0, scope.sharing);
 				renumberOrderedList(scope.node, 0, scope.sharing);
 				return change;
 			},
-			op: { kind: 'delete', eventPath: [index, 0] },
+			op: { kind: 'delete', eventPath: [...deps.path, 0] },
 			afterTick: () => {
 				state.innerBlockRefs[0]?.focus(0);
 			}
@@ -90,7 +91,6 @@ async function listItemCascadeMiddle(
 	itemIndex: number
 ): Promise<void> {
 	const node = deps.node;
-	const index = deps.index;
 	if (!node.children) return;
 
 	const item = node.children[itemIndex];
@@ -99,13 +99,13 @@ async function listItemCascadeMiddle(
 			containerNode: node,
 			path: deps.path,
 			state,
-			snapshot: { blockIndex: index, offset: 0 },
+			snapshot: { path: [...deps.path, itemIndex], offset: 0 },
 			mutate: (scope) => {
 				const change = performDelete({ children: scope.children }, itemIndex, scope.sharing);
 				renumberOrderedList(scope.node, itemIndex, scope.sharing);
 				return change;
 			},
-			op: { kind: 'delete', eventPath: [index, itemIndex] },
+			op: { kind: 'delete', eventPath: [...deps.path, itemIndex] },
 			afterTick: () => {
 				state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 			}
@@ -113,13 +113,16 @@ async function listItemCascadeMiddle(
 		return;
 	}
 
-	// Rule M1: merge into deepest visible text above with preserve-absolute-indent child placement.
-	let mergePoint!: { targetPath: number[]; offset: number };
+	// Rule M1: merge into deepest visible text above with preserve-absolute-indent
+	// child placement. When the previous item's deepest leaf is opaque the merge
+	// finds no target — the tree stays put and the caret falls back to the
+	// previous item's end (mirrors mergeWithPreviousInterior's opaque-leaf path).
+	let mergePoint: { targetPath: number[]; offset: number } | null = null;
 	await deps.parent.containerEdit.commitContainer({
 		containerNode: node,
 		path: deps.path,
 		state,
-		snapshot: { blockIndex: index, offset: 0 },
+		snapshot: { path: [...deps.path, itemIndex], offset: 0 },
 		mutate: (scope) => {
 			const result = mergeListItemIntoPrevious(
 				scope.node,
@@ -127,18 +130,24 @@ async function listItemCascadeMiddle(
 				itemIndex,
 				scope.sharing
 			);
-			mergePoint = result.mergePoint;
-			return { op: 'delete', at: itemIndex, count: 1 };
+			mergePoint = result?.mergePoint ?? null;
+			return mergePoint ? { op: 'delete', at: itemIndex, count: 1 } : { op: 'noop' };
 		},
 		op: {
 			kind: 'merge',
 			detail: { direction: 'prev' },
-			eventPath: [index, itemIndex]
+			eventPath: [...deps.path, itemIndex]
 		},
 		afterTick: () => {
-			const [firstPathIdx, ...restPath] = mergePoint.targetPath;
-			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, mergePoint.offset);
-		}
+			const merged = mergedElseFocusPrevious(mergePoint, state.innerBlockRefs[itemIndex - 1]);
+			if (!merged) return;
+			const [firstPathIdx, ...restPath] = merged.targetPath;
+			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, merged.offset);
+		},
+		// A no-target merge (opaque prev leaf) changes nothing; discard the entry but
+		// keep afterTick — mergedElseFocusPrevious still lands the caret (mirrors
+		// block-edit-core's mergeWithPreviousInterior).
+		discardIfNoop: true
 	});
 }
 

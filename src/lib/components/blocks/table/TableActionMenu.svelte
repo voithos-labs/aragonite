@@ -1,5 +1,9 @@
 <script lang="ts">
-	import type { TableMenuItem, ClipboardAction } from './table-menu-model';
+	import {
+		clampMenuToViewport,
+		type TableMenuItem,
+		type ClipboardAction
+	} from './table-menu-model';
 	import type { CellShortcutAction } from './cell-keydown-plan';
 
 	let {
@@ -23,6 +27,20 @@
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
+
+	// Clamped position, resolved once the menu's measured size is known; until then
+	// the template falls back to the raw open coordinate (close enough for the first
+	// frame, which the post-mount measure corrects before an edge overflow paints).
+	let clamped = $state<{ x: number; y: number } | null>(null);
+	$effect(() => {
+		if (!menuEl) return;
+		const rect = menuEl.getBoundingClientRect();
+		clamped = clampMenuToViewport(
+			{ x, y },
+			{ width: rect.width, height: rect.height },
+			{ width: window.innerWidth, height: window.innerHeight }
+		);
+	});
 
 	// Move focus into the menu on open so it's keyboard-operable; the first enabled
 	// item is the entry point (disabled items are aria-disabled, never focus stops).
@@ -138,12 +156,13 @@
 	bind:this={menuEl}
 	class="table-action-menu"
 	role="menu"
+	aria-label="Table actions"
 	tabindex="-1"
-	style:left="{x}px"
-	style:top="{y}px"
+	style:left="{clamped ? clamped.x : x}px"
+	style:top="{clamped ? clamped.y : y}px"
 	onkeydown={onMenuKeyDown}
 >
-	{#each items as item}
+	{#each items as item, i (i)}
 		{#if item.kind === 'action'}
 			<button
 				type="button"
@@ -172,7 +191,7 @@
 			<div class="table-action-menu-separator" role="separator"></div>
 		{:else}
 			<div class="table-action-menu-alignment" role="group" aria-label="Column alignment">
-				{#each alignmentSegments as seg}
+				{#each alignmentSegments as seg (seg.value)}
 					{@const active =
 						item.current === seg.value || (seg.value === 'left' && item.current === 'none')}
 					<button

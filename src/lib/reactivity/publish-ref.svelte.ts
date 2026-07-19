@@ -1,3 +1,5 @@
+import { tick } from 'svelte';
+
 /**
  * Replaces `bind:this={refs[i]}` in a keyed each — Svelte 5's bind:this
  * doesn't re-target when iteration index shifts. Cleanup is conditional
@@ -60,9 +62,10 @@ export interface RevealChildOptions {
  * The bare-index mount waiter can wake on a same-index mount at another nesting
  * level (the registry is keyed by local index, shared across scopes), so a reveal
  * re-checks and re-waits. Cap the re-waits so a pathological wake storm can't spin
- * unboundedly even though each genuine wake makes progress — distinct from the
- * never-mounts hang, which the `isInWindow` membership check below short-circuits
- * before this loop is ever entered.
+ * unboundedly even though each genuine wake makes progress. The never-mounts hang is
+ * held off two ways: a windowing caller's `isInWindow` check short-circuits before
+ * this loop, and the loop itself races each wait against a tick so a non-windowing
+ * caller degrades within the cap rather than parking on a wake that never comes.
  */
 const MAX_MOUNT_REWAITS = 64;
 
@@ -73,26 +76,40 @@ const MAX_MOUNT_REWAITS = 64;
  * container reveal and TableBlock's hand-rolled one so the "is this slot a live
  * mount" gate lives in one place.
  *
- * Termination (VR-5): the mount-wait is woken ONLY by a same-index mount, so a
- * scroll that missed (a stale model at call time left the target outside the
- * recomputed window) would wait forever. After the scroll, prove the target is in
- * the recomputed window; if it provably isn't, the awaited mount can never come —
- * return so the caller degrades (operate on path state, skip DOM placement) instead
- * of hanging. The per-wake cap covers spurious cross-level wakes.
+ * Termination (VR-5): the mount-wait is woken ONLY by a same-index mount, so any
+ * target whose mount never fires would wait forever — a scroll that missed (stale
+ * model left the target outside the recomputed window) or a mounted child that
+ * never publishes (failed-render boundary). Windowing callers therefore never
+ * enter the open-ended wait: off-window degrades immediately, in-window waits one
+ * mount flush then degrades. A non-windowing caller can't prove membership, so it
+ * races each mount-wait against a tick and degrades within the re-wait cap. Callers
+ * degrade by operating on path state and skipping DOM placement.
  */
 export async function revealChildOrWait(index: number, opts: RevealChildOptions): Promise<void> {
 	const stale = opts.isStale?.(index) ?? false;
-	if (index < opts.childCount && (stale || !opts.getRef(index))) {
-		if (stale) opts.dropRef?.(index);
-		await opts.revealChild(index);
-		// Already present (a same-flush mount), or membership is unknowable (a
-		// non-windowing caller omits isInWindow) → fall through to the bounded wait.
+	if (index >= opts.childCount || (!stale && opts.getRef(index))) return;
+	if (stale) opts.dropRef?.(index);
+	await opts.revealChild(index);
+	if (opts.getRef(index)) return;
+	if (opts.isInWindow) {
 		// Provably outside the recomputed window → the mount can't fire; degrade now.
-		if (!opts.getRef(index) && opts.isInWindow?.(index) === false) return;
-		let rewaits = 0;
-		while (!opts.getRef(index) && rewaits++ < MAX_MOUNT_REWAITS) {
-			await whenRefMounted(index, () => !!opts.getRef(index));
-		}
+		if (!opts.isInWindow(index)) return;
+		// In-window, the mount flush is at most one tick away. A target still
+		// unpublished after it never will be — a failed-render boundary leaves
+		// bind:this unset and resolves no waiter — so degrade rather than park
+		// on a wait nothing can wake.
+		await tick();
+		return;
+	}
+	// Membership is unknowable (a non-windowing caller): bounded mount-wait. Wake on
+	// a real same-index mount, but race each wait against a tick so a child that never
+	// publishes — a failed-render boundary leaves bind:this unset, waking no waiter —
+	// degrades within the cap instead of parking on the open-ended event forever (the
+	// windowing arm's degrade, adapted where membership can't be proven). A spurious
+	// cross-level wake re-checks and re-waits, capped either way.
+	let rewaits = 0;
+	while (!opts.getRef(index) && rewaits++ < MAX_MOUNT_REWAITS) {
+		await Promise.race([whenRefMounted(index, () => !!opts.getRef(index)), tick()]);
 	}
 }
 

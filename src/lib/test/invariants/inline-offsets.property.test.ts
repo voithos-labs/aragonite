@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
-import { arbInlineSource } from './arbitraries';
+import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
 // G2.5: the inline tree tiles the content range. NOT leaf-exhaustive — a wrapped
 // node's open/close markers live in the gap between its `start` and its first
@@ -15,7 +15,7 @@ import { arbInlineSource } from './arbitraries';
 // Inner levels legitimately have edge gaps (markers); the top level does not.
 // Cursor mapping (findNodeAtOffset) depends on this holding for every input.
 
-const PARAMS = { numRuns: 1000, seed: 424242 } as const;
+const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
 function assertPartition(nodes: InlineNode[], rangeStart: number, rangeEnd: number): void {
 	if (nodes.length === 0) {
@@ -83,4 +83,18 @@ describe('G2.5 inline-tree offset partition', () => {
 			PARAMS
 		);
 	});
+});
+
+// Counterexamples the generator missed before its destinations could contain
+// backticks: a link destination terminating inside a code span made the link
+// end mid-span, leaving overlapping top-level siblings.
+describe('G2.5 pinned counterexamples', () => {
+	const cases = ['[a](u`)`)', '![a](u`)`)'];
+
+	for (const source of cases) {
+		it(`link destination ending inside a code span: ${JSON.stringify(source)}`, () => {
+			const nodes = parseInline(source, 0, source.length);
+			assertPartition(nodes, 0, source.length);
+		});
+	}
 });

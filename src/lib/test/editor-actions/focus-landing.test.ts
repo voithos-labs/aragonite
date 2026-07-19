@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { consumeStickyLanding } from '../../editor-actions/focus-landing';
+import { consumeStickyLanding } from '../../editor-actions/focus/focus-landing';
 import { CURSOR_END } from '../../block-component';
+import { asEditorX } from '../../cursor/coordinate-spaces';
 import { createStickyColumnState, type StickyColumnState } from '../../cursor/sticky-column';
 import { mockRef } from '../harness/editor-actions';
 
 function capturedSticky(x: number): StickyColumnState {
 	const sticky = createStickyColumnState();
-	sticky.capture(x);
+	sticky.capture(asEditorX(x));
 	return sticky;
 }
 
@@ -47,16 +48,16 @@ describe('consumeStickyLanding', () => {
 	});
 
 	for (const side of ['start', 'end'] as const) {
-		it(`'${side}' prefers edge-widget select when the block accepts`, async () => {
-			const block = mockRef({ focus: vi.fn(), selectEdgeWidget: vi.fn(() => true) });
+		it(`'${side}' prefers edge-widget entry when the block accepts`, async () => {
+			const block = mockRef({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => true) });
 			await consumeStickyLanding(block, 0, side, createStickyColumnState(), vi.fn());
-			expect(block.selectEdgeWidget).toHaveBeenCalledWith(side);
+			expect(block.enterEdgeWidget).toHaveBeenCalledWith(side);
 			expect(block.focus).not.toHaveBeenCalled();
 		});
 	}
 
-	it('falls through to the caret when selectEdgeWidget declines', async () => {
-		const block = mockRef({ focus: vi.fn(), selectEdgeWidget: vi.fn(() => false) });
+	it('falls through to the caret when enterEdgeWidget declines', async () => {
+		const block = mockRef({ focus: vi.fn(), enterEdgeWidget: vi.fn(() => false) });
 		await consumeStickyLanding(block, 0, 'end', createStickyColumnState(), vi.fn());
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
 	});

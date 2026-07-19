@@ -56,13 +56,18 @@ const linkRefDef = fc
 	)
 	.map(([label, url, title]) => `[${label}]: ${url}${title}\n`);
 
+// headerDelta lets the header/delimiter cell counts disagree: GFM §4.10 makes
+// the mismatch a paragraph, not a table, and round-trip must hold either way.
 const table = fc
 	.tuple(
 		fc.integer({ min: 1, max: 3 }),
+		fc.integer({ min: -1, max: 1 }),
 		fc.array(fc.constantFrom('a', 'b', '1', 'x | y', ''), { minLength: 0, maxLength: 2 })
 	)
-	.map(([cols, bodyCells]) => {
-		const header = '| ' + Array.from({ length: cols }, (_, i) => 'H' + i).join(' | ') + ' |\n';
+	.map(([cols, headerDelta, bodyCells]) => {
+		const headerCols = Math.max(1, cols + headerDelta);
+		const header =
+			'| ' + Array.from({ length: headerCols }, (_, i) => 'H' + i).join(' | ') + ' |\n';
 		const delim = '| ' + Array.from({ length: cols }, () => '---').join(' | ') + ' |\n';
 		const rows = bodyCells
 			.map((cell) => '| ' + Array.from({ length: cols }, () => cell).join(' | ') + ' |\n')

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 test.describe('list indent — ref alignment via registry', () => {
@@ -34,9 +34,9 @@ test.describe('list indent — ref alignment via registry', () => {
 		await editor.page.keyboard.press('Tab');
 
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceMatches(/- one\n  - Xtwo/);
+		await editor.bridge.waitForSourceMatches(/- one\n {2}- Xtwo/);
 
 		const src = await editor.bridge.getSource();
-		expect(src).toMatch(/- one\n  - Xtwo/);
+		expect(src).toMatch(/- one\n {2}- Xtwo/);
 	});
 });

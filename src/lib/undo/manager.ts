@@ -8,7 +8,8 @@ export function createUndoManager(): UndoManager {
 
 	return {
 		push(entry: UndoEntry): void {
-			// Caller clones before push.
+			// Stored as-is: the caller builds entries safe to hold (structure-shared
+			// snapshot, copied children/id arrays).
 			undoStack.push(entry);
 			if (undoStack.length > MAX_UNDO) undoStack.shift();
 			redoStack.length = 0;

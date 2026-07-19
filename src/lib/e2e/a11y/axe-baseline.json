@@ -3,8 +3,8 @@
 	"allow": [
 		{
 			"id": "color-contrast",
-			"reason": "Dimmed inline markers, code-block syntax tokens, and link colors are consumer-theme-owned; the editor does not own its CSS vars yet, so contrast can't be fixed here.",
-			"milestone": "0.7 Track B — CSS-ownership migration"
+			"reason": "Residual after the marker fix: the dimmed markers now meet AA (--syntax-marker-dim raised to 0.65), and the only remaining failures are the accent colour itself. --color-accent (#567b67) is 2.8:1 on the editor background and 2.4:1 inside a code block AT FULL OPACITY, so no dim/opacity change can reach 4.5:1 — it needs a lighter accent. That is a palette decision, not a token tweak: the accent also drives links, URLs, borders, focus outlines, and the resize handles.",
+			"milestone": "unscheduled — needs an accent-palette pass"
 		},
 		{
 			"id": "aria-input-field-name",
