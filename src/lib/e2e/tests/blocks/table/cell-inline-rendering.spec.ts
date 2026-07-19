@@ -140,10 +140,11 @@ test.describe('table cell: inline rendering', () => {
 		await expect(second).toBeFocused();
 	});
 
-	// The caret-edge dispatch (threaded for inline reveal) meets a `<br>` — a
-	// non-reveal widget — mid-cell. A cell has no image-overlay affordance, so the
-	// dispatch steps the caret over it like native rather than selecting it; the
-	// prose select path stranded focus off any cell. Navigation must stay on a cell.
+	// Crossing a mid-cell `<br>` with arrows is native contenteditable — the keys
+	// never reach the caret-edge dispatch — so this guards only the user-visible
+	// property that navigation stays on an editable cell (it lands in the adjacent
+	// cell); the dispatch's non-reveal step-over is pinned by the destructive-key
+	// case below.
 	test('arrowing across a mid-cell <br> keeps focus on a cell, never stranding it', async ({
 		page
 	}) => {
@@ -154,10 +155,35 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('ArrowRight'); // past `x`
 		await page.keyboard.press('ArrowRight'); // across the `<br>`
 
-		// Focus stays on an editable cell (the select path dropped it to the editor
-		// root); pure navigation leaves the widget's bytes untouched.
 		const activeRole = await page.evaluate(() => document.activeElement?.getAttribute('role'));
 		expect(activeRole).toBe('cell');
 		expect(await editor.bridge.getSource()).toContain('| x<br>y | z |');
+	});
+
+	// The dispatch's non-reveal step-over branch is exercised by a DESTRUCTIVE key at
+	// a `<br>` edge (arrows go native). At the widget's trailing edge, Backspace press
+	// #1 steps the caret over the widget — deleting no byte — instead of the prose
+	// image select-then-delete that has no cell affordance; the caret lands at the
+	// widget's leading edge, so the next char types before the `<br>`.
+	test('Backspace at a mid-cell <br> trailing edge steps over it, deleting no byte', async ({
+		page
+	}) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| x<br>y | z |\n');
+		const cell = page.locator('[role="cell"]').nth(2);
+		await cell.click();
+		await page.keyboard.press('Control+End');
+		await page.keyboard.press('ArrowLeft'); // → the <br>'s trailing edge (before `y`)
+
+		const before = await editor.bridge.getSource();
+		await page.keyboard.press('Backspace');
+		// Press #1 deletes nothing and keeps focus on the cell (a prose select would
+		// have stranded it, a byte edit would change the source).
+		expect(await editor.bridge.getSource()).toBe(before);
+		const activeRole = await page.evaluate(() => document.activeElement?.getAttribute('role'));
+		expect(activeRole).toBe('cell');
+		// The caret stepped to the widget's leading edge: the next char lands BEFORE the
+		// `<br>` (a select would replace the widget; a no-op would land after it).
+		await editor.typeText('Z');
+		await editor.bridge.waitForSourceContains('| xZ<br>y | z |');
 	});
 });
