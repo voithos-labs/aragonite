@@ -88,14 +88,10 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		results = copy;
 	}
 
-	// Only the prose text render branch applies islands, so a widget/replace
-	// silently no-ops on two block classes: non-prose kinds (code, thematic
-	// break — no inline pass at all) and table cells, whose surface runs its own
-	// inline pass but applies no island decorations (docs/issues.md). Flag both
-	// at the source seam rather than leaving the author to wonder why nothing
-	// rendered.
+	// Islands render on prose leaves and table cells; only non-prose kinds (code,
+	// thematic break — no inline pass at all) apply none. Flag those at the source
+	// seam rather than leaving the author to wonder why nothing rendered.
 	function islandSkipReason(kind: CstNode['kind']): string | null {
-		if (kind === 'tableCell') return 'the table-cell surface does not apply islands';
 		if (!isProseKind(kind)) return 'islands render only in prose blocks';
 		return null;
 	}
@@ -112,10 +108,9 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			const key = `${sourceName}\0${node.kind}`;
 			if (warnedUnrenderableIslands.has(key)) continue;
 			warnedUnrenderableIslands.add(key);
-			const kindLabel = node.kind === 'tableCell' ? node.kind : `non-prose ${node.kind}`;
 			devWarn(
 				'decorations',
-				`source '${sourceName}' places a ${dec.type} island on a ${kindLabel} block; ${reason}`,
+				`source '${sourceName}' places a ${dec.type} island on a non-prose ${node.kind} block; ${reason}`,
 				{ path: dec.path }
 			);
 		}

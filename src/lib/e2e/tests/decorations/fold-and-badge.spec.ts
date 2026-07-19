@@ -6,8 +6,9 @@ import { FIXTURE_BYTES } from '../perf/vr-helpers';
  * Fold + block-badge fixtures (requirements/decorations/fold-and-badge.md).
  * `fold` pins ReplaceDecoration.widget with native interactivity inside the
  * island; `block-badge` pins BlockDecoration.badge, including survival across
- * windowing. The fold-table seed pins the islands-in-cells gap: the cell
- * surface applies no islands (docs/issues.md), and DEV warns at the source seam.
+ * windowing. The fold-table seed pins island rendering inside a table cell: the
+ * cell surface applies islands like the prose path, and the source seam no longer
+ * dev-warns for cell paths.
  */
 
 const ISLAND = '[data-decoration-island]';
@@ -45,7 +46,7 @@ test.describe('fold fixture', () => {
 });
 
 test.describe('fold fixture: islands in table cells', () => {
-	test('a fold range in a cell renders no island, dev-warns, and stays byte-safe', async ({
+	test('a fold range in a cell renders one … island, never dev-warns, and stays byte-safe', async ({
 		page
 	}) => {
 		const warnings: string[] = [];
@@ -56,17 +57,44 @@ test.describe('fold fixture: islands in table cells', () => {
 		await editor.gotoPlugins('fold-table');
 		await editor.bridge.waitForSourceContains('SECRET');
 
-		// The cell surface applies no island decorations — the ledgered gap this
-		// spec pins until the render path grows cell support.
+		// The cell surface now applies island decorations, exactly as the prose path.
 		await editor.waitForRenderFlush();
-		await expect(page.locator(ISLAND)).toHaveCount(0);
+		await expect(page.locator(`${ISLAND} .fold-ellipsis`)).toHaveText('…');
+		await expect(page.getByRole('cell').first()).not.toContainText('SECRET');
 		expect(await editor.bridge.getSource()).toBe(FOLD_TABLE_SEED);
+		// The retired cells-unsupported warning must not fire for a cell path.
 		const islandWarn = (w: string) =>
-			w.includes("source 'fold' places a replace island on a tableCell");
-		await expect.poll(() => warnings.some(islandWarn)).toBe(true);
-		// Exactly once per source+kind (the requirement's own wording): the seed holds
-		// multiple provide runs, and the dedup must hold across all of them.
-		expect(warnings.filter(islandWarn)).toHaveLength(1);
+			w.includes('places a replace island on a non-prose tableCell');
+		expect(warnings.filter(islandWarn)).toHaveLength(0);
+	});
+
+	test('an edge press selects the cell fold island whole, then deletes its hidden range', async ({
+		page
+	}) => {
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins('fold-table');
+		await editor.bridge.waitForSourceContains('SECRET');
+		await editor.waitForRenderFlush();
+
+		// Focus the island cell without clicking it (its left edge carries the row
+		// grip, and the `…` opens the fold): enter the sibling cell and Shift+Tab back.
+		await page.getByRole('cell').nth(1).click();
+		await page.keyboard.press('Shift+Tab');
+		await expect(page.getByRole('cell').first()).toBeFocused();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('ArrowRight'); // past `a`
+		await page.keyboard.press('ArrowRight'); // past the space → island leading edge
+
+		// First Delete selects the whole island (a hidden byte is the only thing to
+		// eat); the second deletes its covered range through the CST as one edit.
+		await page.keyboard.press('Delete');
+		await page.keyboard.press('Delete');
+
+		await expect(page.locator(ISLAND)).toHaveCount(0);
+		const source = await editor.bridge.getSource();
+		expect(source).not.toContain('SECRET');
+		// The covered bytes left getSource, and the row kept both columns.
+		expect(source).toBe('| a  b | c |\n| --- | --- |\n| d | e |\n');
 	});
 });
 

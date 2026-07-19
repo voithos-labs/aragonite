@@ -17,9 +17,12 @@ import { computeInlineContent, getContentRange, isProseKind } from '../../../cor
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import {
+	captureFocusedCaretWalkOffset,
+	restoreCaretAtWalkOffset
+} from '../../../cursor/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
-import { applyIslandDecorations } from '../../../decorations/island-dom';
+import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '../../../dev-warn';
@@ -73,22 +76,6 @@ export interface TextRender {
 	/** Destroy every pooled widget instance — called when the block unmounts. */
 	dispose(): void;
 }
-
-/** Gated island signature for the render key. No islands ⇒ '' — an undecorated
- *  block's key stays byte-identical to the island-free format (the zero-cost
- *  path; pinned by a parity test). Widget identity is deliberately untracked:
- *  same position + class ⇒ equal signature (see DecorationWidgetSpec). */
-export function islandRenderKeyPart(
-	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
-): string {
-	if (islands.length === 0) return '';
-	return `\0${islands.map((i) => islandSig(i.dec)).join(';')}`;
-}
-
-const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
-	d.type === 'widget'
-		? `w:${d.offset}:${d.side ?? 'after'}`
-		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
 
 // The NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
 // trailing segment islandRenderKeyPart contributes (absent ⇒ no sixth part).
@@ -191,20 +178,13 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	// edit-path pendingCursorOffset set; carry the caret across in walk space.
 	// The SFC's pending restore (when an edit set one) runs after and wins.
 	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
-		if (!document.activeElement || !el.contains(document.activeElement)) return null;
-		const sel = window.getSelection();
-		if (!sel?.focusNode || !el.contains(sel.focusNode)) return null;
-		const walk = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-		traceCursorCapture(walk);
+		const walk = captureFocusedCaretWalkOffset(el);
+		if (walk !== null) traceCursorCapture(walk);
 		return walk;
 	}
 
 	function restoreCaret(el: HTMLElement, walkOffset: DomTextOffset): void {
-		const range = createRangeAtDomTextOffsets(el, walkOffset, walkOffset);
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
+		restoreCaretAtWalkOffset(el, walkOffset);
 		traceCursorRestore(walkOffset);
 	}
 

@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import {
-	createTextRender,
-	islandRenderKeyPart,
-	type TextRenderDeps
-} from '$lib/components/blocks/text/text-render';
+import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
+import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import type { CstNode } from '$lib/core/nodes';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';

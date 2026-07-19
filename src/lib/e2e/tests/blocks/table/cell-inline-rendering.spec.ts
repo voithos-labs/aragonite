@@ -139,4 +139,25 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('Tab');
 		await expect(second).toBeFocused();
 	});
+
+	// The caret-edge dispatch (threaded for inline reveal) meets a `<br>` — a
+	// non-reveal widget — mid-cell. A cell has no image-overlay affordance, so the
+	// dispatch steps the caret over it like native rather than selecting it; the
+	// prose select path stranded focus off any cell. Navigation must stay on a cell.
+	test('arrowing across a mid-cell <br> keeps focus on a cell, never stranding it', async ({
+		page
+	}) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| x<br>y | z |\n');
+		const cell = page.locator('[role="cell"]').nth(2);
+		await cell.click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('ArrowRight'); // past `x`
+		await page.keyboard.press('ArrowRight'); // across the `<br>`
+
+		// Focus stays on an editable cell (the select path dropped it to the editor
+		// root); pure navigation leaves the widget's bytes untouched.
+		const activeRole = await page.evaluate(() => document.activeElement?.getAttribute('role'));
+		expect(activeRole).toBe('cell');
+		expect(await editor.bridge.getSource()).toContain('| x<br>y | z |');
+	});
 });
