@@ -22,6 +22,13 @@ describe('isVerticallyTransparentNode', () => {
 		expect(isVerticallyTransparentNode(block('hello\n'))).toBe(false);
 	});
 
+	// Entity glyphs are step-over widgets — character-like, so they carry a column.
+	// An entity-only paragraph must NOT be skipped by vertical navigation (a
+	// select-model image-only paragraph still is), or `©®` becomes caret-unreachable.
+	it('is false for an entity-glyph-only paragraph', () => {
+		expect(isVerticallyTransparentNode(block('&copy;&reg;\n'))).toBe(false);
+	});
+
 	it('is false for a paragraph mixing text and an image', () => {
 		expect(isVerticallyTransparentNode(block('text ![pic](/x.png)\n'))).toBe(false);
 	});

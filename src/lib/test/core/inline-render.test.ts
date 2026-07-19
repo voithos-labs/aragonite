@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
+import { rawTextOfNode } from '../../cursor/widget-offset';
 import type { InlineNode } from '../../core/nodes';
 
 describe('renderInlineNodes — hardLineBreak (textContent equals raw)', () => {
@@ -50,23 +51,51 @@ describe('renderInlineNodes — escape', () => {
 	});
 });
 
-describe('renderInlineNodes — entityReference', () => {
-	it('renders entityReference with source bytes as text content', () => {
+describe('renderInlineNodes — entityReference widget (visible glyph)', () => {
+	it('renders a visible entity as an atomic widget of its decoded glyph', () => {
 		const raw = '&copy;';
 		const node: InlineNode = { kind: 'entityReference', start: 0, end: 6, decoded: '©' };
 		const frag = renderInlineNodes([node], raw);
 		const div = document.createElement('div');
 		div.appendChild(frag);
-		expect(div.textContent).toBe('&copy;');
-		const span = div.querySelector('.md-entity');
-		expect(span?.textContent).toBe('&copy;');
+		// The DOM shows the glyph; there is no literal-source span.
+		const widget = div.querySelector<HTMLElement>('[data-inline-widget]');
+		expect(widget?.textContent).toBe('©');
+		expect(widget?.getAttribute('contenteditable')).toBe('false');
+		expect(div.querySelector('.md-entity')).toBeNull();
 	});
 
-	it('entity inside parsed paragraph: full-document textContent equals raw', () => {
+	it("carries the source bytes on data-source-* so the raw walk reads back '&copy;'", () => {
 		const raw = 'a &copy; b';
 		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw);
-		expect(frag.textContent).toBe(raw);
+		const container = document.createElement('div');
+		container.appendChild(renderInlineNodes(nodes, raw));
+		const widget = container.querySelector<HTMLElement>('[data-inline-widget]')!;
+		expect(widget.dataset.sourceStart).toBe('2');
+		expect(widget.dataset.sourceEnd).toBe('8');
+		// The glyph contributes 0 to the raw walk; its bytes ride the attrs, so the
+		// walk-summed raw tiles the source exactly (G2.4/G2.5-style partition).
+		expect(rawTextOfNode(container, raw)).toBe(raw);
+		expect(container.textContent).toBe('a © b');
+	});
+});
+
+describe('renderInlineNodes — entityReference literal span (invisible glyph)', () => {
+	// A whitespace/control/zero-width decoding keeps its literal-source span: an
+	// invisible atomic island would be a caret trap. `&nbsp;` (U+00A0) sits here —
+	// its glyph is an invisible column, indistinguishable from a plain space.
+	it.each([
+		{ name: 'nbsp (whitespace)', raw: '&nbsp;', decoded: ' ' },
+		{ name: 'zero-width space (format)', raw: '&#8203;', decoded: '​' },
+		{ name: 'newline (control)', raw: '&#10;', decoded: '\n' }
+	])('renders $name as a literal .md-entity span', ({ raw, decoded }) => {
+		const node: InlineNode = { kind: 'entityReference', start: 0, end: raw.length, decoded };
+		const div = document.createElement('div');
+		div.appendChild(renderInlineNodes([node], raw));
+		expect(div.querySelector('[data-inline-widget]')).toBeNull();
+		const span = div.querySelector('.md-entity');
+		expect(span?.textContent).toBe(raw);
+		expect(div.textContent).toBe(raw);
 	});
 });
 
