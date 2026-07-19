@@ -233,7 +233,15 @@
 	function canConvertSource(s: string): boolean {
 		return hasGithubAlert(s) && convertGithubAlertsInDocument(s).changed;
 	}
-	let canConvert = $derived(canConvertSource(source));
+	// Deliberately NOT a $derived: canConvertSource parses, and a render-time
+	// parse races the page's async plugin installs — the first parse must land
+	// after registration or every opener fires late-opener-registration. The
+	// effect's post-mount timing is the sequencing, not an accident.
+	// eslint-disable-next-line svelte/prefer-writable-derived -- deferral is load-bearing (see above)
+	let canConvert = $state(false);
+	$effect(() => {
+		canConvert = canConvertSource(source);
+	});
 	$effect(() => {
 		if (!editor) return;
 		return editor.getEvents().on('edit', () => {
