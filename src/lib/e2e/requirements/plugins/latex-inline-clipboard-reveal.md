@@ -8,11 +8,18 @@ stale `node.raw` at a DOM-derived offset and the post-paste re-render wipes the
 revealed text node while the reveal flag stays stuck, silently dropping all later
 typing until blur.
 
+Copy takes the opposite half of the same seam: it must never mutate, so it takes
+no fold — but a selection over the revealed (uncommitted) edit must copy the live
+DOM text, not the stale raw slice.
+
 ## Happy paths
 
 - reveal + type + paste: enter the math source, type two chars, paste one — the
   serialized source carries the revealed edit and the pasted char, math delimiters
   intact.
+- reveal + type + copy: enter the math source, type two chars, select the edit,
+  copy — the clipboard carries the revealed live-DOM text, the reveal stays open,
+  and the document is untouched (the edit never reaches the CST).
 
 ## Edge cases
 

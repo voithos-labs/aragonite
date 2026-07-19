@@ -76,4 +76,31 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 		// No wrong-offset splice into the widget: the math delimiters survive intact.
 		expect(source).toContain('$x^2$');
 	});
+
+	test('copy reads the revealed live-DOM edit and never folds the reveal', async ({ page }) => {
+		await editor.revealAtTrailingEdge();
+
+		// Edit the revealed source (onInput suppressed — the edit is DOM-only).
+		await page.keyboard.type('QQ');
+
+		// Select the edit; both endpoints stay inside the source node, so the copy
+		// never trips the escape-fold.
+		await page.keyboard.press('Shift+ArrowLeft');
+		await page.keyboard.press('Shift+ArrowLeft');
+
+		await page.keyboard.press('Control+c');
+		await editor.waitForClipboardWrite();
+
+		const clip = await page.evaluate(() => navigator.clipboard.readText());
+		// The clipboard holds what the user SEES — the live DOM edit — not the stale
+		// raw slice, which never carried `QQ` (the edit is uncommitted).
+		expect(clip).toContain('QQ');
+
+		// Copy never mutates: the reveal stays open (widget still folded to source)…
+		await expect(editor.mathWidget).toHaveCount(0);
+		// …and the document is untouched — `QQ` never reached the CST.
+		const source = await editor.bridge.getSource();
+		expect(source).not.toContain('QQ');
+		expect(source).toContain('$x^2$');
+	});
 });

@@ -157,20 +157,6 @@ the post-change coordinate and the top-level divergence want a joint look.
 seam and both content-commit factories together — a careful reconciliation, not a spot change.
 Fold into the history-seam pass (limestone internal integration).
 
-### Cross-block type-replace splices the surviving leaf's raw without re-deriving its kind
-
-**Severity:** minor (transient; the next reparse corrects it)
-**Files:** `src/lib/selection/cross-block/type-replace.ts`
-
-The typed character is spliced straight into the surviving leaf's raw and committed via
-commitMultiScope. If the inserted character changes the block kind (e.g. a leading `#`/`>` when
-the merge caret sits at offset 0), the kind stays stale until the next full reparse — unlike the
-single-block type path, which reparses.
-
-**Why deferred:** a correct fix reparses the spliced leaf and replaces the block when the kind
-changes, which is a reparse-and-replace inside the commit flow, not a cheap tweak. Reachable
-only when the post-delete caret lands at offset 0 and the typed char is a block marker.
-
 ### writeText clipboard writes normalize line endings per-OS; wry reliability unproven
 
 **Severity:** watch (no defect today; relevant to the limestone/Tauri integration)
@@ -388,23 +374,3 @@ through the cell surface (its pending-cursor `$effect` already carries the
 **Why deferred:** cell reveal is a feature wire-up, not a regression. Cells already render
 widgets (0.9.14) and a `<br>` now paints as one, so the rendering half of the cell-inline
 work has landed; what remains is threading the interaction bundle through the cell surface.
-
-### Copy during an active inline-widget reveal slices stale raw
-
-**Severity:** minor (non-mutating; wrong clipboard bytes, no document corruption)
-**Files:** `src/lib/components/blocks/text/text-clipboard.ts` (`onCopy`)
-
-Cut and paste now fold a live source-reveal before running, so they mutate a CST
-consistent with the swapped DOM. Copy takes no such guard — a deliberate asymmetry,
-since copy must never mutate the document and a fold commits an edit. While an
-inline-math `$…$` source is revealed, `onCopy` still slices `node.raw` at DOM-derived
-offsets, so a selection spanning the revealed (DOM-only) edit copies bytes that don't
-match what the user sees. The document is untouched; only the clipboard payload is wrong.
-
-**Fix direction:** while a reveal is active, read the copy payload from the live DOM
-source text rather than the stale raw slice — the read half of the same seam cut/paste
-fold at, without the fold's mutation.
-
-**Why deferred:** non-corrupting and narrow (a copy whose selection overlaps a revealed
-widget source); folding on copy is disallowed, so this needs its own read-path branch.
-Fold into the clipboard seam alongside the copy read.
