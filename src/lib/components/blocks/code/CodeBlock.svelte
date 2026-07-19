@@ -488,6 +488,8 @@
 		applyIndentResult(result);
 	}
 
+	// ── Pointer + clipboard ─────────────────────────────────────────────
+
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;
 	}

@@ -32,6 +32,14 @@ Section dividers mark logical groupings:
 
 Public API near the top, internals below. Colocate types with the code that uses them — a separate `types` file only when the type is shared.
 
+A complex file reads top to bottom, newspaper order: the first screen states its one
+responsibility (a header only when the filename doesn't already say it); the main operation
+comes before its sub-steps — a reader meets `parse()` before `parseNextBlock()`; each section
+holds only what its name says, ordered by reader priority, not accretion history; state sits
+near the effects that use it, and a single-caller helper within a screen of its caller. The
+test: a maintainer can answer "what does this file do, and where would I change X?" from
+headers, section names, and signatures alone.
+
 ## Comments
 
 Default to none. Explain **why** — the non-obvious choice, the workaround, the deliberate exclusion — never **what**; names and types carry the _what_. The test: if removing the comment wouldn't confuse a reader, delete it. You own a file's signal-to-noise when you touch it — prune failing comments even when you didn't write them.

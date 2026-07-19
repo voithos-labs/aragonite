@@ -599,6 +599,8 @@
 		announceReorder(`Moved block to position ${to + 1} of ${total}`);
 	});
 
+	// ── Context provision ───────────────────────────────────────────────
+
 	// The action triple stays per-key so a container re-provides exactly the
 	// bundles it overrides; HISTORY stays per-key as G1.4's single-provider
 	// subject. Everything else the root provides once rides three named facets.
@@ -633,6 +635,8 @@
 		keybindingOverrides: () => overridesMap,
 		brokenImageUrls
 	} satisfies EditorPolicies);
+
+	// ── Root DOM effects ────────────────────────────────────────────────
 
 	// Mode flips are blur-class events: entering reading while a reveal is open or
 	// a composition is live must fold/commit through the existing blur choke
