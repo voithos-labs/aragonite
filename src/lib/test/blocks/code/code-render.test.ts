@@ -237,23 +237,84 @@ describe('renderCodeBlock — all-blank body byte parity', () => {
 	}
 });
 
-// Interior `\r` is dropped by the language-highlight path: tokenizeBody routes the
-// body through `template.innerHTML`, whose HTML parser normalizes `\r\n` → `\n`, so a
-// language-tagged CRLF block loses its interior carriage returns on render. Ledgered
-// as "Language-highlighted CRLF code drops interior carriage returns on render"; this
-// pin documents the standing corruption and flips the day that fix lands.
-describe('renderCodeBlock — CRLF interior mangle in the language path (known defect)', () => {
+// A closer with no final line ending (the block ends `…\n```` with nothing after)
+// hits the trimTrailingLineEnding no-op branch in trimSliceTail — the tail carries
+// no ending to strip. textContent must still equal the raw verbatim (LF and CRLF) so
+// the closer survives CodeBlock's textContent readback on commit.
+describe('renderCodeBlock — closer without a final line ending', () => {
 	beforeEach(() => {
 		__resetRegistryForTests();
 		__resetBootForTests();
 		bootstrapCodeLanguages();
 	});
 
-	it('a language-tagged CRLF body still loses its interior `\\r` (pinned pending the ledgered fix)', () => {
+	for (const [name, raw] of [
+		['LF', '```\ncode\n```'],
+		['CRLF', '```\r\ncode\r\n```']
+	] as const) {
+		it(`preserves textContent — ${name}`, () => {
+			const node = makeFencedCodeNode(raw);
+			const frag = renderCodeBlock(node);
+			expect(frag.textContent).toBe(raw);
+			expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
+		});
+	}
+});
+
+// The language-highlight path keeps textContent === trimTrailingLineEnding(raw) for
+// CRLF bodies too: tokenizeBody highlights an LF copy (the HTML parser behind
+// template.innerHTML would otherwise drop every interior `\r`) and restores each
+// line's original ending positionally. The restore reaches `\n` INSIDE token spans
+// (multi-line strings, block comments), not just between tokens, and mixed `\r\n`/`\n`
+// lines each keep their own ending. CodeBlock reads this textContent back as raw on
+// commit, so a dropped interior `\r` is a CRLF round-trip corruption.
+describe('renderCodeBlock — CRLF interior in the language path', () => {
+	beforeEach(() => {
+		__resetRegistryForTests();
+		__resetBootForTests();
+		bootstrapCodeLanguages();
+	});
+
+	const shapes: Array<[string, CstNode]> = [
+		[
+			'multi-line tagged body',
+			makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js')
+		],
+		[
+			'token spanning lines (template string)',
+			makeFencedCodeNode('```js\r\nconst s = `a\r\nb\r\nc`\r\n```\r\n', 'js')
+		],
+		[
+			'token spanning lines (block comment)',
+			makeFencedCodeNode('```js\r\n/* a\r\nb\r\nc */\r\nlet x = 1\r\n```\r\n', 'js')
+		],
+		[
+			'mixed \\r\\n and \\n lines',
+			makeFencedCodeNode('```js\r\nlet a = 1\nlet b = 2\r\n```\r\n', 'js')
+		],
+		[
+			'unclosed tagged body',
+			makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n', 'js', false)
+		],
+		['fresh unclosed tagged (opener only)', makeFencedCodeNode('```js\r\n', 'js', false)]
+	];
+
+	for (const [name, node] of shapes) {
+		it(`preserves textContent — ${name}`, () => {
+			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+		});
+	}
+
+	it('restores the interior `\\r` while highlighting still resolves tokens', () => {
 		const node = makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js');
-		const rendered = renderCodeBlock(node).textContent ?? '';
-		expect(rendered).not.toBe(trimTrailingLineEnding(node.raw));
-		expect(rendered).toContain('let a = 1\nlet b = 2');
-		expect(rendered).not.toContain('let a = 1\r\nlet b = 2');
+		const frag = renderCodeBlock(node);
+		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('let');
+		expect(frag.textContent).toContain('let a = 1\r\nlet b = 2');
+	});
+
+	it('a token span still wraps the whole multi-line literal after restore', () => {
+		const node = makeFencedCodeNode('```js\r\nconst s = `a\r\nb`\r\n```\r\n', 'js');
+		const frag = renderCodeBlock(node);
+		expect(frag.querySelector('.code-tok-string')?.textContent).toBe('`a\r\nb`');
 	});
 });

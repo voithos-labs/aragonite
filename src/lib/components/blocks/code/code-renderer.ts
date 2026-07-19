@@ -134,14 +134,49 @@ export function tokenizeBody(body: string, infoString: string): DocumentFragment
 		registeredWithHljs.add(grammar.name);
 	}
 
-	const result = hljs.highlight(body, {
+	// The HTML parser behind `template.innerHTML` normalizes every `\r\n`/`\r` to
+	// `\n`, which would strip a CRLF body's interior carriage returns. Highlight a
+	// pure-LF copy so nothing is left to normalize away, then restore each line's
+	// original ending positionally. An LF body reuses `body` by reference and skips
+	// the restore — the common path adds one `includes` scan, no allocation.
+	const hasCarriageReturn = body.includes('\r');
+	const highlightSource = hasCarriageReturn ? body.replace(/\r\n|\r/g, '\n') : body;
+
+	const result = hljs.highlight(highlightSource, {
 		language: grammar.name,
 		ignoreIllegals: true
 	});
 	const template = document.createElement('template');
 	template.innerHTML = result.value;
 	walkHljsNodes(template.content, frag);
+
+	if (hasCarriageReturn) restoreLineEndings(frag, body);
 	return frag;
+}
+
+// hljs emits code newlines as literal `\n`, both between tokens (bare text) and
+// inside multi-line token spans (template strings, block comments) — all survive
+// the HTML-parse round-trip as `\n`. A single in-order text-node walk rewrites the
+// k-th `\n` back to the k-th original ending. The counts match by construction:
+// every `\r` was stripped before highlighting, so neither hljs nor the parser adds
+// or drops a newline, and each `\r\n`/`\r`/`\n` unit maps to exactly one fragment `\n`.
+function restoreLineEndings(root: Node, originalBody: string): void {
+	const endings = originalBody.match(/\r\n|\r|\n/g);
+	if (!endings) return;
+	let next = 0;
+	const restore = (node: Node): void => {
+		for (const child of node.childNodes) {
+			if (child.nodeType === Node.TEXT_NODE) {
+				const text = child.textContent ?? '';
+				if (text.includes('\n')) {
+					child.textContent = text.replace(/\n/g, () => endings[next++]);
+				}
+			} else {
+				restore(child);
+			}
+		}
+	};
+	restore(root);
 }
 
 // ── Fence marker rendering ────────────────────────────────────────────────
@@ -223,6 +258,8 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 	// that blank, so stealing its terminating `\n` would drop a visible line — keep
 	// the separator in the body there so N blank lines render as N.
 	const hasCloser = slice.closerLine.length > 0;
+	// `/\S/` deliberately conflates a whitespace-only body (spaces/tabs, no content
+	// line) with a truly-blank one: both keep their separator and render like blanks.
 	const bodyHasContentLine = /\S/.test(slice.body);
 	const separatorNewline = hasCloser && slice.body.endsWith('\n') && bodyHasContentLine;
 	const bodyText = separatorNewline ? slice.body.slice(0, -1) : slice.body;
