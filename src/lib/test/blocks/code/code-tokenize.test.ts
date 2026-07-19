@@ -59,6 +59,20 @@ describe('tokenizeBody', () => {
 		}
 	});
 
+	it('restores CRLF endings — textContent equals the CRLF body verbatim', () => {
+		const frag = tokenizeBody('let a = 1\r\nlet b = 2\r\n', 'js');
+		expect(frag.textContent).toBe('let a = 1\r\nlet b = 2\r\n');
+		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('let');
+	});
+
+	it('restores a CRLF newline that lands inside a token span', () => {
+		// A template literal spans lines as one hljs-string; its interior `\r\n` must
+		// round-trip even though it lives inside the token, not between tokens.
+		const frag = tokenizeBody('const s = `a\r\nb`\r\n', 'js');
+		expect(frag.textContent).toBe('const s = `a\r\nb`\r\n');
+		expect(frag.querySelector('.code-tok-string')?.textContent).toBe('`a\r\nb`');
+	});
+
 	it('ignoreIllegals — mid-typing invalid syntax does not throw', () => {
 		expect(() => tokenizeBody('const x = ', 'javascript')).not.toThrow();
 	});
