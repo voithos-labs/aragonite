@@ -137,6 +137,9 @@
 	let pendingCursorOffset = $state<number | null>(null);
 	// Cursor position captured before each edit (keydown fires before DOM changes)
 	let preEditOffset = 0;
+	// Survives the click→keydown gap when Chromium clears the caret at
+	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
+	let lastSnapTargetOffset = $state<number | null>(null);
 
 	// One funnel for every pending-cursor write, tagged with its source so the
 	// interaction trace names which gesture set the restore. The consume half lives
@@ -636,9 +639,6 @@
 	// column-aligned click on another visual line must not reveal a widget.
 	let lastClickClientX: number | null = null;
 	let lastClickClientY: number | null = null;
-	// Survives the click→keydown gap when Chromium clears the caret at
-	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
-	let lastSnapTargetOffset = $state<number | null>(null);
 
 	function onPointerDown(e: PointerEvent): void {
 		if (crossBlock.handlePointerDown(e)) return;

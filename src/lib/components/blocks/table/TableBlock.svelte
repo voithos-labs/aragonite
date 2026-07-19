@@ -204,6 +204,8 @@
 		if (grew) columnMaxWidths = next;
 	}
 
+	// ── Table context (cell coordination) ──────────────────────────────────
+
 	function rowRefAt(rowIdx: number): BlockComponent | undefined {
 		return rowsState.innerBlockRefs[rowIdx];
 	}
