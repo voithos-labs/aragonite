@@ -14,13 +14,15 @@
  *   ───────────────  ────────────────────────────────────────  ─────────────────────────────
  *   reveal widget    revealSource: true                        reveal source on entry (math, directive text)
  *   image widget     select-then-delete (the widget default)   select whole; second press deletes (selected-widget seam)
- *   atomic widget    deleteGranularity:'atomic' (no consumer)  delete whole in one press, no select step
+ *   entity widget    deleteGranularity:'atomic' + step-over    delete whole in one press; a plain arrow walks over it
  *   replace island   onEdge:'select' + 'select-then-delete'    select whole; second press deletes the hidden range
  *   widget island    onEdge:'step-over'                        transparent — act on the adjacent real byte
  *   ambient overlap  guarded range                             delete the selection overlapping the non-editable marker
  *
- * A non-reveal widget with no explicit policy takes the image row's default. Only an
- * explicit deleteGranularity:'atomic' diverges. Islands carry internal policy records
+ * A non-reveal widget with no explicit policy takes the image row's default. An
+ * explicit deleteGranularity:'atomic' diverges (whole-delete on one press); an
+ * explicit onEdge:'step-over' declines a plain arrow so native steps the caret
+ * across the atomic island. Islands carry internal policy records
  * in the same vocabulary (never on the public API); the ambient marker is the
  * deliberate exception — a one-press delete of the selection range overlapping the
  * marker, not a caret-edge construct, so it fits no onEdge/deleteGranularity value.
@@ -138,20 +140,25 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const enterFromLeft =
 			!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
 		if (enterFromRight || enterFromLeft) {
-			e.preventDefault();
-			deps.setSnapTarget(null);
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
 			const policy = getInlineWidgetEditing(widgetAt.kind);
+			// onEdge:'step-over' (inline entity): a plain arrow treats the widget as one
+			// character — decline so native contenteditable carries the caret across the
+			// atomic island. Only navigation steps over; a destructive key still runs the
+			// atomic-delete branch below.
+			if (!isDestructive && policy?.onEdge === 'step-over') return false;
+			e.preventDefault();
+			deps.setSnapTarget(null);
 			if (isDestructive && policy?.deleteGranularity === 'atomic' && !deps.isReading()) {
-				// An atomic kind (future inline entity) deletes whole on one press —
-				// no select step. Anchored at the pre-delete caret so Ctrl+Z lands there.
+				// An atomic kind (inline entity) deletes whole on one press — no select
+				// step. Anchored at the pre-delete caret so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
 				void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, widgetAt.start);
 				deps.setPendingCursor(widgetAt.start, 'widget');
 				return true;
 			}
 			// onEdge:'select' (and reveal-capable kinds, which enterWidget routes to
-			// their source reveal instead). There is no shipped CST step-over kind.
+			// their source reveal instead); step-over kinds already returned above.
 			deps.enterWidget(widgetAt, enterFromRight);
 			return true;
 		}

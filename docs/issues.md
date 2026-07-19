@@ -4,19 +4,6 @@ Log of known editor issues. Each entry carries severity, affected files, a descr
 reproduction (where relevant), and either a **Target** version (if scheduled via the roadmap)
 or a **Why deferred** rationale (if not). Remove entries when shipped.
 
-## Decoration & rendering
-
-### HTML entities render as the literal source instead of the decoded character
-
-**Severity:** minor (rendering; deviates from author intent)
-**Files:** `src/lib/core/inline-render.ts` (`entityReference` rendering); spec at `docs/design/inline-parsing.md` § Rendering.
-
-Per the inline-parsing spec, an `entityReference` node renders as a span holding the literal source (`&copy;`, `&mdash;`, `&#39;`). The `decoded` field — the Unicode character the entity resolves to — is parsed but never displayed. This was a deliberate application of the "always-visible styled source" principle, but for entities it's questionable: unlike emphasis (markers _around_ styled content), an entity reference IS the entire markup — there's no separable content to style. A user typing `&copy;` to show © sees `&copy;` and is surprised; most editors (Obsidian, GitHub, VS Code preview) display the decoded glyph.
-
-**Fix direction:** render the decoded character in a `contenteditable=false` atomic span, with offset translation between display textContent (1 char) and raw (`&...;` length) — analogous to the `ambient/` prefix translation but applied to inline mid-content. Round-trip already preserves the source via `node.raw`.
-
-**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself and its atomic-delete consumer — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover. The `deleteGranularity: 'atomic'` policy field it needs is already re-added on `InlineWidgetEditingPolicy` (typed and honored by the caret-edge dispatch, awaiting this first consumer).
-
 ## Core editing
 
 ### Interactive reading mode (live task checkboxes) — deferred product question

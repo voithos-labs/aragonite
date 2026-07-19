@@ -104,6 +104,26 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 		expect(container.textContent).toBe(expectedWithWidgetsRemoved(source, nodes));
 		expect(container.textContent).toBe('ab');
 	});
+
+	it('a visible entity widget shows its glyph but the walk reads back its bytes', () => {
+		const source = 'a&copy;b';
+		const nodes = parseInline(source, 0, source.length);
+		const container = document.createElement('div');
+		container.appendChild(renderInlineNodes(nodes, source));
+		// The DOM textContent is the glyph (the widget contributes its `©`, not `&copy;`);
+		// the raw-aware walk recovers the source bytes from data-source-*.
+		expect(container.textContent).toBe('a©b');
+		expect(rawTextOfNode(container, source)).toBe(source);
+	});
+
+	it('an invisible entity keeps its literal span, so textContent equals raw', () => {
+		const source = 'a&nbsp;b';
+		const nodes = parseInline(source, 0, source.length);
+		const container = document.createElement('div');
+		container.appendChild(renderInlineNodes(nodes, source));
+		expect(container.querySelector('[data-inline-widget]')).toBeNull();
+		expect(container.textContent).toBe(source);
+	});
 });
 
 // Decoration islands are atomic widgets too: a widget island spans 0 bytes, a

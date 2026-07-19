@@ -183,10 +183,10 @@ describe('edge dispatch — image kind keeps select-then-step', () => {
 // ── Atomic deleteGranularity: delete whole in one press, no select step ──────
 
 describe('edge dispatch — an atomic kind deletes whole on one press', () => {
-	// No shipped kind sets deleteGranularity:'atomic' (it awaits the inline-entity
-	// consumer), so reconfigure the math kind as a synthetic atomic widget to prove
-	// the field is honored, not inert. The beforeEach reset re-registers math clean
-	// for the next test, so the override never leaks.
+	// entityReference is the shipped deleteGranularity:'atomic' consumer (pinned in
+	// its own block below). Reconfiguring the math kind as a synthetic atomic widget
+	// proves the field is honored for ANY kind, not just the built-in entity. The
+	// beforeEach reset re-registers math clean for the next test, so it never leaks.
 	it('Backspace at the trailing edge removes the widget span through one CST edit', () => {
 		// MATH_INLINE is the raw kind string; the augment API takes the branded kind.
 		augmentInlineWidgetKind(MATH_INLINE as AnyInlineKind, {
@@ -212,6 +212,43 @@ describe('edge dispatch — an atomic kind deletes whole on one press', () => {
 		expect(b.dispatch.handleKeydown(b.key('Delete'), asRawOffset(b.widget.start))).toBe(true);
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].raw).not.toContain('$x^2$');
+	});
+});
+
+// ── Entity widget: the shipped step-over + atomic consumer ───────────────────
+
+describe('edge dispatch — entityReference steps over and deletes atomically', () => {
+	// `a&copy;b` renders © as an atomic widget spanning raw [1,7). No synthetic
+	// override — this pins the built-in entity policy the registry ships.
+	for (const [label, keyName, offsetSide] of [
+		['ArrowLeft at the trailing edge', 'ArrowLeft', 'end'],
+		['ArrowRight at the leading edge', 'ArrowRight', 'start']
+	] as const) {
+		it(`${label} declines so native steps the caret over the glyph, no select`, () => {
+			const b = mount('a&copy;b', 'entityReference');
+			const offset = asRawOffset(offsetSide === 'end' ? b.widget.end : b.widget.start);
+			// A false return leaves the arrow to native contenteditable, which walks the
+			// caret across the contenteditable=false island in one press.
+			expect(b.dispatch.handleKeydown(b.key(keyName), offset)).toBe(false);
+			expect(b.widgetSelection.getSelected()).toBeNull();
+			expect(b.commits).toHaveLength(0);
+		});
+	}
+
+	it('Backspace at the trailing edge removes the whole entity in one commit', () => {
+		const b = mount('a&copy;b', 'entityReference');
+		expect(b.dispatch.handleKeydown(b.key('Backspace'), asRawOffset(b.widget.end))).toBe(true);
+		expect(b.widgetSelection.getSelected()).toBeNull();
+		expect(b.commits).toHaveLength(1);
+		expect(b.commits[0].raw).toBe('ab');
+		expect(b.commits[0].after).toBe(b.widget.start);
+	});
+
+	it('Delete at the leading edge removes the whole entity the same way', () => {
+		const b = mount('a&copy;b', 'entityReference');
+		expect(b.dispatch.handleKeydown(b.key('Delete'), asRawOffset(b.widget.start))).toBe(true);
+		expect(b.commits).toHaveLength(1);
+		expect(b.commits[0].raw).toBe('ab');
 	});
 });
 
