@@ -52,7 +52,7 @@ export function applyInlineResult(
 	// Unawaited: the caller sets pendingCursorOffset in the same synchronous
 	// block so both land in one reactive flush.
 	const blockIndex = targetPath[targetPath.length - 1];
-	ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
+	void ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
 }
 
 export async function applyStructuralResult(

@@ -51,7 +51,7 @@ export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 								eventPath: [...deps.path]
 							},
 							afterTick: () => {
-								parentFocus.moveFocus(index + 1, 'start');
+								void parentFocus.moveFocus(index + 1, 'start');
 							}
 						});
 					}

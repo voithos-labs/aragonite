@@ -12,7 +12,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {

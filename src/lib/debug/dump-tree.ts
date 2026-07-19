@@ -109,6 +109,8 @@ function formatMetadata(node: NodeView, opts: Required<DumpTreeOptions>): string
 			case 'table':
 				if (node.metadata.columnCount) frags.push(`columnCount=${node.metadata.columnCount}`);
 				break;
+			default:
+				break;
 		}
 	}
 	if (opts.showAllMetadata) frags.push(`metaRaw=${JSON.stringify(m)}`);

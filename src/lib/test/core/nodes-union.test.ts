@@ -25,6 +25,8 @@ export function compileTimePins(node: CstNode, pluginKind: PluginBlockKind): voi
 				void ordered;
 				break;
 			}
+			default:
+				break;
 		}
 	}
 
@@ -37,6 +39,8 @@ export function compileTimePins(node: CstNode, pluginKind: PluginBlockKind): voi
 			void blocked;
 			break;
 		}
+		default:
+			break;
 	}
 
 	const wrongMeta: HeadingNode = {

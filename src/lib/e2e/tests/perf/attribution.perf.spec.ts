@@ -415,7 +415,6 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			harness.push(performance.now() - t0);
 		}
 		const after: any = await cdp.send('Performance.getMetrics');
-		b0 += N;
 		// Mounted top-level host count from the DOM — robust to perf-enable timing
 		// (the net mountedBlockCount counter needs enabling before any block mounts).
 		const mountedTopLevel = await page.evaluate(

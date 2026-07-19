@@ -32,11 +32,11 @@
 	const inlineText = $derived(getInlineTree());
 	// opsLogTick read inside $derived.by so a log update triggers re-read.
 	const opsLogText = $derived.by(() => {
-		opsLogTick;
+		void opsLogTick;
 		return getOpsLog();
 	});
 	const traceText = $derived.by(() => {
-		opsLogTick;
+		void opsLogTick;
 		return getTrace();
 	});
 

@@ -133,11 +133,11 @@ export function __resetCommandWarningsForTests(): void {
 }
 
 registerCommand('history.undo', (ctx) => {
-	ctx.history.requestUndo();
+	void ctx.history.requestUndo();
 	return true;
 });
 registerCommand('history.redo', (ctx) => {
-	ctx.history.requestRedo();
+	void ctx.history.requestRedo();
 	return true;
 });
 
