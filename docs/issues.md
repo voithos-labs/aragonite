@@ -267,7 +267,43 @@ single-block type path, which reparses.
 changes, which is a reparse-and-replace inside the commit flow, not a cheap tweak. Reachable
 only when the post-delete caret lands at offset 0 and the typed char is a block marker.
 
+### writeText clipboard writes normalize line endings per-OS; wry reliability unproven
+
+**Severity:** watch (no defect today; relevant to the limestone/Tauri integration)
+**Files:** `src/lib/editor-actions/container-block-component.ts` (the whole-block Mod+C/Mod+X write)
+
+The focused-block copy writes via `navigator.clipboard.writeText` — no ClipboardEvent exists in
+a keydown handler. Two platform behaviors to watch: Chromium's `writeText` normalizes a
+multi-line payload to the OS line ending (CRLF on Windows — the mermaid e2e normalizes before
+comparing; intra-editor paste re-normalizes to LF, so no corruption), and the cross-block
+clipboard code documents wry (Tauri) refusing `writeText` in some contexts — unverified for this
+path. A setData-in-a-copy-event fallback was proven workable during implementation (the native
+copy event does fire on the focused div; `preventDefault` currently suppresses it), at the cost
+of per-surface `oncopy` handlers.
+
+**Fix direction:** if the limestone integration observes a failed focused-block copy under wry,
+switch the tail to the proven copy-event fallback behind the same shared seam.
+
+**Why deferred:** watch-class; needs the real embedder to falsify.
+
 ## Code structure
+
+### Focused-block copy chords are undocumented in the consumer guide
+
+**Severity:** trivial (docs gap; the gesture shipped)
+**Files:** `docs/guide/consumer-guide.md` (keyboard table),
+`src/lib/test/invariants/lint/consumer-guide-chords.test.ts` (G4.8)
+
+Mod+C/Mod+X on a focused whole-block block or selected inline widget ship in the whole-block
+key tail and the prose clipboard seam — outside the three dispatch surfaces G4.8 resolves the
+guide's keyboard table against (keymap registry, table cell plan, search components). Adding the
+rows today would fail the lint; omitting them under-documents shipped chords.
+
+**Fix direction:** teach G4.8 the whole-block tail as a recognized dispatch surface, then add
+the rows in the same change.
+
+**Why deferred:** routed from the copy/cut implementation per its brief — the lint change is its
+own small deliberate edit, not a rider on the feature commit.
 
 ### DocPath brand adoption stops at the scope factories
 
