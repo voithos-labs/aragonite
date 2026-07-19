@@ -8,6 +8,8 @@ import {
 	asEditorX,
 	asRawOffset,
 	asViewportX,
+	docPathFrom,
+	extendDocPath,
 	toClampedRawOffset,
 	toDomTextOffset,
 	toEditorX,
@@ -94,5 +96,21 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		void focusRead;
 
 		expect(asRawOffset(3) satisfies SetRawArg).toBe(3);
+	});
+});
+
+describe('DocPath composition', () => {
+	it('extendDocPath appends the child index to the parent', () => {
+		expect(extendDocPath([1, 2], 3)).toEqual([1, 2, 3]);
+		expect(extendDocPath([], 0)).toEqual([0]);
+	});
+
+	it('docPathFrom brands a copy, not the source array', () => {
+		const src = [0, 1];
+		const out = docPathFrom(src);
+		expect(out).toEqual([0, 1]);
+		// Copied: a later mutation of the composer's own array can't leak into the
+		// emitted event path or snapshot coordinate.
+		expect(out).not.toBe(src);
 	});
 });

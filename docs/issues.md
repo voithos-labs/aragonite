@@ -270,22 +270,6 @@ switch the tail to the proven copy-event fallback behind the same shared seam.
 
 ## Code structure
 
-### DocPath brand adoption stops at the scope factories
-
-**Severity:** minor (enforcement depth; the runtime guard covers the rest)
-**Files:** `src/lib/editor-actions/block-edit-scope.ts` (the mint), `src/lib/selection/path-math.ts`, ~40 op-family path composers (table-context, list-context, unwrap-strategies, reorder-action, focus, image-edit-commit, cross-block ops, paste planners)
-
-The `DocPath` brand (0.9.24) is minted by the commit scope factories and consumed at the
-G1.16 guard entry, but the op families that legitimately compose doc-absolute paths in
-callers still traffic in plain `number[]` — the brand decays at every spread. Compile-time
-coverage there requires adopting `extendDocPath`-style composition across ~40 mechanical
-call sites.
-
-**Why deferred:** G1.16's runtime dev guard asserts every commit path at every commit, so
-the uncovered class is caught at the gate; full adoption is churn without a driving
-incident. Adopt opportunistically when an op family is next edited, or as one sweep if a
-path-composition bug ever lands.
-
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
 **Severity:** minor (a11y; table blocks only)

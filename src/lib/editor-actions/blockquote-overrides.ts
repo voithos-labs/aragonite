@@ -12,6 +12,7 @@ import { deleteNode as performDelete } from '../tree-operations/node-ops';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsBundle } from './nested/nested-actions';
 import type { UndoController } from './deps';
+import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 
 export interface BlockquoteOverridesDeps {
 	get index(): number;
@@ -43,12 +44,12 @@ export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 						// strand an empty `> >` in the outer raw).
 						await deps.controller.commitMultiScope({
 							scopes: [{ node, state, path: deps.path }],
-							snapshot: { path: [...deps.path, innerIndex], offset: 0 },
+							snapshot: { path: extendDocPath(deps.path, innerIndex), offset: 0 },
 							mutate: ([scope]) => [performDelete(scope, innerIndex, scope.sharing)],
 							op: {
 								kind: 'delete',
 								detail: { action: 'blockquoteExit', innerIndex },
-								eventPath: [...deps.path]
+								eventPath: docPathFrom(deps.path)
 							},
 							afterTick: () => {
 								void parentFocus.moveFocus(index + 1, 'start');

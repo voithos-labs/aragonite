@@ -32,6 +32,7 @@ import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwr
 import { createContainerScope } from '../block-edit-scope';
 import { createBlockEditCore } from '../block-edit-core';
 import { focusMovedOutsideReplacement } from '../replacement-focus';
+import { extendDocPath } from '../../cursor/coordinate-spaces';
 
 export function createNestedBlockEdit(
 	state: BlockListState,
@@ -157,7 +158,7 @@ export function createNestedBlockEdit(
 			});
 			const preview = performUpdate({ children: [probe] }, 0, text, deps.grammar);
 
-			const leafPath = [...deps.path, innerIndex];
+			const leafPath = extendDocPath(deps.path, innerIndex);
 
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;

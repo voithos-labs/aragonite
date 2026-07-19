@@ -21,6 +21,7 @@ import {
 	canDeleteColumn
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
+import { docPathFrom } from '../cursor/coordinate-spaces';
 import type { CrossBlockMutationContext } from './cross-block/ops';
 
 /**
@@ -84,7 +85,9 @@ async function commitFullTableDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
+		options?.undoEntry === 'join'
+			? ('skip' as const)
+			: { path: docPathFrom([tableIdx]), offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -107,7 +110,11 @@ async function commitFullTableDelete(
 			collapsedCaret = { path: [survivorIdx], offset: 0 };
 			return change;
 		},
-		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' }, eventPath: [tableIdx] },
+		op: {
+			kind: 'delete',
+			detail: { crossBlock: true, table: 'whole' },
+			eventPath: docPathFrom([tableIdx])
+		},
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
@@ -129,7 +136,9 @@ async function commitRowDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx, rowIdx], offset: 0 };
+		options?.undoEntry === 'join'
+			? ('skip' as const)
+			: { path: docPathFrom([tableIdx, rowIdx]), offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -150,7 +159,7 @@ async function commitRowDelete(
 		op: {
 			kind: 'tableDeleteRow',
 			detail: { rowIdx, crossBlock: true },
-			eventPath: [tableIdx, rowIdx]
+			eventPath: docPathFrom([tableIdx, rowIdx])
 		},
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
@@ -182,7 +191,9 @@ async function commitColumnDelete(
 		...mountedRowScopes
 	];
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
+		options?.undoEntry === 'join'
+			? ('skip' as const)
+			: { path: docPathFrom([tableIdx]), offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({
@@ -209,7 +220,7 @@ async function commitColumnDelete(
 		op: {
 			kind: 'tableDeleteColumn',
 			detail: { colIdx, crossBlock: true },
-			eventPath: [tableIdx]
+			eventPath: docPathFrom([tableIdx])
 		},
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});

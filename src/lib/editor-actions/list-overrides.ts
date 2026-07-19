@@ -16,6 +16,7 @@ import {
 } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsOverrideFactory } from './nested/nested-actions';
+import { extendDocPath } from '../cursor/coordinate-spaces';
 
 export interface ListOverridesDeps {
 	get index(): number;
@@ -55,9 +56,9 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					containerNode: node,
 					path: deps.path,
 					state: deps.state,
-					snapshot: { path: [...deps.path, itemIndex], offset: 0 },
+					snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 					mutate: (scope) => performDelete({ children: scope.children }, itemIndex, scope.sharing),
-					op: { kind: 'delete', eventPath: [...deps.path, itemIndex] },
+					op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
 					afterTick: () => {
 						// Read through `deps.node`: the captured `node` is the pre-commit
 						// object the snapshot still shares, so its child count is stale by
@@ -81,7 +82,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 				const snapshot =
 					options?.undoEntry === 'join'
 						? ('skip' as const)
-						: { path: [...deps.path, itemIndex], offset: 0 };
+						: { path: extendDocPath(deps.path, itemIndex), offset: 0 };
 
 				await deps.parentContainerEdit.commitContainer({
 					containerNode: node,
@@ -104,11 +105,11 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 					},
 					op:
 						replacement.length === 0
-							? { kind: 'delete', eventPath: [...deps.path, itemIndex] }
+							? { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) }
 							: {
 									kind: 'replaceBlock',
 									detail: { count: replacement.length },
-									eventPath: [...deps.path, itemIndex]
+									eventPath: extendDocPath(deps.path, itemIndex)
 								},
 					afterTick: () => {
 						if (focus && replacement.length > 0) {

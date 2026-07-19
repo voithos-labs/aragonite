@@ -10,15 +10,16 @@ import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
+import type { DocPath } from './selection/path-math';
 
 /**
  * No-caret caret-restore coordinate stored with a commit's undo snapshot:
- * `path` is DOC-ABSOLUTE and must resolve in the pre-mutation tree. `'skip'`
- * joins the caller's already-pushed entry (composite operations). The scope
- * factories (`block-edit-scope.ts`) mint the path from local indices — call
- * sites below a factory never compose absolute paths themselves.
+ * `path` is the `DocPath` dialect and must resolve in the pre-mutation tree.
+ * `'skip'` joins the caller's already-pushed entry (composite operations). The
+ * scope factories (`block-edit-scope.ts`) mint the path from local indices;
+ * other op families compose it through the `path-math` mint helpers.
  */
-export type CommitSnapshotArg = { path: number[]; offset: number } | 'skip';
+export type CommitSnapshotArg = { path: DocPath; offset: number } | 'skip';
 
 /**
  * Who owns the undo entry for an operation. `'own'` (the default): the

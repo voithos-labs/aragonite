@@ -18,6 +18,7 @@ import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { rebuildListRaw, rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
+import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export interface ReorderAction {
@@ -37,8 +38,12 @@ export function createReorderAction(
 	async function commitReorder(unit: ReorderUnit, to: number, offset: number): Promise<void> {
 		if (unit.parentKind === 'document') {
 			await controller.commitStructural({
-				snapshot: { path: [unit.index], offset },
-				op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: [unit.index] },
+				snapshot: { path: docPathFrom([unit.index]), offset },
+				op: {
+					kind: 'reorder',
+					detail: { from: unit.index, to },
+					eventPath: docPathFrom([unit.index])
+				},
 				mutate: (children) => reorderChildrenWithTrivia(children, unit.index, to, deps.sharing),
 				afterTick: () => deps.blockRefs[to]?.focus(0)
 			});
@@ -53,8 +58,12 @@ export function createReorderAction(
 			path: unit.parentPath,
 			state,
 			// A drag carries no live caret: restore to the moved unit's pre-move path.
-			snapshot: { path: [...unit.parentPath, unit.index], offset },
-			op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: unit.parentPath },
+			snapshot: { path: extendDocPath(unit.parentPath, unit.index), offset },
+			op: {
+				kind: 'reorder',
+				detail: { from: unit.index, to },
+				eventPath: docPathFrom(unit.parentPath)
+			},
 			mutate: (scope) => {
 				const change = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
 				if (unit.parentKind === 'list') {

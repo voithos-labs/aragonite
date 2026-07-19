@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
@@ -65,12 +66,12 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 		const fires = armInvariantChannel();
 		await controller.commitMultiScope({
 			scopes,
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				corruptNestedBlockquote(views[0].node as CstNode);
 				return [{ op: 'noop' }];
 			},
-			op: { kind: 'metadataUpdate', eventPath: [0], detail: { fields: ['quoteDepth'] } }
+			op: { kind: 'metadataUpdate', eventPath: asDocPath([0]), detail: { fields: ['quoteDepth'] } }
 		});
 
 		expect(

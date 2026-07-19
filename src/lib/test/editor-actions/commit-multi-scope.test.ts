@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { asDocPath } from '$lib/selection/path-math';
 import type { CommitMultiScopeArgs, MultiScopeTarget } from '$lib/editor-actions/deps';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
@@ -25,7 +26,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.push({
 					kind: 'listItem',
@@ -35,7 +36,7 @@ describe('commitMultiScope', () => {
 				});
 				return [{ op: 'insert', at: 2, count: 1 }];
 			},
-			op: { kind: 'appendBlock', eventPath: [0, 2] }
+			op: { kind: 'appendBlock', eventPath: asDocPath([0, 2]) }
 		});
 
 		expect(deps.doc.children[0].children).toHaveLength(3);
@@ -65,7 +66,7 @@ describe('commitMultiScope', () => {
 				{ node: deps.doc.children[0], state: stateA, path: [0] },
 				{ node: deps.doc.children[1], state: stateB, path: [1] }
 			],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scopeA, scopeB]) => {
 				scopeA.children.push({
 					kind: 'listItem',
@@ -79,7 +80,7 @@ describe('commitMultiScope', () => {
 					{ op: 'delete', at: 1, count: 1 }
 				];
 			},
-			op: { kind: 'split', detail: { at: 0 }, eventPath: [0, 1] }
+			op: { kind: 'split', detail: { at: 0 }, eventPath: asDocPath([0, 1]) }
 		});
 
 		expect(deps.doc.children[0].children).toHaveLength(4);
@@ -100,7 +101,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: before, state, path: [0] }],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				scope.children.splice(0, 1);
 				return [{ op: 'delete', at: 0, count: 1 }];
@@ -134,7 +135,7 @@ describe('commitMultiScope', () => {
 		await expect(
 			controller.commitMultiScope({
 				scopes,
-				snapshot: { path: [0], offset: 0 },
+				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: () => [{ op: 'noop' }]
 			})
 		).rejects.toThrow('commitMultiScope: mutate returned 1 changes for 2 scopes');
@@ -150,9 +151,9 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: () => [{ op: 'noop' }],
-			op: { kind: 'delete', eventPath: [0] }
+			op: { kind: 'delete', eventPath: asDocPath([0]) }
 		});
 
 		expect(state.innerBlockIds).toEqual(['id-a']);
@@ -167,7 +168,7 @@ describe('commitMultiScope', () => {
 
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
-			snapshot: { path: [0], offset: 0 },
+			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
 				const original = scope.children[0];
 				scope.children.splice(0, 1, original, {
