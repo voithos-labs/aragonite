@@ -26,11 +26,11 @@ import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { trimTrailingLineEnding } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
@@ -80,6 +80,11 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
  * Split the node at `blockIndex` into two at raw `offset` (display-relative,
  * line-ending preserved). First half inherits the original ID.
  *
+ * A kind whose content range ends before its raw carries a structural suffix
+ * after the editable text (the setext underline). A split inside the content
+ * keeps that whole suffix on the first half — a plain cut would strand the
+ * underline below, where it reparses as junk and demotes the heading.
+ *
  * At `offset === 0` the leading half is `'\n'` — an empty paragraph that
  * collapses into trivia on `parse(serialize(...))`. The live-vs-reparse shape
  * difference is a tolerated transient state (Enter-at-end produces the same
@@ -93,20 +98,21 @@ export function splitNode(
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const node = parent.children[blockIndex];
+	const descriptor = getBlockKindDescriptor(node.kind);
 
 	// A context-dependent kind (tableCell, container chrome) has no standalone
 	// recognizer — reparseAsNode would destroy BOTH halves, and chrome is
 	// single-line by serialization (its bytes live in the container's opener
 	// line), so a split is unrepresentable. No-op; the Enter gesture routes to
 	// chrome.descendToBody instead. Also shields the list-context split caller.
-	if (getBlockKindDescriptor(node.kind).contextDependentKind) return { op: 'noop' };
+	if (descriptor.contextDependentKind) return { op: 'noop' };
 
 	const rawText = node.raw;
-
 	const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
 
-	let firstRaw = rawText.slice(0, offset);
-	let secondRaw = rawText.slice(offset);
+	const suffixSplit = structuralSuffixSplit(descriptor, node, offset);
+	let firstRaw = suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, offset);
+	let secondRaw = suffixSplit ? suffixSplit.secondRaw : rawText.slice(offset);
 
 	if (!firstRaw.endsWith('\n')) {
 		firstRaw += lineEnding;
@@ -125,6 +131,29 @@ export function splitNode(
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
 	return replacePreservingFirst(blockIndex, 1, 2);
+}
+
+/**
+ * A split that keeps a kind's structural suffix — any raw beyond its content
+ * range, today only the setext underline — on the first half. Null when the
+ * kind has no suffix, or when the offset is at block start or inside the suffix
+ * itself: both keep the plain raw cut (offset 0 makes the empty block above; a
+ * marker edit splits the underline as authored).
+ */
+function structuralSuffixSplit(
+	descriptor: BlockKindDescriptor,
+	node: CstNode,
+	offset: number
+): { firstRaw: string; secondRaw: string } | null {
+	const getRange = descriptor.getContentRange;
+	if (!getRange) return null;
+	const raw = node.raw;
+	const contentEnd = getRange(node).end;
+	if (contentEnd >= displayLength(raw) || offset <= 0 || offset > contentEnd) return null;
+	return {
+		firstRaw: raw.slice(0, offset) + raw.slice(contentEnd),
+		secondRaw: raw.slice(offset, contentEnd)
+	};
 }
 
 // ── Merge ──
