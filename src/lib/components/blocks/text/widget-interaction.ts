@@ -139,31 +139,44 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// `$…$` source. The edit is ephemeral DOM only — `onInput` is suppressed while
 	// revealed — and re-renders on commit, not per keystroke (design spec A2). The
 	// whole edit therefore lands as ONE undo entry.
-	let activeReveal: SourceReveal | null = null;
-	// The revealed source text node, hoisted out of startReveal so commitReveal can
-	// read its live DOM position — the widget's post-edit trailing edge — regardless
-	// of edits made to the surrounding prose. Doubles as the revealed-state flag.
+	//
+	// The lifecycle is one record: null = idle, non-null = revealed (with a
+	// transient `settling` window during entry). Every exit path funnels its
+	// state-clear through the one canonical resetReveal(), so a new exit only
+	// decides how the widget is restored — never which fields to hand-clear.
+	interface RevealState {
+		kernel: SourceReveal;
+		/** Trailing-edge fallback for the commit caret when the source node is gone. */
+		widgetEnd: number;
+		/** Undo anchor: where the caret sat before entry. */
+		caretBefore: number;
+		/** Pre-edit display text; a commit with no diff folds without touching the CST. */
+		originalDisplay: string;
+		/** Entry window between showSource and the kernel's caret landing: a
+		 *  selectionchange delivered inside it reads a pre-reveal selection and must
+		 *  not be mistaken for an escape. */
+		settling: boolean;
+	}
+	let revealState: RevealState | null = null;
+
+	// The DOM-swap handles live OUTSIDE the record because their lifetime is longer:
+	// on cancel they must survive past resetReveal so the kernel's async showRendered
+	// can still restore the exact element the swap detached. Identity is load-bearing
+	// — two byte-identical widgets share a reuse-pool key, so any rebuild-by-lookup
+	// can return the OTHER live instance, and replaceWith would MOVE it, vacating its
+	// slot and desyncing DOM from CST. Only the captured element is guaranteed to be
+	// the one this reveal swapped out. `activeSourceNode` also reads the source's live
+	// DOM position (its post-edit trailing edge) at commit and doubles as the kernel's
+	// swapped-in flag.
 	let activeSourceNode: Text | null = null;
-	let revealWidgetEnd = 0;
-	let revealCaretBefore = 0;
-	let revealOriginalDisplay = '';
-	// The element the swap detaches, restored VERBATIM on cancel/fold. Identity is
-	// load-bearing: two byte-identical widgets share a reuse-pool key, so any
-	// rebuild-by-lookup can return the OTHER live instance — and replaceWith
-	// would MOVE it, vacating its slot and desyncing DOM from CST. Only the
-	// captured element is guaranteed to be the one this reveal swapped out.
 	let revealedWidget: HTMLElement | null = null;
-	// The swap window between showSource and the kernel's caret landing: a
-	// selectionchange delivered inside it reads a pre-reveal selection and must
-	// not be mistaken for an escape.
-	let revealSettling = false;
 
 	// Every fold entry below is module-private and pre-guarded by all of its
 	// callers, so a fold arriving with no active reveal means a new caller skipped
 	// the guard (the sibling-path parity class) or the machine's flag leaked (G1.26).
 	function assertFoldTargetsActiveReveal(entry: string): void {
 		assertInvariant('reveal-transition', () =>
-			activeReveal
+			revealState
 				? null
 				: { code: 'fold-without-reveal', message: `${entry} with no active reveal` }
 		);
@@ -174,6 +187,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		activeSourceNode.replaceWith(revealedWidget);
 		activeSourceNode = null;
 		revealedWidget = null;
+	}
+
+	// The one canonical teardown: drop the reveal record and lift the input-suppress
+	// mirror. Widget restoration is a SEPARATE step (restoreRenderedWidget for the
+	// in-place folds; a reactive re-render for commit), so the swap handles are left
+	// untouched here — cancel resets the record before awaiting the kernel restore
+	// that still needs them.
+	function resetReveal(): void {
+		revealState = null;
+		deps.setRevealing(false);
 	}
 
 	async function startReveal(
@@ -188,21 +211,21 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// dispatch, so no user gesture can land inside it — a re-entry here is a
 		// synchronous call from within the settle chain itself (G1.26).
 		assertInvariant('reveal-transition', () =>
-			revealSettling
+			revealState?.settling
 				? {
 						code: 'start-during-settle',
 						message: 'startReveal re-entered inside the reveal settle window'
 					}
 				: null
 		);
-		if (activeReveal) return;
+		if (revealState) return;
 		traceRevealOpen('inline');
 		const start = widget.start;
 		const end = widget.end;
 		const source = deps.node.raw.slice(start, end);
 		// The imperative span-swap IS the inline mechanism: replace the opaque
 		// [data-inline-widget] island with a text node and back.
-		const reveal = createSourceReveal({
+		const kernel = createSourceReveal({
 			get container() {
 				return deps.getEl();
 			},
@@ -234,19 +257,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			// no-edit click-away fold.
 			showRendered: restoreRenderedWidget
 		});
-		activeReveal = reveal;
-		revealWidgetEnd = end;
-		revealCaretBefore = caretBefore;
-		revealOriginalDisplay = trimTrailingLineEnding(deps.node.raw);
+		revealState = {
+			kernel,
+			widgetEnd: end,
+			caretBefore,
+			originalDisplay: trimTrailingLineEnding(deps.node.raw),
+			settling: true
+		};
 		deps.widgetSelection.clear();
 		deps.setRevealing(true);
-		// finally, not a plain clear: a wedged-true flag would disable the escape
-		// fold for the rest of the block's life.
-		revealSettling = true;
 		try {
-			await reveal.reveal(atSourceOffset);
+			await kernel.reveal(atSourceOffset);
 		} finally {
-			revealSettling = false;
+			// finally, not a plain clear: a wedged-true flag would disable the escape
+			// fold for the rest of the block's life. Guarded because a fold during the
+			// await would have already nulled the record.
+			if (revealState) revealState.settling = false;
 		}
 	}
 
@@ -258,7 +284,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// shifts it correctly (a length delta off the widget's old end would not).
 	function commitReveal(reason: RevealFoldReason = 'commit'): number | null {
 		assertFoldTargetsActiveReveal('commitReveal');
-		if (!activeReveal) return null;
+		if (!revealState) return null;
+		// Alias the record before any call: TS drops the null-narrowing of a
+		// closure-reassigned `let` across an intervening call.
+		const active = revealState;
 		// Sibling of editable-leaf's `commitReveal`: a cross-block selection sweeping
 		// through keeps the source revealed so its rects measure real text, not a
 		// folded island — folding now would strand a selection endpoint anchored in
@@ -274,24 +303,27 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 						domTextOffsetAtNode(el, sourceNode, sourceNode.length),
 						deps.getAmbientLength()
 					)
-				: revealWidgetEnd;
-		activeReveal = null;
+				: active.widgetEnd;
+		const { caretBefore, originalDisplay } = active;
+		// The reactive re-render rebuilds the island, so drop the swap handles without
+		// a DOM restore, then run the canonical teardown.
 		activeSourceNode = null;
-		deps.setRevealing(false);
+		revealedWidget = null;
+		resetReveal();
 		// No edit: fold back to rendered without touching the CST. A zero-diff
 		// updateBlockContent still pushes a dead undo entry (the debounced snapshot
 		// fires before the noop reparse bails), so the user's next Ctrl+Z would
 		// revert nothing instead of their prior action. setPendingCursor re-renders
 		// from the untouched CST — folding the span-swap — and its caret restore is
 		// focus-guarded, so a blur folds without yanking the caret back.
-		if (editedDisplay === revealOriginalDisplay) {
+		if (editedDisplay === originalDisplay) {
 			deps.setPendingCursor(caretAfter);
 			return caretAfter;
 		}
 		deps.blockEdit.updateBlockContent(
 			deps.index,
 			editedDisplay + trailingLineEnding(deps.node.raw),
-			revealCaretBefore,
+			caretBefore,
 			caretAfter
 		);
 		deps.setPendingCursor(caretAfter);
@@ -302,12 +334,16 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// widget from the untouched raw (CST-free view toggle — no undo entry).
 	async function cancelReveal(): Promise<void> {
 		assertFoldTargetsActiveReveal('cancelReveal');
-		if (!activeReveal) return;
+		if (!revealState) return;
+		const active = revealState;
 		traceRevealFold('cancel');
-		const reveal = activeReveal;
-		activeReveal = null;
-		deps.setRevealing(false);
-		await reveal.commit();
+		const { kernel } = active;
+		// Reset the record BEFORE the await so the record reads idle across the
+		// kernel's restore: showRendered's replaceWith fires selectionchange, and a
+		// live record would let the escape-fold re-enter mid-swap. The restore reads
+		// the still-live swap handles (kept outside the record for exactly this).
+		resetReveal();
+		await kernel.commit();
 	}
 
 	// Click-away fold for an UNEDITED reveal: restore the widget synchronously and
@@ -315,10 +351,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// trailing-edge placement would hijack it.
 	function foldRevealNoEdit(reason: RevealFoldReason = 'no-edit'): void {
 		assertFoldTargetsActiveReveal('foldRevealNoEdit');
-		if (!activeReveal) return;
+		if (!revealState) return;
 		traceRevealFold(reason);
-		activeReveal = null;
-		deps.setRevealing(false);
+		resetReveal();
 		restoreRenderedWidget();
 	}
 
@@ -328,7 +363,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// anchor in the ADJACENT text node (the browser's choice), and node identity
 	// would misread that as an escape.
 	function selectionEscapedSource(): boolean {
-		if (!activeReveal || !activeSourceNode || revealSettling) return false;
+		if (!revealState || !activeSourceNode || revealState.settling) return false;
 		if (deps.isCrossBlock()) return false;
 		const el = deps.getEl();
 		const sel = window.getSelection();
@@ -361,6 +396,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// rendering) manufactures transient escape-shaped states that a slow machine
 	// delivers before the cross-block flag flips — re-verifying after tick makes
 	// them unfoldable while a real user escape still folds.
+	//
+	// This latch is NOT reveal-lifecycle state: it coalesces the tick check and must
+	// survive the very exit it triggers (its own finally clears it), so it lives
+	// apart from the reveal record and resetReveal never touches it.
 	let foldCheckQueued = false;
 	function foldRevealIfSelectionEscaped(): void {
 		if (foldCheckQueued || !selectionEscapedSource()) return;
@@ -371,8 +410,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			} finally {
 				foldCheckQueued = false;
 			}
-			if (!selectionEscapedSource()) return;
-			if (deps.readRawText() === revealOriginalDisplay) {
+			if (!selectionEscapedSource() || !revealState) return;
+			const active = revealState;
+			if (deps.readRawText() === active.originalDisplay) {
 				foldRevealNoEdit('selection-escape');
 				return;
 			}
@@ -421,7 +461,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const hit = hitTestRevealWidget(el, clickX, clickY);
 		if (!hit) return;
 		let targetStart = hit.inline.start;
-		if (activeReveal) {
+		if (revealState) {
+			const active = revealState;
 			const revealedStart =
 				activeSourceNode === null
 					? Number.POSITIVE_INFINITY
@@ -430,7 +471,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 							deps.getAmbientLength()
 						);
 			const rawBefore = deps.node.raw.length;
-			if (deps.readRawText() === revealOriginalDisplay) {
+			if (deps.readRawText() === active.originalDisplay) {
 				foldRevealNoEdit();
 			} else {
 				commitReveal();
@@ -451,11 +492,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	function isRevealing(): boolean {
-		return activeReveal !== null;
+		return revealState !== null;
 	}
 
 	async function handleRevealingKeydown(e: KeyboardEvent): Promise<boolean> {
-		if (!activeReveal) return false;
+		if (!revealState) return false;
 		if (e.key === 'Escape') {
 			e.preventDefault();
 			await cancelReveal();
@@ -470,7 +511,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	function commitRevealOnBlur(): void {
-		if (activeReveal) commitReveal('blur');
+		if (revealState) commitReveal('blur');
 	}
 
 	// A clipboard mutation (cut/paste) runs the full CST pipeline against node.raw,
@@ -479,7 +520,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// returning the committed caret so the caller can land the paste past the widget
 	// instead of at offset 0 when the folded caret sits on an element-level edge.
 	function commitRevealBeforeClipboard(): number | null {
-		if (!activeReveal) return null;
+		if (!revealState) return null;
 		return commitReveal('commit');
 	}
 
@@ -597,7 +638,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// While source is revealed the widget's raw is unchanged, so the CST still
 		// reports it as an atomic island — but the DOM is editable text. Let native
 		// selection run over the source instead of stepping past a phantom widget.
-		if (activeReveal) return false;
+		if (revealState) return false;
 		const el = deps.getEl();
 		if (!el) return false;
 		if (!e.shiftKey || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return false;
