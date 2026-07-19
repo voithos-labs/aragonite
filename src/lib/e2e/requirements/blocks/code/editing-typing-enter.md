@@ -1,6 +1,6 @@
 # Feature: Code Block Typing + Enter
 
-Typing and Enter behavior inside fenced code blocks (textarea-based editing surface).
+Typing and Enter behavior inside fenced code blocks (contenteditable editing surface).
 
 ## Happy paths
 
