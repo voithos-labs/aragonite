@@ -115,6 +115,7 @@
 
 {#if panel.open}
 	<aside class="debug-panel" class:resizing tabindex="-1" style:width="{panel.width}px">
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="resize-handle"
 			role="separator"

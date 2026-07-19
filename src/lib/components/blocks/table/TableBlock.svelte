@@ -702,6 +702,9 @@
 	}
 </script>
 
+<!-- Delegated listeners for the cell grid (cells are the interactive surfaces); the
+     table-vs-grid role question is the 1.1 shell a11y decision. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={tableEl}
 	class="table-block"
