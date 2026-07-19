@@ -7,6 +7,7 @@
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { trimTrailingLineEnding } from '../../../core/lines';
+import { devWarn } from '../../../dev-warn';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
 
@@ -177,6 +178,15 @@ function restoreLineEndings(root: Node, originalBody: string): void {
 		}
 	};
 	restore(root);
+	// The bijection above is load-bearing: a count mismatch would silently write
+	// `undefined` into a user's committed bytes downstream. Make a future
+	// hljs-faithfulness regression loud at this seam instead.
+	if (next !== endings.length) {
+		devWarn(
+			'code-renderer',
+			`restoreLineEndings count mismatch: ${next} fragment newlines vs ${endings.length} source endings`
+		);
+	}
 }
 
 // ── Fence marker rendering ────────────────────────────────────────────────
