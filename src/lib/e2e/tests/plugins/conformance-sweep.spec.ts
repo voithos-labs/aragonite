@@ -27,13 +27,6 @@ const BEFORE = 'top filler';
 const AFTER = 'end filler';
 const NEIGHBOUR_TOKEN = 'filler';
 
-// Render-primary leaf widgets: search finds and navigates the match, but the source
-// is not a measurable text node, so no rect paints. Ledgered in docs/issues.md
-// ("Search matches on render-primary leaf widgets are counted but not painted"). The
-// sweep pins that degraded behaviour; wiring painting later fails the guard here,
-// prompting removal from this set and the ledger.
-const SEARCH_MATCH_UNPAINTED = new Set(['mathBlock', 'toc']);
-
 // `admonition`'s `:::note` fixture is shadowed by the co-registered callout dogfood
 // (it claims `:::note` first) on /test/plugins, so no admonition node mounts. The
 // callout `note` entry sweeps the same container-directive DOM behaviours. Any OTHER
@@ -386,20 +379,7 @@ test('search paints or degrades per kind', async ({ page }) => {
 		}
 		const found = await runQuery(page, plugins, find, entry.token, 1);
 
-		if (SEARCH_MATCH_UNPAINTED.has(entry.kind)) {
-			// Ledgered render-primary widget: the match must be FOUND (settled count),
-			// but paint no rect — the two-sided ratchet. matchOverlaysIn reads settled
-			// state (the count already reached >= 1, and paint commits in the same flush).
-			if (!found) {
-				failures.push(
-					`${entry.kind} [searchPaint]: ledgered unpainted widget, but token "${entry.token}" was not found`
-				);
-			} else if ((await matchOverlaysIn(page, topIndex)) > 0) {
-				failures.push(
-					`${entry.kind} [searchPaint]: now paints a match overlay — the render-primary paint gap is fixed; update docs/issues.md and drop it from SEARCH_MATCH_UNPAINTED`
-				);
-			}
-		} else if (!found) {
+		if (!found) {
 			failures.push(`${entry.kind} [searchPaint]: token "${entry.token}" was not found`);
 		} else if (!(await waitForMatchOverlayIn(page, topIndex))) {
 			failures.push(
