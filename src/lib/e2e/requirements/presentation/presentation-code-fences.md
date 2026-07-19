@@ -26,6 +26,9 @@ the header presentation toggles (real clicks); heights are read from the rendere
   in the block's textContent while the wrapper is collapsed
 - blurring the code block (focusing another block) hides the fence lines again and
   the box shrinks back
+- an all-blank body (only blank lines) keeps every blank line in reading mode: its
+  box is as tall as an equal-count content body, N blank lines rendering as N — the
+  closer wrapper steals no separator when the body has no content line
 
 ## Error cases
 

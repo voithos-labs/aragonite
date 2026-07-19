@@ -191,3 +191,69 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 		expect(host.textContent + '\n').toBe(raw);
 	});
 });
+
+// A CRLF-authored fence must keep textContent === trimTrailingLineEnding(raw): the
+// block reads its rendered textContent back as raw on commit (CodeBlock.readText),
+// so a stray trailing `\r` — or a dropped one — is a CRLF round-trip corruption.
+// No-grammar shapes isolate the trailing-line-ending strip; the language path's
+// interior-`\r` normalization is a separate ledgered defect, pinned below.
+describe('renderCodeBlock — CRLF trailing line ending', () => {
+	beforeEach(() => {
+		__resetRegistryForTests();
+		__resetBootForTests();
+		bootstrapCodeLanguages();
+	});
+
+	const shapes: Array<[string, CstNode]> = [
+		['closed no-info', makeFencedCodeNode('```\r\nhello\r\nworld\r\n```\r\n')],
+		['no-body', makeFencedCodeNode('```\r\n```\r\n')],
+		['unclosed', makeFencedCodeNode('```\r\ncode\r\n', '', false)],
+		['fresh unclosed (opener only)', makeFencedCodeNode('```\r\n', '', false)],
+		['tilde', makeFencedCodeNode('~~~\r\nkey: value\r\n~~~\r\n', '', true, '~')],
+		['indented opener', makeFencedCodeNode('  ```\r\ncode\r\n```\r\n')]
+	];
+
+	for (const [name, node] of shapes) {
+		it(`preserves textContent — ${name}`, () => {
+			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+		});
+	}
+});
+
+// Keeping an all-blank body's separator (so it renders N blank lines, not N−1) must
+// not disturb byte parity: textContent stays trimTrailingLineEnding(raw) in every mode.
+describe('renderCodeBlock — all-blank body byte parity', () => {
+	beforeEach(() => {
+		__resetRegistryForTests();
+		__resetBootForTests();
+		bootstrapCodeLanguages();
+	});
+
+	for (const blanks of [1, 2, 3]) {
+		it(`preserves textContent — ${blanks} blank line(s)`, () => {
+			const node = makeFencedCodeNode('```\n' + '\n'.repeat(blanks) + '```\n');
+			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+		});
+	}
+});
+
+// Interior `\r` is dropped by the language-highlight path: tokenizeBody routes the
+// body through `template.innerHTML`, whose HTML parser normalizes `\r\n` → `\n`, so a
+// language-tagged CRLF block loses its interior carriage returns on render. Ledgered
+// as "Language-highlighted CRLF code drops interior carriage returns on render"; this
+// pin documents the standing corruption and flips the day that fix lands.
+describe('renderCodeBlock — CRLF interior mangle in the language path (known defect)', () => {
+	beforeEach(() => {
+		__resetRegistryForTests();
+		__resetBootForTests();
+		bootstrapCodeLanguages();
+	});
+
+	it('a language-tagged CRLF body still loses its interior `\\r` (pinned pending the ledgered fix)', () => {
+		const node = makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js');
+		const rendered = renderCodeBlock(node).textContent ?? '';
+		expect(rendered).not.toBe(trimTrailingLineEnding(node.raw));
+		expect(rendered).toContain('let a = 1\nlet b = 2');
+		expect(rendered).not.toContain('let a = 1\r\nlet b = 2');
+	});
+});
