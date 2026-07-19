@@ -275,6 +275,8 @@
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
 		isReadOnly: () => readOnly,
 		commitRevealBeforeClipboard: () => widgetInteraction.commitRevealBeforeClipboard(),
+		isRevealing: () => widgetInteraction.isRevealing(),
+		readRevealedText: () => readRawText(),
 		get linkRef() {
 			return linkRef;
 		}
