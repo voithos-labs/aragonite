@@ -30,6 +30,7 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
+import { focusIndexBeforeResidue } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { PasteDispatchContext } from './dispatch';
 
@@ -106,7 +107,6 @@ export async function applyListAbsorb(
 	for (const node of replacement) ensureEditableContainers(node);
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
-	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
 
 	// Pre-compute final markers on the replacement items BEFORE splice. Svelte 5's
 	// $state proxies wrap entries lazily on access, and mutations to newly-spliced
@@ -160,7 +160,10 @@ export async function applyListAbsorb(
 			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
-			const lastPastedIdx = pastedStart + pastedItems.length - 1;
+			// End of the pasted content: the last pasted item, before the trailing
+			// residue item — the shared structural-paste landing rule.
+			const lastPastedIdx =
+				plan.itemIndex + focusIndexBeforeResidue(replacement.length, trailingItem !== null);
 			outerState.innerBlockRefs[lastPastedIdx]?.focus(CURSOR_END);
 		}
 	});
