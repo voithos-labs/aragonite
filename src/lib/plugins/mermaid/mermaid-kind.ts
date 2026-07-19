@@ -156,7 +156,10 @@ export function registerMermaidKind(): void {
 				mode: 'implemented',
 				via: 'updateOwnMetadata — a code edit commits as one undoable metadataUpdate'
 			},
-			clipboard: { mode: 'inherit-default' },
+			clipboard: {
+				mode: 'implemented',
+				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); cross-block slice inherits the default'
+			},
 			simOracle: {
 				mode: 'implemented',
 				via: 'mermaid decoration/selection overlay e2e under the [invariant:] watcher'

@@ -60,6 +60,25 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		return deps.node.raw.slice(offsets.start, offsets.end);
 	}
 
+	// A selected inline widget (image, <br>) resolved to its live inline node — the
+	// shared resolution behind copy, cut, and paste-over-widget. Null unless a widget
+	// on THIS block is selected and still present in the parsed inline content.
+	function selectedWidgetOnThisBlock(): {
+		inline: ReturnType<typeof getInlineContent>[number];
+		preSelectOffset: number;
+	} | null {
+		const selected = deps.widgetSelection.getSelected();
+		if (selected === null || !deps.widgetSelection.isSelected(deps.myPath, selected.sourceStart)) {
+			return null;
+		}
+		const inline = getInlineContent(
+			deps.node,
+			deps.linkRef?.current,
+			deps.linkRef?.signature ?? ''
+		).find((n) => isInlineWidget(n, deps.node.raw) && n.start === selected.sourceStart);
+		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
+	}
+
 	function onCopy(e: ClipboardEvent): void {
 		deps.stickyColumn.reset();
 		e.preventDefault();
@@ -67,6 +86,16 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		// which excludes the CSS-hidden marker spans — not the raw markdown slice.
 		if (deps.isReadOnly()) {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+			return;
+		}
+		// A selected widget copies its own source slice; copy never mutates, so the
+		// widget stays selected.
+		const widget = selectedWidgetOnThisBlock();
+		if (widget !== null) {
+			e.clipboardData?.setData(
+				'text/plain',
+				deps.node.raw.slice(widget.inline.start, widget.inline.end)
+			);
 			return;
 		}
 		// Sync write via e.clipboardData — navigator.clipboard.writeText is async/permission-gated
@@ -87,6 +116,17 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		// Fold any live reveal first (the fold collapses the selection, so a
 		// cut-during-reveal degrades to a no-op — acceptable; it never corrupts).
 		if (deps.commitRevealBeforeClipboard() !== null) await tick();
+
+		// A selected widget: copy its slice, then splice it out as one undoable commit.
+		const widget = selectedWidgetOnThisBlock();
+		if (widget !== null) {
+			const { inline, preSelectOffset } = widget;
+			e.clipboardData?.setData('text/plain', deps.node.raw.slice(inline.start, inline.end));
+			const newRaw = deps.node.raw.slice(0, inline.start) + deps.node.raw.slice(inline.end);
+			void deps.blockEdit.updateBlockContent(deps.index, newRaw, preSelectOffset, inline.start);
+			deps.widgetSelection.clear();
+			return;
+		}
 
 		if (await writeCrossBlockCut(e, deps)) return;
 
@@ -124,28 +164,19 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 
-		const selectedWidget = deps.widgetSelection.getSelected();
-		if (
-			selectedWidget !== null &&
-			deps.widgetSelection.isSelected(deps.myPath, selectedWidget.sourceStart)
-		) {
-			const inline = getInlineContent(
-				deps.node,
-				deps.linkRef?.current,
-				deps.linkRef?.signature ?? ''
-			).find((n) => isInlineWidget(n, deps.node.raw) && n.start === selectedWidget.sourceStart);
-			if (inline) {
-				const newRaw =
-					deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
-				void deps.blockEdit.updateBlockContent(
-					deps.index,
-					newRaw,
-					selectedWidget.preSelectOffset,
-					inline.start + pastedText.length
-				);
-				deps.widgetSelection.clear();
-				return;
-			}
+		const widget = selectedWidgetOnThisBlock();
+		if (widget !== null) {
+			const { inline, preSelectOffset } = widget;
+			const newRaw =
+				deps.node.raw.slice(0, inline.start) + pastedText + deps.node.raw.slice(inline.end);
+			void deps.blockEdit.updateBlockContent(
+				deps.index,
+				newRaw,
+				preSelectOffset,
+				inline.start + pastedText.length
+			);
+			deps.widgetSelection.clear();
+			return;
 		}
 
 		// After a reveal fold the caret sits on the widget's element-level edge, where

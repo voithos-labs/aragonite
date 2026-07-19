@@ -251,7 +251,10 @@ export function registerBuiltInDescriptors(): void {
 			},
 			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
 			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
+			clipboard: {
+				mode: 'implemented',
+				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); cross-block slice inherits the default'
+			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
 		}
 	});
