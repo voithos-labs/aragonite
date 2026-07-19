@@ -216,31 +216,36 @@ Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with 
 
 Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste). Shift+F10 or the Context Menu key opens it from the keyboard.
 
-| Action                     | Chord                                            |
-| -------------------------- | ------------------------------------------------ |
-| **Editing**                |                                                  |
-| Bold (toggle strong)       | `Mod+B`                                          |
-| Italic (toggle emphasis)   | `Mod+I`                                          |
-| Cycle heading level        | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`) |
-| Undo                       | `Mod+Z`                                          |
-| Redo                       | `Mod+Y` or `Mod+Shift+Z`                         |
-| **Block reorder**          |                                                  |
-| Move block up / down       | `Alt+↑` / `Alt+↓`                                |
-| **Find / replace**         |                                                  |
-| Open find                  | `Mod+F`                                          |
-| Open find + replace        | `Mod+H`                                          |
-| Next / previous match      | `Enter` / `Shift+Enter` (in the find field)      |
-| Close search               | `Esc`                                            |
-| **Tables**                 |                                                  |
-| Move between cells         | `Tab` / `Shift+Tab`, arrow keys                  |
-| Next row (or add one)      | `Enter` (from the last cell, appends a row)      |
-| Insert row below / above   | `Mod+Enter` / `Mod+Shift+Enter`                  |
-| Insert column right / left | `Alt+Shift+→` / `Alt+Shift+←`                    |
-| Delete row                 | `Mod+Shift+Backspace`                            |
-| Delete column              | `Alt+Shift+Backspace`                            |
-| Move row up / down         | `Alt+↑` / `Alt+↓`                                |
-| Move column left / right   | `Alt+←` / `Alt+→`                                |
-| Cycle column alignment     | `Mod+Shift+A`                                    |
+| Action                      | Chord                                            |
+| --------------------------- | ------------------------------------------------ |
+| **Editing**                 |                                                  |
+| Bold (toggle strong)        | `Mod+B`                                          |
+| Italic (toggle emphasis)    | `Mod+I`                                          |
+| Cycle heading level         | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`) |
+| Undo                        | `Mod+Z`                                          |
+| Redo                        | `Mod+Y` or `Mod+Shift+Z`                         |
+| **Block reorder**           |                                                  |
+| Move block up / down        | `Alt+↑` / `Alt+↓`                                |
+| **Find / replace**          |                                                  |
+| Open find                   | `Mod+F`                                          |
+| Open find + replace         | `Mod+H`                                          |
+| Next / previous match       | `Enter` / `Shift+Enter` (in the find field)      |
+| Close search                | `Esc`                                            |
+| **Tables**                  |                                                  |
+| Move between cells          | `Tab` / `Shift+Tab`, arrow keys                  |
+| Next row (or add one)       | `Enter` (from the last cell, appends a row)      |
+| Insert row below / above    | `Mod+Enter` / `Mod+Shift+Enter`                  |
+| Insert column right / left  | `Alt+Shift+→` / `Alt+Shift+←`                    |
+| Delete row                  | `Mod+Shift+Backspace`                            |
+| Delete column               | `Alt+Shift+Backspace`                            |
+| Move row up / down          | `Alt+↑` / `Alt+↓`                                |
+| Move column left / right    | `Alt+←` / `Alt+→`                                |
+| Cycle column alignment      | `Mod+Shift+A`                                    |
+| **Clipboard**               |                                                  |
+| Copy / cut a focused block  | `Mod+C` / `Mod+X`                                |
+| Copy / cut a selected image | `Mod+C` / `Mod+X`                                |
+
+**Whole-block clipboard.** A block focused as a whole — a thematic break or a plugin diagram — has no text selection, so `Mod+C` / `Mod+X` copy or cut the block's own Markdown (cut removes the block); the same chords on a selected inline image act on the image's source. In reading mode copy works and cut degrades to copy.
 
 **Menu clipboard caveats.** The right-click menu's Cut/Copy write the cell's _rendered_ text, which differs from keyboard `Mod+X`'s raw-source slice for a cell holding an inline widget (a literal `<br>`, say). Menu Paste reads through `navigator.clipboard.readText()` — the one clipboard path not yet proven on the Tauri/wry webview. Keyboard `Mod+V` is unaffected.
 
