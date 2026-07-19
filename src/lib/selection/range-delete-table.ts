@@ -1,6 +1,14 @@
 /**
  * Table-aware branch of rangeDelete: tables encode selection offsets as cell
  * indices, so prose raw-merge doesn't apply.
+ *
+ * Post-delete survivors are located by identity scan ({@link survivorPath}), not
+ * index arithmetic — deletions and cascade cleanup shift sibling indices at
+ * arbitrary depths, so any captured index goes stale. Each cross-block delete
+ * runs at most one such scan, over the POST-delete tree, early-exiting at the
+ * survivor: cost is O(the survivor's document-order position), bounded by
+ * O(nodes). This rides the cold Backspace/Delete gesture, never a per-keystroke
+ * path, so the linear scan is an accepted correctness-first cost.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -8,7 +16,6 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
 import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
 import { replaceAtPath } from '../tree-operations/path-mutate';
@@ -20,7 +27,7 @@ import {
 	pathHasPrefix,
 	pathsEqual
 } from './path-math';
-import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
@@ -37,6 +44,7 @@ import {
 	lastChildDescendant,
 	lineEndingOf,
 	terminateLine,
+	reparseWithFallback,
 	type ChromeContainer
 } from './range-delete-chrome';
 
@@ -253,31 +261,51 @@ function collectDeletionPlan(
 	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain };
 }
 
-function clearChrome(plan: DeletionPlan): void {
-	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
-	if (chrome) chrome.raw = '\n';
-}
-
-/** Chain-based (splice-proof) rebuild so the cleared title re-emits into the opener line. */
-function rebuildChromeAncestry(plan: DeletionPlan, sharing: SharingState): void {
-	if (plan.chromeClearChain) rebuildUnsharedChain(plan.chromeClearChain, sharing);
-}
-
-/** Own every deletion path's parent spine before any splice (G1.9). */
-function ownDeletionParents(doc: Document, deletionPaths: number[][], sharing: SharingState): void {
-	for (const path of deletionPaths) {
+/**
+ * Plan the deletion — covered subtree roots plus caller-marked endpoint paths
+ * (via {@link collectDeletionPlan}) — then own every deletion path's parent
+ * spine before any splice (G1.9) and resolve the LCA cascade cleanup stops at.
+ * The caller resolves `wall` itself: its `consumed` flag also gates each case's
+ * endpoint prose-replace, which runs before this on some cases.
+ */
+function planCrossBlockDeletion(
+	doc: Document,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	endpointPaths: number[][],
+	wall: EndWall | null,
+	sharing: SharingState
+): { plan: DeletionPlan; lcaPath: number[] } {
+	const plan = collectDeletionPlan(doc, start, end, endpointPaths, wall, sharing);
+	for (const path of plan.deletionPaths) {
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
+	return { plan, lcaPath: lowestCommonAncestor(start.path, end.path) };
 }
 
-function rebuildDeletionAncestries(
-	doc: Document,
-	deletionPaths: number[][],
-	sharing: SharingState
-): void {
-	for (const path of deletionPaths) {
+/**
+ * Apply the plan as one atomic step: clear a surviving end container's covered
+ * chrome (raw write, never a node delete), then splice the covered subtrees in
+ * reverse doc order under the identity gate. The cases sequence their endpoint
+ * prose-replace before or after this call per their ordering comments.
+ */
+function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
+	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
+	if (chrome) chrome.raw = '\n';
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
+}
+
+/**
+ * Rebuild every deletion path's surviving ancestry, then the cleared chrome's
+ * opener line (chain-based so the re-emit survives the splices). Shared tail of
+ * every case's rebuild block; case-specific survivor rebuilds stay at the call
+ * site, on their own side of this call.
+ */
+function rebuildSharedAncestries(doc: Document, plan: DeletionPlan, sharing: SharingState): void {
+	for (const path of plan.deletionPaths) {
 		rebuildUnsharedAncestry(doc, path, sharing);
 	}
+	if (plan.chromeClearChain) rebuildUnsharedChain(plan.chromeClearChain, sharing);
 }
 
 // ── Case 1: prose start, table end ─────────────────────────────────────────
@@ -309,7 +337,7 @@ function deleteFromProseIntoTable(
 	);
 
 	const wall = resolveEndWall(doc, start, end, result === 'tableEmpty');
-	const plan = collectDeletionPlan(
+	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
 		start,
 		end,
@@ -317,11 +345,8 @@ function deleteFromProseIntoTable(
 		wall,
 		sharing
 	);
-	ownDeletionParents(doc, plan.deletionPaths, sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	clearChrome(plan);
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath);
 	if (startIsChrome) {
 		// The wall: a chrome start truncates by raw write — kind and node kept.
 		startBlock.raw = terminateLine(startHead, startBlock.raw);
@@ -332,8 +357,7 @@ function deleteFromProseIntoTable(
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
 	rebuildUnsharedAncestry(doc, start.path, sharing);
-	rebuildDeletionAncestries(doc, plan.deletionPaths, sharing);
-	rebuildChromeAncestry(plan, sharing);
+	rebuildSharedAncestries(doc, plan, sharing);
 	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing);
 
 	return {
@@ -377,7 +401,7 @@ function deleteFromTableIntoProse(
 		}
 	}
 
-	const plan = collectDeletionPlan(
+	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
 		start,
 		end,
@@ -385,8 +409,6 @@ function deleteFromTableIntoProse(
 		wall,
 		sharing
 	);
-	ownDeletionParents(doc, plan.deletionPaths, sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
 	// Replace/truncate end first: its path is later in doc order, so deleting
 	// strictly-between doesn't shift it. Then delete strictly-between in
@@ -403,8 +425,7 @@ function deleteFromTableIntoProse(
 		// would miss the stored copy.
 		tailNode = blockNodeAt(doc, end.path);
 	}
-	clearChrome(plan);
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath);
 
 	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
 
@@ -413,8 +434,7 @@ function deleteFromTableIntoProse(
 		rebuildUnsharedAncestry(doc, start.path, sharing);
 	}
 	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing);
-	rebuildDeletionAncestries(doc, plan.deletionPaths, sharing);
-	rebuildChromeAncestry(plan, sharing);
+	rebuildSharedAncestries(doc, plan, sharing);
 
 	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: when the
 	// table is fully consumed, the caret lands at the start of the surviving tail
@@ -490,12 +510,16 @@ function deleteAcrossTwoTables(
 	const emptiedEndpoints: number[][] = [];
 	if (startResult === 'tableEmpty') emptiedEndpoints.push(start.path);
 	if (endResult === 'tableEmpty') emptiedEndpoints.push(end.path);
-	const plan = collectDeletionPlan(doc, start, end, emptiedEndpoints, wall, sharing);
-	ownDeletionParents(doc, plan.deletionPaths, sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
+	const { plan, lcaPath } = planCrossBlockDeletion(
+		doc,
+		start,
+		end,
+		emptiedEndpoints,
+		wall,
+		sharing
+	);
 
-	clearChrome(plan);
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath);
 
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 
@@ -507,8 +531,7 @@ function deleteAcrossTwoTables(
 		rebuildOwnedContainer(endTable, sharing);
 		rebuildUnsharedAncestry(doc, endTablePath, sharing);
 	}
-	rebuildDeletionAncestries(doc, plan.deletionPaths, sharing);
-	rebuildChromeAncestry(plan, sharing);
+	rebuildSharedAncestries(doc, plan, sharing);
 
 	let collapsedCaret: SelectionPoint;
 	if (startResult === 'tableSurvives') {
@@ -565,10 +588,8 @@ function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
 	return { path: [...tablePath, lastRow, lastCol], offset: displayLength(cell.raw) };
 }
 
-// ── Post-delete path resolution ────────────────────────────────────────────
+// ── Post-delete path resolution (identity scan; cost class in the file header) ─
 
-// Deletions and ancestor cleanup shift sibling indices at arbitrary depths, so
-// surviving blocks are located by identity instead of index arithmetic.
 function survivorPath(doc: Document, node: CstNode): number[] {
 	const path = pathOfNode(doc, node);
 	if (!path) {
@@ -657,14 +678,4 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 function totalCellCount(table: CstNode): number {
 	const meta = metadataOf(table, 'table');
 	return (table.children?.length ?? 0) * meta.columnCount;
-}
-
-function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
-	const reparsed = parse(raw || '\n');
-	if (reparsed.children.length === 0) {
-		return [{ kind: 'paragraph', leadingTrivia, raw: '\n' }];
-	}
-	const cloned = reparsed.children.slice();
-	cloned[0] = { ...cloned[0], leadingTrivia };
-	return cloned;
 }
