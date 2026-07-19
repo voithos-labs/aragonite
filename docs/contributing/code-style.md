@@ -20,6 +20,8 @@ No abstraction until the third repetition — abstraction is a cost, paid only w
 
 Each function, file, and module has one responsibility you can state in a short sentence. If you'd use "and" to describe it, split it. Prefer composable functions over one long function steered by a mode flag.
 
+A block's `.svelte` file is a **composition root**: it wires state, lifecycle, and the extracted per-concern modules beside it, and that wiring is its one responsibility — line count alone never forces a split. What does force one: any new logic block that doesn't touch lifecycle or need the whole component's state lands as a `createX(deps)` factory in a sibling `.ts` module (reactive reads passed as getters), never inline. The table and text block folders are the pattern.
+
 ## File structure
 
 Section dividers mark logical groupings:
