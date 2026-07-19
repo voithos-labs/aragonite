@@ -56,6 +56,42 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 	});
 });
 
+// An all-blank body has no line the closer can steal a separator from: every line
+// is content. Its reading-mode box must be as tall as an equal-count content body —
+// N blank lines render N blank lines, not N−1.
+test.describe('code fences — an all-blank body keeps its blank lines in reading mode', () => {
+	// Block 0: two content lines. Block 1: two blank body lines. Same fence count.
+	const DOC_BLANK = ['```', 'x', 'y', '```', '', '```', '', '', '```', '', 'end'].join('\n');
+
+	async function blockHeight(ep: EditorPage, index: number): Promise<number> {
+		const box = await ep.getBlock(index).boundingBox();
+		if (!box) throw new Error(`block ${index} has no bounding box`);
+		return box.height;
+	}
+
+	test('reading renders the two blank lines, matching a two-content-line box', async ({ page }) => {
+		const ep = new EditorPage(page);
+		await ep.goto();
+		await ep.loadContent(DOC_BLANK);
+
+		const sourceContent = await blockHeight(ep, 0);
+
+		await page.getByTestId('presentation-toggle').click();
+		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await ep.waitForRenderFlush();
+
+		const readingContent = await blockHeight(ep, 0);
+		const readingBlank = await blockHeight(ep, 1);
+		// Both boxes collapse opener + closer; the content box loses two fence lines.
+		const lineHeight = (sourceContent - readingContent) / 2;
+
+		// Pre-fix the closer wrapper steals the blank body's terminating `\n`, so the
+		// all-blank box renders one line short of the content box → red below the band.
+		expect(readingBlank).toBeGreaterThan(readingContent - lineHeight * 0.5);
+		expect(readingBlank).toBeLessThan(readingContent + lineHeight * 0.5);
+	});
+});
+
 for (const mode of [
 	{ name: 'preview-block', testid: 'preview-block-toggle', attr: 'preview-block' },
 	{ name: 'preview-inline', testid: 'preview-inline-toggle', attr: 'preview-inline' }

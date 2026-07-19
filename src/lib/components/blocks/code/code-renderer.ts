@@ -6,6 +6,7 @@
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
+import { trimTrailingLineEnding } from '../../../core/lines';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
 
@@ -211,61 +212,40 @@ function renderCloserLine(slice: FencedCodeSlice, leadingNewline: boolean): Docu
 // ── Top-level render ─────────────────────────────────────────────────────
 
 export function renderCodeBlock(node: NodeView): DocumentFragment {
-	const slice = sliceFencedCode(node);
+	const slice = trimSliceTail(sliceFencedCode(node));
 	const meta = metadataOf(node, 'fencedCode');
 	const frag = document.createDocumentFragment();
 
 	// The newline separating the body's last line from the closer belongs to the
-	// closer's fence line — hand it to the closer wrapper so the wrapper collapses
-	// the bottom blank line too. Byte order is unchanged: the same `\n` in the same
-	// position, only re-homed.
+	// closer's fence line — hand it to the closer wrapper so reading/preview collapse
+	// the bottom blank line with the closer. Byte order is unchanged: the same `\n`,
+	// only re-homed. An all-blank body is the exception: it has no content line above
+	// that blank, so stealing its terminating `\n` would drop a visible line — keep
+	// the separator in the body there so N blank lines render as N.
 	const hasCloser = slice.closerLine.length > 0;
-	const separatorNewline = hasCloser && slice.body.endsWith('\n');
+	const bodyHasContentLine = /\S/.test(slice.body);
+	const separatorNewline = hasCloser && slice.body.endsWith('\n') && bodyHasContentLine;
 	const bodyText = separatorNewline ? slice.body.slice(0, -1) : slice.body;
 
-	const openerFrag = renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength);
-	const bodyFrag = tokenizeBody(bodyText, slice.infoString);
-	const closerFrag = renderCloserLine(slice, separatorNewline);
-
-	// Preserve textContent === trimTrailingLineEnding(raw): strip one trailing
-	// \n from whichever fragment carries the tail — closer first, then body,
-	// then opener (covers the fresh-unclosed case `"```\n"`).
-	if (node.raw.endsWith('\n')) {
-		stripTrailingNewline(closerFrag) ||
-			stripTrailingNewline(bodyFrag) ||
-			stripTrailingNewline(openerFrag);
-	}
-
-	frag.appendChild(openerFrag);
-	frag.appendChild(bodyFrag);
-	frag.appendChild(closerFrag);
+	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
+	frag.appendChild(tokenizeBody(bodyText, slice.infoString));
+	frag.appendChild(renderCloserLine(slice, separatorNewline));
 
 	return frag;
 }
 
-/**
- * Strip one trailing `\n` from the deepest trailing text node. Returns true on
- * success so callers can chain priorities. Descends through the fence-line
- * wrapper to reach the actual `\n` (setting textContent on the wrapper would
- * flatten its marker spans). A now-empty text node is removed so the cursor
- * walker doesn't land in a zero-length node Chromium treats as a non-target.
- */
-function stripTrailingNewline(frag: DocumentFragment): boolean {
-	let node: Node | null = frag.lastChild;
-	while (node != null && node.nodeType === Node.ELEMENT_NODE && node.lastChild != null) {
-		node = node.lastChild;
-	}
-	if (node == null || !node.textContent?.endsWith('\n')) return false;
-	const trimmed = node.textContent.slice(0, -1);
-	if (trimmed.length === 0 && node.nodeType === Node.TEXT_NODE) {
-		node.parentNode?.removeChild(node);
-	} else {
-		node.textContent = trimmed;
-	}
-	return true;
-}
-
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+// The block's trailing line ending never enters the fragments: strip it from
+// whichever slice piece carries the tail (closer, else body, else fresh-unclosed
+// opener). textContent === trimTrailingLineEnding(raw) then holds by construction —
+// CRLF included, where a post-build single-`\n` strip stranded the `\r`.
+function trimSliceTail(slice: FencedCodeSlice): FencedCodeSlice {
+	if (slice.closerLine.length > 0)
+		return { ...slice, closerLine: trimTrailingLineEnding(slice.closerLine) };
+	if (slice.body.length > 0) return { ...slice, body: trimTrailingLineEnding(slice.body) };
+	return { ...slice, openerLine: trimTrailingLineEnding(slice.openerLine) };
+}
 
 function findClosingFenceStart(
 	raw: string,
