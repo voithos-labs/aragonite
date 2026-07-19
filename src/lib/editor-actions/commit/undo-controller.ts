@@ -237,6 +237,42 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				discardIfNoop?: boolean;
 		  };
 
+	/** Every register a throwing (or discardIfNoop-bailing) commit must roll back, in one place. */
+	interface RollbackFrame {
+		restore(): void;
+	}
+
+	/**
+	 * Capture the commit's recovery state once. A throw or a discardIfNoop bail
+	 * calls restore(); the catch and discard sites hold no loose registers of
+	 * their own, so a future ceremony register lives in this frame or it visibly
+	 * won't recover. The container's per-scope registers can't live here — the
+	 * owned children/ids aren't minted until `mutate` unshares the spine, and the
+	 * scope state readers ride the scopes CommitArgs doesn't carry — so restore()
+	 * delegates to the `rollback` thunk `commitMultiScope` prepared for them.
+	 */
+	function captureRollbackFrame(args: CommitArgs): RollbackFrame {
+		// Wholesale stack restore, not a pop (the push may evict the oldest at cap).
+		// Must be captured before the push mutates the stacks.
+		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
+		// The container branch mutates the live tree in place (its scope views are
+		// windows onto live nodes); capture the top-level array so restore() discards
+		// it. copy-path-on-write copied every touched node before writing it, so this
+		// pre-mutation array reaches an intact tree at every depth. The document branch
+		// builds on a copy and publishes only on success — nothing to restore.
+		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
+		return {
+			restore() {
+				// Structure top-down: stacks, then the top-level array, then the
+				// container thunk recovers an in-place splice into a node already
+				// unshared this undo unit — the array swap can't reach it.
+				if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
+				if (savedDocChildren) deps.doc.children = savedDocChildren;
+				if (args.kind === 'container') args.rollback?.();
+			}
+		};
+	}
+
 	function runCommitCeremony(args: CommitArgs): boolean {
 		deps.stickyColumn.reset();
 		textBatch.interrupt();
@@ -253,24 +289,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			);
 		}
 
-		// Capture before the push so a throwing mutation can roll both stacks
-		// back. Wholesale restore (not a pop) because push may evict the oldest
-		// at cap.
-		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
+		const rollback = captureRollbackFrame(args);
 		if (args.snapshot !== 'skip') {
 			// With no live caret (e.g. a handle drag) the snapshot restores to the
 			// declared coordinate. (When a caret IS live — every keyboard path — it
 			// wins and this fallback is unused.)
 			pushUndoSnapshotPath(args.snapshot.path, args.snapshot.offset);
 		}
-
-		// The container branch mutates the live tree in place (its scope views
-		// are windows onto live nodes), unlike the document branch which builds
-		// on `childrenCopy` and only publishes on success. Capture the top-level
-		// array so a throw can discard it: copy-path-on-write means every node
-		// the mutation touched was copied before it was written, so the
-		// pre-mutation array still reaches an intact tree at every depth.
-		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
 
 		// A `discardIfNoop` structural op that changed nothing (chrome split, a
 		// no-target merge) rolls back the snapshot pushed above — the benign twin
@@ -286,8 +311,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 				const change = args.mutate(childrenCopy);
 				if (args.discardIfNoop && change.op === 'noop') {
-					// Document branch never published, so only the undo stack needs restoring.
-					if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
+					// Document branch never published; the frame restores only the stacks here.
+					rollback.restore();
 					discarded = true;
 				} else {
 					applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
@@ -300,11 +325,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				const changed = args.mutate();
 				if (args.discardIfNoop && !changed) {
 					// The in-place mutation ran (spine unshare, per-scope publish, raw
-					// rebuild) but every scope no-op'd — roll it back exactly as a throw
-					// would: top-level array first, then the rollback thunk.
-					if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
-					if (savedDocChildren) deps.doc.children = savedDocChildren;
-					args.rollback?.();
+					// rebuild) but every scope no-op'd — unwind it exactly as a throw would.
+					rollback.restore();
 					discarded = true;
 				} else {
 					args.publish();
@@ -321,13 +343,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
 			}
 		} catch (err) {
-			if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
-			// Discard the container branch's in-place mutation (the document
-			// branch never published, so it needs no restore). Restore the
-			// top-level array first (structure top-down), then let the rollback
-			// thunk recover any in-place splice the array swap couldn't reach.
-			if (savedDocChildren) deps.doc.children = savedDocChildren;
-			if (args.kind === 'container') args.rollback?.();
+			rollback.restore();
 			deps.events.emit('error', {
 				origin: 'commit',
 				error: err,
