@@ -3,7 +3,7 @@ import {
 	dispatchMoveFocus,
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
-} from '../../editor-actions/focus-dispatch';
+} from '../../editor-actions/focus/focus-dispatch';
 import { CURSOR_END } from '../../block-component';
 import { mockRef, makeStickyColumn, makeStubFocus } from '../harness/editor-actions';
 
@@ -87,7 +87,10 @@ describe('dispatchMoveFocus', () => {
 		expect(child.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	it('skips non-focusable blocks without delegating upward', async () => {
+	// A non-focusable target must not dead-end the move (`docs/design/editor.md`
+	// § Focus traversal). With no focusable sibling in the travel direction, the
+	// walk runs off this scope's edge and delegates upward.
+	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
 		const child = mockRef({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();
 		await dispatchMoveFocus([child], 0, 'start', makeStickyColumn(), {
@@ -95,12 +98,13 @@ describe('dispatchMoveFocus', () => {
 			index: 0
 		});
 		expect(child.focus).not.toHaveBeenCalled();
-		expect(parentFocus.moveFocus).not.toHaveBeenCalled();
+		expect(parentFocus.moveFocus).toHaveBeenCalledWith(1, 'start');
 	});
 
-	// Pins the contract: dispatcher no-ops on a non-focusable target.
-	// Traversal through non-focusable blocks is the caller's responsibility.
-	it('non-focusable at target + focusable sibling: current dispatcher no-ops on the target', async () => {
+	// Mid-chain: the walk steps past the non-focusable block to the next focusable
+	// sibling in the travel direction and lands there — no upward delegation while
+	// a focusable sibling remains.
+	it('non-focusable mid-chain: skips to the next focusable sibling', async () => {
 		const nonFocusable = mockRef({ focus: vi.fn(), focusable: false });
 		const focusable = mockRef({ focus: vi.fn(), focusable: true });
 		const parentFocus = makeStubFocus();
@@ -109,7 +113,7 @@ describe('dispatchMoveFocus', () => {
 			index: 0
 		});
 		expect(nonFocusable.focus).not.toHaveBeenCalled();
-		expect(focusable.focus).not.toHaveBeenCalled();
+		expect(focusable.focus).toHaveBeenCalledWith(0);
 		expect(parentFocus.moveFocus).not.toHaveBeenCalled();
 	});
 });

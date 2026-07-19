@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { readFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
@@ -32,6 +32,11 @@ test.skip(!process.env.PERF_GATE, 'run via `npm run perf:check`');
 // bounded — a genuinely separate axis.)
 const TOLERANCE = 1.1;
 const FLOOR_MS = 5;
+// Baselines were measured on the calibration machine; slower environments (CI
+// runners measured ~2.2x) scale the whole ceiling rather than re-blessing
+// baselines per host. Local stays 1 — the tight gate; CI sets it in the
+// workflow env, making the CI gate a gross-regression net, not a re-tuned one.
+const RUNNER_SCALE = Number(process.env.PERF_RUNNER_SCALE ?? '1');
 
 const SIZE_BYTES: Record<string, number> = { '1MB': 1_000_000, '10MB': 10_000_000 };
 const SIZE_KEYSTROKES: Record<string, number> = { '1MB': 30, '10MB': 15 };
@@ -63,7 +68,7 @@ test.describe('perf gate — keystroke p50 within budget', () => {
 	for (const [shape, size] of GATED_ROWS) {
 		test(`${shape} ${size}`, async ({ page }) => {
 			const row = baseline.e2e[`${shape}-${size}`];
-			const ceiling = row.keystrokeP50Ms * TOLERANCE + FLOOR_MS;
+			const ceiling = (row.keystrokeP50Ms * TOLERANCE + FLOOR_MS) * RUNNER_SCALE;
 
 			const editor = new EditorPage(page);
 			const m = await measureTypingLatency(

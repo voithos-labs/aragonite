@@ -3,15 +3,21 @@
  * differs between a top-level edit (commits to the document children via
  * `commitStructural`) and a container edit (commits to a nested children
  * array via `commitContainer`): the commit ceremony, child addressing, refs,
- * unshare primitive, and snapshot/eventPath shape.
+ * and the unshare primitive. Both factories are the SINGLE mint point for the
+ * commit args' doc-absolute paths (snapshot restore + event target), minted as
+ * `DocPath` — the core hands over local indices only. The commit-arg path
+ * fields are plain `number[]`, so the brand decays into them; the runtime
+ * G1.16 guard re-checks the dialect at the commit seam.
  */
 
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
+import { asDocPath, extendDocPath } from '../selection/path-math';
 import type { EditorActionsDeps, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -27,15 +33,31 @@ export interface MutationView {
 export interface ScopeCommitArgs {
 	/** Snapshot coordinate in THIS scope's local index space, or 'skip' to join a caller's entry. */
 	snapshot: { index: number; offset: number } | 'skip';
-	/** eventPath tail: the local index the emitted edit event targets (often the op's index; the deleted neighbor for not-editable merges). The top-level scope ignores it — commitStructural derives the path from the snapshot. */
+	/** The local index the emitted edit event targets (often the op's index; the deleted neighbor for not-editable merges; the minted index for inserts). The factory prefixes the scope's absolute path. */
 	eventTarget: number;
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: () => void;
+	/**
+	 * Leaf(ves) the dev staleness oracle checks when `mutate` returns `noop` (an
+	 * in-place metadata/kind write the StructuralChange can't name). The owned copy
+	 * exists only after `mutate` runs, so callers push into a stable array the
+	 * ceremony reads post-mutate. Top-level only — the container scope's ceremony
+	 * auto-derives from its owned scope node.
+	 */
+	touchedNodes?: CstNode[];
+	/**
+	 * Structural op that can legitimately no-op (chrome split, no-target merge):
+	 * when `mutate` reports no structural change, the ceremony discards the
+	 * snapshot instead of minting a dead undo entry. Never set on content/metadata
+	 * commits — their `noop` still carries a byte change. See action-contracts `DiscardIfNoop`.
+	 */
+	discardIfNoop?: boolean;
 }
 
 export interface CommitScope {
-	children(): CstNode[];
+	/** Read accessor — mutation happens through the commit's owned view, never this. */
+	children(): readonly NodeView[];
 	refAt(i: number): BlockComponent | undefined;
 	/** Empty replaceBlock emits `delete` (container) vs `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
@@ -52,18 +74,30 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		refAt: (i) => deps.blockRefs[i],
 		collapseEmptyReplaceToDelete: false,
-		commit({ snapshot, op, mutate, afterTick }): Promise<void> {
+		commit({
+			snapshot,
+			eventTarget,
+			op,
+			mutate,
+			afterTick,
+			touchedNodes,
+			discardIfNoop
+		}): Promise<void> {
 			return controller.commitStructural({
 				snapshot:
-					snapshot === 'skip' ? 'skip' : { blockIndex: snapshot.index, offset: snapshot.offset },
+					snapshot === 'skip'
+						? 'skip'
+						: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
 				mutate: (children) =>
 					mutate({
 						children,
 						sharing: deps.sharing,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
-				op,
-				afterTick
+				op: { ...op, eventPath: asDocPath([eventTarget]) },
+				afterTick,
+				touchedNodes,
+				discardIfNoop
 			});
 		}
 	};
@@ -76,21 +110,24 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 		children: () => deps.node.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],
 		collapseEmptyReplaceToDelete: true,
-		commit({ snapshot, eventTarget, op, mutate, afterTick }): Promise<void> {
+		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
 			return deps.parent.containerEdit.commitContainer({
 				containerNode: deps.node,
 				path: deps.path,
 				state,
 				snapshot:
-					snapshot === 'skip' ? 'skip' : { blockIndex: deps.index, offset: snapshot.offset },
+					snapshot === 'skip'
+						? 'skip'
+						: { path: extendDocPath(deps.path, snapshot.index), offset: snapshot.offset },
 				mutate: (scope) =>
 					mutate({
 						children: scope.children,
 						sharing: scope.sharing,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
-				op: { ...op, eventPath: [deps.index, eventTarget] },
-				afterTick
+				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },
+				afterTick,
+				discardIfNoop
 			});
 		}
 	};

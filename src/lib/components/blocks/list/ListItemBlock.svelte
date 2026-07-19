@@ -7,21 +7,19 @@
 		ListContext
 	} from '../../../action-contracts';
 	import type { BlockComponent } from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import {
-		BLOCK_DRAG_HANDLES_KEY,
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
-		KEYBINDING_OVERRIDES_KEY,
 		LIST_CONTEXT_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
-		type KeybindingOverridesGetter
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
+	import { isPreviewMode } from '../../../presentation-mode';
 	import { displayLength } from '../../../core/lines';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
@@ -30,12 +28,16 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../../editor-actions/nested/nested-actions';
-	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
+	import {
+		createContainerBlockComponent,
+		type ContainerBlockComponent
+	} from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { resolveKindBinding, type CommandId } from '../../../schema/commands';
+	import { dispatchKindCommand } from '../../../schema/block-commands';
+	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 
 	let {
@@ -45,7 +47,7 @@
 		setRef,
 		getRef
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
 		setRef?: (i: number, r: BlockComponent | undefined) => void;
@@ -55,12 +57,30 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
+	const { stickyColumn, selection, registryView } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		keybindingOverrides,
+		blockDragHandles: getDragHandles,
+		presentationMode: getPresentationMode
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
-	const dragHandles = getContext<(() => boolean) | undefined>(BLOCK_DRAG_HANDLES_KEY)?.() ?? false;
+	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
+	// that window in and out after the change, not just those mounted at mount.
+	const dragHandles = $derived(getDragHandles?.() ?? false);
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
+
+	// Reading and preview CSS tell bullet/ordered/task markers apart (bullets
+	// become rendered chrome, numbers stay visible) and the ambient span carries no
+	// such class. Present in every marker-hiding mode; absent in source, so the
+	// source-mode DOM stays byte-identical.
+	const presentationMarkerKind = $derived.by(() => {
+		if (presentationMode !== 'reading' && !isPreviewMode(presentationMode)) return undefined;
+		const meta = metadataOf(node, 'listItem');
+		if (meta?.taskItem) return 'task';
+		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';
+	});
 
 	// Wrap getContainingItemIndex so a nested ListBlock inside this item sees
 	// this item's index in the outer list — the coordinate promoteNestedItem needs.
@@ -83,6 +103,10 @@
 	});
 
 	function toggleTask(): void {
+		// Reading mode v1 keeps checkboxes visible but inert (CSS also drops their
+		// pointer affordance); live task toggling is a deferred product question —
+		// see docs/issues.md.
+		if (readOnly) return;
 		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return;
 
@@ -117,6 +141,7 @@
 				return myPath;
 			},
 			stickyColumn,
+			grammar: registryView.grammar,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
@@ -130,7 +155,7 @@
 
 					// Enter-empty: first child is an empty paragraph. Deliberately shallower than
 					// isItemUserEmpty (used by Backspace) — trailing structural children stay
-					// until exitListAtItem relocates them (see docs/issues.md).
+					// until exitListAtItem relocates them.
 					const firstChild = node.children[0];
 					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 					if (isEmptyItem) {
@@ -193,10 +218,26 @@
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
-	export const revealByPath = containerApi.revealByPath!;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
+	export const enterEdgeWidget = containerApi.enterEdgeWidget;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
+	export const revealByPath = containerApi.revealByPath;
+	// Completeness guard: `bind:this` reads each instance export individually, so a
+	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
+	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 
 	$effect(() => {
 		if (!setRef || !getRef) return;
@@ -208,7 +249,7 @@
 	// Not on the BlockComponent surface (the published ref is containerApi, not
 	// this instance); the bubble handler below closes over it directly and is
 	// its only caller.
-	function runCommand(id: CommandId): boolean {
+	function runCommand(id: AnyCommandId): boolean {
 		switch (id) {
 			case 'list.indent':
 				listContext.indentItem(index);
@@ -222,17 +263,18 @@
 	}
 
 	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab
-	// declines (without preventDefault) when a listContext is present. Resolve
-	// ONLY this kind's keymap — never the global table: undo/redo belong to the
-	// focused contenteditable, whose async keydown handler preventDefaults after
-	// an await, so the event bubbles here with defaultPrevented still false. A
-	// global fallthrough would re-fire undo/redo a second time.
+	// declines (without preventDefault) when a listContext is present. Dispatch is
+	// kind-only (dispatchKindCommand): the focused contenteditable's async handler
+	// preventDefaults only after an await, so the event still bubbles here with
+	// defaultPrevented false — a global tier would re-fire its undo/redo.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
+		// Both bubbled commands (list.indent/unindent) are edits; this caller has
+		// no pluginEditor lookup to hand the dispatcher's own gate, so it gates here.
+		if (readOnly) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
-		const binding = resolveKindBinding(chord, node.kind, keybindingOverrides());
-		if (binding && runCommand(binding.command)) {
+		if (dispatchKindCommand(chord, { kind: node.kind, runCommand }, keybindingOverrides())) {
 			e.preventDefault();
 		}
 	}
@@ -242,6 +284,7 @@
 	class="list-item-block"
 	class:reorder-host={dragHandles}
 	data-task-checked={taskCheckedAttr}
+	data-list-marker={presentationMarkerKind}
 	bind:this={boxEl}
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -302,6 +345,6 @@
 		> :global(.block-host:first-child)
 		> :global(:not(.list-block)) {
 		text-decoration: line-through;
-		color: var(--text-muted, rgba(128, 128, 128, 0.7));
+		color: var(--syntax-task-done, rgba(128, 128, 128, 0.7));
 	}
 </style>

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -309,5 +310,56 @@ test.describe('table block: cross-block delete', () => {
 		expect(src).toContain('| 1 | 2 |');
 		expect(src).not.toMatch(/\|\s+\|\s*2\s*\|/);
 		expect(src).toContain('| --- | --- |');
+	});
+
+	test('Case 2 into a NESTED prose end (blockquote paragraph) truncates the tail without erroring', async ({
+		page
+	}) => {
+		// The nested endpoint is load-bearing: a blockquote paragraph end (path
+		// length 2) routes the delete through the cross-container commit, which runs
+		// rangeDelete on the LIVE $state doc. The reparsed tail spliced there is
+		// proxy-wrapped, so resolving its survivor path by node identity — instead
+		// of re-reading through the tree — throws "surviving block not found". A
+		// top-level prose end never reaches this: it mutates a plain proxy-doc clone.
+		const pageErrors: string[] = [];
+		page.on('pageerror', (e) => pageErrors.push(e.message));
+
+		const source = `${TABLE_2x3}\n> quoted text\n`;
+		await editor.loadContent(source);
+		await page.evaluate(() => (window as any).__test.startErrorCapture());
+
+		const cellBox = await page.locator('[role="cell"]').nth(3).boundingBox(); // body "2"
+		if (!cellBox) throw new Error('missing cell bounding box');
+		// Nested prose endpoint: the paragraph inside the blockquote at [1, 0].
+		const endPoint = await editor.pointForOffset([1, 0], 3);
+		await dragBetween(page, cellBox, { x: endPoint.x, y: endPoint.y, width: 0, height: 0 });
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Delete');
+		// Bounded settle: on success the source mutates; on the survivor-path throw
+		// the commit aborts and `pageerror` fires. Either resolves well under 250ms.
+		await page.waitForTimeout(250);
+
+		const capturedErrors: string[] = await page.evaluate(() =>
+			(window as any).__test.getCapturedErrors()
+		);
+		expect(pageErrors, `page errors during nested-end delete:\n${pageErrors.join('\n')}`).toEqual(
+			[]
+		);
+		expect(capturedErrors, `editor errors:\n${capturedErrors.join('\n')}`).toEqual([]);
+
+		// Whole-row snap removed both body rows, leaving the surviving header table;
+		// the blockquote keeps its tail as its own block — no cross-block merge.
+		const src = await editor.bridge.getSource();
+		expect(src).toContain('| A | B |');
+		expect(src).toContain('| --- | --- |');
+		expect(src).not.toContain('| 1 | 2 |');
+		expect(src).not.toContain('| 3 | 4 |');
+		expect(src).toMatch(/^>.*text/m);
+		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockKind(1)).toBe('blockquote');
+
+		await editor.undo();
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 });

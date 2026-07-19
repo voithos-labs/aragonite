@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { augmentBlockKind, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
 import { findListAbsorb } from '$lib/tree-operations/paste/list-absorb';
 import { findListBreakOut } from '$lib/tree-operations/paste/list-break-out';
@@ -45,13 +45,15 @@ describe('the declaration, not kind literals, drives the decision', () => {
 		list: tryGetBlockKindDescriptor('list')!
 	};
 	afterEach(() => {
-		augmentBlockKind('blockquote', { containerPaste: original.blockquote.containerPaste });
-		augmentBlockKind('list', { containerPaste: original.list.containerPaste });
+		augmentBuiltin('blockquote', {
+			container: { containerPaste: original.blockquote.containerPaste }
+		});
+		augmentBuiltin('list', { container: { containerPaste: original.list.containerPaste } });
 	});
 
 	it('a declining matchesAncestor turns off blockquote container-match', () => {
-		augmentBlockKind('blockquote', {
-			containerPaste: { matchesAncestor: () => false, siblingAbsorb: false }
+		augmentBuiltin('blockquote', {
+			container: { containerPaste: { matchesAncestor: () => false, siblingAbsorb: false } }
 		});
 		// Same fixture as the passing blockquote test above — now declined.
 		const doc = parse('> x\n');
@@ -60,8 +62,8 @@ describe('the declaration, not kind literals, drives the decision', () => {
 	});
 
 	it('an always-true matchesAncestor flips ordered-mismatch from break-out to absorb', () => {
-		augmentBlockKind('list', {
-			containerPaste: { matchesAncestor: () => true, siblingAbsorb: true }
+		augmentBuiltin('list', {
+			container: { containerPaste: { matchesAncestor: () => true, siblingAbsorb: true } }
 		});
 		const doc = parse('- a\n- b\n');
 		const otherType = parse('1. x\n2. y\n');

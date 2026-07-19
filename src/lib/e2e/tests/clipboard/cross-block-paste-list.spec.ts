@@ -2,7 +2,7 @@
 // different selection shape (within one list, across boundaries, with mid-paragraph offsets, drag
 // vs Shift+click) of the one paste-replacement invariant; they parametrize one invariant and
 // belong together.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 test.describe('cross-block clipboard: paste into list selections', () => {

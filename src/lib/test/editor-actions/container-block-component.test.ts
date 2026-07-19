@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
-import type { CstNode } from '$lib/core/nodes';
+import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
 function makeRef(): BlockComponent {
 	return {
@@ -21,7 +21,7 @@ function listNode(childCount: number): CstNode {
 		leadingTrivia: '',
 		raw: 'text\n'
 	}));
-	return { kind: 'list', leadingTrivia: '', raw: '', children };
+	return { kind: 'list', leadingTrivia: '', raw: '', metadata: { ordered: false }, children };
 }
 
 function container(refs: BlockComponent[]): BlockComponent {
@@ -67,6 +67,37 @@ describe('createContainerBlockComponent', () => {
 		expect(() => container([]).focus(0)).not.toThrow();
 	});
 
+	// Collapse clamp: the body is unmounted, so a walk-in from below (which targets
+	// the last child) must land on the summary (child 0), never the absent last ref.
+	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
+		return createContainerBlockComponent({
+			get innerBlockRefs() {
+				return refs;
+			},
+			get nodeChildrenLength() {
+				return refs.length;
+			},
+			get node() {
+				return listNode(refs.length);
+			},
+			isCollapsed: () => true
+		});
+	}
+
+	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
+		const refs = [makeRef(), makeRef()];
+		collapsedContainer(refs).focus(FOCUS_LAST_START);
+		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
+		expect(refs[1].focus).not.toHaveBeenCalled();
+	});
+
+	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
+		const refs = [makeRef(), makeRef()];
+		collapsedContainer(refs).focus(3);
+		expect(refs[0].focus).toHaveBeenCalledWith(CURSOR_END);
+		expect(refs[1].focus).not.toHaveBeenCalled();
+	});
+
 	it('focusAtColumn is a no-op when no children', () => {
 		expect(() => container([]).focusAtColumn?.(100, 'above')).not.toThrow();
 	});
@@ -91,6 +122,7 @@ describe('createContainerBlockComponent', () => {
 			kind: 'list',
 			leadingTrivia: '',
 			raw: '',
+			metadata: { ordered: false },
 			children: [
 				{
 					kind: 'paragraph',
@@ -115,5 +147,131 @@ describe('createContainerBlockComponent', () => {
 
 	it('isVerticallyTransparent is false for a text-bearing container', () => {
 		expect(container([makeRef()]).isVerticallyTransparent?.()).toBe(false);
+	});
+});
+
+// Whole-block focus (opaque childless plugin block, e.g. mermaid): when a focus
+// element getter is supplied, caret entry lands on that element instead of walking
+// absent children, and the cursor offset reads 0 only while it (or a descendant)
+// holds focus — the ThematicBreak model, exposed through the container shim.
+describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
+	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
+		return createContainerBlockComponent({
+			get innerBlockRefs() {
+				return refs;
+			},
+			get nodeChildrenLength() {
+				return refs.length;
+			},
+			get node() {
+				return {
+					kind: 'mermaid' as AnyBlockKind,
+					leadingTrivia: '',
+					raw: '',
+					children: []
+				} as CstNode;
+			},
+			getFocusEl: () => focusEl
+		});
+	}
+
+	function focusableEl(): HTMLElement {
+		const el = document.createElement('div');
+		el.tabIndex = 0;
+		document.body.appendChild(el);
+		return el;
+	}
+
+	it('focus() lands on the focus element, never the children', () => {
+		const el = focusableEl();
+		const child = makeRef();
+		wholeBlock(el, [child]).focus(0);
+		expect(document.activeElement).toBe(el);
+		expect(child.focus).not.toHaveBeenCalled();
+	});
+
+	it('focusAtColumn() also lands on the focus element (vertical entry)', () => {
+		const el = focusableEl();
+		wholeBlock(el).focusAtColumn?.(120, 'above');
+		expect(document.activeElement).toBe(el);
+	});
+
+	it('getCursorOffset() is 0 while the focus element holds focus', () => {
+		const el = focusableEl();
+		el.focus();
+		expect(wholeBlock(el).getCursorOffset()).toBe(0);
+	});
+
+	it('getCursorOffset() is 0 while a descendant holds focus (click on the viewport)', () => {
+		const el = focusableEl();
+		const inner = document.createElement('button');
+		el.appendChild(inner);
+		inner.focus();
+		expect(el.contains(document.activeElement)).toBe(true);
+		expect(wholeBlock(el).getCursorOffset()).toBe(0);
+	});
+
+	it('getCursorOffset() is null when the focus element does not hold focus', () => {
+		const el = focusableEl();
+		document.body.focus(); // move focus off el
+		expect(wholeBlock(el).getCursorOffset()).toBeNull();
+	});
+
+	it('a null focus element (render error state) makes focus a no-op, not a throw', () => {
+		expect(() => wholeBlock(null).focus(0)).not.toThrow();
+		expect(wholeBlock(null).getCursorOffset()).toBeNull();
+	});
+});
+
+// Opaque single-unit measurement: the shim ALWAYS exposes measurePartialRects,
+// the seam the search/decoration overlays' childless-container route measures
+// through. A childless container paints its whole box for any non-empty range;
+// a child-bearing container returns nothing (its children self-paint), and the
+// overlay never even asks — it gates on hasChildHosts, not on this return.
+describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
+	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
+	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;
+
+	function shim(over: {
+		childCount?: number;
+		getBoxEl?: () => HTMLElement | null | undefined;
+	}): BlockComponent {
+		return createContainerBlockComponent({
+			get innerBlockRefs() {
+				return [];
+			},
+			get nodeChildrenLength() {
+				return over.childCount ?? 0;
+			},
+			get node() {
+				return {
+					kind: 'mermaid' as AnyBlockKind,
+					leadingTrivia: '',
+					raw: '',
+					children: []
+				} as CstNode;
+			},
+			getBoxEl: over.getBoxEl
+		});
+	}
+
+	it('is always present on the shim', () => {
+		expect(shim({}).measurePartialRects).toBeTypeOf('function');
+	});
+
+	it('a child-bearing container returns [] — children self-paint', () => {
+		expect(shim({ childCount: 2, getBoxEl: boxEl }).measurePartialRects!(0, 5)).toEqual([]);
+	});
+
+	it('childless with a box returns one box rect for any non-empty range', () => {
+		expect(shim({ getBoxEl: boxEl }).measurePartialRects!(0, 5)).toEqual([RECT]);
+	});
+
+	it('childless with an empty range returns []', () => {
+		expect(shim({ getBoxEl: boxEl }).measurePartialRects!(3, 3)).toEqual([]);
+	});
+
+	it('childless with no box element returns []', () => {
+		expect(shim({ getBoxEl: () => null }).measurePartialRects!(0, 5)).toEqual([]);
 	});
 });

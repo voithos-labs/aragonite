@@ -5,8 +5,8 @@ import {
 	performCrossBlockDeleteSync,
 	type CrossBlockMutationContext
 } from '$lib/selection/cross-block/ops';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/undo/history';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
@@ -36,7 +36,7 @@ function selectAcross(env: ReturnType<typeof makeEnv>, anchor: number[], focus: 
 	env.deps.selectionState.enterCrossBlock({ path: anchor, offset: 1 }, { path: focus, offset: 2 });
 }
 
-describe('performCrossBlockDeleteSync — commit-primitive convergence (C2)', () => {
+describe('performCrossBlockDeleteSync — commit-primitive convergence', () => {
 	it('keeps blockIds in lockstep with doc.children synchronously after the call', () => {
 		const env = makeEnv('# A\n\npara B\n\npara C\n');
 		selectAcross(env, [0], [2]);

@@ -1,91 +1,51 @@
 /**
- * Inline pipeline stage 1: balanced backtick code spans. Emits text +
- * inlineCode nodes; later stages treat inlineCode ranges as occupied.
- *
- * CommonMark §6.1 example 311: a backslash-escaped opening backtick (`\``)
- * does not start a code span. Stage 1 runs before scanEscapes, so we check
- * for a preceding odd backslash count inline. Inside an opened span, per
- * CommonMark §6.5, backslashes are literal — closing-tick search ignores
- * preceding backslashes.
+ * Backtick-run indexing for code spans (CommonMark §6.1): a run of N backticks
+ * closes with the next run of exactly N. All runs in a region are indexed once,
+ * then each opener binary-searches for its closer — a per-opener forward rescan
+ * to EOF is O(n) each and turns a run-length ladder quadratic (O(n^1.5)).
  */
 
-import type { InlineNode } from '../nodes';
+/** Backtick-run start positions grouped by run length, ascending within each length. */
+export type BacktickRunIndex = Map<number, number[]>;
 
-function isEscaped(raw: string, index: number): boolean {
-	let backslashes = 0;
-	let j = index - 1;
-	while (j >= 0 && raw[j] === '\\') {
-		backslashes++;
-		j--;
+/** Index every backtick run in [from, end) by its length. */
+export function indexBacktickRuns(raw: string, from: number, end: number): BacktickRunIndex {
+	const runs: BacktickRunIndex = new Map();
+	let i = from;
+	while (i < end) {
+		if (raw[i] !== '`') {
+			i++;
+			continue;
+		}
+		const start = i;
+		do {
+			i++;
+		} while (i < end && raw[i] === '`');
+		const len = i - start;
+		const positions = runs.get(len);
+		if (positions) positions.push(start);
+		else runs.set(len, [start]);
 	}
-	return backslashes % 2 === 1;
+	return runs;
 }
 
-export function scanBacktickSpans(raw: string, start: number, end: number): InlineNode[] {
-	const nodes: InlineNode[] = [];
-	let pos = start;
-	let textStart = start;
-
-	while (pos < end) {
-		if (raw[pos] === '`') {
-			if (isEscaped(raw, pos)) {
-				pos++;
-				continue;
-			}
-			const tickStart = pos;
-			while (pos < end && raw[pos] === '`') pos++;
-			const tickLen = pos - tickStart;
-
-			let closeStart = -1;
-			let searchPos = pos;
-			while (searchPos < end) {
-				if (raw[searchPos] === '`') {
-					const cStart = searchPos;
-					while (searchPos < end && raw[searchPos] === '`') searchPos++;
-					if (searchPos - cStart === tickLen) {
-						closeStart = cStart;
-						break;
-					}
-				} else {
-					searchPos++;
-				}
-			}
-
-			if (closeStart !== -1) {
-				if (textStart < tickStart) {
-					nodes.push({
-						kind: 'text',
-						start: textStart,
-						end: tickStart,
-						text: raw.slice(textStart, tickStart)
-					});
-				}
-
-				const contentStart = tickStart + tickLen;
-				const contentEnd = closeStart;
-				nodes.push({
-					kind: 'inlineCode',
-					start: tickStart,
-					end: closeStart + tickLen,
-					text: raw.slice(contentStart, contentEnd)
-				});
-
-				textStart = closeStart + tickLen;
-				pos = textStart;
-			}
-		} else {
-			pos++;
-		}
+/**
+ * Start of the first run of exactly `tickLen` backticks beginning after
+ * `openerStart` (the opener's own run start), or -1 when nothing closes it.
+ */
+export function findBacktickCloser(
+	index: BacktickRunIndex,
+	tickLen: number,
+	openerStart: number
+): number {
+	const positions = index.get(tickLen);
+	if (!positions) return -1;
+	let lo = 0;
+	let hi = positions.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >>> 1;
+		if (positions[mid] <= openerStart) lo = mid + 1;
+		else hi = mid;
 	}
-
-	if (textStart < end) {
-		nodes.push({
-			kind: 'text',
-			start: textStart,
-			end: end,
-			text: raw.slice(textStart, end)
-		});
-	}
-
-	return nodes;
+	return lo < positions.length ? positions[lo] : -1;
 }

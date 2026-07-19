@@ -7,7 +7,8 @@
 
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
-import type { CstNode, TableAlignment } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -24,7 +25,9 @@ import {
 	deleteColumn as mutDeleteColumn,
 	moveColumn as mutMoveColumn,
 	cycleAlignment as mutCycleAlignment,
-	setAlignment as mutSetAlignment
+	setAlignment as mutSetAlignment,
+	canDeleteRow,
+	canDeleteColumn
 } from '../tree-operations/table-mutations';
 
 /**
@@ -59,25 +62,8 @@ export function tableColumnReorderTarget(
 	return to;
 }
 
-/**
- * Whether a row delete is allowed. rowCount is the FULL row count (header at
- * index 0 + body rows). A header delete promotes the next row, so it only needs
- * a second row; a body delete needs a second body row, else the last body row
- * would leave a header-only table.
- */
-export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
-	if (rowCount <= 1) return false;
-	return rowIdx === 0 || rowCount - 1 > 1;
-}
-
-/** Whether a column delete is allowed: a table must keep at least one column. */
-export function canDeleteColumn(colCount: number): boolean {
-	return colCount > 1;
-}
-
 export interface TableMutationsContextDeps {
-	get node(): CstNode;
-	get index(): number;
+	get node(): NodeView;
 	get myPath(): readonly number[];
 	get rowsState(): BlockListState;
 	get focusedCell(): { rowIdx: number; colIdx: number } | null;
@@ -109,20 +95,20 @@ export function createTableMutationsContext(
 	deps: TableMutationsContextDeps
 ): TableMutationsContext {
 	async function insertRow(rowIdx: number, side: 'above' | 'below'): Promise<void> {
-		const { node, index, myPath, rowsState, parentContainerEdit, focusCell } = deps;
+		const { node, myPath, rowsState, parentContainerEdit, focusCell } = deps;
 		const insertAt = side === 'above' ? rowIdx : rowIdx + 1;
 		await parentContainerEdit.commitContainer({
 			containerNode: node,
 			path: [...myPath],
 			state: rowsState,
-			snapshot: { blockIndex: index, offset: 0 },
+			snapshot: { path: [...myPath, rowIdx], offset: 0 },
 			mutate: (scope) => {
 				insertEmptyRow(scope.node, rowIdx, side);
 				scope.sharing.stamp(scope.children[insertAt]);
 				rebuildTableRowRaw(scope.children[insertAt]);
 				return { op: 'insert', at: insertAt, count: 1 };
 			},
-			op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: [index, insertAt] },
+			op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: [...myPath, insertAt] },
 			afterTick: () => {
 				focusCell(insertAt, 0, 'start');
 				deps.announceReorder('Inserted row');
@@ -150,10 +136,11 @@ export function createTableMutationsContext(
 		>;
 		afterTick: () => void;
 	}): Promise<void> {
-		const { index, myPath, controller } = deps;
+		const { myPath, controller } = deps;
 		await controller.commitMultiScope({
 			scopes: columnScopes(),
-			snapshot: { blockIndex: index, offset: 0 },
+			// Columns aren't nodes: the table itself is the restore coordinate.
+			snapshot: { path: [...myPath], offset: 0 },
 			mutate: ([tableScope, ...rowScopes]) => {
 				// The column splice walks the owned table's rows; this only syncs the
 				// row scopes' ids/refs correctly because each row view IS that child.
@@ -188,8 +175,12 @@ export function createTableMutationsContext(
 
 	async function reorderRowTo(from: number, to: number): Promise<void> {
 		if (from === to) return;
-		const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+		const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
 		const rowCount = node.children?.length ?? 0;
+		// Guard the SOURCE against the live count: a keyboard/menu/drag commit can
+		// carry a `from` staled by a concurrent structural edit. `to` is already
+		// clamped by the reorder-target helpers and the drag controller.
+		if (from < 0 || from >= rowCount) return;
 		// focusout nulls focusedCell on the post-commit re-render, so capture the
 		// column now; the generic reorder afterTick would land at column 0.
 		const col = focusedCell?.colIdx ?? 0;
@@ -197,7 +188,7 @@ export function createTableMutationsContext(
 			containerNode: node,
 			path: [...myPath],
 			state: rowsState,
-			snapshot: { blockIndex: index, offset: 0 },
+			snapshot: { path: [...myPath, from], offset: 0 },
 			mutate: (scope) => {
 				// rebuildTableRaw rewrites EVERY row's raw (canonical padding), so the
 				// rows must be unshared before the write — reorderChildren only permutes
@@ -207,7 +198,7 @@ export function createTableMutationsContext(
 				rebuildTableRaw(scope.node);
 				return change;
 			},
-			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: [index, to] },
+			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: [...myPath, to] },
 			afterTick: () => {
 				focusCell(to, col, 'start');
 				deps.announceReorder(`Moved row to position ${to} of ${rowCount - 1}`);
@@ -226,6 +217,8 @@ export function createTableMutationsContext(
 		if (from === to) return;
 		const { node, focusCell, focusedCell } = deps;
 		const columnCount = metadataOf(node, 'table').columnCount;
+		// Guard the SOURCE against the live count — see reorderRowTo.
+		if (from < 0 || from >= columnCount) return;
 		// focusout nulls focusedCell on the post-commit re-render, so capture the
 		// row now; the column edit's afterTick would otherwise land at row 0.
 		const row = focusedCell?.rowIdx ?? 0;
@@ -262,20 +255,20 @@ export function createTableMutationsContext(
 		moveColumnRight: (colIdx) => moveColumn(colIdx, 1),
 
 		async deleteRow(rowIdx) {
-			const { node, index, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+			const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
 			if (!canDeleteRow(rowIdx, node.children?.length ?? 0)) return;
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
 				path: [...myPath],
 				state: rowsState,
-				snapshot: { blockIndex: index, offset: 0 },
+				snapshot: { path: [...myPath, rowIdx], offset: 0 },
 				mutate: (scope) => {
 					// deleteRow promotes the next row to header (a metadata write).
 					ensureUnsharedChildren(scope.node, scope.sharing);
 					mutDeleteRow(scope.node, rowIdx);
 					return { op: 'delete', at: rowIdx, count: 1 };
 				},
-				op: { kind: 'tableDeleteRow', detail: { rowIdx }, eventPath: [index, rowIdx] },
+				op: { kind: 'tableDeleteRow', detail: { rowIdx }, eventPath: [...myPath, rowIdx] },
 				afterTick: () => {
 					deps.announceReorder('Deleted row');
 					// Read through `deps.node`: the captured `node` is the pre-commit
@@ -311,37 +304,50 @@ export function createTableMutationsContext(
 		},
 
 		async cycleAlignment(colIdx) {
-			const { node, index, myPath, rowsState, parentContainerEdit } = deps;
+			const { node, myPath, rowsState, parentContainerEdit } = deps;
 			// Distinct OperationKind (not metadataUpdate) so consumers can count
-			// alignment cycles separately from generic metadata edits.
+			// alignment cycles separately from generic metadata edits. The event
+			// targets the TABLE (a column index is not a child path); colIdx
+			// rides in the detail — same shape as the other column ops.
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
 				path: [...myPath],
 				state: rowsState,
-				snapshot: { blockIndex: index, offset: 0 },
+				snapshot: { path: [...myPath], offset: 0 },
 				mutate: (scope) => {
 					mutCycleAlignment(scope.node, colIdx);
 					return { op: 'noop' };
 				},
-				op: { kind: 'tableCycleAlignment', detail: { colIdx }, eventPath: [index, colIdx] }
+				op: { kind: 'tableCycleAlignment', detail: { colIdx }, eventPath: [...myPath] }
 			});
 		},
 
 		async setColumnAlignment(colIdx, alignment) {
-			const { node, index, myPath, rowsState, parentContainerEdit } = deps;
+			const { node, myPath, rowsState, parentContainerEdit, focusCell, focusedCell } = deps;
+			// Capture the originating cell before the menu's focusout nulls it: the
+			// menu's alignment button unmounts on commit, so without an explicit
+			// refocus the caret falls to <body> (a11y). Mirrors insertColumn.
+			const cell = focusedCell;
 			// Distinct from tableCycleAlignment so consumers can tell a direct set
 			// from a cycle step; commits unconditionally — the first table mutation
 			// also normalizes cell padding, so a same-value set is not a byte no-op.
+			// Event targets the table — see cycleAlignment.
 			await parentContainerEdit.commitContainer({
 				containerNode: node,
 				path: [...myPath],
 				state: rowsState,
-				snapshot: { blockIndex: index, offset: 0 },
+				snapshot: { path: [...myPath], offset: 0 },
 				mutate: (scope) => {
 					mutSetAlignment(scope.node, colIdx, alignment);
 					return { op: 'noop' };
 				},
-				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: [index, colIdx] }
+				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: [...myPath] },
+				afterTick: () => {
+					focusCell(cell?.rowIdx ?? 0, colIdx, 'start');
+					deps.announceReorder(
+						alignment === 'none' ? 'Column alignment cleared' : `Column aligned ${alignment}`
+					);
+				}
 			});
 		}
 	};

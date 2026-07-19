@@ -1,6 +1,6 @@
 /**
- * G4.4 — `await tick()` is the only sanctioned sequencing primitive (CLAUDE.md
- * Design Rule #2). Scans editor source for `setTimeout`/`setInterval`/
+ * G4.4 — `await tick()` is the only sanctioned sequencing primitive
+ * (`docs/contributing/culture.md` § Sharp edges). Scans editor source for `setTimeout`/`setInterval`/
  * `queueMicrotask`/`requestAnimationFrame` and fails on any occurrence outside
  * the allowlist of legitimate animation-throttle / wall-clock-debounce uses.
  *
@@ -37,7 +37,7 @@ const ALLOWLIST: Record<string, string> = {
 	// setTimeout is wall-clock pause detection for undo debounce ("user stopped
 	// typing ~250ms"). tick() is microtask-grained and cannot express a wall-clock
 	// pause — documented at the call site.
-	'src/lib/editor-actions/undo/text-batch.ts': 'setTimeout wall-clock undo debounce'
+	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce'
 };
 
 const TIMING_RE = /\b(setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/;

@@ -12,26 +12,21 @@
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
-		REORDER_ANNOUNCE_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
-		WIDTH_VERSION_KEY,
-		type ReorderAnnounce,
-		type WidthVersionGetter
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
-	import type { UndoController } from '../../../editor-actions/deps';
+	import { asEditorX } from '../../../cursor/coordinate-spaces';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint } from './cell-pointer';
@@ -61,7 +56,7 @@
 		index,
 		myPath
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath: number[];
 	} = $props();
@@ -69,17 +64,37 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const editorStickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const getWidthVersion = getContext<WidthVersionGetter | undefined>(WIDTH_VERSION_KEY);
-	const announceReorder = getContext<ReorderAnnounce>(REORDER_ANNOUNCE_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
+	const {
+		controller,
+		stickyColumn: editorStickyColumn,
+		selection,
+		reorderAnnounce: announceReorder,
+		registryView
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		editorRoot: getEditorRoot,
+		widthVersion: getWidthVersion,
+		lifetime: editorLifetime
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const getPresentationMode = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.presentationMode;
+	// Every menu item mutates the table (structure, clipboard cut/paste), so
+	// reading mode declines to open it; the native context menu (with Copy) shows
+	// instead. Grips are CSS-hidden under [data-presentation='reading'].
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
+
+	// A column reorder permutes each row's cells (and their childIds) while leaving
+	// columnCount and widthVersion untouched, so it alone can't invalidate the
+	// monotonic width floors. The header row's cell-id order tracks the column
+	// order: it permutes on a reorder but is stable across row-window slides
+	// (childIds are CST fields, mounting-independent) and content edits (cell ids
+	// persist). Folded into the measure epoch below.
+	const columnStructureToken = $derived((node.children?.[0]?.childIds ?? []).join(','));
 
 	// Plain `let`, not $state: writes happen during keyed-each reconcile via
 	// the focusout handler, which Svelte 5 traps as state_unsafe_mutation.
@@ -100,6 +115,7 @@
 			return myPath;
 		},
 		stickyColumn: editorStickyColumn,
+		grammar: registryView.grammar,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: focusActions,
@@ -160,7 +176,7 @@
 	// the floor and only bumps state on an increase, so it settles rather than spinning.
 	$effect(() => {
 		void win;
-		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}`;
+		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}:${columnStructureToken}`;
 		untrack(() => {
 			if (epoch !== measuredColumnEpoch) {
 				measuredColumnEpoch = epoch;
@@ -188,6 +204,8 @@
 		if (grew) columnMaxWidths = next;
 	}
 
+	// ── Table context (cell coordination) ──────────────────────────────────
+
 	function rowRefAt(rowIdx: number): BlockComponent | undefined {
 		return rowsState.innerBlockRefs[rowIdx];
 	}
@@ -205,9 +223,6 @@
 	const mutations = createTableMutationsContext({
 		get node() {
 			return node;
-		},
-		get index() {
-			return index;
 		},
 		get myPath() {
 			return myPath;
@@ -236,14 +251,14 @@
 			internalStickyColumn = null;
 		},
 		exitUpward(stickyX) {
-			editorStickyColumn.capture(stickyX);
+			editorStickyColumn.capture(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] - 1, {
 				stickyColumnFrom: 'below'
 			});
 		},
 		exitDownward(stickyX) {
-			editorStickyColumn.capture(stickyX);
+			editorStickyColumn.capture(asEditorX(stickyX));
 			internalStickyColumn = null;
 			focusActions.moveFocus(myPath[myPath.length - 1] + 1, {
 				stickyColumnFrom: 'above'
@@ -276,18 +291,30 @@
 		clipboardSel: CellSelection | null;
 	} | null>(null);
 
+	// A live intra-table rectangle on THIS table: both cross-block endpoints address
+	// this table's path. It suppresses the cell-local selection, so the menu reads it
+	// separately to keep Cut/Copy enabled.
+	const rectActive = $derived(
+		!!selection?.isCustomRendered &&
+			!!selection.anchor &&
+			!!selection.focus &&
+			pathsEqual(selection.anchor.path, myPath) &&
+			pathsEqual(selection.focus.path, myPath)
+	);
+
 	const menuItems = $derived(
 		menu
 			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [], {
-					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end
+					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
+					hasRect: rectActive
 				})
 			: []
 	);
 
-	function openMenu(axis: MenuAxis, index: number, e: MouseEvent): void {
+	function openMenu(axis: MenuAxis, axisIdx: number, e: MouseEvent): void {
 		const grip = e.currentTarget as HTMLElement | null;
 		const rect = grip?.getBoundingClientRect();
-		const target: MenuTarget = axis === 'column' ? { colIdx: index } : { rowIdx: index };
+		const target: MenuTarget = axis === 'column' ? { colIdx: axisIdx } : { rowIdx: axisIdx };
 		if (!rect) {
 			menu = { target, x: e.clientX, y: e.clientY, clipboardSel: null };
 			return;
@@ -309,7 +336,7 @@
 	// right-click in the table's padding gaps keeps the native menu. The cell's
 	// selection is captured now, before clicking a menu item moves focus off it.
 	function openCellMenu(e: MouseEvent): void {
-		if (!tableEl) return;
+		if (readOnly || !tableEl) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
 		if (!cell) return;
 		e.preventDefault();
@@ -327,7 +354,7 @@
 	// the cell; preventDefault suppresses the native context menu the key triggers.
 	function onTableKeyDown(e: KeyboardEvent): void {
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
-		if (!opensMenu || !focusedCell) return;
+		if (readOnly || !opensMenu || !focusedCell) return;
 		e.preventDefault();
 		const { rowIdx, colIdx } = focusedCell;
 		const rect = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
@@ -352,9 +379,9 @@
 		focusCell(target.rowIdx, target.colIdx, offset);
 	}
 
-	async function runAction(action: CellShortcutAction, index: number): Promise<void> {
+	async function runAction(action: CellShortcutAction, axisIdx: number): Promise<void> {
 		if (!menu) return;
-		await ctx[action](index);
+		await ctx[action](axisIdx);
 		menu = null;
 	}
 
@@ -509,7 +536,7 @@
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		if (rowCount === 0) return;
 		const targetRow = from === 'above' ? 0 : rowCount - 1;
-		const colIdx = columnNearestX(x, collectColumnRects());
+		const colIdx = columnNearestX(asEditorX(x), collectColumnRects());
 		internalStickyColumn = colIdx;
 		focusCell(targetRow, colIdx, 'start');
 	}
@@ -595,6 +622,8 @@
 			selection?.isCustomRendered && !!anchor && !!focus && pathsEqual(anchor.path, focus.path);
 
 		if (isRectangular) {
+			// Same-path intra-table rectangle: cell offsets are context-established
+			// (same table, unflagged), so read directly.
 			const aRow = Math.floor(anchor.offset / columnCount);
 			const aCol = anchor.offset % columnCount;
 			const fRow = Math.floor(focus.offset / columnCount);
@@ -751,7 +780,6 @@
 		width: max-content;
 		max-width: 100%;
 		overflow-x: auto;
-		/* Modern standard — Edge/Chrome 121+ and Firefox honor these. */
 		scrollbar-width: thin;
 		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
 	}
@@ -781,7 +809,7 @@
 	.table-reorder-line-vertical {
 		width: 2px;
 	}
-	/* Webkit fallback for older Chromium. */
+	/* Fallback for Chromium versions that don't honor `scrollbar-width`. */
 	.table-block::-webkit-scrollbar {
 		height: 6px;
 	}

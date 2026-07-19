@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Reorder resolves the unit from the caret path and moves it among its siblings;
@@ -45,6 +45,25 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/> b[\s\S]*> a/);
 		await editor.page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceEquals('> a\n>\n> b\n');
+	});
+
+	// The reorder unit is any top-level block, not only prose: the atomic leaf
+	// kinds (fenced code, thematic break) resolve the chord through their own
+	// runCommand → reorder context wiring, not TextEditableBlock's.
+	test('Alt+ArrowDown moves a fenced code block below its sibling; single undo restores', async () => {
+		await editor.loadContent('```\ncode\n```\n\ntail\n');
+		await editor.getBlock(0).click(); // caret inside the code block
+		await editor.page.keyboard.press('Alt+ArrowDown');
+		await editor.bridge.waitForSourceMatches(/tail[\s\S]*```[\s\S]*code[\s\S]*```/);
+		await editor.page.keyboard.press('Control+z');
+		await editor.bridge.waitForSourceEquals('```\ncode\n```\n\ntail\n');
+	});
+
+	test('Alt+ArrowUp moves a thematic break above its sibling', async () => {
+		await editor.loadContent('lead\n\n---\n');
+		await editor.getBlock(1).click(); // focus the separator (role=separator, tabindex 0)
+		await editor.page.keyboard.press('Alt+ArrowUp');
+		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
 
 	// Boundary clamp: a move with no sibling in that direction must change nothing

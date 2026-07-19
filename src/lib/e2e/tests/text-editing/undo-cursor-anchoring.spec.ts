@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
-test.describe('undo cursor anchoring (C2 / C3)', () => {
+test.describe('undo cursor anchoring', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

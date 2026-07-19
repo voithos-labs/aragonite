@@ -6,6 +6,7 @@
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
+import { matchFenceClose } from '../../../core/parsers/fenced-code';
 
 export interface FenceExitInput {
 	text: string;
@@ -26,12 +27,11 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 	if (meta.closed) {
 		if (offset === text.length) return { kind: 'exit' };
 
-		const fenceChars = meta.fenceMarker.repeat(meta.fenceLength);
 		const onEmptyLineBeforeCloser =
 			offset >= 1 &&
 			text[offset - 1] === '\n' &&
 			text[offset] === '\n' &&
-			text.slice(offset + 1, offset + 1 + fenceChars.length) === fenceChars;
+			matchFenceClose(lineAt(text, offset + 1), meta.fenceMarker, meta.fenceLength);
 		if (onEmptyLineBeforeCloser) {
 			return { kind: 'exitWithEdit', newText: text.slice(0, offset) + text.slice(offset + 1) };
 		}
@@ -43,4 +43,10 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 		return { kind: 'exitWithEdit', newText: text.slice(0, -1) };
 	}
 	return { kind: 'none' };
+}
+
+// The one physical line beginning at `start`, without its trailing newline.
+function lineAt(text: string, start: number): string {
+	const end = text.indexOf('\n', start);
+	return end === -1 ? text.slice(start) : text.slice(start, end);
 }

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { generateUniformBlocks, generateFixture } from '../../../test/perf/fixtures/generate';
@@ -70,13 +71,23 @@ function write(name: string, result: object): void {
 	writeFileSync(`perf-results/attr-${name}.json`, line + '\n');
 }
 
-async function loadAndFocusLast(page: Page, editor: EditorPage, src: string): Promise<void> {
+// Focus block 0 — the only block guaranteed mounted once windowing unmounts
+// off-screen blocks (scrollTop=0 keeps the top in-window). Focusing the LAST
+// block of a windowing-scale fixture silently no-ops: its DOM host is unmounted,
+// so the keystroke lands on <body>, docLengthInPage never advances, and the
+// per-keystroke settle hangs to timeout. Container-shaped fixtures must PREPEND a
+// prose paragraph so block 0 is an editable prose target. Mirrors
+// latency-harness.ts's block-0 target and axisS below.
+async function loadAndFocusBlock0(page: Page, editor: EditorPage, src: string): Promise<void> {
 	await editor.goto();
 	await page.evaluate((c) => (window as any).__test.setSource(c), src);
 	await settle(page, src.replace(/\s+$/, '').length);
 	await editor.waitForRenderFlush();
-	const last = await page.evaluate(() => (window as any).__test.getDocument().children.length - 1);
-	await editor.focusBlockEnd(last);
+	await editor.focusBlockEnd(0);
+	const mounted = await page.evaluate(
+		() => document.querySelector(`[data-block-path='[0]']`) !== null
+	);
+	if (!mounted) throw new Error('perf target block 0 is off-window — windowing unmounted it');
 }
 
 // ── Axis 1: fan-out ─────────────────────────────────────────────────────────
@@ -86,7 +97,7 @@ test('axis1: renders-per-keystroke vs block count', async ({ page }) => {
 	const rows: object[] = [];
 	for (const blockCount of [100, 1000, 5000]) {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
-		await loadAndFocusLast(page, editor, src);
+		await loadAndFocusBlock0(page, editor, src);
 		const base = await page.evaluate(docLengthInPage);
 		await page.evaluate(() => {
 			(window as any).__test.perf.enable();
@@ -110,7 +121,7 @@ test('axis1: renders-per-keystroke vs block count', async ({ page }) => {
 test('axis3: scripting vs layout split', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const src = generateUniformBlocks(2000, 8) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	await loadAndFocusBlock0(page, editor, src);
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('Performance.enable');
 	const metric = (m: any, n: string): number =>
@@ -137,7 +148,7 @@ test('axis3: scripting vs layout split', async ({ page }) => {
 test('axis4: in-page settle vs harness latency', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const src = generateUniformBlocks(1000, 6) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	await loadAndFocusBlock0(page, editor, src);
 	const base = await page.evaluate(docLengthInPage);
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
@@ -195,8 +206,8 @@ test('axis5: latency vs single-paragraph length', async ({ page }) => {
 
 test('axisN: nested-containers 1MB direct attribution', async ({ page }) => {
 	const editor = new EditorPage(page);
-	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
+	await loadAndFocusBlock0(page, editor, src);
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('Performance.enable');
 	const metric = (m: any, n: string): number =>
@@ -234,11 +245,9 @@ test('axisN: nested-containers 1MB direct attribution', async ({ page }) => {
 
 test('axisM: which blocks re-render on one keystroke (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
-	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
-	const editedIndex = await page.evaluate(
-		() => (window as any).__test.getDocument().children.length - 1
-	);
+	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
+	await loadAndFocusBlock0(page, editor, src);
+	const editedIndex = 0; // loadAndFocusBlock0 focuses the prepended prose block 0
 	const base = await page.evaluate(docLengthInPage);
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
@@ -273,8 +282,8 @@ test('axisM: which blocks re-render on one keystroke (nested 1MB)', async ({ pag
 
 test('axisP: per-keystroke distribution (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
-	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
+	await loadAndFocusBlock0(page, editor, src);
 	let base = await page.evaluate(docLengthInPage);
 	await page.evaluate(() => (window as any).__test.perf.enable());
 	const rows: object[] = [];
@@ -300,8 +309,8 @@ test('axisP: per-keystroke distribution (nested 1MB)', async ({ page }) => {
 
 test('axisQ: steady-state CDP breakdown (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
-	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
+	await loadAndFocusBlock0(page, editor, src);
 	let base = await page.evaluate(docLengthInPage);
 	// Warm up past the one-time full-document re-render.
 	await editor.typeSlowly('x');
@@ -337,8 +346,8 @@ test('axisQ: steady-state CDP breakdown (nested 1MB)', async ({ page }) => {
 
 test('axisR: steady-state instrument breakdown (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
-	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
+	await loadAndFocusBlock0(page, editor, src);
 	let base = await page.evaluate(docLengthInPage);
 	await page.evaluate(() => (window as any).__test.perf.enable());
 	await editor.typeSlowly('x'); // warm up past the one-time full re-render
@@ -406,7 +415,6 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			harness.push(performance.now() - t0);
 		}
 		const after: any = await cdp.send('Performance.getMetrics');
-		b0 += N;
 		// Mounted top-level host count from the DOM — robust to perf-enable timing
 		// (the net mountedBlockCount counter needs enabling before any block mounts).
 		const mountedTopLevel = await page.evaluate(
@@ -483,16 +491,14 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 });
 
 // ── Axis T: first-edit full instrument profile (vs steady-state axisR) ───────
-// Cost #2 (the one-time first-edit full-document re-render) is now fixed — the
-// LRD resolver is reassigned only on a real signature change, so the first edit
-// no longer re-renders every block. This capture confirms that: renders is now
-// bounded, not ~22k. Steady-state cost #1 (mounted-component flush) is unchanged
-// and remains the VR (0.8.6) target.
+// The one-time first-edit full-document re-render is fixed — the LRD resolver is
+// reassigned only on a real signature change, so the first edit no longer
+// re-renders every block. This capture confirms it: renders stays bounded, not ~22k.
 
 test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
-	const src = generateFixture('nested-containers', 1_000_000) + '\nperf cursor target\n';
-	await loadAndFocusLast(page, editor, src);
+	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
+	await loadAndFocusBlock0(page, editor, src);
 	const base = await page.evaluate(docLengthInPage);
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();

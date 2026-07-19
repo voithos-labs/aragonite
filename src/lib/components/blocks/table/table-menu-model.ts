@@ -8,12 +8,31 @@ import type { CellShortcutAction } from './cell-keydown-plan';
 import type { TableAlignment } from '../../../core/nodes';
 import {
 	tableRowReorderTarget,
-	tableColumnReorderTarget,
-	canDeleteRow,
-	canDeleteColumn
+	tableColumnReorderTarget
 } from '../../../editor-actions/table-context';
+import { canDeleteRow, canDeleteColumn } from '../../../tree-operations/table-mutations';
 
 export type ClipboardAction = 'cut' | 'copy' | 'paste';
+
+/**
+ * Clamp a fixed-position menu's desired top-left so the whole menu stays within
+ * the viewport (minus `margin`). Menus open at a raw pointer/grip coordinate;
+ * near the right/bottom edge part of the menu would otherwise render off-screen
+ * and unreachable. A menu larger than the viewport pins to the top/left margin.
+ */
+export function clampMenuToViewport(
+	desired: { x: number; y: number },
+	menu: { width: number; height: number },
+	viewport: { width: number; height: number },
+	margin = 8
+): { x: number; y: number } {
+	const maxX = Math.max(margin, viewport.width - menu.width - margin);
+	const maxY = Math.max(margin, viewport.height - menu.height - margin);
+	return {
+		x: Math.min(Math.max(margin, desired.x), maxX),
+		y: Math.min(Math.max(margin, desired.y), maxY)
+	};
+}
 
 export type TableMenuItem =
 	// `index` is the action's own axis index (rowIdx for row-group actions, colIdx
@@ -27,27 +46,31 @@ export type TableMenuItem =
 export function tableMenuItems(
 	target: { rowIdx?: number; colIdx?: number },
 	dims: { rowCount: number; colCount: number },
-	alignments: TableAlignment[],
+	alignments: readonly TableAlignment[],
 	// Present only for a cell right-click (both axes); drives the clipboard group,
-	// which grip menus never show.
-	clipboard?: { hasSelection: boolean }
+	// which grip menus never show. `hasRect` is a live intra-table rectangle, which
+	// suppresses the cell-local selection but is exactly what Cut/Copy serve.
+	clipboard?: { hasSelection: boolean; hasRect?: boolean }
 ): TableMenuItem[] {
 	const items: TableMenuItem[] = [];
 	const isCell = target.rowIdx != null && target.colIdx != null;
 	if (isCell && clipboard)
-		items.push(...clipboardGroup(clipboard.hasSelection), { kind: 'separator' });
+		items.push(...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true), {
+			kind: 'separator'
+		});
 	if (target.rowIdx != null) items.push(...rowGroup(target.rowIdx, dims.rowCount));
 	if (isCell) items.push({ kind: 'separator' });
 	if (target.colIdx != null) items.push(...columnGroup(target.colIdx, dims.colCount, alignments));
 	return items;
 }
 
-// Cut/Copy act on the cell's selection, so they're inert without one; Paste always
-// applies (clipboard contents aren't readable synchronously to gate it).
-function clipboardGroup(hasSelection: boolean): TableMenuItem[] {
+// Cut/Copy act on the cell selection or the live rectangle, so they're inert
+// without either; Paste always applies (clipboard contents aren't readable
+// synchronously to gate it).
+function clipboardGroup(hasContent: boolean): TableMenuItem[] {
 	return [
-		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasSelection },
-		{ kind: 'clipboard', action: 'copy', label: 'Copy', enabled: hasSelection },
+		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasContent },
+		{ kind: 'clipboard', action: 'copy', label: 'Copy', enabled: hasContent },
 		{ kind: 'clipboard', action: 'paste', label: 'Paste', enabled: true }
 	];
 }
@@ -95,7 +118,7 @@ function rowGroup(rowIdx: number, rowCount: number): TableMenuItem[] {
 function columnGroup(
 	colIdx: number,
 	colCount: number,
-	alignments: TableAlignment[]
+	alignments: readonly TableAlignment[]
 ): TableMenuItem[] {
 	return [
 		{

@@ -1,4 +1,5 @@
-import type { CstNode, Document } from '../core/nodes';
+import type { DocumentView, NodeView } from '../core/node-views';
+import { isBuiltinBlockNode } from '../core/nodes';
 
 export interface DumpTreeOptions {
 	maxRawChars?: number;
@@ -12,7 +13,7 @@ const DEFAULTS: Required<DumpTreeOptions> = {
 	includeInline: false
 };
 
-export function dumpTree(doc: Document, opts: DumpTreeOptions = {}): string {
+export function dumpTree(doc: DocumentView, opts: DumpTreeOptions = {}): string {
 	const options = { ...DEFAULTS, ...opts };
 	if (!doc.children || doc.children.length === 0) return '';
 	const lines: string[] = [];
@@ -23,7 +24,7 @@ export function dumpTree(doc: Document, opts: DumpTreeOptions = {}): string {
 }
 
 function renderNode(
-	node: CstNode,
+	node: NodeView,
 	index: number,
 	depth: number,
 	lines: string[],
@@ -70,45 +71,47 @@ function renderNode(
 	}
 }
 
-function formatMetadata(node: CstNode, opts: Required<DumpTreeOptions>): string {
+function formatMetadata(node: NodeView, opts: Required<DumpTreeOptions>): string {
 	const m = node.metadata;
 	if (!m) return '';
 	const frags: string[] = [];
-	switch (node.kind) {
-		case 'heading':
-		case 'setextHeading':
-			if ('level' in m && m.level) frags.push(`level=${m.level}`);
-			break;
-		case 'fencedCode':
-			if ('info' in m && m.info) frags.push(`info=${JSON.stringify(m.info)}`);
-			if ('fenceMarker' in m && m.fenceMarker) frags.push(`fence=${JSON.stringify(m.fenceMarker)}`);
-			if ('fenceLength' in m && m.fenceLength) frags.push(`fenceLength=${m.fenceLength}`);
-			break;
-		case 'thematicBreak':
-			if ('marker' in m && m.marker) frags.push(`marker=${JSON.stringify(m.marker)}`);
-			break;
-		case 'list':
-			if ('ordered' in m) frags.push(`kind=${m.ordered ? 'ordered' : 'bullet'}`);
-			break;
-		case 'listItem':
-			if ('marker' in m && m.marker) frags.push(`marker=${JSON.stringify(m.marker)}`);
-			if ('taskItem' in m && m.taskItem && 'taskChecked' in m) {
-				frags.push(`task=${m.taskChecked ? 'x' : ' '}`);
-			}
-			break;
-		case 'blockquote':
-			if ('quoteDepth' in m && m.quoteDepth) frags.push(`quoteDepth=${m.quoteDepth}`);
-			break;
-		case 'linkReferenceDefinition':
-			if ('label' in m && m.label) frags.push(`label=${JSON.stringify(m.label)}`);
-			break;
-		case 'table':
-			if ('columnCount' in m && m.columnCount) frags.push(`columnCount=${m.columnCount}`);
-			break;
-		default:
-			// Plugin and metadata-less kinds: no kind-specific fragments; the
-			// generic path still prints kind + raw.
-			break;
+	// Narrowing to the built-in union lets each arm read its own metadata directly
+	// — no `'field' in m` probing. Metadata-less arms exit above; the plugin arm
+	// (branded kind) and built-in arms with nothing to print fall through.
+	if (isBuiltinBlockNode(node)) {
+		switch (node.kind) {
+			case 'heading':
+			case 'setextHeading':
+				if (node.metadata.level) frags.push(`level=${node.metadata.level}`);
+				break;
+			case 'fencedCode':
+				if (node.metadata.info) frags.push(`info=${JSON.stringify(node.metadata.info)}`);
+				if (node.metadata.fenceMarker)
+					frags.push(`fence=${JSON.stringify(node.metadata.fenceMarker)}`);
+				if (node.metadata.fenceLength) frags.push(`fenceLength=${node.metadata.fenceLength}`);
+				break;
+			case 'thematicBreak':
+				if (node.metadata.marker) frags.push(`marker=${JSON.stringify(node.metadata.marker)}`);
+				break;
+			case 'list':
+				frags.push(`kind=${node.metadata.ordered ? 'ordered' : 'bullet'}`);
+				break;
+			case 'listItem':
+				if (node.metadata.marker) frags.push(`marker=${JSON.stringify(node.metadata.marker)}`);
+				if (node.metadata.taskItem) frags.push(`task=${node.metadata.taskChecked ? 'x' : ' '}`);
+				break;
+			case 'blockquote':
+				if (node.metadata.quoteDepth) frags.push(`quoteDepth=${node.metadata.quoteDepth}`);
+				break;
+			case 'linkReferenceDefinition':
+				if (node.metadata.label) frags.push(`label=${JSON.stringify(node.metadata.label)}`);
+				break;
+			case 'table':
+				if (node.metadata.columnCount) frags.push(`columnCount=${node.metadata.columnCount}`);
+				break;
+			default:
+				break;
+		}
 	}
 	if (opts.showAllMetadata) frags.push(`metaRaw=${JSON.stringify(m)}`);
 	return frags.join(' ');

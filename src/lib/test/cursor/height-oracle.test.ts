@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createHeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
+import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
+import { registerBlockKind } from '../../schema/block-kind-descriptor';
+import { testClosure } from '$lib/test/support/closure';
 
 const opts = {
 	lineHeight: 24,
@@ -30,7 +32,12 @@ describe('createHeightOracle', () => {
 
 	it('estimates fenced code by newline count, not wrap', () => {
 		const o = createHeightOracle(opts);
-		const code: CstNode = { kind: 'fencedCode', leadingTrivia: '', raw: '```\na\nb\n```\n' };
+		const code: CstNode = {
+			kind: 'fencedCode',
+			leadingTrivia: '',
+			raw: '```\na\nb\n```\n',
+			metadata: { fenceMarker: '`', fenceLength: 3, info: '', closed: true }
+		};
 		// 4 source lines at codeLineHeight + chrome.
 		expect(o.estimate(code, 800)).toBe(20 * 4 + 16);
 	});
@@ -56,9 +63,19 @@ describe('createHeightOracle', () => {
 	// silently without this guard.
 	it('estimates table and tableRow by source-line count at prose line height', () => {
 		const o = createHeightOracle(opts);
-		const table: CstNode = { kind: 'table', leadingTrivia: '', raw: 'a|b\n-|-\nc|d\n' };
+		const table: CstNode = {
+			kind: 'table',
+			leadingTrivia: '',
+			raw: 'a|b\n-|-\nc|d\n',
+			metadata: { columnCount: 2, alignments: ['none', 'none'] }
+		};
 		expect(o.estimate(table, 800)).toBe(24 * 3 + 16);
-		const row: CstNode = { kind: 'tableRow', leadingTrivia: '', raw: 'a|b\n' };
+		const row: CstNode = {
+			kind: 'tableRow',
+			leadingTrivia: '',
+			raw: 'a|b\n',
+			metadata: { isHeader: false }
+		};
 		expect(o.estimate(row, 800)).toBe(24 * 1 + 16);
 	});
 
@@ -68,7 +85,12 @@ describe('createHeightOracle', () => {
 	// chrome, undercounting a stacked container several-fold.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
-		const quote: CstNode = { kind: 'blockquote', leadingTrivia: '', raw: 'x'.repeat(250) };
+		const quote: CstNode = {
+			kind: 'blockquote',
+			leadingTrivia: '',
+			raw: 'x'.repeat(250),
+			metadata: { quoteDepth: 1 }
+		};
 		// blob-wrap (3 lines) dominates the single-child fallback term.
 		expect(o.estimate(quote, 800)).toBe(24 * 3 + 16);
 	});
@@ -76,11 +98,18 @@ describe('createHeightOracle', () => {
 	it('scales a container estimate with its child count (O(1), not a subtree walk)', () => {
 		const o = createHeightOracle(opts);
 		const raw = '- a\n- b\n- c\n- d\n- e\n'; // short rows: blob-wrap is 1 line
-		const few: CstNode = { kind: 'list', leadingTrivia: '', raw, children: [{}, {}] as CstNode[] };
+		const few: CstNode = {
+			kind: 'list',
+			leadingTrivia: '',
+			raw,
+			metadata: { ordered: false },
+			children: [{}, {}] as CstNode[]
+		};
 		const many: CstNode = {
 			kind: 'list',
 			leadingTrivia: '',
 			raw,
+			metadata: { ordered: false },
 			children: [{}, {}, {}, {}, {}] as CstNode[]
 		};
 		// Identical raw, more children => taller. The old blob-only estimate gave
@@ -111,7 +140,12 @@ describe('createHeightOracle', () => {
 
 	it('estimates a thematic break as a constant, independent of raw and width', () => {
 		const o = createHeightOracle(opts);
-		const hr: CstNode = { kind: 'thematicBreak', leadingTrivia: '', raw: '---\n' };
+		const hr: CstNode = {
+			kind: 'thematicBreak',
+			leadingTrivia: '',
+			raw: '---\n',
+			metadata: { marker: '---' }
+		};
 		expect(o.estimate(hr, 800)).toBe(24 + 16);
 		expect(o.estimate(hr, 200)).toBe(24 + 16);
 	});
@@ -177,9 +211,85 @@ describe('createHeightOracle', () => {
 		const wide: CstNode = {
 			kind: 'table',
 			leadingTrivia: '',
-			raw: '| ' + 'x'.repeat(2000) + ' |\n| --- |\n'
+			raw: '| ' + 'x'.repeat(2000) + ' |\n| --- |\n',
+			metadata: { columnCount: 1, alignments: ['none'] }
 		};
 		expect(o.estimate(wide, 800)).toBeGreaterThan(2 * 24 + 16); // not just source-line count
+	});
+
+	// A collapsed container mounts only its chrome row; estimating from its full
+	// `raw` (which still carries the hidden body) over-counts it several-fold. The
+	// oracle reads the declared collapse probe and returns one chrome row instead —
+	// the tight estimate. Open, it falls through to the normal full-raw arm.
+	it('estimates a collapsed container at one chrome row, open at its full raw', () => {
+		const o = createHeightOracle(opts);
+		const summary = declarePluginKind('oracle-collapsible-chrome');
+		const collapsible = declarePluginKind('oracle-collapsible');
+		registerBlockKind(collapsible, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			// The oracle only estimates, so an inert strip contract + noop rebuild
+			// satisfy the group's required pairing.
+			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
+				reservedChrome: {
+					kind: summary,
+					isCollapsed: (n) => !getPluginMetadata<{ open: boolean }>(n)?.open
+				}
+			}
+		});
+
+		const bigBody = 'x'.repeat(2000); // full-raw estimate is 20 wrapped lines at width 800
+		const collapsed: CstNode = { kind: collapsible, leadingTrivia: '', raw: bigBody };
+		setPluginMetadata(collapsed, { open: false });
+		expect(o.estimate(collapsed, 800)).toBe(24 + 16); // one chrome row, body ignored
+
+		const open: CstNode = { kind: collapsible, leadingTrivia: '', raw: bigBody };
+		setPluginMetadata(open, { open: true });
+		expect(o.estimate(open, 800)).toBe(20 * 24 + 16); // unchanged full-raw wrapped estimate
+	});
+
+	// A descriptor's own O(1) estimate supersedes the char-based default arm (a
+	// rendered artifact — diagram, embed — is far taller than its source text). The
+	// oracle still adds block chrome and a measured height still supersedes.
+	it('a descriptor estimateHeight wins over the default arm, plus block chrome', () => {
+		const o = createHeightOracle(opts);
+		const estimated = declarePluginKind('oracle-estimate-height');
+		registerBlockKind(estimated, {
+			mergeRole: 'not-mergeable',
+			editable: false,
+			supportsInline: false,
+			closure: testClosure,
+			estimateHeight: () => 320
+		});
+		const node: CstNode = { kind: estimated, leadingTrivia: '', raw: 'x\n' };
+		expect(o.estimate(node, 600)).toBe(320 + opts.blockChrome);
+	});
+
+	// Ordering guard: the collapse arm precedes the estimateHeight arm, so a
+	// collapsed container mounts one chrome row and its estimateHeight is ignored.
+	// Swapping the arms would return 320 + chrome here.
+	it('a collapsed container ignores estimateHeight (one chrome row wins)', () => {
+		const o = createHeightOracle(opts);
+		const summary = declarePluginKind('oracle-estimate-chrome');
+		const collapsible = declarePluginKind('oracle-estimate-collapsed');
+		registerBlockKind(collapsible, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			estimateHeight: () => 320,
+			container: {
+				contract: 'strip',
+				rebuildRaw: () => {},
+				reservedChrome: { kind: summary, isCollapsed: () => true }
+			}
+		});
+		const node: CstNode = { kind: collapsible, leadingTrivia: '', raw: 'x'.repeat(2000) };
+		expect(o.estimate(node, 600)).toBe(opts.lineHeight + opts.blockChrome);
 	});
 
 	it('clear() empties the measured cache', () => {

@@ -2,16 +2,34 @@ import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw } from '../parser';
 
-export function matchFenceOpen(
-	text: string
-): { marker: '`' | '~'; length: number; info: string } | null {
-	const m = text.match(/^ {0,3}(`{3,})([^`]*)$|^ {0,3}(~{3,})(.*)$/);
-	if (!m) return null;
+/**
+ * The recognizer-grade fence-open shape, re-exported on `aragonite/plugin` for
+ * fence-claiming openers: `info` is the trimmed dispatch string; `indent` and
+ * `infoRaw` are the verbatim bytes a byte-exact rebuild needs.
+ */
+export interface FenceOpen {
+	marker: '`' | '~';
+	length: number;
+	info: string;
+	indent: string;
+	infoRaw: string;
+}
 
-	if (m[1]) {
-		return { marker: '`', length: m[1].length, info: m[2].trim() };
-	}
-	return { marker: '~', length: m[3].length, info: m[4].trim() };
+// Backtick info may not contain backticks (CommonMark §4.5); tilde info may.
+const BACKTICK_OPEN = /^( {0,3})(`{3,})([^`]*)$/;
+const TILDE_OPEN = /^( {0,3})(~{3,})(.*)$/;
+
+export function matchFenceOpen(text: string): FenceOpen | null {
+	const m = text.match(BACKTICK_OPEN) ?? text.match(TILDE_OPEN);
+	if (!m) return null;
+	const [, indent, fence, infoRaw] = m;
+	return {
+		marker: fence[0] as '`' | '~',
+		length: fence.length,
+		info: infoRaw.trim(),
+		indent,
+		infoRaw
+	};
 }
 
 export function matchFenceClose(text: string, marker: '`' | '~', minLength: number): boolean {

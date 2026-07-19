@@ -17,36 +17,47 @@
  * 2. Consumption (caller-reads-and-passes). When a cross-block focus
  *    transition runs through moveFocus({ stickyColumnFrom }), the focus
  *    dispatchers route the landing through consumeStickyLanding
- *    (editor-actions/focus-landing.ts), which reads stickyColumn.get(),
+ *    (editor-actions/focus/focus-landing.ts), which reads stickyColumn.get(),
  *    null-checks, and either invokes focusAtColumn(x, from) with the finite x
  *    or falls back to focus(0) / focus(CURSOR_END). Target blocks'
  *    focusAtColumn is a pure receiver — x is always finite; null-handling
  *    lives in the landing helper.
  */
 
+import type { EditorX } from './coordinate-spaces';
+import {
+	isInteractionTraceEnabled,
+	traceStickyCapture,
+	traceStickyReset
+} from '../debug/interaction-trace';
+
 export interface StickyColumnState {
-	get(): number | null;
+	get(): EditorX | null;
 
 	/**
 	 * Idempotent — no-op if already set. That's what preserves the original
 	 * intent through within-block clamping. Also no-op for non-finite input.
 	 */
-	capture(x: number): void;
+	capture(x: EditorX): void;
 
 	reset(): void;
 }
 
 export function createStickyColumnState(): StickyColumnState {
-	let stickyX: number | null = null;
+	let stickyX: EditorX | null = null;
 
 	return {
 		get: () => stickyX,
-		capture: (x: number) => {
+		capture: (x: EditorX) => {
 			if (stickyX !== null) return;
 			if (!Number.isFinite(x)) return;
 			stickyX = x;
+			traceStickyCapture(x);
 		},
+		// Record only a real clear: reset fires on nearly every keystroke, so the
+		// enabled gate short-circuits before the state read.
 		reset: () => {
+			if (isInteractionTraceEnabled() && stickyX !== null) traceStickyReset();
 			stickyX = null;
 		}
 	};

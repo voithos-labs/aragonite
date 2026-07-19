@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 const TABLE_FIXTURE = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -25,8 +25,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 		await page.keyboard.type('Z');
 		const after = await editor.bridge.getSource();
-		// Caret must land in the "5" cell (row 2, col 1). Result should be exactly
-		// "| 4 | Z5 | 6 |" (or "| 4 | 5Z | 6 |" depending on offset within cell).
+		// Caret must land in the "5" cell (row 2, col 1); the click leaves it on either
+		// side of the text, so the regex accepts "Z5" or "5Z".
 		expect(after).toContain('| 4 |');
 		expect(after).toMatch(/\| [Z5]{2} \|/);
 		expect(after).toContain('| 6 |');
@@ -105,9 +105,9 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after column delete via cross-block coverage restores selection', async ({ page }) => {
-		// Select first column via 3-stage Ctrl+A in a cell, or via shift+click.
-		// Use Ctrl+A 1× to select cell, 2× to select table, then we need column.
-		// Alternative: drag from row 0 col 0 down through rows.
+		// Drag down column 0 (header "A" → body cell "4") to make a column-covering
+		// selection — the 3-stage Ctrl+A escalates cell → table → document without ever
+		// isolating a column.
 		const tableInfo = await page.evaluate(() => {
 			const tableEl = document.querySelector('[role="table"]') as HTMLElement;
 			tableEl.scrollIntoView({ block: 'center' });

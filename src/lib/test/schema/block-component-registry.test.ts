@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Component } from 'svelte';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { defineBlockComponent } from '../../schema/block-component-registry';
 
 const fakeComponent = (() => {}) as unknown as Parameters<typeof defineBlockComponent>[0];
@@ -13,7 +14,7 @@ describe('defineBlockComponent', () => {
 	});
 
 	it('forwards extraProps', () => {
-		const extra = (node: CstNode) => ({ blockClass: node.kind });
+		const extra = (node: NodeView) => ({ blockClass: node.kind });
 		const entry = defineBlockComponent(fakeComponent, extra);
 		expect(entry.extraProps).toBe(extra);
 		const node = { kind: 'paragraph', leadingTrivia: '', raw: 'x\n' } as CstNode;

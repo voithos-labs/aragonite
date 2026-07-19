@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
@@ -7,15 +7,16 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { rebuildContainerRawIfContainer } from '$lib/schema/container-raw';
 import { assignChildIdsDeep } from '$lib/block-id';
 import {
 	mockRef,
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubFocus,
-	makeEditorActionsDeps
+	makeEditorActionsDeps,
+	makeNode
 } from '$lib/test/harness/editor-actions';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode } from '$lib/core/nodes';
 
@@ -34,10 +35,6 @@ import type { CstNode } from '$lib/core/nodes';
  * shape most likely to desync ids/refs, since every moved slot reuses an
  * existing id rather than minting one.
  */
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
 
@@ -140,8 +137,11 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 	it('round-trip stays byte-stable across a sequence of ops', async () => {
 		const h = makeTop(['one\n', 'two\n', 'three\n']);
-		// serialize(parse(serialize(doc))) === serialize(doc): the live tree the
-		// ops produced reparses to itself, so no op smuggled in unserializable raw.
+		// Byte round-trip only here: makeTop builds separator-less paragraphs, so
+		// the fixture serializes to a lazy-continuation join that reparses as one
+		// paragraph — non-convergent by construction, independent of the ops. The
+		// convergence oracle bites in the container test below, whose fixture is a
+		// real parsed blockquote.
 		const stable = () => {
 			const live = serialize(h.doc);
 			expect(serialize(parse(live))).toBe(live);
@@ -286,12 +286,13 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 	it('round-trip stays byte-stable and serialized raw tracks the mutated children', async () => {
 		const h = makeContainer(BQ_THREE);
-		// serialize(parse(serialize(doc))) === serialize(doc): no op produced
-		// unserializable raw. This alone passes even on a STALE container raw
-		// (valid-but-unupdated GFM self-round-trips), so it's paired below with a
-		// content oracle that the serialized blockquote reflects the live edit —
-		// that pair is what makes the raw-rebuild load-bearing here.
+		// The byte round-trip alone passes even on a STALE container raw
+		// (valid-but-unupdated GFM self-round-trips) — the exact blindness this file
+		// documented and worked around with the hand-written content grep below.
+		// expectParseConverged is that content oracle generalized: the live tree
+		// must match a fresh parse of its bytes, so a stale blockquote raw fires.
 		const stable = () => {
+			expectParseConverged(h.doc);
 			const live = serialize(h.doc);
 			expect(serialize(parse(live))).toBe(live);
 		};

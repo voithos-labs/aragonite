@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { readCurrentSelection } from '../../selection/native-bridge';
+import { readCurrentSelection, applySelectionToDom } from '../../selection/native-bridge';
 import { createSelectionState } from '../../selection/selection-state.svelte';
+import { parse } from '../../core/parser';
 import { mockRef } from '../harness/editor-actions';
 
 describe('readCurrentSelection — unfocused editor', () => {
@@ -29,5 +31,82 @@ describe('readCurrentSelection — unfocused editor', () => {
 			anchor: { path: [1], offset: 7 },
 			focus: { path: [1], offset: 7 }
 		});
+	});
+});
+
+describe('undo selection snapshots — cellCoordinate round-trip', () => {
+	const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+
+	it('readCurrentSelection preserves the flag on cross-block table endpoints', () => {
+		const doc = parse(TABLE_LAST);
+		const s = createSelectionState({ getDoc: () => doc });
+		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
+
+		const snap = readCurrentSelection(s, []);
+
+		expect(snap?.focus).toEqual({ path: [1], offset: 2, cellCoordinate: true });
+		expect(snap?.anchor).toEqual({ path: [0], offset: 1 });
+	});
+
+	it('applySelectionToDom restores a table endpoint that still row-snaps', () => {
+		const doc = parse(TABLE_LAST);
+		const s = createSelectionState({ getDoc: () => doc });
+		s.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2, cellCoordinate: true });
+		const snap = readCurrentSelection(s, [])!;
+
+		const restored = createSelectionState({ getDoc: () => doc });
+		applySelectionToDom(snap, restored, () => null);
+
+		expect(restored.focus?.cellCoordinate).toBe(true);
+		// The whole-row snap keys on the flag: the end endpoint snaps to the
+		// row's last cell. A dropped flag skips the snap and leaves offset 2.
+		expect(restored.end?.offset).toBe(3);
+	});
+});
+
+describe('applySelectionToDom — restore routing', () => {
+	const TABLE_ONLY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+
+	it('single-block-range restore fires one onChange and never enters cross-block (E-F8)', () => {
+		const doc = parse('paragraph one\n');
+		let onChangeCount = 0;
+		let sawCrossBlock = false;
+		const s = createSelectionState({
+			getDoc: () => doc,
+			onChange: () => {
+				onChangeCount++;
+				if (s.isCrossBlock) sawCrossBlock = true;
+			}
+		});
+
+		applySelectionToDom(
+			{ anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 5 } },
+			s,
+			() => null
+		);
+
+		expect(onChangeCount).toBe(1);
+		expect(sawCrossBlock).toBe(false);
+		expect(s.isCrossBlock).toBe(false);
+	});
+
+	it('parks the restore caret in the focus cell for an intra-table rect (E-F4)', () => {
+		const doc = parse(TABLE_ONLY);
+		const s = createSelectionState({ getDoc: () => doc });
+		const requested: number[][] = [];
+
+		applySelectionToDom(
+			// Flagged anchor + context-established (unflagged) focus, cell index 3.
+			{ anchor: { path: [0], offset: 0, cellCoordinate: true }, focus: { path: [0], offset: 3 } },
+			s,
+			(p) => {
+				requested.push(p);
+				return document.createElement('div');
+			}
+		);
+
+		// Cell index 3 in a 2-column table is row 1, col 1 — park in the deep cell,
+		// not a char-walk on the table wrapper path [0].
+		expect(requested).toEqual([[0, 1, 1]]);
 	});
 });

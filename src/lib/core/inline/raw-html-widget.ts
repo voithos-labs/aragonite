@@ -8,8 +8,8 @@
 import type { InlineNode } from '../nodes';
 
 /** Tag names (lowercase) that render as live DOM widgets instead of literal
- *  source spans. Plugins extend this set; tags in §6.11's disallowed list must never
- *  be added here. */
+ *  source spans. A tag from GFM §6.11's disallowed-raw-HTML list must never be
+ *  added here. */
 export const LIVE_HTML_TAGS: ReadonlySet<string> = new Set(['br']);
 
 const TAG_NAME_EXTRACT = /^<\/?([A-Za-z][A-Za-z0-9-]*)/;

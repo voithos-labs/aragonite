@@ -6,16 +6,17 @@
 
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
-import type { CstNode, Document } from '../../core/nodes';
+import type { Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
-import { assertCharOffset } from '../primitives';
+import { charOffsetOf } from '../primitives';
 import { applyCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
+import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathsEqual } from '../path-math';
 import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
@@ -59,13 +60,14 @@ export async function handleCrossBlockPaste(
 		{
 			pastedText: pasted,
 			targetPath: caret.path,
-			offset: assertCharOffset(caret, 'cross-block-paste:dispatch')
+			offset: charOffsetOf(caret, 'cross-block-paste:dispatch')
 		},
 		{
 			doc,
 			blockEdit: ctx.blockEdit,
 			controller: ctx.pasteCoordinator,
-			undoEntry: 'join'
+			undoEntry: 'join',
+			grammar: ctx.grammar
 		}
 	);
 
@@ -113,6 +115,8 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	const rowCount = node.children?.length ?? 0;
 	const cellCount = meta.columnCount * rowCount;
 	if (cellCount === 0) return false;
+	// Same-path intra-table selection: cell offsets are context-established
+	// (same table, unflagged), so read directly.
 	const lo = Math.min(anchor.offset, focus.offset);
 	const hi = Math.max(anchor.offset, focus.offset);
 	return lo === 0 && hi === cellCount - 1;
@@ -133,11 +137,13 @@ async function replaceTableWithPaste(
 	const tablePath = ctx.selection.anchor!.path;
 	const doc = ctx.getDoc();
 
-	const parsed = parse(pasted);
+	// This whole-table-selection route never reaches pasteDispatch, so the paste
+	// transforms run here too — the rule lives in the helper, applied at both sites.
+	const parsed = parse(applyPasteTransforms(pasted));
 	if (parsed.children.length === 0) return;
 	const blocks = materializeBlankLines(parsed.children);
 
-	const tableNode = nodeAt(doc, tablePath) as CstNode | null;
+	const tableNode = blockNodeAt(doc, tablePath);
 	if (!tableNode) return;
 	const replacement = normalizeReplacementTrivia(tableNode, blocks);
 	for (const node of replacement) ensureEditableContainers(node);

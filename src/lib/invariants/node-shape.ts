@@ -1,7 +1,10 @@
-import type { CstNode } from '../core/nodes';
+import { makeBlockNode, type CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
 import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import { listRegisteredOpeners } from '../schema/block-openers';
 import type { InvariantViolation } from './assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
@@ -129,6 +132,141 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 	);
 }
 
+// ── G1.12: opaque container raw not stale ─────────────────────────────────────
+
+/**
+ * G1.12 — opaque containers escape the strip byte-check, but the same
+ * children-mutated-without-rebuild staleness class must still be caught. `raw`
+ * can never be byte-compared against a rebuildRaw output: a faithful parse may
+ * be non-canonical (`:::x  y` stored verbatim where the rebuilder emits
+ * `:::x y`) — the same false-fire class the strip check's header documents.
+ * Compare through the parse channel instead: re-parse `raw` and diff the
+ * reparsed children-bytes against the live ones with checkStaleRaw's tolerance
+ * machinery, so only genuine drift fires.
+ *
+ * When `raw` does not reparse standalone to exactly one block of this kind, the
+ * outcome splits on the opener registry: a kind WITH a registered opener has
+ * genuinely drifted (its raw no longer matches any shape the opener recognizes)
+ * and fires; a kind WITHOUT one has no standalone recognizer, so even stale
+ * children cannot be validated and it bails (a test kind whose raw reparses to a
+ * paragraph must not fire).
+ */
+export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
+	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
+
+	const blocks = parse(node.raw).children;
+	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
+		if (!listRegisteredOpeners().some((o) => o.kind === node.kind)) return null;
+		return {
+			code: 'opaque-stale-raw',
+			message: `${node.kind} opaque raw no longer reparses to its own kind`,
+			detail: { kind: node.kind, reason: 'reparse-diverges', raw: clampForDetail(node.raw) }
+		};
+	}
+
+	if (!opaqueRawFaithful(blocks[0], node)) {
+		return {
+			code: 'opaque-stale-raw',
+			message: `${node.kind} opaque raw is stale relative to its children`,
+			detail: { kind: node.kind, raw: clampForDetail(node.raw) }
+		};
+	}
+	return null;
+}
+
+/**
+ * Chrome-aware faithfulness: a reservedChrome child's bytes live in the
+ * container's opener line, not its inner bytes, so a reparse mints the chrome
+ * BEFORE any body trivia while the live tree may legally hold an
+ * unrepresentable transient blank (the empty body paragraph the descend
+ * gesture mints) AFTER it. Interleaving the chrome raw into the inner-byte
+ * stream false-fires on that state — compare the chrome raw positionally and
+ * the body bytes as a unit instead; drift on either side still fires. A
+ * missing/displaced slot is G1.14's finding, not staleness — fall through to
+ * the plain comparison.
+ */
+function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
+	const chromeKind = reservedChromeKindOf(node.kind);
+	const liveChrome = node.children?.[0];
+	const reparsedChrome = reparsed.children?.[0];
+	if (
+		chromeKind === undefined ||
+		liveChrome?.kind !== chromeKind ||
+		reparsedChrome?.kind !== chromeKind
+	) {
+		return rawFaithful(reparsed, node);
+	}
+
+	if (liveChrome.raw !== reparsedChrome.raw) return false;
+	// Compare the chrome-stripped bodies (same nodes minus child 0). Spreading the
+	// union widens `kind`, so re-mint through the construction funnel.
+	return rawFaithful(
+		makeBlockNode({ ...reparsed, children: reparsed.children!.slice(1) }),
+		makeBlockNode({ ...node, children: node.children!.slice(1) })
+	);
+}
+
+// ── G1.13: opaque rebuild determinism ─────────────────────────────────────────
+
+/**
+ * G1.13 — the staleness check above trusts a single reparse of `raw`; that trust
+ * requires the plugin-authored rebuildRaw to be deterministic over the committed
+ * state. Two probe rebuilds are compared to each other — never to `node.raw`,
+ * which a faithful non-canonical parse legally differs from.
+ */
+export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation | null {
+	const descriptor = getBlockKindDescriptor(node.kind);
+	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
+
+	const first = probeRebuild(node, descriptor.rebuildRaw);
+	const second = probeRebuild(node, descriptor.rebuildRaw);
+	if (first === second) return null;
+	return {
+		code: 'opaque-rebuild-nondeterministic',
+		message: `${node.kind} rebuildRaw emitted different bytes over identical committed state`,
+		detail: { kind: node.kind, first: clampForDetail(first), second: clampForDetail(second) }
+	};
+}
+
+/**
+ * rebuildRaw's contract is to read children/metadata/inner trivia and write
+ * only `raw`. The probe isolates that write and additionally copies the
+ * children array and metadata record, shielding the live node from a
+ * misbehaving rebuilder's cheap structural writes (splice/push, metadata
+ * fields). Child NODES stay shared by reference — defending field writes on
+ * them would need a per-commit deep clone, which isn't worth a contract breach
+ * this unlikely.
+ */
+function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): string {
+	const probe = { ...node };
+	if (probe.children) probe.children = [...probe.children];
+	if (probe.metadata) probe.metadata = { ...probe.metadata };
+	rebuildRaw(probe);
+	return probe.raw;
+}
+
+// ── G1.14: reserved-chrome slot ───────────────────────────────────────────────
+
+/**
+ * G1.14 — a container declaring `reservedChrome` always holds a chrome leaf of
+ * the declared kind at child 0. The wall/backfill machinery must never empty the
+ * slot or replace it with another kind; firing here means an op deleted or
+ * downgraded the chrome instead of clearing it. Self-filtering: non-declaring
+ * kinds are exempt.
+ */
+export function checkReservedChromeSlot(node: CstNode): InvariantViolation | null {
+	const chromeKind = reservedChromeKindOf(node.kind);
+	if (chromeKind === undefined) return null;
+
+	const child0 = node.children?.[0];
+	if (child0?.kind === chromeKind) return null;
+	return {
+		code: 'reserved-chrome-slot',
+		message: `${node.kind}: child 0 must be reserved chrome "${chromeKind}", found "${child0?.kind ?? 'none'}"`,
+		detail: { kind: node.kind, expected: chromeKind, found: child0?.kind ?? null }
+	};
+}
+
 // ── G1.6: clone-safe metadata ─────────────────────────────────────────────────
 
 /**
@@ -137,7 +275,7 @@ function stripContainerChildren(node: CstNode): CstNode[] {
  * of primitives; a nested object or array-of-objects would be shared by
  * reference with the snapshot and corrupt undo.
  */
-export function checkCloneSafeMetadata(node: CstNode): InvariantViolation | null {
+export function checkCloneSafeMetadata(node: NodeView): InvariantViolation | null {
 	if (!node.metadata) return null;
 
 	for (const [field, value] of Object.entries(node.metadata)) {

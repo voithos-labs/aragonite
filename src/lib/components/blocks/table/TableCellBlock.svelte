@@ -8,50 +8,39 @@
 		TableContext
 	} from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
-	import { dispatchKeyCommand, type CommandId } from '../../../schema/commands';
+	import { type CommandId } from '../../../schema/commands';
+	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
-	import type { CstNode } from '../../../core/nodes';
+	import type { NodeView } from '../../../core/node-views';
+	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		BLOCK_EL_LOOKUP_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
-		DOC_KEY,
-		EDITOR_LIFETIME_KEY,
-		EDITOR_ROOT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		HISTORY_KEY,
-		KEYBINDING_OVERRIDES_KEY,
-		LINK_REF_KEY,
-		PASTE_COORDINATOR_KEY,
-		RESOLVE_LINK_URL_KEY,
-		SELECTION_KEY,
-		STICKY_COLUMN_KEY,
 		TABLE_CONTEXT_KEY,
-		type BlockElLookup,
-		type DocumentGetter,
-		type KeybindingOverridesGetter,
-		type LinkReferenceResolverRef,
-		type ResolveLinkUrl
+		type EditorDoc,
+		type EditorPolicies,
+		type EditorServices
 	} from '../../../editor-keys';
-	import type { UndoController } from '../../../editor-actions/deps';
-	import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-	import type { StickyColumnState } from '../../../cursor/sticky-column';
 	import type { TableAlignment } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import {
-		rawOffsetAtNode,
+		domTextOffsetAtNode,
 		rawTextOfNode,
-		containerRawLength,
-		createRangeAtRawOffsets
+		containerDomTextLength,
+		createRangeAtDomTextOffsets
 	} from '../../../cursor/widget-offset';
+	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import type { SelectionState } from '../../../selection/selection-state.svelte';
 	import { createEditableSurface } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
@@ -60,9 +49,17 @@
 	} from '../../../selection/cross-block/clipboard';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
-	import { selectWholeDocument } from '../../../selection/keyboard-extend';
+	import {
+		selectWholeDocument,
+		extendFocusToNextBlock,
+		extendFocusToPreviousBlock
+	} from '../../../selection/keyboard-extend';
+	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';
 	import { intraTableRectPayload } from './cell-clipboard';
+	import { escapeCellCommit } from './table-cell-paste';
+	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -86,7 +83,7 @@
 		setRef,
 		getRef
 	}: {
-		node: CstNode;
+		node: NodeView;
 		index: number;
 		myPath?: number[];
 		rowIdx: number;
@@ -99,21 +96,32 @@
 	} = $props();
 
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const pasteCoordinator = getContext<PasteCommitCoordinator>(PASTE_COORDINATOR_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const keybindingOverrides = getContext<KeybindingOverridesGetter>(KEYBINDING_OVERRIDES_KEY);
 	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
-	const selection = getContext<SelectionState>(SELECTION_KEY);
-	const getBlockElByPath = getContext<BlockElLookup>(BLOCK_EL_LOOKUP_KEY);
-	const getDoc = getContext<DocumentGetter>(DOC_KEY);
-	const getEditorRoot = getContext<() => HTMLElement | null>(EDITOR_ROOT_KEY);
-	const editorLifetime = getContext<AbortSignal | undefined>(EDITOR_LIFETIME_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
-	const linkRef = getContext<LinkReferenceResolverRef | undefined>(LINK_REF_KEY);
-	const resolveLinkUrl = getContext<ResolveLinkUrl>(RESOLVE_LINK_URL_KEY);
+	const {
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		selection,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		keybindingOverrides,
+		presentationMode: getPresentationMode,
+		resolveLinkUrl
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		blockElLookup: getBlockElByPath,
+		doc: getDoc,
+		editorRoot: getEditorRoot,
+		lifetime: editorLifetime,
+		pluginEditor,
+		linkRef
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -133,7 +141,8 @@
 		backend: {
 			getRaw: () => cursor.getRaw(),
 			setRaw: (offset) => cursor.setRaw(offset),
-			buildRange: (start, end) => createRangeAtRawOffsets(el!, start, end)
+			buildRange: (start, end) =>
+				createRangeAtDomTextOffsets(el!, toDomTextOffset(start, 0), toDomTextOffset(end, 0))
 		},
 		getMyPath: () => myPath,
 		getIndex: () => index,
@@ -159,14 +168,23 @@
 		blockEdit,
 		controller,
 		history,
+		pluginEditor,
+		getPresentationMode,
+		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		getFocusOffset: () => getRawFocusOffset(),
-		getTextLen: () => (el ? containerRawLength(el) : 0),
+		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
 		// Cells can't carry a raw newline, so no trailing '\n' (unlike text/code);
-		// savedOffset re-focuses if the edit remounts the cell.
-		commitInput: (text, preEdit, saved) => blockEdit.updateBlockContent(index, text, preEdit, saved)
+		// savedOffset re-focuses if the edit remounts the cell. Escape typed/IME
+		// pipes to `\|` — the same bytes a paste writes — so a bare `|` never splits
+		// the row on reparse; the returned caret shifts past the inserted backslash.
+		commitInput: (text, preEdit, saved) => {
+			const committed = escapeCellCommit(text, saved);
+			void blockEdit.updateBlockContent(index, committed.text, preEdit, committed.caret);
+			return committed.caret;
+		}
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -218,7 +236,7 @@
 				columnCount,
 				rowCount,
 				offset: cursor.getRaw() ?? 0,
-				textLen: containerRawLength(el),
+				textLen: containerDomTextLength(el),
 				collapsed: !hasSelectionHelper(),
 				selectAllCount: selection.selectAllCount
 			}
@@ -260,17 +278,25 @@
 		get linkRef() {
 			return linkRef;
 		},
-		resolveLinkUrl
+		resolveLinkUrl,
+		reportRenderError: (error) =>
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
 	});
 
 	$effect(() => {
 		if (!el) return;
 		cellRender.render({ forceRebuild: pendingCursorOffset !== null });
 		if (pendingCursorOffset !== null) {
-			cursor.setRaw(pendingCursorOffset);
+			// Restore only while this cell still owns focus — an unguarded restore
+			// would yank the global selection back into a blurred cell. Mirrors the
+			// activeElement guards in TextEditableBlock and CodeBlock.
+			if (document.activeElement === el) cursor.setRaw(asRawOffset(pendingCursorOffset));
 			pendingCursorOffset = null;
 		}
 	});
+
+	// Destroy the cell's pooled widget instances on unmount (table teardown / windowing).
+	$effect(() => () => cellRender.dispose());
 
 	// Windowed out while focused: hand focus to the editor root so the next
 	// keystroke routes through its document-level listener instead of falling to
@@ -292,11 +318,12 @@
 		return out;
 	}
 
-	function getRawFocusOffset(): number | null {
+	// Zero-ambient cell: the walk offset IS the raw offset, minted across here.
+	function getRawFocusOffset(): RawOffset | null {
 		if (!el) return null;
 		const sel = window.getSelection();
 		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		return rawOffsetAtNode(el, sel.focusNode, sel.focusOffset);
+		return asRawOffset(domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset));
 	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────
@@ -325,7 +352,7 @@
 				columnCount,
 				rowCount,
 				offset: preEditOffset,
-				textLen: containerRawLength(el),
+				textLen: containerDomTextLength(el),
 				collapsed: !hasSelectionHelper(),
 				selectAllCount: selection.selectAllCount
 			}
@@ -333,6 +360,23 @@
 
 		switch (plan.kind) {
 			case 'native': {
+				// First Shift+ArrowUp/Down at the cell's vertical edge starts an
+				// intra-table rectangle down/up a whole row (cell-aware) — the shared
+				// prose extend would instead walk the next doc-order leaf (the next cell
+				// across, or the table's own first cell). Subsequent presses route
+				// through the cross-block handler above.
+				if (
+					!selection.isCrossBlock &&
+					e.shiftKey &&
+					!e.altKey &&
+					!e.ctrlKey &&
+					!e.metaKey &&
+					(e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+					startIntraTableRect(e.key, preEditOffset)
+				) {
+					e.preventDefault();
+					return;
+				}
 				if (await handleSharedKeydown(e, sharedCtx)) return;
 				// Cells route navigation through cellKeydownPlan, but inline-format
 				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
@@ -343,8 +387,9 @@
 					dispatchKeyCommand(
 						chord,
 						{ kind: node.kind, runCommand },
-						{ history },
-						keybindingOverrides()
+						{ history, pluginEditor, getPresentationMode },
+						keybindingOverrides(),
+						onCommandError
 					)
 				) {
 					e.preventDefault();
@@ -360,8 +405,10 @@
 				e.preventDefault();
 				if (plan.step === 'table') {
 					const tablePath = myPath.slice(0, -2);
+					// Flag the anchor as a cell coordinate, matching the drag/shift-click
+					// anchor: a later exit-the-table extend needs it to snap its whole row.
 					selection.enterCrossBlock(
-						{ path: tablePath, offset: 0 },
+						{ path: tablePath, offset: 0, cellCoordinate: true } satisfies CellSelectionPoint,
 						{ path: tablePath, offset: columnCount * rowCount - 1 }
 					);
 				} else {
@@ -370,6 +417,9 @@
 				return;
 			default:
 				e.preventDefault();
+				// Reading mode keeps cell navigation ('focus-cell'/'exit') and swallows
+				// the structural plans (insert/delete/move rows and columns).
+				if (readOnly && plan.kind !== 'focus-cell' && plan.kind !== 'exit') return;
 				await applyCellPlan(plan);
 				return;
 		}
@@ -393,6 +443,43 @@
 				exitWithStickyX(plan.direction);
 				return;
 		}
+	}
+
+	// Enter an intra-table rectangle from a collapsed cell caret on the first
+	// Shift+ArrowUp/Down. Gated on the cell's visual edge so a multi-line cell still
+	// extends its own text first (prose parity). Returns false to fall through.
+	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
+		if (!el) return false;
+		const atEdge =
+			key === 'ArrowDown'
+				? isAtLastVisualLine(el, offset, containerDomTextLength(el))
+				: isAtFirstVisualLine(el, offset);
+		if (!atEdge) return false;
+
+		const tablePath = myPath.slice(0, -2);
+		const currentIdx = rowIdx * columnCount + colIdx;
+		const currentPoint: SelectionPoint = { path: tablePath, offset: currentIdx };
+		const ext = intraTableRectExtension(getDoc(), currentPoint, currentPoint, key);
+		if (!ext) return false;
+
+		const anchor = {
+			path: tablePath,
+			offset: currentIdx,
+			cellCoordinate: true
+		} satisfies CellSelectionPoint;
+		if (ext.kind === 'cell') {
+			selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: ext.offset });
+			return true;
+		}
+		// At the vertical edge: enter the rect at the current cell, then hand off to
+		// the block-level extend so the selection leaves the table.
+		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
+		if (ext.direction === 'forward') {
+			extendFocusToNextBlock(selection, getDoc(), el, ext.fromCellPath, 'vertical');
+		} else {
+			extendFocusToPreviousBlock(selection, getDoc(), el, ext.fromCellPath, 'start');
+		}
+		return true;
 	}
 
 	function exitWithStickyX(direction: ExitDirection): void {
@@ -422,6 +509,11 @@
 
 	function onPointerDown(e: PointerEvent): void {
 		if (!el) return;
+		// A right-click opens the cell menu; preserve any active intra-table
+		// rectangle (encoded as cross-block selection) so the menu's Cut/Copy can
+		// act on it. The clear + drag-install below would collapse it first, before
+		// contextmenu fires.
+		if (e.button === 2) return;
 		const tableEl = el.closest('[role="table"]') as HTMLElement | null;
 		if (!tableEl) {
 			crossBlock.handlePointerDown(e);
@@ -460,6 +552,13 @@
 
 	function onCopy(e: ClipboardEvent): void {
 		stickyColumn.reset();
+		// Reading mode copies the rendered selection, never a raw slice or a
+		// GFM sub-table payload.
+		if (readOnly) {
+			e.preventDefault();
+			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+			return;
+		}
 		const rectPayload = intraTableRectPayload({ selection, getDoc });
 		if (rectPayload !== null) {
 			e.preventDefault();
@@ -467,12 +566,29 @@
 			return;
 		}
 
-		writeCrossBlockCopy(e, { selection, getDoc, crossBlock });
+		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
+
+		// Intra-cell: write the raw slice (preserves widget bytes like <br> that the
+		// browser's rendered-textContent copy drops). Mirrors onCut's intra-cell arm,
+		// so Copy and Cut write the same payload.
+		if (!el) return;
+		const offsets = cursor.getRawSelection();
+		if (!offsets || offsets.start === offsets.end) return;
+		e.preventDefault();
+		const display = trimTrailingLineEnding(node.raw);
+		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
 	}
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		stickyColumn.reset();
 		e.preventDefault();
+
+		// Reading mode: cut degrades to copy (the event still fires on a
+		// non-editable surface).
+		if (readOnly) {
+			onCopy(e);
+			return;
+		}
 
 		// Intra-table multi-cell rectangle: write a GFM sub-table, then route the
 		// delete through the cross-block path *without* tableCoverageDelete so
@@ -499,6 +615,10 @@
 	}
 
 	async function onPaste(e: ClipboardEvent): Promise<void> {
+		if (readOnly) {
+			e.preventDefault();
+			return;
+		}
 		if (await crossBlock.handlePaste(e)) return;
 
 		stickyColumn.reset();
@@ -558,6 +678,8 @@
 		sel: { start: number; end: number }
 	): Promise<void> {
 		if (!el) return;
+		// Belt behind TableBlock's menu-open gate: paste and cut mutate.
+		if (readOnly && action !== 'copy') return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses
 		// it before mutating — copy/cut so execCommand acts on the restored range,
 		// paste so the caret lands in a focused cell and typing continues (native).
@@ -574,6 +696,17 @@
 			}
 			const text = normalizeLineEndings(raw);
 			if (text) await applyCellPaste(text, sel);
+			return;
+		}
+		// Intra-table rectangle: no cell-local range to restore. Refocusing the cell
+		// keeps the rect live in SelectionState; execCommand('copy') fires onCopy,
+		// which writes the rect payload, and cut then clears the rect in place —
+		// mirroring the onCopy/onCut rect arms.
+		if (intraTableRectPayload({ selection, getDoc }) !== null) {
+			stickyColumn.reset();
+			el.focus();
+			document.execCommand('copy');
+			if (action === 'cut') await crossBlock.performCrossBlockDeleteFromEvent();
 			return;
 		}
 		if (sel.start === sel.end) return;
@@ -597,7 +730,7 @@
 	bind:this={el}
 	tabindex="0"
 	class="table-cell"
-	contenteditable="true"
+	contenteditable={readOnly ? 'false' : 'true'}
 	role="cell"
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}

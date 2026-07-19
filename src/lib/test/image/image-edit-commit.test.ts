@@ -17,8 +17,7 @@ function makeStubController() {
 		pushUndoSnapshotDebounced: vi.fn(),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn(),
-		clearDebouncedCheckpoint: vi.fn()
+		collapsedSelectionAt: vi.fn()
 	} as unknown as UndoController;
 }
 

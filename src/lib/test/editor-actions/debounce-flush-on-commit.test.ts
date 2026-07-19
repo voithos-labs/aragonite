@@ -1,17 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
+// ── A pending typing batch flushes as one input event before a structural commit ─
 
-// ── B4: pending typing batch must flush as one input event before structural commit ─
-
-describe('debounce flush on structural commit (B4)', () => {
+describe('debounce flush on structural commit', () => {
 	it('mid-batch structural commit emits one buffered op:input event before its own op event', async () => {
 		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);
@@ -22,7 +17,7 @@ describe('debounce flush on structural commit (B4)', () => {
 
 		// Simulate 5 keystrokes in block 0 — each call extends the batch.
 		for (let i = 0; i < 5; i++) {
-			controller.pushUndoSnapshotDebounced(0, i);
+			controller.pushUndoSnapshotDebounced([0], i);
 		}
 
 		// No input event yet — debounce hasn't fired.

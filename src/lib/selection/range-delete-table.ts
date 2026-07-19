@@ -1,6 +1,14 @@
 /**
  * Table-aware branch of rangeDelete: tables encode selection offsets as cell
  * indices, so prose raw-merge doesn't apply.
+ *
+ * Post-delete survivors are located by identity scan ({@link survivorPath}), not
+ * index arithmetic — deletions and cascade cleanup shift sibling indices at
+ * arbitrary depths, so any captured index goes stale. Each cross-block delete
+ * runs at most one such scan, over the POST-delete tree, early-exiting at the
+ * survivor: cost is O(the survivor's document-order position), bounded by
+ * O(nodes). This rides the cold Backspace/Delete gesture, never a per-keystroke
+ * path, so the linear scan is an accepted correctness-first cost.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -8,20 +16,37 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { parse } from '../core/parser';
 import { displayLength } from '../core/lines';
-import { walkBetween, comparePaths, assertCharOffset } from './primitives';
-import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
-import { lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { nodeAt } from '../tree-operations/node-ops';
+import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
+import { replaceAtPath } from '../tree-operations/path-mutate';
+import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
+	comparePaths,
+	lowestCommonAncestor,
+	isPathSubtreeBetween,
+	pathHasPrefix,
+	pathsEqual
+} from './path-math';
+import { blockNodeAt } from '../tree-operations/node-ops';
+import {
+	ensureUnsharedNode,
 	ensureUnsharedPath,
 	ensureUnsharedSubtree,
 	rebuildOwnedContainer,
-	rebuildUnsharedAncestry
+	rebuildUnsharedAncestry,
+	rebuildUnsharedChain
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
+import {
+	nearestChromeContainer,
+	isChromeChild,
+	rangeConsumesContainer,
+	lastChildDescendant,
+	lineEndingOf,
+	terminateLine,
+	reparseWithFallback,
+	type ChromeContainer
+} from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -79,10 +104,10 @@ export function tableAwareRangeDelete(
 	// Own both endpoint spines (and table subtrees — cell raws, row splices,
 	// and header promotion all write at depth) before any capture or mutation.
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
-	const startBlock = startChain[startChain.length - 1] ?? (nodeAt(doc, start.path) as CstNode);
+	const startBlock = startChain[startChain.length - 1] ?? ownedEndpoint(doc, start.path, sharing);
 	const endBlock = sameBlock
 		? startBlock
-		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? (nodeAt(doc, end.path) as CstNode));
+		: (ensureUnsharedPath(doc, end.path, sharing).pop() ?? ownedEndpoint(doc, end.path, sharing));
 	if (startBlock.kind === 'table') ensureUnsharedSubtree(startBlock, sharing);
 	if (!sameBlock && endBlock.kind === 'table') ensureUnsharedSubtree(endBlock, sharing);
 
@@ -98,6 +123,17 @@ export function tableAwareRangeDelete(
 	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing);
 }
 
+/**
+ * Owned fallback for an endpoint whose unshare chain came back short — routes
+ * through the unshare seam, never a raw live-tree capture. The dispatcher
+ * resolved both endpoints, so a miss here is a genuine caller bug.
+ */
+function ownedEndpoint(doc: Document, path: number[], sharing: SharingState): CstNode {
+	const node = blockNodeAt(doc, path);
+	if (!node) throw new Error('rangeDelete(table): endpoint path does not resolve to a block node');
+	return ensureUnsharedNode(node, sharing);
+}
+
 // ── Same-block: whole-table or partial-table intra-table ───────────────────
 
 // Caret returns as a deep [...tablePath, anchorRow, anchorCol] path so the
@@ -110,6 +146,10 @@ function deleteWithinTable(
 	table: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	// Same-path intra-table endpoints: cell-ness is context-established (same
+	// path + table node), NOT flagged, so these read `.offset` directly — routing
+	// them through cellIndexOf would warn spuriously. The cross-block cases below
+	// carry the flag and do use the accessor.
 	clearRectangularCells(table, start.offset, end.offset);
 	rebuildUnsharedAncestry(doc, start.path, sharing);
 
@@ -120,7 +160,8 @@ function deleteWithinTable(
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: [...start.path, anchorRow, anchorCol], offset: 0 }
+		collapsedCaret: { path: [...start.path, anchorRow, anchorCol], offset: 0 },
+		tableRowSplices: []
 	};
 }
 
@@ -150,48 +191,121 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 // deletes, case 2 before — see its ordering comment), so the steps stay
 // separate helpers the cases sequence explicitly.
 
-/** Strictly-between subtree roots, plus endpoint paths the caller marks for removal. */
-function collectDeletionPaths(
+interface EndWall {
+	container: ChromeContainer;
+	consumed: boolean;
+}
+
+/**
+ * End-side wall context: the chrome container holding the end point, when the
+ * range enters it from outside. `consumed` means the whole subtree is covered
+ * — the chrome branch's last-byte rule for a prose end; for a table end, the
+ * emptied table sitting on the container's last-child chain — so the container
+ * unit-deletes instead of leaving a husk.
+ */
+function resolveEndWall(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	endpointPaths: number[][]
-): number[][] {
+	endTableEmptied: boolean | null
+): EndWall | null {
+	const container = nearestChromeContainer(doc, end.path);
+	if (!container || pathHasPrefix(start.path, container.path)) return null;
+	const consumed =
+		endTableEmptied === null
+			? rangeConsumesContainer(container, end)
+			: endTableEmptied && lastChildDescendant(container, end.path) !== null;
+	return { container, consumed };
+}
+
+interface DeletionPlan {
+	deletionPaths: number[][];
+	chromeClearChain: CstNode[] | null;
+}
+
+/**
+ * Covered subtree roots (chrome-ceremony parity: one splice per covered
+ * subtree) plus endpoint paths the caller marks for removal, honoring the
+ * chrome wall: a surviving end container's covered chrome CLEARS instead of
+ * deleting (returned as an unshared chain for the caller's raw write +
+ * rebuild), and a consumed container replaces its own endpoint/descendant
+ * splices with one unit delete.
+ */
+function collectDeletionPlan(
+	doc: Document,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	endpointPaths: number[][],
+	wall: EndWall | null,
+	sharing: SharingState
+): DeletionPlan {
 	const between = walkBetween(doc, start.path, end.path).filter((p) =>
 		isPathSubtreeBetween(p, start.path, end.path)
 	);
-	return [...between, ...endpointPaths];
+	const chromeClearPath = wall && !wall.consumed ? [...wall.container.path, 0] : null;
+	let chromeClearChain: CstNode[] | null = null;
+	let candidates: number[][] = [];
+	for (const p of between) {
+		if (chromeClearPath && pathsEqual(p, chromeClearPath)) {
+			const chain = ensureUnsharedPath(doc, p, sharing);
+			if (chain.length === p.length) chromeClearChain = chain;
+		} else {
+			candidates.push(p);
+		}
+	}
+	candidates.push(...endpointPaths);
+	if (wall?.consumed) {
+		candidates = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
+		candidates.push(wall.container.path.slice());
+	}
+	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain };
 }
 
-/** Own every deletion path's parent spine before any splice (G1.9). */
-function ownDeletionParents(doc: Document, deletionPaths: number[][], sharing: SharingState): void {
-	for (const path of deletionPaths) {
+/**
+ * Plan the deletion — covered subtree roots plus caller-marked endpoint paths
+ * (via {@link collectDeletionPlan}) — then own every deletion path's parent
+ * spine before any splice (G1.9) and resolve the LCA cascade cleanup stops at.
+ * The caller resolves `wall` itself: its `consumed` flag also gates each case's
+ * endpoint prose-replace, which runs before this on some cases.
+ */
+function planCrossBlockDeletion(
+	doc: Document,
+	start: SelectionPoint,
+	end: SelectionPoint,
+	endpointPaths: number[][],
+	wall: EndWall | null,
+	sharing: SharingState
+): { plan: DeletionPlan; lcaPath: number[] } {
+	const plan = collectDeletionPlan(doc, start, end, endpointPaths, wall, sharing);
+	for (const path of plan.deletionPaths) {
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
+	return { plan, lcaPath: lowestCommonAncestor(start.path, end.path) };
 }
 
-/** Delete in reverse doc order so earlier indices don't shift later targets. */
-function deleteInReverseDocOrder(doc: Document, deletionPaths: number[][]): void {
-	const reverseSorted = deletionPaths.slice().sort((a, b) => comparePaths(b, a));
-	for (const path of reverseSorted) {
-		deleteAtPath(doc, path);
-	}
+/**
+ * Apply the plan as one atomic step: clear a surviving end container's covered
+ * chrome (raw write, never a node delete), then splice the covered subtrees in
+ * reverse doc order under the identity gate. The cases sequence their endpoint
+ * prose-replace before or after this call per their ordering comments.
+ */
+function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
+	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
+	if (chrome) chrome.raw = '\n';
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
 }
 
-function cascadeCleanupAll(doc: Document, deletionPaths: number[][], lcaPath: number[]): void {
-	for (const path of deletionPaths) {
-		cascadeCleanupEmptyAncestors(doc, path, lcaPath);
-	}
-}
-
-function rebuildDeletionAncestries(
-	doc: Document,
-	deletionPaths: number[][],
-	sharing: SharingState
-): void {
-	for (const path of deletionPaths) {
+/**
+ * Rebuild every deletion path's surviving ancestry, then the cleared chrome's
+ * opener line (chain-based so the re-emit survives the splices). Shared tail of
+ * every case's rebuild block; case-specific survivor rebuilds stay at the call
+ * site, on their own side of this call.
+ */
+function rebuildSharedAncestries(doc: Document, plan: DeletionPlan, sharing: SharingState): void {
+	for (const path of plan.deletionPaths) {
 		rebuildUnsharedAncestry(doc, path, sharing);
 	}
+	if (plan.chromeClearChain) rebuildUnsharedChain(plan.chromeClearChain, sharing);
 }
 
 // ── Case 1: prose start, table end ─────────────────────────────────────────
@@ -204,36 +318,52 @@ function deleteFromProseIntoTable(
 	table: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startRaw = startBlock.raw;
-	const truncatedRaw = startRaw.slice(0, assertCharOffset(start, 'deleteFromProseIntoTable:start'));
-	const truncatedReplacement = reparseWithFallback(truncatedRaw, startBlock.leadingTrivia);
-	for (const node of truncatedReplacement) sharing.stamp(node);
+	const startChar = charOffsetOf(start, 'deleteFromProseIntoTable:start');
+	const startHead = startBlock.raw.slice(0, startChar);
+	const startC = nearestChromeContainer(doc, start.path);
+	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
+	let truncatedReplacement: CstNode[] | null = null;
+	if (!startIsChrome) {
+		truncatedReplacement = reparseWithFallback(startHead, startBlock.leadingTrivia);
+		for (const node of truncatedReplacement) sharing.stamp(node);
+	}
 
-	// end.offset is the whole-row-snapped inclusive last cell; deleteCellsAndCollapse
+	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse
 	// takes an exclusive end, so clearing the same rows the clipboard copied needs +1.
-	const result = deleteCellsAndCollapse(table, 0, end.offset + 1);
+	const { result, splice } = deleteCellsAndCollapse(
+		table,
+		0,
+		cellIndexOf(end, 'deleteFromProseIntoTable:end') + 1
+	);
 
-	const deletionPaths = collectDeletionPaths(
+	const wall = resolveEndWall(doc, start, end, result === 'tableEmpty');
+	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
 		start,
 		end,
-		result === 'tableEmpty' ? [end.path] : []
+		result === 'tableEmpty' ? [end.path] : [],
+		wall,
+		sharing
 	);
-	ownDeletionParents(doc, deletionPaths, sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	deleteInReverseDocOrder(doc, deletionPaths);
-	replaceAtPath(doc, start.path, truncatedReplacement);
-	cascadeCleanupAll(doc, deletionPaths, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath);
+	if (startIsChrome) {
+		// The wall: a chrome start truncates by raw write — kind and node kept.
+		startBlock.raw = terminateLine(startHead, startBlock.raw);
+	} else {
+		replaceAtPath(doc, start.path, truncatedReplacement!);
+	}
 
-	if (result === 'tableSurvives') rebuildOwnedContainer(table, sharing);
+	const tableSurvives = result === 'tableSurvives';
+	if (tableSurvives) rebuildOwnedContainer(table, sharing);
 	rebuildUnsharedAncestry(doc, start.path, sharing);
-	rebuildDeletionAncestries(doc, deletionPaths, sharing);
-	if (result === 'tableSurvives') rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing);
+	rebuildSharedAncestries(doc, plan, sharing);
+	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing);
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset }
+		collapsedCaret: { path: start.path.slice(), offset: startChar },
+		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
 
@@ -247,50 +377,81 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const lastCellIdx = totalCellCount(table);
-	const tableResult = deleteCellsAndCollapse(table, start.offset, lastCellIdx);
+	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
+	const { result: tableResult, splice } = deleteCellsAndCollapse(
+		table,
+		startCell,
+		totalCellCount(table)
+	);
 
-	const endRaw = endBlock.raw;
-	const lineEnding = endRaw.endsWith('\r\n') ? '\r\n' : '\n';
-	const tailRaw = endRaw.slice(assertCharOffset(end, 'deleteFromTableIntoProse:end'));
-	const survivingTailRaw = tailRaw.length === 0 ? lineEnding : tailRaw;
-	const tailReplacement = reparseWithFallback(survivingTailRaw, endBlock.leadingTrivia);
-	for (const node of tailReplacement) sharing.stamp(node);
+	const wall = resolveEndWall(doc, start, end, null);
+	const consumed = wall?.consumed ?? false;
+	const endIsChrome = wall !== null && !consumed && isChromeChild(wall.container, end.path);
 
-	const deletionPaths = collectDeletionPaths(
+	let tailReplacement: CstNode[] | null = null;
+	let endTail = '';
+	if (!consumed) {
+		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
+		if (!endIsChrome) {
+			tailReplacement = reparseWithFallback(
+				endTail || lineEndingOf(endBlock.raw),
+				endBlock.leadingTrivia
+			);
+			for (const node of tailReplacement) sharing.stamp(node);
+		}
+	}
+
+	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
 		start,
 		end,
-		tableResult === 'tableEmpty' ? [start.path] : []
+		tableResult === 'tableEmpty' ? [start.path] : [],
+		wall,
+		sharing
 	);
-	ownDeletionParents(doc, deletionPaths, sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
 
-	// Replace end first: its path is later in doc order, so deleting strictly-
-	// between doesn't shift it. Then delete strictly-between in reverse, then
-	// optionally start.path.
-	replaceAtPath(doc, end.path, tailReplacement);
-	deleteInReverseDocOrder(doc, deletionPaths);
-	cascadeCleanupAll(doc, deletionPaths, lcaPath);
+	// Replace/truncate end first: its path is later in doc order, so deleting
+	// strictly-between doesn't shift it. Then delete strictly-between in
+	// reverse, then optionally start.path. Skipped when the container dies whole.
+	let tailNode: CstNode | null = null;
+	if (endIsChrome) {
+		// The wall: a chrome end keeps its tail by raw write — kind and node kept.
+		endBlock.raw = endTail || lineEndingOf(endBlock.raw);
+		tailNode = endBlock;
+	} else if (!consumed) {
+		replaceAtPath(doc, end.path, tailReplacement!);
+		// Re-read through the tree (design rule 5): the raw replacement node is
+		// proxy-wrapped by the live $state doc, so the identity search below
+		// would miss the stored copy.
+		tailNode = blockNodeAt(doc, end.path);
+	}
+	applyPlannedDeletion(doc, plan, lcaPath);
 
-	const tailPath = survivorPath(doc, tailReplacement[0]);
+	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
 
 	if (tableResult === 'tableSurvives') {
 		rebuildOwnedContainer(table, sharing);
 		rebuildUnsharedAncestry(doc, start.path, sharing);
 	}
-	rebuildUnsharedAncestry(doc, tailPath, sharing);
-	rebuildDeletionAncestries(doc, deletionPaths, sharing);
+	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing);
+	rebuildSharedAncestries(doc, plan, sharing);
 
-	// Spec § Cross-block delete Case 2: when the table is fully consumed, the
-	// caret lands at the start of the reparsed surviving tail — never the
-	// deleted table; otherwise in the table's surviving anchor cell.
+	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: when the
+	// table is fully consumed, the caret lands at the start of the surviving tail
+	// — never the deleted table; otherwise in the table's surviving anchor cell.
+	// With the tail consumed too, fall to the nearest survivor.
 	const collapsedCaret: SelectionPoint =
 		tableResult === 'tableEmpty'
-			? { path: tailPath, offset: 0 }
-			: survivingAnchorCellCaret(table, start.path, start.offset);
+			? tailPath
+				? { path: tailPath, offset: 0 }
+				: caretNearestSurvivor(doc, start.path, sharing)
+			: survivingAnchorCellCaret(table, start.path, startCell);
 
-	return { newDoc: doc, collapsedCaret };
+	return {
+		newDoc: doc,
+		collapsedCaret,
+		tableRowSplices: splice ? [{ table, ...splice }] : []
+	};
 }
 
 // Deep [...tablePath, row, col] caret into the surviving table's anchor cell:
@@ -332,19 +493,33 @@ function deleteAcrossTwoTables(
 	endTable: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
-	const startResult = deleteCellsAndCollapse(startTable, start.offset, totalCellCount(startTable));
-	// end.offset is the whole-row-snapped inclusive last cell; +1 for the exclusive end.
-	const endResult = deleteCellsAndCollapse(endTable, 0, end.offset + 1);
+	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
+	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
+		startTable,
+		startCell,
+		totalCellCount(startTable)
+	);
+	// The snapped end cell is the whole-row inclusive last cell; +1 for the exclusive end.
+	const { result: endResult, splice: endSplice } = deleteCellsAndCollapse(
+		endTable,
+		0,
+		cellIndexOf(end, 'deleteAcrossTwoTables:end') + 1
+	);
 
+	const wall = resolveEndWall(doc, start, end, endResult === 'tableEmpty');
 	const emptiedEndpoints: number[][] = [];
 	if (startResult === 'tableEmpty') emptiedEndpoints.push(start.path);
 	if (endResult === 'tableEmpty') emptiedEndpoints.push(end.path);
-	const deletionPaths = collectDeletionPaths(doc, start, end, emptiedEndpoints);
-	ownDeletionParents(doc, deletionPaths, sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
+	const { plan, lcaPath } = planCrossBlockDeletion(
+		doc,
+		start,
+		end,
+		emptiedEndpoints,
+		wall,
+		sharing
+	);
 
-	deleteInReverseDocOrder(doc, deletionPaths);
-	cascadeCleanupAll(doc, deletionPaths, lcaPath);
+	applyPlannedDeletion(doc, plan, lcaPath);
 
 	const endTablePath = endResult === 'tableSurvives' ? survivorPath(doc, endTable) : null;
 
@@ -356,30 +531,34 @@ function deleteAcrossTwoTables(
 		rebuildOwnedContainer(endTable, sharing);
 		rebuildUnsharedAncestry(doc, endTablePath, sharing);
 	}
-	rebuildDeletionAncestries(doc, deletionPaths, sharing);
+	rebuildSharedAncestries(doc, plan, sharing);
 
 	let collapsedCaret: SelectionPoint;
 	if (startResult === 'tableSurvives') {
 		// Start table keeps its slot (deletions are all at or after start.path).
-		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, start.offset);
+		collapsedCaret = survivingAnchorCellCaret(startTable, start.path, startCell);
 	} else if (endTablePath) {
 		// Start emptied → its block removed and the end table shifted. Land in
 		// its first surviving cell (row 0, col 0).
 		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
 	} else {
-		// Both tables removed.
-		collapsedCaret = caretAfterBothTablesRemoved(doc, start.path, sharing);
+		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing);
 	}
 
-	return { newDoc: doc, collapsedCaret };
+	const tableRowSplices = [
+		...(startSplice ? [{ table: startTable, ...startSplice }] : []),
+		...(endSplice ? [{ table: endTable, ...endSplice }] : [])
+	];
+	return { newDoc: doc, collapsedCaret, tableRowSplices };
 }
 
-// Both tables across the range were removed. Anchor-side convention: prefer
-// the end of the nearest surviving block before the deleted range; else the
-// start of the first surviving block after it; else materialize an empty
-// paragraph (the document emptied — mirrors the prose rangeDelete fallback).
-// Adjacent surviving tables get deep cell carets, never a shallow table path.
-function caretAfterBothTablesRemoved(
+// Every block the caret could land in across the range was removed. Anchor-
+// side convention: prefer the end of the nearest surviving block before the
+// deleted range; else the start of the first surviving block after it; else
+// materialize an empty paragraph (the document emptied — mirrors the prose
+// rangeDelete fallback). Adjacent surviving tables get deep cell carets,
+// never a shallow table path.
+function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],
 	sharing: SharingState
@@ -409,10 +588,8 @@ function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
 	return { path: [...tablePath, lastRow, lastCol], offset: displayLength(cell.raw) };
 }
 
-// ── Post-delete path resolution ────────────────────────────────────────────
+// ── Post-delete path resolution (identity scan; cost class in the file header) ─
 
-// Deletions and ancestor cleanup shift sibling indices at arbitrary depths, so
-// surviving blocks are located by identity instead of index arithmetic.
 function survivorPath(doc: Document, node: CstNode): number[] {
 	const path = pathOfNode(doc, node);
 	if (!path) {
@@ -435,18 +612,25 @@ function pathOfNode(parent: Document | CstNode, target: CstNode): number[] | nul
 
 type ClearResult = 'tableSurvives' | 'tableEmpty';
 
+interface CellDeleteOutcome {
+	result: ClearResult;
+	/** Whole-row window spliced out of `table.children`; null when only cell raws cleared. */
+	splice: { at: number; count: number } | null;
+}
+
 /**
  * Clear cells in `[startCellIdx, endCellIdx)`, remove rows where every cell
  * is in the range, and promote the next surviving row to header when row 0
- * goes. Mutates in place. Returns whether the table itself should be
- * removed (no rows remain).
+ * goes. Mutates in place. Reports whether the table itself should be removed
+ * (no rows remain) and the row window it spliced, so the commit can sync the
+ * table's row state from the splice that actually happened.
  */
 function deleteCellsAndCollapse(
 	table: CstNode,
 	startCellIdx: number,
 	endCellIdx: number
-): ClearResult {
-	if (startCellIdx >= endCellIdx) return 'tableSurvives';
+): CellDeleteOutcome {
+	if (startCellIdx >= endCellIdx) return { result: 'tableSurvives', splice: null };
 	clearCellsInRange(table, startCellIdx, endCellIdx);
 
 	const meta = metadataOf(table, 'table');
@@ -464,16 +648,17 @@ function deleteCellsAndCollapse(
 	const lastFull = lastColInRange === cellsPerRow - 1 ? lastRowInRange : lastRowInRange - 1;
 
 	const headerRemoved = firstFull <= 0 && lastFull >= 0;
+	const splice = firstFull <= lastFull ? { at: firstFull, count: lastFull - firstFull + 1 } : null;
 
-	if (firstFull <= lastFull) {
-		rows.splice(firstFull, lastFull - firstFull + 1);
+	if (splice) {
+		rows.splice(splice.at, splice.count);
 	}
 
-	if (rows.length === 0) return 'tableEmpty';
+	if (rows.length === 0) return { result: 'tableEmpty', splice };
 	if (headerRemoved) {
 		metadataOf(rows[0], 'tableRow').isHeader = true;
 	}
-	return 'tableSurvives';
+	return { result: 'tableSurvives', splice };
 }
 
 function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: number): void {
@@ -493,14 +678,4 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 function totalCellCount(table: CstNode): number {
 	const meta = metadataOf(table, 'table');
 	return (table.children?.length ?? 0) * meta.columnCount;
-}
-
-function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
-	const reparsed = parse(raw || '\n');
-	if (reparsed.children.length === 0) {
-		return [{ kind: 'paragraph', leadingTrivia, raw: '\n' }];
-	}
-	const cloned = reparsed.children.slice();
-	cloned[0] = { ...cloned[0], leadingTrivia };
-	return cloned;
 }

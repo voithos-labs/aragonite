@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 test.describe('paste materializes blank lines as empty-paragraph blocks', () => {
@@ -35,5 +35,22 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 		// Windows clipboard writes CRLF.
 		expect(src.replace(/\r\n/g, '\n').replace(/\s+$/, '')).toBe('one\n\ntwo');
 		expect(domCount).toBe(3);
+	});
+
+	// Finding 7.6: a mid-paragraph structural paste lands the caret at the end of
+	// the pasted content, not the trailing residue. Typing appends to the paste.
+	test('mid-paragraph multi-block paste lands the caret at the end of the pasted content', async () => {
+		await editor.loadContent('helloworld\n');
+		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo'));
+		await editor.focusBlockAtPath([0], 5); // between "hello" and "world"
+		await editor.page.keyboard.press('Control+v');
+		await editor.bridge.waitForSourceContains('two');
+
+		await editor.typeText('Z');
+		await editor.bridge.waitForSourceContains('twoZ');
+
+		const src = await editor.bridge.getSource();
+		expect(src).toContain('twoZ');
+		expect(src).not.toContain('worldZ');
 	});
 });

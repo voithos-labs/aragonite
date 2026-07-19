@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
+import { serialize } from '../../../core/serializer';
 import type { TableMetadata, TableRowMetadata } from '../../../core/nodes';
 
 describe('table parser: structure', () => {
@@ -69,6 +70,28 @@ describe('table parser: structure', () => {
 		expect(body.children).toHaveLength(2);
 		expect(body.children![0].raw).toBe('1');
 		expect(body.children![1].raw).toBe('2');
+	});
+
+	// GFM §4.10: the header row must match the delimiter row in cell count,
+	// otherwise a table is not recognized. Accepting the mismatch used to drop
+	// surplus header cells from the model, destroying them on the first edit.
+	const mismatches = [
+		{ name: 'fewer delimiter cells than header', source: 'a|b\n|---|\n' },
+		{ name: 'fewer header cells than delimiter', source: 'a|b\n|--|--|--|\n' }
+	];
+
+	for (const { name, source } of mismatches) {
+		it(`rejects a header/delimiter cell-count mismatch (${name})`, () => {
+			const doc = parse(source);
+			expect(doc.children[0].kind).toBe('paragraph');
+			expect(serialize(doc)).toBe(source);
+		});
+	}
+
+	it('still recognizes the matching-count sibling of a rejected shape', () => {
+		const doc = parse('a|b\n|---|---|\n');
+		expect(doc.children[0].kind).toBe('table');
+		expect((doc.children[0].metadata as TableMetadata).columnCount).toBe(2);
 	});
 
 	it('terminates the table at the first line without a pipe', () => {

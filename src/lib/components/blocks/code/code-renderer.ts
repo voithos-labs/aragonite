@@ -4,7 +4,7 @@
  *   fragment.textContent === trimTrailingLineEnding(node.raw)
  */
 
-import type { CstNode } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
@@ -18,7 +18,7 @@ export interface FencedCodeSlice {
 	infoString: string;
 }
 
-export function sliceFencedCode(node: CstNode): FencedCodeSlice {
+export function sliceFencedCode(node: NodeView): FencedCodeSlice {
 	const meta = metadataOf(node, 'fencedCode');
 	const raw = node.raw;
 
@@ -164,9 +164,14 @@ function renderOpenerLine(
 	const openerWithoutNewline = slice.openerLine.replace(/\n$/, '');
 	const hasTrailingNewline = slice.openerLine.endsWith('\n');
 
-	frag.appendChild(makeMarkerSpan(fenceChars, 'md-fence'));
+	// The fence may sit behind 0–3 spaces of indent (BACKTICK_OPEN/TILDE_OPEN).
+	// Carry that indent inside the fence-marker span — the closer's house pattern
+	// (whole line in one span) — so textContent keeps every opener byte.
+	const indent = openerWithoutNewline.match(/^ {0,3}/)![0];
 
-	const afterFence = openerWithoutNewline.slice(fenceChars.length);
+	frag.appendChild(makeMarkerSpan(indent + fenceChars, 'md-fence'));
+
+	const afterFence = openerWithoutNewline.slice(indent.length + fenceChars.length);
 	if (afterFence.length > 0) {
 		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
 	}
@@ -192,7 +197,7 @@ function renderCloserLine(slice: FencedCodeSlice): DocumentFragment {
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
-export function renderCodeBlock(node: CstNode): DocumentFragment {
+export function renderCodeBlock(node: NodeView): DocumentFragment {
 	const slice = sliceFencedCode(node);
 	const meta = metadataOf(node, 'fencedCode');
 	const frag = document.createDocumentFragment();

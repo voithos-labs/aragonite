@@ -1,15 +1,15 @@
 /**
- * Resolve a container CstNode to its reactive BlockListState. WeakMap so
+ * Resolve a container node (by identity; views accepted) to its reactive BlockListState. WeakMap so
  * entries collect automatically when the node becomes unreachable.
  */
 
-import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import type { BlockListState } from './block-list-state.svelte';
 
-const stateRegistry = new WeakMap<CstNode, BlockListState>();
+const stateRegistry = new WeakMap<NodeView, BlockListState>();
 
 /** Overwrites any existing entry — the new state becomes authoritative on re-mount. */
-export function registerBlockListState(node: CstNode, state: BlockListState): void {
+export function registerBlockListState(node: NodeView, state: BlockListState): void {
 	const existing = stateRegistry.get(node);
 	if (import.meta.env.DEV && existing && existing !== state) {
 		console.warn(
@@ -21,7 +21,7 @@ export function registerBlockListState(node: CstNode, state: BlockListState): vo
 	stateRegistry.set(node, state);
 }
 
-export function getStateForNode(node: CstNode): BlockListState | undefined {
+export function getStateForNode(node: NodeView): BlockListState | undefined {
 	return stateRegistry.get(node);
 }
 
@@ -32,7 +32,7 @@ export function getStateForNode(node: CstNode): BlockListState | undefined {
  * for the "walk ancestors, skip non-containers" pattern where absence is a
  * valid signal.
  */
-export function expectStateForNode(node: CstNode): BlockListState {
+export function expectStateForNode(node: NodeView): BlockListState {
 	const state = stateRegistry.get(node);
 	if (!state) {
 		throw new Error(

@@ -5,10 +5,20 @@
  */
 
 import type { CstNode, TableAlignment } from './core/nodes';
+import type { NodeView } from './core/node-views';
 import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
-import type { OpDescriptor, ScopedOpDescriptor } from './schema/operations';
+import type { ScopedOpDescriptor } from './schema/operations';
+
+/**
+ * No-caret caret-restore coordinate stored with a commit's undo snapshot:
+ * `path` is DOC-ABSOLUTE and must resolve in the pre-mutation tree. `'skip'`
+ * joins the caller's already-pushed entry (composite operations). The scope
+ * factories (`block-edit-scope.ts`) mint the path from local indices — call
+ * sites below a factory never compose absolute paths themselves.
+ */
+export type CommitSnapshotArg = { path: number[]; offset: number } | 'skip';
 
 /**
  * Who owns the undo entry for an operation. `'own'` (the default): the
@@ -18,10 +28,28 @@ import type { OpDescriptor, ScopedOpDescriptor } from './schema/operations';
  */
 export type UndoEntryMode = 'own' | 'join';
 
+/**
+ * Opt-in for structural commits (split/merge/delete) that can legitimately no-op
+ * — a chrome `block.split` (single-line, unsplittable) or a merge with no
+ * reachable text leaf. When the mutation reports no structural change, the
+ * ceremony discards the pre-captured snapshot: no undo entry, no edit event, no
+ * publish (`afterTick` still runs — caret placement is a view concern). NOT for
+ * content/metadata commits, whose `noop` StructuralChange means "structure held,
+ * bytes changed" and MUST still publish.
+ */
+export type DiscardIfNoop = boolean;
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 export interface BlockEditActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
+	/**
+	 * Reserved-chrome Enter gesture: move the caret from the chrome leaf at
+	 * `blockIndex` into the first body child, minting an empty paragraph when the
+	 * chrome is the container's only child. A body whose ref is off-window leaves
+	 * the caret put (the key is still consumed).
+	 */
+	descendToBody(blockIndex: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
@@ -42,12 +70,14 @@ export interface BlockEditActions {
 	 * state as metadata rather than raw syntax (task checkboxes, etc.) — NOT
 	 * for raw-driven metadata like heading level (change via updateBlockContent).
 	 *
-	 * Patch is shallow-merged. Empty patch is a no-op.
+	 * Patch is shallow-merged. Empty patch is a no-op. `afterTick` runs once the
+	 * commit's DOM has settled — the post-commit caret hook (a collapse toggle
+	 * moves the orphaned body caret to its chrome row here).
 	 */
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode }
+		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
 	): void | Promise<void>;
 	/**
 	 * Insert parsed blocks at a split point. `preDelete` folds a pre-paste
@@ -117,7 +147,8 @@ export interface ContainerScope {
 // definition instead of each redeclaring it.
 
 export interface MultiScopeTarget {
-	node: CstNode;
+	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
+	node: NodeView;
 	state: {
 		innerBlockIds: string[];
 		innerBlockRefs: (BlockComponent | undefined)[];
@@ -129,38 +160,42 @@ export interface MultiScopeTarget {
 export interface CommitMultiScopeArgs<
 	S extends readonly MultiScopeTarget[] = readonly MultiScopeTarget[]
 > {
-	/** `scopes[0]` is the outermost — it drives the emitted event path. */
+	/** `scopes[0]` is the outermost — inner raws must be current before outer rebuilds. */
 	scopes: S;
-	snapshot: { blockIndex: number; offset: number } | 'skip';
+	snapshot: CommitSnapshotArg;
 	/** One view in, one StructuralChange out per scope, same order — tuple-checked for literal scope arrays. */
 	mutate: (scopeViews: { [K in keyof S]: ContainerScope }) => {
 		readonly [K in keyof S]: StructuralChange;
 	};
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
+	discardIfNoop?: DiscardIfNoop;
 }
 
 export interface CommitStructuralArgs {
-	snapshot: { blockIndex: number; offset: number } | 'skip';
+	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
-	op?: OpDescriptor;
+	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
 	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
 	touchedNodes?: CstNode[];
+	discardIfNoop?: DiscardIfNoop;
 }
 
 export interface CommitContainerStructuralArgs {
-	containerNode: CstNode;
+	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
+	containerNode: NodeView;
 	/** Doc-absolute path of `containerNode` — the spine the primitive unshares + rebuilds. */
 	path: number[];
 	state: {
 		innerBlockIds: string[];
 		innerBlockRefs: (BlockComponent | undefined)[];
 	};
-	snapshot: { blockIndex: number; offset: number } | 'skip';
+	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
 	afterTick?: () => void;
+	discardIfNoop?: DiscardIfNoop;
 }
 
 /**
@@ -175,7 +210,8 @@ export interface CommitController {
 	pushUndoSnapshot(blockIndex: number, offset: number): void;
 	/** Snapshot whose no-caret fallback seeds a deep leaf path (e.g. a match nested in a list item). */
 	pushUndoSnapshotPath(path: number[], offset: number): void;
-	pushUndoSnapshotDebounced(blockIndex: number, offset: number, batchKey?: string | number): void;
+	/** Debounced typing snapshot; `leafPath` is the edited leaf's doc-absolute path. */
+	pushUndoSnapshotDebounced(leafPath: number[], offset: number, batchKey?: string | number): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;
 	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
@@ -187,20 +223,19 @@ export interface CommitController {
 	 * (e.g., a cross-block delete whose LCA is the document root).
 	 */
 	getDocScope(): MultiScopeTarget;
-	/** Clear the pending keystroke-debounce timer; next edit starts a new batch. */
-	clearDebouncedCheckpoint(): void;
+	/** Flush the pending keystroke batch — emit its `input` event and clear the
+	 *  debounce timer — before a history swap, so the batch's bytes aren't lost. */
+	flushDebouncedCheckpoint(): void;
 }
 
 export interface ContainerEditActions {
 	/**
-	 * Push a debounced undo snapshot for routine text input. `batchKey`
-	 * (when supplied) identifies the leaf block being typed in so focus
-	 * moves between sibling leaves inside one container break the undo
-	 * batch — without it, all siblings share the outer container's
-	 * blockIndex and one undo entry spans typing across multiple inner
-	 * blocks.
+	 * Push a debounced undo snapshot for routine text input. `leafPath` is the
+	 * edited leaf's doc-absolute path (it seeds the snapshot's no-caret restore
+	 * point and the batched `input` event). `batchKey` (the leaf's stable block
+	 * id, when supplied) breaks the batch on focus moves between sibling leaves.
 	 */
-	pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void;
+	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
 	 * Publish a raw change the caller made outside the commit primitive — a
 	 * `doc.children = [...doc.children]` reactivity nudge at the editor root,
@@ -222,18 +257,7 @@ export interface ContainerEditActions {
 	 * event + post-tick. `mutate` receives the OWNED container with its
 	 * working children attached — mutate through it, never through captures.
 	 */
-	commitContainer(args: {
-		containerNode: CstNode;
-		path: number[];
-		state: {
-			innerBlockIds: string[];
-			innerBlockRefs: (BlockComponent | undefined)[];
-		};
-		snapshot: { blockIndex: number; offset: number } | 'skip';
-		mutate: (scope: ContainerScope) => StructuralChange;
-		op?: ScopedOpDescriptor;
-		afterTick?: () => void;
-	}): Promise<void>;
+	commitContainer(args: CommitContainerStructuralArgs): Promise<void>;
 }
 
 // ── List context ───────────────────────────────────────────────────────────
@@ -248,10 +272,11 @@ export interface ListContext {
 	 * new sibling item. Emits exactly one undo snapshot and one edit event.
 	 */
 	splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void>;
-	/** Promote a nested list item to the parent list level. Called on the PARENT list's context. */
+	/** Promote a nested list item to the parent list level. Called on the PARENT list's context.
+	 *  `nestedListNode` is scope identity (a live-tree reference) — a view; writes go through the ceremony. */
 	promoteNestedItem(
 		parentItemIndex: number,
-		nestedListNode: CstNode,
+		nestedListNode: NodeView,
 		nestedItemIndex: number
 	): Promise<void>;
 	/** Returns this list's index in its enclosing list (for nested-list promotion). */

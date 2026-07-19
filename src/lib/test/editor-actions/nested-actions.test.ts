@@ -17,6 +17,7 @@ function makeNode(children: CstNode[]): CstNode {
 		kind: 'listItem',
 		leadingTrivia: '',
 		raw: '',
+		metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 		children,
 		innerPrefix: '',
 		innerSuffix: ''

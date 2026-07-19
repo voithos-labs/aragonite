@@ -10,12 +10,15 @@ import type { SelectionPoint } from './primitives';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
+import type { StructuralChange } from '../tree-operations/structural-change';
 import { deleteNode } from '../tree-operations/node-ops';
-import { expectStateForNode } from '../reactivity/state-registry';
+import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import { classifyTableSelectionCoverage } from './range-delete-table';
 import {
 	deleteRow as mutDeleteRow,
-	deleteColumn as mutDeleteColumn
+	deleteColumn as mutDeleteColumn,
+	canDeleteRow,
+	canDeleteColumn
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import type { CrossBlockMutationContext } from './cross-block/ops';
@@ -35,6 +38,9 @@ export async function maybeCommitTableCoverageDelete(
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
+	// Same-path intra-table selection: the endpoints' cell offsets are
+	// context-established (same table, unflagged), so they read directly — the
+	// cellIndexOf flag-guard is for cross-block table endpoints only.
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
 	if (coverage.kind === 'cells') return null;
@@ -48,18 +54,14 @@ export async function maybeCommitTableCoverageDelete(
 		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a
 		// silent no-op — falling through to a cell-clear would silently
 		// rewrite the user's intent.
-		const willRemoveHeader = coverage.rowIdx === 0;
-		const bodyCount = rowCount - 1;
-		if (rowCount <= 1 || (!willRemoveHeader && bodyCount <= 1)) {
-			return { caret: null };
-		}
+		if (!canDeleteRow(coverage.rowIdx!, rowCount)) return { caret: null };
 		const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx!, options, caretRestore);
 		return { caret };
 	}
 
 	if (coverage.kind === 'column') {
 		// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
-		if (columnCount <= 1) return { caret: null };
+		if (!canDeleteColumn(columnCount)) return { caret: null };
 		const caret = await commitColumnDelete(
 			ctx,
 			table,
@@ -82,7 +84,7 @@ async function commitFullTableDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -105,7 +107,7 @@ async function commitFullTableDelete(
 			collapsedCaret = { path: [survivorIdx], offset: 0 };
 			return change;
 		},
-		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' } },
+		op: { kind: 'delete', detail: { crossBlock: true, table: 'whole' }, eventPath: [tableIdx] },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
@@ -127,7 +129,7 @@ async function commitRowDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx, rowIdx], offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -166,38 +168,48 @@ async function commitColumnDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const rows = table.children ?? [];
+	// A row's BlockListState registers on mount; a row windowed out of the
+	// table's mounted slice has none. Scope only the mounted rows for reactivity —
+	// the ensureUnsharedChildren below copy-path-on-writes EVERY row, mounted or
+	// not, so the per-row cell splice stays G1.9-safe regardless of mount state.
+	const mountedRowScopes: MultiScopeTarget[] = [];
+	for (let i = 0; i < rows.length; i++) {
+		const state = getStateForNode(rows[i]);
+		if (state) mountedRowScopes.push({ node: rows[i], state, path: [tableIdx, i] });
+	}
 	const scopes: MultiScopeTarget[] = [
 		{ node: table, state: rowsState, path: [tableIdx] },
-		...rows.map((row, i) => ({
-			node: row,
-			state: expectStateForNode(row),
-			path: [tableIdx, i]
-		}))
+		...mountedRowScopes
 	];
 	const snapshot =
-		options?.undoEntry === 'join' ? ('skip' as const) : { blockIndex: tableIdx, offset: 0 };
+		options?.undoEntry === 'join' ? ('skip' as const) : { path: [tableIdx], offset: 0 };
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({
 		scopes,
 		snapshot,
 		mutate: (scopeViews) => {
-			// Row scopes own every row, so the column splices land in owned
-			// arrays; raws rebuild on the owned chains after mutate.
 			const ownedTable = scopeViews[0].node;
-			const rowChanges = mutDeleteColumn(ownedTable, colIdx);
+			// Unshare every row before the splice. Mounted rows are already owned via
+			// their scope; this reaches the windowed-out rows the scopes skip.
+			ensureUnsharedChildren(ownedTable, scopeViews[0].sharing);
+			mutDeleteColumn(ownedTable, colIdx);
 
 			const newColumnCount = metadataOf(ownedTable, 'table').columnCount;
 			const targetCol = Math.min(colIdx, Math.max(0, newColumnCount - 1));
 			collapsedCaret = { path: [tableIdx, 0, targetCol], offset: 0 };
 			ctx.selection.collapse();
 
-			return [{ op: 'noop' }, ...rowChanges];
+			// Every mounted row loses the same cell; the table scope is a no-op.
+			const rowDelete: StructuralChange = { op: 'delete', at: colIdx, count: 1 };
+			return [{ op: 'noop' }, ...mountedRowScopes.map(() => rowDelete)];
 		},
+		// Event targets the TABLE — a column index is not a child path (parity
+		// with table-context's column ops); colIdx rides in the detail.
 		op: {
 			kind: 'tableDeleteColumn',
 			detail: { colIdx, crossBlock: true },
-			eventPath: [tableIdx, colIdx]
+			eventPath: [tableIdx]
 		},
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});

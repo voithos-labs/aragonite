@@ -134,7 +134,7 @@ describe('round-trip: nested list edge cases', () => {
 	}
 });
 
-// ── V2 Block Types ──────────────────────────────────────────────────────────
+// ── Setext, indented code, raw HTML, LRDs, tables ───────────────────────────
 
 describe('round-trip: setext headings', () => {
 	const cases: { name: string; source: string }[] = [
@@ -180,7 +180,7 @@ describe('round-trip: indented code blocks', () => {
 	}
 });
 
-describe('round-trip: inline raw HTML (CommonMark §6.10)', () => {
+describe('round-trip: inline raw HTML (CommonMark §6.6)', () => {
 	const cases: { name: string; source: string }[] = [
 		{ name: 'inline <br>', source: 'Line one<br>Line two\n' },
 		{ name: 'inline <br/> self-closing', source: 'Line one<br/>Line two\n' },

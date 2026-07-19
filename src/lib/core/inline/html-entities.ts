@@ -1,5 +1,5 @@
 /**
- * HTML5 named-entity table per CommonMark §6.2.
+ * HTML5 named-entity table per CommonMark §2.5.
  *
  * Vendored from https://html.spec.whatwg.org/entities.json. To regenerate: fetch that JSON,
  * keep only entries whose key ends with `;` (CommonMark requires the trailing semicolon),

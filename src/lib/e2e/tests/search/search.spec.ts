@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
@@ -46,6 +47,20 @@ test.describe('search — open and close', () => {
 		await expect(replaceInput(page)).toBeVisible();
 	});
 
+	// CapsLock uppercases e.key without a Shift modifier; pressing an uppercase
+	// letter reproduces exactly that event shape.
+	test('Ctrl+F and Ctrl+H still open with CapsLock on', async ({ page }) => {
+		await editor.clickBlock(0);
+		await page.keyboard.press(`${primaryModifier}+F`);
+		await expect(findInput(page)).toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(findInput(page)).toHaveCount(0);
+
+		await page.keyboard.press(`${primaryModifier}+H`);
+		await expect(replaceInput(page)).toBeVisible();
+	});
+
 	test('Esc closes the bar, clears highlights, and returns focus to the document', async ({
 		page
 	}) => {
@@ -60,6 +75,21 @@ test.describe('search — open and close', () => {
 		await expect
 			.poll(() => page.evaluate(() => !!document.activeElement?.closest('.editor')))
 			.toBe(true);
+	});
+
+	test('reopening after Esc with an unchanged query re-paints the highlights', async ({ page }) => {
+		await openFind(editor);
+		await typeQuery(editor, 'alpha');
+		await expect(overlays(page)).toHaveCount(2);
+
+		await page.keyboard.press('Escape');
+		await expect(overlays(page)).toHaveCount(0);
+
+		// Reopen with no edits between: the retained query must re-scan and re-paint,
+		// not serve the closed bar's cleared match set through a stale scan memo.
+		await openFind(editor);
+		await expect(overlays(page)).toHaveCount(2);
+		await expect(count(page)).toHaveText(/1\s*\/\s*2/);
 	});
 });
 

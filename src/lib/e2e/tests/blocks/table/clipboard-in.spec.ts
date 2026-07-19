@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -44,11 +44,10 @@ test.describe('table block: paste in', () => {
 
 	// ── Structural ──────────────────────────────────────────────────────
 	//
-	// Exact-source assertions are load-bearing here: the bug they catch (Plan 5
-	// Task 3 routed the doc-level splice through the cell's row-level blockEdit,
-	// which corrupted the row's cells) leaves the substrings the original
-	// `waitForSourceContains` checks intact while the surrounding structure
-	// rots. Compare full sources so structural correctness is verified.
+	// Exact-source assertions are load-bearing here: the bug they catch (a doc-level
+	// splice routed through the cell's row-level blockEdit, corrupting the row's cells)
+	// leaves the substrings a `waitForSourceContains` checks intact while the
+	// surrounding structure rots. Compare full sources so structure is verified too.
 
 	test('pasting a markdown table breaks and splices around the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);

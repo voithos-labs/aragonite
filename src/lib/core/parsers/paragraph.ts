@@ -8,7 +8,7 @@ import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import { lineInterruptsParagraph } from '../../schema/block-openers';
-import { matchTableDelimiterRow, parseTable } from './table';
+import { matchTableDelimiterRow, parseTable, splitRowCells } from './table';
 
 export function parseParagraph(
 	lines: ParsedLine[],
@@ -18,7 +18,13 @@ export function parseParagraph(
 ): { node: CstNode; nextIndex: number } {
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
-		if (delimiter && lines[startIndex].text.includes('|')) {
+		// GFM §4.10: a header/delimiter cell-count mismatch means no table —
+		// accepting it would truncate surplus header cells out of the model.
+		if (
+			delimiter &&
+			lines[startIndex].text.includes('|') &&
+			splitRowCells(lines[startIndex].text).length === delimiter.columnCount
+		) {
 			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter);
 		}
 	}

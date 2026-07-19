@@ -74,13 +74,26 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	// At end-of-display the inserted `\n` substitutes for the trailing line
-	// ending; preserving the original would form a blank line and break list-
-	// item continuation when the paragraph lives inside a list.
-	it('inserts at end of display text without doubling the trailing newline', () => {
+	// At end-of-display the inserted `\n` becomes the block's trailing ending, so the
+	// original is not reattached (reattaching would double it into a blank line). The
+	// break is transitional there; the caret clamps to the new display length — one
+	// past the trailing `\`, valid immediately.
+	it('emits the transitional break at end of display text, caret clamped', () => {
 		const r = insertHardBreak('abc\n', 3);
 		expect(r.newRaw).toBe('abc\\\n');
-		expect(r.caretOffset).toBe(5);
+		expect(r.caretOffset).toBe(4);
+	});
+
+	it('collapses a CRLF ending at end-of-display, caret clamped', () => {
+		const r = insertHardBreak('abc\r\n', 3);
+		expect(r.newRaw).toBe('abc\\\n');
+		expect(r.caretOffset).toBe(4);
+	});
+
+	it('clamps an offset past the display length to end-of-display', () => {
+		const r = insertHardBreak('abc\n', 9);
+		expect(r.newRaw).toBe('abc\\\n');
+		expect(r.caretOffset).toBe(4);
 	});
 
 	it('preserves trailing CRLF', () => {

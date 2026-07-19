@@ -1,12 +1,14 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
-import type { BlockElLookup, EditorSelection } from '../editor-keys';
+import type { BlockElLookup } from '../editor-keys';
+import type { EditorSelection } from '../selection/primitives';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
+import type { GrammarView } from '../schema/block-openers';
 export type {
 	CommitController,
 	CommitStructuralArgs,
@@ -33,6 +35,10 @@ export interface EditorActionsDeps {
 	 *  targets return synchronously without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
+	/** The instance's block grammar — threaded to the content-commit
+	 *  reparse so a disabled kind's opener is skipped when the editor re-parses an
+	 *  edited block. Absent (bare harnesses) = the global grammar, byte-identical. */
+	grammar?: GrammarView;
 }
 
 /**

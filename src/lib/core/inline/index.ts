@@ -1,19 +1,20 @@
 /**
- * Inline parser orchestrator. See docs/design/editor/inline-parsing.md.
+ * Inline parser entry. See docs/design/inline-parsing.md.
  */
 
 import type { CstNode, InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
 import { displayLength } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { scanBacktickSpans } from './backticks';
-import { scanEscapes } from './escapes';
-import { scanCharacterReferences } from './character-refs';
-import { scanLinksAndAutolinks } from './links';
+// Descriptor-read entry point (getContentRange/isProseKind): register the
+// built-ins before any read, headless of the editor mount. Explicit call — a
+// bare side-effect import is tree-shaken from the production build.
+import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
-import { scanInlineRawHtml } from './raw-html';
-import { buildSegments, processEmphasis, hasDelimiterChars } from './emphasis';
-import { processHardLineBreaks, mergeAdjacentText } from './post-process';
+import { scanInline } from './scan';
 import { recordInlineCompute } from '../../perf/instruments';
+
+registerBuiltInDescriptors();
 
 // ── Content Range ──────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ export interface ContentRange {
  * Content range within a prose block's raw. Defaults to the full display
  * range; block kinds with markers (e.g. headings) override via descriptor.
  */
-export function getContentRange(node: CstNode): ContentRange {
+export function getContentRange(node: NodeView): ContentRange {
 	const d = getBlockKindDescriptor(node.kind);
 	if (d.getContentRange) return d.getContentRange(node);
 	return { start: 0, end: displayLength(node.raw) };
@@ -42,7 +43,7 @@ export function isProseKind(kind: CstNode['kind']): boolean {
  * (inline-cache.ts) calls it on a miss.
  */
 export function computeInlineContent(
-	node: CstNode,
+	node: NodeView,
 	resolver?: LinkReferenceResolver
 ): InlineNode[] {
 	recordInlineCompute();
@@ -53,29 +54,8 @@ export function computeInlineContent(
 // ── Inline Parser ──────────────────────────────────────────────────────────
 
 /**
- * Parse inline content over raw[start, end). Returned node offsets are
- * absolute into raw. Stage order matters: backticks run first so escapes and
- * entities skip code-span content; both pre-passes precede emphasis so
- * neutralized delimiters do not pair.
+ * Parse inline content over raw[start, end): a single-pass character-dispatch
+ * scan with delimiter and bracket stacks (scan/). Returned node offsets are
+ * absolute into raw; every byte lands in exactly one node's range.
  */
-export function parseInline(
-	raw: string,
-	start: number,
-	end: number,
-	resolver?: LinkReferenceResolver
-): InlineNode[] {
-	const codeSpans = scanBacktickSpans(raw, start, end);
-	const withEscapes = scanEscapes(raw, start, end, codeSpans);
-	const withEntities = scanCharacterReferences(raw, start, end, withEscapes);
-	const withLinks = scanLinksAndAutolinks(raw, start, end, withEntities, resolver);
-	const withRawHtml = scanInlineRawHtml(raw, start, end, withLinks);
-
-	if (!hasDelimiterChars(raw, start, end, withRawHtml)) {
-		return processHardLineBreaks(mergeAdjacentText(withRawHtml), raw);
-	}
-
-	const segments = buildSegments(raw, start, end, withRawHtml);
-	const emphasized = processEmphasis(raw, segments);
-	const merged = mergeAdjacentText(emphasized);
-	return processHardLineBreaks(merged, raw);
-}
+export const parseInline = scanInline;

@@ -94,3 +94,38 @@ describe('renderCodeBlock', () => {
 		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
 	});
 });
+
+describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces)', () => {
+	beforeEach(() => {
+		__resetRegistryForTests();
+		__resetBootForTests();
+		bootstrapCodeLanguages();
+	});
+
+	// The fence-open grammar admits 0–3 leading spaces before the run. Those
+	// indent bytes must render ahead of the fence marker so textContent stays
+	// equal to trimTrailingLineEnding(raw): CodeBlock reads the block back through
+	// el.textContent and commits it, so any drift corrupts the fence on the first
+	// keystroke (indent 0 is the control that passes regardless).
+	for (const marker of ['`', '~'] as const) {
+		const fence = marker.repeat(3);
+		for (let indent = 0; indent <= 3; indent++) {
+			const pad = ' '.repeat(indent);
+			it(`preserves textContent — ${indent}-space ${marker} opener`, () => {
+				const raw = `${pad}${fence}js\ncode\n${fence}\n`;
+				const node = makeFencedCodeNode(raw, 'js', true, marker, 3);
+				const frag = renderCodeBlock(node);
+				expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
+			});
+		}
+	}
+
+	it('round-trips indented-opener bytes through the textContent readback (CodeBlock readText)', () => {
+		const raw = '  ```js\nconst x = 1\n```\n';
+		const node = makeFencedCodeNode(raw, 'js');
+		const host = document.createElement('div');
+		host.appendChild(renderCodeBlock(node));
+		// CodeBlock.readText() is el.textContent; commitInput writes readText() + '\n'.
+		expect(host.textContent + '\n').toBe(raw);
+	});
+});

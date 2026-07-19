@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { runSession } from '../../simulation/user-simulator';
 import { FEATURE_TOUR_NOTE } from '../../simulation/notes/feature-tour-note';

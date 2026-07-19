@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/undo/undo-controller';
-import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-
-function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
-}
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { makeEditorActionsDeps, mockRef, makeNode } from '$lib/test/harness/editor-actions';
 
 describe('debounced undo snapshot — deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {
@@ -16,7 +11,7 @@ describe('debounced undo snapshot — deep path capture', () => {
 		});
 
 		const controller = createUndoController(deps);
-		controller.pushUndoSnapshotDebounced(0, 3);
+		controller.pushUndoSnapshotDebounced([0], 3);
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo).toHaveLength(1);
@@ -26,10 +21,10 @@ describe('debounced undo snapshot — deep path capture', () => {
 		expect(undo[0].selection.focus.offset).toBe(3);
 	});
 
-	it('falls back to flat [blockIndex] path when no ref reports a cursor', () => {
+	it('falls back to the passed leaf path when no ref reports a cursor', () => {
 		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'hi\n')]);
 		const controller = createUndoController(deps);
-		controller.pushUndoSnapshotDebounced(0, 2);
+		controller.pushUndoSnapshotDebounced([0], 2);
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo).toHaveLength(1);
@@ -42,7 +37,7 @@ describe('debounced undo snapshot — deep path capture', () => {
 		deps.blockRefs[0] = mockRef({ getCursorOffset: () => 4 });
 
 		const controller = createUndoController(deps);
-		controller.pushUndoSnapshotDebounced(0, 1);
+		controller.pushUndoSnapshotDebounced([0], 1);
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo[0].selection.anchor.path).toEqual([0]);

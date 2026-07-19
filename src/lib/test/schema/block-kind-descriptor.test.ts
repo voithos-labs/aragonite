@@ -1,10 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { BlockKind } from '../../core/nodes';
 import { ALL_BLOCK_KINDS } from '../../core/nodes';
 import {
 	getBlockKindDescriptor,
+	registerBlockKind,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
+import { declarePluginKind } from '../../schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { testClosure } from '$lib/test/support/closure';
 
 describe('block-kind-descriptor registry', () => {
 	it('has a descriptor for every BlockKind', () => {
@@ -52,7 +56,12 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 	it('heading supports inline with marker-skipping content range', () => {
 		const d = getBlockKindDescriptor('heading');
 		expect(d.supportsInline).toBe(true);
-		const range = d.getContentRange!({ kind: 'heading', leadingTrivia: '', raw: '## hello\n' });
+		const range = d.getContentRange!({
+			kind: 'heading',
+			leadingTrivia: '',
+			raw: '## hello\n',
+			metadata: { level: 2 }
+		});
 		expect(range).toEqual({ start: 3, end: 8 });
 	});
 
@@ -62,7 +71,8 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		const range = d.getContentRange!({
 			kind: 'setextHeading',
 			leadingTrivia: '',
-			raw: 'hello\n---\n'
+			raw: 'hello\n---\n',
+			metadata: { level: 2 }
 		});
 		expect(range).toEqual({ start: 0, end: 5 });
 	});
@@ -130,7 +140,7 @@ describe('renderImagesAsWidgets descriptor flag', () => {
 	});
 });
 
-describe('containerContract — strip vs grid container shape', () => {
+describe('containerContract — strip / grid / opaque container-shape union', () => {
 	const STRIP: BlockKind[] = ['blockquote', 'list', 'listItem'];
 	const GRID: BlockKind[] = ['table', 'tableRow'];
 
@@ -152,5 +162,47 @@ describe('containerContract — strip vs grid container shape', () => {
 		for (const kind of GRID) {
 			expect(getBlockKindDescriptor(kind).containerContract, kind).toBe('grid');
 		}
+	});
+});
+
+// blockFocus is a leaf-level, additive descriptor field: it must survive
+// normalization untouched (it is NOT container-only, so stripContainerOnlyKeys
+// keeps it) whether the kind registers as a leaf or with a container group — the
+// mermaid case, an opaque container that also opts into whole-block focus.
+describe('blockFocus — whole-block-focus opt-in', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	it('no built-in kind declares blockFocus', () => {
+		for (const kind of ALL_BLOCK_KINDS) {
+			expect(getBlockKindDescriptor(kind).blockFocus, `${kind}.blockFocus`).toBeUndefined();
+		}
+	});
+
+	it('survives leaf registration', () => {
+		const kind = declarePluginKind('spec-leaf-focus');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			blockFocus: 'whole-block'
+		});
+		expect(getBlockKindDescriptor(kind).blockFocus).toBe('whole-block');
+	});
+
+	it('survives registration alongside a container group (opaque childless block)', () => {
+		const kind = declarePluginKind('spec-container-focus');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			blockFocus: 'whole-block',
+			container: { contract: 'opaque', rebuildRaw: () => {} }
+		});
+		const d = getBlockKindDescriptor(kind);
+		expect(d.blockFocus).toBe('whole-block');
+		expect(d.isContainer).toBe(true);
+		expect(d.containerContract).toBe('opaque');
 	});
 });

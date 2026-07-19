@@ -1,7 +1,6 @@
 /**
- * Inline pipeline pre-pass: CommonMark §6.2 entity and numeric character
- * references. Three forms — named (`&copy;`), decimal (`&#NNN;`), hex
- * (`&#xNNNN;` or `&#XNNNN;`). Walks text gaps between occupied input nodes.
+ * CommonMark §2.5 entity and numeric character references. Three forms —
+ * named (`&copy;`), decimal (`&#NNN;`), hex (`&#xNNNN;` or `&#XNNNN;`).
  *
  * Per spec, code points that are zero, exceed 0x10FFFF, or fall in the
  * surrogate range 0xD800–0xDFFF decode to U+FFFD (replacement character).
@@ -9,42 +8,26 @@
 
 import type { InlineNode } from '../nodes';
 import { HTML5_NAMED_ENTITIES } from './html-entities';
-import { forEachGap, interleave, occupiedRangesFrom } from './ranges';
 
 const REPLACEMENT = '�';
 
-export function scanCharacterReferences(
-	raw: string,
-	start: number,
-	end: number,
-	occupied: InlineNode[]
-): InlineNode[] {
-	const occupiedRanges = occupiedRangesFrom(occupied);
+// Longest reference body that can possibly decode: the longest named entity
+// is 31 chars (`CounterClockwiseContourIntegral`); numeric forms are at most
+// 8. Capping the `;` search here keeps `&`-floods linear — an unbounded
+// indexOf rescans to the end of the region per candidate.
+const MAX_REFERENCE_BODY = 31;
 
-	const found: InlineNode[] = [];
-	forEachGap(occupiedRanges, start, end, (s, e) => scanRegion(raw, s, e, found));
-
-	return interleave(raw, start, end, occupied, found);
-}
-
-function scanRegion(raw: string, start: number, end: number, out: InlineNode[]): void {
-	let pos = start;
-	while (pos < end) {
-		if (raw[pos] === '&') {
-			const ref = tryMatchReference(raw, pos, end);
-			if (ref !== null) {
-				out.push(ref);
-				pos = ref.end;
-				continue;
-			}
+/** Match one character reference; `pos` must point at an `&`. */
+export function matchCharacterReference(raw: string, pos: number, end: number): InlineNode | null {
+	const searchEnd = Math.min(end, pos + MAX_REFERENCE_BODY + 2);
+	let semi = -1;
+	for (let i = pos + 1; i < searchEnd; i++) {
+		if (raw[i] === ';') {
+			semi = i;
+			break;
 		}
-		pos++;
 	}
-}
-
-function tryMatchReference(raw: string, pos: number, end: number): InlineNode | null {
-	const semi = raw.indexOf(';', pos + 1);
-	if (semi === -1 || semi >= end) return null;
+	if (semi === -1) return null;
 	const body = raw.slice(pos + 1, semi);
 	if (body.length === 0) return null;
 
@@ -82,5 +65,8 @@ function decodeNumeric(body: string): string | null {
 	if (codePoint === 0) return REPLACEMENT;
 	if (codePoint > 0x10ffff) return REPLACEMENT;
 	if (codePoint >= 0xd800 && codePoint <= 0xdfff) return REPLACEMENT;
+	// C1 range (0x80–0x9F, e.g. `&#128;`) decodes verbatim, no cp1252 remap: if a
+	// corpus widening ever spells one, a divergence from an HTML5 reference is
+	// deliberate — we follow CommonMark §2.5's letter (probe-verified spec-correct).
 	return String.fromCodePoint(codePoint);
 }

@@ -31,6 +31,8 @@ export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
 	const tableNode = nodeAt(deps.getDoc(), sel.anchor.path);
 	if (!tableNode || !isBlockNode(tableNode) || tableNode.kind !== 'table') return null;
 
+	// Same-path intra-table rectangle: cell offsets are context-established
+	// (same table, unflagged), so read directly.
 	const colCount = metadataOf(tableNode, 'table').columnCount;
 	const a = {
 		rowIdx: Math.floor(sel.anchor.offset / colCount),

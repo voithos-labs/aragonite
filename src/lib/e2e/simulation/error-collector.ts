@@ -14,11 +14,12 @@ export interface ErrorCollector {
  * No global console/pageerror gate exists in the harness, so a long session
  * owns its own. It watches three channels the session must stay clean on:
  * console errors + pageerrors; `[invariant:…]`-marked dev warnings (the
- * commit/bootstrap invariant seam — otherwise a `console.warn` the harness
- * would ignore); and the editor's structured `error` event (caught render /
- * commit / subscriber failures the editor contains rather than throws).
- * Attach before any gesture, then `await start()`; `assertNone` runs at
- * checkpoints and at the end.
+ * commit/bootstrap invariant seam); and the editor's structured `error` event
+ * (caught render / commit / subscriber failures the editor contains rather than
+ * throws). The shared `fixtures.ts` watcher also fails on an invariant fire, but
+ * only at spec teardown — `assertNone` runs at the session's checkpoints, so a
+ * fire surfaces mid-session instead. Attach before any gesture, then `await
+ * start()`.
  */
 export function attachErrorCollector(page: Page): ErrorCollector {
 	const errors: string[] = [];

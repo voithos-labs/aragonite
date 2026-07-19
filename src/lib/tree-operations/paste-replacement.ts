@@ -9,12 +9,13 @@
  */
 
 import type { CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { trimTrailingLineEnding } from '../core/lines';
 import { ensureEditableContainers } from './node-ops';
 import { parseFirstBlock } from './parse-block';
 
 export function buildPastedReplacement(
-	leaf: CstNode,
+	leaf: NodeView,
 	offset: number,
 	blocks: CstNode[]
 ): CstNode[] {
@@ -82,12 +83,12 @@ export function buildPastedReplacement(
  * the op they emit around this fold, not the fold itself.
  */
 export function foldPasteReplacement(
-	node: CstNode,
+	node: NodeView,
 	offset: number,
 	blocks: CstNode[],
 	preDelete?: { start: number; end: number }
 ): CstNode[] {
-	let synthLeaf = node;
+	let synthLeaf: NodeView = node;
 	let effectiveOffset = offset;
 	if (preDelete && preDelete.start < preDelete.end) {
 		const display = trimTrailingLineEnding(node.raw);

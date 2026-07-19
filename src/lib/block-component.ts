@@ -4,6 +4,8 @@
  * block components produce and consume.
  */
 
+import type { DocumentView, NodeView } from './core/node-views';
+
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
 declare const cursorEndBrand: unique symbol;
@@ -60,6 +62,25 @@ export interface AmbientInteractiveRange {
 }
 
 export type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
+
+// ── BlockComponentProps ──────────────────────────────────────────────────────
+
+/**
+ * The props BlockHost passes every block component: the node, its sibling index,
+ * the absolute path, and the ambient prefix a leaf renders before its content (a
+ * list marker, a blockquote bar). A registry `extraProps` may add kind-specific
+ * props on top. A component may declare a subset — Svelte ignores props it omits,
+ * but a leaf that drops `ambientPrefix` visually deletes its markers.
+ */
+export interface BlockComponentProps {
+	/** Bytes-readonly view (G1.9): components render the CST; mutation routes through actions. */
+	node: NodeView;
+	index: number;
+	myPath: number[];
+	ambientPrefix: AmbientPrefix;
+	/** The root document, readonly by type — mutation stays a commit-ceremony concern. */
+	document?: DocumentView;
+}
 
 // ── BlockComponent ─────────────────────────────────────────────────────────
 
@@ -128,21 +149,22 @@ export interface BlockComponent {
 	 */
 	isVerticallyTransparent?(): boolean;
 	/**
-	 * Try to select an edge widget instead of placing a caret. Returns true
-	 * when a widget at the requested boundary was selected; false lets the
-	 * caller fall through to focus(0) / focus(CURSOR_END). Used by cross-block
-	 * arrow dispatch so ArrowLeft into a paragraph that ends with an image
-	 * lands on the image directly.
+	 * Enter an edge widget instead of placing a caret at its boundary. A
+	 * reveal-capable widget (inline math, directive text) opens its source reveal;
+	 * any other widget is selected (image overlay). Returns true when an edge
+	 * widget was entered; false lets the caller fall through to focus(0) /
+	 * focus(CURSOR_END).
 	 */
-	selectEdgeWidget?(side: 'start' | 'end'): boolean;
+	enterEdgeWidget?(side: 'start' | 'end'): boolean;
 	/**
 	 * Run a named block-local command (split, indent, format, …) resolved from
 	 * a keybinding. `arg` carries the binding's static argument (e.g. heading
-	 * level). Returns true when the command acted; false lets the caller fall
-	 * through to remaining inline keydown branches. Block components that
-	 * declare a keymap implement this; others omit it.
+	 * level) as `unknown`: the handler must type-guard it before use and ignore
+	 * an out-of-shape value. Returns true when the command acted; false lets the
+	 * caller fall through to remaining inline keydown branches. Block components
+	 * that declare a keymap implement this; others omit it.
 	 */
-	runCommand?(id: import('./schema/commands').CommandId, arg?: number): boolean;
+	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
 	/**
 	 * Current raw-offset selection in an editable leaf (table cell), collapsed
 	 * caret returned as `{start: n, end: n}`. Captured before a right-click menu

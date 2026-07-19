@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { buildExitReplacement } from '../../tree-operations';
+import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '../../core/nodes';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -166,5 +167,50 @@ describe('buildExitReplacement', () => {
 
 		const after = serialize({ children: [list], prefix: '', suffix: '' });
 		expect(after).toBe(before);
+	});
+});
+
+// An exit paragraph that follows the surviving list half serializes directly
+// after the list. Without a blank line the parser lazy-continues it into the
+// list's last item on reload, so the live [list, paragraph] pair diverges from
+// its own serialization once the paragraph is typed into. The exit paragraph
+// owns the separator.
+describe('buildExitReplacement blank-line separator (parse convergence)', () => {
+	it('last-item exit: a typed line after the surviving list stays a separate paragraph', () => {
+		const doc = parse('- First\n- Last\n');
+		const list = doc.children[0];
+		if (list.kind !== 'list') throw new Error('expected list');
+		blankFirstParagraph(list.children![1]);
+
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
+		doc.children.splice(0, 1, ...blocks);
+		doc.children[paragraphIndex].raw = 'trailing text\n';
+
+		expect(serialize(doc)).toBe('- First\n\ntrailing text\n');
+		expectParseConverged(doc);
+	});
+
+	it('middle exit: the paragraph between the two list halves converges when typed into', () => {
+		const doc = parse('- A\n- B\n- C\n');
+		const list = doc.children[0];
+		if (list.kind !== 'list') throw new Error('expected list');
+		blankFirstParagraph(list.children![1]);
+
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
+		doc.children.splice(0, 1, ...blocks);
+		doc.children[paragraphIndex].raw = 'between\n';
+
+		expectParseConverged(doc);
+	});
+
+	it('first-item exit keeps the paragraph at the front without a leading separator', () => {
+		const doc = parse('- First\n- Second\n');
+		const list = doc.children[0];
+		if (list.kind !== 'list') throw new Error('expected list');
+		blankFirstParagraph(list.children![0]);
+
+		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);
+		expect(paragraphIndex).toBe(0);
+		expect(blocks[0].leadingTrivia).toBe('');
 	});
 });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createUndoController } from '../../editor-actions/undo/undo-controller';
+import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import type { CstNode } from '../../core/nodes';
 import {
@@ -51,8 +51,8 @@ describe('undo snapshot instrumentation', () => {
 		const { deps, doc } = makeEditorActionsDeps([para('hi\n')]);
 		const controller = createUndoController(deps);
 
-		controller.pushUndoSnapshotDebounced(0, 1);
-		controller.clearDebouncedCheckpoint();
+		controller.pushUndoSnapshotDebounced([0], 1);
+		controller.flushDebouncedCheckpoint();
 
 		const snap = perfSnapshot();
 		expect(snap.snapshotCount).toBe(1);

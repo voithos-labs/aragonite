@@ -15,9 +15,9 @@ export function createContainerEditActions(
 	controller: UndoController
 ): ContainerEditActions {
 	return {
-		pushDebouncedCheckpoint(blockIndex: number, offset: number, batchKey?: string | number): void {
+		pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void {
 			deps.stickyColumn.reset();
-			controller.pushUndoSnapshotDebounced(blockIndex, offset, batchKey);
+			controller.pushUndoSnapshotDebounced(leafPath, offset, batchKey);
 		},
 
 		nudgeReactivity(): void {
@@ -33,24 +33,8 @@ export function createContainerEditActions(
 			rebuildUnsharedChain(chain, deps.sharing);
 		},
 
-		commitContainer({
-			containerNode,
-			path,
-			state,
-			snapshot,
-			mutate,
-			op,
-			afterTick
-		}): Promise<void> {
-			return controller.commitContainerStructural({
-				containerNode,
-				path,
-				state,
-				snapshot,
-				mutate,
-				op,
-				afterTick
-			});
+		commitContainer(args): Promise<void> {
+			return controller.commitContainerStructural(args);
 		}
 	};
 }

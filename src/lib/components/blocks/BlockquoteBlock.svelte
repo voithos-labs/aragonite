@@ -5,16 +5,14 @@
 		ContainerEditActions,
 		FocusActions
 	} from '../../action-contracts';
-	import type { CstNode } from '../../core/nodes';
+	import type { NodeView } from '../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
-		CONTROLLER_KEY,
+		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
-		STICKY_COLUMN_KEY
+		type EditorServices
 	} from '../../editor-keys';
-	import type { UndoController } from '../../editor-actions/deps';
-	import type { StickyColumnState } from '../../cursor/sticky-column';
 	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-overrides';
 	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
@@ -22,16 +20,19 @@
 		createStandardNestedActions,
 		setNestedActionsContexts
 	} from '../../editor-actions/nested/nested-actions';
-	import { createContainerBlockComponent } from '../../editor-actions/container-block-component';
+	import {
+		createContainerBlockComponent,
+		type ContainerBlockComponent
+	} from '../../editor-actions/container-block-component';
 	import BlockList from '../BlockList.svelte';
 
-	let { node, index, myPath = [] }: { node: CstNode; index: number; myPath?: number[] } = $props();
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const controller = getContext<UndoController>(CONTROLLER_KEY);
-	const stickyColumn = getContext<StickyColumnState>(STICKY_COLUMN_KEY);
+	const { controller, stickyColumn, registryView } =
+		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	const listState = createBlockListState(() => node);
 
@@ -50,6 +51,7 @@
 				return myPath;
 			},
 			stickyColumn,
+			grammar: registryView.grammar,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
@@ -109,10 +111,26 @@
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
 	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent!;
-	export const selectEdgeWidget = containerApi.selectEdgeWidget!;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath!;
-	export const revealByPath = containerApi.revealByPath!;
+	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
+	export const enterEdgeWidget = containerApi.enterEdgeWidget;
+	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
+	export const revealByPath = containerApi.revealByPath;
+	// Completeness guard: `bind:this` reads each instance export individually, so a
+	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
+	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
+	void ({
+		editable,
+		focusable,
+		focus,
+		getCursorOffset,
+		getCursorPosition,
+		focusByPath,
+		focusAtColumn,
+		isVerticallyTransparent,
+		enterEdgeWidget,
+		getBlockComponentByPath,
+		revealByPath
+	} satisfies ContainerBlockComponent);
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>

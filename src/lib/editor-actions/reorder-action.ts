@@ -13,12 +13,11 @@
 
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
-import { nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { rebuildListRaw, rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
-import type { CstNode } from '../core/nodes';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export interface ReorderAction {
@@ -38,21 +37,23 @@ export function createReorderAction(
 	async function commitReorder(unit: ReorderUnit, to: number, offset: number): Promise<void> {
 		if (unit.parentKind === 'document') {
 			await controller.commitStructural({
-				snapshot: { blockIndex: unit.index, offset },
-				op: { kind: 'reorder', detail: { from: unit.index, to } },
+				snapshot: { path: [unit.index], offset },
+				op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: [unit.index] },
 				mutate: (children) => reorderChildrenWithTrivia(children, unit.index, to, deps.sharing),
 				afterTick: () => deps.blockRefs[to]?.focus(0)
 			});
 			return;
 		}
 
-		const parent = nodeAt(deps.doc, unit.parentPath) as CstNode;
+		const parent = blockNodeAt(deps.doc, unit.parentPath);
+		if (!parent) return;
 		const state = expectStateForNode(parent);
 		await controller.commitContainerStructural({
 			containerNode: parent,
 			path: unit.parentPath,
 			state,
-			snapshot: { blockIndex: unit.index, offset },
+			// A drag carries no live caret: restore to the moved unit's pre-move path.
+			snapshot: { path: [...unit.parentPath, unit.index], offset },
 			op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: unit.parentPath },
 			mutate: (scope) => {
 				const change = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
