@@ -427,9 +427,13 @@
 	display: none;
 }
 
-/* Code fences + language label ride the .md-marker rule above. Their bare `\n`
-   text nodes are unreachable by CSS, so one empty line remains at the box's top
-   and bottom — it reads as symmetric padding, the honest CSS-only rendering. */
+/* Code fences: the marker spans ride the .md-marker rule above, but each fence
+   line's `\n` is a bare text node CSS can't reach on its own. The `.md-fence-line`
+   wrapper owns the whole line (marker + its `\n`), so collapsing it drops the line
+   outright — no blank line left at the box's top or bottom. */
+:where(.editor)[data-presentation='reading'] .md-fence-line {
+	display: none;
+}
 
 /* Reference-link trailing labels (`[label]` / `[]`): resolution metadata, not
    content — a rendered document shows only the link text. */
@@ -531,6 +535,18 @@
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker:not([contenteditable='false']) {
+	display: inline;
+}
+
+/* Code fence lines: the wrapper hides its `\n` (unreachable via the marker rule)
+   on every unfocused block, and reveals it on the focused block. Code fences are
+   whole-block markers, so both preview modes reveal on block focus (preview-inline
+   un-hides them exactly as preview-block does — see the inline-granular rule below,
+   where unstamped whole-block markers reveal wholesale). */
+:where(.editor)[data-presentation^='preview-'] .md-fence-line {
+	display: none;
+}
+:where(.editor)[data-presentation^='preview-'] .block-host[data-focused] .md-fence-line {
 	display: inline;
 }
 
