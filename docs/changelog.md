@@ -37,7 +37,9 @@ and each surviving entry re-verified to carry a named deferral anchor.
 - **Reload convergence.** An unclosed fence auto-closes when Enter-exit authors a block below
   it, so save-then-reload keeps the authored structure; the simulation's parse-convergence
   oracle is now unconditional (the exemption mechanism deleted whole). The closed/unclosed
-  exit-scope asymmetry it surfaced is ledgered as an owner decision.
+  exit-scope asymmetry it surfaced was then decided in-container: the closed exit mints its new
+  paragraph inside the fence's own container scope too, unified with the auto-close and the
+  whole-block Enter tier.
 - **The suite grew teeth.** New simulation gestures for decoration islands, block decorations,
   IME composition (driven over CDP), and atomic entities; the `DocPath` brand adopted across
   every op-family path composer with completeness enumerated by the compiler; G4.8 gained the
