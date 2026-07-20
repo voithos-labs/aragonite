@@ -53,33 +53,6 @@ with gesture re-choreography, decided against the merge/undo paths that read tho
 divergence needs a save→reload boundary to observe. Not reachable by the current simulation
 notes (they type para→heading and list-exit→paragraph, not Enter-at-end-then-paragraph).
 
-### Content typed after an unclosed fenced code block stays a separate live block but reloads collapsed
-
-**Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
-**Files:** `src/lib/core/parsers/fenced-code.ts` (an unclosed fence has no terminator, so on
-load it absorbs every following line to EOF), `src/lib/core/serializer.ts` (emits `node.raw`
-verbatim, so the live fence's own bytes plus the trailing blocks' bytes compose faithfully)
-
-Typing content after an unclosed fenced code block (` ``` ` with no closing fence) keeps
-that content as separate live blocks — the editor lets you author a paragraph, thematic break,
-or heading below the open fence. But the document serializes to an open fence followed by those
-blocks' bytes, and GFM lazy continuation reparses the whole tail INTO the code block: load →
-one fenced-code node swallowing everything. Byte round-trip (`serialize(parse(s)) === s`) holds
-throughout — the divergence is `parse(serialize(liveTree))` disagreeing with the live tree's
-block structure, invisible to the round-trip oracles. Surfaced when the parse-convergence oracle
-was wired into the simulation checkpoints: three note fixtures (biology, project-plan, readme)
-build this shape deliberately and are exempted with a documented reason (`NoteFixture.unconvergedReason`).
-A live-tree vs reload lazy-continuation divergence, but here the collapse is unavoidable (an
-unclosed fence has no terminator) rather than a separator-ownership gap.
-
-**Fix direction:** a design look at whether the editor should auto-close a fence when a
-structural block is created after it (closing fence minted into the code node's raw), decided
-against the code-block edit/reveal paths that read those bytes.
-
-**Why deferred:** byte-safe and self-consistent in the live session; needs a save→reload to
-observe. The auto-close decision touches fence rebuild, code-block navigation, and the
-descend-below gesture together — a deliberate change, not a spot patch.
-
 ### A body row wider than the header drops its surplus cells on first table edit
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip at load unaffected)
