@@ -48,7 +48,7 @@
 	import { computeAutoPair } from './code-beforeinput';
 	import { computeFenceExit } from './code-fence-exit';
 	import { classifyFenceBoundary, clampEnterOffsetToBody } from './code-fence-boundary';
-	import { metadataOf } from '../../../core/nodes';
+	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import {
 		trimTrailingLineEnding,
 		normalizeLineEndings,
@@ -411,6 +411,10 @@
 		const meta = metadataOf(node, 'fencedCode');
 
 		const exit = computeFenceExit({ text, offset, meta });
+		if (exit.kind === 'closeAndExit') {
+			closeUnclosedFenceAndDescend(exit.newText);
+			return true;
+		}
 		if (exit.kind !== 'none') {
 			if (exit.kind === 'exitWithEdit') {
 				blockEdit.updateBlockContent(index, exit.newText + trailingLineEnding(node.raw), offset);
@@ -443,6 +447,26 @@
 		blockEdit.updateBlockContent(index, enter.newText + trailingLineEnding(node.raw), offset);
 		pendingCursorOffset = enter.newCursor;
 		return true;
+	}
+
+	// Auto-close on structural escape: leaving an unclosed fence downward to author
+	// a block below mints the fence's own closer into the code node's raw, so
+	// save→reload no longer lazy-absorbs the trailing blocks into the open fence.
+	// The closer write and the fresh paragraph land as ONE replaceBlock commit — a
+	// single undo restores the open fence and drops the paragraph together.
+	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
+		const meta = metadataOf(node, 'fencedCode');
+		const closedFence: CstNode = {
+			kind: 'fencedCode',
+			leadingTrivia: '',
+			raw: closedDisplay + trailingLineEnding(node.raw),
+			metadata: { ...meta, closed: true }
+		};
+		const paragraphBelow: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
+		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
+			replacementIndex: 1,
+			offset: 0
+		});
 	}
 
 	void ({

@@ -84,7 +84,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await assertContainerParity(ctx);
 		await assertRoundTripStable(ctx);
 		await assertSelectionValidity(ctx);
-		await assertParseConvergence(ctx, opts.note);
+		await assertParseConvergence(ctx);
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
@@ -102,7 +102,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await recorder?.checkpoint('detour-done', 'jump-back');
 
 		ctx.label = 'cancelling-detours';
-		await runCancellingDetours(ctx, g, rng, opts.note);
+		await runCancellingDetours(ctx, g, rng);
 
 		ctx.label = 'undo-redo-differential';
 		await runRevertingDifferential(ctx);
@@ -112,7 +112,7 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await assertContainerParity(ctx);
 		await assertRoundTripStable(ctx);
 		await assertSelectionValidity(ctx);
-		await assertParseConvergence(ctx, opts.note);
+		await assertParseConvergence(ctx);
 		await assertEndState(ctx, canonical);
 	} finally {
 		await recorder?.finalize();
@@ -149,12 +149,7 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
  * batcher so the delete that follows lands in its own undo entry. Without the fence
  * a single Ctrl+Z could overshoot into the prior edit's batch and miss the restore.
  */
-async function runCancellingDetours(
-	ctx: SimContext,
-	g: Gestures,
-	rng: Rng,
-	note: NoteFixture
-): Promise<void> {
+async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	if (rng.chance(0.5)) await g.pause();
 
 	if (rng.chance(0.7)) {
@@ -187,13 +182,13 @@ async function runCancellingDetours(
 	if (rng.chance(0.5)) await g.pause();
 
 	if (rng.chance(0.6)) {
-		await crossBlockDestroyUndoDetour(ctx, g, rng, note);
+		await crossBlockDestroyUndoDetour(ctx, g, rng);
 	}
 
 	if (rng.chance(0.5)) await g.pause();
 
 	if (rng.chance(0.6)) {
-		await mergeUndoDetour(ctx, g, note);
+		await mergeUndoDetour(ctx, g);
 	}
 }
 
@@ -263,15 +258,10 @@ async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> 
  * + merge under the full oracle sweep on every seed, and the closing undo proves the
  * collapse is byte-reversible. The seed picks the build (Shift+Arrow / Shift+Click /
  * double select-all) and the destroy (Backspace / Delete / Cut / type-over /
- * paste-over) so seeds spread across the entry×exit matrix. Convergence rides the
- * caller (it carries the note's waiver); the gesture's own sweep covers the rest.
+ * paste-over) so seeds spread across the entry×exit matrix. The gesture's own
+ * sweep — convergence included — covers the merged tree.
  */
-async function crossBlockDestroyUndoDetour(
-	ctx: SimContext,
-	g: Gestures,
-	rng: Rng,
-	note: NoteFixture
-): Promise<void> {
+async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	const destroy = rng.pick(['backspace', 'delete', 'cut', 'type-over', 'paste-over'] as const);
 	await g.pause();
@@ -299,7 +289,7 @@ async function crossBlockDestroyUndoDetour(
 	else if (destroy === 'type-over') await g.typeOverSelection('Z');
 	else await g.pasteOverSelection();
 
-	await assertParseConvergence(ctx, note);
+	await assertParseConvergence(ctx);
 
 	await g.pause();
 	await g.undo();
@@ -338,13 +328,13 @@ async function findMergeableParagraph(ctx: SimContext): Promise<number | null> {
  * the subsystem the corruption oracle otherwise never fuzzes. The target is chosen at
  * runtime so the Backspace always merges; the closing undo proves it is byte-reversible.
  */
-async function mergeUndoDetour(ctx: SimContext, g: Gestures, note: NoteFixture): Promise<void> {
+async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const target = await findMergeableParagraph(ctx);
 	if (target === null) return;
 	const before = await ctx.editor.bridge.getSource();
 	await g.pause();
 	await g.mergeBackspaceAtStart([target]);
-	await assertParseConvergence(ctx, note);
+	await assertParseConvergence(ctx);
 	await g.pause();
 	await g.undo();
 	await ctx.editor.bridge.waitForSourceEquals(before, 3000);
