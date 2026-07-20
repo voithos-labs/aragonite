@@ -2,6 +2,52 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.31: five reports and a ledger burn-down
+
+Five same-day user reports answered, then the known-issues ledger cut from 22 entries to 11
+in one dispatched pass: every fix red-first, every substantive diff adversarially reviewed,
+and each surviving entry re-verified to carry a named deferral anchor.
+
+- **User reports.** Enter in a setext title no longer demotes the heading and strands the
+  underline as a junk block; split keeps a structural suffix with its block via a generic
+  content-range rule at the `splitNode` choke point. Focused whole-block blocks (thematic
+  break, mermaid) and selected inline widgets copy and cut with Mod+C/Mod+X, landed once in
+  the shared seams so every kind of each tier inherits the gesture. Fence lines hide whole in
+  reading and preview (a CSS-reachable wrapper per fence line; the bare-newline Chromium caret
+  workaround proved dormant when faithfully reconstructed and was retired into a guarded e2e
+  pin). The details disclosure caret centers on its summary line (buttons don't inherit
+  font-size, so its em geometry resolved against the UA default). `check` runs at 0 errors
+  0 warnings (the deliberate-interaction a11y suppressions; role questions stay parked at 1.1).
+- **Byte fidelity.** Three CRLF defects closed red-first: the trailing `\r` (trim at the
+  source slice), the interior highlighter mangle (highlight an LF copy, positionally restore
+  each original ending, count-mismatch dev-warn at the seam), and the all-blank reading
+  collapse. The wider-than-header truncation left the ledger for `syntax-tree.md` as accepted
+  GFM-mandated normalization.
+- **Caret and clipboard parity.** The post-paste caret now honors the documented contract on
+  all ten routes (three divergent gates fixed, the residue-skip rule single-sourced into one
+  seam); range-delete survivors descend by focusability rather than merge-eligibility;
+  cross-block type-replace re-derives the surviving leaf's kind; copy during an active reveal
+  reads the live DOM instead of stale raw.
+- **Cells reach prose parity.** Decoration islands render and inline widgets reveal inside
+  table cells through the prose seam's own machinery, guarded by a cell commit wrapper that
+  escapes pipes and strips newlines (the row-splitting corruption a naive wire-up ships).
+- **Entities render.** `&copy;` shows © as an atomic inline widget, the first consumer of the
+  `deleteGranularity: 'atomic'` policy, gated to visibly-rendering glyphs (lone combining
+  marks stay literal-source spans). Pulled forward from the 1.2 sketch.
+- **Reload convergence.** An unclosed fence auto-closes when Enter-exit authors a block below
+  it, so save-then-reload keeps the authored structure; the simulation's parse-convergence
+  oracle is now unconditional (the exemption mechanism deleted whole). The closed/unclosed
+  exit-scope asymmetry it surfaced is ledgered as an owner decision.
+- **The suite grew teeth.** New simulation gestures for decoration islands, block decorations,
+  IME composition (driven over CDP), and atomic entities; the `DocPath` brand adopted across
+  every op-family path composer with completeness enumerated by the compiler; G4.8 gained the
+  clipboard-chord family and the consumer guide documents the new chords; the links-autolink
+  test monolith split six ways at exact case parity; and the long-fixme'd reveal-blur spec
+  fell to a systematic bisect that found no battery carrier at all, only a stale test premise.
+
+Final commit gate: unit 4257→4346, e2e 1391→1443 (every project including simulation),
+check 0 errors 0 warnings, lint green. Per-fix miss-analyses live in `git log`.
+
 ### 0.9.30 — The audit-response pass: an outside review, answered
 
 A third-party audit of 0.9.28 (filed at `13e88c44`, retired with this entry — git history
