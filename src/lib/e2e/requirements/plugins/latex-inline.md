@@ -39,6 +39,12 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
   point-in-rect (X and Y), not X-only
 - after a blur-away commit (focus moved to another block), the selection stays in the
   block that took focus — the just-blurred math block does not yank the caret back
+- a cross-block selection swept down from the reveal caret (its anchor staying inside
+  the revealed source) survives a blur without folding: the commit bails on the
+  cross-block selection instead of folding the island out from under the anchor. The
+  source block is one visual line, so the sweep is two Shift+ArrowDown presses — the
+  first extends to the line end within the block (a shift-extension keeps the source
+  revealed), the second crosses the boundary
 
 ## User interactions
 
