@@ -45,10 +45,11 @@ export type DiscardIfNoop = boolean;
 export interface BlockEditActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
 	/**
-	 * Reserved-chrome Enter gesture: move the caret from the chrome leaf at
-	 * `blockIndex` into the first body child, minting an empty paragraph when the
-	 * chrome is the container's only child. A body whose ref is off-window leaves
-	 * the caret put (the key is still consumed).
+	 * Focus the block after `blockIndex` in this scope, minting an empty paragraph
+	 * when `blockIndex` is the last child. Two callers: the reserved-chrome Enter
+	 * gesture (descend from a chrome leaf into its body), and the closed-fence
+	 * Enter-exit landing its new paragraph inside the fence's own container. A next
+	 * block whose ref is off-window leaves the caret put (the key is still consumed).
 	 */
 	descendToBody(blockIndex: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
