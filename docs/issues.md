@@ -57,25 +57,6 @@ with gesture re-choreography, decided against the merge/undo paths that read tho
 divergence needs a save→reload boundary to observe. Not reachable by the current simulation
 notes (they type para→heading and list-exit→paragraph, not Enter-at-end-then-paragraph).
 
-### Closed and unclosed fence exits place the new paragraph in different container scopes
-
-**Severity:** minor (behavioral consistency; owner decision, no correctness bug)
-**Files:** `src/lib/components/blocks/code/code-fence-exit.ts` (`computeFenceExit`),
-`src/lib/editor-actions/` (the closed-exit `moveFocus` upward delegation)
-
-Enter-exit from a CLOSED fence at the end of a blockquote delegates upward and lands the new
-paragraph outside the quote; the unclosed-fence auto-close (0.9.31) keeps its minted paragraph
-inside the quote's scope. Two idioms collide: general-continuation (Enter inside a quote
-continues the quote) makes the in-container placement consistent, while blank-line-exit (the
-auto-close fires on the second Enter, on a blank trailing line, and blank-line Enter is how
-lists and quotes break out) makes break-out consistent. Reconciling toward break-out would also
-unify the two code paths (the unclosed exit would delegate upward like the closed one,
-differing only by minting the closer). Both states converge and round-trip.
-
-**Why deferred:** genuinely ambiguous product call surfaced by the auto-close review; wants an
-owner decision, not a reviewer coin flip. Whichever way it lands, the fix is small and the
-losing idiom's e2e re-pins with it.
-
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 
 **Severity:** minor (undo-selection nuance; the edit is correct and byte-safe)

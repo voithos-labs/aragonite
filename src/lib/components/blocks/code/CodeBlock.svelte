@@ -55,6 +55,7 @@
 		trailingLineEnding
 	} from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+	import { nodeAt } from '../../../tree-operations';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
@@ -419,7 +420,7 @@
 			if (exit.kind === 'exitWithEdit') {
 				blockEdit.updateBlockContent(index, exit.newText + trailingLineEnding(node.raw), offset);
 			}
-			focusActions.moveFocus(index + 1, 'start');
+			exitDownward();
 			return true;
 		}
 
@@ -447,6 +448,20 @@
 		blockEdit.updateBlockContent(index, enter.newText + trailingLineEnding(node.raw), offset);
 		pendingCursorOffset = enter.newCursor;
 		return true;
+	}
+
+	// A closed-fence Enter-exit lands on the block below within the fence's OWN
+	// container scope: the next sibling when one exists, else a paragraph minted
+	// in-scope. Only a nested last child would otherwise delegate the caret outside
+	// its container — unifying that case with the unclosed auto-close and the
+	// whole-block Enter tier. Root append and next-sibling landings are already
+	// in-scope, so they ride the shared moveFocus path unchanged. descendToBody is
+	// the choke point that mints-or-focuses-next against the live container children.
+	function exitDownward(): void {
+		const container = myPath.length > 1 ? nodeAt(getDoc(), myPath.slice(0, -1)) : null;
+		const isNestedLastChild = !!container?.children && index === container.children.length - 1;
+		if (isNestedLastChild) blockEdit.descendToBody(index);
+		else focusActions.moveFocus(index + 1, 'start');
 	}
 
 	// Auto-close on structural escape: leaving an unclosed fence downward to author
