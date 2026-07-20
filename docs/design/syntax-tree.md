@@ -84,6 +84,9 @@ Containers do not all relate to their children the same way, so each declares a 
 Only `'strip'` carries the secondary invariant. `'grid'` and `'opaque'` are exempt from it, but for different reasons and with different consequences:
 
 - **Grid** children are addressed by coordinate (row, cell), not by stripping. That's why table cells are `contextDependentKind` — a cell has no standalone line recognizer, so `parse(cell.raw)` would come back a paragraph. Its container's `rebuildRaw` owns the surrounding pipes.
+
+  One accepted grid normalization: GFM (§4.10) ignores body cells beyond the header width, so the parser truncates a wider row's children to the column count while the row's `raw` keeps the authored bytes. A pure load-and-save round-trips the surplus untouched; the first table edit rebuilds the row from its children and drops it. Preserving the surplus would need phantom children or a `raw` that disagrees with `children`, both of which break CST-is-source-of-truth, so the truncation normalizes on first edit like padding and delimiter normalization. The dropped cells never entered the model and never rendered.
+
 - **Opaque** containers keep bytes in their own `raw` that appear in no child at all. A callout's title lives on its `:::note My title` opener line. So `rebuildRaw` is the _single_ reconstruction path, and correctness is enforced differently: a DEV probe runs the rebuild twice and compares the outputs to each other (never against `raw`, which a faithful non-canonical parse may legally differ from), and a separate DEV check reparses `raw` to catch children mutated without a rebuild.
 
 The reason this matters to a plugin author rather than being trivia: get the contract wrong and the machinery will helpfully "fix" your container in ways that destroy it. An opaque container declared `'strip'` will have its chrome bytes checked against a decomposition that doesn't exist.

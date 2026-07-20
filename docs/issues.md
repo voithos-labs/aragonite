@@ -18,8 +18,12 @@ disclosure (which commits an `open` metadata edit) is likewise gated. A rendered
 (GitHub, Obsidian reading view) keeps some of these live — whether reading mode should allow
 a curated set of interactive edits is a product question, not a gating bug.
 
-**Why deferred:** decided with the presentation-modes milestone's later rungs, where
-block/inline granularity forces the same "which interactions survive" call anyway.
+**Why deferred:** the original anchor (the presentation-modes milestone's later rungs) shipped
+in 0.9.26 with reading mode fully inert, so the decision is now a standing product question,
+re-anchored to the 1.1 shell integration. Inert-at-freeze is also the safe ordering: ungating
+a curated interaction set later is additive, while shipping interactivity now and re-gating it
+after 1.0 would be a breaking change, and reading-mode inertness is lint-enforced (G4.19),
+an invariant worth keeping whole until the shell decides which interactions survive.
 
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
@@ -53,30 +57,24 @@ with gesture re-choreography, decided against the merge/undo paths that read tho
 divergence needs a save→reload boundary to observe. Not reachable by the current simulation
 notes (they type para→heading and list-exit→paragraph, not Enter-at-end-then-paragraph).
 
-### A body row wider than the header drops its surplus cells on first table edit
+### Closed and unclosed fence exits place the new paragraph in different container scopes
 
-**Severity:** minor (live-tree vs reload divergence; byte round-trip at load unaffected)
-**Files:** `src/lib/core/parsers/table.ts` (`buildRow` truncates cell children to the
-header width), `src/lib/schema/container-rebuilders.ts` (`rebuildTableRowRaw` maps the
-truncated children)
+**Severity:** minor (behavioral consistency; owner decision, no correctness bug)
+**Files:** `src/lib/components/blocks/code/code-fence-exit.ts` (`computeFenceExit`),
+`src/lib/editor-actions/` (the closed-exit `moveFocus` upward delegation)
 
-GFM (§4.10) ignores body cells beyond the header width, so `buildRow` truncates a wider
-row's CHILDREN to `columnCount` while the row/table `raw` keeps the authored bytes verbatim.
-Because `serialize` emits the table's own `raw`, `serialize(parse(source)) === source` holds
-at load — the surplus cells survive a pure round-trip. The first `rebuildTableRowRaw` after
-any table edit rebuilds the row from its (truncated) children, silently dropping the surplus
-bytes. Reachable only by loading or pasting GFM with a malformed wider-than-header row; typing
-cannot produce one (the grid fixes `columnCount`). The dropped cells were never part of the
-model and never rendered, so no editor-visible content is lost.
+Enter-exit from a CLOSED fence at the end of a blockquote delegates upward and lands the new
+paragraph outside the quote; the unclosed-fence auto-close (0.9.31) keeps its minted paragraph
+inside the quote's scope. Two idioms collide: general-continuation (Enter inside a quote
+continues the quote) makes the in-container placement consistent, while blank-line-exit (the
+auto-close fires on the second Enter, on a blank trailing line, and blank-line Enter is how
+lists and quotes break out) makes break-out consistent. Reconciling toward break-out would also
+unify the two code paths (the unclosed exit would delegate upward like the closed one,
+differing only by minting the closer). Both states converge and round-trip.
 
-**Fix direction:** none intended — preserving the surplus would require either phantom
-children or a `raw` that disagrees with `children`, both of which violate CST-is-source-of-truth
-(raw must rebuild FROM children). The accepted behavior is GFM-mandated truncation, normalized
-on first edit like padding and delimiter normalization.
-
-**Why deferred:** spec-compliant and byte-safe at load; the divergence needs a save→reload
-boundary to observe and drops only non-model, never-rendered bytes — the same live-tree vs
-reload divergence class, one rung less severe (the surplus is never user-visible).
+**Why deferred:** genuinely ambiguous product call surfaced by the auto-close review; wants an
+owner decision, not a reviewer coin flip. Whichever way it lands, the fix is small and the
+losing idiom's e2e re-pins with it.
 
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 
