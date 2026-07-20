@@ -55,13 +55,14 @@ Each rule names its incident. These are the ways this codebase actually gets cor
   (`block-edit-scope.ts`), asserted by G1.16 — never compose paths in a caller. Both seams
   exist because the call-site versions missed sites: two of the three 2026-07 corruption
   Criticals were entry paths that skipped a wrap five siblings carried. Since 0.9.24 the
-  factory mints carry the `DocPath` brand; G1.16 stays the runtime belt for the op families
-  that still compose paths legitimately.
+  factory mints carry the `DocPath` brand, and the op-family composers now build their
+  doc-absolute paths through the branded helpers too; G1.16 stays the runtime belt for the
+  JS callers the type can't reach.
 - **DOM ↔ raw offset translation has one home** (`cursor/widget-offset.ts`, plus the ambient
   helpers). Offset arithmetic duplicated anywhere else will disagree with it eventually —
   every offset bug in the audit traced to arithmetic done outside the shared walk.
   Type-enforced since 0.9.24: the coordinate spaces are branded (G3.7, minted only at their
-  single homes, G4.15) — cross-space arithmetic no longer compiles.
+  home modules, G4.15) — cross-space arithmetic no longer compiles.
 - **Registries are code, not state.** Register-once, throw-on-duplicate, no unregister
   (`customElements` model) — in production and under test. Test isolation goes through the reset
   affordances; under a dev server a duplicate registration replaces with a note instead of throwing

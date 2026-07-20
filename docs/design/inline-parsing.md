@@ -135,4 +135,4 @@ A widget kind renders one of two ways.
 
 Because the editor rebuilds a block's entire inline DOM on every keystroke, component widgets ride a **keyed reuse pool**. An instance is keyed by kind and source text, so a rebuild _adopts_ an unchanged instance — re-stamping only its shifted `data-source-*` offsets — instead of remounting it. Typing next to a rendered formula keeps its mount, and its render cost, stable; editing the formula mints a new one. An instance left unadopted at the end of a pass is torn down, and a mount that throws is caught, reported on the editor's `error` channel, and falls back to the raw source span.
 
-The editing behavior of a widget — reveal-to-edit versus select-then-delete, and what its keys do while selected — is a per-kind **editing policy** on the same registry. `editor.md` § Atomic inline widgets covers the caret model those policies drive.
+The editing behavior of a widget — reveal-to-edit, select-then-delete, or atomic step-over, and what its keys do while selected — is a per-kind **editing policy** on the same registry. `editor.md` § Atomic inline widgets covers the caret model those policies drive.
