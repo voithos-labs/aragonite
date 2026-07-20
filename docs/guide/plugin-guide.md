@@ -603,7 +603,7 @@ setup(ctx) {
 
 Offsets are **raw offsets** into the target block — dimmed markers included, the same coordinate space `getContentRange` describes. A `widget`, `replace` widget, or `badge` takes a `DecorationWidgetSpec`: a Svelte `component` (receives the decoration as its prop) or a hand-built `buildDom`. An interactive mark takes an `onClick`; interactive DOM inside an island is native — wire your own listeners in `buildDom`.
 
-Islands (`widget` / `replace`) render in prose blocks. They do not render inside table cells today — a dev warning names the source and kind if you target one; `mark` and `block` decorations serve cells fine. Island caret behavior is defined and pinned: arrows step over, destructive keys treat a widget island as transparent and select-then-delete a replace island whole, so the hidden bytes are never silently corrupted.
+Islands (`widget` / `replace`) render in prose blocks and in table cells, applied through the same seam in both; `mark` and `block` decorations serve cells too. Island caret behavior is defined and pinned: arrows step over, destructive keys treat a widget island as transparent and select-then-delete a replace island whole, so the hidden bytes are never silently corrupted.
 
 ### Recipe: memoize the scan on `editEpoch`
 

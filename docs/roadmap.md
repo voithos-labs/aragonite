@@ -145,7 +145,7 @@ freeze**.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
-     by their single-home modules with the public doors keeping `number`. The liveness pass
+     at their home modules with the public doors keeping `number`. The liveness pass
      (shipped 0.9.29) extends the program: no frozen deps field whose contract is a liveness
      rule remains value-shaped — every live read on the public surface is a thunk. Re-verified
      by the re-audit's enforcement pass, not assumed.

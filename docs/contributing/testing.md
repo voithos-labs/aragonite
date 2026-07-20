@@ -215,10 +215,10 @@ The engine is in `src/lib/e2e/simulation/`; the specs are in `tests/simulation/`
 
 ### Running it
 
-| Command                                     | Scope                                                                                                                                                               |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:e2e:simulation`               | The ungated oracle sessions — smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, error collection). All ride `npm test`. |
-| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the two capture suites — every note, screenshotted — writing PNGs and a per-checkpoint `manifest.json` to `simulation-captures/` for the visual review.        |
+| Command                                     | Scope                                                                                                                                                                                             |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:e2e:simulation`               | The ungated oracle sessions — smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, decorations, IME composition, error collection). All ride `npm test`. |
+| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the two capture suites — every note, screenshotted — writing PNGs and a per-checkpoint `manifest.json` to `simulation-captures/` for the visual review.                                      |
 
 New feature surface gets a new simulation gesture. The simulation is the strongest corruption oracle in the repo, and its coverage has to track the product — the plugin surface once went a full minor version without it looking.
 

@@ -167,7 +167,7 @@ The CST is always up to date (it is written on every input event). The DOM is pa
 
 ### Atomic inline widgets
 
-Some inline nodes render as opaque widgets — `contenteditable="false"` islands with no caret-able interior: images, `<br>`, inline math, inline directives. The inline-widget registry (`core/inline/inline-widgets.ts`) is the single source of truth for which inline kinds are live widgets.
+Some inline nodes render as opaque widgets — `contenteditable="false"` islands with no caret-able interior: images, `<br>`, inline math, inline directives, decoded HTML entities. The inline-widget registry (`core/inline/inline-widgets.ts`) is the single source of truth for which inline kinds are live widgets.
 
 A widget carries its raw bytes on `data-source-start` / `data-source-end` attributes on its root, **not** in `textContent`. The cursor is addressable only at its leading and trailing edges. Because the widget contributes 0 characters to `textContent`, a prose block's `textContent !== raw` — which is exactly why the input path walks rather than reads (above).
 
@@ -178,7 +178,7 @@ Two cross-block focus behaviors compose on top:
 - **Vertical skip.** A block whose only inline content is widgets reports `isVerticallyTransparent()`. ArrowUp/Down passes straight through it. Containers recurse — a list item holding one image-only paragraph is itself transparent.
 - **Edge entry.** When a cross-block ArrowLeft/Right lands at the far edge of a paragraph that ends (or starts) with a widget, the dispatcher enters the widget rather than parking a caret at a boundary with nothing to show for it.
 
-**Caret entry opens the reveal.** For a reveal-capable widget kind (inline math, inline directive), horizontal caret entry against either edge — ArrowLeft/Backspace from the right, ArrowRight/Delete from the left, within-block or as a cross-block landing — opens the source reveal with the caret at the entered edge of the raw source. The caret then walks through the raw bytes, and the escape machinery folds the reveal when it leaves. The widget-selected state is unreachable for these kinds, so the caret never parks somewhere with no visual representation, and a Backspace next to the widget degrades it one visible delimiter byte at a time instead of silently deleting the whole thing. Non-reveal kinds (images) keep select-then-step / select-then-delete on the same keys. Shift+Arrow never reveals.
+**Caret entry opens the reveal.** For a reveal-capable widget kind (inline math, inline directive), horizontal caret entry against either edge — ArrowLeft/Backspace from the right, ArrowRight/Delete from the left, within-block or as a cross-block landing — opens the source reveal with the caret at the entered edge of the raw source. The caret then walks through the raw bytes, and the escape machinery folds the reveal when it leaves. The widget-selected state is unreachable for these kinds, so the caret never parks somewhere with no visual representation, and a Backspace next to the widget degrades it one visible delimiter byte at a time instead of silently deleting the whole thing. Non-reveal kinds split by editing policy: images keep select-then-step / select-then-delete on the same keys, while a decoded entity is atomic and step-over — a plain arrow walks the caret across the glyph like a character, and a caret-adjacent Backspace removes the whole reference in one press. Shift+Arrow never reveals.
 
 **Source-reveal editing.** A revealed widget swaps its rendered island for its editable raw bytes. The gesture is editor-owned end to end: pointerdown on the widget suppresses the browser's default caret placement, so the reveal's own caret landing has no racing writer. While revealed, the edit is ephemeral DOM — one undo entry on commit. The reveal folds back when the caret or selection escapes the source: an in-block escape folds in place, blur owns the focus-leaving fold, and a cross-block sweep keeps the source revealed so selection rects measure real text. Escape containment is decided by raw offset through the shared walk, and an escape must survive a `tick()` re-check before folding — so a transient selection state the editor's own machinery manufactures (cross-block entry clearing the native selection) never folds a reveal the user still wants open. Clicking widget B while A is revealed folds A and reveals B as one sequenced gesture.
 
@@ -219,7 +219,7 @@ The editor reaches down only for focus, via component refs. After a structural m
 
 All structural operations are CST mutations performed by the editor shell. Blocks never modify the tree.
 
-**Split** — cut `raw` at the cursor offset, produce two nodes, re-parse each to determine its kind. The original keeps its ID; the new block gets a fresh one. Offsets are raw offsets, markers included — the block component translates DOM position to raw offset. The marker is not duplicated; the second half re-parses as its natural kind.
+**Split** — cut `raw` at the cursor offset, produce two nodes, re-parse each to determine its kind. The original keeps its ID; the new block gets a fresh one. Offsets are raw offsets, markers included — the block component translates DOM position to raw offset. The marker is not duplicated; the second half re-parses as its natural kind. A structural suffix — raw past the content range, today only a setext underline — stays with the first half, so the split can't strand it below into a demoting reparse.
 
 **Merge** — concatenate two adjacent nodes' `raw`, replace both with one, re-parse to determine the merged kind. The survivor keeps its ID.
 
@@ -260,7 +260,7 @@ flowchart TD
 
 Two refinements the diagram elides. A container that declares no unwrap strategy doesn't unwrap — it **delegates upward**, and the same decision re-runs one level out with the container itself as the block (this is how a list item's children reach the list). And a container may override the _middle_-child branch too: a list routes its non-first items through the same cascade as its first, which is where M1 below comes from.
 
-A **whole-block-focus** kind (`blockFocus: 'whole-block'`) is an opaque, childless block that is its own focus target — a plugin diagram, and structurally the same model thematic breaks have always used. Arrows land on it with a whole-block highlight, Enter inserts a paragraph below, Backspace/Delete while focused deletes it, Alt+Arrow reorders it, and a caret-adjacent Backspace **focuses** it rather than deleting it outright — the highlight is press one of two. Delete at the end of the block above is the forward twin. The container factory wires all of this from the one declaration. Such kinds are childless by design, so the editable-container backfill skips them: a phantom child would permanently violate their opaque `raw`↔children faithfulness (§ 9).
+A **whole-block-focus** kind (`blockFocus: 'whole-block'`) is an opaque, childless block that is its own focus target — a plugin diagram, and structurally the same model thematic breaks have always used. Arrows land on it with a whole-block highlight, Enter inserts a paragraph below, Backspace/Delete while focused deletes it, Mod+C/Mod+X copy or cut its Markdown, Alt+Arrow reorders it, and a caret-adjacent Backspace **focuses** it rather than deleting it outright — the highlight is press one of two. Delete at the end of the block above is the forward twin. The container factory wires all of this from the one declaration. Such kinds are childless by design, so the editable-container backfill skips them: a phantom child would permanently violate their opaque `raw`↔children faithfulness (§ 9).
 
 ### Container unwrap
 
@@ -405,6 +405,8 @@ Clipboard content is always plain Markdown, sourced from the CST. No HTML clipbo
 
 **Cut** — copy, then delete: truncate the endpoints at their offsets, remove fully-selected middles, merge the remaining endpoints into one re-parsed block, clean up emptied containers. One undo entry; cross-block state collapses.
 
+**Focused block or selected widget** — a whole-block-focus block that holds focus, or a selected inline widget, copies or cuts its own Markdown on Mod+C/Mod+X — the block's `raw`, or the widget's source slice. These route outside the keymap because a keydown carries no clipboard event.
+
 **Paste** — always intercepted. Any active selection is deleted first, and the whole delete-then-paste collapses into one undo entry. Focus lands at the end of the pasted content.
 
 #### The paste pipeline
@@ -531,7 +533,7 @@ Everything above is reachable by a plugin without touching an editor internal. T
 | Block kind + opener     | A new block in the grammar: a descriptor, a component, and a parser opener priced against `OPENER_PRIORITIES`.                                                                                                                                                                                                                |
 | Container factory       | A nested editable container — real CST children in a nested `BlockList`, optionally with a reserved chrome leaf and a collapse probe.                                                                                                                                                                                         |
 | Editable leaf factory   | A standalone text-editing block with full caret/IME/undo parity, in `plain` or `render-primary` mode.                                                                                                                                                                                                                         |
-| Inline syntax + widgets | A trigger character, a recognizer, and an atomic widget with its own editing policy (reveal-to-edit, or select-then-delete).                                                                                                                                                                                                  |
+| Inline syntax + widgets | A trigger character, a recognizer, and an atomic widget with its own editing policy (reveal-to-edit, select-then-delete, or atomic step-over).                                                                                                                                                                                |
 | Directives              | The shared `:::name` grammar — one opener owns the whole fence family and dispatches by name, so N plugins never collide on opener priority. Three tiers (container, leaf, inline text); an unregistered name still round-trips byte-for-byte. Off by default: `activateDirectives()` turns it on. See `guide/directives.md`. |
 
 Further seams don't add a kind:
