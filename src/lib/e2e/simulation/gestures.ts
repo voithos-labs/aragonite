@@ -71,6 +71,15 @@ import {
 	typeOverSelection
 } from './gestures/cross-block';
 import { mergeBackspaceAtStart } from './gestures/merge';
+import {
+	backspaceThroughWidgetIsland,
+	edgeDeleteReplaceIsland,
+	reorderDecoratedBlock,
+	typeAdjacentToIsland,
+	walkAcrossIsland
+} from './gestures/decoration';
+import { atomicDeleteEntityWidget, typeEntityWidget } from './gestures/entity';
+import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
@@ -498,6 +507,63 @@ export class Gestures {
 	 */
 	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
 		return flipPresentationMode(this.ctx, mode);
+	}
+
+	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────
+	// The standing island source paints replace/widget islands and a block badge at
+	// content-keyed positions; these drive the caret/delete/typing surface they own.
+	// Painting never changes bytes, so each resyncs; the replace delete and the
+	// transparent widget backspace net to identity via undo.
+
+	/** Walk the caret across an island — step-over for replace, transparency for widget. */
+	walkAcrossIsland(blockIndex: number): Promise<void> {
+		return walkAcrossIsland(this.ctx, blockIndex);
+	}
+
+	/** Two-press select-then-delete of a replace island, then undo (net identity). */
+	edgeDeleteReplaceIsland(blockIndex: number, key: 'Backspace' | 'Delete'): Promise<void> {
+		return edgeDeleteReplaceIsland(this.ctx, blockIndex, key);
+	}
+
+	/** Backspace through a widget island onto the adjacent real byte, then undo. */
+	backspaceThroughWidgetIsland(blockIndex: number): Promise<void> {
+		return backspaceThroughWidgetIsland(this.ctx, blockIndex);
+	}
+
+	/** Type a char at an island's trailing edge and delete it — the island survives. */
+	typeAdjacentToIsland(blockIndex: number): Promise<void> {
+		return typeAdjacentToIsland(this.ctx, blockIndex);
+	}
+
+	/** Reorder the badge-decorated block down and back; the badge follows the bytes. */
+	reorderDecoratedBlock(blockIndex: number): Promise<void> {
+		return reorderDecoratedBlock(this.ctx, blockIndex);
+	}
+
+	// ── Decoded-entity atomic widget ─────────────────────────────────────────────
+	// Type a character reference mid-prose (an atomic glyph widget), later delete it
+	// whole in one atomic Backspace. The widget contributes its glyph not its raw, so
+	// both resync rather than predict.
+
+	typeEntityWidget(blockIndex: number, offset: number, reference: string): Promise<void> {
+		return typeEntityWidget(this.ctx, blockIndex, offset, reference);
+	}
+
+	atomicDeleteEntityWidget(blockIndex: number): Promise<void> {
+		return atomicDeleteEntityWidget(this.ctx, blockIndex);
+	}
+
+	// ── IME composition (CDP-threaded) ───────────────────────────────────────────
+	// Compose a multibyte candidate and commit (or abort). The compose window is
+	// DOM-only, so the source stays byte-stable until commit; the tracker resyncs
+	// around the committed bytes. Requires `ctx.ime`, threaded once per session.
+
+	composeCommit(blockIndex: number, composition: CompositionCase): Promise<void> {
+		return composeCommit(this.ctx, blockIndex, composition);
+	}
+
+	composeAbort(blockIndex: number, composition: CompositionCase): Promise<void> {
+		return composeAbort(this.ctx, blockIndex, composition);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────────

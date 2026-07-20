@@ -14,6 +14,7 @@
 	import { foldPlugin } from './fold/fold-plugin';
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
 	import { simMarkPlugin } from './sim-mark/sim-mark-plugin';
+	import { simIslandPlugin } from './sim-island/sim-island-plugin';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
@@ -45,10 +46,12 @@
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],
 		badge: [blockBadgePlugin],
-		// The loaded-ops simulations navigate with `?seed=sim` to put a standing
-		// decoration source under the corruption oracle; they loadContent their own
-		// document over the (absent) seed document.
-		sim: [simMarkPlugin]
+		// The loaded-ops simulations navigate with `?seed=sim` to put standing
+		// decoration sources under the corruption oracle; they loadContent their own
+		// document over the (absent) seed document. The mark source watches the engine
+		// on every edit; the island source is content-keyed on sentinels only the
+		// decoration-ops document carries, so it is inert in the other sim sessions.
+		sim: [simMarkPlugin, simIslandPlugin]
 	};
 </script>
 
@@ -295,5 +298,28 @@
 
 	.plugins-harness :global(.decoration-overlay.sim-standing-mark) {
 		background: rgba(96, 165, 250, 0.3);
+	}
+
+	/* Generated content only — the islands stay byte-empty so the raw-offset walk
+	   reads the block back exactly (::after and background paint nothing into
+	   textContent). */
+	.plugins-harness :global(.decoration-island.sim-replace-island)::after {
+		content: '…';
+		color: #9ca3af;
+	}
+
+	.plugins-harness :global(.decoration-island .sim-widget-island-content) {
+		display: inline-block;
+		width: 2px;
+		background: rgba(52, 211, 153, 0.6);
+	}
+
+	.plugins-harness :global(.decoration-badge .sim-badge) {
+		display: inline-block;
+		margin-right: 0.3rem;
+		padding: 0 0.25rem;
+		border-radius: 3px;
+		background: rgba(251, 191, 36, 0.35);
+		font-size: 0.7em;
 	}
 </style>

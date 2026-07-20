@@ -1,0 +1,107 @@
+// Deterministic, content-keyed decoration source for the loaded-ops simulation.
+// It reads three sentinels out of leaf raws so the seeded gesture stream can
+// create or meet each decoration tier at a stable position:
+//
+//   `[>…<]`   → a replace island covering the bracketed bytes (the fold shape)
+//   `WIDGET`  → a zero-width widget island at the word's leading edge
+//   `BADGE`   → a block decoration (class + badge) on the whole block
+//
+// The sentinels are absent from the other `?seed=sim` documents (PLUGIN_DOC,
+// DIRECTIVE_DOC), so installing this alongside the standing mark source leaves
+// those sessions unperturbed — it emits nothing there and only lights up under
+// the decoration-ops document. Every position is re-derived from content on each
+// per-edit pass, so a decoration follows its bytes across typing and reorder.
+import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
+
+const REPLACE_OPEN = '[>';
+const REPLACE_CLOSE = '<]';
+const WIDGET_SENTINEL = 'WIDGET';
+const BLOCK_SENTINEL = 'BADGE';
+
+export const SIM_REPLACE_ISLAND_CLASS = 'sim-replace-island';
+export const SIM_WIDGET_ISLAND_CLASS = 'sim-widget-island';
+export const SIM_BADGED_BLOCK_CLASS = 'sim-badged-block';
+
+export const simIslandPlugin = definePlugin({
+	name: 'sim-island',
+	setup(ctx) {
+		ctx.onEditor((editor) => {
+			const handle = editor.decorations.addSource({
+				name: 'sim-island',
+				provide: (doc) => islandDecorations(doc)
+			});
+			return () => handle.dispose();
+		});
+	}
+});
+
+function islandDecorations(doc: DocumentView): Decoration[] {
+	const decorations: Decoration[] = [];
+	walk(doc.children, []);
+	return decorations;
+
+	function walk(children: readonly NodeView[], path: number[]): void {
+		children.forEach((node, i) => {
+			const childPath = [...path, i];
+			if (node.children) {
+				walk(node.children, childPath);
+				return;
+			}
+			collectReplaceIslands(node, childPath, decorations);
+			collectWidgetIslands(node, childPath, decorations);
+			if (node.raw.includes(BLOCK_SENTINEL)) {
+				decorations.push({
+					type: 'block',
+					path: childPath,
+					class: SIM_BADGED_BLOCK_CLASS,
+					badge: { buildDom: () => badgeElement() }
+				});
+			}
+		});
+	}
+}
+
+function collectReplaceIslands(node: NodeView, path: number[], out: Decoration[]): void {
+	let from = 0;
+	for (;;) {
+		const start = node.raw.indexOf(REPLACE_OPEN, from);
+		if (start < 0) break;
+		const close = node.raw.indexOf(REPLACE_CLOSE, start + REPLACE_OPEN.length);
+		if (close < 0) break;
+		const end = close + REPLACE_CLOSE.length;
+		out.push({ type: 'replace', path, start, end, class: SIM_REPLACE_ISLAND_CLASS });
+		from = end;
+	}
+}
+
+// The widget sits at the sentinel word's leading edge, never inside it, so an
+// adjacent insert or delete moves the anchor by one without dissolving the word —
+// the source re-finds `WIDGET` and re-places the zero-width island next pass.
+function collectWidgetIslands(node: NodeView, path: number[], out: Decoration[]): void {
+	let from = 0;
+	for (;;) {
+		const offset = node.raw.indexOf(WIDGET_SENTINEL, from);
+		if (offset < 0) break;
+		out.push({
+			type: 'widget',
+			path,
+			offset,
+			side: 'before',
+			widget: { buildDom: () => widgetElement() }
+		});
+		from = offset + WIDGET_SENTINEL.length;
+	}
+}
+
+function widgetElement(): HTMLElement {
+	const el = document.createElement('span');
+	el.className = 'sim-widget-island-content';
+	return el;
+}
+
+function badgeElement(): HTMLElement {
+	const el = document.createElement('span');
+	el.className = 'sim-badge';
+	el.textContent = 'B';
+	return el;
+}
