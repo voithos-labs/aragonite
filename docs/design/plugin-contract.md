@@ -273,8 +273,8 @@ _Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partia
 | Editable leaf            | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ✓         | ✓          |
 | Whole-block-focus opaque | ✓          | ✓     | ✓                 | ✓               | ◐³           | ✓       | ✓    | ✓         | ✓          |
 | Inline widget            | ✓          | ✓     | ✓⁴                | ✓               | ✓            | n/a⁵    | ✓    | ✓         | ✓          |
-| Decoration island        | ✓⁶         | ✓     | ✓⁷                | ✓⁸              | ✓            | n/a⁵    | ✓⁷   | ✓⁹        | ◐¹⁰        |
-| Block decoration         | ✓⁶         | ✓¹¹   | ✓¹²               | ✓               | n/a¹³        | ✓¹²     | ✓¹²  | ✓⁹        | ◐¹⁰        |
+| Decoration island        | ✓⁶         | ✓     | ✓⁷                | ✓⁸              | ✓            | n/a⁵    | ✓⁷   | ✓⁹        | ✓¹⁰        |
+| Block decoration         | ✓⁶         | ✓¹¹   | ✓¹²               | ✓               | n/a¹³        | ✓¹²     | ✓¹²  | ✓⁹        | ✓¹⁴        |
 
 1. **◐ Clipboard.** A cross-block copy whose end lands mid-chrome round-trips the container; one whose _start_ is mid-chrome and extends into the body drops the container wrapper (ledgered, `docs/issues.md`; folded into the post-1.0 clipboard generalization).
 2. **n/a Reorder.** A chrome leaf is the container's reserved child 0 — no independent block identity to move.
@@ -285,10 +285,11 @@ _Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partia
 7. **✓ Merge / backspace / undo (island).** A widget island (zero bytes) is transparent — destructive keys act on the adjacent real byte, and at a true block boundary fall through to block merge. A replace island (hidden bytes) is selected whole by an edge press and deleted whole by the second, one CST commit and one undo entry — silently eating one hidden byte would be invisible corruption.
 8. **✓ Selection paint.** Sweeps measure and paint through islands normally. Deliberate zero-length case: a widget island spans no bytes, so it is invisible to selection cover rects — correct (nothing is selected), recorded so nobody "fixes" it.
 9. **✓ Clipboard.** Excluded by construction: copy yields the raw byte slice, so a range spanning an island copies the real bytes (hidden bytes included), never the decoration DOM.
-10. **◐ Sim oracle.** A standing mark source runs the engine under the loaded-ops corruption oracles on every edit; island-editing and block-decoration interaction gestures are scripted-e2e only (ledgered, `docs/issues.md`).
+10. **✓ Sim oracle (island).** Beyond the standing mark source that runs the engine on every edit, a content-keyed island source paints a replace and a widget island in the loaded-ops document, and the decoration-ops session drives their caret walk, edge select-then-delete, transparent backspace, and adjacent typing under the corruption oracle stack. The decoded-entity atomic widget rides the same session.
 11. **✓ Focus.** The badge widget mounts non-editable as the host's first child and must not capture focus or caret placement — the decorated block stays a fully functional editing surface.
 12. **✓ Merge / backspace / reorder / undo (block).** A block decoration is source-derived, keyed by path: after any structural edit or restore, sources re-run against the new tree and the treatment lands wherever the source now points. Cleanup on change and dispose (class, attrs, badge removed) is e2e-pinned.
 13. **n/a Search paint.** A block decoration adds no text — class, attrs, and badge carry nothing the document scan can match.
+14. **✓ Sim oracle (block).** The same content-keyed source badges a block in the loaded-ops document; the decoration-ops session reorders it under load and asserts the treatment follows the bytes to the new path (and back on undo), with the corruption oracle stack re-checked after the move.
 
 Host-surface parity holds across the two inline-widget capabilities that once lagged in table cells: **inline-widget reveal-to-edit** and **decoration-island rendering + edit** both run in a cell through the same seams prose uses — the cell surface threads `createWidgetInteraction` and the caret-edge dispatch, and applies islands at ambient length 0. Cell-specific: every reveal / caret-edge commit re-escapes pipes and drops the prose trailing newline, so an edit can never split the row on reparse.
 

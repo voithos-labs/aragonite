@@ -176,28 +176,6 @@ reader, so the fix is cosmetic until a consumer needs a non-editable container s
 
 ## Test coverage
 
-### Decoration tiers lack dedicated simulation gestures
-
-**Severity:** minor (test coverage; the scripted decoration e2e covers the behavior)
-**Files:** `src/lib/e2e/simulation/gestures/` (no decoration gestures),
-`src/routes/test/plugins/sim-mark/sim-mark-plugin.ts` (the standing source)
-
-The standing mark source installed under `?seed=sim` puts the decoration engine's per-edit
-run — provide, bucketing, overlay paint — under the loaded-ops corruption oracles on every
-keystroke. What it does not drive is the interaction surface: island caret/delete semantics
-(edge Backspace/Delete, the two-press replace delete) and block-decoration chrome have no
-simulation gesture and are covered by the scripted decoration e2e only. Per the culture rule
-"new feature class → new simulation gesture", this is the ledgered remainder — the closure
-matrix's Sim-oracle ◐ for both decoration rows (`docs/design/plugin-contract.md`) cites it.
-
-**Fix direction:** an island gesture needs a deterministic island source in the sim document
-(the fold fixture's `[>…<]` shape is the natural seed) plus edge-press vocabulary in the
-gesture set; the block-decoration case rides the same source.
-
-**Why deferred:** the engine spine — the part that runs on every edit and can corrupt state —
-is now under the oracle; the island editing rules are scripted-e2e-pinned and unit-pinned.
-Gesture design is its own bounded task, kept out of 0.9.22 to keep the milestone shippable.
-
 ### Cross-block-through-revealed-source blur spec is battery-order-sensitive
 
 **Severity:** minor (test flake; the guarded semantics are unit-pinned)
@@ -222,18 +200,6 @@ reveal transition asserts (G1.26) in place, an illegal reveal interleaving now f
 `invariant:reveal-transition` at the breaking transition — a reproduction that times out
 with no invariant fire narrows the cause to legal-state geometry (the visual-line read),
 not a reveal-machine interleave.
-
-### IME composition lacks a simulation gesture
-
-**Severity:** minor (test coverage; both composition harnesses shipped 0.9.25)
-**Files:** `src/lib/e2e/simulation/gestures/` (no composition gesture)
-
-The composition harness pins the IME contract at the handler level
-(`test/blocks/editable-surface-composition*.test.ts`) and through real browser sequences
-(`e2e/tests/ime-composition.spec.ts` — CDP `Input.imeSetComposition`), but the note-taking
-simulation still types ASCII only. A composition gesture needs the CDP session threaded
-into the gesture set on the "perform, settle, resync" pattern — bounded design work, not
-trivially assembled, so it ledgers here per "new feature class → new simulation gesture".
 
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
