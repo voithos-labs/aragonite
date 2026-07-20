@@ -92,15 +92,45 @@ describe('computeFenceExit — closed fence', () => {
 	});
 });
 
-describe('computeFenceExit — unclosed fence', () => {
-	it('exits and trims the trailing blank line when cursor is at end with trailing newline', () => {
+describe('computeFenceExit — unclosed fence mints a closer', () => {
+	it('replaces the trailing blank line with a backtick closer at end', () => {
 		const text = 'hello\n';
 		const r = computeFenceExit({
 			text,
 			offset: text.length,
 			meta: { fenceMarker: '`', fenceLength: 3, info: '', closed: false }
 		});
-		expect(r).toEqual({ kind: 'exitWithEdit', newText: 'hello' });
+		expect(r).toEqual({ kind: 'closeAndExit', newText: 'hello\n```' });
+	});
+
+	it('mints a closer of the opener fence length', () => {
+		const text = 'a\n';
+		const r = computeFenceExit({
+			text,
+			offset: text.length,
+			meta: { fenceMarker: '`', fenceLength: 5, info: 'rust', closed: false }
+		});
+		expect(r).toEqual({ kind: 'closeAndExit', newText: 'a\n`````' });
+	});
+
+	it('mints a tilde closer for a tilde fence', () => {
+		const text = 'a\n';
+		const r = computeFenceExit({
+			text,
+			offset: text.length,
+			meta: { fenceMarker: '~', fenceLength: 3, info: '', closed: false }
+		});
+		expect(r).toEqual({ kind: 'closeAndExit', newText: 'a\n~~~' });
+	});
+
+	it('joins the closer with CRLF when the body ends CRLF', () => {
+		const text = 'hello\r\n';
+		const r = computeFenceExit({
+			text,
+			offset: text.length,
+			meta: { fenceMarker: '`', fenceLength: 3, info: '', closed: false }
+		});
+		expect(r).toEqual({ kind: 'closeAndExit', newText: 'hello\r\n```' });
 	});
 
 	it('returns none when at end without a trailing blank line', () => {

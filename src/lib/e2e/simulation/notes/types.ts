@@ -15,14 +15,4 @@ export interface NoteFixture {
 	build(g: Gestures): Promise<void>;
 	expectedMarkdown: string;
 	landmarks: readonly string[];
-	/**
-	 * Set only when the note's built tree is byte-faithful but STRUCTURALLY
-	 * divergent from a reparse of its own serialization — exempting it from the
-	 * checkpoint convergence oracle with a visible reason (never a silent skip).
-	 * The one live class today: a note that types content after an UNCLOSED fenced
-	 * code block. The trailing blocks are separate live nodes but GFM lazy-collapses
-	 * them into the fence on reload (see docs/issues.md). `expectedMarkdown` +
-	 * round-trip still guard the bytes; only structural convergence is waived.
-	 */
-	unconvergedReason?: string;
 }

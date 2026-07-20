@@ -2,7 +2,6 @@ import type { Page } from '@playwright/test';
 import type { EditorPage } from '../editor-page';
 import type { ExpectationTracker } from './expectation';
 import type { ErrorCollector } from './error-collector';
-import type { NoteFixture } from './notes/types';
 import { getContainerParityMismatches } from '../container-parity';
 
 export interface SimContext {
@@ -119,15 +118,10 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
  * point (a tautology for valid GFM); this compares the LIVE CST against a
  * reparse of its own serialization, catching a gesture that left the tree
  * diverging from its raw. Run at checkpoint cadence (not per keystroke), the
- * same cost tier as the round-trip check.
- *
- * A note that declares `unconvergedReason` is exempt: its build is byte-faithful
- * but intentionally non-convergent (an unclosed fenced code block whose trailing
- * blocks GFM lazy-collapses on reload). The reason lives on the fixture, so this
- * is a documented waiver, not a silent skip.
+ * same cost tier as the round-trip check. Unconditional across every note: the
+ * escape gesture auto-closes an unclosed fence, so no build is left divergent.
  */
-export async function assertParseConvergence(ctx: SimContext, note: NoteFixture): Promise<void> {
-	if (note.unconvergedReason) return;
+export async function assertParseConvergence(ctx: SimContext): Promise<void> {
 	const converges = await ctx.page.evaluate(() => (window as any).__test.parseConverged());
 	if (!converges) {
 		const [source, tree] = await Promise.all([
