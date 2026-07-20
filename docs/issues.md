@@ -176,31 +176,6 @@ reader, so the fix is cosmetic until a consumer needs a non-editable container s
 
 ## Test coverage
 
-### Cross-block-through-revealed-source blur spec is battery-order-sensitive
-
-**Severity:** minor (test flake; the guarded semantics are unit-pinned)
-**Files:** `src/lib/e2e/tests/plugins/latex-inline.spec.ts` (fixme'd final test),
-`src/lib/test/blocks/text/widget-reveal-collapse.test.ts` (the cross-block bail unit pin)
-
-The spec passes 55/55 in focused runs at any load (--repeat-each=5 --workers=4) but its
-`waitForCrossBlock` times out deterministically inside the full plugins battery: the
-Shift+ArrowDown keyboard-extend never engages cross-block. Falsified causes: the End-press
-escape (removed), the 2s wait ceiling (widened to 5s), KaTeX font-swap geometry (fonts.ready
-settle added), and the visual-line reader's dropped-range hard-false (0.9.27 gave both
-`isAt{First,Last}VisualLine` a snapped-`fallbackOffset` resolution instead of `false` on
-`rangeCount === 0` — correct independently, but an un-fixme attempt still red on the first
-full-battery pass). Whatever battery-context state breaks the visual-line detection for this
-gesture is unpinned. The product semantics (a cross-block sweep keeps the source revealed;
-blur bails instead of folding) are unit-covered by the interaction factory's cross-block
-bail case.
-
-**Fix direction:** reproduce by bisecting the battery's spec set in front of this file to
-find the state carrier, then pin the keyboard-extend geometry read it perturbs. With the
-reveal transition asserts (G1.26) in place, an illegal reveal interleaving now fires
-`invariant:reveal-transition` at the breaking transition — a reproduction that times out
-with no invariant fire narrows the cause to legal-state geometry (the visual-line read),
-not a reveal-machine interleave.
-
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
 **Severity:** watch (no field report yet; Chromium-only test coverage)
