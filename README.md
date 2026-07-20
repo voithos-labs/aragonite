@@ -232,7 +232,7 @@ where $d(\ell)$ is the line's nesting depth. Flat documents give $\Theta(N)$; th
 
 $$A = \Theta\left(\sum_{i=1}^{D} S_i\right) \subseteq O(D \cdot S_D),$$
 
-and when each level contributes $b$ bytes of its own source (so $S_i = \Theta(i \cdot b)$), $A = \Theta(D^2 b)$. Empirically the constants are small: one to two milliseconds per keystroke at realistic nesting ($D \le 10$, $\le 50$ KB per level), 5.5 ms at an adversarial $D = 16$ with 100 KB per level. Top-level edits have $A = 0$.
+and when each level contributes $b$ bytes of its own source (so $S_i = \Theta(i \cdot b)$ ), $A = \Theta(D^2 b)$. Empirically the constants are small: one to two milliseconds per keystroke at realistic nesting ($D \le 10$, $\le 50$ KB per level), 5.5 ms at an adversarial $D = 16$ with 100 KB per level. Top-level edits have $A = 0$.
 
 **Theorem (keystroke cost).** A steady-state keystroke in a block of content length $L$ costs
 
