@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import type { EditorPage } from '../editor-page';
 import type { ExpectationTracker } from './expectation';
 import type { ErrorCollector } from './error-collector';
+import type { ImeDriver } from './ime';
 import { getContainerParityMismatches } from '../container-parity';
 
 export interface SimContext {
@@ -10,6 +11,10 @@ export interface SimContext {
 	tracker: ExpectationTracker;
 	errors: ErrorCollector;
 	label: string;
+	/** Present only for sessions that drive IME composition — a CDP-backed
+	 *  composition surface created once per session and threaded through, never a
+	 *  global. The composition gestures throw loudly when it is absent. */
+	ime?: ImeDriver;
 }
 
 // ── Content oracles ─────────────────────────────────────────────────────────
