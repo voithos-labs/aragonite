@@ -251,13 +251,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await editor.bridge.waitForSourceNotContains('ABC');
 	});
 
-	// FIXME: battery-order-sensitive — green 55/55 focused (any load), red in the
-	// full plugins battery only; the Shift+ArrowDown never engages cross-block
-	// (waitForCrossBlock times out). End-press, wait-ceiling, font-settle, and the
-	// visual-line reader's dropped-range hard-false (fixed 0.9.27) all falsified.
-	// The semantics are unit-pinned (widget-reveal-collapse's cross-block bail).
-	// Ledgered in docs/issues.md; un-fixme with the repro.
-	test.fixme('a cross-block selection through the revealed source survives a blur without folding', async ({
+	test('a cross-block selection through the revealed source survives a blur without folding', async ({
 		page
 	}) => {
 		const pageErrors: string[] = [];
@@ -268,11 +262,15 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		// mid-measure (reachable under saturated parallel workers) breaks the
 		// last-line detection, so settle fonts before the gesture.
 		await page.evaluate(() => document.fonts.ready);
-		// Extend down into the next paragraph straight from the reveal caret — the
-		// anchor endpoint stays INSIDE the revealed source text node while the focus
-		// endpoint crosses the block boundary. (An End press first would escape the
-		// source and legitimately fold the reveal under containment scoping — on a
-		// slow machine that selectionchange processes before the cross-block one.)
+		// Extend down into the next paragraph straight from the reveal caret. The
+		// reveal caret lands at the source's leading edge (a mid-block offset), and
+		// the block is one visual line, so the FIRST Shift+ArrowDown extends to the
+		// line end within the block — a shift-extension, which keeps the source
+		// revealed (unlike a collapsed End press, which would escape the island and
+		// fold it). The SECOND crosses the boundary now that the focus sits at the
+		// block end. The anchor stays INSIDE the revealed source throughout (a
+		// forward selection anchors at its origin), so the focus alone crosses.
+		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
