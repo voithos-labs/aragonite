@@ -10,11 +10,10 @@
 		BlockList,
 		createContainerBlock,
 		getPluginMetadata,
-		trimTrailingLineEnding,
 		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
-	import { ADMONITION_KINDS, capitalize, type AdmonitionMetadata } from './kinds';
+	import { capitalize, coerceAdmonitionName, type AdmonitionMetadata } from './kinds';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
@@ -26,11 +25,8 @@
 		getBoxEl: () => boxEl
 	});
 
-	const name = $derived(getPluginMetadata<AdmonitionMetadata>(node)?.name ?? ADMONITION_KINDS[0]);
-	const kind = $derived(
-		(ADMONITION_KINDS as readonly string[]).includes(name) ? name : ADMONITION_KINDS[0]
-	);
-	const titleEmpty = $derived(trimTrailingLineEnding(node.children?.[0]?.raw ?? '').trim() === '');
+	const kind = $derived(coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name));
+	const titleEmpty = $derived((node.children?.[0]?.raw ?? '').trim() === '');
 
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;

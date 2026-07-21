@@ -14,8 +14,13 @@ export const ADMONITION_TITLE = 'admonition-title';
 export const ADMONITION_KINDS = ['note', 'tip', 'important', 'warning', 'caution'] as const;
 export type AdmonitionName = (typeof ADMONITION_KINDS)[number];
 
-export function isAdmonitionName(value: unknown): value is AdmonitionName {
+function isAdmonitionName(value: unknown): value is AdmonitionName {
 	return typeof value === 'string' && (ADMONITION_KINDS as readonly string[]).includes(value);
+}
+
+/** A valid admonition name, or the default (index 0) for anything else. */
+export function coerceAdmonitionName(value: unknown): AdmonitionName {
+	return isAdmonitionName(value) ? value : ADMONITION_KINDS[0];
 }
 
 /** Capitalize a kind name for the box's aria-label (e.g. "Tip admonition"). */

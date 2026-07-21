@@ -316,7 +316,24 @@ closure: simpleLeafClosure({
 });
 ```
 
-Omitting one of the four is a compile error, and a baked column stays overridable (a render-primary leaf scoping its `selectionPaint` to the revealed state, say). There is **no container preset**: a container's round-trip is its `rebuildRaw`, its merge and focus are structural walks, its clipboard may synthesize — so containers, whole-block-focus opaque leaves, and any novel tier hand-write the full nine, where the 0.9.18 lesson still applies.
+Omitting one of the four is a compile error, and a baked column stays overridable (a render-primary leaf scoping its `selectionPaint` to the revealed state, say).
+
+**Strip containers: `containerClosure`.** A container of real child blocks under a rebuilt marker wrapper answers four columns the same structural way — its children are the paint and search surfaces, it reorders whole-block through the parent `BlockList`, and it holds no clipboard anchor of its own — and its `roundTrip` is always `implemented` (its `rebuildRaw` is the mechanism). `containerClosure` bakes those, asking for the `roundTripVia` string plus the four the container determines — `focus`, `mergeBackspace`, `undo`, `simOracle`:
+
+```ts
+closure: containerClosure({
+	roundTripVia: 'container contract=opaque — rebuildNoteRaw',
+	focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
+	mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+	undo: {
+		mode: 'implemented',
+		via: 'updateMetadata — the variant switch commits as one undo entry'
+	},
+	simOracle: { mode: 'implemented', via: 'plugin e2e under the [invariant:] watcher' }
+});
+```
+
+A container that synthesizes on copy or adds an indent gesture overrides its one baked cell. Whole-block-focus opaque leaves and any novel tier still hand-write the full nine, where the 0.9.18 lesson applies.
 
 Optionally add a `conformanceFixture` — a small markdown source that parses to your kind — for the conformance battery.
 
@@ -818,13 +835,14 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Block-kind descriptor**
 
-| Export                                                                                                                         | Role                                                                                                                     |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `registerBlockKind`                                                                                                            | Register a kind's descriptor — merge behavior, editability, container shape                                              |
-| `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                                 |
-| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums        |
-| `ClosureBlock`, `ClosureColumn`, `ClosureCell`                                                                                 | The required closure matrix per kind — one `implemented`/`inherit-default`/`not-supported` cell per cross-cutting system |
-| `simpleLeafClosure`, `SimpleLeafClosureCells`                                                                                  | Preset for a simple leaf: bakes the five structurally-fixed columns, requires the four the component determines          |
+| Export                                                                                                                         | Role                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerBlockKind`                                                                                                            | Register a kind's descriptor — merge behavior, editability, container shape                                                                               |
+| `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                                                                  |
+| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums                                         |
+| `ClosureBlock`, `ClosureColumn`, `ClosureCell`                                                                                 | The required closure matrix per kind — one `implemented`/`inherit-default`/`not-supported` cell per cross-cutting system                                  |
+| `simpleLeafClosure`, `SimpleLeafClosureCells`                                                                                  | Preset for a simple leaf: bakes the five structurally-fixed columns, requires the four the component determines                                           |
+| `containerClosure`, `ContainerClosureCells`                                                                                    | Preset for a strip container: bakes the four structural columns and `roundTrip: implemented`, requires `roundTripVia` + the four the container determines |
 
 **Component registry**
 
