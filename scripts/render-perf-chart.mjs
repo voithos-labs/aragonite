@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { THEMES as BASE_THEMES, esc, textBuilder } from './chart-common.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const baseline = JSON.parse(readFileSync(join(root, 'src/lib/test/perf/baseline.json'), 'utf8'));
@@ -45,27 +46,10 @@ function series(metric, exceptionShape) {
 
 // ── Theme tokens (dataviz reference palette) ─────────────────────────────────
 
+// Base palette + this chart's series colors (band/median + the exception line).
 const THEMES = {
-	light: {
-		surface: '#fcfcfb',
-		inkPrimary: '#0b0b0b',
-		inkSecondary: '#52514e',
-		muted: '#898781',
-		grid: '#e1e0d9',
-		axis: '#c3c2b7',
-		bundle: '#2a78d6',
-		accent: '#eb6834'
-	},
-	dark: {
-		surface: '#1a1a19',
-		inkPrimary: '#ffffff',
-		inkSecondary: '#c3c2b7',
-		muted: '#898781',
-		grid: '#2c2c2a',
-		axis: '#383835',
-		bundle: '#3987e5',
-		accent: '#d95926'
-	}
+	light: { ...BASE_THEMES.light, axis: '#c3c2b7', bundle: '#2a78d6', accent: '#eb6834' },
+	dark: { ...BASE_THEMES.dark, axis: '#383835', bundle: '#3987e5', accent: '#d95926' }
 };
 
 // ── Geometry ─────────────────────────────────────────────────────────────────
@@ -77,17 +61,11 @@ const X = SIZES.map(
 	(_, i) => PLOT.left + 36 + (i * (PLOT.right - PLOT.left - 72)) / (SIZES.length - 1)
 );
 
-const FONT = 'system-ui, sans-serif';
-
 function fmtMs(v) {
 	if (v >= 10_000) return `${Math.round(v / 1000)} s`;
 	if (v >= 1000) return `${(v / 1000).toFixed(1)} s`;
 	if (v >= 10) return `${Math.round(v)} ms`;
 	return `${v.toFixed(1)} ms`;
-}
-
-function esc(s) {
-	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ── Chart builder ────────────────────────────────────────────────────────────
@@ -100,15 +78,7 @@ function chart(theme, spec) {
 		PLOT.bottom - ((Math.log10(v) - logMin) / (logMax - logMin)) * (PLOT.bottom - PLOT.top);
 
 	const parts = [];
-	const text = (
-		x,
-		yy,
-		s,
-		{ size = 12.5, fill = t.inkSecondary, weight = 400, anchor = 'start', extra = '' } = {}
-	) =>
-		parts.push(
-			`<text x="${x}" y="${yy}" font-family="${FONT}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}"${extra}>${esc(s)}</text>`
-		);
+	const text = textBuilder(t, parts);
 
 	parts.push(
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(spec.aria)}">`

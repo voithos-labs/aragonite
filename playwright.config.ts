@@ -17,6 +17,21 @@ const prodServer = {
 	timeout: 180_000
 };
 
+// Each dir gets its own `e2e-<dir>` project, and e2e-top ignores all of them so its
+// specs never double-run. The clipboard, simulation, and perf/vr projects carry
+// custom config (nested ignore, parallelism, timeouts), so they stay hand-written
+// below and their dirs are added to e2e-top's ignore by hand.
+const PROJECT_DIRS = [
+	'blocks',
+	'decorations',
+	'plugins',
+	'presentation',
+	'selection',
+	'sticky-column',
+	'a11y',
+	'search'
+];
+
 export default defineConfig({
 	testDir: './src/lib/e2e/tests',
 	timeout: 30_000,
@@ -32,17 +47,10 @@ export default defineConfig({
 			name: 'e2e-top',
 			testMatch: '*.spec.ts',
 			testIgnore: [
-				'blocks/**',
+				...PROJECT_DIRS.map((dir) => `${dir}/**`),
 				'clipboard/**',
-				'selection/**',
-				'sticky-column/**',
 				'simulation/**',
-				'perf/**',
-				'a11y/**',
-				'search/**',
-				'decorations/**',
-				'plugins/**',
-				'presentation/**'
+				'perf/**'
 			]
 		},
 		{
@@ -81,20 +89,13 @@ export default defineConfig({
 			timeout: 120_000,
 			use: { viewport: { width: 1280, height: 900 } }
 		},
-		{ name: 'e2e-blocks', testMatch: 'blocks/**/*.spec.ts' },
-		{ name: 'e2e-decorations', testMatch: 'decorations/**/*.spec.ts' },
-		{ name: 'e2e-plugins', testMatch: 'plugins/**/*.spec.ts' },
-		{ name: 'e2e-presentation', testMatch: 'presentation/**/*.spec.ts' },
+		...PROJECT_DIRS.map((dir) => ({ name: `e2e-${dir}`, testMatch: `${dir}/**/*.spec.ts` })),
 		{
 			name: 'e2e-clipboard',
 			testMatch: 'clipboard/**/*.spec.ts',
 			testIgnore: 'clipboard/exploration/**/*'
 		},
 		{ name: 'e2e-exploration', testMatch: 'clipboard/exploration/**/*.spec.ts' },
-		{ name: 'e2e-selection', testMatch: 'selection/**/*.spec.ts' },
-		{ name: 'e2e-sticky-column', testMatch: 'sticky-column/**/*.spec.ts' },
-		{ name: 'e2e-a11y', testMatch: 'a11y/**/*.spec.ts' },
-		{ name: 'e2e-search', testMatch: 'search/**/*.spec.ts' },
 		...(PROD
 			? [
 					{

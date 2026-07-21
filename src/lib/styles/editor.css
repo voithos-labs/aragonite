@@ -417,20 +417,22 @@
 	pointer-events: auto;
 }
 
-/* ── Reading mode ─────────────────────────────────────────────────────────────
-   Scoped on the root's [data-presentation='reading'] attribute (absent in source
-   mode). Markers are hidden by CSS ONLY — never omitted from the render path:
-   the raw-aware offset walk counts every DOM text node regardless of layout, so
-   hiding keeps the DOM↔raw coordinate space intact for selection/rect
-   measurement. Structural omission would desync it and is forbidden.
-   Principle for every per-family call below: reading mode shows what a RENDERED
-   document shows. */
+/* ── Rendered chrome, shared by reading + live preview ────────────────────────
+   Both modes hide source markers by CSS ONLY — never omitted from the render
+   path: the raw-aware offset walk counts every DOM text node regardless of
+   layout, so hiding keeps the DOM↔raw coordinate space intact for selection/rect
+   measurement. Structural omission would desync it and is forbidden. These
+   families are byte-identical across the two modes (a rendered document and an
+   unfocused live-preview block show the same thing), keyed on an equal-specificity
+   :is() so the per-mode rules below — reading's inertness, preview's focused
+   reveals — win by source order. */
 
 /* Inline markers (emphasis/code/link/escape spans) and block-own prefixes
    (heading `## `, setext underline, directive `::name`): pure syntax, in normal
    flow — remove from paint and native copy so text joins up rendered-style.
    Ambient container markers are excluded here; they carry layout (below). */
-:where(.editor)[data-presentation='reading'] .md-marker:not([contenteditable='false']) {
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+	.md-marker:not([contenteditable='false']) {
 	display: none;
 }
 
@@ -438,20 +440,22 @@
    line's `\n` is a bare text node CSS can't reach on its own. The `.md-fence-line`
    wrapper owns the whole line (marker + its `\n`), so collapsing it drops the line
    outright — no blank line left at the box's top or bottom. */
-:where(.editor)[data-presentation='reading'] .md-fence-line {
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-']) .md-fence-line {
 	display: none;
 }
 
 /* Reference-link trailing labels (`[label]` / `[]`): resolution metadata, not
    content — a rendered document shows only the link text. */
-:where(.editor)[data-presentation='reading'] .md-ref-label {
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-']) .md-ref-label {
 	display: none;
 }
 
 /* Directive container fence lines (`:::note` / `:::`): the container chrome
    (border/gutter) is the rendered form; the fence is source syntax. A block-level
-   span, so hiding it drops the whole line. */
-:where(.editor)[data-presentation='reading'] .directive-marker {
+   span, so hiding it drops the whole line — and it never reveals, belonging to the
+   container rather than the focused leaf. */
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+	.directive-marker {
 	display: none;
 }
 
@@ -459,14 +463,16 @@
    are keyed to the span's ch width), so they keep their box: visibility, not
    display. opacity:1 undoes the source dim — what stays visible is rendered
    chrome now. */
-:where(.editor)[data-presentation='reading'] .list-item-block .md-marker[contenteditable='false'] {
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+	.list-item-block
+	.md-marker[contenteditable='false'] {
 	visibility: hidden;
 	opacity: 1;
 }
 
 /* Bullets: `- ` hides; a rendered bullet paints in its slot — rendered chrome
    replacing source chrome, like blockquote's border. */
-:where(.editor)[data-presentation='reading']
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block[data-list-marker='bullet']
 	.md-marker[contenteditable='false']::before {
 	content: '•';
@@ -476,20 +482,32 @@
 
 /* Ordered items: the ambient text IS the rendered number (`1. `), so it stays
    visible, undimmed — exactly what an <ol> shows. */
-:where(.editor)[data-presentation='reading']
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block[data-list-marker='ordered']
 	.md-marker[contenteditable='false'] {
 	visibility: visible;
 }
 
 /* Task items: the `- ` prefix hides (GitHub task lists carry no bullet); the
-   checkbox stays visible but inert — pointer-events kills the toggle click at
-   the CSS layer, the toggleTask guard is the JS belt. Live checkboxes are a
-   deferred product question (docs/issues.md). */
-:where(.editor)[data-presentation='reading']
+   checkbox stays visible. Reading makes it inert (below); the preview modes edit,
+   so it stays live there. */
+:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
 	visibility: visible;
+}
+
+/* ── Reading mode ─────────────────────────────────────────────────────────────
+   Scoped on the root's [data-presentation='reading'] attribute (absent in source
+   mode). The marker-hiding families it shares with live preview are in the shared
+   section above; reading adds only its read-only inertness on top. */
+
+/* The checkbox stays inert: pointer-events kills the toggle click at the CSS
+   layer, the toggleTask guard is the JS belt. Live checkboxes are a deferred
+   product question (docs/issues.md). */
+:where(.editor)[data-presentation='reading']
+	.list-item-block[data-list-marker='task']
+	.task-checkbox {
 	cursor: default;
 	pointer-events: none;
 }
@@ -515,92 +533,51 @@
    [data-presentation^='preview-'] covers both LIVE editing modes: preview-block
    (the focused block renders full styled source) and preview-inline (within the
    focused block, only the constructs at the caret show their markers). Unfocused
-   blocks are identical in both — the shared families below key on the ^= prefix.
-   Focus is signalled by `data-focused` on the focused block's .block-host (the
-   editor's focus tracker sets it). All hiding is CSS-only — no render-path
-   branch, so the caret's DOM anchor survives a reveal: a click lands at the
-   content offset it hit and the markers appear around it without moving it. Same
-   coordinate-space rule as reading: hidden, never omitted.
+   blocks are identical in both, and share the marker-hiding families with reading
+   (the shared section above). Focus is signalled by `data-focused` on the focused
+   block's .block-host (the editor's focus tracker sets it). All hiding is CSS-only
+   — no render-path branch, so the caret's DOM anchor survives a reveal: a click
+   lands at the content offset it hit and the markers appear around it without
+   moving it. Same coordinate-space rule as reading: hidden, never omitted.
 
    Containment rule: only the single focused LEAF reveals. Container chrome
    (blockquote border, directive gutter) is not markers and never toggles; a
    focused list item under preview-block shows its own ambient marker as source
-   while sibling items stay rendered. Markers hide broadly and un-hide inside the
-   focused host, so the rule keys on DOM containment and nests correctly
+   while sibling items stay rendered. Markers hide broadly (above) and un-hide
+   inside the focused host, so the rule keys on DOM containment and nests correctly
    (sub-item, multi-block item, a leaf wrapped in an unfocused container all fall
    out right — the naive `.block-host:not([data-focused])` would hide the focused
    leaf's markers through its unfocused container ancestor). The render-primary
    leaves (block math, TOC) already render-when-unfocused / source-on-reveal
    outside reading, so they are block-granular here for free. */
 
-/* Inline markers + code fences + block-own prefixes: hidden everywhere; the
-   focused block reveals them wholesale under preview-block. All are inline
-   spans, so the reveal restores source layout exactly. */
-:where(.editor)[data-presentation^='preview-'] .md-marker:not([contenteditable='false']) {
-	display: none;
-}
+/* Inline markers + block-own prefixes reveal wholesale under preview-block. All
+   are inline spans, so the reveal restores source layout exactly. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker:not([contenteditable='false']) {
 	display: inline;
 }
 
-/* Code fence lines: the wrapper hides its `\n` (unreachable via the marker rule)
-   on every unfocused block, and reveals it on the focused block. Code fences are
-   whole-block markers, so both preview modes reveal on block focus (preview-inline
-   un-hides them exactly as preview-block does — see the inline-granular rule below,
-   where unstamped whole-block markers reveal wholesale). */
-:where(.editor)[data-presentation^='preview-'] .md-fence-line {
-	display: none;
-}
+/* Code fence lines are whole-block markers, so both preview modes reveal them on
+   block focus (preview-inline un-hides them exactly as preview-block does — see
+   the inline-granular rule below, where unstamped whole-block markers reveal
+   wholesale). */
 :where(.editor)[data-presentation^='preview-'] .block-host[data-focused] .md-fence-line {
 	display: inline;
 }
 
-/* Reference labels (metadata) and directive fences (container chrome). Directive
-   fences never reveal — they belong to the container, not the focused leaf. */
-:where(.editor)[data-presentation^='preview-'] .md-ref-label {
-	display: none;
-}
+/* Reference labels reveal on the focused block under preview-block. */
 :where(.editor)[data-presentation='preview-block'] .block-host[data-focused] .md-ref-label {
 	display: inline;
-}
-:where(.editor)[data-presentation^='preview-'] .directive-marker {
-	display: none;
-}
-
-/* Ambient list markers on unfocused items: bullet/number/checkbox rendered chrome
-   (same families as reading, but the checkbox stays live — these modes edit). */
-:where(.editor)[data-presentation^='preview-']
-	.list-item-block
-	.md-marker[contenteditable='false'] {
-	visibility: hidden;
-	opacity: 1;
-}
-:where(.editor)[data-presentation^='preview-']
-	.list-item-block[data-list-marker='bullet']
-	.md-marker[contenteditable='false']::before {
-	content: '•';
-	visibility: visible;
-	color: var(--syntax-list, currentColor);
-}
-:where(.editor)[data-presentation^='preview-']
-	.list-item-block[data-list-marker='ordered']
-	.md-marker[contenteditable='false'] {
-	visibility: visible;
-}
-:where(.editor)[data-presentation^='preview-']
-	.list-item-block[data-list-marker='task']
-	.task-checkbox {
-	visibility: visible;
 }
 
 /* Focused list item under preview-block: its ambient marker reads as source (raw
    `- `/`1. ` dimmed, no rendered bullet). preview-inline is excluded on purpose —
    the ambient marker is contenteditable=false chrome the caret can never enter,
    so at inline granularity it keeps its rendered form on the focused item too.
-   Written AFTER the hide rules so the equal-specificity ::before reset wins by
-   source order. */
+   Written AFTER the shared hide rules so the equal-specificity ::before reset wins
+   by source order. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker[contenteditable='false'] {

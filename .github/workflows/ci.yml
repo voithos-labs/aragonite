@@ -74,8 +74,9 @@ jobs:
       # perf:check:prod builds and previews the app, then gates the keystroke rows
       # against that prod build (the e2e-perf-prod project) — a dev-server run would
       # measure vite transform overhead, not the editor. Gate rows only: the
-      # attribution axes are diagnostic instruments with a recorded standing timeout
-      # on 1MB fixtures (docs/issues.md) — they are not part of the regression gate.
+      # attribution axes are diagnostic profiling instruments (they break per-keystroke
+      # cost down on the largest fixtures and run long there), not regression-gate rows,
+      # so the gate excludes them.
       - run: npm run perf:check:prod -- --grep-invert attribution
 
   consumer-smoke:

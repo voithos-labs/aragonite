@@ -10,10 +10,6 @@ export function assignIds(children: readonly NodeView[]): string[] {
 	return children.map(() => generateBlockId());
 }
 
-export function freshChildIds(children: readonly NodeView[]): string[] {
-	return assignIds(children);
-}
-
 /**
  * Initialize `childIds` on every container in a freshly-parsed subtree before it
  * is spliced into the live tree: a reused container component reads `childIds` in

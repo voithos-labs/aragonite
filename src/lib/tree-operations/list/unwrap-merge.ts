@@ -15,7 +15,7 @@ import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebui
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
-import { freshChildIds } from '../../block-id';
+import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
@@ -83,7 +83,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 			? ({ ...clonedList.metadata } as ListMetadata)
 			: { ordered: parentOrdered },
 		children: remainingItems,
-		childIds: freshChildIds(remainingItems),
+		childIds: assignIds(remainingItems),
 		innerPrefix: clonedList.innerPrefix ?? '',
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};

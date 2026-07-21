@@ -12,6 +12,7 @@
 // the decoration-ops document. Every position is re-derived from content on each
 // per-edit pass, so a decoration follows its bytes across typing and reorder.
 import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
+import { forEachLeaf } from '../walk-views';
 
 const REPLACE_OPEN = '[>';
 const REPLACE_CLOSE = '<]';
@@ -37,28 +38,19 @@ export const simIslandPlugin = definePlugin({
 
 function islandDecorations(doc: DocumentView): Decoration[] {
 	const decorations: Decoration[] = [];
-	walk(doc.children, []);
+	forEachLeaf(doc.children, (node, path) => {
+		collectReplaceIslands(node, path, decorations);
+		collectWidgetIslands(node, path, decorations);
+		if (node.raw.includes(BLOCK_SENTINEL)) {
+			decorations.push({
+				type: 'block',
+				path,
+				class: SIM_BADGED_BLOCK_CLASS,
+				badge: { buildDom: () => badgeElement() }
+			});
+		}
+	});
 	return decorations;
-
-	function walk(children: readonly NodeView[], path: number[]): void {
-		children.forEach((node, i) => {
-			const childPath = [...path, i];
-			if (node.children) {
-				walk(node.children, childPath);
-				return;
-			}
-			collectReplaceIslands(node, childPath, decorations);
-			collectWidgetIslands(node, childPath, decorations);
-			if (node.raw.includes(BLOCK_SENTINEL)) {
-				decorations.push({
-					type: 'block',
-					path: childPath,
-					class: SIM_BADGED_BLOCK_CLASS,
-					badge: { buildDom: () => badgeElement() }
-				});
-			}
-		});
-	}
 }
 
 function collectReplaceIslands(node: NodeView, path: number[], out: Decoration[]): void {
