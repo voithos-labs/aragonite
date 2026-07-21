@@ -1,21 +1,17 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { ExpectationTracker } from '../../simulation/expectation';
-import { attachErrorCollector } from '../../simulation/error-collector';
 import type { SimContext } from '../../simulation/invariants';
 import { mergeBackspaceAtStart } from '../../simulation/gestures/merge';
+import { makeSimContext } from './helpers';
 
 // Reachability self-tests for the merge gesture family: each drives Backspace at a
 // block start on a fixed document and asserts a real merge or container-exit unwrap
 // happened — a Backspace that no-oped would be an invisible hole in the corruption
 // oracle. The negative case proves the no-predecessor guard fails loud.
 
-async function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
-	const errors = attachErrorCollector(page);
-	await errors.start();
-	const tracker = new ExpectationTracker(await editor.bridge.getSource());
-	return { page, editor, tracker, errors, label: 'reach' };
+function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
+	return makeSimContext(page, editor, 'reach');
 }
 
 test.describe('sim gesture reachability: merge', () => {

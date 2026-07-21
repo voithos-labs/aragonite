@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { PluginsPage, revealWidget, roundTripStable } from './helpers';
+import { capturePageErrors } from '../../page-probes';
 
 /**
  * Inline `$…$` math: select → reveal editable source → commit re-renders (design
@@ -254,8 +255,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	test('a cross-block selection through the revealed source survives a blur without folding', async ({
 		page
 	}) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(String(e)));
+		const pageErrors = capturePageErrors(page);
 
 		await editor.revealByClick();
 		// The keyboard-extend decision is visual-line GEOMETRY; a KaTeX font swap

@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { capturePageErrors } from '../../../page-probes';
 
 // Header + N distinguishable body rows; row k's first cell is `rk`. Tall enough
 // that body rows window out, so a deep target is unmounted at drag start.
@@ -27,8 +28,7 @@ test.describe('table block: row drag on a windowed table', () => {
 
 	test('autoscroll mounts an off-window row and the drag drops onto it', async ({ page }) => {
 		test.setTimeout(60_000);
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent(tallTable(300));
 		const editorEl = page.locator('.editor');

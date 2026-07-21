@@ -1,14 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
-
-async function waitForFirstImageLoaded(page: Page): Promise<void> {
-	await page.waitForFunction(
-		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
-	);
-}
 
 async function getCursorRawInActiveCE(page: Page): Promise<number | null> {
 	return page.evaluate(() => {

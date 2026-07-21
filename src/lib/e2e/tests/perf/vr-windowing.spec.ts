@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { capturePageErrors, FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import { FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import { capturePageErrors } from '../../page-probes';
 
 // Windowing bounds the mounted set: a doc whose estimated height clears the
 // activation watermark mounts only a window of blocks (plus spacers); a small doc

@@ -6,10 +6,8 @@ import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import {
 	type SimContext,
-	assertNestedStateConsistent,
-	assertNoErrors,
-	assertParseConvergence,
-	assertRoundTripStable
+	assertCoreOracles,
+	assertParseConvergence
 } from '../../simulation/invariants';
 
 // Ungated decoration-ops oracle. The standing mark source already runs the
@@ -81,10 +79,7 @@ test.describe('decoration-ops simulation', () => {
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = async (label: string): Promise<void> => {
-			ctx.label = label;
-			await assertNoErrors(ctx);
-			await assertRoundTripStable(ctx);
-			await assertNestedStateConsistent(ctx);
+			await assertCoreOracles(ctx, label);
 			await assertParseConvergence(ctx);
 		};
 		await checkOracles('loaded');

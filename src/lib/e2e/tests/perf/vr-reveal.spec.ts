@@ -1,19 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { capturePageErrors, FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import { FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import { capturePageErrors, topLevelHostPresent } from '../../page-probes';
 
 // Off-window reveal: Ctrl+Shift+End, scroll, and collapse must reveal, mount, and
 // land the caret in a block/cell that was windowed out at load — for flat prose,
 // nested list items, and table cells — and undo of an off-window edit must revert
 // cleanly with focus restored.
-
-function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
-	return page.evaluate(
-		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
-		index
-	);
-}
 
 function mountedTopLevelIndices(page: Page): Promise<number[]> {
 	return page.evaluate(() =>

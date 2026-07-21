@@ -1,9 +1,8 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { ExpectationTracker } from '../../simulation/expectation';
-import { attachErrorCollector } from '../../simulation/error-collector';
 import type { SimContext } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 import {
 	cutSelection,
 	deleteSelection,
@@ -20,11 +19,8 @@ import {
 // would be an invisible hole in the corruption oracle — so the closing negative case
 // proves the engagement guard fails loud rather than recording a stale tree.
 
-async function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
-	const errors = attachErrorCollector(page);
-	await errors.start();
-	const tracker = new ExpectationTracker(await editor.bridge.getSource());
-	return { page, editor, tracker, errors, label: 'reach' };
+function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
+	return makeSimContext(page, editor, 'reach');
 }
 
 const isCrossBlockSelection = (page: Page) =>

@@ -207,6 +207,19 @@ export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 }
 
 /**
+ * The note-agnostic checkpoint sweep every loaded-ops session runs after each
+ * gesture: set the label so a failure names the checkpoint, then the three
+ * always-on oracles in fixed order. Convergence-running sessions call
+ * assertParseConvergence alongside it — its waiver lives on the note.
+ */
+export async function assertCoreOracles(ctx: SimContext, label: string): Promise<void> {
+	ctx.label = label;
+	await assertNoErrors(ctx);
+	await assertRoundTripStable(ctx);
+	await assertNestedStateConsistent(ctx);
+}
+
+/**
  * The oracle sweep the destructive cross-block and merge gestures run at the moment
  * the tree is most likely corrupted — right after a range collapse or a merge, before
  * the next gesture builds on it. Bundles the note-agnostic structural oracles;

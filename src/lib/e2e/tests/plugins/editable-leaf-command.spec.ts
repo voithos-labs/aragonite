@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
 import { primaryModifier } from '../../platform';
+import { capturePageErrors } from '../../page-probes';
 
 /**
  * Minted block commands on the editable-leaf tier
@@ -51,8 +52,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 	test('a throwing handler is contained: one origin:command error, no uncaught pageerror', async ({
 		page
 	}) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 		await page.evaluate(() => (window as unknown as any).__test.startErrorCapture());
 
 		await editor.memo.click();
