@@ -106,6 +106,20 @@ export function asCellIndex(n: number): CellIndex {
 	return n as CellIndex;
 }
 
+// ── Cell grid decode ─────────────────────────────────────────────────────────
+
+/**
+ * Decode a row-major cell index into its `{ row, col }` grid position for a table
+ * of `colCount` columns. The one home for the `Math.floor(i / colCount)` /
+ * `i % colCount` pair the selection and table-overlay paths otherwise hand-roll.
+ * Takes a plain number so callers holding a `CellIndex` or a bare loop counter
+ * both reach it without a cast.
+ */
+export function cellRowCol(cellIdx: number, colCount: number): { row: number; col: number } {
+	const row = Math.floor(cellIdx / colCount);
+	return { row, col: cellIdx - row * colCount };
+}
+
 // ── DocPath composition (the doc-absolute path helpers, at the neutral leaf) ──
 //
 // Bare `as DocPath` casts, not `asDocPath` calls: importing that runtime mint

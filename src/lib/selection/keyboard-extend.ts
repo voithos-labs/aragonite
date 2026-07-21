@@ -5,19 +5,27 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document } from '../core/nodes';
+import type { Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
 import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
+	focusCollapsedCaret,
 	applySingleBlockRange,
 	clearNativeSelection,
 	offsetFromViewportPoint
 } from './native-bridge';
 import type { BlockElLookup } from '../editor-keys';
-import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
+import {
+	nextPath,
+	previousPath,
+	firstPath,
+	lastPath,
+	firstLeafAtOrAfter,
+	lastLeafAtOrBefore
+} from './path-lookup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths, isStrictAncestorOf } from './path-math';
 import { cellEndpointDeepPath } from './table-endpoint-snap';
@@ -74,11 +82,7 @@ export async function collapseCrossBlock(
 	}
 
 	await revealPath(target.path);
-	const blockEl = getBlockElByPath(target.path);
-	if (blockEl) {
-		applyCollapsedCaret(blockEl, target);
-		blockEl.focus();
-	}
+	focusCollapsedCaret(getBlockElByPath, target);
 }
 
 /**
@@ -296,29 +300,6 @@ export function handleShiftClick(
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
-
-function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
-	let cur: number[] | null = path;
-	while (cur) {
-		const node = nodeAt(doc, cur);
-		if (!node) return null;
-		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
-		cur = [...cur, 0];
-	}
-	return null;
-}
-
-function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
-	let cur: number[] | null = path;
-	while (cur) {
-		// Annotated: overload resolution + the `cur` reassignment below otherwise cycle inference.
-		const node: CstNode | Document | null = nodeAt(doc, cur);
-		if (!node) return null;
-		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
-		cur = [...cur, node.children.length - 1];
-	}
-	return null;
-}
 
 /** First leaf reachable from `fromPath` going forward (descend or step). */
 function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {

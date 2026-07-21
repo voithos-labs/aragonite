@@ -26,7 +26,7 @@ import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf } from './primitives';
-import { asCellIndex } from '../cursor/coordinate-spaces';
+import { asCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
 import { comparePaths } from './path-math';
 
 /**
@@ -74,7 +74,8 @@ export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): 
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = cellIndexOf(point, 'cellEndpointDeepPath');
-	return [...point.path, Math.floor(cellIdx / colCount), cellIdx % colCount];
+	const { row, col } = cellRowCol(cellIdx, colCount);
+	return [...point.path, row, col];
 }
 
 export function snapCrossBlockTableEndpoints(
@@ -100,7 +101,7 @@ function snapEndpoint(
 
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = cellIndexOf(point, 'snapCrossBlockTableEndpoints');
-	const row = Math.floor(cellIdx / colCount);
+	const { row } = cellRowCol(cellIdx, colCount);
 	const snappedOffset = side === 'start' ? row * colCount : row * colCount + colCount - 1;
 	if (snappedOffset === cellIdx) return point;
 	return { ...point, offset: snappedOffset } satisfies CellSelectionPoint;

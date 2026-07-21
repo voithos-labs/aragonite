@@ -1,13 +1,11 @@
 /**
- * Pure predicates over CST paths and selection points, plus the `DocPath`
- * brand home. No DOM, no document lookups — strictly arithmetic on indices.
+ * Pure predicates over CST paths, plus the `DocPath` brand home. No DOM, no
+ * document lookups — strictly arithmetic on indices.
  *
  * The predicates take `readonly number[]`: they order and compare any
  * path-shaped array regardless of what space it addresses, so brand-typing
  * them to `DocPath` would force a cast at every call site for zero gain.
  */
-
-import type { SelectionPoint } from './primitives';
 
 // ── Doc-absolute path brand ──────────────────────────────────────────────────
 
@@ -94,17 +92,7 @@ export function lowestCommonAncestor(a: readonly number[], b: readonly number[])
 	return result;
 }
 
-// ── Point predicates ───────────────────────────────────────────────────────
-
-/** Value equality on path + offset. */
-export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
-	if (a.offset !== b.offset) return false;
-	if (a.path.length !== b.path.length) return false;
-	for (let i = 0; i < a.path.length; i++) {
-		if (a.path[i] !== b.path[i]) return false;
-	}
-	return true;
-}
+// ── Range predicates ───────────────────────────────────────────────────────
 
 /**
  * True if `path` is strictly between `start` and `end` in document order

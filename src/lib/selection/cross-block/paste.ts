@@ -13,7 +13,7 @@ import { CURSOR_END } from '../../block-component';
 import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { applyCollapsedCaret } from '../native-bridge';
+import { focusCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
@@ -90,11 +90,7 @@ async function landCaretAfterPaste(
 ): Promise<void> {
 	await ctx.afterReactivity();
 	if (inlineCaretOffset !== undefined) {
-		const el = ctx.getBlockElByPath(caretPath);
-		if (el) {
-			applyCollapsedCaret(el, { path: caretPath, offset: inlineCaretOffset });
-			el.focus();
-		}
+		focusCollapsedCaret(ctx.getBlockElByPath, { path: caretPath, offset: inlineCaretOffset });
 		return;
 	}
 	const editorRoot = ctx.getEditorRoot();
