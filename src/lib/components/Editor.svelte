@@ -65,6 +65,7 @@
 		interactionTraceSnapshot
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
+	import { readBlockPath } from '../selection/path-lookup';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
@@ -932,12 +933,8 @@
 				return;
 			}
 			setFocusedHost(host as HTMLElement);
-			try {
-				const path = JSON.parse(host.getAttribute('data-block-path')!) as number[];
-				focusedPath = Array.isArray(path) && path.length > 0 ? path : null;
-			} catch {
-				focusedPath = null;
-			}
+			const path = readBlockPath(host);
+			focusedPath = path && path.length > 0 ? path : null;
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;

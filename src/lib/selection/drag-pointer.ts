@@ -1,17 +1,16 @@
 /**
- * Pointer drag lifecycle for cross-block selection. Uses document-level
- * listeners so events arrive even after the pointer leaves the originating
- * block. rAF is used for frame-paced continuous animation, not sequencing.
+ * Pointer drag lifecycle for cross-block selection. Runs on a shared
+ * `createPointerDragSession`, whose document-level listeners deliver events even
+ * after the pointer leaves the originating block.
  */
 
 import type { SelectionState } from './selection-state.svelte';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import type { AnyBlockKind } from '../core/nodes';
 import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './path-math';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { createAutoScroll } from './autoscroll';
+import { createPointerDragSession } from './pointer-session';
+import { blockAtPoint } from './block-hit-test';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,50 +19,32 @@ export interface DragContext {
 	scrollContainer: HTMLElement;
 	selection: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	/**
-	 * Aborted on editor unmount. Without this, an unmount mid-drag would
-	 * leak the document-level pointermove/pointerup listeners (pointerup
-	 * never fires because the originating element is gone).
-	 */
+	/** Aborted on editor unmount; forwarded to the session's teardown. */
 	lifetimeSignal?: AbortSignal;
 }
 
 // ── Public entry ───────────────────────────────────────────────────────────
 
 /**
- * Install document-level pointermove + pointerup listeners for a drag.
- * Returns a disposer for early teardown.
+ * Install document-level pointer listeners for a cross-block drag started at
+ * `down`. Returns a disposer for early teardown.
  */
 export function installDragListener(
 	ctx: DragContext,
-	anchorPoint: SelectionPoint
+	anchorPoint: SelectionPoint,
+	down: PointerEvent
 ): { dispose(): void } {
-	let pendingMove: { clientX: number; clientY: number } | null = null;
-	let rafId: number | null = null;
-
-	function onPointerMove(e: PointerEvent): void {
-		pendingMove = { clientX: e.clientX, clientY: e.clientY };
-		if (rafId !== null) return;
-		rafId = requestAnimationFrame(() => {
-			rafId = null;
-			if (!pendingMove) return;
-			processMove(pendingMove.clientX, pendingMove.clientY);
-			autoScroll.maybeStart();
-		});
-	}
-
 	function processMove(clientX: number, clientY: number): void {
 		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
 		if (!hit) return;
 
 		if (comparePaths(hit.path, anchorPoint.path) === 0) {
 			if (ctx.selection.isCrossBlock) {
-				// Pointer returned to the anchor block after cross-block was
-				// entered. Collapse cross-block so the overlay stops painting
-				// the stale remote range; the browser's drag has been extending
-				// native selection underneath (CSS just hid it while
-				// data-cross-block was set), so handing back to it produces
-				// the correct single-block highlight.
+				// Pointer returned to the anchor block after cross-block was entered.
+				// Collapse cross-block so the overlay stops painting the stale remote
+				// range; the browser's drag has been extending native selection
+				// underneath (CSS just hid it while data-cross-block was set), so
+				// handing back to it produces the correct single-block highlight.
 				ctx.selection.collapse();
 			}
 			return;
@@ -102,80 +83,24 @@ export function installDragListener(
 		return null;
 	}
 
-	const autoScroll = createAutoScroll({
-		getPointer: () => pendingMove,
-		getTargets: (clientX, clientY) => {
-			const targets: HTMLElement[] = [ctx.scrollContainer];
-			const t = document.elementFromPoint(clientX, clientY);
-			if (t instanceof HTMLElement) {
-				const inner = scrollableSelfOrAncestor(t);
-				if (inner && inner !== ctx.scrollContainer) targets.push(inner);
-			}
-			return targets;
+	return createPointerDragSession(down, {
+		onMove: (p) => processMove(p.clientX, p.clientY),
+		onEnd: () => {
+			if (ctx.selection.isCrossBlock) parkCaretInFocusBlock(ctx);
 		},
-		onScrolled: () => {
-			if (pendingMove) processMove(pendingMove.clientX, pendingMove.clientY);
-		}
+		autoScroll: {
+			getTargets: (clientX, clientY) => {
+				const targets: HTMLElement[] = [ctx.scrollContainer];
+				const t = document.elementFromPoint(clientX, clientY);
+				if (t instanceof HTMLElement) {
+					const inner = scrollableSelfOrAncestor(t);
+					if (inner && inner !== ctx.scrollContainer) targets.push(inner);
+				}
+				return targets;
+			}
+		},
+		lifetimeSignal: ctx.lifetimeSignal
 	});
-
-	function flushPendingMove(): void {
-		// A release landing before the coalescing rAF runs would otherwise drop
-		// the final move, leaving isCrossBlock false on a fast flick or a
-		// pointercancel (touch / Tauri WebView2).
-		if (rafId !== null && pendingMove) {
-			processMove(pendingMove.clientX, pendingMove.clientY);
-		}
-	}
-
-	function onPointerUp(): void {
-		flushPendingMove();
-		dispose();
-		if (ctx.selection.isCrossBlock) {
-			parkCaretInFocusBlock(ctx);
-		}
-	}
-
-	// Touch/stylus and Tauri WebView2 surface gestures fire pointercancel
-	// instead of pointerup when the OS reclaims the pointer; without this
-	// listener pointermove + raf would leak until editor unmount.
-	function onPointerCancel(): void {
-		flushPendingMove();
-		dispose();
-		if (ctx.selection.isCrossBlock) {
-			parkCaretInFocusBlock(ctx);
-		}
-	}
-
-	let disposed = false;
-	function dispose(): void {
-		if (disposed) return;
-		disposed = true;
-		document.removeEventListener('pointermove', onPointerMove);
-		document.removeEventListener('pointerup', onPointerUp);
-		document.removeEventListener('pointercancel', onPointerCancel);
-		if (ctx.lifetimeSignal) {
-			ctx.lifetimeSignal.removeEventListener('abort', dispose);
-		}
-		if (rafId !== null) {
-			cancelAnimationFrame(rafId);
-			rafId = null;
-		}
-		autoScroll.dispose();
-		pendingMove = null;
-	}
-
-	if (ctx.lifetimeSignal) {
-		if (ctx.lifetimeSignal.aborted) {
-			return { dispose };
-		}
-		ctx.lifetimeSignal.addEventListener('abort', dispose, { once: true });
-	}
-
-	document.addEventListener('pointermove', onPointerMove);
-	document.addEventListener('pointerup', onPointerUp);
-	document.addEventListener('pointercancel', onPointerCancel);
-
-	return { dispose };
 }
 
 /**
@@ -188,55 +113,4 @@ function parkCaretInFocusBlock(ctx: DragContext): void {
 	const blockEl = ctx.getBlockElByPath(ctx.selection.focus.path);
 	if (!blockEl) return;
 	applyCollapsedCaret(blockEl, ctx.selection.focus);
-}
-
-// ── Hit test ───────────────────────────────────────────────────────────────
-
-interface BlockHit {
-	path: number[];
-	/** Editable surface for character-offset hit-testing (or the wrapper when none). */
-	element: HTMLElement;
-	/**
-	 * Set for block kinds with internal coordinate addressing (e.g. table,
-	 * whose offset is a row-major cellIdx, not a character index). Pre-bound to
-	 * the block's wrapper element; resolved from the kind's descriptor so the
-	 * selection layer carries no block-specific DOM knowledge.
-	 */
-	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
-}
-
-function blockAtPoint(editorRoot: HTMLElement, clientX: number, clientY: number): BlockHit | null {
-	const target = document.elementFromPoint(clientX, clientY);
-	if (!target) return null;
-
-	let el: Element | null = target;
-	while (el && el !== editorRoot) {
-		if (el instanceof HTMLElement) {
-			const attr = el.getAttribute('data-block-path');
-			if (attr) {
-				try {
-					const path = JSON.parse(attr) as number[];
-					const kind = el.getAttribute('data-block-kind');
-					// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
-					const hitTest = kind
-						? tryGetBlockKindDescriptor(kind as AnyBlockKind)?.foreignDragHitTest
-						: undefined;
-					if (hitTest) {
-						const wrapper = el;
-						return {
-							path,
-							element: wrapper,
-							foreignDragHitTest: (cx, cy) => hitTest(wrapper, cx, cy)
-						};
-					}
-					const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
-					return { path, element: editable ?? el };
-				} catch {
-					return null;
-				}
-			}
-		}
-		el = el.parentElement;
-	}
-	return null;
 }
