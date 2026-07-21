@@ -38,10 +38,12 @@ import {
 } from '../../cursor/coordinate-spaces';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
+import { normalizeLineEndings } from '../../core/lines';
 import {
 	createCrossBlockHandlers,
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
+import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -298,4 +300,117 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	return { crossBlock, sharedCtx, surface, onInput, onCompositionStart, onCompositionEnd };
+}
+
+// ── Clipboard skeleton ──────────────────────────────────────────────────────
+
+/**
+ * The ordered copy / cut / paste skeleton shared by the four editable surfaces
+ * (text, code, table cell, and the `editable-leaf` plugin seam). It owns the arms
+ * that must stay in lockstep — the reading-mode gate, the cross-block copy/cut
+ * write, the reveal fold, and the paste's preventDefault-before-any-await — so a
+ * new surface can neither skip a step nor resequence one. Each surface supplies
+ * only its genuinely-different arms: the intra-block payload tails, and the
+ * optional pre-cross-block arms (a selected-widget copy, an intra-table rect).
+ *
+ * The preventDefault discipline, stated once here so no call site re-derives it:
+ *  - Paste prevents before the first await, or the browser's native paste fires
+ *    during the reveal-fold tick (or the cross-block await) and injects DOM the
+ *    CST never sees.
+ *  - Cut prevents up front — every cut arm writes.
+ *  - Copy prevents as it writes: a cell with no selection writes nothing and lets
+ *    native copy through, so the copy arms (not the seam) own their prevent.
+ * Every write goes through the event's synchronous `clipboardData`;
+ * `navigator.clipboard.writeText` is async/permission-gated and unreliable in
+ * Tauri's wry webview.
+ */
+export interface ClipboardSurfaceDeps {
+	stickyColumn: StickyColumnState;
+	selection: SelectionState;
+	getDoc: DocumentGetter;
+	crossBlock: CrossBlockHandlers;
+	/** Reading mode: copy/cut write the visible selection string, paste is inert. */
+	isReadOnly: () => boolean;
+	/** Fold a live inline-source reveal before a cut/paste mutates, so the mutation
+	 *  runs against a CST consistent with the swapped DOM; returns the committed
+	 *  caret, or null when nothing was revealed. Omit on a surface with no reveal. */
+	foldReveal?: () => number | null;
+	/** Pre-cross-block copy arm (selected-widget slice, intra-table rect). Returns
+	 *  true when it wrote the payload and the handler should stop; owns its own
+	 *  preventDefault. */
+	copyPreHook?: (e: ClipboardEvent) => boolean;
+	/** Pre-cross-block cut arm (selected-widget splice, intra-table rect cut). */
+	cutPreHook?: (e: ClipboardEvent) => boolean | Promise<boolean>;
+	/** The intra-block copy payload; owns its preventDefault. Omit to write the
+	 *  visible selection string (code, leaf); text and the cell slice their raw. */
+	copyTail?: (e: ClipboardEvent) => void;
+	/** The intra-block cut: a synchronous clipboardData write, then the CST delete. */
+	cutTail: (e: ClipboardEvent) => void | Promise<void>;
+	/** The intra-block paste after normalize: the surface's splice/dispatch, handed
+	 *  the normalized text and the reveal-fold landing caret. */
+	pasteTail: (
+		e: ClipboardEvent,
+		pastedText: string,
+		foldedCaret: number | null
+	) => void | Promise<void>;
+}
+
+export interface ClipboardHandlers {
+	onCopy(e: ClipboardEvent): void;
+	onCut(e: ClipboardEvent): Promise<void>;
+	onPaste(e: ClipboardEvent): Promise<void>;
+}
+
+export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
+	const crossDeps = { selection: deps.selection, getDoc: deps.getDoc, crossBlock: deps.crossBlock };
+
+	// Reading mode / plain-text surfaces copy what the reader sees — the native
+	// selection string, which drops the CSS-hidden markers — not a raw slice.
+	const writeVisibleSelection = (e: ClipboardEvent): void => {
+		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+	};
+
+	function onCopy(e: ClipboardEvent): void {
+		deps.stickyColumn.reset();
+		if (deps.isReadOnly()) {
+			e.preventDefault();
+			writeVisibleSelection(e);
+			return;
+		}
+		if (deps.copyPreHook?.(e)) return;
+		if (writeCrossBlockCopy(e, crossDeps)) return;
+		if (deps.copyTail) {
+			deps.copyTail(e);
+			return;
+		}
+		e.preventDefault();
+		writeVisibleSelection(e);
+	}
+
+	async function onCut(e: ClipboardEvent): Promise<void> {
+		deps.stickyColumn.reset();
+		e.preventDefault();
+		if (deps.isReadOnly()) {
+			onCopy(e);
+			return;
+		}
+		if (deps.foldReveal && deps.foldReveal() !== null) await tick();
+		if (await deps.cutPreHook?.(e)) return;
+		if (await writeCrossBlockCut(e, crossDeps)) return;
+		await deps.cutTail(e);
+	}
+
+	async function onPaste(e: ClipboardEvent): Promise<void> {
+		e.preventDefault();
+		if (deps.isReadOnly()) return;
+		const foldedCaret = deps.foldReveal?.() ?? null;
+		if (foldedCaret !== null) await tick();
+		if (await deps.crossBlock.handlePaste(e)) return;
+		deps.stickyColumn.reset();
+		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+		if (!pastedText) return;
+		await deps.pasteTail(e, pastedText, foldedCaret);
+	}
+
+	return { onCopy, onCut, onPaste };
 }
