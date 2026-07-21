@@ -163,7 +163,11 @@
 	onkeydown={onMenuKeyDown}
 >
 	{#each items as item, i (i)}
-		{#if item.kind === 'action'}
+		{#if item.kind === 'action' || item.kind === 'clipboard'}
+			{@const activate =
+				item.kind === 'action'
+					? () => onaction(item.action, item.index)
+					: () => onclipboard(item.action)}
 			<button
 				type="button"
 				role="menuitem"
@@ -171,19 +175,7 @@
 				class="table-action-menu-item"
 				disabled={!item.enabled}
 				aria-disabled={!item.enabled}
-				onclick={() => onaction(item.action, item.index)}
-			>
-				{item.label}
-			</button>
-		{:else if item.kind === 'clipboard'}
-			<button
-				type="button"
-				role="menuitem"
-				tabindex="-1"
-				class="table-action-menu-item"
-				disabled={!item.enabled}
-				aria-disabled={!item.enabled}
-				onclick={() => onclipboard(item.action)}
+				onclick={activate}
 			>
 				{item.label}
 			</button>

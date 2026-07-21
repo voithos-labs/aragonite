@@ -54,7 +54,7 @@
 	} from '../../../selection/keyboard-extend';
 	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
-	import { cellKeydownPlan, type CellKeyPlan } from './cell-keydown-plan';
+	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { intraTableRectPayload } from './cell-clipboard';
 	import { escapeCellCommit } from './table-cell-paste';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
@@ -338,16 +338,7 @@
 				shiftKey: id === 'cell.shiftTab',
 				altKey: false
 			},
-			{
-				rowIdx,
-				colIdx,
-				columnCount,
-				rowCount,
-				offset: cursor.getRaw() ?? 0,
-				textLen: containerDomTextLength(el),
-				collapsed: !hasSelectionHelper(),
-				selectAllCount: selection.selectAllCount
-			}
+			cellPlanState(cursor.getRaw() ?? 0)
 		);
 		if (plan.kind === 'native' || plan.kind === 'select-all-step') return false;
 		void applyCellPlan(plan);
@@ -457,6 +448,22 @@
 	const onCompositionStart = editableSurface.onCompositionStart;
 	const onCompositionEnd = editableSurface.onCompositionEnd;
 
+	// The keydown-plan input for this cell at a given caret offset. Shared by the
+	// live keydown path and the cross-block dispatch entry, which differ only in
+	// where the offset comes from; both guard `el` before calling.
+	function cellPlanState(offset: number): CellKeyState {
+		return {
+			rowIdx,
+			colIdx,
+			columnCount,
+			rowCount,
+			offset,
+			textLen: containerDomTextLength(el!),
+			collapsed: !hasSelectionHelper(),
+			selectAllCount: selection.selectAllCount
+		};
+	}
+
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
@@ -480,16 +487,7 @@
 		preEditOffset = cursor.getRaw() ?? 0;
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
-			{
-				rowIdx,
-				colIdx,
-				columnCount,
-				rowCount,
-				offset: preEditOffset,
-				textLen: containerDomTextLength(el),
-				collapsed: !hasSelectionHelper(),
-				selectAllCount: selection.selectAllCount
-			}
+			cellPlanState(preEditOffset)
 		);
 
 		switch (plan.kind) {
