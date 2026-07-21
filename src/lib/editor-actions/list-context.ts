@@ -17,7 +17,7 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit } from '../tree-operations';
+import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
@@ -154,7 +154,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						taskChecked: false,
 						taskMarker: inheritTask ? '[ ] ' : null
 					},
-					[{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }]
+					[emptyParagraph()]
 				);
 			}
 

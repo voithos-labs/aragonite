@@ -27,7 +27,7 @@ import {
 	rebuildSharedAncestries
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
-import { blockNodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
@@ -406,7 +406,7 @@ function caretNearestSurvivor(
 		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
 	}
 
-	const filler: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+	const filler = emptyParagraph();
 	sharing.stamp(filler);
 	doc.children.push(filler);
 	return { path: [0], offset: 0 };

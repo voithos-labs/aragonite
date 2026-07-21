@@ -16,6 +16,7 @@ import { displayLength, trailingLineEnding } from '../core/lines';
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathsEqual } from './path-math';
 import { replaceAtPath } from '../tree-operations/path-mutate';
+import { emptyParagraph } from '../tree-operations/node-ops';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
@@ -197,7 +198,7 @@ export function terminateLine(text: string, sourceRaw: string): string {
 export function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
 	const reparsed = parse(raw || '\n');
 	if (reparsed.children.length === 0) {
-		return [{ kind: 'paragraph', leadingTrivia, raw: '\n' }];
+		return [emptyParagraph(leadingTrivia)];
 	}
 	const cloned = reparsed.children.slice();
 	cloned[0] = { ...cloned[0], leadingTrivia };
