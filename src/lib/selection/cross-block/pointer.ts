@@ -100,7 +100,8 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 				getBlockElByPath: ctx.getBlockElByPath,
 				lifetimeSignal
 			},
-			anchorPoint
+			anchorPoint,
+			e
 		);
 	}
 
