@@ -57,18 +57,18 @@ describe('list-overrides deleteBlock — focus after deleting the last item', ()
 				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
 			}),
 			createListOverrides({
-				get index() {
-					return 0;
+				scope: {
+					get index() {
+						return 0;
+					},
+					get node() {
+						return liveList();
+					},
+					get path() {
+						return [0];
+					}
 				},
-				get node() {
-					return liveList();
-				},
-				get path() {
-					return [0];
-				},
-				state: listState as unknown as BlockListState,
-				parentBlockEdit: makeStubBlockEdit(),
-				parentContainerEdit: containerEdit
+				parentBlockEdit: makeStubBlockEdit()
 			})
 		);
 
