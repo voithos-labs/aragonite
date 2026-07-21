@@ -23,13 +23,13 @@
 		hasSelection as hasSelectionHelper
 	} from '../../../cursor/content-offsets';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
+	import {
+		createEditableSurface,
+		createClipboardHandlers,
+		consumePendingRestore
+	} from '../editable-surface';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
-	import {
-		writeCrossBlockCopy,
-		writeCrossBlockCut
-	} from '../../../selection/cross-block/clipboard';
 	import { renderCodeBlock } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -42,11 +42,7 @@
 	import { computeFenceExit } from './code-fence-exit';
 	import { classifyFenceBoundary, clampEnterOffsetToBody } from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
-	import {
-		trimTrailingLineEnding,
-		normalizeLineEndings,
-		trailingLineEnding
-	} from '../../../core/lines';
+	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt } from '../../../tree-operations';
 	import { eventToChord } from '../../../schema/keybindings';
@@ -491,81 +487,52 @@
 		if (crossBlock.handlePointerDown(e)) return;
 	}
 
-	function getCopyPayload(): string {
-		return window.getSelection()?.toString() ?? '';
-	}
-
-	function onCopy(e: ClipboardEvent): void {
-		stickyColumn.reset();
-		e.preventDefault();
-		// Reading mode copies the rendered selection, never the markdown-source
-		// cross-block payload.
-		if (readOnly) {
-			e.clipboardData?.setData('text/plain', getCopyPayload());
-			return;
-		}
-		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
-		e.clipboardData?.setData('text/plain', getCopyPayload());
-	}
-
-	async function onCut(e: ClipboardEvent): Promise<void> {
-		stickyColumn.reset();
-		e.preventDefault();
-		// Reading mode: cut degrades to copy (the event still fires on a
-		// non-editable surface).
-		if (readOnly) {
-			onCopy(e);
-			return;
-		}
-		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
-		e.clipboardData?.setData('text/plain', getCopyPayload());
-
-		if (!el) return;
-		const selOffsets = getSelectionOffsetsHelper(el);
-		if (selOffsets) {
-			const display = getDisplayText();
-			const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
-			blockEdit.updateBlockContent(
-				index,
-				newDisplay + trailingLineEnding(node.raw),
-				selOffsets.start
-			);
-			pendingCursorOffset = selOffsets.start;
-		}
-	}
-
-	async function onPaste(e: ClipboardEvent): Promise<void> {
-		if (readOnly) {
-			e.preventDefault();
-			return;
-		}
-		if (await crossBlock.handlePaste(e)) return;
-
-		stickyColumn.reset();
-		if (!el) return;
-		e.preventDefault();
-		const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-		if (!pasted) return;
-
-		const sel = currentRange();
-		const result = await pasteDispatch(
-			{
-				pastedText: pasted,
-				targetPath: myPath,
-				offset: sel.start,
-				preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
-			},
-			{
-				doc: getDoc(),
-				blockEdit,
-				controller: pasteCoordinator
+	// Code has no ambient markers, so its DOM-text selection IS its raw slice: the
+	// intra-block copy falls to the seam's visible-selection default (copyTail
+	// omitted), and cut writes that same string before truncating.
+	const { onCopy, onCut, onPaste } = createClipboardHandlers({
+		stickyColumn,
+		selection,
+		getDoc,
+		crossBlock,
+		isReadOnly: () => readOnly,
+		cutTail: (e) => {
+			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+			if (!el) return;
+			const selOffsets = getSelectionOffsetsHelper(el);
+			if (selOffsets) {
+				const display = getDisplayText();
+				const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
+				blockEdit.updateBlockContent(
+					index,
+					newDisplay + trailingLineEnding(node.raw),
+					selOffsets.start
+				);
+				pendingCursorOffset = selOffsets.start;
 			}
-		);
+		},
+		pasteTail: async (e, pastedText) => {
+			if (!el) return;
+			const sel = currentRange();
+			const result = await pasteDispatch(
+				{
+					pastedText,
+					targetPath: myPath,
+					offset: sel.start,
+					preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
+				},
+				{
+					doc: getDoc(),
+					blockEdit,
+					controller: pasteCoordinator
+				}
+			);
 
-		if (result.inlineCaretOffset !== undefined) {
-			pendingCursorOffset = result.inlineCaretOffset;
+			if (result.inlineCaretOffset !== undefined) {
+				pendingCursorOffset = result.inlineCaretOffset;
+			}
 		}
-	}
+	});
 </script>
 
 <div
