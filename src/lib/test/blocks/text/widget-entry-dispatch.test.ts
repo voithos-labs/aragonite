@@ -77,6 +77,7 @@ function mount(source: string, widgetKind: string) {
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,
+		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: {
 			updateBlockContent: (index: number, raw: string, before: number, after: number) =>

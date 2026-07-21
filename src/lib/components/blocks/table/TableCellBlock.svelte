@@ -272,6 +272,8 @@
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
+		hasIslands: () =>
+			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		blockEdit: cellBlockEdit,
 		setPendingCursor: (offset) => {
@@ -383,7 +385,10 @@
 
 	$effect(() => {
 		if (!el) return;
-		cellRender.render({ forceRebuild: pendingCursorOffset !== null });
+		cellRender.render({
+			forceRebuild: pendingCursorOffset !== null,
+			carryCaret: pendingCursorOffset === null
+		});
 		if (pendingCursorOffset !== null) {
 			// Restore only while this cell still owns focus — an unguarded restore
 			// would yank the global selection back into a blurred cell. Mirrors the

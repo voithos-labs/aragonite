@@ -15,6 +15,12 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '$lib/perf/instruments';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 
@@ -25,11 +31,14 @@ interface Harness {
 	edits: { index: number; content: string; start: number; end: number }[];
 }
 
-/** Common dispatch deps for the island tests: no CST widget, no reveal, editing mode. */
+/** Common dispatch deps for the island tests: no CST widget, no reveal, editing mode.
+ *  `hasIslands` defaults true (every `mount` stamps one); the scan-gate tests pass
+ *  false to exercise the island-free early return. */
 function islandDeps(
 	node: CstNode,
 	el: HTMLElement,
-	edits: Harness['edits']
+	edits: Harness['edits'],
+	hasIslands = true
 ): EdgePolicyDispatchDeps {
 	return {
 		get node() {
@@ -43,6 +52,7 @@ function islandDeps(
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,
+		hasIslands: () => hasIslands,
 		getRawSelection: () => null,
 		blockEdit: {
 			updateBlockContent: (index: number, content: string, start: number, end: number) => {
@@ -211,5 +221,44 @@ describe('a CST widget outranks a decoration island at the same caret edge', () 
 		// The island's select-whole never ran: no native range wraps it, no edit fired.
 		expect(edits).toHaveLength(0);
 		expect(window.getSelection()!.rangeCount).toBe(0);
+	});
+});
+
+// ── The per-keystroke island DOM scan is gated on island presence ──────────────
+
+describe('island-free typing skips the DOM scan', () => {
+	beforeEach(() => {
+		resetPerfInstruments();
+		enablePerfInstruments();
+	});
+	afterEach(() => disablePerfInstruments());
+
+	// A plain paragraph with a text-node caret and no island span — the common block.
+	function plainBlock(): HTMLElement {
+		const el = document.createElement('div');
+		el.setAttribute('contenteditable', 'true');
+		el.append(document.createTextNode('hello'));
+		document.body.appendChild(el);
+		const range = document.createRange();
+		range.setStart(el.firstChild!, 3);
+		range.collapse(true);
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(range);
+		return el;
+	}
+
+	it('a printable keydown runs zero DOM scans when the block has no islands', () => {
+		const node = parse('hello\n').children[0];
+		const el = plainBlock();
+		const dispatch = createEdgePolicyDispatch(islandDeps(node, el, [], false));
+		expect(dispatch.handleKeydown(key('z'), asRawOffset(3))).toBe(false);
+		expect(perfSnapshot().islandKeyScans).toBe(0);
+	});
+
+	it('a block that carries islands still scans (the gate does not over-suppress)', () => {
+		const h = mount('abHIDDENcd\n', 2, 8);
+		h.handleKeydown(key('Backspace'), asRawOffset(8));
+		expect(perfSnapshot().islandKeyScans).toBeGreaterThanOrEqual(1);
 	});
 });
