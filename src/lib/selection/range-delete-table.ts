@@ -18,35 +18,30 @@ import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, trailingLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
-import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
+import { charOffsetOf, cellIndexOf } from './primitives';
 import { replaceAtPath } from '../tree-operations/path-mutate';
-import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
-	comparePaths,
-	lowestCommonAncestor,
-	isPathSubtreeBetween,
-	pathHasPrefix,
-	pathsEqual
-} from './path-math';
+	resolveEndWall,
+	planCrossBlockDeletion,
+	applyPlannedDeletion,
+	rebuildSharedAncestries
+} from './range-delete-ceremony';
+import { comparePaths } from './path-math';
 import { blockNodeAt } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
 	ensureUnsharedSubtree,
 	rebuildOwnedContainer,
-	rebuildUnsharedAncestry,
-	rebuildUnsharedChain
+	rebuildUnsharedAncestry
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
 import {
 	nearestChromeContainer,
 	isChromeChild,
-	rangeConsumesContainer,
-	lastChildDescendant,
 	terminateLine,
-	reparseWithFallback,
-	type ChromeContainer
+	reparseWithFallback
 } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -143,128 +138,6 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 		}
 		rebuildTableRowRaw(row);
 	}
-}
-
-// ── Shared deletion-path ceremony ───────────────────────────────────────────
-// The cross-block cases interleave replaceAtPath differently (case 1 after
-// deletes, case 2 before — see its ordering comment), so the steps stay
-// separate helpers the cases sequence explicitly.
-
-interface EndWall {
-	container: ChromeContainer;
-	consumed: boolean;
-}
-
-/**
- * End-side wall context: the chrome container holding the end point, when the
- * range enters it from outside. `consumed` means the whole subtree is covered
- * — the chrome branch's last-byte rule for a prose end; for a table end, the
- * emptied table sitting on the container's last-child chain — so the container
- * unit-deletes instead of leaving a husk.
- */
-function resolveEndWall(
-	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	endTableEmptied: boolean | null
-): EndWall | null {
-	const container = nearestChromeContainer(doc, end.path);
-	if (!container || pathHasPrefix(start.path, container.path)) return null;
-	const consumed =
-		endTableEmptied === null
-			? rangeConsumesContainer(container, end)
-			: endTableEmptied && lastChildDescendant(container, end.path) !== null;
-	return { container, consumed };
-}
-
-interface DeletionPlan {
-	deletionPaths: number[][];
-	chromeClearChain: CstNode[] | null;
-}
-
-/**
- * Covered subtree roots (chrome-ceremony parity: one splice per covered
- * subtree) plus endpoint paths the caller marks for removal, honoring the
- * chrome wall: a surviving end container's covered chrome CLEARS instead of
- * deleting (returned as an unshared chain for the caller's raw write +
- * rebuild), and a consumed container replaces its own endpoint/descendant
- * splices with one unit delete.
- */
-function collectDeletionPlan(
-	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	endpointPaths: number[][],
-	wall: EndWall | null,
-	sharing: SharingState
-): DeletionPlan {
-	const between = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
-	);
-	const chromeClearPath = wall && !wall.consumed ? [...wall.container.path, 0] : null;
-	let chromeClearChain: CstNode[] | null = null;
-	let candidates: number[][] = [];
-	for (const p of between) {
-		if (chromeClearPath && pathsEqual(p, chromeClearPath)) {
-			const chain = ensureUnsharedPath(doc, p, sharing);
-			if (chain.length === p.length) chromeClearChain = chain;
-		} else {
-			candidates.push(p);
-		}
-	}
-	candidates.push(...endpointPaths);
-	if (wall?.consumed) {
-		candidates = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
-		candidates.push(wall.container.path.slice());
-	}
-	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain };
-}
-
-/**
- * Plan the deletion — covered subtree roots plus caller-marked endpoint paths
- * (via {@link collectDeletionPlan}) — then own every deletion path's parent
- * spine before any splice (G1.9) and resolve the LCA cascade cleanup stops at.
- * The caller resolves `wall` itself: its `consumed` flag also gates each case's
- * endpoint prose-replace, which runs before this on some cases.
- */
-function planCrossBlockDeletion(
-	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	endpointPaths: number[][],
-	wall: EndWall | null,
-	sharing: SharingState
-): { plan: DeletionPlan; lcaPath: number[] } {
-	const plan = collectDeletionPlan(doc, start, end, endpointPaths, wall, sharing);
-	for (const path of plan.deletionPaths) {
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-	return { plan, lcaPath: lowestCommonAncestor(start.path, end.path) };
-}
-
-/**
- * Apply the plan as one atomic step: clear a surviving end container's covered
- * chrome (raw write, never a node delete), then splice the covered subtrees in
- * reverse doc order under the identity gate. The cases sequence their endpoint
- * prose-replace before or after this call per their ordering comments.
- */
-function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
-	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
-	if (chrome) chrome.raw = '\n';
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
-}
-
-/**
- * Rebuild every deletion path's surviving ancestry, then the cleared chrome's
- * opener line (chain-based so the re-emit survives the splices). Shared tail of
- * every case's rebuild block; case-specific survivor rebuilds stay at the call
- * site, on their own side of this call.
- */
-function rebuildSharedAncestries(doc: Document, plan: DeletionPlan, sharing: SharingState): void {
-	for (const path of plan.deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
-	}
-	if (plan.chromeClearChain) rebuildUnsharedChain(plan.chromeClearChain, sharing);
 }
 
 // ── Case 1: prose start, table end ─────────────────────────────────────────
