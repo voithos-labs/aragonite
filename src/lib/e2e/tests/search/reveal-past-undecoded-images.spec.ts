@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
+import { capturePageErrors } from '../../page-probes';
 
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
 const prevButton = (page: Page) => page.getByRole('button', { name: 'Previous match' });
@@ -29,8 +30,7 @@ function activeOverlayInView(page: Page): Promise<{ painted: boolean; inView: bo
 test('search Previous to a far match past undecoded images keeps the active highlight in view', async ({
 	page
 }) => {
-	const pageErrors: string[] = [];
-	page.on('pageerror', (e) => pageErrors.push(e.message));
+	const pageErrors = capturePageErrors(page);
 
 	// Hold the showcase's images undecoded for the whole test (deterministic): the
 	// picsum requests hang, so the <img>s never decode and keep measuring ~0 — the

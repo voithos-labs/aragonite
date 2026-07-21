@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { capturePageErrors } from '../../../page-probes';
 
 // VR-K1: sticky-column entry into a row-windowed table must read column geometry
 // from a MOUNTED row, not hard-coded row 0. With the table scrolled past row 0,
@@ -25,8 +26,7 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 		// the same headroom the VR table suite uses.
 		test.setTimeout(120_000);
 
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 
 		// Trailing paragraph below the table: ArrowDown out of the last row captures
 		// the sticky-X, ArrowUp re-enters the last row via focusAtColumn(x, 'below').

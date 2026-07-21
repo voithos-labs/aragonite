@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
-import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { topLevelHostPresent } from '../../../page-probes';
 
 const TRANSPARENT_MIDDLE = 'first\n\n![pic](/test-fixtures/sample.png)\n\nthird\n';
 const LIST_ONLY_TRANSPARENT =
@@ -14,13 +14,6 @@ const WINDOWED_TAIL_BLOCKS = 800;
 function windowedDocWithTransparentTail(): string {
 	const text = Array.from({ length: WINDOWED_TAIL_BLOCKS }, (_, i) => `para ${i}`).join('\n\n');
 	return `${text}\n\n![pic](/test-fixtures/sample.png)\n`;
-}
-
-function topLevelHostPresent(page: Page, index: number): Promise<boolean> {
-	return page.evaluate(
-		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
-		index
-	);
 }
 
 test.describe('selection — keyboard: vertical-skip parity (G1)', () => {

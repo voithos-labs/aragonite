@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { capturePageErrors } from '../../../page-probes';
 
 // A short, fixed viewport makes the editor a real (capped) scroll container so the
 // image can be scrolled above the fold; the e2e-blocks project sets no viewport.
@@ -79,8 +80,7 @@ async function expectNoShiftOnImageLoad(
 	scrollTo: ScrollTarget,
 	expectWindowed: boolean
 ): Promise<void> {
-	const pageErrors: string[] = [];
-	page.on('pageerror', (e) => pageErrors.push(e.message));
+	const pageErrors = capturePageErrors(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto();

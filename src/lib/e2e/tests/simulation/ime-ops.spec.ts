@@ -8,10 +8,8 @@ import { makeRng } from '../../simulation/rng';
 import type { CompositionCase } from '../../simulation/gestures/ime';
 import {
 	type SimContext,
-	assertNestedStateConsistent,
-	assertNoErrors,
-	assertParseConvergence,
-	assertRoundTripStable
+	assertCoreOracles,
+	assertParseConvergence
 } from '../../simulation/invariants';
 
 // Ungated IME-composition oracle. The handler-level and CDP e2e harnesses pin the
@@ -64,10 +62,7 @@ test.describe('ime-ops simulation', () => {
 			const g = new Gestures(ctx, rng);
 
 			const checkOracles = async (label: string): Promise<void> => {
-				ctx.label = label;
-				await assertNoErrors(ctx);
-				await assertRoundTripStable(ctx);
-				await assertNestedStateConsistent(ctx);
+				await assertCoreOracles(ctx, label);
 				await assertParseConvergence(ctx);
 			};
 			await checkOracles('loaded');
