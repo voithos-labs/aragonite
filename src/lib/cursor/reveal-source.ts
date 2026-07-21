@@ -61,7 +61,7 @@
 
 import { tick } from 'svelte';
 import { asRawOffset, toDomTextOffset } from './coordinate-spaces';
-import { createRangeAtDomTextOffsets } from './widget-offset';
+import { restoreCaretAtWalkOffset } from './focused-caret';
 import { assertInvariant } from '../invariants/assert';
 import { checkRevealSourceLength } from '../invariants/inline-transitions';
 
@@ -97,12 +97,8 @@ export interface SourceReveal {
 export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	/** Places the caret at a BLOCK-source offset, converting to ambient-included walk space. */
 	function placeCaret(container: HTMLElement, blockSourceOffset: number): void {
-		const target = toDomTextOffset(asRawOffset(blockSourceOffset), deps.getAmbientLength());
-		const range = createRangeAtDomTextOffsets(container, target, target);
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
+		const walkOffset = toDomTextOffset(asRawOffset(blockSourceOffset), deps.getAmbientLength());
+		restoreCaretAtWalkOffset(container, walkOffset);
 	}
 
 	async function reveal(atSourceOffset = 0): Promise<void> {

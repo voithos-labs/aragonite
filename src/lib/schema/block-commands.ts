@@ -153,6 +153,27 @@ function runMintedCommand(
 }
 
 /**
+ * The fall-through tail both dispatchers share once a binding resolves and the
+ * tier-specific prefix (global tier / reading-mode gate) has declined: try the
+ * minted seam, else route a built-in id to the target's `runCommand` — dev-warning
+ * a bound-but-unreachable plugin id rather than handing it to a `runCommand` that
+ * can't resolve it.
+ */
+function runResolvedBinding(
+	target: KindCommandTarget,
+	binding: KeyBinding,
+	onCommandError?: CommandErrorSink
+): boolean {
+	const minted = runMintedCommand(target, binding, onCommandError);
+	if (minted !== 'unresolved') return minted;
+	if (!isBuiltinCommandId(binding.command)) {
+		warnUnresolvedPluginCommand(binding.command);
+		return false;
+	}
+	return target.runCommand(binding.command, binding.arg);
+}
+
+/**
  * Leaf-path dispatch: the focused editable/chrome surface. Full precedence —
  * global (undo/redo) → minted block command → built-in kind command. Returns true
  * when handled. A minted command resolves only when the target supplies a command
@@ -177,13 +198,7 @@ export function dispatchKeyCommand(
 	// the same channel as a block command's — the global tier is the only path that
 	// reaches a plugin-global handler.
 	if (globalRun) return globalRun({ ...ctx, onCommandError });
-	const minted = runMintedCommand(target, binding, onCommandError);
-	if (minted !== 'unresolved') return minted;
-	if (!isBuiltinCommandId(binding.command)) {
-		warnUnresolvedPluginCommand(binding.command);
-		return false;
-	}
-	return target.runCommand(binding.command, binding.arg);
+	return runResolvedBinding(target, binding, onCommandError);
 }
 
 /**
@@ -205,11 +220,5 @@ export function dispatchKindCommand(
 	if (isReadingMode(getPresentationMode)) return false;
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
-	const minted = runMintedCommand(target, binding, onCommandError);
-	if (minted !== 'unresolved') return minted;
-	if (!isBuiltinCommandId(binding.command)) {
-		warnUnresolvedPluginCommand(binding.command);
-		return false;
-	}
-	return target.runCommand(binding.command, binding.arg);
+	return runResolvedBinding(target, binding, onCommandError);
 }
