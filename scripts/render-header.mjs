@@ -9,7 +9,7 @@
 // dense nucleus. Every ray is placed by hand below — the uneven angles and the
 // two dominant spars are the difference between a mineral and a snowflake.
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
@@ -170,6 +170,5 @@ await page.waitForTimeout(300);
 await page.locator('#plate').screenshot({ path: join(outDir, 'aragonite-header.png') });
 await browser.close();
 
-const { unlinkSync } = await import('node:fs');
 unlinkSync(scratchHtml);
 console.log('wrote docs/assets/aragonite-header.png');

@@ -76,6 +76,20 @@ export function getFocusedBlockPath(): number[] | null {
 	return findBlockPathForElement(el);
 }
 
+// The focused prose block's inline tree, parsed fresh from `source`. Empty string
+// when no prose block holds the caret. Shared by the probe surface and the demo
+// DebugPanel's inline-tree getter.
+export function dumpFocusedInlineTree(source: string): string {
+	const path = getFocusedBlockPath();
+	if (!path) return '';
+	const doc = parse(source);
+	const node = nodeAt(doc, path);
+	if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
+	const range = getContentRange(node);
+	const inline = parseInline(node.raw, range.start, range.end);
+	return dumpInlineTree(inline);
+}
+
 function isCrossBlockSnapshot(sel: {
 	anchor: { path: number[] };
 	focus: { path: number[] };
@@ -214,9 +228,42 @@ function collectConformanceEntries(): ConformanceSweepEntry[] {
 // ── window.__test probe surface (backs the e2e suite) ──────────────────────
 
 type ProbeRect = { top: number; left: number; width: number; height: number } | null;
+type CaretProbeState = { captured: boolean; rect: ProbeRect };
 
-let capturedErrorOrigins: string[] = [];
-let disposeErrorCapture: (() => void) | undefined;
+// A start/stop accumulator over an editor-event subscription: `start` disposes any
+// live session, resets the accumulator, and subscribes; `stop` disposes and returns
+// the accumulated value; `peek` reads it without ending the session. Module-level so
+// a session survives the probe surface being reinstalled on an editor remount.
+function createSessionProbe<T>(init: () => T): {
+	start: (subscribe: (accumulator: T) => () => void) => void;
+	stop: () => T;
+	peek: () => T;
+} {
+	let value = init();
+	let dispose: (() => void) | undefined;
+	return {
+		start(subscribe) {
+			dispose?.();
+			value = init();
+			dispose = subscribe(value);
+		},
+		stop() {
+			dispose?.();
+			dispose = undefined;
+			return value;
+		},
+		peek() {
+			return value;
+		}
+	};
+}
+
+// Structural edit ops (op !== 'input'); the count probe reads this array's length.
+// Error origins from caught render failures. The first cross-block caretRect.
+const editOpProbe = createSessionProbe<string[]>(() => []);
+const errorProbe = createSessionProbe<string[]>(() => []);
+const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
+
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
 // Handles kept by source name so a spec can dispose/invalidate a source it
 // registered — the returned handle carries functions and can't cross page.evaluate.
@@ -231,6 +278,11 @@ export function installTestProbes({
 	setPresentationMode
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
+
+	const subscribeEditOps = (ops: string[]): (() => void) =>
+		editor.getEvents().on('edit', (e: { op: string }) => {
+			if (e.op !== 'input') ops.push(e.op);
+		});
 
 	(window as any).__test = {
 		getSource: () => editor.getSource(),
@@ -394,25 +446,16 @@ export function installTestProbes({
 		// window before the deferred data-cross-block $effect runs. Pins that
 		// caretRect reads SelectionState, not the lagging DOM mirror: reading the
 		// stale attribute mid-emit would leak the parked cross-block range.
-		startCrossBlockCaretProbe: (): void => {
-			const w = window as any;
-			w.__test._cbCaret = { captured: false, rect: null };
-			w.__test._cbCaretDispose?.();
-			w.__test._cbCaretDispose = editor.getEvents().on('selectionChange', (sel) => {
-				if (w.__test._cbCaret.captured || !sel || !isCrossBlockSnapshot(sel)) return;
-				const r = editor.getRects().caretRect();
-				w.__test._cbCaret = {
-					captured: true,
-					rect: r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null
-				};
-			});
-		},
-		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => {
-			const w = window as any;
-			w.__test._cbCaretDispose?.();
-			w.__test._cbCaretDispose = null;
-			return w.__test._cbCaret ?? { captured: false, rect: null };
-		},
+		startCrossBlockCaretProbe: (): void =>
+			caretProbe.start((state) =>
+				editor.getEvents().on('selectionChange', (sel) => {
+					if (state.captured || !sel || !isCrossBlockSnapshot(sel)) return;
+					const r = editor.getRects().caretRect();
+					state.captured = true;
+					state.rect = r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null;
+				})
+			),
+		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => caretProbe.stop(),
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,
@@ -434,78 +477,29 @@ export function installTestProbes({
 		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
 			dumpTree(editor.__test.getDocument(), opts),
 		dumpSelection: () => liveSelectionText(editor),
-		dumpInlineTree: () => {
-			const path = getFocusedBlockPath();
-			if (!path) return '';
-			const doc = parse(editor.getSource());
-			const node = nodeAt(doc, path);
-			if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
-			const range = getContentRange(node);
-			const inline = parseInline(node.raw, range.start, range.end);
-			return dumpInlineTree(inline);
-		},
+		dumpInlineTree: () => dumpFocusedInlineTree(editor.getSource()),
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
-		// ── Edit-event counting probe ─────────────────────────────────────
-		/**
-		 * Begin accumulating structural edit events (op !== 'input').
-		 * Call `stopEditCount()` to unsubscribe and retrieve the count.
-		 * Only one session at a time — calling startEditCount again while
-		 * one is running replaces the previous subscription.
-		 */
-		startEditCount: (): void => {
-			if ((window as any).__test._editCountDispose) {
-				(window as any).__test._editCountDispose();
-			}
-			(window as any).__test._editCount = 0;
-			(window as any).__test._editCountDispose = editor
-				.getEvents()
-				.on('edit', (e: { op: string }) => {
-					if (e.op !== 'input') (window as any).__test._editCount++;
-				});
-		},
-		stopEditCount: (): number => {
-			const dispose = (window as any).__test._editCountDispose;
-			if (dispose) dispose();
-			(window as any).__test._editCountDispose = null;
-			return (window as any).__test._editCount ?? 0;
-		},
-		/**
-		 * Accumulate structural edit op names (op !== 'input') until
-		 * `stopEditOpCapture()` returns them. One session at a time.
-		 */
-		startEditOpCapture: (): void => {
-			if ((window as any).__test._editOpCaptureDispose) {
-				(window as any).__test._editOpCaptureDispose();
-			}
-			(window as any).__test._editOps = [] as string[];
-			(window as any).__test._editOpCaptureDispose = editor
-				.getEvents()
-				.on('edit', (e: { op: string }) => {
-					if (e.op !== 'input') (window as any).__test._editOps.push(e.op);
-				});
-		},
-		stopEditOpCapture: (): string[] => {
-			const dispose = (window as any).__test._editOpCaptureDispose;
-			if (dispose) dispose();
-			(window as any).__test._editOpCaptureDispose = null;
-			return (window as any).__test._editOps ?? [];
-		},
+		// ── Edit-event capture / counting probes ──────────────────────────
+		// startEditCount and startEditOpCapture drive one accumulator (a count is
+		// its length), so no spec runs both at once. One session at a time — a
+		// second start replaces the first.
+		startEditCount: (): void => editOpProbe.start(subscribeEditOps),
+		stopEditCount: (): number => editOpProbe.stop().length,
+		startEditOpCapture: (): void => editOpProbe.start(subscribeEditOps),
+		stopEditOpCapture: (): string[] => editOpProbe.stop(),
 		// ── Error-event capture probe ─────────────────────────────────────
-		/**
-		 * Accumulate `error`-event origins until `getCapturedErrors()` reads
-		 * them. Subscribes to the same EditorEvents instance BlockHost emits
-		 * to, so a caught render failure surfaces here. One session at a time.
-		 */
-		startErrorCapture: (): void => {
-			capturedErrorOrigins = [];
-			disposeErrorCapture?.();
-			disposeErrorCapture = editor.getEvents().on('error', (e) => {
-				capturedErrorOrigins.push(e.origin);
-			});
-		},
-		getCapturedErrors: (): string[] => capturedErrorOrigins,
+		// Subscribes to the same EditorEvents instance BlockHost emits to, so a
+		// caught render failure surfaces here. getCapturedErrors reads without
+		// ending the session.
+		startErrorCapture: (): void =>
+			errorProbe.start((origins) =>
+				editor.getEvents().on('error', (e) => {
+					origins.push(e.origin);
+				})
+			),
+		getCapturedErrors: (): string[] => errorProbe.peek(),
 		// ── List item id probe ────────────────────────────────────────────
 		/**
 		 * Return the innerBlockIds array of the container node at the given

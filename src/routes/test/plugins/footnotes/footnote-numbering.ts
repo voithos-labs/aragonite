@@ -12,7 +12,8 @@
  * `[^x]` inside an inline code span is a known false positive.
  */
 
-import type { DocumentView, NodeView, ReplaceDecoration } from '$lib/plugin';
+import type { DocumentView, ReplaceDecoration } from '$lib/plugin';
+import { forEachLeaf } from '../walk-views';
 import { FOOTNOTE_DEF_KIND } from './constants';
 
 export interface FootnoteReference {
@@ -30,23 +31,14 @@ const SKIP_SCAN = new Set(['fencedCode', 'indentedCode', 'htmlBlock', FOOTNOTE_D
 /** Every `[^label]` occurrence in prose, in document order. */
 export function collectFootnoteReferences(document: DocumentView): FootnoteReference[] {
 	const refs: FootnoteReference[] = [];
-	walk(document.children, [], refs);
-	return refs;
-}
-
-function walk(children: readonly NodeView[], path: number[], out: FootnoteReference[]): void {
-	children.forEach((node, index) => {
-		const here = [...path, index];
-		if (node.children && node.children.length > 0) {
-			walk(node.children, here, out);
-			return;
-		}
+	forEachLeaf(document.children, (node, path) => {
 		if (SKIP_SCAN.has(node.kind)) return;
 		for (const match of node.raw.matchAll(REFERENCE)) {
 			const start = match.index ?? 0;
-			out.push({ label: match[1], path: here, start, end: start + match[0].length });
+			refs.push({ label: match[1], path, start, end: start + match[0].length });
 		}
 	});
+	return refs;
 }
 
 /** Label → footnote number, assigned in first-reference order. */

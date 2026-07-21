@@ -2,7 +2,7 @@ import type { BlockquoteMetadata, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { cloneMetadata, cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
-import { freshChildIds } from '../block-id';
+import { assignIds } from '../block-id';
 
 /**
  * Compute the result of unwrapping a blockquote's first child (Rule U2).
@@ -41,7 +41,7 @@ export function unwrapFirstChildFromBlockquote(blockquote: NodeView): CstNode[] 
 			? (cloneMetadata(blockquote.metadata) as BlockquoteMetadata)
 			: { quoteDepth: 1 },
 		children: remainingChildren,
-		childIds: freshChildIds(remainingChildren),
+		childIds: assignIds(remainingChildren),
 		innerPrefix: blockquote.innerPrefix ?? '',
 		innerSuffix: blockquote.innerSuffix ?? ''
 	};
