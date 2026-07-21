@@ -188,9 +188,10 @@
 		};
 	});
 
-	// Badges prepend BEFORE the block component; every first-non-overlay-child
-	// lookup excludes `.decoration-badge` (Editor.getBlockElByPath and the e2e
-	// helpers) — keep them in step if this wrapper class ever changes.
+	// Badges prepend BEFORE the block component; the first-non-overlay-child lookups
+	// (Editor.getBlockElByPath and the e2e helpers) exclude `.decoration-badge` via
+	// BLOCK_CONTENT_SELECTOR (block-content-selector.ts) — keep that constant in step
+	// if this wrapper class ever changes.
 	$effect(() => {
 		const decs = blockDecs;
 		const el = hostEl;

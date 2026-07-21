@@ -40,13 +40,14 @@ import type { NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
-import { getInlineContent } from '../../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
+import { caretIsInTextContent, isPlainTypingKey } from './click-snap-guard';
 import { widgetAtCursor } from './widget-adjacency';
 
 /** The subset of the inline-widget vocabulary the internal island/ambient policies
@@ -102,22 +103,11 @@ export interface EdgePolicyDispatch {
 
 export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePolicyDispatch {
 	function inlinesOf(node: NodeView): InlineNode[] {
-		return getInlineContent(node, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+		return resolvedInlineContent(node, deps.linkRef);
 	}
 
 	function display(): string {
 		return trimTrailingLineEnding(deps.node.raw);
-	}
-
-	function isTypingKey(e: KeyboardEvent): boolean {
-		if (e.ctrlKey || e.metaKey || e.altKey) return false;
-		return e.key.length === 1;
-	}
-
-	function caretIsInTextNode(): boolean {
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return false;
-		return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
 	}
 
 	// ── CST inline widget ────────────────────────────────────────────────────
@@ -164,7 +154,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		}
 		// Chromium inserts into a text node natively, but drops printable keys at
 		// element-level positions adjacent to a contenteditable=false widget.
-		if (!caretIsInTextNode() && isTypingKey(e) && !deps.isReading()) {
+		const el = deps.getEl();
+		if (
+			el &&
+			!caretIsInTextContent(el, window.getSelection()) &&
+			isPlainTypingKey(e) &&
+			!deps.isReading()
+		) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			const typed = e.key;
@@ -221,7 +217,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// island rules own only the plain edge presses.
 		const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
 		const isDestructive = !hasModifier && (e.key === 'Backspace' || e.key === 'Delete');
-		const isTyping = !hasModifier && e.key.length === 1;
+		const isTyping = isPlainTypingKey(e);
 		if (!isDestructive && !isTyping) return false;
 
 		const el = deps.getEl();
@@ -289,7 +285,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// caret adjacent to a contenteditable=false island. Chromium types natively
 		// (masking this branch in e2e), so the branch is unit-pinned. A text-node caret
 		// always types natively.
-		if (isTyping && !caretIsInTextNode()) {
+		if (isTyping && !caretIsInTextContent(el, window.getSelection())) {
 			e.preventDefault();
 			editDisplay(caretOffset, caretOffset, e.key);
 			return true;

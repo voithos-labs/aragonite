@@ -2,7 +2,6 @@
 	import { getContext, tick } from 'svelte';
 	import type {
 		BlockEditActions,
-		ContainerEditActions,
 		FocusActions,
 		HistoryActions,
 		TableContext
@@ -16,7 +15,6 @@
 	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
@@ -103,7 +101,6 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
 	const {
 		controller,
@@ -184,7 +181,6 @@
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
-		containerEdit,
 		blockEdit,
 		controller,
 		history,
@@ -249,7 +245,6 @@
 		widgetSelection,
 		blockEdit: cellBlockEdit,
 		focusActions,
-		getSnapTarget: () => null,
 		setSnapTarget: () => {},
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;

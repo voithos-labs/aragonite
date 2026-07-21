@@ -20,15 +20,28 @@ export function pathKey(path: readonly number[]): string {
 	return path.join(',');
 }
 
+/** Bucket `{ path }`-bearing items by their block path, preserving flat order.
+ *  `wrap` builds each bucket element from the item and its flat index — the one
+ *  grouping loop shared by decorations and search. */
+export function groupByPathKey<T extends { path: readonly number[] }, E>(
+	items: readonly T[],
+	wrap: (item: T, index: number) => E
+): Map<string, E[]> {
+	const buckets = new Map<string, E[]>();
+	items.forEach((item, index) => {
+		const key = pathKey(item.path);
+		const bucket = buckets.get(key);
+		if (bucket) bucket.push(wrap(item, index));
+		else buckets.set(key, [wrap(item, index)]);
+	});
+	return buckets;
+}
+
 /** Group decorations by owning leaf path, preserving each one's flat index. */
 export function groupDecorationsByPath(
 	decs: readonly Decoration[]
 ): Map<string, IndexedDecoration[]> {
-	const byPath = new Map<string, IndexedDecoration[]>();
-	decs.forEach((dec, index) => {
-		push(byPath, pathKey(dec.path), dec, index);
-	});
-	return byPath;
+	return groupByPathKey(decs, (dec, index) => ({ dec, index }));
 }
 
 /**

@@ -66,10 +66,12 @@ const MINT_ALLOWLIST: Record<string, string> = {
 	// ── Public doors (number-typed surfaces minting at entry) ─────────────────
 	'src/lib/components/blocks/editable-surface.ts':
 		'BlockComponent door — public number offsets minted at entry',
+	'src/lib/components/blocks/plain-text-backend.ts':
+		'shared plain-text backend — zero-ambient door where DOM-text space is raw space',
 	'src/lib/components/blocks/editable-leaf.ts':
-		'plugin-leaf backend — zero-ambient surface where DOM-text space is raw space',
+		'plugin-leaf surface — zero-ambient DOM-text mutations mint raw offsets in place',
 	'src/lib/components/blocks/code/CodeBlock.svelte':
-		'code backend — zero-ambient surface where DOM-text space is raw space',
+		'code surface — zero-ambient DOM-text mutations mint raw offsets in place',
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'pending-caret restore holds a plain number field',
 	'src/lib/components/blocks/table/TableCellBlock.svelte':

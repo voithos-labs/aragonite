@@ -1,17 +1,11 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions,
-		HistoryActions
-	} from '../../../action-contracts';
+	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
@@ -21,17 +15,16 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import { asDomTextOffset, asRawOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
+	import { asDomTextOffset } from '../../../cursor/coordinate-spaces';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
-		getCursorOffset as getCursorOffsetHelper,
-		getSelectionFocusOffset as getSelectionFocusOffsetHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../../cursor/content-offsets';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import { createEditableSurface } from '../editable-surface';
+	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
+	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
 		writeCrossBlockCopy,
@@ -67,7 +60,6 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const {
 		controller,
 		pasteCoordinator,
@@ -94,29 +86,14 @@
 	let lastRenderedRaw = '';
 	let preEditOffset = 0;
 
-	// A zero-ambient, widget-free surface: its DOM-text space IS its raw space.
-	// Every DOM caret read door-mints across the identity here, once.
-	function readCaretOffset(): RawOffset | null {
-		const offset = el ? getCursorOffsetHelper(el) : null;
-		return offset === null ? null : asRawOffset(offset);
-	}
-
-	function readFocusOffset(): RawOffset | null {
-		const offset = el ? getSelectionFocusOffsetHelper(el) : null;
-		return offset === null ? null : asRawOffset(offset);
-	}
+	const { backend, getFocusOffset, getTextLen, readText } = createContentOffsetBackend(
+		() => el ?? null
+	);
 
 	const editableSurface = createEditableSurface({
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
-		backend: {
-			getRaw: readCaretOffset,
-			setRaw: (offset) => {
-				if (el) setCursorOffsetHelper(el, asDomTextOffset(offset));
-			},
-			buildRange: (start, end) =>
-				el ? createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end)) : null
-		},
+		backend,
 		getMyPath: () => myPath,
 		getIndex: () => index,
 		getComposing: () => composing,
@@ -137,7 +114,6 @@
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
-		containerEdit,
 		blockEdit,
 		controller,
 		history,
@@ -146,9 +122,9 @@
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
-		getFocusOffset: readFocusOffset,
-		getTextLen: () => (el?.textContent ?? '').length,
-		readText: () => el?.textContent ?? '',
+		getFocusOffset,
+		getTextLen,
+		readText,
 		// Code anchors undo at preEditOffset only; it has no kind-change remount to
 		// re-focus, so it passes no saved offset (the omitted 4th argument).
 		commitInput: (text, preEdit) => {
@@ -183,36 +159,32 @@
 			return;
 
 		el.replaceChildren(renderCodeBlock(node));
-		anchorTrailingNewlineForChromium(el);
+		anchorTrailingNewline(el);
 		lastRenderedRaw = node.raw;
 
+		// Restore only while this block still holds focus: an edit that reparses to
+		// multiple blocks moves the caret to the split-off sibling (structural commit's
+		// afterTick), and a blur would otherwise yank the global selection back. Two
+		// arms — a wrap restores a range, a caret a point — and the pending fields clear
+		// regardless so a skipped restore is dropped, never re-armed.
 		if (pendingSelection !== null) {
-			// Restore only while this block still owns focus: an async flush after
-			// focus left would yank the global selection back into the just-blurred
-			// block. Sibling of the pendingCursorOffset guard below; the clear runs
-			// regardless so a skipped restore is dropped, never re-armed.
-			if (document.activeElement === el) {
-				const range = createRangeFromOffsets(
-					el,
-					asDomTextOffset(pendingSelection.start),
-					asDomTextOffset(pendingSelection.end)
+			consumePendingRestore(el, pendingSelection, (range) => {
+				const domRange = createRangeFromOffsets(
+					el!,
+					asDomTextOffset(range.start),
+					asDomTextOffset(range.end)
 				);
-				if (range) {
-					const sel = window.getSelection();
-					sel?.removeAllRanges();
-					sel?.addRange(range);
-				}
-			}
+				if (!domRange) return;
+				const sel = window.getSelection();
+				sel?.removeAllRanges();
+				sel?.addRange(domRange);
+			});
 			pendingSelection = null;
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
-			// Restore only while this block still owns focus: an edit whose text
-			// reparses to multiple blocks moves the caret to the split-off sibling
-			// (structural commit's afterTick); an unguarded restore would yank it
-			// back. Mirrors TextEditableBlock's activeElement guard.
-			if (document.activeElement === el) {
-				setCursorOffsetHelper(el, asDomTextOffset(pendingCursorOffset));
-			}
+			consumePendingRestore(el, pendingCursorOffset, (offset) =>
+				setCursorOffsetHelper(el!, asDomTextOffset(offset))
+			);
 			pendingCursorOffset = null;
 		}
 	});
@@ -224,20 +196,6 @@
 		const blockEl = el;
 		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
 	});
-
-	/**
-	 * Chromium with `white-space: pre` won't paint a caret on the line after a
-	 * trailing `\n` unless something follows it; typed text routes before the `\n`.
-	 * A trailing `<br>` anchors the caret on the new line. BR has empty textContent,
-	 * so `textContent === trimTrailingLineEnding(raw)` still holds.
-	 * Re-applied every render — the renderer owns the contenteditable's children.
-	 */
-	function anchorTrailingNewlineForChromium(host: HTMLElement): void {
-		if (!host.textContent?.endsWith('\n')) return;
-		const br = document.createElement('br');
-		br.dataset.caretAnchor = '';
-		host.appendChild(br);
-	}
 
 	// ── Event handlers ────────────────────────────────────────────────────────
 
@@ -254,7 +212,7 @@
 		if (e.inputType === 'insertLineBreak' && !composing && el) {
 			e.preventDefault();
 			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
-			const branchPreEditOffset = readCaretOffset() ?? 0;
+			const branchPreEditOffset = backend.getRaw() ?? 0;
 			// Sibling of codeNewline's opener guard: a soft break splices the same
 			// `\n`, so its selection clamps out of the opener line too.
 			const range = currentRange();
@@ -280,7 +238,7 @@
 
 		const text = getDisplayText();
 		const selOffsets = getSelectionOffsetsHelper(el);
-		const offset = selOffsets ? selOffsets.start : (readCaretOffset() ?? 0);
+		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
 		const result = computeAutoPair({
@@ -312,7 +270,7 @@
 		if (composing) return;
 		if (!el) return;
 
-		preEditOffset = readCaretOffset() ?? 0;
+		preEditOffset = backend.getRaw() ?? 0;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
@@ -364,7 +322,7 @@
 
 	function codeBackspace(): boolean {
 		if (!el || hasSelectionHelper()) return false;
-		const offset = readCaretOffset() ?? 0;
+		const offset = backend.getRaw() ?? 0;
 		// offset===0 is the universal contract; offset===bodyStart catches the
 		// fence-boundary case (Home from the body lands there, and native
 		// Backspace would delete the opener's terminating `\n`).
@@ -389,7 +347,7 @@
 
 	function codeDelete(): boolean {
 		if (!el || hasSelectionHelper()) return false;
-		const offset = readCaretOffset() ?? 0;
+		const offset = backend.getRaw() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// Mirror of codeBackspace's unconditional moveFocus(index - 1), but the
 			// root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -407,7 +365,7 @@
 		if (!el) return false;
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so the undo anchor must read fresh.
-		const offset = readCaretOffset() ?? 0;
+		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
 
@@ -497,7 +455,7 @@
 		if (!el) return { start: 0, end: 0 };
 		const sel = getSelectionOffsetsHelper(el);
 		if (sel) return sel;
-		const cursor = readCaretOffset() ?? 0;
+		const cursor = backend.getRaw() ?? 0;
 		return { start: cursor, end: cursor };
 	}
 

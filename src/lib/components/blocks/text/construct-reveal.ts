@@ -45,7 +45,7 @@ import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
-import { getInlineContent } from '../../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
 import { domTextOffsetAtNode } from '../../../cursor/widget-offset';
 import {
@@ -152,7 +152,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	}
 
 	function inlines(): InlineNode[] {
-		return getInlineContent(deps.node, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+		return resolvedInlineContent(deps.node, deps.linkRef);
 	}
 
 	const toEntry = (n: InlineNode): ChainEntry => ({ kind: n.kind, start: n.start, end: n.end });

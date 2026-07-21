@@ -6,6 +6,7 @@ import {
 	pathKey,
 	type IndexedDecoration
 } from './buckets';
+import { islandPosition } from './island-dom';
 import type {
 	BlockDecoration,
 	Decoration,
@@ -39,7 +40,6 @@ export type DecorationEngine = {
 	 *  bump — the split that lets a memoized source distinguish "document changed"
 	 *  (epoch miss → rescan) from "my own state changed" (epoch hit → cheap remap). */
 	notifyEdit(): void;
-	runAll(): void;
 	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
 	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
 	islandsForPath(path: number[]): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -158,7 +158,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			editEpoch++;
 			runAll();
 		},
-		runAll,
 		marksForPath(path) {
 			const bucket = byPath.get(pathKey(path));
 			return bucket ? filterMarks(bucket) : EMPTY_MARKS;
@@ -184,10 +183,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 				.map((d) => d.dec);
 		}
 	};
-}
-
-function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
-	return dec.type === 'widget' ? dec.offset : dec.start;
 }
 
 // A re-run inside the commit ceremony would let a source read a half-applied tree.
