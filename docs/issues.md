@@ -93,6 +93,59 @@ switch the tail to the proven copy-event fallback behind the same shared seam.
 
 **Why deferred:** watch-class; needs the real embedder to falsify.
 
+### The editable-surface grammar thread is optional and unsupplied, so join-paste always reparses with the global grammar
+
+**Severity:** minor (latent parity hole; unobservable until per-instance enablement ships)
+**Files:** `src/lib/components/blocks/editable-surface.ts` (`grammar?: GrammarView`),
+`src/lib/selection/cross-block/dispatch.ts` (the required-nullable sibling)
+
+`CrossBlockDispatchDeps.grammar` is required-nullable by design so a construction site
+cannot silently skip the thread, but `EditableSurfaceDeps` re-widened it to optional and
+none of the four production surfaces supplies it — the cross-block join-paste reparse
+always uses the global grammar. Byte-identical today (instance grammar cannot diverge
+until the enablement predicate gets a public prop), which is why nothing observes it.
+
+**Fix direction:** either wire `registryView.grammar` at the four surfaces and make the
+seam field required-nullable to match the dispatch tier, or delete the dead optional and
+re-add it with the enablement API.
+
+**Why deferred:** adjudicate with the enablement prop's design at the limestone
+integration — the same decision decides which shape is right.
+
+### Emphasis-dense giant paragraphs scan quadratically
+
+**Severity:** watch (adversarial shape inside the documented-transient giant-paragraph axis)
+**Files:** `src/lib/core/inline/scan/emphasis.ts` (`wrapMatch` — `nodes.indexOf` + splice)
+
+Measured (2026-07-21 elegance run): `'*a*'.repeat(N)` scans at 0.86ms/8.2ms/94ms for
+6KB/24KB/96KB single blocks — O(N^~2), where the sibling flood paths (backticks,
+directive closers, entities, and the autolink prune, measured linear) are linear. Only
+reachable by pasting emphasis-dense content into ONE block, i.e. inside the axis
+`docs/design/performance.md` already documents as transient (any Enter splits it); at
+24KB the cost still sits under the 10MB keystroke ceiling.
+
+**Why deferred:** the true fix is porting commonmark.js's linked delimiter list —
+med-high conformance-fidelity risk against a faithful port, for a shape the perf model
+already brackets. Re-open only if a real workload holds emphasis-dense multi-KB single
+blocks.
+
+### Closure-cell overrides are honesty-checked, not behavior-enforced
+
+**Severity:** watch (guard gap surfaced by the elegance run's review probes)
+**Files:** `src/lib/schema/closure.ts` (`containerClosure`), the chrome-container registrations
+
+A revert-probe showed that dropping a directive-title container's `clipboard:
+implemented` override (falling to the preset's baked `inherit-default`) leaves every
+suite green — the override's protection is matrix honesty, not a failing test. A future
+edit could silently downgrade a row.
+
+**Fix direction:** teach the conformance battery to exercise the clipboard cell for
+chrome containers (the mid-title copy shape), or a coherence rule tying reservedChrome
+declarers to a non-default clipboard cell.
+
+**Why deferred:** fold into the post-1.0 clipboard generalization that already owns the
+mid-chrome ledger entries above.
+
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
