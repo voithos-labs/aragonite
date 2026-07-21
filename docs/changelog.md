@@ -2,6 +2,59 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.32: the elegance run
+
+An owner-directed whole-repo elegance pass: simplification, dedup, dead-code removal,
+and evidence-gated performance work, run as thirteen read-only discovery surveys over
+every subsystem (library, tests, e2e, shell, perf), a triaged ledger (~110 accepted,
+every rejection recorded with its reason), and twenty-odd reviewed fix batches. Net
+effect: the same behavior on fewer, better-homed lines — and three real latent bugs
+found because rules moved into seams.
+
+- **Rules moved to choke points.** The clipboard copy/cut/paste ordering lives in one
+  `createClipboardHandlers` seam (four surfaces supply only their genuine arms); the
+  pointer-drag lifecycle (listener trio, rAF coalescing, autoscroll, teardown,
+  pointerId filter) lives in one `createPointerDragSession`; the end-wall deletion
+  atoms live in the range-delete ceremony; a shared `NodeScope` carries the container
+  getter trio once; `BlockquoteBlock` rides the container seam its docstring claimed
+  to mirror. `emptyParagraph`, `remapStrippedLines`, `mintWidgetShell`,
+  `cellRowCol`/`intraTableRect`, `readBlockPath`, `blockAtPoint`, and the segment
+  walk inside `widget-offset` each collapsed multi-site duplication into one home.
+- **Three latent bugs surfaced by the consolidation, fixed red-first.** CodeBlock and
+  non-reveal table cells prevented the native paste only after the first await —
+  provably too late, masked in e2e by the CST-authoritative re-render; a second
+  pointer could end another pointer's drag on three of four lifecycles (only table
+  filtered `pointerId`); the task-checkbox strip left stale `ParsedLine` offsets on
+  the public opener surface.
+- **The superseded paste mechanism is gone** (`insertParsedBlocks`,
+  `foldPasteReplacement`, −204 lines) and its G2.9 invariant was rewired
+  depth→strategy onto the live path — whose `paste`-op side had been unguarded.
+  List-overrides' hand-copied delete/replace fell through to the shared core, gaining
+  the noop-discard, focus-offset, and backfill guards it had drifted away from.
+- **Evidence-gated perf.** Three refactors rejected on measurement (the
+  commit-preview parse-once, the autolink prune — observed linear, the emphasis
+  linked-list port — quadratic but confined to the documented transient axis, now a
+  ledger characterization); three pure-waste removals shipped with two-sided pins
+  (the keydown island scan, the dead caret-carry walk, and render keys folding a
+  compact LRD epoch instead of the ~MB signature string). Two perf watches closed
+  no-action (BlockHost heal, parser laziness). `perf:check` 24/24 with p50s at or
+  below baseline throughout.
+- **The plugin surface grew two additive conveniences** (`surfaceProps` on the
+  editable leaf — a consumer can no longer drop a handler; `getPresentationMode` on
+  the container factory) plus `containerClosure` beside `simpleLeafClosure`, all
+  guide-documented pre-freeze.
+- **The suites got cheaper to extend without losing a test**: ~750 lines of copied
+  unit-harness assembly became four helpers with the live-getter contract; 31 test
+  files moved to mirror their sources; two monoliths split as proven pure partitions;
+  the e2e helper families (cell drag, pageerror capture, sim oracles, search split)
+  consolidated coverage-neutrally; a new lint pins the block-content selector so the
+  9-site parity rot cannot regrow.
+
+Final commit gate: unit 4346→4396, e2e 1449, check 0/0, lint green, perf:check 24/24.
+Per-fix miss-analyses live in `git log`; the run's triage ledger (accepted, rejected
+with reasons, measured, deferred with anchors) is the durable record of what was
+deliberately NOT done.
+
 ### 0.9.31: five reports and a ledger burn-down
 
 Five same-day user reports answered, then the known-issues ledger cut from 22 entries to 11
