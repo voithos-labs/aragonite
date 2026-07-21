@@ -39,8 +39,8 @@ function makeHarness(initial: CstNode) {
 		get linkResolver() {
 			return undefined;
 		},
-		get linkSignature() {
-			return '';
+		get linkStamp() {
+			return '0';
 		},
 		get islands() {
 			return [];

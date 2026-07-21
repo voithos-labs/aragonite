@@ -54,6 +54,7 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 		},
 		getEl: () => el,
 		getAmbientLength: () => marker.textContent!.length,
+		hasIslands: () => false,
 		getRawSelection: () =>
 			rawSelection && {
 				start: asRawOffset(rawSelection.start),

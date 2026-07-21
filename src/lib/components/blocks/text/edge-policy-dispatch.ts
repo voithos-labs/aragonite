@@ -75,6 +75,11 @@ export interface EdgePolicyDispatchDeps {
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
+	/** Whether this block currently carries any decoration islands. The render path's
+	 *  own source for the same set (`decorationEngine.islandsForPath`), so a false read
+	 *  gates the per-keystroke DOM scan without risking disagreement with the painted
+	 *  `[data-decoration-island]` spans. */
+	hasIslands: () => boolean;
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	blockEdit: BlockEditActions;
@@ -219,6 +224,11 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const isDestructive = !hasModifier && (e.key === 'Backspace' || e.key === 'Delete');
 		const isTyping = isPlainTypingKey(e);
 		if (!isDestructive && !isTyping) return false;
+
+		// Island-free blocks (the common case) skip the DOM scan entirely: the engine's
+		// path buckets are the same source the render just painted from, so a false here
+		// cannot disagree with the DOM's `[data-decoration-island]` spans.
+		if (!deps.hasIslands()) return false;
 
 		const el = deps.getEl();
 		if (!el) return false;

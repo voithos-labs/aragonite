@@ -140,6 +140,39 @@ describe('createCellRender', () => {
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');
 	});
 
+	it('keys on the compact epoch, not the signature string, when the resolver supplies one', () => {
+		let url = 'https://old.com';
+		let signature = 'sig-1';
+		let epoch = 1;
+		const linkRef: LinkReferenceResolverRef = {
+			get current() {
+				return (label: string) => (label === 'r' ? { url } : undefined);
+			},
+			get signature() {
+				return signature;
+			},
+			get epoch() {
+				return epoch;
+			}
+		};
+		const { el, render } = mount('[t][r]', linkRef);
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
+
+		// Discriminator: with an epoch supplied, the signature string is NOT in the
+		// key — a string change alone (production-impossible; the reducer moves them
+		// in lockstep) does not re-render.
+		url = 'https://new.com';
+		signature = 'sig-2';
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
+
+		// The lockstep bump re-renders and re-resolves.
+		epoch = 2;
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');
+	});
+
 	it('does not fold signature into the key when raw has no bracket', () => {
 		let signature = 'sig-old';
 		const linkRef: LinkReferenceResolverRef = {

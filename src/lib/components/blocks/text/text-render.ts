@@ -4,8 +4,9 @@
  * imperative inline-DOM construction it dispatches to.
  *
  * The `pendingCursorOffset` restore stays in the SFC — those writes touch
- * $state. This factory only carries a live caret across its own rebuilds
- * (a decoration-driven rebuild has no edit-path pending offset).
+ * $state. This factory only carries a live caret across a decoration-driven
+ * rebuild (no edit-path pending offset); the edit path passes `carryCaret:
+ * false`, since the SFC's pending restore overwrites the selection right after.
  */
 
 import type { AmbientPrefix } from '../../../block-component';
@@ -52,7 +53,11 @@ export interface TextRenderDeps {
 	 *  reactive dependency that re-renders every mounted block on a mode flip. */
 	get presentationMode(): PresentationMode;
 	get linkResolver(): LinkReferenceResolver | undefined;
-	get linkSignature(): string;
+	/** A compact stamp that changes exactly when the document's LRD signature
+	 *  changes (the shell mints it — link-reference-resolver.ts). Reference-bearing
+	 *  blocks fold this into their render key instead of the whole signature string,
+	 *  which reaches ~MB scale in reference-heavy documents. */
+	get linkStamp(): string;
 	/** Position-sorted islands for this block. A getter, and read inside the
 	 *  render pass on purpose: that read is the reactive dependency that
 	 *  re-renders the block when its island set changes. */
@@ -67,12 +72,14 @@ export interface TextRenderDeps {
 export interface TextRender {
 	/**
 	 * Rebuild the block's children from current node state. Skips work when
-	 * neither (ambientPrefixText, raw, ref-signature, image-policy,
-	 * island-signature) nor `forceRebuild` demands it. Pass `forceRebuild` when
-	 * a pending cursor restoration needs the DOM positions re-anchored even
-	 * though the rendered key is unchanged.
+	 * neither (ambientPrefixText, raw, ref-stamp, image-policy, island-signature)
+	 * nor `forceRebuild` demands it. Pass `forceRebuild` when a pending cursor
+	 * restoration needs the DOM positions re-anchored even though the rendered key
+	 * is unchanged. `carryCaret` (default true) captures and re-anchors the focused
+	 * caret across the rebuild; pass false on the edit path, where the SFC's
+	 * pending-cursor restore overwrites the selection immediately after.
 	 */
-	render(opts?: { forceRebuild?: boolean }): void;
+	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget instance — called when the block unmounts. */
 	dispose(): void;
 }
@@ -188,7 +195,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		traceCursorRestore(walkOffset);
 	}
 
-	function render(opts?: { forceRebuild?: boolean }): void {
+	function render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
@@ -198,7 +205,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// every block subscribes to the resolver and one LRD edit re-renders the
 		// whole document.
 		const hasRef = node.raw.includes('[');
-		const refKeyPart = hasRef ? deps.linkSignature : '';
+		const refKeyPart = hasRef ? deps.linkStamp : '';
 		// The built widget bakes in imageLoadPolicy (placeholder class / src), so the
 		// key must track it — but only for blocks with an image, so image-free blocks
 		// neither subscribe to policy changes nor rebuild when the policy flips.
@@ -212,6 +219,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const islands = deps.islands;
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
+		const carryCaret = opts?.carryCaret ?? true;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
@@ -219,7 +227,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			if (isInteractionTraceEnabled())
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
 			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
-			const caretWalkOffset = captureCaretIfFocused(el);
+			// Edit-path rebuilds (carryCaret false) skip the capture/restore pair: the
+			// SFC's pending-cursor restore overwrites the selection right after, so the
+			// walk is dead work. When focus already left, capture returns null and the
+			// SFC restore skips too — so skipping here is behavior-identical either way.
+			const caretWalkOffset = carryCaret ? captureCaretIfFocused(el) : null;
 			// Bracket the rebuild: portal widgets acquired during the build are adopted
 			// for this pass; the sweep destroys any that the previous DOM held but this
 			// build did not re-acquire (a widget whose source changed or was deleted).

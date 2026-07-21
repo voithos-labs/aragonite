@@ -24,9 +24,10 @@ export interface LinkReferenceMap {
 	resolve: LinkReferenceResolver;
 	/**
 	 * Stable string snapshot of the LRD set (sorted `label<:>url<:>title`
-	 * join). The block render path folds this into its render-memo key for
-	 * reference-bearing blocks, and the lazy inline cache validates on it, so an
-	 * LRD change elsewhere re-renders and re-resolves them.
+	 * join). The lazy inline cache validates reference-bearing blocks on it, so an
+	 * LRD change elsewhere re-resolves them. The block render path keys on a compact
+	 * epoch the shell bumps in lockstep (never the whole string — it reaches ~MB
+	 * scale in reference-heavy documents).
 	 */
 	readonly signature: string;
 }
