@@ -11,6 +11,7 @@
  */
 
 import type { InlineNode } from '../nodes';
+import { mintWidgetShell } from './inline-widgets';
 
 // A decoded string renders no glyph when every code point is a control (`Cc`),
 // format (`Cf`), whitespace (`Zs`/`Zl`/`Zp`), or zero-advance mark (`Mn`/`Me`)
@@ -34,12 +35,7 @@ export function entityRendersGlyph(decoded: string | undefined): boolean {
  *  source bytes ride `data-source-*`, so the raw-aware walk reads back `&copy;`
  *  while the DOM shows `©`. */
 export function buildEntityWidget(node: InlineNode): HTMLSpanElement {
-	const shell = document.createElement('span');
-	shell.className = 'md-entity-widget';
-	shell.dataset.inlineWidget = '';
-	shell.dataset.sourceStart = String(node.start);
-	shell.dataset.sourceEnd = String(node.end);
-	shell.setAttribute('contenteditable', 'false');
+	const shell = mintWidgetShell('md-entity-widget', node);
 	shell.textContent = node.decoded ?? '';
 	return shell;
 }

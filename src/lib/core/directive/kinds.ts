@@ -21,7 +21,7 @@ import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { displayLength, trimTrailingLineEnding, trailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
-import { registerInlineWidgetKind } from '../inline/inline-widgets';
+import { registerInlineWidgetKind, mintWidgetShell } from '../inline/inline-widgets';
 import { matchDirectiveOpener, serializeDirective } from './grammar';
 
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
@@ -121,19 +121,9 @@ export function registerDirectiveTextKind(): void {
 	});
 }
 
-/**
- * Atomic-widget shell: the generic `[data-inline-widget]` marker plus
- * `data-source-start`/`-end` = the node's offsets, which are the shared offset
- * walk's only handle (the shell contributes 0 chars to textContent). Renders the
- * verbatim `:name[...]` source dimmed.
- */
+/** Renders the verbatim `:name[...]` source dimmed inside the shared widget shell. */
 function buildDirectiveTextWidget(node: InlineNode, raw: string): HTMLElement {
-	const shell = document.createElement('span');
-	shell.className = 'directive-text-widget';
-	shell.dataset.inlineWidget = '';
-	shell.dataset.sourceStart = String(node.start);
-	shell.dataset.sourceEnd = String(node.end);
-	shell.setAttribute('contenteditable', 'false');
+	const shell = mintWidgetShell('directive-text-widget', node);
 	shell.textContent = raw.slice(node.start, node.end);
 	return shell;
 }

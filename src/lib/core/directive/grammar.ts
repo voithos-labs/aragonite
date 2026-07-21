@@ -13,8 +13,7 @@
 export type DirectiveTier = 'container' | 'leaf' | 'text';
 
 export interface DirectiveFence {
-	/** `matchDirectiveOpener` returns only 'container' | 'leaf'. */
-	tier: DirectiveTier;
+	tier: Exclude<DirectiveTier, 'text'>;
 	/** 2 = leaf, ≥3 = container. */
 	colonCount: number;
 	/** Charset `[A-Za-z][A-Za-z0-9-]*`: letter start, then letters/digits/hyphens (no underscore). */

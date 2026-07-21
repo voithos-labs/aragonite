@@ -6,6 +6,7 @@
  */
 
 import type { InlineNode } from '../nodes';
+import { mintWidgetShell } from './inline-widgets';
 
 /** Tag names (lowercase) that render as live DOM widgets instead of literal
  *  source spans. A tag from GFM §6.11's disallowed-raw-HTML list must never be
@@ -28,12 +29,7 @@ export function isLiveHtmlTag(slice: string): boolean {
  *  the cursor machinery recognizes (via `[data-inline-widget]`); the inner
  *  `<br>` produces the actual line break visually. */
 export function buildLiveHtmlWidget(node: InlineNode): HTMLSpanElement {
-	const shell = document.createElement('span');
-	shell.className = 'md-br-widget';
-	shell.dataset.inlineWidget = '';
-	shell.dataset.sourceStart = String(node.start);
-	shell.dataset.sourceEnd = String(node.end);
-	shell.setAttribute('contenteditable', 'false');
+	const shell = mintWidgetShell('md-br-widget', node);
 	shell.appendChild(document.createElement('br'));
 	return shell;
 }
