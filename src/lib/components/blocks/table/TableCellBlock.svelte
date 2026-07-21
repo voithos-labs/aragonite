@@ -39,12 +39,8 @@
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import { createEditableSurface } from '../editable-surface';
+	import { createEditableSurface, createClipboardHandlers } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
-	import {
-		writeCrossBlockCopy,
-		writeCrossBlockCut
-	} from '../../../selection/cross-block/clipboard';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import {
@@ -696,105 +692,69 @@
 
 		const editorRoot = getEditorRoot();
 		if (!editorRoot) return;
-		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor);
+		installCellDragListener({ editorRoot, selection, lifetimeSignal: editorLifetime }, anchor, e);
 	}
 
-	function onCopy(e: ClipboardEvent): void {
-		stickyColumn.reset();
-		// Reading mode copies the rendered selection, never a raw slice or a
-		// GFM sub-table payload.
-		if (readOnly) {
-			e.preventDefault();
-			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
-			return;
-		}
-		const rectPayload = intraTableRectPayload({ selection, getDoc });
-		if (rectPayload !== null) {
+	// A cell's copy/cut/paste through the shared skeleton. The cell's extra arms are
+	// the intra-table rectangle (a GFM sub-table copied/cut across cells) and the
+	// intra-cell raw slice, which preserves widget bytes like <br> that the browser's
+	// rendered-textContent copy drops. Copy leaves an empty selection to native (no
+	// top-level preventDefault); cut/paste fold a live inline-source reveal first.
+	const { onCopy, onCut, onPaste } = createClipboardHandlers({
+		stickyColumn,
+		selection,
+		getDoc,
+		crossBlock,
+		isReadOnly: () => readOnly,
+		foldReveal: () => widgetInteraction.commitRevealBeforeClipboard(),
+		copyPreHook: (e) => {
+			const rectPayload = intraTableRectPayload({ selection, getDoc });
+			if (rectPayload === null) return false;
 			e.preventDefault();
 			e.clipboardData?.setData('text/plain', rectPayload);
-			return;
-		}
-
-		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
-
-		// Intra-cell: write the raw slice (preserves widget bytes like <br> that the
-		// browser's rendered-textContent copy drops). Mirrors onCut's intra-cell arm,
-		// so Copy and Cut write the same payload. During a reveal the swapped DOM holds
-		// an uncommitted edit node.raw hasn't seen, so slice the live cell text — copy
-		// never mutates, so it reads the live DOM rather than folding first.
-		if (!el) return;
-		const offsets = cursor.getRawSelection();
-		if (!offsets || offsets.start === offsets.end) return;
-		e.preventDefault();
-		const display = widgetInteraction.isRevealing()
-			? readCellText()
-			: trimTrailingLineEnding(node.raw);
-		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
-	}
-
-	async function onCut(e: ClipboardEvent): Promise<void> {
-		stickyColumn.reset();
-		e.preventDefault();
-
-		// Reading mode: cut degrades to copy (the event still fires on a
-		// non-editable surface).
-		if (readOnly) {
-			onCopy(e);
-			return;
-		}
-
-		// Fold any live reveal before the cut mutates, so it runs against a CST
-		// consistent with the swapped DOM (the fold collapses the selection, so a
-		// cut-during-reveal degrades to a no-op — acceptable; never corrupts).
-		if (widgetInteraction.commitRevealBeforeClipboard() !== null) await tick();
-
-		// Intra-table multi-cell rectangle: write a GFM sub-table, then route the
-		// delete through the cross-block path *without* tableCoverageDelete so
-		// the cells are cleared in place (Backspace's structural delete is the
-		// only path that opts into row/column/table removal).
-		const rectPayload = intraTableRectPayload({ selection, getDoc });
-		if (rectPayload !== null) {
+			return true;
+		},
+		// During a reveal the swapped DOM holds an uncommitted edit node.raw hasn't
+		// seen, so slice the live cell text — copy never mutates, so it reads the live
+		// DOM rather than folding first.
+		copyTail: (e) => {
+			if (!el) return;
+			const offsets = cursor.getRawSelection();
+			if (!offsets || offsets.start === offsets.end) return;
+			e.preventDefault();
+			const display = widgetInteraction.isRevealing()
+				? readCellText()
+				: trimTrailingLineEnding(node.raw);
+			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
+		},
+		// Intra-table rectangle cut: write the sub-table, then clear the cells in place
+		// via the cross-block delete *without* tableCoverageDelete (only Backspace's
+		// structural delete opts into row/column/table removal).
+		cutPreHook: async (e) => {
+			const rectPayload = intraTableRectPayload({ selection, getDoc });
+			if (rectPayload === null) return false;
 			e.clipboardData?.setData('text/plain', rectPayload);
 			await crossBlock.performCrossBlockDeleteFromEvent();
-			return;
+			return true;
+		},
+		// Sync raw-slice write (clipboardData closes after the event), then truncate via
+		// deleteCellRange — the native deleteByCut would mutate the DOM out from under
+		// the CST and leave a stale snapshot anchor.
+		cutTail: (e) => {
+			if (!el) return;
+			const offsets = cursor.getRawSelection();
+			if (!offsets || offsets.start === offsets.end) return;
+			const display = trimTrailingLineEnding(node.raw);
+			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
+			deleteCellRange(offsets.start, offsets.end);
+		},
+		pasteTail: async (e, pastedText) => {
+			if (!el) return;
+			const selOffsets = cursor.getRawSelection();
+			const start = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
+			await applyCellPaste(pastedText, { start, end: selOffsets ? selOffsets.end : start });
 		}
-
-		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
-
-		// Intra-cell: write the raw slice synchronously (clipboardData closes after
-		// the event), then truncate via deleteCellRange. The native deleteByCut path
-		// would mutate the DOM out from under the CST and leave a stale snapshot anchor.
-		if (!el) return;
-		const offsets = cursor.getRawSelection();
-		if (!offsets || offsets.start === offsets.end) return;
-		const display = trimTrailingLineEnding(node.raw);
-		e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
-		deleteCellRange(offsets.start, offsets.end);
-	}
-
-	async function onPaste(e: ClipboardEvent): Promise<void> {
-		if (readOnly) {
-			e.preventDefault();
-			return;
-		}
-		// Fold any live reveal before the paste mutates; preventDefault before the
-		// fold tick so a native paste can't fire during it (parity with onCut).
-		if (widgetInteraction.isRevealing()) {
-			e.preventDefault();
-			if (widgetInteraction.commitRevealBeforeClipboard() !== null) await tick();
-		}
-		if (await crossBlock.handlePaste(e)) return;
-
-		stickyColumn.reset();
-		if (!el) return;
-		e.preventDefault();
-		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-		if (!pastedText) return;
-
-		const selOffsets = cursor.getRawSelection();
-		const start = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
-		await applyCellPaste(pastedText, { start, end: selOffsets ? selOffsets.end : start });
-	}
+	});
 
 	// ── Shared mutation primitives (event handlers + right-click menu) ───────
 

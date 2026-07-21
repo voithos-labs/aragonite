@@ -49,13 +49,16 @@ import {
 	getSelectionOffsets
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
-import { createEditableSurface, consumePendingRestore } from './editable-surface';
+import {
+	createEditableSurface,
+	createClipboardHandlers,
+	consumePendingRestore
+} from './editable-surface';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
-import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
-import { trimTrailingLineEnding, trailingLineEnding, normalizeLineEndings } from '../../core/lines';
+import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
 import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
@@ -414,53 +417,33 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// memo's second line). Multiline pastes keep their newlines. Cross-block ops route
 	// through the shared handlers the surface already wires.
 
-	function onCopy(e: ClipboardEvent): void {
-		stickyColumn.reset();
-		e.preventDefault();
-		// Reading mode copies the visible selection string, not the cross-block payload.
-		if (isReading()) {
-			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
-			return;
+	// The leaf's DOM-text space IS its raw, so the intra-block copy falls to the
+	// seam's visible-selection default (no copyTail); cut and paste splice verbatim.
+	// No reveal fold here — the render-primary source folds on blur, and the source
+	// element the handlers bind on has no reveal to commit.
+	const clipboard = createClipboardHandlers({
+		stickyColumn,
+		selection,
+		getDoc,
+		crossBlock,
+		isReadOnly: isReading,
+		cutTail: (e) => {
+			const el = deps.getEl();
+			if (!el) return;
+			const sel = getSelectionOffsets(el);
+			if (!sel || sel.start === sel.end) return;
+			e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
+			spliceSourceText(el, sel.start, sel.end, '');
+		},
+		pasteTail: (e, pastedText) => {
+			const el = deps.getEl();
+			if (!el) return;
+			const sel = getSelectionOffsets(el);
+			const start = sel ? sel.start : (getCursorOffset(el) ?? (el.textContent ?? '').length);
+			const end = sel ? sel.end : start;
+			spliceSourceText(el, start, end, pastedText);
 		}
-		if (writeCrossBlockCopy(e, { selection, getDoc, crossBlock })) return;
-		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
-	}
-
-	async function onCut(e: ClipboardEvent): Promise<void> {
-		stickyColumn.reset();
-		e.preventDefault();
-		if (isReading()) {
-			onCopy(e);
-			return;
-		}
-		// Clipboard is written synchronously inside the cross-block prologue, before its
-		// range delete awaits — a cut survives even if the delete is interrupted.
-		if (await writeCrossBlockCut(e, { selection, getDoc, crossBlock })) return;
-
-		const el = deps.getEl();
-		if (!el) return;
-		const sel = getSelectionOffsets(el);
-		if (!sel || sel.start === sel.end) return;
-		e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
-		spliceSourceText(el, sel.start, sel.end, '');
-	}
-
-	async function onPaste(e: ClipboardEvent): Promise<void> {
-		// preventDefault before any branch so a native paste never injects DOM (parity
-		// with the sibling surfaces' synchronous prevent).
-		e.preventDefault();
-		if (isReading()) return;
-		if (await crossBlock.handlePaste(e)) return;
-		stickyColumn.reset();
-		const el = deps.getEl();
-		if (!el) return;
-		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-		if (!pastedText) return;
-		const sel = getSelectionOffsets(el);
-		const start = sel ? sel.start : (getCursorOffset(el) ?? (el.textContent ?? '').length);
-		const end = sel ? sel.end : start;
-		spliceSourceText(el, start, end, pastedText);
-	}
+	});
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
@@ -536,9 +519,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onInput: editableSurface.onInput,
 		onCompositionStart: editableSurface.onCompositionStart,
 		onCompositionEnd: editableSurface.onCompositionEnd,
-		onCopy,
-		onCut,
-		onPaste,
+		onCopy: clipboard.onCopy,
+		onCut: clipboard.onCut,
+		onPaste: clipboard.onPaste,
 		handleKeydown,
 		onPointerDown,
 		onFocusOut: commitReveal,
