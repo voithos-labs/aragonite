@@ -168,6 +168,12 @@ const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
 		? `w:${d.offset}:${d.side ?? 'after'}`
 		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
 
+/** An island's ordering position: a widget's offset, a replace's start. The shared
+ *  sort key for both the application pass (descending) and the render order. */
+export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
+	return dec.type === 'widget' ? dec.offset : dec.start;
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
@@ -186,10 +192,6 @@ function orderForApplication(
 			tieRank(a.dec) - tieRank(b.dec) ||
 			b.index - a.index
 	);
-}
-
-function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
-	return dec.type === 'widget' ? dec.offset : dec.start;
 }
 
 function tieRank(dec: WidgetDecoration | ReplaceDecoration): number {

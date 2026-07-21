@@ -14,12 +14,7 @@
  */
 
 import { tick } from 'svelte';
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	FocusActions,
-	HistoryActions
-} from '../../action-contracts';
+import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
 import type {
 	BlockElLookup,
@@ -63,6 +58,24 @@ export interface CursorBackend {
 	buildRange(start: RawOffset, end: RawOffset): Range | null;
 }
 
+/**
+ * Guarded pending-caret restore, shared by the three surfaces' render/sync passes.
+ * Applies only while `el` still holds focus, so a blur between arming the restore
+ * and the render drops it instead of yanking the global selection back into the
+ * just-blurred block. Returns whether it applied; callers own the pending field and
+ * clear it unconditionally afterward, so a skipped restore is never re-armed.
+ */
+export function consumePendingRestore<T>(
+	el: HTMLElement | null,
+	pending: T | null,
+	apply: (value: T) => void
+): boolean {
+	if (pending === null) return false;
+	const applied = document.activeElement === el;
+	if (applied) apply(pending);
+	return applied;
+}
+
 export interface EditableSurfaceDeps {
 	getEl: () => HTMLElement | null;
 	/** Ambient marker length in raw units — 0 for code/cell, prose marker width for text. */
@@ -91,7 +104,6 @@ export interface EditableSurfaceDeps {
 	getEditorRoot: () => HTMLElement | null;
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
-	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
@@ -159,7 +171,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getEditorRoot: deps.getEditorRoot,
 		getEditorLifetime: deps.getEditorLifetime,
 		stickyColumn: deps.stickyColumn,
-		containerEdit: deps.containerEdit,
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		history: deps.history,
@@ -170,8 +181,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pasteCoordinator: deps.pasteCoordinator,
 		grammar: deps.grammar,
 		getCursorOffset: () => deps.backend.getRaw(),
-		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => deps.setPendingCursor(offset)
+		afterReactivity: () => tick()
 	});
 
 	const sharedCtx: SharedKeydownContext = {

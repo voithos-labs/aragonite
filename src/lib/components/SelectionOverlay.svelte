@@ -53,6 +53,15 @@
 		});
 	});
 
+	// This block paints endpoint rects (its own partial selection). The measuring
+	// effect and the template read the one predicate, so a rendered rect is always
+	// one the effect measured — the reverse renders a stale box.
+	const paintsEndpoints = $derived(
+		classification === 'start' ||
+			classification === 'end' ||
+			(classification === 'single-block' && containerPaintsRects)
+	);
+
 	interface LocalRect {
 		left: number;
 		top: number;
@@ -87,11 +96,7 @@
 	let endpointRects: LocalRect[] = $state([]);
 
 	$effect(() => {
-		const usesPartialRects =
-			classification === 'start' ||
-			classification === 'end' ||
-			(classification === 'single-block' && containerPaintsRects);
-		if (!usesPartialRects) {
+		if (!paintsEndpoints) {
 			endpointRects = [];
 			return;
 		}
@@ -146,7 +151,7 @@
 
 {#if classification === 'middle'}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
-{:else if classification === 'start' || classification === 'end' || (classification === 'single-block' && containerPaintsRects)}
+{:else if paintsEndpoints}
 	{#each endpointRects as rect, i (i)}
 		<div
 			class="selection-overlay selection-overlay-endpoint"

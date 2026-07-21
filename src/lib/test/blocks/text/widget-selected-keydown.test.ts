@@ -59,7 +59,6 @@ function harness(source: string, sourceStart: number, linkRef?: LinkReferenceRes
 			}
 		},
 		focusActions: new Proxy({}, { get: trap }),
-		getSnapTarget: trap,
 		setSnapTarget: trap,
 		setPendingCursor: trap,
 		get linkRef() {

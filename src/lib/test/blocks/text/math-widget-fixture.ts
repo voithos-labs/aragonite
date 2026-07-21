@@ -108,7 +108,6 @@ export function widgetInteractionDeps(
 		getAmbientLength: () => 0,
 		getEditorContentWidth: () => 800,
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
-		getSnapTarget: () => null,
 		setSnapTarget: () => {},
 		readRawText: () =>
 			Array.from(base.el.childNodes).reduce(
