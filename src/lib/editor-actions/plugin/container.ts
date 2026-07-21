@@ -54,7 +54,8 @@ import {
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
-	type NestedActionsOverrideFactory
+	type NestedActionsOverrideFactory,
+	type NodeScope
 } from '../nested/nested-actions';
 
 /**
@@ -288,9 +289,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const listState = createBlockListState(deps.getNode);
 
-	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
-
-	const blockquoteOverrides = createBlockquoteOverrides({
+	// One live scope over the frozen thunks, shared by every factory this seam
+	// wires. Bridges the public thunk deps to the getter shape the factories read;
+	// passed by reference, never spread.
+	const scope: NodeScope = {
 		get index() {
 			return deps.getIndex();
 		},
@@ -299,7 +301,13 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		},
 		get path() {
 			return deps.getPath();
-		},
+		}
+	};
+
+	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
+
+	const blockquoteOverrides = createBlockquoteOverrides({
+		scope,
 		state: listState,
 		parentBlockEdit,
 		parentFocus,
@@ -333,15 +341,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const bundle = createStandardNestedActions(
 		listState,
 		{
-			get index() {
-				return deps.getIndex();
-			},
-			get node() {
-				return deps.getNode();
-			},
-			get path() {
-				return deps.getPath();
-			},
+			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
 			parent: {

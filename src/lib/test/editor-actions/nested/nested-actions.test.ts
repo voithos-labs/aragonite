@@ -71,11 +71,13 @@ describe('createStandardNestedActions', () => {
 		const parent = fakeParentBundles();
 
 		const bundle = createStandardNestedActions(state, {
-			index: 7,
-			get node() {
-				return node;
+			scope: {
+				index: 7,
+				get node() {
+					return node;
+				},
+				path: [7]
 			},
-			path: [7],
 			stickyColumn: makeStickyColumn(),
 			parent
 		});
@@ -95,11 +97,13 @@ describe('createStandardNestedActions', () => {
 				const { deferred, parent } = makeParentDeferring(method);
 
 				const bundle = createStandardNestedActions(state, {
-					index: 3,
-					get node() {
-						return node;
+					scope: {
+						index: 3,
+						get node() {
+							return node;
+						},
+						path: [3]
 					},
-					path: [3],
 					stickyColumn: makeStickyColumn(),
 					parent
 				});

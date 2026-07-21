@@ -63,7 +63,8 @@ describe('createStandardNestedActions grammar-thread source-scan', () => {
 
 	it('found the container call sites to validate', () => {
 		const callSites = sources.filter((f) => /createStandardNestedActions\s*\(/.test(f.code));
-		// The five built-in containers + the plugin container factory + the declaration.
+		// Four built-in containers wire it directly (blockquote now routes through the
+		// plugin container factory), plus that factory and the declaration.
 		expect(callSites.length).toBeGreaterThan(5);
 	});
 
@@ -75,15 +76,15 @@ describe('createStandardNestedActions grammar-thread source-scan', () => {
 	// ── Matcher self-test (non-vacuity) ─────────────────────────────────────
 
 	it('matcher flags a call that omits grammar', () => {
-		const bad = 'const b = createStandardNestedActions(state, { index, node, path, parent });';
+		const bad = 'const b = createStandardNestedActions(state, { scope, stickyColumn, parent });';
 		expect(findGrammarlessCalls('synthetic.ts', bad)).toEqual([
-			{ relPath: 'synthetic.ts', call: 'state, { index, node, path, parent }' }
+			{ relPath: 'synthetic.ts', call: 'state, { scope, stickyColumn, parent }' }
 		]);
 	});
 
 	it('matcher accepts a call that threads grammar', () => {
 		const good =
-			'createStandardNestedActions(state, { index, grammar: registryView.grammar, parent }, ovr(x))';
+			'createStandardNestedActions(state, { scope, grammar: registryView.grammar, parent }, ovr(x))';
 		expect(findGrammarlessCalls('synthetic.ts', good)).toEqual([]);
 	});
 

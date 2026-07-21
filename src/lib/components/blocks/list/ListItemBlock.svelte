@@ -26,7 +26,8 @@
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import {
 		createContainerBlockComponent,
@@ -123,18 +124,22 @@
 		return meta.taskChecked ? 'true' : 'false';
 	});
 
+	const scope: NodeScope = {
+		get index() {
+			return index;
+		},
+		get node() {
+			return node;
+		},
+		get path() {
+			return myPath;
+		}
+	};
+
 	const bundle = createStandardNestedActions(
 		listState,
 		{
-			get index() {
-				return index;
-			},
-			get node() {
-				return node;
-			},
-			get path() {
-				return myPath;
-			},
+			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
 			parent: {
