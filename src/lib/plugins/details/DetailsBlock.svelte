@@ -18,18 +18,19 @@
 
 	const open = $derived(!isCollapsedContainer(node));
 
-	const { blockListProps, containerApi, updateOwnMetadata } = createContainerBlock({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getBoxEl: () => boxEl
-	});
+	const { blockListProps, containerApi, updateOwnMetadata, getPresentationMode } =
+		createContainerBlock({
+			getNode: () => node,
+			getIndex: () => index,
+			getPath: () => myPath,
+			getBoxEl: () => boxEl
+		});
 
 	function toggle() {
 		// The disclosure commits an `open` metadata edit (the source bytes change),
-		// so reading mode makes it inert like the task checkbox. A plugin component
-		// reads the mode off the editor root — the documented DOM-tier pattern.
-		if (boxEl?.closest('[data-presentation="reading"]')) return;
+		// so reading mode makes it inert like the task checkbox — read off the
+		// container factory's mode getter.
+		if (getPresentationMode() === 'reading') return;
 		const isOpen = open;
 		// Collapsing while the caret sits in a body child orphans it — the clamp
 		// unmounts the body and kills the window pin — so move it to the summary in

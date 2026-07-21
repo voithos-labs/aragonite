@@ -187,7 +187,8 @@ export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {
 	EditableLeaf,
 	EditableLeafDeps,
-	EditableLeafMode
+	EditableLeafMode,
+	EditableLeafSurfaceProps
 } from './components/blocks/editable-leaf';
 export type { StickyColumnDirection } from './block-component';
 
