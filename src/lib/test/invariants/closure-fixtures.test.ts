@@ -11,7 +11,7 @@ import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { registerAdmonitions } from '$lib/plugins/admonitions/register';
+import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION } from '$lib/plugins/admonitions/kinds';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 

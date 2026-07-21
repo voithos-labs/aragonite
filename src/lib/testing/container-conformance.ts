@@ -80,6 +80,7 @@ import {
 	assertExemptionDocumented,
 	assertIndices,
 	assertIs,
+	assertRebuildIsParseCanonical,
 	fail,
 	findFirstOfKind,
 	firstChildOfKind,
@@ -583,20 +584,5 @@ export function checkDeclarationSanity(
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
 	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
 	assert(node, `deepNesting fixture contains a "${kind}" node`);
-	// The fixture node is freshly parsed, hence canonical: for a byte-faithful
-	// (strip/opaque) rebuild, rebuildRaw is the parse inverse — it must reproduce
-	// the SAME bytes, not merely run twice with the same wrong output (the details-
-	// CRLF class the determinism cell is blind to). Grid rebuilds canonicalize
-	// delimiter/padding widths by contract, so a valid non-canonical grid fixture
-	// is legally not a rebuild fixed-point — grid rides the non-throwing run plus
-	// the kind battery's grid determinism cell.
-	const before = node.raw;
-	try {
-		descriptor.rebuildRaw!(node);
-	} catch (error) {
-		fail(`${kind} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
-	}
-	if (descriptor.containerContract !== 'grid') {
-		assertIs(node.raw, before, `${kind} rebuildRaw reproduces the parse-canonical raw`);
-	}
+	assertRebuildIsParseCanonical(descriptor, node, kind);
 }

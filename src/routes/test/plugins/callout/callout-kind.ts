@@ -16,6 +16,7 @@
 import {
 	activateDirectives,
 	chromeChild,
+	containerClosure,
 	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
@@ -122,19 +123,10 @@ export function registerCalloutKind(): void {
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
 		conformanceFixture: ':::note My Title\n\nbody\n\n:::\n',
-		closure: {
-			roundTrip: {
-				mode: 'implemented',
-				via: 'container contract=opaque — rebuildCalloutRaw (directive)'
-			},
+		closure: containerClosure({
+			roundTripVia: 'container contract=opaque — rebuildCalloutRaw (directive)',
 			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
-			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'children are real blocks — search descends and paints'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: {
 				mode: 'implemented',
 				via: 'updateMetadata — the type switch commits as one undoable metadataUpdate'
@@ -147,7 +139,7 @@ export function registerCalloutKind(): void {
 				mode: 'implemented',
 				via: 'callout chrome/range-delete e2e under the [invariant:] watcher'
 			}
-		},
+		}),
 		// Mod+7/Mod+8, NOT Mod+Shift+1/2: a Shift-held digit's key token is
 		// layout-translated by the browser ('1'→'!'), so eventToChord would emit
 		// `Mod+Shift+!` and never match a digit binding. Mod+7/8 sit past the

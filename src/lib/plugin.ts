@@ -2,14 +2,16 @@
 // Separate from the `<Editor>` consumer barrel (index.ts) on purpose: this is the
 // authoring API, not the embedding API. Only the authoring surface belongs here —
 // no test helpers, no internal getters or dispatch.
+//
+// Pre-freeze marker: sections tagged (pre-freeze) may change until the 1.0 freeze;
+// where the note sharpens it, the tag names what the shape is being refined against.
 
 import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
 import type { AnyBlockKind } from './core/nodes';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
-// ── Plugin unit (pre-freeze / unstable) ──────────────────────────────────────
-// Being refined until the open-source release — NOT yet frozen; shape may change.
+// ── Plugin unit (pre-freeze) ─────────────────────────────────────────────────
 // definePlugin validates a { name, setup } unit at definition time; the editor's
 // `plugins` prop installs each once per process, so a consumer rarely calls
 // installPlugins directly. isPluginInstalled is the idempotence probe.
@@ -31,12 +33,11 @@ export { definePluginBlock } from './schema/define-plugin-block';
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
-// ── Inline authoring surface (pre-freeze / unstable) ─────────────────────────
-// Being refined against the KaTeX/inline-widget work until the open-source
-// release — NOT yet frozen; shape may change. Mint an inline kind, hook the
-// scanner on a trigger character, and register a kind as a live atomic widget
-// with its editing policy. The internal seams (first-party widget augmentation,
-// the recognizer/editing accessors, test resets) stay off this barrel.
+// ── Inline authoring surface (pre-freeze: refined against the KaTeX/inline-widget work) ──
+// Mint an inline kind, hook the scanner on a trigger character, and register a
+// kind as a live atomic widget with its editing policy. The internal seams
+// (first-party widget augmentation, the recognizer/editing accessors, test
+// resets) stay off this barrel.
 export {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
@@ -67,16 +68,17 @@ export type {
 	UnwrapRole
 } from './schema/block-kind-descriptor';
 // The required closure block a registration answers every cross-cutting system
-// with. `simpleLeafClosure` is sugar over the same field for a not-mergeable,
-// source-editable leaf: it bakes the structurally-fixed columns and demands the
-// four the leaf's own component determines. Containers hand-write the full nine.
+// with. `simpleLeafClosure`/`containerClosure` are sugar over the same field: each
+// bakes the structurally-fixed columns for its tier (source-editable leaf / strip
+// container) and demands the ones the kind's own component determines.
 export type {
 	ClosureBlock,
 	ClosureColumn,
 	ClosureCell,
-	SimpleLeafClosureCells
+	SimpleLeafClosureCells,
+	ContainerClosureCells
 } from './schema/closure';
-export { simpleLeafClosure } from './schema/closure';
+export { simpleLeafClosure, containerClosure } from './schema/closure';
 
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';
@@ -120,12 +122,11 @@ export { concatChildren as serializeChildren } from './core/serializer';
 export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
 export type { ParsedLine } from './core/lines';
 
-// ── Fence grammar (pre-freeze / unstable) ────────────────────────────────────
-// Being refined against the fence-claiming reference plugins until the
-// open-source release — NOT yet frozen; shape may change. The built-in
-// CommonMark fence recognizers, so a plugin claiming a fence (```mermaid) never
-// reimplements the fence rules: match an opener line (verbatim indent/info
-// bytes included, for byte-exact rebuilds) and test a closer line against it.
+// ── Fence grammar (pre-freeze: refined against the fence-claiming reference plugins) ──
+// The built-in CommonMark fence recognizers, so a plugin claiming a fence
+// (```mermaid) never reimplements the fence rules: match an opener line (verbatim
+// indent/info bytes included, for byte-exact rebuilds) and test a closer line
+// against it.
 export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
 export type { FenceOpen } from './core/parsers/fenced-code';
 
@@ -151,10 +152,9 @@ export { isBlockKindRegistered } from './schema/block-kind-descriptor';
 export { isBlockComponentRegistered } from './schema/block-component-registry';
 export { isBlockOpenerRegistered } from './schema/block-openers';
 
-// ── Container-authoring surface (pre-freeze / unstable) ─────────────────────────
-// Being refined against real plugin blocks until the open-source release — NOT
-// yet frozen; shape may change. Lets a plugin build an editable nested container
-// as thinly as the built-in blockquote, without touching any editor context key.
+// ── Container-authoring surface (pre-freeze: refined against real plugin blocks) ──
+// Lets a plugin build an editable nested container as thinly as the built-in
+// blockquote, without touching any editor context key.
 export { default as BlockList } from './components/BlockList.svelte';
 export { createContainerBlock } from './editor-actions/plugin/container';
 export type {
@@ -177,13 +177,12 @@ export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 // collapse getter and the model-layer walks share one definition.
 export { isCollapsedContainer } from './schema/reserved-chrome';
 
-// ── Editable-leaf authoring surface (pre-freeze / unstable) ──────────────────
-// Being refined against the block-math work until the open-source release —
-// NOT yet frozen; shape may change. Lets a plugin build a text-editing leaf
-// block with native caret/IME/undo/cross-block-selection parity — plain
-// (always-editable, per-keystroke commits) or render-primary (rendered view,
-// reveal-to-edit, one commit on blur) — without touching any editor context
-// key. The createContainerBlock sibling for leaves.
+// ── Editable-leaf authoring surface (pre-freeze: refined against the block-math work) ──
+// Lets a plugin build a text-editing leaf block with native
+// caret/IME/undo/cross-block-selection parity — plain (always-editable,
+// per-keystroke commits) or render-primary (rendered view, reveal-to-edit, one
+// commit on blur) — without touching any editor context key. The
+// createContainerBlock sibling for leaves.
 export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {
 	EditableLeaf,
@@ -192,14 +191,12 @@ export type {
 } from './components/blocks/editable-leaf';
 export type { StickyColumnDirection } from './block-component';
 
-// ── Directive authoring (pre-freeze / unstable) ──────────────────────────────
-// Being refined against the `:::name` directive work until the open-source
-// release — NOT yet frozen; shape may change. `activateDirectives()` turns the
-// grammar on (generic kinds + `:::`/`::` openers + inline `:` recognizer + generic
-// render); call it once at startup, before the editor parses. The remaining
-// symbols are inert — importing them does NOT claim `:::`, only the call does.
-// Register a name→kind directive, read the opener info into structure, and
-// serialize a fence losslessly.
+// ── Directive authoring (pre-freeze: refined against the `:::name` directive work) ──
+// `activateDirectives()` turns the grammar on (generic kinds + `:::`/`::` openers +
+// inline `:` recognizer + generic render); call it once at startup, before the
+// editor parses. The remaining symbols are inert — importing them does NOT claim
+// `:::`, only the call does. Register a name→kind directive, read the opener info
+// into structure, and serialize a fence losslessly.
 export { activateDirectives } from './components/blocks/directive/activate-directives';
 export { registerDirective, isDirectiveRegistered } from './core/directive/registry';
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
@@ -217,17 +214,15 @@ export { createDirectiveRebuild } from './editor-actions/plugin/directive-contai
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 
-// ── Paste transforms (pre-freeze / unstable) ──────────────────────────────────
-// Being refined against the conversion-config direction until the open-source
-// release — NOT yet frozen; shape may change. registerPasteTransform records a
-// content-keyed, pre-parse clipboard rewrite: it inspects the raw pasted text and
-// either replaces it or declines (null). Transforms run in install order at every
-// paste site, before the text is parsed — paste-scoped only; loading and typing
-// are untouched.
+// ── Paste transforms (pre-freeze: refined against the conversion-config direction) ──
+// registerPasteTransform records a content-keyed, pre-parse clipboard rewrite: it
+// inspects the raw pasted text and either replaces it or declines (null).
+// Transforms run in install order at every paste site, before the text is parsed
+// — paste-scoped only; loading and typing are untouched.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
 export type { PasteTransform } from './tree-operations/paste/paste-transforms';
 
-// ── Decorations (pre-freeze / unstable) ──────────────────────────────────────
+// ── Decorations (pre-freeze) ─────────────────────────────────────────────────
 // View-only annotations layered over the rendered document — never part of the
 // CST. A plugin registers a pure per-instance DecorationSource through
 // `editor.decorations` (its onEditor context) and gets a handle back to
@@ -245,13 +240,13 @@ export type {
 	DecorationRegistry
 } from './decorations/types';
 
-// ── Rects (pre-freeze / unstable) ────────────────────────────────────────────
+// ── Rects (pre-freeze) ───────────────────────────────────────────────────────
 // Viewport-space geometry over the rendered document, reached through
 // `editor.rects` (its onEditor context): a block's box, an inline range's rects,
 // the native caret, and a reveal that mounts a windowed-out block.
 export type { EditorRects } from './editor-rects';
 
-// ── Selection geometry (pre-freeze / unstable) ───────────────────────────────
+// ── Selection geometry (pre-freeze) ──────────────────────────────────────────
 // The selection shapes a decoration source or rect consumer reads: the
 // `selectionChange` payload, its endpoint type, and the importable "through the
 // block's last measurable position" sentinel `rangeRects` accepts as `end`.

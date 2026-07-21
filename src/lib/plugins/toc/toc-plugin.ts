@@ -63,7 +63,7 @@ export function registerTocBlock(): void {
 		// `linkReferenceDefinition`, which declines it (no `:` after the label). So
 		// this is gap placement (rule 2) reasoned off that built-in — priced just
 		// below it, which also keeps `[[toc]]` winning were the link-ref matcher ever
-		// widened to double brackets. 75 is unshared (harness uses 5/15/25/45/65).
+		// widened to double brackets.
 		priority: OPENER_PRIORITIES.linkReferenceDefinition - 5,
 		interruptsParagraph: (text) => text === TOC_LINE,
 		tryOpen(ctx) {

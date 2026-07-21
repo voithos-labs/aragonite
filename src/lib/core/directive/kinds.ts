@@ -16,6 +16,7 @@ import {
 	isInlineKindDeclared
 } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
+import { containerClosure } from '../../schema/closure';
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
@@ -52,26 +53,16 @@ export function registerDirectiveKinds(): void {
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
 		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
-		closure: {
-			roundTrip: {
-				mode: 'implemented',
-				via: 'container contract=opaque — rebuildDirectiveContainerRaw'
-			},
+		closure: containerClosure({
+			roundTripVia: 'container contract=opaque — rebuildDirectiveContainerRaw',
 			focus: { mode: 'implemented', via: 'focus walks into the first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
 			},
-			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'children are real blocks — search descends and paints'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
-		}
+		})
 	});
 
 	registerBlockKind(declarePluginKind(DIRECTIVE_LEAF), {
