@@ -31,10 +31,12 @@ No browser — Node by default, with a file opting into jsdom via a `// @vitest-
 
 Mirror **import depth**, not just the SUT's directory: a test importing `tree-operations/list/m1-contract` directly (rather than the `tree-operations` barrel) lives at `test/tree-operations/list/m1-contract.test.ts`.
 
-Two deliberate exceptions:
+Four deliberate exceptions:
 
 - **Cross-cutting tests for editor-root services** (round-trip, editor events, block identity, dev warnings) stay at `test/` root, because their SUTs sit at the editor root.
 - **The invariant catalog** (`test/invariants/`, with shared arbitraries under `arbitraries/` and source-scan guards under `lint/`) lives in one place so the whole set is legible in one read. See `docs/design/invariants.md`.
+- **Simulation-engine unit tests** (`test/simulation/`) mirror `e2e/simulation/`, an e2e-owned engine exercised by the unit runner rather than a `src/lib/` module.
+- **The debug-panel state test** (`test/debug/panel-state`) covers a route-level module outside `src/lib/`, so it has no in-library SUT to mirror.
 
 Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no config change.
 

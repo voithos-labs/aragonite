@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createStandardNestedActions } from '../../editor-actions/nested/nested-actions';
-import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-import type { CstNode } from '../../core/nodes';
+import { createStandardNestedActions } from '../../../editor-actions/nested/nested-actions';
+import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
+import type { CstNode } from '../../../core/nodes';
 import {
 	makeStickyColumn,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
-} from '../harness/editor-actions';
+} from '../../harness/editor-actions';
 
 // listItem: the container WITHOUT an unwrapRole — kinds that declare one
 // (blockquote/list) dispatch mergeWithPrevious(0) to an unwrap strategy

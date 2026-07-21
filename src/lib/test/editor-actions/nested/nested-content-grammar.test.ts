@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createGrammarView } from '$lib/schema/block-openers';
-import { makeNestedHarness } from '../harness/editor-actions';
+import { makeNestedHarness } from '../../harness/editor-actions';
 
 // The nested content-commit reparse must honor the instance grammar, matching the
 // top-level factory (which threads deps.grammar). Without it, typing a disabled
