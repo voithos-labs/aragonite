@@ -104,6 +104,24 @@ describe('chrome wall — rangeDelete post-states', () => {
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
 	});
 
+	// Equivalence pin for the shared-ceremony unification (range-delete-ceremony.ts):
+	// when start sits inside the end container, resolveEndWall returns null (the
+	// container is not a wall), so it is never marked consumed and never unit-
+	// deleted — even here, where the end endpoint lands on the container's last
+	// byte. This branch's inline predecessor computed a non-null chromeClearPath in
+	// this state, but chrome child 0 is start's own path or precedes it in doc
+	// order, so it never lands in the strictly-between walk and no chrome clears;
+	// the container survives with its body truncated in place. A unification that
+	// dropped resolveEndWall's start-inside guard would delete the whole container
+	// — red-first verified against exactly that break.
+	it('start in chrome, end at the container last byte: the container survives (start-inside guard)', () => {
+		const { doc, source } = run(FIXTURE, point([1, 0], 3), point([1, 2], 5));
+		expect(source).toBe('Above\n\n:::note Tit\n\n\n:::\n\nBelow\n');
+		expect(doc.children[1].kind).toBe('note');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
+		expect(doc.children[1].children?.[0].raw).toBe('Tit\n');
+	});
+
 	it("end at the container's last byte: the container dies as one unit, children intact", () => {
 		const doc = parse(FIXTURE);
 		const note = doc.children[1];
