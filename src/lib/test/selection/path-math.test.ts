@@ -4,15 +4,11 @@ import {
 	isStrictAncestorOf,
 	pathsEqual,
 	sharedPrefixLength,
-	pointsEqual,
 	isPathBetween,
 	asDocPath
 } from '../../selection/path-math';
 import { extendDocPath, docPathFrom } from '../../cursor/coordinate-spaces';
-import type { SelectionPoint } from '../../selection/primitives';
 import { checkCommitPathAddressable } from '../../invariants/commit-paths';
-
-const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
 describe('pathHasPrefix', () => {
 	it('returns true when prefix equals path', () => {
@@ -85,21 +81,6 @@ describe('sharedPrefixLength', () => {
 	it('returns 0 for empty inputs', () => {
 		expect(sharedPrefixLength([], [1, 2])).toBe(0);
 		expect(sharedPrefixLength([1, 2], [])).toBe(0);
-	});
-});
-
-describe('pointsEqual', () => {
-	it('matches identical paths and offsets', () => {
-		expect(pointsEqual(P([1, 0], 3), P([1, 0], 3))).toBe(true);
-	});
-
-	it('detects offset mismatch', () => {
-		expect(pointsEqual(P([1], 0), P([1], 1))).toBe(false);
-	});
-
-	it('detects path mismatch', () => {
-		expect(pointsEqual(P([0], 5), P([1], 5))).toBe(false);
-		expect(pointsEqual(P([0, 1], 0), P([0], 0))).toBe(false);
 	});
 });
 

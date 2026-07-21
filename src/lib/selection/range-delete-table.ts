@@ -16,7 +16,8 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
+import { cellRowCol } from '../cursor/coordinate-spaces';
 import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
@@ -43,7 +44,6 @@ import {
 	isChromeChild,
 	rangeConsumesContainer,
 	lastChildDescendant,
-	lineEndingOf,
 	terminateLine,
 	reparseWithFallback,
 	type ChromeContainer
@@ -53,45 +53,6 @@ import {
 
 export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
 	return startBlock.kind === 'table' || endBlock.kind === 'table';
-}
-
-/**
- * Coverage classification for an intra-table cell-index range. Drives the
- * Backspace dispatch: full-table → delete table block; full-row → delete row;
- * full-column → delete column; otherwise → clear cells.
- */
-export type TableCoverageKind = 'table' | 'row' | 'column' | 'cells';
-
-export interface TableCoverage {
-	kind: TableCoverageKind;
-	rowIdx?: number;
-	colIdx?: number;
-}
-
-export function classifyTableSelectionCoverage(
-	startCellIdx: number,
-	endCellIdx: number,
-	columnCount: number,
-	rowCount: number
-): TableCoverage {
-	const lo = Math.min(startCellIdx, endCellIdx);
-	const hi = Math.max(startCellIdx, endCellIdx);
-	const cellCount = columnCount * rowCount;
-
-	if (lo === 0 && hi === cellCount - 1) return { kind: 'table' };
-
-	const startRow = Math.floor(lo / columnCount);
-	const startCol = lo - startRow * columnCount;
-	const endRow = Math.floor(hi / columnCount);
-	const endCol = hi - endRow * columnCount;
-
-	if (startRow === endRow && startCol === 0 && endCol === columnCount - 1) {
-		return { kind: 'row', rowIdx: startRow };
-	}
-	if (startCol === endCol && startRow === 0 && endRow === rowCount - 1) {
-		return { kind: 'column', colIdx: startCol };
-	}
-	return { kind: 'cells' };
 }
 
 export function tableAwareRangeDelete(
@@ -156,8 +117,7 @@ function deleteWithinTable(
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
-	const anchorRow = Math.floor(start.offset / cellsPerRow);
-	const anchorCol = start.offset - anchorRow * cellsPerRow;
+	const { row: anchorRow, col: anchorCol } = cellRowCol(start.offset, cellsPerRow);
 
 	return {
 		newDoc: doc,
@@ -169,10 +129,8 @@ function deleteWithinTable(
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
-	const aRow = Math.floor(anchorCellIdx / cellsPerRow);
-	const aCol = anchorCellIdx - aRow * cellsPerRow;
-	const fRow = Math.floor(focusCellIdx / cellsPerRow);
-	const fCol = focusCellIdx - fRow * cellsPerRow;
+	const { row: aRow, col: aCol } = cellRowCol(anchorCellIdx, cellsPerRow);
+	const { row: fRow, col: fCol } = cellRowCol(focusCellIdx, cellsPerRow);
 	const minRow = Math.min(aRow, fRow);
 	const maxRow = Math.max(aRow, fRow);
 	const minCol = Math.min(aCol, fCol);
@@ -395,7 +353,7 @@ function deleteFromTableIntoProse(
 		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
 		if (!endIsChrome) {
 			tailReplacement = reparseWithFallback(
-				endTail || lineEndingOf(endBlock.raw),
+				endTail || trailingLineEnding(endBlock.raw),
 				endBlock.leadingTrivia
 			);
 			for (const node of tailReplacement) sharing.stamp(node);
@@ -417,7 +375,7 @@ function deleteFromTableIntoProse(
 	let tailNode: CstNode | null = null;
 	if (endIsChrome) {
 		// The wall: a chrome end keeps its tail by raw write — kind and node kept.
-		endBlock.raw = endTail || lineEndingOf(endBlock.raw);
+		endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
 		tailNode = endBlock;
 	} else if (!consumed) {
 		replaceAtPath(doc, end.path, tailReplacement!);
@@ -465,8 +423,7 @@ function survivingAnchorCellCaret(
 	anchorCellIdx: number
 ): SelectionPoint {
 	const cellsPerRow = metadataOf(table, 'table').columnCount;
-	const anchorRow = Math.floor(anchorCellIdx / cellsPerRow);
-	const anchorCol = anchorCellIdx - anchorRow * cellsPerRow;
+	const { row: anchorRow, col: anchorCol } = cellRowCol(anchorCellIdx, cellsPerRow);
 
 	if (anchorCol > 0) {
 		const cell = table.children![anchorRow].children![anchorCol];
@@ -657,10 +614,8 @@ function deleteCellsAndCollapse(
 	const rows = table.children!;
 	const cellsPerRow = meta.columnCount;
 
-	const startRow = Math.floor(startCellIdx / cellsPerRow);
-	const startCol = startCellIdx - startRow * cellsPerRow;
-	const lastRowInRange = Math.floor((endCellIdx - 1) / cellsPerRow);
-	const lastColInRange = endCellIdx - 1 - lastRowInRange * cellsPerRow;
+	const { row: startRow, col: startCol } = cellRowCol(startCellIdx, cellsPerRow);
+	const { row: lastRowInRange, col: lastColInRange } = cellRowCol(endCellIdx - 1, cellsPerRow);
 
 	// First range row is fully covered iff startCol === 0; last iff
 	// lastColInRange === cellsPerRow - 1; middle rows always are.
@@ -687,8 +642,7 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 	const rows = table.children!;
 	const touchedRows = new Set<number>();
 	for (let i = startCellIdx; i < endCellIdx; i++) {
-		const r = Math.floor(i / cellsPerRow);
-		const c = i - r * cellsPerRow;
+		const { row: r, col: c } = cellRowCol(i, cellsPerRow);
 		rows[r].children![c].raw = '';
 		touchedRows.add(r);
 	}

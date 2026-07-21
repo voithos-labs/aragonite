@@ -8,11 +8,7 @@
  * and paste / type-replace are passthroughs to their dedicated modules.
  */
 
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	HistoryActions
-} from '../../action-contracts';
+import type { BlockEditActions, HistoryActions } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
 import type {
 	BlockElLookup,
@@ -50,7 +46,6 @@ export interface CrossBlockDispatchContext {
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
-	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
@@ -74,7 +69,6 @@ export interface CrossBlockDispatchContext {
 
 	/** Svelte's tick() — awaited after mutations so the DOM settles. */
 	afterReactivity: () => Promise<void>;
-	setPendingCursor: (offset: number) => void;
 }
 
 export interface CrossBlockHandlers {

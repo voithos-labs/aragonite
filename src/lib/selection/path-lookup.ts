@@ -39,14 +39,7 @@ export function previousPath(doc: Document, path: number[]): number[] | null {
 	if (!parent || !parent.children) return null;
 	const idx = path[path.length - 1];
 	if (idx > 0) {
-		let cur: number[] = [...parentPath, idx - 1];
-		while (true) {
-			const node = nodeAt(doc, cur);
-			if (!node || !('children' in node) || !node.children || node.children.length === 0) {
-				return cur;
-			}
-			cur = [...cur, node.children.length - 1];
-		}
+		return lastLeafAtOrBefore(doc, [...parentPath, idx - 1]);
 	}
 	if (parentPath.length === 0) return null;
 	return parentPath;
@@ -55,26 +48,44 @@ export function previousPath(doc: Document, path: number[]): number[] | null {
 /** First block in document order, or null if the document is empty. */
 export function firstPath(doc: Document): number[] | null {
 	if (!doc.children || doc.children.length === 0) return null;
-	const path: number[] = [0];
-	let node: CstNode | Document = doc.children[0];
-	while ('children' in node && node.children && node.children.length > 0) {
-		path.push(0);
-		node = node.children[0];
-	}
-	return path;
+	return firstLeafAtOrAfter(doc, [0]);
 }
 
 /** Last block in document order (deepest last descendant), or null if empty. */
 export function lastPath(doc: Document): number[] | null {
 	if (!doc.children || doc.children.length === 0) return null;
-	const path: number[] = [doc.children.length - 1];
-	let node: CstNode | Document = doc.children[doc.children.length - 1];
-	while ('children' in node && node.children && node.children.length > 0) {
-		const lastIdx: number = node.children.length - 1;
-		path.push(lastIdx);
-		node = node.children[lastIdx];
+	return lastLeafAtOrBefore(doc, [doc.children.length - 1]);
+}
+
+/**
+ * Descend `path` to its first leaf — first child at each level — or null when
+ * `path` doesn't resolve to a node.
+ */
+export function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
+	let cur: number[] | null = path;
+	while (cur) {
+		const node = nodeAt(doc, cur);
+		if (!node) return null;
+		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
+		cur = [...cur, 0];
 	}
-	return path;
+	return null;
+}
+
+/**
+ * Descend `path` to its last leaf — last child at each level — or null when
+ * `path` doesn't resolve to a node.
+ */
+export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
+	let cur: number[] | null = path;
+	while (cur) {
+		// Annotated: overload resolution + the `cur` reassignment below otherwise cycle inference.
+		const node: CstNode | Document | null = nodeAt(doc, cur);
+		if (!node) return null;
+		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
+		cur = [...cur, node.children.length - 1];
+	}
+	return null;
 }
 
 /**

@@ -65,6 +65,23 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	sel?.addRange(range);
 }
 
+/**
+ * Resolve `point.path` to its mounted block element and place a focused collapsed
+ * caret there — the place-caret-and-focus idiom every cross-block arm runs once a
+ * mutation settles. Returns whether an element was found; a missing target is a
+ * no-op, which one caller turns into a native-selection clear.
+ */
+export function focusCollapsedCaret(
+	getBlockElByPath: (path: number[]) => HTMLElement | null,
+	point: SelectionPoint
+): boolean {
+	const blockEl = getBlockElByPath(point.path);
+	if (!blockEl) return false;
+	applyCollapsedCaret(blockEl, point);
+	blockEl.focus();
+	return true;
+}
+
 export function applySingleBlockRange(
 	blockEl: HTMLElement,
 	startOffset: number,
@@ -200,11 +217,7 @@ export function applySelectionToDom(
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		const blockEl = getBlockElByPath(selection.anchor.path);
-		if (blockEl) {
-			applyCollapsedCaret(blockEl, selection.anchor);
-			blockEl.focus();
-		}
+		focusCollapsedCaret(getBlockElByPath, selection.anchor);
 		return;
 	}
 
@@ -226,13 +239,8 @@ export function applySelectionToDom(
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	const cellPath = selectionState.cellDeepPath(selection.focus);
 	const parkPath = cellPath ?? selection.focus.path;
-	const focusEl = getBlockElByPath(parkPath);
-	if (focusEl) {
-		applyCollapsedCaret(focusEl, cellPath ? { path: parkPath, offset: 0 } : selection.focus);
-		focusEl.focus();
-	} else {
-		clearNativeSelection();
-	}
+	const parkPoint = cellPath ? { path: parkPath, offset: 0 } : selection.focus;
+	if (!focusCollapsedCaret(getBlockElByPath, parkPoint)) clearNativeSelection();
 }
 
 // ── Viewport point → block offset ───────────────────────────────────────────

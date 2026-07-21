@@ -20,7 +20,7 @@ import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
 import type { CommitController, MultiScopeTarget } from '../../action-contracts';
-import { applyCollapsedCaret } from '../native-bridge';
+import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import type { StructuralChange } from '../../tree-operations/structural-change';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
@@ -43,24 +43,31 @@ export interface CrossBlockMutationContext {
 }
 
 /**
+ * Options for {@link performCrossBlockDelete}. Absent = a plain destructive
+ * delete with its own undo snapshot and caret restore.
+ */
+export interface CrossBlockDeleteOptions {
+	/** `'join'`: the caller already pushed a snapshot covering this delete. */
+	undoEntry?: UndoEntryMode;
+	/** The caller installs a final caret after further mutations. */
+	skipCaretRestore?: boolean;
+	/**
+	 * Route intra-table full-table/row/column coverage to a structural delete.
+	 * Backspace opts in; type-replace/paste/cut stay on cell-clear so the
+	 * follow-up insert lands in the anchor cell.
+	 */
+	tableCoverageDelete?: boolean;
+}
+
+/**
  * Run rangeDelete on the current cross-block selection, commit via the
- * controller, collapse, and restore the native caret. Returns the
- * collapsed caret position, or null if the selection wasn't cross-block.
- *
- * `undoEntry: 'join'`: caller already pushed a snapshot covering this delete.
- * `skipCaretRestore`: caller will install a final caret after further
- * mutations.
- * `tableCoverageDelete`: route intra-table full-table/full-row/full-column
- * coverage to structural delete. Backspace opts in; type-replace/paste/cut
- * stay on cell-clear so the follow-up insert lands in the anchor cell.
+ * controller, collapse, and restore the native caret. Returns the collapsed
+ * caret position, or null if the selection wasn't cross-block. See
+ * {@link CrossBlockDeleteOptions} for the option semantics.
  */
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
-	options?: {
-		undoEntry?: UndoEntryMode;
-		skipCaretRestore?: boolean;
-		tableCoverageDelete?: boolean;
-	}
+	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
 	// Key auto-repeat, paste, or a composition can re-enter while a delete is
 	// parked on its reveal await; both calls would resolve the SAME endpoints
@@ -85,13 +92,10 @@ const inFlightDeletes = new WeakMap<SelectionState, Promise<SelectionPoint | nul
 
 async function runCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
-	options?: {
-		undoEntry?: UndoEntryMode;
-		skipCaretRestore?: boolean;
-		tableCoverageDelete?: boolean;
-	}
+	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
-	const { start, end } = resolveStartEnd(ctx.selection);
+	if (!ctx.selection.isCrossBlock) return null;
+	const { start, end } = ctx.selection;
 	if (!start || !end) return null;
 
 	const doc = ctx.getDoc();
@@ -107,13 +111,7 @@ async function runCrossBlockDelete(
 
 	const caretRestore = !options?.skipCaretRestore
 		? (caret: SelectionPoint | null) => {
-				if (caret) {
-					const blockEl = ctx.getBlockElByPath(caret.path);
-					if (blockEl) {
-						applyCollapsedCaret(blockEl, caret);
-						blockEl.focus();
-					}
-				}
+				if (caret) focusCollapsedCaret(ctx.getBlockElByPath, caret);
 			}
 		: undefined;
 
@@ -161,14 +159,6 @@ export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): voi
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-function resolveStartEnd(selection: SelectionState): {
-	start: SelectionPoint | null;
-	end: SelectionPoint | null;
-} {
-	if (!selection.isCrossBlock) return { start: null, end: null };
-	return { start: selection.start, end: selection.end };
-}
-
 function isTableAt(doc: Document, path: number[]): boolean {
 	const node = nodeAt(doc, path);
 	return node !== null && isBlockNode(node) && node.kind === 'table';
@@ -183,7 +173,7 @@ async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: { undoEntry?: UndoEntryMode } | undefined,
+	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
@@ -229,7 +219,7 @@ async function commitCrossContainerDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	options: { undoEntry?: UndoEntryMode } | undefined,
+	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const touched = collectTouchedContainers(doc, start.path, end.path);
