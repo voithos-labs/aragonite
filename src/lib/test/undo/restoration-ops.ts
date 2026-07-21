@@ -258,14 +258,16 @@ async function runListOp(
 	});
 	const bundle = createStandardNestedActions(listState, listDeps);
 	const context = createListContext({
-		get index() {
-			return listIndex;
-		},
-		get node() {
-			return h.deps.doc.children[listIndex];
-		},
-		get path() {
-			return [listIndex];
+		scope: {
+			get index() {
+				return listIndex;
+			},
+			get node() {
+				return h.deps.doc.children[listIndex];
+			},
+			get path() {
+				return [listIndex];
+			}
 		},
 		state: listState,
 		parentBlockEdit: makeStubBlockEdit(),

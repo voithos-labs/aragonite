@@ -21,6 +21,7 @@ import {
 	createStandardNestedActions,
 	type NestedActionsBundle,
 	type NestedActionsDeps,
+	type NestedActionsInput,
 	type NestedActionsOverrideFactory
 } from '$lib/editor-actions/nested/nested-actions';
 import type { GrammarView } from '$lib/schema/block-openers';
@@ -101,7 +102,6 @@ export function makeStubBlockEdit(): BlockEditActions {
 		deleteBlock: vi.fn(),
 		updateBlockContent: vi.fn(),
 		updateBlockMetadata: vi.fn(),
-		insertParsedBlocks: vi.fn(),
 		replaceBlock: vi.fn()
 	};
 }
@@ -230,14 +230,16 @@ export function makeListContextAt(
 	registerBlockListState(getNode(), state);
 	const controller = opts.controller ?? createUndoController(deps);
 	const listContext = createListContext({
-		get index() {
-			return listIndex;
-		},
-		get node() {
-			return getNode();
-		},
-		get path() {
-			return [listIndex];
+		scope: {
+			get index() {
+				return listIndex;
+			},
+			get node() {
+				return getNode();
+			},
+			get path() {
+				return [listIndex];
+			}
 		},
 		state,
 		parentBlockEdit: opts.parentBlockEdit ?? makeStubBlockEdit(),
@@ -259,17 +261,19 @@ export interface NestedActionsDepsInput {
 	grammar?: GrammarView;
 }
 
-// Mints a NestedActionsDeps whose node reads LIVE — `get node()` re-invokes
-// getNode() on every access, never capturing the node by value (the corruption
-// class documented on makeBlockListState). Every createStandardNestedActions call
-// site routes its deps literal through here so the getter shape is minted once.
-export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActionsDeps {
+// Mints the createStandardNestedActions input whose node reads LIVE — `get node()`
+// re-invokes getNode() on every access, never capturing the node by value (the
+// corruption class documented on makeBlockListState). Every call site routes its
+// input through here so the scope shape is minted once.
+export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActionsInput {
 	return {
-		index: input.index,
-		get node() {
-			return input.getNode();
+		scope: {
+			index: input.index,
+			get node() {
+				return input.getNode();
+			},
+			path: input.path
 		},
-		path: input.path,
 		stickyColumn: input.stickyColumn ?? makeStickyColumn(),
 		// Optional field: omit when absent rather than set undefined (exactOptionalPropertyTypes-safe).
 		...(input.grammar ? { grammar: input.grammar } : {}),

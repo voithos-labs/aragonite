@@ -21,7 +21,8 @@
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
@@ -101,7 +102,7 @@
 		parentSink?.measureRowNow(id);
 	});
 
-	const bundle = createStandardNestedActions(cellsState, {
+	const scope: NodeScope = {
 		get index() {
 			return index;
 		},
@@ -110,7 +111,11 @@
 		},
 		get path() {
 			return myPath;
-		},
+		}
+	};
+
+	const bundle = createStandardNestedActions(cellsState, {
+		scope,
 		stickyColumn,
 		grammar: registryView.grammar,
 		parent: {
