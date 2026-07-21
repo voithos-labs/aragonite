@@ -9,19 +9,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../../dev-warn';
-import {
-	createWidgetInteraction,
-	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { createSourceReveal } from '$lib/cursor/reveal-source';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { stampMathWidget, resetInlineState } from './math-widget-fixture';
+import { resetInlineState, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 
 beforeEach(() => {
 	vi.stubEnv('DEV', true);
@@ -43,45 +34,19 @@ function revealFires(): unknown[][] {
 // A paragraph whose math widget sits at the leading edge, so enterEdgeWidget
 // ('start') — the cross-block edge landing — opens its reveal.
 function mountEdgeMathBlock() {
-	const node: CstNode = parse('$x^2$ tail').children[0];
-	const math = computeInlineContent(node).find((n: InlineNode) => n.kind === MATH_INLINE)!;
-	const display = trimTrailingLineEnding(node.raw);
-
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(stampMathWidget(math), document.createTextNode(display.slice(math.end)));
-	document.body.appendChild(el);
-	el.focus();
-
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-	const deps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get myPath() {
-			return [0];
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		getEditorContentWidth: () => 800,
-		widgetSelection,
-		blockEdit: { updateBlockContent: () => {} },
-		getSnapTarget: () => null,
-		setSnapTarget: () => {},
-		setPendingCursor: () => {},
-		readRawText: () =>
-			Array.from(el.childNodes).reduce((acc, child) => acc + rawTextOfNode(child, node.raw), ''),
-		setRevealing: () => {},
-		isCrossBlock: () => false,
-		get linkRef() {
-			return undefined;
-		}
-	} as unknown as WidgetInteractionDeps;
-
-	return { interaction: createWidgetInteraction(deps) };
+	const { el, node } = mountWidgetBlock('$x^2$ tail', MATH_INLINE);
+	const interaction = createWidgetInteraction(
+		widgetInteractionDeps(
+			{ node, el },
+			{
+				blockEdit: { updateBlockContent: () => {} },
+				setPendingCursor: () => {},
+				setRevealing: () => {},
+				isCrossBlock: () => false
+			}
+		)
+	);
+	return { interaction };
 }
 
 const settle = () => new Promise((r) => setTimeout(r));

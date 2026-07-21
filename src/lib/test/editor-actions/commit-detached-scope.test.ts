@@ -10,7 +10,6 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
-import { createListContext } from '$lib/editor-actions/list-context';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { __computeScopeDescriptorForTests } from '$lib/selection/cross-block/ops';
@@ -20,8 +19,7 @@ import type { CstNode } from '$lib/core/nodes';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit,
-	makeStubFocus
+	makeListContextAt
 } from '$lib/test/harness/editor-actions';
 
 // devWarn mutes itself under Vitest, which is why no unit test ever saw these
@@ -45,7 +43,6 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 	it('unindent of the only nested item fires nothing (nested-list scope dies)', async () => {
 		const doc0 = parse('- Item 1\n  - Nested\n- Item 2\n');
 		const { deps } = makeEditorActionsDeps(doc0.children);
-		const controller = createUndoController(deps);
 		const outerList = () => deps.doc.children[0];
 		const parentItem = outerList().children![0];
 		const nestedList = parentItem.children![1];
@@ -59,22 +56,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			makeBlockListState(() => parentItem)
 		);
 
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return outerList();
-			},
-			get path() {
-				return [0];
-			},
-			state: makeBlockListState(outerList),
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
-		});
+		const { listContext } = makeListContextAt(deps, 0);
 
 		const fires = armInvariantChannel();
 		await listContext.promoteNestedItem(0, nestedList, 0);

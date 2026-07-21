@@ -3,14 +3,12 @@ import { parse } from '../../core/parser';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { createListContext } from '../../editor-actions/list-context';
 import { registerBlockListState } from '../../reactivity/state-registry';
 import type { EditorActionsDeps } from '../../editor-actions/deps';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStubBlockEdit,
-	makeStubFocus
+	makeListContextAt
 } from '../harness/editor-actions';
 
 function makeHarness(source: string) {
@@ -49,30 +47,13 @@ describe('checkSnapshotIntegrity (G1.9)', () => {
 		const { deps, controller } = makeHarness('- a\n- b\n');
 		const list = deps.doc.children[0];
 		const item1 = list.children![1];
-		const listState = makeBlockListState(() => deps.doc.children[0]);
-		registerBlockListState(list, listState);
 		for (const item of list.children!) {
 			registerBlockListState(
 				item,
 				makeBlockListState(() => item)
 			);
 		}
-		const ctx = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return deps.doc.children[0];
-			},
-			get path() {
-				return [0];
-			},
-			state: listState,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
-		});
+		const { listContext: ctx } = makeListContextAt(deps, 0, { controller });
 
 		// Unordered indent re-parents item 1 under item 0 without rewriting its
 		// bytes (no marker renumbering), so the shared node moves by reference.

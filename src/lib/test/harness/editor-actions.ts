@@ -1,14 +1,33 @@
 // Shared mocks for editor-actions and selection unit tests.
 
 import { vi } from 'vitest';
-import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/action-contracts';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	FocusActions,
+	ListContext
+} from '$lib/action-contracts';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
-import type { EditorActionsDeps } from '$lib/editor-actions/deps';
+import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { createListContext } from '$lib/editor-actions/list-context';
+import { createListOverrides } from '$lib/editor-actions/list-overrides';
+import {
+	createStandardNestedActions,
+	type NestedActionsBundle,
+	type NestedActionsDeps,
+	type NestedActionsOverrideFactory
+} from '$lib/editor-actions/nested/nested-actions';
+import type { GrammarView } from '$lib/schema/block-openers';
+import { parse } from '$lib/core/parser';
 import type { EditorEvents } from '$lib/editor-events';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { createUndoManager } from '$lib/undo/manager';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -157,4 +176,146 @@ export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarn
 		getBlockIds: () => blockIds,
 		getBlockRefs: () => blockRefs
 	};
+}
+
+// ── ListContext harness ──────────────────────────────────────────────────────
+
+export interface ListContextHarness {
+	listContext: ListContext;
+	state: BlockListState;
+	getNode: () => CstNode;
+	controller: UndoController;
+}
+
+export interface ListContextAtOptions {
+	ids?: string[];
+	controller?: UndoController;
+	parentBlockEdit?: BlockEditActions;
+	parentFocus?: FocusActions;
+	parentListContext?: ListContext;
+}
+
+// Builds a ListContext over the list at `deps.doc.children[listIndex]`, minting and
+// registering its node-backed BlockListState. index/node/path are LIVE getters —
+// the node is never captured by value (getter scar; see makeBlockListState). Owns
+// only the list-level state + context; child-item states stay the caller's to register.
+export function makeListContextAt(
+	deps: EditorActionsDeps,
+	listIndex: number,
+	opts: ListContextAtOptions = {}
+): ListContextHarness {
+	const getNode = () => deps.doc.children[listIndex];
+	const state = makeBlockListState(getNode, opts.ids);
+	registerBlockListState(getNode(), state);
+	const controller = opts.controller ?? createUndoController(deps);
+	const listContext = createListContext({
+		get index() {
+			return listIndex;
+		},
+		get node() {
+			return getNode();
+		},
+		get path() {
+			return [listIndex];
+		},
+		state,
+		parentBlockEdit: opts.parentBlockEdit ?? makeStubBlockEdit(),
+		parentFocus: opts.parentFocus ?? makeStubFocus(),
+		parentListContext: opts.parentListContext,
+		controller
+	});
+	return { listContext, state, getNode, controller };
+}
+
+// ── Nested action-bundle harness ─────────────────────────────────────────────
+
+export interface NestedActionsDepsInput {
+	index: number;
+	getNode: () => CstNode;
+	path: number[];
+	parent: NestedActionsDeps['parent'];
+	stickyColumn?: StickyColumnState;
+	grammar?: GrammarView;
+}
+
+// Mints a NestedActionsDeps whose node reads LIVE — `get node()` re-invokes
+// getNode() on every access, never capturing the node by value (the corruption
+// class documented on makeBlockListState). Every createStandardNestedActions call
+// site routes its deps literal through here so the getter shape is minted once.
+export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActionsDeps {
+	return {
+		index: input.index,
+		get node() {
+			return input.getNode();
+		},
+		path: input.path,
+		stickyColumn: input.stickyColumn ?? makeStickyColumn(),
+		// Optional field: omit when absent rather than set undefined (exactOptionalPropertyTypes-safe).
+		...(input.grammar ? { grammar: input.grammar } : {}),
+		parent: input.parent
+	};
+}
+
+export interface NestedHarness {
+	deps: EditorActionsDeps;
+	events: EditorEvents;
+	controller: UndoController;
+	containerEdit: ContainerEditActions;
+	state: BlockListState;
+	bundle: NestedActionsBundle;
+	getNode: () => CstNode;
+}
+
+export interface NestedHarnessOptions {
+	/** Container index within the document; defaults to the last child. */
+	index?: number;
+	overrides?: NestedActionsOverrideFactory;
+	/** Wire the standard list-item overrides (unwrap/merge/delete) onto the bundle. */
+	listOverrides?: boolean;
+	grammar?: GrammarView;
+}
+
+// Full nested-container setup over `source` (parsed) or an explicit node list:
+// deps → undo controller → container edit → reactive BlockListState → nested
+// bundle, wired to the container at `index`. The state is the production
+// createBlockListState (reactive, self-registering) — a mounted container's shape.
+export function makeNestedHarness(
+	input: string | CstNode[],
+	opts: NestedHarnessOptions = {}
+): NestedHarness {
+	const nodes = typeof input === 'string' ? parse(input).children : input;
+	const index = opts.index ?? nodes.length - 1;
+	const { deps, events } = makeEditorActionsDeps(nodes);
+	const controller = createUndoController(deps);
+	const containerEdit = createContainerEditActions(deps, controller);
+	const getNode = () => deps.doc.children[index];
+	const state = createBlockListState(getNode);
+	const overrides = opts.listOverrides
+		? createListOverrides({
+				get index() {
+					return index;
+				},
+				get node() {
+					return getNode();
+				},
+				get path() {
+					return [index];
+				},
+				state,
+				parentBlockEdit: makeStubBlockEdit(),
+				parentContainerEdit: containerEdit
+			})
+		: opts.overrides;
+	const bundle = createStandardNestedActions(
+		state,
+		makeNestedActionsDeps({
+			index,
+			getNode,
+			path: [index],
+			grammar: opts.grammar,
+			parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
+		}),
+		overrides
+	);
+	return { deps, events, controller, containerEdit, state, bundle, getNode };
 }

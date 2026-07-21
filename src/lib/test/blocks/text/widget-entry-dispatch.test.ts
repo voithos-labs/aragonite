@@ -6,11 +6,8 @@
 // (inline math) open the source reveal at the direction-appropriate edge; non-reveal
 // kinds (image) keep select-then-step. This pins the split at both seams so a
 // regression to N−1-of-N sibling parity fails here, not only in e2e.
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import {
-	createWidgetInteraction,
-	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import {
 	createEdgePolicyDispatch,
 	type EdgePolicyDispatchDeps
@@ -20,21 +17,16 @@ import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
-import { rawTextOfNode, domTextOffsetAtNode } from '$lib/cursor/widget-offset';
+import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { AnyInlineKind, CstNode, InlineNode } from '$lib/core/nodes';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { stampMathWidget, resetInlineState } from './math-widget-fixture';
+import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { stampMathWidget, installMathInline, widgetInteractionDeps } from './math-widget-fixture';
+
+installMathInline();
 
 beforeEach(() => {
-	resetInlineState();
-	registerMathInline();
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
-});
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	resetInlineState();
 });
 
 // Mount a paragraph with one atomic widget island between two prose text nodes —
@@ -56,34 +48,20 @@ function mount(source: string, widgetKind: string) {
 
 	const commits: { index: number; raw: string; before: number; after: number }[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-	const interaction = createWidgetInteraction({
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get myPath() {
-			return [0];
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		getEditorContentWidth: () => 800,
-		cursor: new Proxy({}, { get: () => () => {} }),
-		widgetSelection,
-		blockEdit: { updateBlockContent: () => {} },
-		focusActions: new Proxy({}, { get: () => () => {} }),
-		getSnapTarget: () => null,
-		setSnapTarget: () => {},
-		setPendingCursor: () => {},
-		readRawText: () =>
-			Array.from(el.childNodes).reduce((acc, child) => acc + rawTextOfNode(child, node.raw), ''),
-		setRevealing: () => {},
-		isCrossBlock: () => false,
-		get linkRef() {
-			return undefined;
-		}
-	} as unknown as WidgetInteractionDeps);
+	const interaction = createWidgetInteraction(
+		widgetInteractionDeps(
+			{ node, el },
+			{
+				cursor: new Proxy({}, { get: () => () => {} }),
+				widgetSelection,
+				blockEdit: { updateBlockContent: () => {} },
+				focusActions: new Proxy({}, { get: () => () => {} }),
+				setPendingCursor: () => {},
+				setRevealing: () => {},
+				isCrossBlock: () => false
+			}
+		)
+	);
 
 	// The within-block caret-edge dispatch classifies the widget and calls the
 	// interaction's entry seam — the same split the cross-block enterEdgeWidget takes.

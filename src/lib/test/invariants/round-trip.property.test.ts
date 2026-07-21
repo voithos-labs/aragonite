@@ -9,6 +9,7 @@ import {
 	arbGfmDoc,
 	freshOrFixedSeed
 } from './arbitraries';
+import { describeRoundTrips } from '$lib/test/support/round-trip';
 
 // G2.1 marquee invariant: serialize(parse(s)) === s for ALL inputs. The parser
 // is total (never throws; unknown syntax becomes paragraph/unrecognized) and the
@@ -42,24 +43,16 @@ describe('G2.1 round-trip + totality', () => {
 
 // G2.2: the parser absorbs unterminated blocks to EOF rather than recovering.
 // Round-trip must still hold for these deliberately-truncated states.
-describe('G2.2 EOF edge states', () => {
-	const cases: { name: string; source: string }[] = [
-		{ name: 'unclosed fenced code (backticks)', source: '```js\ncode\nmore' },
-		{ name: 'unclosed fenced code, trailing newline', source: '```\ncode\n' },
-		{ name: 'unclosed fenced code, info only', source: '~~~rust' },
-		{ name: 'unterminated HTML block', source: '<div>\ncontent\nno close' },
-		{ name: 'unterminated script block', source: '<script>\nfoo()' },
-		{ name: 'unterminated HTML comment', source: '<!-- comment never closes' },
-		{ name: 'unterminated multi-line comment', source: '<!--\nline\nmore' },
-		{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
-	];
-
-	for (const { name, source } of cases) {
-		it(`round-trips: ${name}`, () => {
-			expect(serialize(parse(source))).toBe(source);
-		});
-	}
-});
+describeRoundTrips('G2.2 EOF edge states', [
+	{ name: 'unclosed fenced code (backticks)', source: '```js\ncode\nmore' },
+	{ name: 'unclosed fenced code, trailing newline', source: '```\ncode\n' },
+	{ name: 'unclosed fenced code, info only', source: '~~~rust' },
+	{ name: 'unterminated HTML block', source: '<div>\ncontent\nno close' },
+	{ name: 'unterminated script block', source: '<script>\nfoo()' },
+	{ name: 'unterminated HTML comment', source: '<!-- comment never closes' },
+	{ name: 'unterminated multi-line comment', source: '<!--\nline\nmore' },
+	{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
+]);
 
 // Adversarial fixed cases the generators cannot reach at useful sizes — their
 // nesting dial (arbDeepNesting) tops out around a dozen levels, well below the
