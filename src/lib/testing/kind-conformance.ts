@@ -47,7 +47,15 @@ import { scanDocument } from '../search/document-scan';
 import { compileMatcher } from '../search/matcher';
 import { createBlockEditActions } from '../editor-actions/block-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
-import { assert, assertIs, fail, findFirstPathOfKind, nodeAtPath } from './conformance-core';
+import {
+	assert,
+	assertIs,
+	assertReasonDocumented,
+	assertRebuildIsParseCanonical,
+	fail,
+	findFirstPathOfKind,
+	nodeAtPath
+} from './conformance-core';
 import { createHeadlessActions } from './headless-actions';
 
 // ── Report + profile ─────────────────────────────────────────────────────────
@@ -132,7 +140,7 @@ export async function runKindConformance(
 				? await runCustomCheck(kind, column, cell, custom, ctx)
 				: await executeCell(column, cell, kind, descriptor, ctx);
 			if (result.status === 'exempt') {
-				assert(result.detail.length > 20, `${kind} ${column} exempt reason is documented`);
+				assertReasonDocumented(result.detail, `${kind} ${column} exempt reason`);
 			}
 			cells.push({ column, mode: cell.mode, ...result });
 		} catch (error) {
@@ -245,21 +253,18 @@ function execRoundTrip(
 		const first = rebuildRawOf(kind, ctx.fixture, descriptor);
 		const second = rebuildRawOf(kind, ctx.fixture, descriptor);
 		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
-		// Parse-canonical identity (byte-faithful rebuilds only): ctx.node is freshly
-		// parsed, hence canonical, so rebuildRaw over it reproduces the SAME bytes —
-		// catching a rebuild that is deterministically wrong (the details-CRLF class
-		// that shipped green here on the determinism check alone). Grid rebuilds
-		// canonicalize delimiter/padding widths by contract, so a valid non-canonical
-		// grid fixture is legally not a rebuild fixed-point; determinism is grid's
-		// half and the browser sweep covers its rebuilt bytes.
-		if (descriptor.containerContract !== 'grid') {
-			assertIs(first, ctx.node.raw, `"${kind}" rebuildRaw reproduces the parse-canonical raw`);
-			return {
-				status: 'executed',
-				detail: 'byte round-trip + rebuildRaw parse-identity + determinism'
-			};
-		}
-		return { status: 'executed', detail: 'byte round-trip + rebuildRaw determinism' };
+		assertRebuildIsParseCanonical(
+			descriptor,
+			nodeAtPath(parse(ctx.fixture), ctx.nodePath),
+			`"${kind}"`
+		);
+		return {
+			status: 'executed',
+			detail:
+				descriptor.containerContract === 'grid'
+					? 'byte round-trip + rebuildRaw determinism'
+					: 'byte round-trip + rebuildRaw parse-identity + determinism'
+		};
 	}
 	return { status: 'executed', detail: 'byte round-trip' };
 }
@@ -424,9 +429,8 @@ function rebuildRawOf(
 	fixture: string,
 	descriptor: BlockKindDescriptor
 ): string {
-	const path = findFirstPathOfKind(parse(fixture), kind)!;
 	const doc = parse(fixture);
-	const node = nodeAtPath(doc, path);
+	const node = nodeAtPath(doc, findFirstPathOfKind(doc, kind)!);
 	descriptor.rebuildRaw!(node);
 	return node.raw;
 }
