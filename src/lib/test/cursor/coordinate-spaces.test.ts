@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	asCellIndex,
+	cellRowCol,
 	asDomTextOffset,
 	asEditorX,
 	asRawOffset,
@@ -112,5 +113,18 @@ describe('DocPath composition', () => {
 		// Copied: a later mutation of the composer's own array can't leak into the
 		// emitted event path or snapshot coordinate.
 		expect(out).not.toBe(src);
+	});
+});
+
+describe('cellRowCol', () => {
+	it('decodes a row-major cell index into grid coordinates', () => {
+		expect(cellRowCol(0, 3)).toEqual({ row: 0, col: 0 });
+		expect(cellRowCol(2, 3)).toEqual({ row: 0, col: 2 });
+		expect(cellRowCol(3, 3)).toEqual({ row: 1, col: 0 });
+		expect(cellRowCol(7, 3)).toEqual({ row: 2, col: 1 });
+	});
+
+	it('handles a single-column grid (every index is a new row)', () => {
+		expect(cellRowCol(4, 1)).toEqual({ row: 4, col: 0 });
 	});
 });

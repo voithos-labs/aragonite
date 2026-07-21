@@ -211,48 +211,51 @@ export function handleCellShiftClick(
 	);
 }
 
+// ── DOM geometry ─────────────────────────────────────────────────────────────
+//
+// The cell grid's one selector contract: rows carry `data-table-row-idx`, cells
+// carry `role="cell"`. Every table walker addresses the grid through these two
+// helpers so a markup change lands in one place.
+
+/**
+ * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the
+ * table scrolls past it (VR-K1), so index 0 is the first MOUNTED row, not row 0;
+ * uniform column tracks make any mounted row equivalent for column geometry.
+ */
+export function mountedRowEls(tableEl: HTMLElement): HTMLElement[] {
+	return Array.from(tableEl.querySelectorAll<HTMLElement>(':scope > [data-table-row-idx]'));
+}
+
+/** The cells of one row, in column order. */
+export function rowCellEls(rowEl: Element): HTMLElement[] {
+	return Array.from(rowEl.querySelectorAll<HTMLElement>(':scope > [role="cell"]'));
+}
+
 // ── Hit testing ────────────────────────────────────────────────────────────
 
 /**
  * Resolve a viewport point to a cell within `tableEl`. Returns null when the
- * point falls outside this specific table — identity-checks the owning table
- * so a sibling table doesn't masquerade as the originating one.
+ * point falls outside this specific table. Thin viewport-point entry over
+ * `cellCoordsOfElement`, which owns the resolution and the owner-table check.
  */
 export function cellAtPoint(
 	clientX: number,
 	clientY: number,
 	tableEl: HTMLElement
 ): { rowIdx: number; colIdx: number; cellEl: HTMLElement } | null {
-	const target = document.elementFromPoint(clientX, clientY);
-	if (!target) return null;
-	const cellEl = (target as Element).closest('[role="cell"]') as HTMLElement | null;
-	if (!cellEl) return null;
-	const rowEl = cellEl.closest('[data-table-row-idx]') as HTMLElement | null;
-	if (!rowEl) return null;
-	const ownerTable = rowEl.closest('[role="table"]') as HTMLElement | null;
-	if (ownerTable !== tableEl) return null;
-
-	const rowIdxAttr = rowEl.getAttribute('data-table-row-idx');
-	if (rowIdxAttr === null) return null;
-	const rowIdx = Number(rowIdxAttr);
-	if (Number.isNaN(rowIdx)) return null;
-
-	const cellsInRow = Array.from(rowEl.querySelectorAll(':scope > [role="cell"]'));
-	const colIdx = cellsInRow.indexOf(cellEl);
-	if (colIdx < 0) return null;
-
-	return { rowIdx, colIdx, cellEl };
+	return cellCoordsOfElement(document.elementFromPoint(clientX, clientY), tableEl);
 }
 
 /**
- * Find the cell coords of an arbitrary element (e.g., the previously focused
- * `document.activeElement`). Returns null when the element isn't inside a
- * cell of `tableEl`.
+ * Resolve an arbitrary element (a click target, or the previously focused
+ * `document.activeElement`) to its cell coords within `tableEl`. Returns null
+ * when the element isn't inside a cell of this specific table — identity-checks
+ * the owning table so a sibling table doesn't masquerade as the originating one.
  */
 export function cellCoordsOfElement(
 	el: Element | null,
 	tableEl: HTMLElement
-): { rowIdx: number; colIdx: number } | null {
+): { rowIdx: number; colIdx: number; cellEl: HTMLElement } | null {
 	if (!el) return null;
 	const cellEl = el.closest('[role="cell"]') as HTMLElement | null;
 	if (!cellEl) return null;
@@ -265,11 +268,10 @@ export function cellCoordsOfElement(
 	const rowIdx = Number(rowIdxAttr);
 	if (Number.isNaN(rowIdx)) return null;
 
-	const cellsInRow = Array.from(rowEl.querySelectorAll(':scope > [role="cell"]'));
-	const colIdx = cellsInRow.indexOf(cellEl);
+	const colIdx = rowCellEls(rowEl).indexOf(cellEl);
 	if (colIdx < 0) return null;
 
-	return { rowIdx, colIdx };
+	return { rowIdx, colIdx, cellEl };
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────

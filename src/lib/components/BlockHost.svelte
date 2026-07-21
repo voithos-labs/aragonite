@@ -19,7 +19,7 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../editor-keys';
-	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
+	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
@@ -115,12 +115,7 @@
 
 	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
 
-	$effect(() => {
-		if (perfEnabled()) incMountedBlocks();
-		return () => {
-			if (perfEnabled()) decMountedBlocks();
-		};
-	});
+	useMountGauge();
 
 	// Enroll in the scope's batched measure pass instead of measuring inline — a
 	// per-block read interleaved with a sibling's model write forces one reflow per

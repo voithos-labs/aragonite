@@ -45,23 +45,28 @@
 		height: 0;
 	}
 
+	/* The dotted-bar affordance shared by both axes; the axis rules add only the
+	   geometry (position, size, repeat direction) that sets them apart. */
+	.table-grip {
+		position: absolute;
+		color: var(--color-ui-muted, #a4a4a4);
+		background-image: radial-gradient(currentColor 40%, transparent 45%);
+		background-position: center;
+		cursor: pointer;
+		opacity: 0;
+		pointer-events: none;
+	}
+
 	/* A thin dotted bar centered at the very top of the column, sitting within the
 	   header cell's top padding so it never overlaps the caret-click target. */
 	.table-grip-column {
-		position: absolute;
 		top: 0;
 		left: 50%;
 		transform: translateX(-50%);
 		width: 1.75rem;
 		height: 0.35rem;
-		color: var(--color-ui-muted, #a4a4a4);
-		background-image: radial-gradient(currentColor 40%, transparent 45%);
 		background-size: 0.25rem 0.35rem;
 		background-repeat: repeat-x;
-		background-position: center;
-		cursor: pointer;
-		opacity: 0;
-		pointer-events: none;
 	}
 
 	/* The anchor is the gutter grid item: zero-width (its track is `0`), stretched to
@@ -75,19 +80,12 @@
 	/* A thin vertical dotted bar centered down the row, overflowing right out of the
 	   zero-width gutter into cell A's left padding so it never overlaps the cell text. */
 	.table-grip-row {
-		position: absolute;
 		top: 50%;
 		left: 0.15rem;
 		transform: translateY(-50%);
 		width: 0.35rem;
 		height: 1rem;
-		color: var(--color-ui-muted, #a4a4a4);
-		background-image: radial-gradient(currentColor 40%, transparent 45%);
 		background-size: 0.35rem 0.25rem;
 		background-repeat: repeat-y;
-		background-position: center;
-		cursor: pointer;
-		opacity: 0;
-		pointer-events: none;
 	}
 </style>
