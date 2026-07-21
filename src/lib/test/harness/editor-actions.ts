@@ -317,18 +317,18 @@ export function makeNestedHarness(
 	const state = createBlockListState(getNode);
 	const overrides = opts.listOverrides
 		? createListOverrides({
-				get index() {
-					return index;
+				scope: {
+					get index() {
+						return index;
+					},
+					get node() {
+						return getNode();
+					},
+					get path() {
+						return [index];
+					}
 				},
-				get node() {
-					return getNode();
-				},
-				get path() {
-					return [index];
-				},
-				state,
-				parentBlockEdit: makeStubBlockEdit(),
-				parentContainerEdit: containerEdit
+				parentBlockEdit: makeStubBlockEdit()
 			})
 		: opts.overrides;
 	const bundle = createStandardNestedActions(
