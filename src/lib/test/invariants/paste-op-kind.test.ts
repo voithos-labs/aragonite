@@ -5,7 +5,7 @@ import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps,
@@ -56,19 +56,15 @@ describe('G2.9 paste op-kind dual-emit', () => {
 		const containerEdit = createContainerEditActions(deps, controller);
 		const containerState = createBlockListState(() => containerNode);
 
-		const bundle = createStandardNestedActions(containerState, {
-			index: 0,
-			get node() {
-				return containerNode;
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit
-			}
-		});
+		const bundle = createStandardNestedActions(
+			containerState,
+			makeNestedActionsDeps({
+				index: 0,
+				getNode: () => containerNode,
+				path: [0],
+				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
+			})
+		);
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);

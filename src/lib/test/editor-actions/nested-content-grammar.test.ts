@@ -1,16 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { createGrammarView } from '$lib/schema/block-openers';
-import {
-	makeEditorActionsDeps,
-	makeStickyColumn,
-	makeStubBlockEdit,
-	makeStubFocus
-} from '../harness/editor-actions';
+import { makeNestedHarness } from '../harness/editor-actions';
 
 // The nested content-commit reparse must honor the instance grammar, matching the
 // top-level factory (which threads deps.grammar). Without it, typing a disabled
@@ -19,26 +10,7 @@ import {
 
 function driveTypeInContainer(grammar: ReturnType<typeof createGrammarView> | undefined) {
 	const doc = parse('> para\n'); // blockquote → child 0 is a paragraph
-	const { deps } = makeEditorActionsDeps([doc.children[0]]);
-	const controller = createUndoController(deps);
-	const containerEdit = createContainerEditActions(deps, controller);
-	const state = createBlockListState(() => deps.doc.children[0]);
-
-	const bundle = createStandardNestedActions(state, {
-		index: 0,
-		get node() {
-			return deps.doc.children[0];
-		},
-		path: [0],
-		stickyColumn: makeStickyColumn(),
-		grammar,
-		parent: {
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit
-		}
-	});
-
+	const { deps, bundle } = makeNestedHarness([doc.children[0]], { grammar });
 	return { deps, bundle };
 }
 

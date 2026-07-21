@@ -8,7 +8,7 @@ import { parse } from '$lib/core/parser';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
@@ -49,15 +49,12 @@ describe('list-overrides deleteBlock — focus after deleting the last item', ()
 		// so the item-delete runs through the override's deleteBlock.
 		const bundle = createStandardNestedActions(
 			listState as unknown as BlockListState,
-			{
+			makeNestedActionsDeps({
 				index: 0,
-				get node() {
-					return liveList();
-				},
+				getNode: liveList,
 				path: [0],
-				stickyColumn: makeStickyColumn(),
 				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
-			},
+			}),
 			createListOverrides({
 				get index() {
 					return 0;

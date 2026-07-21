@@ -4,6 +4,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerTocBlock, tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
+import { roundTripCases } from '$lib/test/support/round-trip';
 
 // The opener registers through the schema registry alone (no inline path), so the
 // schema reset is the whole teardown — a leaked registration would let the
@@ -67,7 +68,7 @@ describe('toc recognition', () => {
 describe('toc round-trip', () => {
 	beforeEach(registerTocBlock);
 
-	const roundTrip = [
+	roundTripCases([
 		'[[toc]]\n',
 		'# Overview\n\n## Details\n\n[[toc]]\n\nFooter\n',
 		'Appendix\n========\n\n[[toc]]\n',
@@ -77,12 +78,7 @@ describe('toc round-trip', () => {
 		' [[toc]]\n',
 		'[[toc]] contents\n',
 		'[[toc]]'
-	];
-	for (const src of roundTrip) {
-		it(`round-trips ${JSON.stringify(src)}`, () => {
-			expect(serialize(parse(src))).toBe(src);
-		});
-	}
+	]);
 });
 
 describe('tocPlugin wires the opener', () => {

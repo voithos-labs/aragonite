@@ -1,18 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { nodeAt } from '$lib/tree-operations/node-ops';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import {
-	makeStickyColumn,
-	makeStubBlockEdit,
-	makeStubFocus,
-	makeEditorActionsDeps
-} from '$lib/test/harness/editor-actions';
+import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
 // The batched `input` event must carry the edited LEAF's doc-absolute path.
@@ -21,25 +11,7 @@ import type { EditEvent } from '$lib/editor-events';
 // hides the definition edit from the map rebuild (stale resolver).
 
 function makeNestedTyping(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const { deps, events } = harness;
-	const controller = createUndoController(deps);
-	const bundle = createStandardNestedActions(
-		createBlockListState(() => deps.doc.children[0]),
-		{
-			index: 0,
-			get node() {
-				return deps.doc.children[0];
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit: createContainerEditActions(deps, controller)
-			}
-		}
-	);
+	const { deps, events, bundle } = makeNestedHarness(source, { index: 0 });
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
 	return { deps, bundle, edits };

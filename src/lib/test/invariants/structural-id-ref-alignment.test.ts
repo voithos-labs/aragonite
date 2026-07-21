@@ -2,22 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import type { NestedActionsBundle } from '$lib/editor-actions/nested/nested-actions';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { assignChildIdsDeep } from '$lib/block-id';
 import {
 	mockRef,
-	makeStickyColumn,
-	makeStubBlockEdit,
-	makeStubFocus,
 	makeEditorActionsDeps,
+	makeNestedHarness,
 	makeNode
 } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
+import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 
 /**
@@ -165,8 +162,8 @@ interface ContainerHarness {
 	doc: ReturnType<typeof makeEditorActionsDeps>['doc'];
 	/** Live container — commits replace the node object (copy-path-on-write). */
 	node: () => CstNode;
-	state: ReturnType<typeof createBlockListState>;
-	bundle: ReturnType<typeof createStandardNestedActions>;
+	state: BlockListState;
+	bundle: NestedActionsBundle;
 	reorder: ReturnType<typeof createReorderAction>;
 }
 
@@ -178,29 +175,11 @@ function makeContainer(source: string): ContainerHarness {
 	const initial = parse(source).children[0];
 	expect(initial.children, 'container has children').toBeTruthy();
 
-	const { deps, doc } = makeEditorActionsDeps([initial]);
-	const node = () => doc.children[0];
-	const controller = createUndoController(deps);
-	const containerEdit = createContainerEditActions(deps, controller);
+	const { deps, controller, state, bundle, getNode: node } = makeNestedHarness([initial]);
 	const reorder = createReorderAction(deps, controller);
-	const state = createBlockListState(node);
 	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
 
-	const bundle = createStandardNestedActions(state, {
-		index: 0,
-		get node() {
-			return node();
-		},
-		path: [0],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit
-		}
-	});
-
-	return { doc, node, state, bundle, reorder };
+	return { doc: deps.doc, node, state, bundle, reorder };
 }
 
 function assertContainerAligned(h: ContainerHarness) {

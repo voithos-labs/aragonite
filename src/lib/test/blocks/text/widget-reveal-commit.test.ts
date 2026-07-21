@@ -11,7 +11,7 @@
 //      surrounding prose shifts it correctly (a length delta off the old end would not);
 //   3. a cross-block selection bails the commit, keeping the source revealed so a
 //      fold can't strand a selection endpoint anchored in the source text node.
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
@@ -20,10 +20,14 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { trimTrailingLineEnding } from '$lib/core/lines';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { stampMathWidget, resetInlineState } from './math-widget-fixture';
+import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import {
+	stampMathWidget,
+	installMathInline,
+	mountWidgetBlock,
+	widgetInteractionDeps
+} from './math-widget-fixture';
 
 interface Commit {
 	index: number;
@@ -32,77 +36,40 @@ interface Commit {
 	after: number;
 }
 
-beforeEach(() => {
-	resetInlineState();
-	registerMathInline();
-});
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	resetInlineState();
-});
+installMathInline();
 
 // A paragraph "Before $x^2$ after" mounted as TextEditableBlock renders it: the
 // math is one atomic [data-inline-widget] island between two real text nodes.
 function mountMathBlock() {
-	const node: CstNode = parse('Before $x^2$ after').children[0];
-	const math = computeInlineContent(node).find((n: InlineNode) => n.kind === MATH_INLINE)!;
-	const display = trimTrailingLineEnding(node.raw);
-
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(
-		document.createTextNode(node.raw.slice(0, math.start)),
-		stampMathWidget(math),
-		document.createTextNode(display.slice(math.end))
-	);
-	document.body.appendChild(el);
-	el.focus();
+	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
+	const math = inlineWidgets[0];
 
 	const commits: Commit[] = [];
 	const pendingCursors: (number | null)[] = [];
 	let crossBlock = false;
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the reveal-commit path');
 	};
-	const deps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get myPath() {
-			return [0];
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		getEditorContentWidth: () => 800,
-		cursor: new Proxy({}, { get: trap }),
-		widgetSelection,
-		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-				commits.push({ index, raw, before, after });
+	const interaction = createWidgetInteraction(
+		widgetInteractionDeps(
+			{ node, el },
+			{
+				cursor: new Proxy({}, { get: trap }),
+				blockEdit: {
+					updateBlockContent: (index: number, raw: string, before: number, after: number) => {
+						commits.push({ index, raw, before, after });
+					}
+				},
+				focusActions: new Proxy({}, { get: trap }),
+				setPendingCursor: (offset: number | null) => {
+					pendingCursors.push(offset);
+				},
+				setRevealing: () => {},
+				isCrossBlock: () => crossBlock
 			}
-		},
-		focusActions: new Proxy({}, { get: trap }),
-		getSnapTarget: () => null,
-		setSnapTarget: () => {},
-		setPendingCursor: (offset: number | null) => {
-			pendingCursors.push(offset);
-		},
-		readRawText: () =>
-			Array.from(el.childNodes).reduce((acc, child) => acc + rawTextOfNode(child, node.raw), ''),
-		setRevealing: () => {},
-		isCrossBlock: () => crossBlock,
-		get linkRef() {
-			return undefined;
-		}
-	} as unknown as WidgetInteractionDeps;
-
-	const interaction = createWidgetInteraction(deps);
+		)
+	);
 
 	// Entry from the leading edge opens the widget's reveal there and anchors undo at
 	// the widget's leading offset (math.start) — the anchor the commit assertions below

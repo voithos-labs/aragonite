@@ -6,7 +6,7 @@ import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-a
 import { createListOverrides } from '$lib/editor-actions/list-overrides';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
@@ -66,19 +66,16 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		const controller = createUndoController(deps);
 		const bundle = createStandardNestedActions(
 			createBlockListState(() => deps.doc.children[1]),
-			{
+			makeNestedActionsDeps({
 				index: 1,
-				get node() {
-					return deps.doc.children[1];
-				},
+				getNode: () => deps.doc.children[1],
 				path: [1],
-				stickyColumn: makeStickyColumn(),
 				parent: {
 					blockEdit: makeStubBlockEdit(),
 					focus: makeStubFocus(),
 					containerEdit: createContainerEditActions(deps, controller)
 				}
-			}
+			})
 		);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
@@ -125,28 +122,23 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		const liveQuote = () => deps.doc.children[1];
 		const liveList = () => liveQuote().children![0];
 
-		const quoteBundle = createStandardNestedActions(createBlockListState(liveQuote), {
-			index: 1,
-			get node() {
-				return liveQuote();
-			},
-			path: [1],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit: rootContainerEdit
-			}
-		});
-		const listBundle = createStandardNestedActions(createBlockListState(liveList), {
-			index: 0,
-			get node() {
-				return liveList();
-			},
-			path: [1, 0],
-			stickyColumn: makeStickyColumn(),
-			parent: quoteBundle
-		});
+		const quoteBundle = createStandardNestedActions(
+			createBlockListState(liveQuote),
+			makeNestedActionsDeps({
+				index: 1,
+				getNode: liveQuote,
+				path: [1],
+				parent: {
+					blockEdit: makeStubBlockEdit(),
+					focus: makeStubFocus(),
+					containerEdit: rootContainerEdit
+				}
+			})
+		);
+		const listBundle = createStandardNestedActions(
+			createBlockListState(liveList),
+			makeNestedActionsDeps({ index: 0, getNode: liveList, path: [1, 0], parent: quoteBundle })
+		);
 
 		await listBundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 

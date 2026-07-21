@@ -12,7 +12,7 @@ import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surface
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeEditorActionsDeps,
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
@@ -42,19 +42,15 @@ describe('noop structural commit discards its snapshot', () => {
 		const containerEdit = createContainerEditActions(deps, controller);
 
 		const state = createBlockListState(() => deps.doc.children[0]);
-		const bundle = createStandardNestedActions(state, {
-			index: 0,
-			get node() {
-				return deps.doc.children[0];
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit
-			}
-		});
+		const bundle = createStandardNestedActions(
+			state,
+			makeNestedActionsDeps({
+				index: 0,
+				getNode: () => deps.doc.children[0],
+				path: [0],
+				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
+			})
+		);
 
 		const before = serialize(deps.doc);
 		const beforeIds = [...getBlockIds()];
@@ -109,19 +105,15 @@ describe('no-target list middle-item merge discards its commit', () => {
 		const controller = createUndoController(deps);
 		const containerEdit = createContainerEditActions(deps, controller);
 		const state = createBlockListState(() => deps.doc.children[0]);
-		const bundle = createStandardNestedActions(state, {
-			index: 0,
-			get node() {
-				return deps.doc.children[0];
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit
-			}
-		});
+		const bundle = createStandardNestedActions(
+			state,
+			makeNestedActionsDeps({
+				index: 0,
+				getNode: () => deps.doc.children[0],
+				path: [0],
+				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
+			})
+		);
 
 		const before = serialize(deps.doc);
 		const beforeChildIds = [...(deps.doc.children[0].childIds ?? [])];
