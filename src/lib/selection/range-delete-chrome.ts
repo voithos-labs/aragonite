@@ -13,16 +13,14 @@ import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { displayLength, trailingLineEnding } from '../core/lines';
-import { walkBetween, charOffsetOf } from './primitives';
-import {
-	comparePaths,
-	isPathSubtreeBetween,
-	lowestCommonAncestor,
-	pathHasPrefix,
-	pathsEqual
-} from './path-math';
+import { charOffsetOf } from './primitives';
+import { comparePaths, pathsEqual } from './path-math';
 import { replaceAtPath } from '../tree-operations/path-mutate';
-import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
+import {
+	resolveEndWall,
+	planCrossBlockDeletion,
+	applyPlannedDeletion
+} from './range-delete-ceremony';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
 
@@ -67,39 +65,27 @@ export function chromeAwareRangeDelete(
 	const endOffset = charOffsetOf(end, 'chromeAwareRangeDelete:end');
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
-	const endConsumed =
-		endC !== null && !pathHasPrefix(start.path, endC.path) && rangeConsumesContainer(endC, end);
 
 	// Own every written spine BEFORE identities are captured (G1.9; see the
 	// range-delete.ts ceremony) — chains stay valid across splices, paths don't.
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
 	const endChain = ensureUnsharedPath(doc, end.path, sharing);
 
-	const between = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
-	);
-
-	// A surviving end container's covered chrome (its child 0 sits strictly
-	// between the endpoints) clears instead of deleting.
-	const chromeClearPath = endC && !endConsumed ? [...endC.path, 0] : null;
-	const clearTargets: CstNode[] = [];
-	let deletionCandidates: number[][] = [];
-	for (const p of between) {
-		if (chromeClearPath && pathsEqual(p, chromeClearPath)) {
-			const chain = ensureUnsharedPath(doc, p, sharing);
-			if (chain.length === p.length) clearTargets.push(chain[chain.length - 1]);
-		} else {
-			deletionCandidates.push(p);
-		}
-	}
-	if (endConsumed) {
-		deletionCandidates = deletionCandidates.filter((p) => !pathHasPrefix(p, endC.path));
-		deletionCandidates.push(endC.path.slice());
-	}
-	const deletionPaths = filterToSubtreeRoots(deletionCandidates);
-
-	for (const p of deletionPaths) ensureUnsharedPath(doc, p.slice(0, -1), sharing);
-	const lcaPath = lowestCommonAncestor(start.path, end.path);
+	// Shared deletion plan (range-delete-ceremony.ts): resolve the end wall,
+	// collect the covered subtree roots (plus a surviving container's chrome-
+	// clear), own their parent spines, and resolve the cascade LCA. Chrome marks
+	// no endpoint paths for deletion — both endpoints truncate in place below.
+	//
+	// resolveEndWall returns null when start sits inside the end container, where
+	// this branch's inline predecessor instead computed chromeClearPath =
+	// [...endC.path, 0]. The outcomes agree: with start inside the container, its
+	// chrome child 0 is the start endpoint itself or precedes it in doc order, so
+	// it never lands in the strictly-between walk — the clear target never
+	// matches and no chrome clears. Pinned by "start in chrome, end at the
+	// container's last byte" in range-delete-chrome.test.ts.
+	const wall = resolveEndWall(doc, start, end, null);
+	const endConsumed = wall?.consumed ?? false;
+	const { plan, lcaPath } = planCrossBlockDeletion(doc, start, end, [], wall, sharing);
 
 	// End truncates in place first (its path is still live) — the wall: its
 	// tail never merges into start. Skipped when its container dies whole.
@@ -118,9 +104,9 @@ export function chromeAwareRangeDelete(
 		}
 	}
 
-	for (const chrome of clearTargets) chrome.raw = '\n';
-
-	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath);
+	// Clear a surviving container's covered chrome, then splice the covered
+	// subtrees in reverse doc order under the identity gate.
+	applyPlannedDeletion(doc, plan, lcaPath);
 
 	// Start truncates in place; every deletion sits after it in doc order, so
 	// start.path is still live.
