@@ -47,14 +47,16 @@ function makeNestedList() {
 	createBlockListState(() => liveList().children![0]);
 
 	const listContext = createListContext({
-		get index() {
-			return 0;
-		},
-		get node() {
-			return liveList();
-		},
-		get path() {
-			return [1, 0];
+		scope: {
+			get index() {
+				return 0;
+			},
+			get node() {
+				return liveList();
+			},
+			get path() {
+				return [1, 0];
+			}
 		},
 		state: listState,
 		parentBlockEdit: quoteBundle.blockEdit,
@@ -120,14 +122,16 @@ describe('nested blockquote exit emits a doc-absolute event path', () => {
 		const liveInner = () => deps.doc.children[1].children![0];
 
 		const overrides = createBlockquoteOverrides({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveInner();
-			},
-			get path() {
-				return [1, 0];
+			scope: {
+				get index() {
+					return 0;
+				},
+				get node() {
+					return liveInner();
+				},
+				get path() {
+					return [1, 0];
+				}
 			},
 			state: createBlockListState(liveInner),
 			parentBlockEdit: makeStubBlockEdit(),

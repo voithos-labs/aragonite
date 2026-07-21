@@ -230,11 +230,13 @@ export async function checkStripLocalIndexAddressing(
 		const captured = node;
 		const state = mountBlockListState(() => captured);
 		const bundle = createStandardNestedActions(state, {
-			index: containerChain[depth],
-			get node() {
-				return captured;
+			scope: {
+				index: containerChain[depth],
+				get node() {
+					return captured;
+				},
+				path: containerChain.slice(0, depth + 1)
 			},
-			path: containerChain.slice(0, depth + 1),
 			stickyColumn: stubStickyColumn(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
@@ -414,14 +416,16 @@ async function checkListIndentOneUndo(): Promise<void> {
 	for (const item of list.children!) mountBlockListState(() => item);
 
 	const ctx = createListContext({
-		get index() {
-			return 0;
-		},
-		get node() {
-			return list;
-		},
-		get path() {
-			return [0];
+		scope: {
+			get index() {
+				return 0;
+			},
+			get node() {
+				return list;
+			},
+			get path() {
+				return [0];
+			}
 		},
 		state: listState,
 		parentBlockEdit: stubBlockEdit(),

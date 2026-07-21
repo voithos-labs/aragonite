@@ -1,109 +1,26 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions
-	} from '../../action-contracts';
-	import type { NodeView } from '../../core/node-views';
 	import {
-		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
-		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		type EditorServices
-	} from '../../editor-keys';
-	import { createBlockquoteOverrides } from '../../editor-actions/blockquote-overrides';
-	import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-	import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
-	import {
-		createStandardNestedActions,
-		setNestedActionsContexts
-	} from '../../editor-actions/nested/nested-actions';
-	import {
-		createContainerBlockComponent,
+		createContainerBlock,
 		type ContainerBlockComponent
-	} from '../../editor-actions/container-block-component';
+	} from '../../editor-actions/plugin/container';
+	import type { NodeView } from '../../core/node-views';
 	import BlockList from '../BlockList.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
-	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { controller, stickyColumn, registryView } =
-		getContext<EditorServices>(EDITOR_SERVICES_KEY);
-
-	const listState = createBlockListState(() => node);
-
 	let boxEl: HTMLElement | undefined = $state();
 
-	const bundle = createStandardNestedActions(
-		listState,
-		{
-			get index() {
-				return index;
-			},
-			get node() {
-				return node;
-			},
-			get path() {
-				return myPath;
-			},
-			stickyColumn,
-			grammar: registryView.grammar,
-			parent: {
-				blockEdit: parentBlockEdit,
-				focus: parentFocus,
-				containerEdit: parentContainerEdit
-			}
-		},
-		createBlockquoteOverrides({
-			get index() {
-				return index;
-			},
-			get node() {
-				return node;
-			},
-			get path() {
-				return myPath;
-			},
-			state: listState,
-			parentBlockEdit,
-			parentFocus,
-			controller
-		})
-	);
-
-	setNestedActionsContexts(bundle);
-
-	// ── Virtual rendering (nested windowing) ────────────────────────────
-
-	const windowing = useContainerWindowing({
+	// Blockquote is a plain strip container, so the seam wires it end to end. Its
+	// collapse gates and kind-command target stay inert (no reservedChrome probe, no
+	// keymap), and `handleKeydown` is deliberately left unwired — a blockquote never
+	// bubbled kind commands, and attaching it would add that behavior.
+	const { blockListProps, containerApi } = createContainerBlock({
+		getNode: () => node,
 		getIndex: () => index,
-		getParentPath: () => myPath,
-		getChildren: () => node.children ?? [],
-		getChildIds: () => listState.innerBlockIds,
-		getListEl: () => boxEl?.querySelector(':scope > .block-list') ?? null,
-		getOwnEl: () => boxEl?.closest('.block-host') ?? null,
-		provideLeafChannel: true
+		getPath: () => myPath,
+		getBoxEl: () => boxEl
 	});
 
-	// ── BlockComponent interface ────────────────────────────────────────
-
-	const containerApi = createContainerBlockComponent({
-		get innerBlockRefs() {
-			return listState.innerBlockRefs;
-		},
-		get nodeChildrenLength() {
-			return node.children?.length ?? 0;
-		},
-		get node() {
-			return node;
-		},
-		revealChild: windowing.revealChild,
-		isInWindow: windowing.isInWindow
-	});
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
@@ -134,15 +51,7 @@
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>
-	<BlockList
-		children={node.children ?? []}
-		blockIds={listState.innerBlockIds}
-		setRef={(i, r) => (listState.innerBlockRefs[i] = r)}
-		getRef={(i) => listState.innerBlockRefs[i]}
-		parentPath={myPath}
-		window={windowing.window}
-		reorderable={true}
-	/>
+	<BlockList {...blockListProps} reorderable={true} />
 </div>
 
 <style>

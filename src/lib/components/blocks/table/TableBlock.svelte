@@ -37,7 +37,8 @@
 	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import {
@@ -105,7 +106,7 @@
 
 	const rowsState = createBlockListState(() => node);
 
-	const bundle = createStandardNestedActions(rowsState, {
+	const scope: NodeScope = {
 		get index() {
 			return index;
 		},
@@ -114,7 +115,11 @@
 		},
 		get path() {
 			return myPath;
-		},
+		}
+	};
+
+	const bundle = createStandardNestedActions(rowsState, {
+		scope,
 		stickyColumn: editorStickyColumn,
 		grammar: registryView.grammar,
 		parent: {
