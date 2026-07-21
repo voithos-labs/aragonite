@@ -23,7 +23,7 @@
 	import { displayLength } from '../../../core/lines';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../../perf/instruments';
+	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import {
 		createStandardNestedActions,
 		setNestedActionsContexts
@@ -95,12 +95,7 @@
 	let boxEl: HTMLElement | undefined = $state();
 	let contentEl: HTMLElement | undefined = $state();
 
-	$effect(() => {
-		if (perfEnabled()) incMountedBlocks();
-		return () => {
-			if (perfEnabled()) decMountedBlocks();
-		};
-	});
+	useMountGauge();
 
 	function toggleTask(): void {
 		// Reading mode v1 keeps checkboxes visible but inert (CSS also drops their
