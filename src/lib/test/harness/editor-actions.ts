@@ -12,6 +12,7 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
+import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createListContext } from '$lib/editor-actions/list-context';
@@ -27,7 +28,11 @@ import { parse } from '$lib/core/parser';
 import type { EditorEvents } from '$lib/editor-events';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import {
+	registerBlockListState,
+	getStateForNode,
+	expectStateForNode
+} from '$lib/reactivity/state-registry';
 import { createUndoManager } from '$lib/undo/manager';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -114,6 +119,22 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		nudgeReactivity: vi.fn(),
 		withUnsharedSpine: vi.fn()
 	};
+}
+
+export function makeStubController(): UndoController & PasteCommitCoordinator {
+	return {
+		sharing: createSharingState(),
+		pushUndoSnapshot: vi.fn(),
+		pushUndoSnapshotDebounced: vi.fn(),
+		commitStructural: vi.fn(),
+		commitContainerStructural: vi.fn(),
+		commitMultiScope: vi.fn(),
+		getDocScope: vi.fn(),
+		captureCurrentState: vi.fn(),
+		collapsedSelectionAt: vi.fn(),
+		resolveState: getStateForNode,
+		expectState: expectStateForNode
+	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
 // ── EditorActionsDeps factory ────────────────────────────────────────────────

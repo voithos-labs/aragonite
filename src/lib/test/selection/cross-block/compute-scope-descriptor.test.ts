@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { __computeScopeDescriptorForTests as computeScopeDescriptor } from '../../selection/cross-block/ops';
+import { __computeScopeDescriptorForTests as computeScopeDescriptor } from '../../../selection/cross-block/ops';
 
 describe('computeScopeDescriptor — mixed-depth audit', () => {
 	// ── Both endpoints descend (no mixed-depth branch) ────────────────────

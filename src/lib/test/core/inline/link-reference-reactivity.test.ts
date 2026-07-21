@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import { parseInline } from '../../core/inline';
-import { getInlineContent } from '../../core/inline/inline-cache';
-import { buildLinkReferenceMap } from '../../core/inline/link-reference-resolver';
-import type { CstNode, InlineNode } from '../../core/nodes';
+import { parse } from '../../../core/parser';
+import { parseInline } from '../../../core/inline';
+import { getInlineContent } from '../../../core/inline/inline-cache';
+import { buildLinkReferenceMap } from '../../../core/inline/link-reference-resolver';
+import type { CstNode, InlineNode } from '../../../core/nodes';
 
 /**
  * Pins the resolver-driven pipeline at the helper-function level. The editor
