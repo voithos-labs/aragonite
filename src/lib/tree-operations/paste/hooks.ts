@@ -28,6 +28,11 @@ import {
 // component wire-up.
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
+/** Splice a pre-delete selection range out of a leaf's display text. */
+function cutPreDelete(display: string, preDelete: PasteRange): string {
+	return display.slice(0, preDelete.start) + display.slice(preDelete.end);
+}
+
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
@@ -40,7 +45,7 @@ export function defaultInlineHook(
 	let effectiveDisplay = display;
 	let effectiveOffset = offset;
 	if (preDelete && preDelete.start < preDelete.end) {
-		effectiveDisplay = display.slice(0, preDelete.start) + display.slice(preDelete.end);
+		effectiveDisplay = cutPreDelete(display, preDelete);
 		effectiveOffset = preDelete.start;
 	}
 
@@ -64,9 +69,7 @@ export function defaultStructuralHook(
 	if (preDelete && preDelete.start < preDelete.end) {
 		const display = trimTrailingLineEnding(node.raw);
 		const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
-		const effectiveRaw =
-			display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnding;
-		synthLeaf = { ...node, raw: effectiveRaw };
+		synthLeaf = { ...node, raw: cutPreDelete(display, preDelete) + lineEnding };
 		effectiveOffset = preDelete.start;
 	}
 
@@ -93,9 +96,7 @@ export function pastedContentFocusIndex(
 ): number {
 	const display = trimTrailingLineEnding(node.raw);
 	const cut = preDelete && preDelete.start < preDelete.end;
-	const effectiveDisplay = cut
-		? display.slice(0, preDelete.start) + display.slice(preDelete.end)
-		: display;
+	const effectiveDisplay = cut ? cutPreDelete(display, preDelete) : display;
 	const effectiveOffset = cut ? preDelete.start : offset;
 	const hasTrailingResidue = effectiveOffset < effectiveDisplay.length;
 	return focusIndexBeforeResidue(replacementLength, hasTrailingResidue);

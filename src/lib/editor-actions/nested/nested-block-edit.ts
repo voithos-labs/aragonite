@@ -4,34 +4,28 @@
  * `CommitScope`; this wrapper adds the container-only concerns the core can't
  * own: the `if (!deps.node.children) return` guards, boundary delegation
  * (edge merges/deletes hand UP to `parent.blockEdit`), the unwrap dispatch
- * (first/middle-child backspace strategies), `insertParsedBlocks` (routes
- * through `replaceBlock` — G2.9 dual-emit), and `updateBlockContent`.
+ * (first/middle-child backspace strategies), and `updateBlockContent`.
  */
 
 import type { BlockEditActions } from '../../action-contracts';
-import { makeBlockNode } from '../../core/nodes';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
 	updateNodeContent as performUpdate,
-	focusTargetInReplacement,
 	ensureUnsharedChild,
-	reconcileTaskMetadata,
-	foldPasteReplacement
+	reconcileTaskMetadata
 } from '../../tree-operations';
 import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
-import { pastedContentFocusIndex } from '../../tree-operations/paste/hooks';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { assertInvariant } from '../../invariants/assert';
-import { CURSOR_END } from '../../block-component';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';
 import { createBlockEditCore } from '../block-edit-core';
-import { focusMovedOutsideReplacement } from '../replacement-focus';
+import { previewContentReparse, focusAfterContentReplace } from '../replacement-focus';
 import { extendDocPath } from '../../cursor/coordinate-spaces';
 
 export function createNestedBlockEdit(
@@ -119,24 +113,6 @@ export function createNestedBlockEdit(
 		replaceBlock: (innerIndex, replacement, focus, options) =>
 			core.replaceBlock(innerIndex, replacement, focus, options),
 
-		// ── Paste (container routes through replaceBlock — G2.9 dual-emit) ─────
-		async insertParsedBlocks(innerIndex, offset, blocks, preDelete, options) {
-			if (!deps.node.children || blocks.length === 0) return;
-			if (innerIndex < 0 || innerIndex >= deps.node.children.length) return;
-
-			const target = deps.node.children[innerIndex];
-			const replacement = foldPasteReplacement(target, offset, blocks, preDelete);
-			await core.replaceBlock(
-				innerIndex,
-				replacement,
-				{
-					replacementIndex: pastedContentFocusIndex(target, offset, preDelete, replacement.length),
-					offset: CURSOR_END
-				},
-				options
-			);
-		},
-
 		// ── In-place leaf edits (per-level) ────────────────────────────────────
 		async updateBlockContent(
 			innerIndex: number,
@@ -146,17 +122,7 @@ export function createNestedBlockEdit(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
-			// Preview on a minimal probe (kind + raw are all performUpdate reads)
-			// to pick between structural (kind-changing) commit and routine typing
-			// path. Live tree is not mutated here — the chosen branch runs the
-			// real mutation below.
-			const child = deps.node.children[innerIndex];
-			const probe = makeBlockNode({
-				kind: child.kind,
-				leadingTrivia: child.leadingTrivia,
-				raw: child.raw
-			});
-			const preview = performUpdate({ children: [probe] }, 0, text, deps.grammar);
+			const preview = previewContentReparse(deps.node.children[innerIndex], text, deps.grammar);
 
 			const leafPath = extendDocPath(deps.path, innerIndex);
 
@@ -179,18 +145,8 @@ export function createNestedBlockEdit(
 						detail: { length: text.length },
 						eventPath: leafPath
 					},
-					afterTick: () => {
-						const count = change.op === 'replace' ? change.newCount : 1;
-						if (focusMovedOutsideReplacement(deps.path, innerIndex, count)) return;
-						if (change.op === 'replace' && change.newCount > 1) {
-							const children = deps.node.children ?? [];
-							const blocks = children.slice(change.at, change.at + change.newCount);
-							const target = focusTargetInReplacement(blocks, focusOffset);
-							state.innerBlockRefs[change.at + target.index]?.focus(target.offset);
-							return;
-						}
-						state.innerBlockRefs[innerIndex]?.focus(focusOffset);
-					}
+					afterTick: () =>
+						focusAfterContentReplace(deps.path, innerIndex, change, focusOffset, scope)
 				});
 				return;
 			}

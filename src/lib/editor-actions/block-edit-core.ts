@@ -4,11 +4,6 @@
  * no edge guards, no upward delegation, no unwrap dispatch; the factories
  * wrap these with their level-specific concerns. Behavior is pinned by
  * block-edit-core.test.ts plus the two factories' e2e + the simulation.
- *
- * insertParsedBlocks is deliberately NOT here: the top-level path emits a
- * `paste` op while the container path routes through `replaceBlock` (G2.9
- * dual-emit invariant), so it cannot be a single shared body. Each factory
- * keeps its own.
  */
 
 import { CURSOR_END } from '../block-component';

@@ -82,18 +82,6 @@ export interface BlockEditActions {
 		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
 	): void | Promise<void>;
 	/**
-	 * Insert parsed blocks at a split point. `preDelete` folds a pre-paste
-	 * selection deletion into the same undo entry as the splice so Ctrl+Z
-	 * undoes the whole paste in one step.
-	 */
-	insertParsedBlocks(
-		blockIndex: number,
-		offset: number,
-		blocks: CstNode[],
-		preDelete?: { start: number; end: number },
-		options?: { undoEntry?: UndoEntryMode }
-	): void | Promise<void>;
-	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
 	 * `replacement.length === 0` is equivalent to deleteBlock.
 	 */
