@@ -10,7 +10,7 @@
  */
 
 import type { CstNode } from '../nodes';
-import type { ParsedLine } from '../lines';
+import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import { defaultGrammarView, lineInterruptsParagraph } from '../../schema/block-openers';
 
@@ -101,20 +101,16 @@ export function parseList(
 		}
 
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
-		const strippedLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
+		const baseLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
 
-		const firstStrippedText = strippedLines.length > 0 ? strippedLines[0].text : '';
-		const task = matchTaskCheckbox(firstStrippedText);
-
-		if (task && strippedLines.length > 0) {
-			const first = strippedLines[0];
-			const newText = firstStrippedText.slice(task.rawMarker.length);
-			strippedLines[0] = {
-				...first,
-				text: newText,
-				raw: newText + first.lineEnding
-			};
-		}
+		// A leading `[ ] ` on the first stripped line is the task marker; drop it via a
+		// fresh re-mint so the body's offsets stay consistent with its shortened bytes.
+		const task = matchTaskCheckbox(baseLines.length > 0 ? baseLines[0].text : '');
+		const strippedLines = task
+			? remapStrippedLines(baseLines, (line, index) =>
+					index === 0 ? line.text.slice(task.rawMarker.length) : line.text
+				)
+			: baseLines;
 
 		const inner = parseBlocks(
 			strippedLines,
@@ -182,21 +178,9 @@ function stripListItemLines(
 	endIndex: number,
 	contentIndent: number
 ): ParsedLine[] {
-	let offset = 0;
-	return lines.slice(startIndex, endIndex).map((line, i) => {
+	return remapStrippedLines(lines.slice(startIndex, endIndex), (line, i) => {
 		// First line strips the marker prefix; continuation lines strip up to contentIndent.
 		const stripCount = i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
-		const stripped = line.text.slice(stripCount);
-		const lineEnding = line.lineEnding;
-		const raw = stripped + lineEnding;
-		const strippedLine: ParsedLine = {
-			raw,
-			text: stripped,
-			lineEnding,
-			start: offset,
-			end: offset + raw.length
-		};
-		offset += raw.length;
-		return strippedLine;
+		return line.text.slice(stripCount);
 	});
 }

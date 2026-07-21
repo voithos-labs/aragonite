@@ -177,7 +177,8 @@ describe('matchHtmlBlock — type 7 (complete-tag catch-all)', () => {
 
 function parseHtmlBlockFromSource(src: string) {
 	const lines = splitLines(src);
-	return parseHtmlBlock(lines, 0, lines.length, '');
+	const type = matchHtmlBlock(lines[0].text)!;
+	return parseHtmlBlock(lines, 0, lines.length, '', type);
 }
 
 describe('parseHtmlBlock — per-type close conditions', () => {

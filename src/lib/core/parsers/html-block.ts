@@ -84,16 +84,9 @@ export function parseHtmlBlock(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string
+	leadingTrivia: string,
+	type: HtmlBlockType
 ): { node: CstNode; nextIndex: number } {
-	const type = matchHtmlBlock(lines[startIndex].text);
-	if (type === null) {
-		// Defensive — parseHtmlBlock should only be invoked after dispatch
-		// confirmed the opener matches. Treat as a one-line block.
-		const raw = joinRaw(lines, startIndex, startIndex + 1);
-		return { node: { kind: 'htmlBlock', leadingTrivia, raw }, nextIndex: startIndex + 1 };
-	}
-
 	let i = startIndex;
 	while (i < endIndex) {
 		if (closesOnLine(type, lines[i].text)) {

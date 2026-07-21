@@ -6,7 +6,7 @@
  */
 
 import type { CstNode } from '../nodes';
-import type { ParsedLine } from '../lines';
+import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
 import { defaultGrammarView, lineInterruptsParagraph } from '../../schema/block-openers';
 
@@ -48,7 +48,6 @@ export function parseBlockquote(
 			continue;
 		}
 		if (paragraphOpen && wouldKeepParagraphOpen(lineText)) {
-			paragraphOpen = true;
 			i++;
 			continue;
 		}
@@ -59,29 +58,14 @@ export function parseBlockquote(
 
 	// Lazy continuation lines have no `> ` to strip — pass them verbatim so
 	// the recursive paragraph parser sees a continuous multi-line paragraph.
-	let offset = 0;
-	const strippedLines = lines.slice(startIndex, i).map((line) => {
-		const stripped = matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text;
-		const lineEnding = line.lineEnding;
-		const raw = stripped + lineEnding;
-		const strippedLine: ParsedLine = {
-			raw,
-			text: stripped,
-			lineEnding,
-			start: offset,
-			end: offset + raw.length
-		};
-		offset += raw.length;
-		return strippedLine;
-	});
+	const strippedLines = remapStrippedLines(lines.slice(startIndex, i), (line) =>
+		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
+	);
 
 	const inner = parseBlocks(strippedLines, 0, strippedLines.length, defaultGrammarView, depth + 1);
 
-	const quoteDepth =
-		lines[startIndex].text
-			.match(/^ {0,3}(>[ \t]?)+/)?.[0]
-			.split('')
-			.filter((c) => c === '>').length ?? 1;
+	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)?.[0] ?? '';
+	const quoteDepth = (quotePrefix.match(/>/g) ?? []).length || 1;
 
 	return {
 		node: {

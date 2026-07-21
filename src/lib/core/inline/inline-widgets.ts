@@ -17,6 +17,22 @@ import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { registerOnce } from '../../schema/register-once';
 
 /**
+ * The atomic-widget shell every core widget builder shares: a `contenteditable=false`
+ * span carrying the generic `[data-inline-widget]` marker and `data-source-start`/`-end`
+ * = the node's offsets. Those `data-*` attrs are the offset walk's only handle, so the
+ * shell is minted in one place; builders add the body (glyph, `<br>`, verbatim source).
+ */
+export function mintWidgetShell(className: string, node: InlineNode): HTMLSpanElement {
+	const shell = document.createElement('span');
+	shell.className = className;
+	shell.dataset.inlineWidget = '';
+	shell.dataset.sourceStart = String(node.start);
+	shell.dataset.sourceEnd = String(node.end);
+	shell.setAttribute('contenteditable', 'false');
+	return shell;
+}
+
+/**
  * Props a `component` widget kind is mounted with. A frozen-at-mount snapshot: the
  * component keeps these values for its whole life. The reuse pool remounts on a
  * source change and re-stamps the wrapper offsets on reuse, so a live instance
