@@ -1,8 +1,17 @@
-import { expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+
+vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
+import { devWarn } from '../../dev-warn';
 import { parse } from '../../core/parser';
 import { metadataOf } from '../../core/nodes';
 import { createSharingState } from '../../tree-operations/sharing';
-import { ensureUnsharedPath, ensureUnsharedChild } from '../../tree-operations/unshare';
+import {
+	ensureUnsharedChild,
+	ensureUnsharedPath,
+	rebuildUnsharedAncestry
+} from '../../tree-operations/unshare';
+
+afterEach(() => vi.unstubAllEnvs());
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();
@@ -67,4 +76,25 @@ it('ensureUnsharedChild unshares one child of an already-unshared parent', () =>
 	expect(list.children![1]).toBe(fresh);
 	expect(fresh).not.toBe(sharedSibling);
 	expect(ensureUnsharedChild(list, 1, sharing)).toBe(fresh); // idempotent
+});
+
+// G1.22 (unshare-path-in-range) is the ONE axis separating the two shared-spine
+// walks: the strict path flags an off-the-end index, the tolerant rebuild
+// swallows it (post-delete passes legitimately hand short paths). Pin that the
+// assert reaches devWarn from ensureUnsharedPath and never from
+// rebuildUnsharedAncestry, so a future dedup can't misroute the gate.
+it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild', () => {
+	vi.stubEnv('DEV', true);
+	const firedInRangeAssert = () =>
+		vi.mocked(devWarn).mock.calls.some(([tag]) => tag === 'invariant:unshare-path-in-range');
+
+	const strict = sharedDoc('para\n');
+	vi.mocked(devWarn).mockClear();
+	ensureUnsharedPath(strict.doc, [5], strict.sharing); // index off the single child
+	expect(firedInRangeAssert()).toBe(true);
+
+	const tolerant = sharedDoc('para\n');
+	vi.mocked(devWarn).mockClear();
+	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing);
+	expect(firedInRangeAssert()).toBe(false);
 });
