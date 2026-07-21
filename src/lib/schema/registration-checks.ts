@@ -31,8 +31,6 @@ import { normalizeChord, isChordWellFormed } from './keybindings';
 import { takeRegistrationFlushWork } from './registration-pending';
 
 export {
-	enqueueRegistrationCheck,
-	markGrammarConsumed,
 	hasPendingRegistrationChecks,
 	__resetRegistrationChecksForTests
 } from './registration-pending';

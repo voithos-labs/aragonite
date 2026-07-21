@@ -5,7 +5,7 @@
  * the block-command registry keys plugin ids. Register-once — throws on a name
  * that collides with a built-in id or a prior mint.
  */
-import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS, type CommandId } from './commands';
+import { isBuiltinCommandId, type CommandId } from './commands';
 import { devReplacesRegistration } from './register-once';
 
 declare const PluginCommandIdBrand: unique symbol;
@@ -14,8 +14,6 @@ export type PluginCommandId = string & { readonly [PluginCommandIdBrand]: true }
 export type AnyCommandId = CommandId | PluginCommandId;
 
 const NAME_PATTERN = /^[a-z][a-zA-Z0-9-]*(\.[a-z][a-zA-Z0-9-]*)*$/;
-
-const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 
 // name → installing plugin at mint time (null when minted outside an install).
 // The owner distinguishes a legitimate same-plugin re-mint from a cross-plugin
@@ -36,7 +34,7 @@ export function mintCommandId(name: string, owner: string | null = null): Plugin
 			`mintCommandId: invalid command name "${name}" — lowercase-first dot-separated segments of letters, digits, and hyphens`
 		);
 	}
-	if (BUILTIN_COMMAND_IDS.has(name)) {
+	if (isBuiltinCommandId(name)) {
 		throw new Error(`mintCommandId: "${name}" is a built-in command id`);
 	}
 	if (mintedCommandIds.has(name)) {

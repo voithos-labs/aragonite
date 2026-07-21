@@ -86,3 +86,53 @@ export type SimpleLeafClosureCells = Pick<
 export function simpleLeafClosure(cells: SimpleLeafClosureCells): ClosureBlock {
 	return { ...SIMPLE_LEAF_BAKED, ...cells };
 }
+
+// ── Strip-container preset ────────────────────────────────────────────────────
+
+/**
+ * The four columns every strip container (real child blocks under a rebuilt marker
+ * wrapper) answers the same structural way: its children are the paint and search
+ * surfaces, it reorders whole-block through the parent BlockList, and it holds no
+ * clipboard anchor of its own. `reorder`/`clipboard` are the common case — a
+ * container that adds an indent gesture or a `containerPaste` route overrides its
+ * one cell — so they stay optionally overridable below.
+ */
+const STRIP_CONTAINER_BAKED: Pick<
+	ClosureBlock,
+	'selectionPaint' | 'searchPaint' | 'reorder' | 'clipboard'
+> = {
+	selectionPaint: {
+		mode: 'implemented',
+		via: 'child blocks paint natively; the container paints a cover rect spanning them'
+	},
+	searchPaint: {
+		mode: 'implemented',
+		via: 'search descends into the real child blocks; marks overlay per child'
+	},
+	reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
+	clipboard: { mode: 'inherit-default' }
+};
+
+/**
+ * `roundTrip` is `implemented` for any container (its `rebuildRaw` IS the round-trip
+ * mechanism, G1.24), so the preset bakes the mode and demands only its `via` — the
+ * container's roundTrip-inherit-default violation becomes unrepresentable through
+ * this seam. `focus`/`mergeBackspace`/`undo`/`simOracle` genuinely vary with the
+ * container's walk target, unwrapRole, commit model, and test, so they are required.
+ * The four structural columns stay overridable for the container that diverges on one.
+ */
+export type ContainerClosureCells = { roundTripVia: string } & Pick<
+	ClosureBlock,
+	'focus' | 'mergeBackspace' | 'undo' | 'simOracle'
+> &
+	Partial<Pick<ClosureBlock, 'selectionPaint' | 'searchPaint' | 'reorder' | 'clipboard'>>;
+
+/** Sugar over the same required `closure` field: bakes the four structural strip-container columns and `roundTrip: implemented`, demands the container-specific cells. */
+export function containerClosure(cells: ContainerClosureCells): ClosureBlock {
+	const { roundTripVia, ...rest } = cells;
+	return {
+		...STRIP_CONTAINER_BAKED,
+		roundTrip: { mode: 'implemented', via: roundTripVia },
+		...rest
+	};
+}
