@@ -73,10 +73,8 @@ describe('G2.10 structural reset policy', () => {
 		expect(reset).toHaveBeenCalled();
 	});
 
-	it('paste resets sticky column', async () => {
-		const reset = await exercise((a) =>
-			a.insertParsedBlocks(0, 3, [makeNode('paragraph', 'pasted\n')])
-		);
+	it('replaceBlock (structural paste live path) resets sticky column', async () => {
+		const reset = await exercise((a) => a.replaceBlock(0, [makeNode('paragraph', 'pasted\n')]));
 		expect(reset).toHaveBeenCalled();
 	});
 

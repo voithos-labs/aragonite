@@ -45,7 +45,6 @@ export function stubBlockEdit(): BlockEditActions {
 		deleteBlock: () => {},
 		updateBlockContent: () => {},
 		updateBlockMetadata: () => {},
-		insertParsedBlocks: () => {},
 		replaceBlock: () => {}
 	};
 }

@@ -15,10 +15,10 @@ import {
 import type { BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// Regression: deleteBlock's afterTick clamped the focus index against the
-// pre-commit node it captured, which is stale by +1 after the delete. Deleting
-// the LAST item then indexed past the new refs and lost the caret. The afterTick
-// must read the LIVE node (deps.node) — mirrors table-context's documented rule.
+// Regression: the item delete's afterTick (now core.deleteInterior) must clamp
+// the focus index against the LIVE post-commit children, not a pre-commit node
+// captured by value — that reference is stale by +1 after the delete, so deleting
+// the LAST item indexed past the new refs and lost the caret.
 
 function focusSpyRef(): BlockComponent {
 	return {
@@ -45,8 +45,9 @@ describe('list-overrides deleteBlock — focus after deleting the last item', ()
 		const controller = createUndoController(deps);
 		const containerEdit = createContainerEditActions(deps, controller);
 
-		// The real path: ListBlock layers createListOverrides over the nested bundle,
-		// so the item-delete runs through the override's deleteBlock.
+		// The real path: ListBlock layers createListOverrides over the nested bundle;
+		// the item-delete falls through to the shared core's deleteInterior, whose
+		// afterTick reads the live node — the stale-index caret loss this pins.
 		const bundle = createStandardNestedActions(
 			listState as unknown as BlockListState,
 			makeNestedActionsDeps({
