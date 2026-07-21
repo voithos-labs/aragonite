@@ -24,7 +24,7 @@ import type { BlockComponent } from '../../block-component';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
-import { isReadingMode } from '../../presentation-mode';
+import { isReadingMode, type PresentationMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
@@ -150,6 +150,15 @@ export type { ContainerBlockComponent };
 export interface ContainerBlock {
 	/** Spread onto `<BlockList {...blockListProps} />` inside the chrome box. */
 	blockListProps: ContainerBlockListProps;
+	/**
+	 * The live EFFECTIVE presentation mode — the container tier's mode read,
+	 * mirroring `createEditableLeaf`'s getter. A component gates its own edit
+	 * affordances on it (a disclosure toggle, an edit button go inert in reading
+	 * mode). The documented DOM-tier probe (`el.closest('[data-presentation]')`)
+	 * stays valid for a component holding only a DOM handle; this is the preferred
+	 * path when the factory is already in hand.
+	 */
+	getPresentationMode(): PresentationMode;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -483,5 +492,5 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		});
 	}
 
-	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown };
+	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown, getPresentationMode };
 }

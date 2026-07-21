@@ -24,7 +24,6 @@
 	let sourceEl: HTMLDivElement | undefined = $state();
 	let renderEl: HTMLDivElement | undefined = $state();
 	let revealed = $state(false);
-	let sourcePopulated = false;
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
@@ -59,25 +58,9 @@
 		renderEl.dataset.renderCount = String(renderCount);
 	});
 
-	// Source view: populate the contenteditable ONCE per reveal as a single text
-	// node (white-space: pre keeps internal `\n`s, so `textContent === source` and the
-	// offset walk stays exact). Ephemeral edits then own the DOM until blur.
-	$effect(() => {
-		if (!revealed) {
-			sourcePopulated = false;
-			return;
-		}
-		if (!sourceEl || sourcePopulated) return;
-		sourceEl.textContent = leaf.sourceText;
-		sourcePopulated = true;
-	});
-
-	// Windowed out while the source is focused: hand focus to the editor root so the
-	// next keystroke routes through its document listener instead of <body>.
-	$effect(() => {
-		const el = sourceEl;
-		return () => leaf.parkFocus(el ?? null);
-	});
+	// The source view (populate-once-per-reveal as a single text node) and the
+	// focus-park on window-out ride `leaf.surfaceProps`; the component owns only
+	// the render↔source swap visuals above.
 
 	// ── BlockComponent interface ────────────────────────────────────────────────
 
@@ -108,21 +91,9 @@
 {#if revealed}
 	<div
 		bind:this={sourceEl}
-		tabindex="0"
+		{...leaf.surfaceProps}
 		class="math-block-source"
-		contenteditable="true"
-		role="textbox"
 		aria-label="Math source"
-		spellcheck="false"
-		oninput={leaf.onInput}
-		onkeydown={leaf.handleKeydown}
-		oncopy={leaf.onCopy}
-		oncut={leaf.onCut}
-		onpaste={leaf.onPaste}
-		onpointerdown={leaf.onPointerDown}
-		onfocusout={leaf.onFocusOut}
-		oncompositionstart={leaf.onCompositionStart}
-		oncompositionend={leaf.onCompositionEnd}
 	></div>
 {:else}
 	<div
