@@ -29,17 +29,18 @@
 		return boxEl?.querySelector<HTMLElement>('.mermaid-viewport, .mermaid-surface') ?? null;
 	}
 
-	const { containerApi, updateOwnMetadata, handleKeydown } = createContainerBlock({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getBoxEl: () => boxEl,
-		getFocusEl: focusSurfaceEl,
-		// A minted command (mermaid.edit / mermaid.focus, incl. the Mod+M chord)
-		// reaches this instance through ctx.hooks — read live per dispatch, so an
-		// undo that replaces the node still hits the current handlers.
-		commandHooks: () => ({ openEdit, openFocusView })
-	});
+	const { containerApi, updateOwnMetadata, handleKeydown, getPresentationMode } =
+		createContainerBlock({
+			getNode: () => node,
+			getIndex: () => index,
+			getPath: () => myPath,
+			getBoxEl: () => boxEl,
+			getFocusEl: focusSurfaceEl,
+			// A minted command (mermaid.edit / mermaid.focus, incl. the Mod+M chord)
+			// reaches this instance through ctx.hooks — read live per dispatch, so an
+			// undo that replaces the node still hits the current handlers.
+			commandHooks: () => ({ openEdit, openFocusView })
+		});
 
 	// A childless opaque container opts into editor-level whole-block focus: the
 	// factory routes caret entry, focus-then-delete, Enter-below, arrow traversal,
@@ -198,9 +199,9 @@
 
 	function openEdit(): void {
 		if (mode === 'edit') return;
-		// Reading mode: the code edit commits bytes; the mode is read off the editor
-		// root (the documented DOM-tier pattern) and the button is CSS-hidden too.
-		if (boxEl?.closest('[data-presentation="reading"]')) return;
+		// Reading mode: the code edit commits bytes; the mode is read off the
+		// container factory's getter (the button is CSS-hidden too).
+		if (getPresentationMode() === 'reading') return;
 		editSeed = displayCode;
 		draft = editSeed;
 		mode = 'edit';

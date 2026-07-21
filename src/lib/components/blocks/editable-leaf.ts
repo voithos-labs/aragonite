@@ -25,7 +25,8 @@
  * ancestor contexts.
  */
 
-import { getContext, tick } from 'svelte';
+import { getContext, tick, untrack } from 'svelte';
+import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
@@ -98,9 +99,42 @@ export interface EditableLeafDeps {
 	commandHooks?: () => unknown;
 }
 
+/**
+ * The one-spread source surface: `<div {...leaf.surfaceProps}>` wires every
+ * handler and attribute a source contenteditable needs, so a consumer cannot
+ * drop one (a forgotten `oncompositionend` breaks IME silently). Beyond the nine
+ * DOM handlers and the four attributes, it carries — as symbol-keyed Svelte
+ * attachments — the two view-lifecycle contracts the component would otherwise
+ * hand-write: the populate/sync of the source text as a SINGLE text node (so
+ * `textContent === source` and the ambient offset walk stays exact) and the
+ * focus-park on unmount. The component adds only its own `class` / `aria-label`
+ * and, in render-primary mode, `bind:this` on the source element.
+ */
+export interface EditableLeafSurfaceProps {
+	tabindex: number;
+	/** Reading mode makes a plain leaf's always-mounted source inert. */
+	contenteditable: 'true' | 'false';
+	role: 'textbox';
+	spellcheck: 'false';
+	oninput: () => void;
+	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
+	oncopy: (e: ClipboardEvent) => void;
+	oncut: (e: ClipboardEvent) => Promise<void>;
+	onpaste: (e: ClipboardEvent) => Promise<void>;
+	onpointerdown: (e: PointerEvent) => void;
+	onfocusout: () => void;
+	oncompositionstart: () => void;
+	oncompositionend: () => void;
+	/** View-sync + focus-park ride Svelte attachments under symbol keys. */
+	[attachment: symbol]: unknown;
+}
+
 export interface EditableLeaf {
 	/** The block's source minus its trailing line ending — the editable text. */
 	readonly sourceText: string;
+
+	/** The one-spread source surface (attributes + handlers + view/park attachments). */
+	surfaceProps: EditableLeafSurfaceProps;
 
 	/**
 	 * The live EFFECTIVE presentation mode — the leaf tier's mode read. The
@@ -490,10 +524,66 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		void revealKernel.reveal(0);
 	}
 
+	// ── Source surface bundle ────────────────────────────────────────────────────
+
+	const surfaceHandlers = {
+		tabindex: 0,
+		role: 'textbox' as const,
+		spellcheck: 'false' as const,
+		oninput: editableSurface.onInput,
+		onkeydown: handleKeydown,
+		oncopy: clipboard.onCopy,
+		oncut: clipboard.onCut,
+		onpaste: clipboard.onPaste,
+		onpointerdown: onPointerDown,
+		onfocusout: commitReveal,
+		oncompositionstart: editableSurface.onCompositionStart,
+		oncompositionend: editableSurface.onCompositionEnd
+	};
+
+	// The mode splits the view-lifecycle contract, so each branch owns its own
+	// attachment. render-primary's object is fully static (constant
+	// `contenteditable`, since reveal never fires in reading mode), so its spread
+	// never recomputes and its single populate+park attachment is a stable
+	// reference by construction.
+	const surfaceProps: EditableLeafSurfaceProps =
+		mode === 'render-primary'
+			? {
+					...surfaceHandlers,
+					contenteditable: 'true',
+					[createAttachmentKey()]: (el: HTMLElement) => {
+						// Populate ONCE per reveal — element mount IS the reveal. Single text
+						// node so `textContent === source` and the ambient offset walk stays
+						// exact; the read is untracked, so an ephemeral edit is never clobbered
+						// by an unrelated recompute. Park focus when the source folds.
+						el.textContent = untrack(() => sourceText());
+						return () => parkFocusOnEditorRoot(el, getEditorRoot());
+					}
+				}
+			: {
+					...surfaceHandlers,
+					get contenteditable() {
+						return isReading() ? 'false' : 'true';
+					},
+					// Plain mode: mirror external raw changes (undo, structural replace)
+					// into the always-mounted source as a single text node — tracked, so it
+					// re-runs on raw change. No cleanup, so it never parks focus mid-edit.
+					[createAttachmentKey()]: () => {
+						syncSource();
+					},
+					// Park focus when the source unmounts (window-out). A separate, stable,
+					// untracked attachment, so a reactive-`contenteditable` recompute of the
+					// spread never fires the park mid-edit.
+					[createAttachmentKey()]: (el: HTMLElement) => () =>
+						parkFocusOnEditorRoot(el, getEditorRoot())
+				};
+
 	return {
 		get sourceText() {
 			return sourceText();
 		},
+
+		surfaceProps,
 
 		getPresentationMode,
 
