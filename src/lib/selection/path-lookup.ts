@@ -89,19 +89,27 @@ export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | nu
 }
 
 /**
+ * The document path an element's own `data-block-path` carries, or null when the
+ * attribute is absent or unparseable. A plugin may own `data-block-path` with
+ * non-JSON content, so a parse failure resolves to null (no path), never a throw.
+ */
+export function readBlockPath(el: Element | null): number[] | null {
+	const attr = el?.getAttribute('data-block-path');
+	if (!attr) return null;
+	try {
+		return JSON.parse(attr) as number[];
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Walk up from `el` to the nearest ancestor carrying `data-block-path`.
  */
 export function findBlockPathForElement(el: Element | null): number[] | null {
 	let cur: Element | null = el;
 	while (cur) {
-		const attr = cur.getAttribute?.('data-block-path');
-		if (attr) {
-			try {
-				return JSON.parse(attr) as number[];
-			} catch {
-				return null;
-			}
-		}
+		if (cur.getAttribute('data-block-path')) return readBlockPath(cur);
 		cur = cur.parentElement;
 	}
 	return null;

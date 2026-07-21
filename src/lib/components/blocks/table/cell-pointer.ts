@@ -6,11 +6,10 @@
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
-import type { AnyBlockKind } from '../../../core/nodes';
 import { offsetFromViewportPoint } from '../../../selection/native-bridge';
-import { createAutoScroll } from '../../../selection/autoscroll';
+import { createPointerDragSession } from '../../../selection/pointer-session';
+import { blockAtPoint } from '../../../selection/block-hit-test';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
-import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -40,11 +39,9 @@ export interface CellDragContext {
  */
 export function installCellDragListener(
 	ctx: CellDragContext,
-	anchor: CellAnchor
+	anchor: CellAnchor,
+	down: PointerEvent
 ): { dispose(): void } {
-	let pendingMove: { clientX: number; clientY: number } | null = null;
-	let rafId: number | null = null;
-
 	const anchorCellIdx = anchor.rowIdx * anchor.columnCount + anchor.colIdx;
 	// cellCoordinate marks the offset as a row-major cell index. When the drag
 	// exits to a foreign block, the whole-row snap (table-endpoint-snap.ts) needs
@@ -62,25 +59,6 @@ export function installCellDragListener(
 	// here. The actual scrollable element is its first scrollable descendant
 	// (the .table-block grid).
 	const tableScrollEl = firstScrollableDescendant(anchor.tableEl) ?? anchor.tableEl;
-
-	const autoScroll = createAutoScroll({
-		getPointer: () => pendingMove,
-		getTargets: () => [tableScrollEl],
-		onScrolled: () => {
-			if (pendingMove) processMove(pendingMove.clientX, pendingMove.clientY);
-		}
-	});
-
-	function onPointerMove(e: PointerEvent): void {
-		pendingMove = { clientX: e.clientX, clientY: e.clientY };
-		if (rafId !== null) return;
-		rafId = requestAnimationFrame(() => {
-			rafId = null;
-			if (!pendingMove) return;
-			processMove(pendingMove.clientX, pendingMove.clientY);
-			autoScroll.maybeStart();
-		});
-	}
 
 	function processMove(clientX: number, clientY: number): void {
 		const cellHit = cellAtPoint(clientX, clientY, anchor.tableEl);
@@ -142,42 +120,11 @@ export function installCellDragListener(
 		}
 	}
 
-	function onPointerUp(): void {
-		dispose();
-	}
-
-	function onPointerCancel(): void {
-		dispose();
-	}
-
-	let disposed = false;
-	function dispose(): void {
-		if (disposed) return;
-		disposed = true;
-		document.removeEventListener('pointermove', onPointerMove);
-		document.removeEventListener('pointerup', onPointerUp);
-		document.removeEventListener('pointercancel', onPointerCancel);
-		if (ctx.lifetimeSignal) {
-			ctx.lifetimeSignal.removeEventListener('abort', dispose);
-		}
-		if (rafId !== null) {
-			cancelAnimationFrame(rafId);
-			rafId = null;
-		}
-		autoScroll.dispose();
-		pendingMove = null;
-	}
-
-	if (ctx.lifetimeSignal) {
-		if (ctx.lifetimeSignal.aborted) return { dispose };
-		ctx.lifetimeSignal.addEventListener('abort', dispose, { once: true });
-	}
-
-	document.addEventListener('pointermove', onPointerMove);
-	document.addEventListener('pointerup', onPointerUp);
-	document.addEventListener('pointercancel', onPointerCancel);
-
-	return { dispose };
+	return createPointerDragSession(down, {
+		onMove: (p) => processMove(p.clientX, p.clientY),
+		autoScroll: { getTargets: () => [tableScrollEl] },
+		lifetimeSignal: ctx.lifetimeSignal
+	});
 }
 
 /**
@@ -272,57 +219,4 @@ export function cellCoordsOfElement(
 	if (colIdx < 0) return null;
 
 	return { rowIdx, colIdx, cellEl };
-}
-
-// ── Internal ───────────────────────────────────────────────────────────────
-
-/**
- * Mirrors drag-pointer.ts's `blockAtPoint` for the cross-block-linear handoff
- * case (drag exits the table). Walks up to the nearest data-block-path
- * ancestor — cells don't carry that attribute, so the search resolves to the
- * destination block (paragraph, header, etc.) rather than the originating cell.
- * A destination whose kind has internal coordinate addressing (another table)
- * carries its `foreignDragHitTest` so the focus can be a cell-coordinate point.
- */
-function blockAtPoint(
-	editorRoot: HTMLElement,
-	clientX: number,
-	clientY: number
-): {
-	path: number[];
-	element: HTMLElement;
-	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
-} | null {
-	const target = document.elementFromPoint(clientX, clientY);
-	if (!target) return null;
-
-	let el: Element | null = target;
-	while (el && el !== editorRoot) {
-		if (el instanceof HTMLElement) {
-			const attr = el.getAttribute('data-block-path');
-			if (attr) {
-				try {
-					const path = JSON.parse(attr) as number[];
-					const kind = el.getAttribute('data-block-kind');
-					const hitTest = kind
-						? tryGetBlockKindDescriptor(kind as AnyBlockKind)?.foreignDragHitTest
-						: undefined;
-					if (hitTest) {
-						const wrapper = el;
-						return {
-							path,
-							element: wrapper,
-							foreignDragHitTest: (cx, cy) => hitTest(wrapper, cx, cy)
-						};
-					}
-					const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
-					return { path, element: editable ?? el };
-				} catch {
-					return null;
-				}
-			}
-		}
-		el = el.parentElement;
-	}
-	return null;
 }
