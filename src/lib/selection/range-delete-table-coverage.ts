@@ -10,7 +10,7 @@ import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { deleteNode } from '../tree-operations/node-ops';
+import { deleteNode, emptyParagraph } from '../tree-operations/node-ops';
 import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import {
 	deleteRow as mutDeleteRow,
@@ -136,7 +136,7 @@ async function commitFullTableDelete(
 			// paragraph in the same commit so the descriptor mints its id and the
 			// undo entry restores the table in one step.
 			if (children.length === 0) {
-				const filler = makeEmptyParagraph();
+				const filler = emptyParagraph();
 				ctx.controller.sharing.stamp(filler);
 				children.push(filler);
 				collapsedCaret = { path: [0], offset: 0 };
@@ -154,11 +154,6 @@ async function commitFullTableDelete(
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
 	});
 	return collapsedCaret;
-}
-
-// Mirrors initDocument's empty-doc backstop and rangeDelete's reparse fallback.
-function makeEmptyParagraph(): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
 }
 
 async function commitRowDelete(

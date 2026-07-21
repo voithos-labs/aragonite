@@ -12,7 +12,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { blockNodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
@@ -95,9 +95,7 @@ export function rangeDelete(
 
 	const reparsed = parse(mergedRaw || '\n');
 	const replacement: CstNode[] =
-		reparsed.children.length > 0
-			? reparsed.children
-			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
+		reparsed.children.length > 0 ? reparsed.children : [emptyParagraph()];
 	for (const node of replacement) sharing.stamp(node);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past end —

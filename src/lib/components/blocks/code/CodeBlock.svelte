@@ -44,7 +44,7 @@
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-	import { nodeAt } from '../../../tree-operations';
+	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
@@ -431,7 +431,7 @@
 			raw: closedDisplay + trailingLineEnding(node.raw),
 			metadata: { ...meta, closed: true }
 		};
-		const paragraphBelow: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
+		const paragraphBelow = emptyParagraph('\n');
 		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
 			replacementIndex: 1,
 			offset: 0

@@ -2,6 +2,7 @@ import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { cloneNode } from '../clone';
+import { emptyParagraph } from '../node-ops';
 import { assembleListHalf, orderedBaseOf } from './list-builders';
 
 /**
@@ -53,7 +54,7 @@ export function buildExitReplacement(
 	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
 	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
 
-	const exitParagraph: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+	const exitParagraph = emptyParagraph();
 
 	// Preserve the original list's starting number across the split.
 	const base = orderedBaseOf(items[0]);

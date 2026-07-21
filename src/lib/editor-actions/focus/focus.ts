@@ -5,8 +5,8 @@
 
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { FocusPosition } from '../../block-component';
-import type { CstNode } from '../../core/nodes';
 import type { EditorActionsDeps, UndoController } from '../deps';
+import { emptyParagraph } from '../../tree-operations';
 import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -28,7 +28,7 @@ export function createFocusActions(
 				// Past the last block — create a new empty paragraph via the commit
 				// primitive so the append participates in undo history and edit
 				// events like every other structural mutation.
-				const newBlock: CstNode = { kind: 'paragraph', leadingTrivia: '\n', raw: '\n' };
+				const newBlock = emptyParagraph('\n');
 				// The appended slot (one past the end) is the coordinate for both the
 				// event and the restore fallback — it names the block this op creates.
 				const appendPath = docPathFrom([deps.doc.children.length]);

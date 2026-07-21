@@ -34,7 +34,7 @@
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
-	import { ensureEditableContainers } from '../tree-operations';
+	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
@@ -148,7 +148,7 @@
 	} {
 		const d = parse(src);
 		if (d.children.length === 0) {
-			d.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+			d.children.push(emptyParagraph());
 		}
 		for (const child of d.children) {
 			ensureEditableContainers(child);
