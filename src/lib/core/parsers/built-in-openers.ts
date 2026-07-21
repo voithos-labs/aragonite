@@ -118,8 +118,9 @@ export function registerBuiltInOpeners(): void {
 	registerBlockOpener('htmlBlock', {
 		priority: OPENER_PRIORITIES.htmlBlock,
 		tryOpen(ctx) {
-			if (matchHtmlBlock(ctx.line.text) === null) return null;
-			return parseHtmlBlock(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+			const type = matchHtmlBlock(ctx.line.text);
+			if (type === null) return null;
+			return parseHtmlBlock(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, type);
 		},
 		interruptsParagraph: htmlCanInterrupt
 	});

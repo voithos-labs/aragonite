@@ -64,6 +64,26 @@ function tagConstruct(el: HTMLElement, node: InlineNode, opts: RenderInlineOptio
 	return el;
 }
 
+// The verbatim-source fallback for inline kinds that render no widget: a classed span
+// whose text is the node's own bytes, so every character still round-trips.
+function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanElement {
+	const span = document.createElement('span');
+	span.className = className;
+	span.textContent = raw.slice(node.start, node.end);
+	return span;
+}
+
+// One url-policy choke point for both href sinks (link, autolink): resolve through
+// the caller's rewrite, then gate on the scheme allowlist. Returns the safe href, or
+// undefined when absent or blocked — the caller reads that as "render an inert span".
+function resolveHref(opts: RenderInlineOptions, url: string | undefined): string | undefined {
+	if (url === undefined) return undefined;
+	const resolved = (opts.resolveLinkUrl ?? ((u) => u))(url);
+	// A type-violating resolver returning null/undefined degrades to an inert span, never a throw.
+	if (typeof resolved !== 'string') return undefined;
+	return isAllowedHrefScheme(resolved) ? resolved : undefined;
+}
+
 // ── Inline code ─────────────────────────────────────────────────────────────
 
 function renderInlineCode(
@@ -185,13 +205,12 @@ export function renderInlineNodes(
 					const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
 
 					frag.appendChild(tagConstruct(markerSpan(openMarker), node, opts));
-					const resolvedHref =
-						node.url !== undefined ? (opts.resolveLinkUrl ?? ((u) => u))(node.url) : undefined;
-					const hrefOk = resolvedHref !== undefined && isAllowedHrefScheme(resolvedHref);
-					const linkEl = document.createElement(hrefOk ? 'a' : 'span');
-					linkEl.className = hrefOk ? 'md-link-content' : 'md-link-content md-link-blocked';
-					if (hrefOk) {
-						linkEl.setAttribute('href', resolvedHref!);
+					const href = resolveHref(opts, node.url);
+					const linkEl = document.createElement(href !== undefined ? 'a' : 'span');
+					linkEl.className =
+						href !== undefined ? 'md-link-content' : 'md-link-content md-link-blocked';
+					if (href !== undefined) {
+						linkEl.setAttribute('href', href);
 						if (node.title !== undefined) linkEl.setAttribute('title', node.title);
 					}
 					linkEl.appendChild(renderInlineNodes(children, raw, opts));
@@ -244,12 +263,10 @@ export function renderInlineNodes(
 			}
 
 			case 'autolink': {
-				const resolved =
-					node.url !== undefined ? (opts.resolveLinkUrl ?? ((u) => u))(node.url) : undefined;
-				const ok = resolved !== undefined && isAllowedHrefScheme(resolved);
-				const el = document.createElement(ok ? 'a' : 'span');
-				el.className = ok ? 'md-autolink' : 'md-autolink md-link-blocked';
-				if (ok) el.setAttribute('href', resolved!);
+				const href = resolveHref(opts, node.url);
+				const el = document.createElement(href !== undefined ? 'a' : 'span');
+				el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
+				if (href !== undefined) el.setAttribute('href', href);
 				el.textContent = raw.slice(node.start, node.end);
 				frag.appendChild(el);
 				break;
@@ -261,61 +278,44 @@ export function renderInlineNodes(
 				break;
 			}
 
-			case 'entityReference': {
+			case 'entityReference':
 				// A visibly-rendering reference builds an atomic widget of its decoded
 				// glyph; an invisible one (whitespace/control decoding) is not a widget,
 				// so buildCoreInlineWidget returns null and it keeps its literal-source span.
-				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
-				if (widget) {
-					frag.appendChild(widget);
-				} else {
-					const span = document.createElement('span');
-					span.className = 'md-entity';
-					span.textContent = raw.slice(node.start, node.end);
-					frag.appendChild(span);
-				}
+				frag.appendChild(
+					buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+						sourceSpan(raw, node, 'md-entity')
+				);
 				break;
-			}
 
-			case 'unresolvedReference': {
-				const span = document.createElement('span');
-				span.className =
-					node.refKind === 'image'
-						? 'md-unresolved-ref md-unresolved-ref-image'
-						: 'md-unresolved-ref';
-				span.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(span);
+			case 'unresolvedReference':
+				frag.appendChild(
+					sourceSpan(
+						raw,
+						node,
+						node.refKind === 'image'
+							? 'md-unresolved-ref md-unresolved-ref-image'
+							: 'md-unresolved-ref'
+					)
+				);
 				break;
-			}
 
-			case 'rawHtml': {
-				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
-				if (widget) {
-					frag.appendChild(widget);
-				} else {
-					const span = document.createElement('span');
-					span.className = 'md-raw-html';
-					span.textContent = raw.slice(node.start, node.end);
-					frag.appendChild(span);
-				}
+			case 'rawHtml':
+				frag.appendChild(
+					buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+						sourceSpan(raw, node, 'md-raw-html')
+				);
 				break;
-			}
 
-			default: {
+			default:
 				// Registered plugin widget kinds render through the registry; anything
 				// still unrecognized falls back to its raw source, mirroring the
 				// unknown-block fallback so every byte round-trips.
-				const widget = buildCoreInlineWidget(node, raw, opts.buildPortalWidget);
-				if (widget) {
-					frag.appendChild(widget);
-					break;
-				}
-				const span = document.createElement('span');
-				span.className = 'md-unknown-inline';
-				span.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(span);
+				frag.appendChild(
+					buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+						sourceSpan(raw, node, 'md-unknown-inline')
+				);
 				break;
-			}
 		}
 	}
 

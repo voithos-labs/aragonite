@@ -17,7 +17,7 @@ import {
 	type CstNode,
 	type Document
 } from '../nodes';
-import { parseBlocks } from '../parser';
+import { parseBlocks, joinRaw } from '../parser';
 import { splitLines, type ParsedLine } from '../lines';
 import { defaultGrammarView } from '../../schema/block-openers';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
@@ -75,14 +75,8 @@ export function registerDirectiveOpeners(): void {
 			if (closerIdx === -1) return null; // unterminated declines to paragraph
 
 			const closerLine = ctx.lines[closerIdx];
-			const bodyText = ctx.lines
-				.slice(ctx.index + 1, closerIdx)
-				.map((l) => l.raw)
-				.join('');
-			const raw = ctx.lines
-				.slice(ctx.index, closerIdx + 1)
-				.map((l) => l.raw)
-				.join('');
+			const bodyText = joinRaw(ctx.lines, ctx.index + 1, closerIdx);
+			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
 			// Reparse the body one nesting level deeper, so nested directives share
 			// the container-depth cap instead of overflowing via a fresh parse().
 			const bodyLines = splitLines(bodyText);
