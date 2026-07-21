@@ -1,14 +1,10 @@
 /**
- * Inline-widget interaction for TextEditableBlock: keyboard handling of a
- * selected widget (step-out, delete, replace, plus kind-specific keys routed to
- * its editing policy — e.g. image resize), shift-arrow entry into a widget,
- * caret-adjacent widget selection/typing, and click-to-snap against a widget's
- * edges. The component owns the contenteditable, the $effect wiring, and the
- * `$state` snap target; this owns the offset math and the handler bodies that
- * branch off keydown/click.
+ * Inline-widget interaction for TextEditableBlock. The component owns the
+ * contenteditable, the $effect wiring, and the `$state` snap target; this owns the
+ * offset math and the handler bodies that branch off keydown/click.
  *
- * Each keydown sub-handler returns whether it consumed the event, so the
- * component can interleave them with the shared keydown pipeline.
+ * Each keydown sub-handler returns whether it consumed the event, so the component
+ * can interleave them with the shared keydown pipeline.
  */
 
 import { tick } from 'svelte';
@@ -19,7 +15,7 @@ import type { PresentationMode } from '../../../presentation-mode';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
-import { getInlineContent } from '../../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	isInlineWidget,
 	flattenInlineWidgets,
@@ -40,13 +36,14 @@ import {
 	type RevealFoldReason
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../invariants/assert';
-import { caretIsInTextContent } from './click-snap-guard';
+import { caretIsInTextContent, isPlainTypingKey } from './click-snap-guard';
 import {
 	findWidgetNodeByStart,
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
 	rawHasNoTextBefore,
-	rawHasNoTextAfter
+	rawHasNoTextAfter,
+	widgetElByStart
 } from './widget-adjacency';
 
 export interface WidgetInteractionDeps {
@@ -60,7 +57,6 @@ export interface WidgetInteractionDeps {
 	widgetSelection: WidgetSelectionState;
 	blockEdit: BlockEditActions;
 	focusActions: FocusActions;
-	getSnapTarget: () => number | null;
 	setSnapTarget: (offset: number | null) => void;
 	setPendingCursor: (offset: number | null) => void;
 	/** The block's live DOM read as raw text (widget-aware). Read on reveal commit
@@ -126,12 +122,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// Resolver-aware so widget detection matches the render path's view — a
 	// mismatch around reference-style image widgets breaks cursor/clipboard.
 	function inlinesOf(node: NodeView): InlineNode[] {
-		return getInlineContent(node, deps.linkRef?.current, deps.linkRef?.signature ?? '');
-	}
-
-	function isTypingKey(e: KeyboardEvent): boolean {
-		if (e.ctrlKey || e.metaKey || e.altKey) return false;
-		return e.key.length === 1;
+		return resolvedInlineContent(node, deps.linkRef);
 	}
 
 	// ── Reveal-source editing ──────────────────────────────────────────────────
@@ -243,9 +234,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			showSource: () => {
 				const container = deps.getEl();
 				if (!container) return;
-				const widget = container.querySelector<HTMLElement>(
-					`[data-inline-widget][data-source-start="${start}"]`
-				);
+				const widget = widgetElByStart(container, start);
 				if (!widget) return;
 				revealedWidget = widget;
 				activeSourceNode = document.createTextNode(source);
@@ -431,9 +420,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		for (const inline of inlinesOf(deps.node)) {
 			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
-			const widget = el.querySelector(
-				`[data-inline-widget][data-source-start="${inline.start}"]`
-			) as HTMLElement | null;
+			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
 			if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
@@ -615,7 +602,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			deps.widgetSelection.clear();
 			return true;
 		}
-		if (isTypingKey(e)) {
+		if (isPlainTypingKey(e)) {
 			e.preventDefault();
 			if (isReading()) return true;
 			const typed = e.key;
@@ -707,9 +694,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of inlinesOf(deps.node)) {
 			if (!isInlineWidget(inline, deps.node.raw)) continue;
-			const widget = el.querySelector(
-				`[data-inline-widget][data-source-start="${inline.start}"]`
-			) as HTMLElement | null;
+			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
 			if (clickX > rect.right) {

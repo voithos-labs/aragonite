@@ -107,6 +107,16 @@ const collapsedWindow: WindowResult = Object.freeze({
 	bottomSpacerPx: 0
 });
 
+// This scope's list top within the single editor scroll content — the offset that
+// maps root scrollTop into this scope's local range. Real at every depth because
+// spacers preserve the geometry above the list. Load-bearing for spacer geometry:
+// a divergence between the three consumers below would be a coordinate-mapping bug.
+function listTopWithinContent(scrollEl: HTMLElement, listEl: HTMLElement): number {
+	return (
+		listEl.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop
+	);
+}
+
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// The id list index-aligned with the CURRENT `model`. Snapshotted (not read live)
 	// because a structural rebuild needs the OLD ordering to remap the anchor by id, but
@@ -153,11 +163,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			mutate();
 			const listEl = deps.getListEl();
 			if (listEl) {
-				const listTop =
-					listEl.getBoundingClientRect().top -
-					scrollEl.getBoundingClientRect().top +
-					scrollEl.scrollTop;
-				scrollEl.scrollTop = listTop + model.offsetOf(revealIdx);
+				scrollEl.scrollTop = listTopWithinContent(scrollEl, listEl) + model.offsetOf(revealIdx);
 			}
 			return;
 		}
@@ -223,17 +229,12 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		});
 	});
 
-	// Map the single scroll element's scrollTop into this scope's local range. The
-	// list's own top within the scroll content is real because spacers preserve it.
+	// Map the single scroll element's scrollTop into this scope's local range.
 	function localScrollTop(): number {
 		const scrollEl = deps.getScrollEl();
 		const listEl = deps.getListEl();
 		if (!scrollEl || !listEl) return 0;
-		const offsetWithinContent =
-			listEl.getBoundingClientRect().top -
-			scrollEl.getBoundingClientRect().top +
-			scrollEl.scrollTop;
-		return Math.max(0, scrollEl.scrollTop - offsetWithinContent);
+		return Math.max(0, scrollEl.scrollTop - listTopWithinContent(scrollEl, listEl));
 	}
 
 	// Window each scope against its OWN slice of the viewport, not the full editor
@@ -413,11 +414,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			const scrollEl = deps.getScrollEl();
 			const listEl = deps.getListEl();
 			if (!scrollEl || !listEl) return;
-			const listTop =
-				listEl.getBoundingClientRect().top -
-				scrollEl.getBoundingClientRect().top +
-				scrollEl.scrollTop;
-			scrollEl.scrollTop = listTop + model.offsetOf(Math.min(index, model.size));
+			scrollEl.scrollTop =
+				listTopWithinContent(scrollEl, listEl) + model.offsetOf(Math.min(index, model.size));
 			win.syncScrollTop();
 			await tick();
 		},

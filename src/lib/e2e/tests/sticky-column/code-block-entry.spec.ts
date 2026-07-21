@@ -2,7 +2,7 @@
 // code-block shape (single body line, multi-body, info string, js-highlighted, default-content);
 // they share helpers and one invariant, so they read better as parametric variants in one file than as a directory.
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
 
 const PIXEL_TOLERANCE = 2;
@@ -146,16 +146,16 @@ test.describe('sticky column: code block entry symmetry', () => {
 		// Neighbouring blocks have different end columns; click at matched page-X in each before arrowing.
 		await editor.loadContent(DEFAULT_CONTENT);
 
-		const codeBlockIndex = await editor.page.evaluate(() => {
+		const codeBlockIndex = await editor.page.evaluate((contentSelector) => {
 			const wrappers = document.querySelectorAll('[data-block-path]:not([data-block-path*=","])');
 			for (const wrapper of wrappers) {
-				const block = wrapper.querySelector(':scope > :not(.selection-overlay)');
+				const block = wrapper.querySelector(contentSelector);
 				if (block?.classList.contains('code-block')) {
 					return (JSON.parse(wrapper.getAttribute('data-block-path')!) as number[])[0];
 				}
 			}
 			return -1;
-		});
+		}, BLOCK_CONTENT_SELECTOR);
 		expect(codeBlockIndex).toBeGreaterThan(0);
 
 		const aboveBlock = editor.getBlock(codeBlockIndex - 1);

@@ -203,7 +203,6 @@ describe('cancelReveal — identity-exact fold-back', () => {
 			getAmbientLength: () => 0,
 			getEditorContentWidth: () => 800,
 			widgetSelection,
-			getSnapTarget: () => null,
 			setSnapTarget: () => {},
 			setPendingCursor: () => {},
 			readRawText: () => '',

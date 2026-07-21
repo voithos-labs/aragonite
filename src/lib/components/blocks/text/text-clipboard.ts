@@ -19,7 +19,7 @@ import {
 	trimTrailingLineEnding,
 	trailingLineEnding
 } from '../../../core/lines';
-import { getInlineContent } from '../../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../../selection/cross-block/clipboard';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
@@ -70,18 +70,16 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboardHandl
 	// shared resolution behind copy, cut, and paste-over-widget. Null unless a widget
 	// on THIS block is selected and still present in the parsed inline content.
 	function selectedWidgetOnThisBlock(): {
-		inline: ReturnType<typeof getInlineContent>[number];
+		inline: ReturnType<typeof resolvedInlineContent>[number];
 		preSelectOffset: number;
 	} | null {
 		const selected = deps.widgetSelection.getSelected();
 		if (selected === null || !deps.widgetSelection.isSelected(deps.myPath, selected.sourceStart)) {
 			return null;
 		}
-		const inline = getInlineContent(
-			deps.node,
-			deps.linkRef?.current,
-			deps.linkRef?.signature ?? ''
-		).find((n) => isInlineWidget(n, deps.node.raw) && n.start === selected.sourceStart);
+		const inline = resolvedInlineContent(deps.node, deps.linkRef).find(
+			(n) => isInlineWidget(n, deps.node.raw) && n.start === selected.sourceStart
+		);
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}
 

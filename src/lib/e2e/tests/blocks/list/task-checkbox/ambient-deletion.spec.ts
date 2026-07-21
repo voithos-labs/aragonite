@@ -1,5 +1,5 @@
 import { test, expect } from '../../../../fixtures';
-import { EditorPage } from '../../../../editor-page';
+import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../../../editor-page';
 
 test.describe('task checkbox — selection crossing ambient region', () => {
 	let editor: EditorPage;
@@ -18,11 +18,9 @@ test.describe('task checkbox — selection crossing ambient region', () => {
 		// Chromium keeps this shape since forward ranges rooted inside a
 		// non-editable island are permitted — it's the DELETE that the browser
 		// then refuses silently without the fix.
-		const selState = await editor.page.evaluate(() => {
+		const selState = await editor.page.evaluate((contentSelector) => {
 			const wrapper = document.querySelector(`[data-block-path='[0,0,0]']`);
-			const paragraph = wrapper?.querySelector(
-				':scope > :not(.selection-overlay)'
-			) as HTMLElement | null;
+			const paragraph = wrapper?.querySelector(contentSelector) as HTMLElement | null;
 			const checkbox = paragraph?.querySelector('.task-checkbox') as HTMLElement | null;
 			if (!paragraph || !checkbox) throw new Error('structure not found');
 			paragraph.focus();
@@ -38,7 +36,7 @@ test.describe('task checkbox — selection crossing ambient region', () => {
 			sel.removeAllRanges();
 			sel.addRange(range);
 			return { collapsed: sel.isCollapsed };
-		});
+		}, BLOCK_CONTENT_SELECTOR);
 		expect(selState.collapsed).toBe(false);
 
 		await editor.page.keyboard.press('Backspace');
@@ -55,11 +53,9 @@ test.describe('task checkbox — selection crossing ambient region', () => {
 	test('Delete with selection extending into ambient checkbox region deletes text', async () => {
 		await editor.loadContent('- [ ] pending\n');
 
-		const selState = await editor.page.evaluate(() => {
+		const selState = await editor.page.evaluate((contentSelector) => {
 			const wrapper = document.querySelector(`[data-block-path='[0,0,0]']`);
-			const paragraph = wrapper?.querySelector(
-				':scope > :not(.selection-overlay)'
-			) as HTMLElement | null;
+			const paragraph = wrapper?.querySelector(contentSelector) as HTMLElement | null;
 			const checkbox = paragraph?.querySelector('.task-checkbox') as HTMLElement | null;
 			if (!paragraph || !checkbox) throw new Error('structure not found');
 			paragraph.focus();
@@ -75,7 +71,7 @@ test.describe('task checkbox — selection crossing ambient region', () => {
 			sel.removeAllRanges();
 			sel.addRange(range);
 			return { collapsed: sel.isCollapsed };
-		});
+		}, BLOCK_CONTENT_SELECTOR);
 		expect(selState.collapsed).toBe(false);
 
 		await editor.page.keyboard.press('Delete');

@@ -1,17 +1,11 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
-	import type {
-		BlockEditActions,
-		ContainerEditActions,
-		FocusActions,
-		HistoryActions
-	} from '../../../action-contracts';
+	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
-		CONTAINER_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
@@ -25,7 +19,7 @@
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { isProseKind } from '../../../core/inline';
-	import { getInlineContent } from '../../../core/inline/inline-cache';
+	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -37,8 +31,9 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createConstructReveal } from './construct-reveal';
+	import { widgetElByStart } from './widget-adjacency';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import { createEditableSurface } from '../editable-surface';
+	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
 		domTextOffsetAtNode,
@@ -91,7 +86,6 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	// Present when this paragraph sits inside a list item — used to skip
 	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
 	const listContext = getContext(LIST_CONTEXT_KEY);
@@ -189,7 +183,6 @@
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
-		containerEdit,
 		blockEdit,
 		controller,
 		history,
@@ -236,7 +229,6 @@
 		widgetSelection,
 		blockEdit,
 		focusActions,
-		getSnapTarget: () => lastSnapTargetOffset,
 		setSnapTarget: (offset) => {
 			lastSnapTargetOffset = offset;
 		},
@@ -479,11 +471,11 @@
 			// Restore the caret only while this block still owns focus. A blur-commit
 			// (revealed source persisted as focus leaves) also sets a pending offset;
 			// without this guard the restore would yank the global selection back into
-			// the just-blurred block. Mirrors the activeElement guards in ambient-cursor.
-			// The clear below runs in BOTH arms: a skipped restore is dropped, never
-			// re-armed, so a stale offset can't fire on a later unrelated render.
-			const applied = document.activeElement === el;
-			if (applied) cursor.setRaw(asRawOffset(pendingCursorOffset));
+			// the just-blurred block. The clear runs regardless so a skipped restore is
+			// dropped, never re-armed.
+			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) =>
+				cursor.setRaw(asRawOffset(offset))
+			);
 			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
@@ -505,27 +497,36 @@
 		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
 	});
 
-	// Asymmetric clearer: when the cursor moves to a position different from
-	// the snap target, drop the synthetic indicator. Does NOT auto-set on
-	// cursor reaching a boundary via non-click means — synthetic is
-	// click-intent, only set by `snapClickToWidgetEdge`.
+	// Asymmetric clearer: when the caret lands anywhere other than the snap target,
+	// drop the synthetic indicator. Never auto-sets on the caret reaching a boundary
+	// by non-click means — synthetic is click-intent, armed only by snapClickToWidgetEdge.
+	function clearSnapTargetIfMoved(root: HTMLElement): void {
+		if (lastSnapTargetOffset === null) return;
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) return;
+		const range = sel.getRangeAt(0);
+		if (!root.contains(range.startContainer)) {
+			lastSnapTargetOffset = null;
+			return;
+		}
+		const content = domTextOffsetAtNode(root, range.startContainer, range.startOffset);
+		const off = toClampedRawOffset(content, ambientLength);
+		if (off !== lastSnapTargetOffset) lastSnapTargetOffset = null;
+	}
+
+	// One document selectionchange listener drives the block's whole selection cadence.
+	// The snap clearer runs even during composition — an IME caret move still invalidates
+	// a click-intent snap. The reveal machines are composition-gated (like onInput): a
+	// mid-IME move must neither commit a revealed source edit nor flip preview-inline
+	// marker visibility. Blur keeps owning the focus-leaving widget-source fold.
 	$effect(() => {
 		const root = el;
 		if (!root) return;
 		const handler = () => {
-			if (lastSnapTargetOffset === null) return;
-			const sel = window.getSelection();
-			if (!sel || sel.rangeCount === 0) return;
-			const range = sel.getRangeAt(0);
-			if (!root.contains(range.startContainer)) {
-				lastSnapTargetOffset = null;
-				return;
-			}
-			const content = domTextOffsetAtNode(root, range.startContainer, range.startOffset);
-			const off = toClampedRawOffset(content, ambientLength);
-			if (off !== lastSnapTargetOffset) {
-				lastSnapTargetOffset = null;
-			}
+			clearSnapTargetIfMoved(root);
+			if (composing) return;
+			widgetInteraction.foldRevealIfSelectionEscaped();
+			constructReveal.update();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -538,10 +539,10 @@
 		}
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
-		for (const inline of getInlineContent(node, linkRef?.current, linkRef?.signature ?? '')) {
+		for (const inline of resolvedInlineContent(node, linkRef)) {
 			if (!isInlineWidget(inline, node.raw)) continue;
 			if (inline.end !== off && inline.start !== off) continue;
-			const widget = el.querySelector(`[data-inline-widget][data-source-start="${inline.start}"]`);
+			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
 				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
 			}
@@ -661,23 +662,6 @@
 		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
 	}
-
-	// Selection cadence for both reveal machines: a caret/selection move folds an
-	// escaped widget-source reveal and re-evaluates preview-inline's construct
-	// chain. Blur keeps owning the focus-leaving widget fold; a mid-IME selection
-	// move must neither commit nor flip marker visibility, so composition
-	// suppresses both like it suppresses onInput.
-	$effect(() => {
-		const root = el;
-		if (!root) return;
-		const handler = () => {
-			if (composing) return;
-			widgetInteraction.foldRevealIfSelectionEscaped();
-			constructReveal.update();
-		};
-		document.addEventListener('selectionchange', handler);
-		return () => document.removeEventListener('selectionchange', handler);
-	});
 
 	function onClick(): void {
 		const x = lastClickClientX;

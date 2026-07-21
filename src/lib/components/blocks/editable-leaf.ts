@@ -26,17 +26,11 @@
  */
 
 import { getContext, tick } from 'svelte';
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	FocusActions,
-	HistoryActions
-} from '../../action-contracts';
+import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import {
 	BLOCK_EDIT_KEY,
-	CONTAINER_EDIT_KEY,
 	EDITOR_DOC_KEY,
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
@@ -48,16 +42,15 @@ import {
 	type PluginEditorLookup
 } from '../../editor-keys';
 import { emitCommandError } from '../../editor-events';
-import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
+import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
-	createRangeFromOffsets,
 	setCursorOffset,
 	getCursorOffset,
-	getSelectionFocusOffset,
 	getSelectionOffsets
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
-import { createEditableSurface } from './editable-surface';
+import { createEditableSurface, consumePendingRestore } from './editable-surface';
+import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createSourceReveal } from '../../cursor/reveal-source';
@@ -196,7 +189,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const containerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const {
 		controller,
 		pasteCoordinator,
@@ -224,28 +216,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
+	const { backend, getFocusOffset, getTextLen, readText } = createContentOffsetBackend(() =>
+		deps.getEl()
+	);
+
 	const editableSurface = createEditableSurface({
 		getEl: () => deps.getEl(),
 		getAmbientLength: () => 0,
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
 		isInputSuppressed: () => mode === 'render-primary',
-		// A zero-ambient, widget-free leaf: its DOM-text space IS its raw space,
-		// so the backend door-mints across the two brands.
-		backend: {
-			getRaw: () => {
-				const el = deps.getEl();
-				const offset = el ? getCursorOffset(el) : null;
-				return offset === null ? null : asRawOffset(offset);
-			},
-			setRaw: (offset) => {
-				const el = deps.getEl();
-				if (el) setCursorOffset(el, asDomTextOffset(offset));
-			},
-			buildRange: (start, end) => {
-				const el = deps.getEl();
-				return el ? createRangeFromOffsets(el, asDomTextOffset(start), asDomTextOffset(end)) : null;
-			}
-		},
+		backend,
 		getMyPath: deps.getPath,
 		getIndex: deps.getIndex,
 		getComposing: () => composing,
@@ -268,7 +248,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getEditorRoot,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
-		containerEdit,
 		blockEdit,
 		controller,
 		history,
@@ -277,13 +256,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
-		getFocusOffset: () => {
-			const el = deps.getEl();
-			const offset = el ? getSelectionFocusOffset(el) : null;
-			return offset === null ? null : asRawOffset(offset);
-		},
-		getTextLen: () => (deps.getEl()?.textContent ?? '').length,
-		readText: () => deps.getEl()?.textContent ?? '',
+		getFocusOffset,
+		getTextLen,
+		readText,
 		commitInput: (text, preEdit, saved) => {
 			// !isReading: the leaf is the seam — even if a plain-mode component keeps
 			// its source editable in reading mode, nothing reaches the CST.
@@ -399,17 +374,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── View sync ──────────────────────────────────────────────────────────────
 
-	// Chromium with `white-space: pre` won't paint a caret on the line after a
-	// trailing `\n` unless something follows it; typed text routes before the
-	// `\n`. A trailing `<br>` anchors the caret on the new line without touching
-	// `textContent` (mirrors CodeBlock's anchor).
-	function anchorTrailingNewline(el: HTMLElement): void {
-		if (!el.textContent?.endsWith('\n')) return;
-		const anchor = document.createElement('br');
-		anchor.dataset.caretAnchor = '';
-		el.appendChild(anchor);
-	}
-
 	function syncSource(): void {
 		const text = sourceText();
 		const el = deps.getEl();
@@ -419,11 +383,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if ((el.textContent ?? '') !== text) {
 			el.textContent = text;
 			anchorTrailingNewline(el);
-			// Restore only under a live caret — an external rewrite (undo,
-			// structural replace) must not steal focus.
-			if (pending !== null && document.activeElement === el) {
-				setCursorOffset(el, asDomTextOffset(pending));
-			}
+			// Restore only under a live caret — an external rewrite (undo, structural
+			// replace) must not steal focus.
+			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
 		}
 	}
 

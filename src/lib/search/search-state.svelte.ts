@@ -1,7 +1,7 @@
 import type { DocumentView } from '../core/node-views';
 import { compileMatcher } from './matcher';
 import { scanDocument, type Match } from './document-scan';
-import { pathKey } from '../decorations/buckets';
+import { groupByPathKey, pathKey } from '../decorations/buckets';
 import type {
 	DecorationRegistry,
 	DecorationSourceHandle,
@@ -214,14 +214,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 }
 
 function groupByPath(list: readonly Match[]): Map<string, IndexedMatch[]> {
-	const byPath = new Map<string, IndexedMatch[]>();
-	list.forEach((match, index) => {
-		const key = pathKey(match.path);
-		const bucket = byPath.get(key);
-		if (bucket) bucket.push({ match, index });
-		else byPath.set(key, [{ match, index }]);
-	});
-	return byPath;
+	return groupByPathKey(list, (match, index) => ({ match, index }));
 }
 
 /** Public controller surface — what `editor.getSearch()` exposes. Deliberately

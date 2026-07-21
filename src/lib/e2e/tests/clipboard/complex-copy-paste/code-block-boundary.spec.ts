@@ -1,5 +1,5 @@
 import { test, expect } from '../../../fixtures';
-import { EditorPage } from '../../../editor-page';
+import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
 import { waitForClipboardContains } from './helpers';
 
@@ -26,11 +26,11 @@ test.describe('clipboard — code block boundary and direction', () => {
 	});
 
 	test('Shift+ArrowDown from end of a code block enters cross-block mode anchored in code', async () => {
-		const codeRaw = await editor.page.evaluate(() => {
+		const codeRaw = await editor.page.evaluate((contentSelector) => {
 			const wrapper = document.querySelector(`[data-block-path='${JSON.stringify([9])}']`);
-			const editable = wrapper?.querySelector(':not(.selection-overlay)') as HTMLElement | null;
+			const editable = wrapper?.querySelector(contentSelector) as HTMLElement | null;
 			return editable?.textContent ?? '';
-		});
+		}, BLOCK_CONTENT_SELECTOR);
 		await editor.focusBlockAtPath([9], codeRaw.length);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);

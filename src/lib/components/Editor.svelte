@@ -66,7 +66,7 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
-	import { resolveEffectivePresentationMode, isPreviewMode } from '../presentation-mode';
+	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { eventToChord } from '../schema/keybindings';
 	import {
@@ -92,6 +92,7 @@
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { registerBuiltInBlocks } from './built-in-blocks';
+	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
 
 	registerBuiltInBlocks();
 	bootstrapCodeLanguages();
@@ -99,8 +100,7 @@
 
 	// `__registryEnablement` is a harness-only door: a per-instance
 	// enablement predicate for the registry view, NOT part of the public EditorProps.
-	// The intersection keeps it off the exported type — the public enablement prop
-	// firms up with limestone (docs/design/plugin-contract.md).
+	// The intersection keeps it off the exported type.
 	let {
 		source = '',
 		resolveImageUrl,
@@ -126,8 +126,12 @@
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
 	// The one mode every door reports (root attribute, context getter, plugin
-	// contexts, events).
-	const effectiveMode = $derived(resolveEffectivePresentationMode(presentationMode));
+	// contexts, events). Effective equals requested today; this derived is the seam
+	// a future effective-vs-requested divergence would land in.
+	const effectiveMode = $derived(presentationMode);
+	// Replace is an edit, so it never engages in reading mode. One predicate feeds
+	// the write sites (Ctrl+H, chevron), the render gate, and the replace closures.
+	const canReplace = $derived(effectiveMode !== 'reading');
 
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
@@ -354,11 +358,7 @@
 		if (!editorEl) return null;
 		const directWrapper = editorEl.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
 		if (directWrapper) {
-			// Overlays render after the component; decoration badges render before it.
-			// Exclude both so the first match is the block content itself.
-			return directWrapper.querySelector(
-				':scope > :not(.selection-overlay):not(.decoration-badge)'
-			) as HTMLElement | null;
+			return directWrapper.querySelector(BLOCK_CONTENT_SELECTOR) as HTMLElement | null;
 		}
 		if (path.length < 3) return null;
 		const tablePath = path.slice(0, -2);
@@ -545,9 +545,9 @@
 	// (the bar's replace row is also kept collapsed below).
 	const gatedSearchReplace: typeof searchReplace = {
 		replaceOne: (match, template) =>
-			effectiveMode === 'reading' ? Promise.resolve(0) : searchReplace.replaceOne(match, template),
+			canReplace ? searchReplace.replaceOne(match, template) : Promise.resolve(0),
 		replaceAll: (matches, template) =>
-			effectiveMode === 'reading' ? Promise.resolve(0) : searchReplace.replaceAll(matches, template)
+			canReplace ? searchReplace.replaceAll(matches, template) : Promise.resolve(0)
 	};
 	const searchState = createSearchState({
 		getDoc,
@@ -755,7 +755,6 @@
 		getEditorRoot: () => editorEl ?? null,
 		getEditorLifetime: () => lifetimeController.signal,
 		stickyColumn,
-		containerEdit,
 		blockEdit,
 		controller,
 		history,
@@ -766,8 +765,7 @@
 		getKeybindingOverrides: () => overridesMap,
 		grammar: registryView.grammar,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
-		afterReactivity: () => tick(),
-		setPendingCursor: () => {}
+		afterReactivity: () => tick()
 	});
 
 	// Document-level chords for the windowed-out caret — no mounted block consumed
@@ -794,7 +792,7 @@
 			// can't steal it (an outside-focus Ctrl+F opens no bar when 2+ editors exist).
 			// The one exception: a foreign text-entry surface (a consumer's own
 			// <textarea>/<input>/contenteditable) owns page-global Ctrl+F while the user
-			// types in it, so the editor yields there rather than hijacking it (B2-F1).
+			// types in it, so the editor yields there rather than hijacking it.
 			if (root.contains(active) || (claimsBodyChord(root) && !isForeignTextEntry(active))) {
 				if (searchBar && rootChord && isReservedUiChord(rootChord)) {
 					e.preventDefault();
@@ -807,7 +805,7 @@
 					if (!searchState.isOpen) {
 						savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
 					}
-					replaceExpanded = rootChord === 'Mod+H' && effectiveMode !== 'reading';
+					replaceExpanded = rootChord === 'Mod+H' && canReplace;
 					searchState.open();
 					if (selected) searchState.setQuery(selected);
 					return;
@@ -1120,8 +1118,8 @@
 		     scrollport top so it doesn't scroll away with content on next/prev. -->
 		<div class="search-anchor">
 			<SearchBar
-				replaceExpanded={replaceExpanded && effectiveMode !== 'reading'}
-				onToggleReplace={() => (replaceExpanded = effectiveMode !== 'reading' && !replaceExpanded)}
+				replaceExpanded={replaceExpanded && canReplace}
+				onToggleReplace={() => (replaceExpanded = canReplace && !replaceExpanded)}
 			/>
 		</div>
 	{/if}
