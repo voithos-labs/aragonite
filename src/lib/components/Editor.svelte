@@ -38,7 +38,7 @@
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
-	import { lrdMapCouldChange } from './lrd-map-gate';
+	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
 	import {
 		buildLinkReferenceMap,
 		type LinkReferenceResolver
@@ -168,6 +168,9 @@
 	let blockIds = $state<string[]>(assignIds(doc.children));
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
+	// Compact stamp bumped in lockstep with currentSignature — reference-bearing
+	// render memos key on it instead of the whole (~MB) signature string.
+	let signatureEpoch = $state<number>(0);
 	// Plain array — $state's mutation guards revert writes from a BlockHost
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -221,9 +224,11 @@
 			// every block that read it.
 			if (lrdMapCouldChange(doc, e)) {
 				const newMap = buildLinkReferenceMap(doc.children);
-				if (newMap.signature !== currentSignature) {
+				const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
+				if (next.epoch !== signatureEpoch) {
 					currentResolver = newMap.resolve;
-					currentSignature = newMap.signature;
+					currentSignature = next.signature;
+					signatureEpoch = next.epoch;
 				}
 			}
 		});
@@ -255,8 +260,12 @@
 			undoManager.clear();
 			stickyColumn.reset();
 			selectionState.clear();
+			// Resolver refreshes unconditionally (the old one closes over the swapped-out
+			// doc); the epoch bumps only if the new document's LRD signature differs.
+			const next = advanceSignatureEpoch(currentSignature, signatureEpoch, reset.signature);
 			currentResolver = reset.resolver;
-			currentSignature = reset.signature;
+			currentSignature = next.signature;
+			signatureEpoch = next.epoch;
 		}
 	});
 
@@ -960,6 +969,9 @@
 			},
 			get signature(): string {
 				return currentSignature;
+			},
+			get epoch(): number {
+				return signatureEpoch;
 			}
 		},
 		pluginEditor: pluginEditorLookup,

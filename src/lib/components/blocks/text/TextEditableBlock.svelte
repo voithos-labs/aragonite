@@ -304,6 +304,8 @@
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		hasIslands: () =>
+			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		blockEdit,
 		setPendingCursor: (offset, source) => setPendingCursorOffset(offset, source),
@@ -341,8 +343,8 @@
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
-		get linkSignature(): string {
-			return linkRef?.signature ?? '';
+		get linkStamp(): string {
+			return String(linkRef?.epoch ?? 0);
 		},
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
@@ -464,7 +466,12 @@
 		}
 
 		const t0 = perfEnabled() ? performance.now() : 0;
-		textRender.render({ forceRebuild: pendingCursorOffset !== null });
+		// carryCaret false on the edit path (a pending restore is armed): the consume
+		// below overwrites the selection, so the render's own caret walk is dead work.
+		textRender.render({
+			forceRebuild: pendingCursorOffset !== null,
+			carryCaret: pendingCursorOffset === null
+		});
 		if (perfEnabled()) recordBlockRender(performance.now() - t0, myPath);
 
 		if (pendingCursorOffset !== null) {

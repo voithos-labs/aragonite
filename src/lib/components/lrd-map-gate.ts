@@ -21,3 +21,20 @@ export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean 
 	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
 	return nodeAt(doc, event.path)?.kind === 'linkReferenceDefinition';
 }
+
+/**
+ * Advance the LRD signature epoch: a monotonic stamp that changes **exactly** when
+ * the signature string changes. Reference-bearing render memos fold the epoch into
+ * their key instead of the whole signature (~MB scale in reference-heavy docs), so
+ * the invariant is load-bearing — a stamp that bumped on every rebuild would
+ * over-invalidate every bracket-bearing block per commit. Returns the previous
+ * pair unchanged when the signature is unchanged; bumps once when it differs.
+ */
+export function advanceSignatureEpoch(
+	prevSignature: string,
+	prevEpoch: number,
+	nextSignature: string
+): { signature: string; epoch: number } {
+	if (nextSignature === prevSignature) return { signature: prevSignature, epoch: prevEpoch };
+	return { signature: nextSignature, epoch: prevEpoch + 1 };
+}

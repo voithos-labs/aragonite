@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
+import { advanceSignatureEpoch, lrdMapCouldChange } from '$lib/components/lrd-map-gate';
+import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import type { EditEvent } from '$lib/editor-events';
 
 function event(op: EditEvent['op'], path: number[], detail?: unknown): EditEvent {
@@ -46,5 +47,27 @@ describe('lrdMapCouldChange', () => {
 	it('rebuilds on a structural op', () => {
 		const doc = parse('hello world\n');
 		expect(lrdMapCouldChange(doc, event('split', [0], { at: 3 }))).toBe(true);
+	});
+});
+
+describe('advanceSignatureEpoch', () => {
+	const sigOf = (src: string) => buildLinkReferenceMap(parse(src).children).signature;
+
+	it('holds the epoch when a rebuild yields an identical signature', () => {
+		// The G4.7 memo-semantics constraint: a stamp that bumped on every rebuild
+		// would over-invalidate every bracket-bearing block per commit.
+		const sig = sigOf('[d]: https://example.com\n');
+		const held = advanceSignatureEpoch(sig, 5, sigOf('[d]: https://example.com\n'));
+		expect(held.epoch).toBe(5);
+		expect(held.signature).toBe(sig);
+	});
+
+	it('bumps the epoch once when a definition edit changes the signature', () => {
+		const before = sigOf('[d]: https://old.com\n');
+		const after = sigOf('[d]: https://new.com\n');
+		expect(after).not.toBe(before);
+		const bumped = advanceSignatureEpoch(before, 5, after);
+		expect(bumped.epoch).toBe(6);
+		expect(bumped.signature).toBe(after);
 	});
 });

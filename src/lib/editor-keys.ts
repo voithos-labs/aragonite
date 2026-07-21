@@ -48,9 +48,15 @@ export type WidthVersionGetter = () => number;
 /** Resolver ref read by inline parsers in block components. Wrapped in a
  *  `{ current }` accessor so the shell can rebuild the resolver after each
  *  commit without invalidating descendants' getContext bindings. `signature`
- *  is the LRD-set snapshot that reference-bearing render memos key on so they
- *  re-render when a definition elsewhere changes. */
-export type LinkReferenceResolverRef = { current?: LinkReferenceResolver; signature?: string };
+ *  is the LRD-set snapshot the lazy inline cache validates on; `epoch` is a
+ *  compact stamp the shell bumps in lockstep with it, so reference-bearing
+ *  render memos can key on the epoch instead of concatenating the whole
+ *  (~MB-scale) signature into their key every keystroke. */
+export type LinkReferenceResolverRef = {
+	current?: LinkReferenceResolver;
+	signature?: string;
+	epoch?: number;
+};
 
 // ── Action triple (per-key: containers re-provide these three) ───────────────
 

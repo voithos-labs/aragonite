@@ -47,7 +47,7 @@ export interface CellRender {
 	 * unchanged, unless `forceRebuild` is set — pass it when a pending cursor
 	 * restore needs the DOM positions re-anchored even though the key didn't change.
 	 */
-	render(opts?: { forceRebuild?: boolean }): void;
+	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget instance and mounted island — called on unmount. */
 	dispose(): void;
 }
@@ -66,7 +66,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
 	}
 
-	function render(opts?: { forceRebuild?: boolean }): void {
+	function render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
@@ -77,7 +77,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// every cell in the document. A false positive merely re-parses to
 		// identical output.
 		const hasRef = node.raw.includes('[');
-		const sig = hasRef ? (deps.linkRef?.signature ?? '') : '';
+		// Key on the compact signature epoch, never the ~MB-scale string (text-render's twin).
+		const sig = hasRef ? String(deps.linkRef?.epoch ?? deps.linkRef?.signature ?? '') : '';
 		const islands = deps.islands;
 		const renderKey = `${node.raw}\0${sig}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
@@ -85,9 +86,10 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 
 		const content = computeInlineContent(node, hasRef ? deps.linkRef?.current : undefined);
 		// An island-signature change rebuilds a focused cell's DOM with no edit-path
-		// pending offset; carry the caret across in walk space (the SFC's pending
-		// restore, when an edit set one, runs after and wins).
-		const caretWalkOffset = captureFocusedCaretWalkOffset(el);
+		// pending offset; carry the caret across in walk space. The edit path passes
+		// carryCaret: false — its pending restore runs after and wins, so the walk
+		// would be dead work (text-render's twin).
+		const caretWalkOffset = (opts?.carryCaret ?? true) ? captureFocusedCaretWalkOffset(el) : null;
 		// Bracket the rebuild so portal widgets in the cell are pooled — an unchanged
 		// `$…$` keeps its mounted instance across the cell's per-keystroke rebuild.
 		// Island widgets are unpooled: destroy last pass's, mount this pass's.
