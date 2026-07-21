@@ -16,7 +16,8 @@ import {
 	deleteNode as performDelete,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
-	rebuildOwnedContainer
+	rebuildOwnedContainer,
+	emptyParagraph
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -87,7 +88,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
-					const body: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+					const body = emptyParagraph();
 					view.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);

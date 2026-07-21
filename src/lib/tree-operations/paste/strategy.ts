@@ -4,6 +4,7 @@
 
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteStrategy } from './dispatch';
+import { emptyParagraph } from '../node-ops';
 
 export function pickPasteStrategy(parsed: Document): PasteStrategy {
 	if (parsed.children.length === 1 && parsed.children[0].kind === 'paragraph') {
@@ -28,7 +29,7 @@ export function materializeBlankLines(blocks: CstNode[]): CstNode[] {
 		const newlineCount = (trivia.match(/\n/g) ?? []).length;
 		if (newlineCount >= 1) {
 			for (let j = 0; j < newlineCount; j++) {
-				out.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+				out.push(emptyParagraph());
 			}
 			out.push({ ...block, leadingTrivia: '' });
 		} else {

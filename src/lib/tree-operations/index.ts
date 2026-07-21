@@ -9,6 +9,7 @@ export {
 	focusTargetInReplacement,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
+	emptyParagraph,
 	nodeAt
 } from './node-ops';
 

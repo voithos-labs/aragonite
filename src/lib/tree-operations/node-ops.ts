@@ -40,6 +40,19 @@ import { replacePreservingFirst, type StructuralChange } from './structural-chan
 
 export type NodeParent = { children: CstNode[] };
 
+// ── Node minting ──
+
+/**
+ * The empty-paragraph placeholder that keeps an emptied document or container
+ * caret-addressable; its `'\n'` collapses back into trivia on
+ * `parse(serialize(...))`. Returns a fresh node every call — a shared instance
+ * would alias across tree positions and corrupt the snapshot/unshare model
+ * (G1.9), so this must never hand back a cached or module-level node.
+ */
+export function emptyParagraph(leadingTrivia = ''): CstNode {
+	return { kind: 'paragraph', leadingTrivia, raw: '\n' };
+}
+
 // ── Path resolution ──
 
 // Overloaded rather than view-only so a mutable document yields mutable nodes:
@@ -436,7 +449,7 @@ export function ensureEditableContainers(node: CstNode): void {
 				// Runtime chrome kind — generic-mint cast (the paragraph below is a literal arm).
 				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' } as CstNode);
 			}
-			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+			node.children.push(emptyParagraph());
 			// The synthesized paragraph's '\n' already represents the trailing
 			// blank that parseBlocks routed into innerPrefix when there were no
 			// children. Leaving both in place double-counts the line on rebuild

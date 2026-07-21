@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { ensureEditableContainers } from '../../tree-operations/node-ops';
+import { ensureEditableContainers, emptyParagraph } from '../../tree-operations/node-ops';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { declarePluginKind } from '../../schema/plugin-kind';
@@ -8,6 +8,23 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
+
+describe('emptyParagraph', () => {
+	it('mints the empty-paragraph placeholder shape, trivia parameterized', () => {
+		expect(emptyParagraph()).toEqual({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+		expect(emptyParagraph('\n')).toEqual({ kind: 'paragraph', leadingTrivia: '\n', raw: '\n' });
+	});
+
+	// A shared/module-level node would alias across tree positions and break the
+	// snapshot/unshare model (G1.9). Every call must hand back a fresh object.
+	it('returns a distinct object on every call', () => {
+		const first = emptyParagraph();
+		const second = emptyParagraph();
+		expect(first).not.toBe(second);
+		first.raw = 'mutated\n';
+		expect(second.raw).toBe('\n');
+	});
+});
 
 describe('ensureEditableContainers', () => {
 	it('backfills an empty container with a paragraph child', () => {
