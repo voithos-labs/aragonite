@@ -45,6 +45,44 @@ function copyNode(node: NodeView, sharing: SharingState): CstNode {
 }
 
 /**
+ * The copy-on-write spine walk shared by `ensureUnsharedPath` and
+ * `rebuildUnsharedAncestry`: descend `path` from `root`, copying every
+ * still-shared node into its (already-unshared) parent, and return the owned
+ * chain outermost-first. `assertInRange` is the only difference between the two
+ * callers — it fires G1.22 on an index that ran off a live child (the strict
+ * unshare path) or stays silent (tolerant rebuild passes hand short paths). The
+ * walk stops at the first gap either way.
+ */
+function walkUnsharing(
+	root: NodeParentView,
+	path: number[],
+	sharing: SharingState,
+	assertInRange: boolean
+): CstNode[] {
+	const chain: CstNode[] = [];
+	// The door (file header): the root is the live document or a ceremony-owned
+	// array, so its children array is writable by contract.
+	let parentChildren = root.children as CstNode[];
+	for (const index of path) {
+		let node = parentChildren[index];
+		if (assertInRange) {
+			assertInvariant('unshare-path-in-range', () =>
+				node ? null : { code: 'unshare-path', message: `path index ${index} out of range` }
+			);
+		}
+		if (!node) break;
+		if (sharing.isShared(node)) {
+			parentChildren[index] = copyNode(node, sharing);
+			// Write-then-re-read (file header).
+			node = parentChildren[index];
+		}
+		chain.push(node);
+		parentChildren = node.children ?? [];
+	}
+	return chain;
+}
+
+/**
  * Unshare every node along `path` (child indices from `root`), splicing
  * copies into their (already-unshared) parents. Returns the node chain,
  * outermost first. `root` is the live document for out-of-ceremony writes
@@ -56,25 +94,7 @@ export function ensureUnsharedPath(
 	path: number[],
 	sharing: SharingState
 ): CstNode[] {
-	const chain: CstNode[] = [];
-	// The door (file header): the root is the live document or a ceremony-owned
-	// array, so its children array is writable by contract.
-	let parentChildren = root.children as CstNode[];
-	for (const index of path) {
-		let node = parentChildren[index];
-		assertInvariant('unshare-path-in-range', () =>
-			node ? null : { code: 'unshare-path', message: `path index ${index} out of range` }
-		);
-		if (!node) return chain;
-		if (sharing.isShared(node)) {
-			parentChildren[index] = copyNode(node, sharing);
-			// Write-then-re-read (file header).
-			node = parentChildren[index];
-		}
-		chain.push(node);
-		parentChildren = node.children ?? [];
-	}
-	return chain;
+	return walkUnsharing(root, path, sharing, true);
 }
 
 /**
@@ -176,18 +196,5 @@ export function rebuildUnsharedAncestry(
 	path: number[],
 	sharing: SharingState
 ): void {
-	const chain: CstNode[] = [];
-	let parentChildren: CstNode[] | undefined = root.children;
-	for (const index of path) {
-		let node: CstNode | undefined = parentChildren?.[index];
-		if (!node) break;
-		if (sharing.isShared(node)) {
-			parentChildren![index] = copyNode(node, sharing);
-			// Write-then-re-read (file header).
-			node = parentChildren![index];
-		}
-		chain.push(node);
-		parentChildren = node.children;
-	}
-	rebuildUnsharedChain(chain, sharing);
+	rebuildUnsharedChain(walkUnsharing(root, path, sharing, false), sharing);
 }
