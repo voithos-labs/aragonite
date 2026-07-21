@@ -3,9 +3,9 @@ import {
 	dispatchMoveFocus,
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
-} from '../../editor-actions/focus/focus-dispatch';
-import { CURSOR_END } from '../../block-component';
-import { mockRef, makeStickyColumn, makeStubFocus } from '../harness/editor-actions';
+} from '../../../editor-actions/focus/focus-dispatch';
+import { CURSOR_END } from '../../../block-component';
+import { mockRef, makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
 
 describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex < 0', async () => {

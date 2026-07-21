@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { pasteDispatch, defaultInlineHook } from '../../../tree-operations/paste/dispatch';
 import {
 	__resetPasteSurfacesForTests,
@@ -7,20 +7,13 @@ import {
 } from '../../../tree-operations/paste-surfaces';
 import { findListAbsorb } from '../../../tree-operations/paste/list-absorb';
 import { parse } from '../../../core/parser';
-import { createSharingState } from '../../../tree-operations/sharing';
 import { declarePluginKind } from '../../../schema/plugin-kind';
 import { registerBlockKind } from '../../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
-import {
-	expectStateForNode,
-	getStateForNode,
-	registerBlockListState
-} from '../../../reactivity/state-registry';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
+import { registerBlockListState } from '../../../reactivity/state-registry';
+import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
-import type { UndoController } from '../../../editor-actions/deps';
-import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 
 // A container declaring its child 0 as reserved chrome, plus the chrome leaf and
 // the leaf's inline-only paste surface — the shape registerChromeLeaf produces.
@@ -63,22 +56,6 @@ function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): 
 			} as CstNode
 		]
 	};
-}
-
-function makeStubController(): UndoController & PasteCommitCoordinator {
-	return {
-		sharing: createSharingState(),
-		pushUndoSnapshot: vi.fn(),
-		pushUndoSnapshotDebounced: vi.fn(),
-		commitStructural: vi.fn(),
-		commitContainerStructural: vi.fn(),
-		commitMultiScope: vi.fn(),
-		getDocScope: vi.fn(),
-		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn(),
-		resolveState: getStateForNode,
-		expectState: expectStateForNode
-	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
 function registerListState(node: CstNode) {
