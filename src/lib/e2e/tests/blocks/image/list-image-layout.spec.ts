@@ -1,14 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n- second\n';
 const NESTED_LIST_IMAGE_DOC = '- outer\n  - ![pic|300x200](/test-fixtures/sample.png)\n';
-
-async function waitForFirstImageLoaded(page: EditorPage['page']): Promise<void> {
-	await page.waitForFunction(
-		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
-	);
-}
 
 test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 	let editor: EditorPage;

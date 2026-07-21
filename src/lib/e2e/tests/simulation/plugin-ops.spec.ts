@@ -5,12 +5,9 @@ import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertNestedStateConsistent,
-	assertNoErrors,
-	assertRoundTripStable
-} from '../../simulation/invariants';
+import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { topLevelIndexOf } from './helpers';
+import { activeBlockPath } from '../plugins/helpers';
 
 // Ungated plugin-container ops oracle. The simulation's oracle stack (structured
 // error + `[invariant:…]` console watcher, live-CST round-trip, nested-state
@@ -51,18 +48,6 @@ class PluginsSimPage extends EditorPage {
 
 // ── Spec-local probes ─────────────────────────────────────────────────────────
 
-// Top-level index of the container with `kind` — re-derived before each phase so
-// the script survives the transient index shift a merge-into-open introduces.
-async function topLevelIndexOf(page: Page, kind: string): Promise<number> {
-	return page.evaluate(
-		(k) =>
-			(window as any).__test
-				.getDocument()
-				.children.findIndex((c: { kind?: string }) => c.kind === k),
-		kind
-	);
-}
-
 async function rootCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test.getDocument().children.length);
 }
@@ -74,14 +59,6 @@ async function containerRaw(page: Page, kind: string): Promise<string> {
 			.children.find((c: { kind?: string }) => c.kind === k);
 		return node?.raw ?? '';
 	}, kind);
-}
-
-async function activeBlockPath(page: Page): Promise<number[] | null> {
-	return page.evaluate(() => {
-		const el = document.activeElement?.closest('[data-block-path]');
-		const attr = el?.getAttribute('data-block-path');
-		return attr ? (JSON.parse(attr) as number[]) : null;
-	});
 }
 
 // ── Resync-based edit helpers ─────────────────────────────────────────────────
@@ -162,12 +139,7 @@ test.describe('plugin-container ops simulation', () => {
 		const ctx: SimContext = { page, editor, tracker, errors, label: 'plugin-ops' };
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			ctx.label = label;
-			await assertNoErrors(ctx);
-			await assertRoundTripStable(ctx);
-			await assertNestedStateConsistent(ctx);
-		};
+		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
 		// ── Nested reorder inside an opaque container declines (byte-exact no-op) ──

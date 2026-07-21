@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
+import { capturePageErrors } from '../../page-probes';
 
 // A windowed doc: many short paragraphs with a unique marker as the last block,
 // off-window from the top.
@@ -27,8 +28,7 @@ function markerInView(page: Page): Promise<{ mounted: boolean; inView: boolean }
 test('Shift+Ctrl+End extends to an off-window endpoint and scrolls it into view, collapse still routes', async ({
 	page
 }) => {
-	const pageErrors: string[] = [];
-	page.on('pageerror', (e) => pageErrors.push(e.message));
+	const pageErrors = capturePageErrors(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto();

@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { capturePageErrors } from '../../../page-probes';
 
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 const TABLE_3ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -190,8 +191,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		// and Svelte's keyed each would log `each_key_duplicate` for `undefined` keys.
 		// Also catches state_unsafe_mutation regressions: the focusout handler in
 		// TableBlock writes to internalStickyColumn / focusedCell during reconcile.
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 		const original = '| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
 		await editor.loadContent(original);
 
@@ -230,8 +230,7 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 	// Reading the post-commit count via `deps.node` (and clamping to it) keeps
 	// focus on a surviving cell.
 	test('deleting the last body row lands focus on a surviving cell', async ({ page }) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3ROW);
 
 		// Header + 2 body rows = 6 cells. Focus a cell in the LAST body row
@@ -253,8 +252,7 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 	// count and clamped focus against the old width, targeting the deleted last
 	// column's index.
 	test('deleting the last column lands focus on a surviving cell', async ({ page }) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 		// 2-column table so delete is not a no-op (no-op fires at 1 column).
 		await editor.loadContent(TABLE_2x2);
 

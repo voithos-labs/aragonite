@@ -1,24 +1,8 @@
 import { test, expect } from '../../../fixtures';
-import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { clickPastImageRightEdge, waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
-
-async function waitForFirstImageLoaded(page: Page): Promise<void> {
-	await page.waitForFunction(
-		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
-	);
-}
-
-async function clickPastImageRightEdge(page: Page): Promise<void> {
-	const widget = page.locator('[data-image-widget]').first();
-	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
-	const widgetBox = await widget.boundingBox();
-	const paraBox = await para.boundingBox();
-	if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
-	const clickX = Math.min(widgetBox.x + widgetBox.width + 80, paraBox.x + paraBox.width - 20);
-	await page.mouse.click(clickX, widgetBox.y + widgetBox.height / 2);
-}
 
 test.describe('typing and paste after click-snap', () => {
 	let editor: EditorPage;

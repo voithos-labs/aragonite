@@ -293,10 +293,6 @@ export class EditorPage {
 		await this.page.keyboard.press(`${primaryModifier}+a`);
 	}
 
-	async screenshot(name: string) {
-		await this.page.screenshot({ path: `test-results/${name}.png` });
-	}
-
 	// ── Drag & Shift+Click ──────────────────────────────────────────────
 
 	async dragFromTo(

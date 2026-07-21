@@ -3,6 +3,12 @@ import { type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { generateUniformBlocks, generateFixture } from '../../../test/perf/fixtures/generate';
+import {
+	docLengthInPage,
+	waitForDocLength,
+	waitForBlock0Len,
+	percentileMs
+} from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 test.skip(!process.env.PERF, 'set PERF=1 to run the perf project');
@@ -33,35 +39,38 @@ test('perf bridge: a keystroke records a block render and an in-page sample', as
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
-function docLengthInPage(): number {
-	const doc = (window as any).__test.getDocument();
-	let length = doc.prefix.length + doc.suffix.length;
-	for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
-	return length;
-}
-
 async function settle(page: Page, min: number): Promise<void> {
-	await page.waitForFunction(
-		({ fnSrc, min }) => (new Function(`return (${fnSrc})();`)() as number) >= min,
-		{ fnSrc: docLengthInPage.toString(), min },
-		{ timeout: 60_000, polling: 16 }
-	);
+	await waitForDocLength(page, min, 60_000);
 }
 
-// O(1) settle on block 0's own raw length — avoids docLengthInPage's O(children)
-// sum so the poll itself can't add per-keystroke cost that scales with block
-// count (disambiguates a real editor residual from a harness-poll artifact).
-async function settleBlock0Len(page: Page, min: number): Promise<void> {
-	await page.waitForFunction(
-		(min) => ((window as any).__test.getDocument().children[0]?.raw.length ?? 0) >= min,
-		min,
-		{ timeout: 60_000, polling: 16 }
-	);
+const p50 = (xs: number[]): number => percentileMs(xs, 50);
+
+interface DurationDeltaMs {
+	scriptMs: number;
+	layoutMs: number;
+	recalcStyleMs: number;
+	taskMs: number;
 }
 
-function p50(xs: number[]): number {
-	const s = [...xs].sort((a, b) => a - b);
-	return s[Math.max(0, Math.ceil(0.5 * s.length) - 1)];
+// One CDP measurement window shared by every CDP axis: snapshot the Performance
+// counters, run the timed work, and return the *Duration deltas in ms. Whatever
+// must stay outside the window (perf.enable/reset, goto, post-run snapshot reads)
+// lives around the `run` closure, never inside the helper.
+async function cdpDurationDelta(page: Page, run: () => Promise<void>): Promise<DurationDeltaMs> {
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Performance.enable');
+	const metric = (m: any, n: string): number =>
+		m.metrics.find((x: any) => x.name === n)?.value ?? 0;
+	const before: any = await cdp.send('Performance.getMetrics');
+	await run();
+	const after: any = await cdp.send('Performance.getMetrics');
+	const deltaMs = (n: string): number => (metric(after, n) - metric(before, n)) * 1000;
+	return {
+		scriptMs: deltaMs('ScriptDuration'),
+		layoutMs: deltaMs('LayoutDuration'),
+		recalcStyleMs: deltaMs('RecalcStyleDuration'),
+		taskMs: deltaMs('TaskDuration')
+	};
 }
 
 function write(name: string, result: object): void {
@@ -122,24 +131,19 @@ test('axis3: scripting vs layout split', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const src = generateUniformBlocks(2000, 8) + '\nperf cursor target\n';
 	await loadAndFocusBlock0(page, editor, src);
-	const cdp = await page.context().newCDPSession(page);
-	await cdp.send('Performance.enable');
-	const metric = (m: any, n: string): number =>
-		m.metrics.find((x: any) => x.name === n)?.value ?? 0;
-	const before: any = await cdp.send('Performance.getMetrics');
-	const base = await page.evaluate(docLengthInPage);
 	const N = 20;
-	for (let i = 1; i <= N; i++) {
-		await editor.typeSlowly('x');
-		await settle(page, base + i);
-	}
-	const after: any = await cdp.send('Performance.getMetrics');
+	const { scriptMs, layoutMs, recalcStyleMs } = await cdpDurationDelta(page, async () => {
+		const base = await page.evaluate(docLengthInPage);
+		for (let i = 1; i <= N; i++) {
+			await editor.typeSlowly('x');
+			await settle(page, base + i);
+		}
+	});
 	write('axis3-cdp', {
 		keystrokes: N,
-		scriptMs: (metric(after, 'ScriptDuration') - metric(before, 'ScriptDuration')) * 1000,
-		layoutMs: (metric(after, 'LayoutDuration') - metric(before, 'LayoutDuration')) * 1000,
-		recalcStyleMs:
-			(metric(after, 'RecalcStyleDuration') - metric(before, 'RecalcStyleDuration')) * 1000
+		scriptMs,
+		layoutMs,
+		recalcStyleMs
 	});
 });
 
@@ -208,25 +212,21 @@ test('axisN: nested-containers 1MB direct attribution', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
 	await loadAndFocusBlock0(page, editor, src);
-	const cdp = await page.context().newCDPSession(page);
-	await cdp.send('Performance.enable');
-	const metric = (m: any, n: string): number =>
-		m.metrics.find((x: any) => x.name === n)?.value ?? 0;
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
 		(window as any).__test.perf.reset();
 	});
-	const before: any = await cdp.send('Performance.getMetrics');
-	const base = await page.evaluate(docLengthInPage);
 	const harness: number[] = [];
 	const N = 20;
-	for (let i = 1; i <= N; i++) {
-		const t0 = performance.now();
-		await editor.typeSlowly('x');
-		await settle(page, base + i);
-		harness.push(performance.now() - t0);
-	}
-	const after: any = await cdp.send('Performance.getMetrics');
+	const { scriptMs, layoutMs, recalcStyleMs } = await cdpDurationDelta(page, async () => {
+		const base = await page.evaluate(docLengthInPage);
+		for (let i = 1; i <= N; i++) {
+			const t0 = performance.now();
+			await editor.typeSlowly('x');
+			await settle(page, base + i);
+			harness.push(performance.now() - t0);
+		}
+	});
 	const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
 	write('axisN-nested', {
 		keystrokes: N,
@@ -234,10 +234,9 @@ test('axisN: nested-containers 1MB direct attribution', async ({ page }) => {
 		inPageP50Ms: p50(snap.keystrokeInPageMs),
 		blockRenderCount: snap.blockRenderCount,
 		blockRenderMsTotal: snap.blockRenderMsTotal,
-		scriptMs: (metric(after, 'ScriptDuration') - metric(before, 'ScriptDuration')) * 1000,
-		layoutMs: (metric(after, 'LayoutDuration') - metric(before, 'LayoutDuration')) * 1000,
-		recalcStyleMs:
-			(metric(after, 'RecalcStyleDuration') - metric(before, 'RecalcStyleDuration')) * 1000
+		scriptMs,
+		layoutMs,
+		recalcStyleMs
 	});
 });
 
@@ -316,28 +315,23 @@ test('axisQ: steady-state CDP breakdown (nested 1MB)', async ({ page }) => {
 	await editor.typeSlowly('x');
 	await settle(page, base + 1);
 	base += 1;
-	const cdp = await page.context().newCDPSession(page);
-	await cdp.send('Performance.enable');
-	const metric = (m: any, n: string): number =>
-		m.metrics.find((x: any) => x.name === n)?.value ?? 0;
-	const before: any = await cdp.send('Performance.getMetrics');
 	const harness: number[] = [];
 	const N = 15;
-	for (let i = 1; i <= N; i++) {
-		const t0 = performance.now();
-		await editor.typeSlowly('x');
-		await settle(page, base + i);
-		harness.push(performance.now() - t0);
-	}
-	const after: any = await cdp.send('Performance.getMetrics');
-	const per = (n: string) => ((metric(after, n) - metric(before, n)) * 1000) / N;
+	const delta = await cdpDurationDelta(page, async () => {
+		for (let i = 1; i <= N; i++) {
+			const t0 = performance.now();
+			await editor.typeSlowly('x');
+			await settle(page, base + i);
+			harness.push(performance.now() - t0);
+		}
+	});
 	write('axisQ-steadystate-cdp', {
 		keystrokes: N,
 		harnessP50Ms: p50(harness),
-		taskMsPerKey: per('TaskDuration'),
-		scriptMsPerKey: per('ScriptDuration'),
-		layoutMsPerKey: per('LayoutDuration'),
-		recalcStyleMsPerKey: per('RecalcStyleDuration')
+		taskMsPerKey: delta.taskMs / N,
+		scriptMsPerKey: delta.scriptMs / N,
+		layoutMsPerKey: delta.layoutMs / N,
+		recalcStyleMsPerKey: delta.recalcStyleMs / N
 	});
 	expect(harness.length).toBe(N);
 });
@@ -389,9 +383,12 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 		await settle(page, src.replace(/\s+$/, '').length);
 		await editor.waitForRenderFlush();
 		await editor.focusBlockEnd(0);
-		let b0 = await page.evaluate(() => (window as any).__test.getDocument().children[0].raw.length);
+		let b0 = await page.evaluate(() => {
+			const c = (window as any).__test.getDocument().children[0];
+			return c.leadingTrivia.length + c.raw.length;
+		});
 		await editor.typeSlowly('x'); // warm up past the first-edit re-render
-		await settleBlock0Len(page, b0 + 1);
+		await waitForBlock0Len(page, b0 + 1, 60_000);
 		b0 += 1;
 		await page.evaluate(() => {
 			(window as any).__test.perf.enable();
@@ -401,20 +398,16 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 		// in-page mark (fires at the edited block's render effect) and the block-0
 		// poll (resolves at the synchronous commit). With the O(1) settle the poll
 		// script is negligible, so flat ScriptDuration ⇒ editor work is provably flat.
-		const cdp = await page.context().newCDPSession(page);
-		await cdp.send('Performance.enable');
-		const metric = (m: any, n: string): number =>
-			m.metrics.find((x: any) => x.name === n)?.value ?? 0;
-		const before: any = await cdp.send('Performance.getMetrics');
 		const harness: number[] = [];
 		const N = 10;
-		for (let i = 1; i <= N; i++) {
-			const t0 = performance.now();
-			await editor.typeSlowly('x');
-			await settleBlock0Len(page, b0 + i);
-			harness.push(performance.now() - t0);
-		}
-		const after: any = await cdp.send('Performance.getMetrics');
+		const delta = await cdpDurationDelta(page, async () => {
+			for (let i = 1; i <= N; i++) {
+				const t0 = performance.now();
+				await editor.typeSlowly('x');
+				await waitForBlock0Len(page, b0 + i, 60_000);
+				harness.push(performance.now() - t0);
+			}
+		});
 		// Mounted top-level host count from the DOM — robust to perf-enable timing
 		// (the net mountedBlockCount counter needs enabling before any block mounts).
 		const mountedTopLevel = await page.evaluate(
@@ -427,10 +420,7 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			inPageP50Ms: snap.keystrokeInPageMs.length
 				? Math.round(p50(snap.keystrokeInPageMs) * 10) / 10
 				: null,
-			scriptMsPerKey:
-				Math.round(
-					((metric(after, 'ScriptDuration') - metric(before, 'ScriptDuration')) * 1000 * 10) / N
-				) / 10,
+			scriptMsPerKey: Math.round((delta.scriptMs * 10) / N) / 10,
 			mountedTopLevel,
 			rendersPerKeystroke: Math.round((snap.blockRenderCount / N) * 100) / 100
 		});
@@ -449,22 +439,19 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 	const rows: object[] = [];
 	for (const bytes of [1_000_000, 4_000_000, 10_000_000]) {
 		const src = generateFixture('many-small-blocks', bytes);
-		const cdp = await page.context().newCDPSession(page);
-		await cdp.send('Performance.enable');
-		const metric = (m: any, n: string): number =>
-			m.metrics.find((x: any) => x.name === n)?.value ?? 0;
 		await editor.goto();
 		await page.evaluate(() => {
 			(window as any).__test.perf.enable();
 			(window as any).__test.perf.reset();
 		});
-		const before: any = await cdp.send('Performance.getMetrics');
-		const t0 = performance.now();
-		await page.evaluate((c) => (window as any).__test.setSource(c), src);
-		await settle(page, src.replace(/\s+$/, '').length);
-		await editor.waitForRenderFlush();
-		const loadMs = performance.now() - t0;
-		const after: any = await cdp.send('Performance.getMetrics');
+		let loadMs = 0;
+		const { scriptMs, layoutMs } = await cdpDurationDelta(page, async () => {
+			const t0 = performance.now();
+			await page.evaluate((c) => (window as any).__test.setSource(c), src);
+			await settle(page, src.replace(/\s+$/, '').length);
+			await editor.waitForRenderFlush();
+			loadMs = performance.now() - t0;
+		});
 		const mountedTopLevel = await page.evaluate(
 			() => document.querySelectorAll('[data-block-path]:not([data-block-path*=","])').length
 		);
@@ -478,12 +465,8 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 			topLevelChildCount,
 			mountedTopLevel,
 			rendersDuringLoad: snap.blockRenderCount,
-			scriptMs: Math.round(
-				(metric(after, 'ScriptDuration') - metric(before, 'ScriptDuration')) * 1000
-			),
-			layoutMs: Math.round(
-				(metric(after, 'LayoutDuration') - metric(before, 'LayoutDuration')) * 1000
-			)
+			scriptMs: Math.round(scriptMs),
+			layoutMs: Math.round(layoutMs)
 		});
 	}
 	write('axisLoad-flat', { rows });

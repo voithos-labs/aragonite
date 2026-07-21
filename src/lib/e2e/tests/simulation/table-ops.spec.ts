@@ -5,12 +5,7 @@ import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertNestedStateConsistent,
-	assertNoErrors,
-	assertRoundTripStable
-} from '../../simulation/invariants';
+import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 
 // Ungated table proxy-class oracle. Tables are the most proxy-prone block kind —
 // keyed-children containers whose rows are themselves keyed sub-containers, doing
@@ -57,12 +52,7 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		const ctx: SimContext = { page, editor, tracker, errors, label: 'table-ops' };
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			ctx.label = label;
-			await assertNoErrors(ctx);
-			await assertRoundTripStable(ctx);
-			await assertNestedStateConsistent(ctx);
-		};
+		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 
 		// 2 cols × 3 rows (header + 2 body). Cells are row-major: header 0,1;
 		// row1 2,3; row2 4,5.

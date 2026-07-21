@@ -35,7 +35,7 @@ async function editEditor(page: Page, editor: Locator, mark: string): Promise<vo
 	await page.keyboard.press('End');
 	await page.keyboard.type(mark);
 	await expect(editor).toContainText(mark);
-	await page.waitForTimeout(300);
+	await page.waitForTimeout(300); // past the ~250ms undo-batch debounce so the run is one undo entry
 }
 
 test.describe('multi-editor document-chord containment', () => {

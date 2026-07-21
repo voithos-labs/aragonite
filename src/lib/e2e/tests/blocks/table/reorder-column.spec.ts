@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { capturePageErrors } from '../../../page-probes';
 
 // Cells render row-major, header first: a 1-body-row 3-col table exposes header
 // cells 0,1,2 (columns A,B,C) then body cells 3,4,5. Columns have no fixed
@@ -62,8 +63,7 @@ test.describe('table block: keyboard column reorder', () => {
 	});
 
 	test('column move: container parity holds and no page error', async ({ page }) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3COL);
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+ArrowRight');

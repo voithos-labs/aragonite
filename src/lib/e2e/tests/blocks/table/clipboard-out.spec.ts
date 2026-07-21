@@ -1,31 +1,8 @@
 import { test, expect } from '../../../fixtures';
-import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { dragBetweenCells, readClipboard } from './helpers';
 
 const TABLE_ALIGNED = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
-
-async function readClipboard(page: Page): Promise<string> {
-	return page.evaluate(() => navigator.clipboard.readText());
-}
-
-async function dragBetweenCells(page: Page, fromIdx: number, toIdx: number): Promise<void> {
-	const from = page.locator('[role="cell"]').nth(fromIdx);
-	const to = page.locator('[role="cell"]').nth(toIdx);
-	const fromBox = await from.boundingBox();
-	const toBox = await to.boundingBox();
-	if (!fromBox || !toBox) throw new Error('dragBetweenCells: missing bounding box');
-	const sx = fromBox.x + fromBox.width / 2;
-	const sy = fromBox.y + fromBox.height / 2;
-	const ex = toBox.x + toBox.width / 2;
-	const ey = toBox.y + toBox.height / 2;
-	await page.mouse.move(sx, sy);
-	await page.mouse.down();
-	for (let i = 1; i <= 10; i++) {
-		const t = i / 10;
-		await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-	}
-	await page.mouse.up();
-}
 
 test.describe('table block: clipboard out', () => {
 	let editor: EditorPage;

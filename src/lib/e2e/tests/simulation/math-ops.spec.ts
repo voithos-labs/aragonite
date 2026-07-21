@@ -4,12 +4,7 @@ import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertNestedStateConsistent,
-	assertNoErrors,
-	assertRoundTripStable
-} from '../../simulation/invariants';
+import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 
 // Ungated math-ops oracle for the LaTeX extension. Math is the first nonzero-
 // interior inline widget (KaTeX renders real glyph text nodes) and the first
@@ -61,12 +56,7 @@ test.describe('math-ops simulation', () => {
 		const ctx: SimContext = { page, editor, tracker, errors, label: 'math-ops' };
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			ctx.label = label;
-			await assertNoErrors(ctx);
-			await assertRoundTripStable(ctx);
-			await assertNestedStateConsistent(ctx);
-		};
+		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
 		// ── Inline: insert at the end of a prose block, edit, delete ────────────
@@ -133,12 +123,7 @@ test.describe('math-ops simulation', () => {
 		const ctx: SimContext = { page, editor, tracker, errors, label: 'mermaid-focus' };
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			ctx.label = label;
-			await assertNoErrors(ctx);
-			await assertRoundTripStable(ctx);
-			await assertNestedStateConsistent(ctx);
-		};
+		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
 		// Diagram sits at [1]; the prose below it is [2].
