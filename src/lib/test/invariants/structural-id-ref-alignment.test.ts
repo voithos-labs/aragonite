@@ -6,6 +6,7 @@ import type { NestedActionsBundle } from '$lib/editor-actions/nested/nested-acti
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { assignChildIdsDeep } from '$lib/block-id';
+import { buildPastedReplacement } from '$lib/tree-operations';
 import {
 	mockRef,
 	makeEditorActionsDeps,
@@ -27,7 +28,8 @@ import type { CstNode } from '$lib/core/nodes';
  * `applyStructuralChangeToIdsRefs` (the commit primitive's auto-sync) is the
  * code under test; the ops drive it through the real action bundles.
  *
- * Ops covered: split / merge / delete / paste (insert/delete/replace shapes)
+ * Ops covered: split / merge / delete / replaceBlock (the structural-paste
+ * live path — a paste splices its folded replacement through `replaceBlock`)
  * and reorder (a `replace` whose `idMap` permutes the spanned window) — the
  * shape most likely to desync ids/refs, since every moved slot reuses an
  * existing id rather than minting one.
@@ -106,14 +108,11 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		expect(h.ids()).toEqual([id0, id2]);
 	});
 
-	it('multi-block paste keeps arrays aligned and pins the host id to the first piece', async () => {
+	it('multi-block replace (paste live path) keeps arrays aligned and pins the host id to the first piece', async () => {
 		const h = makeTop(['hello\n', 'tail\n']);
 		const [id0, id1] = h.ids();
 
-		await h.actions.insertParsedBlocks(0, 2, [
-			makeNode('paragraph', 'x\n'),
-			makeNode('paragraph', 'y\n')
-		]);
+		await h.actions.replaceBlock(0, [makeNode('paragraph', 'x\n'), makeNode('paragraph', 'y\n')]);
 
 		assertAligned(h);
 		expect(h.doc.children.length).toBeGreaterThan(2);
@@ -237,18 +236,18 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		expect(h.state.innerBlockRefs[0]).toBe(ref0);
 	});
 
-	it('inner paste keeps arrays aligned and pins the host id to the first piece', async () => {
+	it('inner replace (paste live path) keeps arrays aligned and pins the host id to the first piece', async () => {
 		const h = makeContainer(BQ_TWO);
 		const [id0, id1] = h.state.innerBlockIds;
 
-		await h.bundle.blockEdit.insertParsedBlocks(0, 2, [
+		await h.bundle.blockEdit.replaceBlock(0, [
 			makeNode('paragraph', 'x\n'),
 			makeNode('paragraph', 'y\n')
 		]);
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds[0]).toBe(id0);
-		// id1 (the untouched second item) survives at the tail.
+		// id1 (the untouched second child) survives at the tail.
 		expect(h.state.innerBlockIds).toContain(id1);
 	});
 
@@ -336,11 +335,15 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		assertDeepChildIdsAligned(h.doc.children);
 	});
 
-	it('insertParsedBlocks (paste) of a reparsed nested list initializes childIds deeply', async () => {
+	it('structural paste (folded replacement) of a reparsed nested list initializes childIds deeply', async () => {
 		const h = makeTop(['head\n', 'tail\n']);
 		const nested = parse(NESTED_LIST).children;
 
-		await h.actions.insertParsedBlocks(0, 4, nested);
+		// The live structural-paste path folds the clipboard into a replacement and
+		// splices it through replaceBlock (defaultStructuralHook → buildPastedReplacement
+		// → replaceBlockAtParent), so the childIds backfill must reach every level here too.
+		const replacement = buildPastedReplacement(h.doc.children[0], 4, nested);
+		await h.actions.replaceBlock(0, replacement);
 
 		assertAligned(h);
 		assertDeepChildIdsAligned(h.doc.children);

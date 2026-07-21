@@ -483,7 +483,7 @@ The editor exposes an observer surface via `getEvents()`. Four channels, and `on
 
 The debug op-log is a subscriber to `edit`, not a call from commit sites. A future persistent-history layer hooks in the same way, touching no editor internals.
 
-One wrinkle worth knowing: the _nested_ paste path emits `op: 'replaceBlock'`, because its insert delegates to the container's `replaceBlock`. Top-level paste emits `op: 'paste'`. A consumer counting pastes across both paths must match both.
+One wrinkle worth knowing: a paste surfaces under more than one op kind, chosen by the paste _strategy_, not the target's depth. A default single-leaf structural paste emits `op: 'replaceBlock'` (it splices its folded replacement at the parent, at every depth); the list/container absorb-and-merge strategies emit `op: 'paste'`. A consumer counting pastes across paths must match both.
 
 ## 13. Block identity
 
