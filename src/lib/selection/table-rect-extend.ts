@@ -13,6 +13,7 @@
 import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { cellRowCol } from '../cursor/coordinate-spaces';
 import type { SelectionPoint } from './primitives';
 import { pathsEqual } from './path-math';
 
@@ -44,8 +45,7 @@ export function intraTableRectExtension(
 	if (colCount === 0 || rowCount === 0) return null;
 
 	const path = focus.path;
-	const row = Math.floor(focus.offset / colCount);
-	const col = focus.offset % colCount;
+	const { row, col } = cellRowCol(focus.offset, colCount);
 
 	switch (key) {
 		case 'ArrowDown':

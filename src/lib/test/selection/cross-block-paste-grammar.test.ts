@@ -11,7 +11,6 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoManager } from '$lib/undo/manager';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createEditorEvents } from '$lib/editor-events';
@@ -54,14 +53,12 @@ function makeEnv(source: string) {
 	};
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
-	const containerEdit = createContainerEditActions(deps, controller);
 	return {
 		doc: () => deps.doc,
 		deps,
 		selectionState,
 		controller,
 		blockEdit,
-		containerEdit,
 		stickyColumn
 	};
 }
@@ -79,7 +76,6 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		getEditorRoot: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,
-		containerEdit: env.containerEdit,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },
@@ -90,8 +86,7 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		pasteCoordinator: createPasteCoordinator(env.controller),
 		grammar,
 		getCursorOffset: () => 0,
-		afterReactivity: async () => {},
-		setPendingCursor: () => {}
+		afterReactivity: async () => {}
 	});
 }
 

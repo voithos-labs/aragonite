@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyTableSelectionCoverage } from '../../selection/range-delete-table';
+import { classifyTableSelectionCoverage } from '../../selection/range-delete-table-coverage';
 
 describe('classifyTableSelectionCoverage — 3 columns × 3 rows', () => {
 	const cols = 3;

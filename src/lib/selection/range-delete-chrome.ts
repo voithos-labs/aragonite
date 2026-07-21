@@ -12,7 +12,7 @@ import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
-import { displayLength } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
 import { walkBetween, charOffsetOf } from './primitives';
 import {
 	comparePaths,
@@ -107,10 +107,10 @@ export function chromeAwareRangeDelete(
 		const endBlock = endChain[endChain.length - 1];
 		const endTail = endBlock.raw.slice(endOffset);
 		if (endC && isChromeChild(endC, end.path)) {
-			endBlock.raw = endTail || lineEndingOf(endBlock.raw);
+			endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
 		} else {
 			const tailReplacement = reparseWithFallback(
-				endTail || lineEndingOf(endBlock.raw),
+				endTail || trailingLineEnding(endBlock.raw),
 				endBlock.leadingTrivia
 			);
 			for (const node of tailReplacement) sharing.stamp(node);
@@ -202,13 +202,9 @@ export function lastChildDescendant(container: ChromeContainer, path: number[]):
 	return node;
 }
 
-export function lineEndingOf(raw: string): string {
-	return raw.endsWith('\r\n') ? '\r\n' : '\n';
-}
-
 /** A truncated slice standing alone mid-document must stay line-terminated. */
 export function terminateLine(text: string, sourceRaw: string): string {
-	return text.endsWith('\n') ? text : text + lineEndingOf(sourceRaw);
+	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
 }
 
 /** Reparse a truncated endpoint slice, preserving its leading trivia; empty → a bare paragraph. */

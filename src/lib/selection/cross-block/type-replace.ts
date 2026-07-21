@@ -13,7 +13,7 @@ import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { blockNodeAt, updateNodeContent } from '../../tree-operations/node-ops';
-import { applyCollapsedCaret } from '../native-bridge';
+import { focusCollapsedCaret } from '../native-bridge';
 import {
 	ensureUnsharedChild,
 	ensureUnsharedNode,
@@ -40,14 +40,14 @@ export async function handleCrossBlockTypeReplace(
 	// once here so each (including the non-awaited afterTick) finds a live element.
 	await ctx.revealPath(caret.path);
 	if (!typed) {
-		applyCaretAtPath(ctx, caret);
+		focusCollapsedCaret(ctx.getBlockElByPath, caret);
 		return true;
 	}
 
 	const doc = ctx.getDoc();
 	const targetNode = blockNodeAt(doc, caret.path);
 	if (!targetNode) {
-		applyCaretAtPath(ctx, caret);
+		focusCollapsedCaret(ctx.getBlockElByPath, caret);
 		return true;
 	}
 
@@ -58,7 +58,7 @@ export async function handleCrossBlockTypeReplace(
 	// keeps the typed character in the same undo unit as performCrossBlockDelete.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
-		applyCaretAtPath(ctx, caret);
+		focusCollapsedCaret(ctx.getBlockElByPath, caret);
 		return true;
 	}
 
@@ -116,20 +116,12 @@ export async function handleCrossBlockTypeReplace(
 			eventPath: docPathFrom(caret.path)
 		},
 		afterTick: () =>
-			applyCaretAtPath(ctx, { path: caret.path, offset: caret.offset + typed.length })
+			focusCollapsedCaret(ctx.getBlockElByPath, {
+				path: caret.path,
+				offset: caret.offset + typed.length
+			})
 	});
 	return true;
-}
-
-function applyCaretAtPath(
-	ctx: CrossBlockDispatchContext,
-	point: { path: number[]; offset: number }
-): void {
-	const blockEl = ctx.getBlockElByPath(point.path);
-	if (blockEl) {
-		applyCollapsedCaret(blockEl, point);
-		blockEl.focus();
-	}
 }
 
 /**
