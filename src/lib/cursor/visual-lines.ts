@@ -16,12 +16,24 @@ import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
 // inline-image jitter on the same line doesn't read as a different line.
 const SAME_LINE_TOLERANCE = 0.8;
 
-export function getRangeTop(range: Range): number | null {
+/**
+ * The first rect that can position a caret: the leading client rect when it has
+ * real height, else the bounding rect. `widthTolerant` (the default) also accepts a
+ * zero-height rect that still has width. `getRangeTop` alone passes `false`, keeping
+ * its test-pinned "null on a zero-height rect" contract; the two predicates differ
+ * only on a zero-height/positive-width rect, which its collapsed-caret inputs never
+ * produce, so the stricter form is behavior-neutral there.
+ */
+export function firstUsefulRect(range: Range, widthTolerant = true): DOMRect | null {
 	const rects = range.getClientRects();
-	if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
+	if (rects.length > 0 && rects[0].height > 0) return rects[0] as DOMRect;
 	const br = range.getBoundingClientRect();
-	if (br.height > 0) return br.top;
+	if (br.height > 0 || (widthTolerant && br.width > 0)) return br;
 	return null;
+}
+
+export function getRangeTop(range: Range): number | null {
+	return firstUsefulRect(range, false)?.top ?? null;
 }
 
 /**
@@ -38,10 +50,7 @@ export function getCharRangeTop(container: Node, offset: number, atEnd: boolean)
 			range.setStart(container, offset);
 			range.setEnd(container, offset + 1);
 		}
-		const rects = range.getClientRects();
-		if (rects.length > 0 && rects[0].height > 0) return rects[0].top;
-		const br = range.getBoundingClientRect();
-		if (br.height > 0 || br.width > 0) return br.top;
+		return firstUsefulRect(range)?.top ?? null;
 	} catch {
 		// offset out of bounds
 	}
