@@ -2,7 +2,8 @@
 // leaf raws fold to a clickable `…` island (interactive DOM inside an island is
 // native), and the click reopens the range through invalidate(). Folded bytes
 // live only in the CST — the island stands for them in the DOM.
-import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
+import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
+import { forEachLeaf } from '../walk-views';
 
 const OPEN = '[>';
 const CLOSE = '<]';
@@ -57,25 +58,16 @@ function keyOf(range: FoldRange): string {
 
 function findFoldRanges(doc: DocumentView): FoldRange[] {
 	const ranges: FoldRange[] = [];
-	walk(doc.children, []);
+	forEachLeaf(doc.children, (node, path) => {
+		let from = 0;
+		for (;;) {
+			const start = node.raw.indexOf(OPEN, from);
+			if (start < 0) break;
+			const close = node.raw.indexOf(CLOSE, start + OPEN.length);
+			if (close < 0) break;
+			ranges.push({ path, start, end: close + CLOSE.length });
+			from = close + CLOSE.length;
+		}
+	});
 	return ranges;
-
-	function walk(children: readonly NodeView[], path: number[]): void {
-		children.forEach((node, i) => {
-			const childPath = [...path, i];
-			if (node.children) {
-				walk(node.children, childPath);
-				return;
-			}
-			let from = 0;
-			for (;;) {
-				const start = node.raw.indexOf(OPEN, from);
-				if (start < 0) break;
-				const close = node.raw.indexOf(CLOSE, start + OPEN.length);
-				if (close < 0) break;
-				ranges.push({ path: childPath, start, end: close + CLOSE.length });
-				from = close + CLOSE.length;
-			}
-		});
-	}
 }

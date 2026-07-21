@@ -2,7 +2,8 @@ import { declarePluginKind } from 'aragonite/plugin';
 import type { BlockKindDescriptor } from 'aragonite/plugin';
 
 // Type-level proof the frozen authoring surface resolves from outside the repo.
-// Not called at runtime — WS-B builds the real callout registration.
+// Not called at runtime — the runtime callout registration lives in
+// src/plugins/callout; this file only proves the types resolve.
 export const _probe = (): { kind: string; describe: (d: BlockKindDescriptor) => string } => ({
 	kind: declarePluginKind('probe-kind'),
 	describe: (d) => d.mergeRole

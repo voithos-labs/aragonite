@@ -6,18 +6,15 @@
 	import {
 		dumpTree,
 		dumpUndoStack,
-		dumpInlineTree,
 		dumpOperationsLog,
 		dumpInteractionTrace
 	} from '$lib/debug/inspect';
 	import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
-	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
-	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import SelectionToolbar from './SelectionToolbar.svelte';
-	import { installTestProbes, getFocusedBlockPath, liveSelectionText } from './test-probes';
+	import { installTestProbes, liveSelectionText, dumpFocusedInlineTree } from './test-probes';
 
 	let source = $state(SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
@@ -51,6 +48,14 @@
 			) as PresentationMode | undefined)) ||
 			'source'
 	);
+
+	// Each header checkbox toggles its mode against source. testids are pinned by the
+	// presentation e2e.
+	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
+		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
+		{ mode: 'preview-block', testid: 'preview-block-toggle', label: 'Block preview' },
+		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' }
+	];
 
 	// Reading-mode link activation records to a page-scoped sink instead of opening a
 	// window, so the presentation e2e can assert the handler fired on a plain click.
@@ -129,35 +134,18 @@
 			<input type="checkbox" checked={dragHandlesOn} onchange={toggleDragHandles} />
 			Drag handles
 		</label>
-		<label class="demo-toggle">
-			<input
-				type="checkbox"
-				data-testid="presentation-toggle"
-				checked={presentationMode === 'reading'}
-				onchange={() => (presentationMode = presentationMode === 'reading' ? 'source' : 'reading')}
-			/>
-			Reading mode
-		</label>
-		<label class="demo-toggle">
-			<input
-				type="checkbox"
-				data-testid="preview-block-toggle"
-				checked={presentationMode === 'preview-block'}
-				onchange={() =>
-					(presentationMode = presentationMode === 'preview-block' ? 'source' : 'preview-block')}
-			/>
-			Block preview
-		</label>
-		<label class="demo-toggle">
-			<input
-				type="checkbox"
-				data-testid="preview-inline-toggle"
-				checked={presentationMode === 'preview-inline'}
-				onchange={() =>
-					(presentationMode = presentationMode === 'preview-inline' ? 'source' : 'preview-inline')}
-			/>
-			Inline preview
-		</label>
+		{#each PRESENTATION_TOGGLES as toggle (toggle.mode)}
+			<label class="demo-toggle">
+				<input
+					type="checkbox"
+					data-testid={toggle.testid}
+					checked={presentationMode === toggle.mode}
+					onchange={() =>
+						(presentationMode = presentationMode === toggle.mode ? 'source' : toggle.mode)}
+				/>
+				{toggle.label}
+			</label>
+		{/each}
 	</header>
 	<div class="demo-body">
 		<div class="editor-slot" bind:this={editorSlot}>
@@ -194,14 +182,7 @@
 				// dep registration independent of editor's ready state.
 				void panelTick;
 				if (!editor) return '';
-				const path = getFocusedBlockPath();
-				if (!path) return '';
-				const doc = parse(liveSource);
-				const node = nodeAt(doc, path);
-				if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
-				const range = getContentRange(node);
-				const inline = parseInline(node.raw, range.start, range.end);
-				return dumpInlineTree(inline);
+				return dumpFocusedInlineTree(liveSource);
 			}}
 			getOpsLog={() => {
 				const log = editor?.__test?.getOperationsLog?.();
