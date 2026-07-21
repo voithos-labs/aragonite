@@ -9,7 +9,7 @@ import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surface
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
 	makeEditorActionsDeps,
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -32,15 +32,10 @@ function nestedFor(node: CstNode) {
 		focus: makeStubFocus(),
 		containerEdit: makeStubContainerEdit()
 	};
-	const bundle = createStandardNestedActions(state, {
-		index: 4,
-		get node() {
-			return node;
-		},
-		path: [4],
-		stickyColumn: makeStickyColumn(),
-		parent
-	});
+	const bundle = createStandardNestedActions(
+		state,
+		makeNestedActionsDeps({ index: 4, getNode: () => node, path: [4], parent })
+	);
 	return { bundle, parent };
 }
 
@@ -88,19 +83,19 @@ describe('collapsed container forward-merge exit', () => {
 		harness.events.on('edit', (e) => edits.push(e));
 
 		const state = createBlockListState(() => details);
-		const bundle = createStandardNestedActions(state, {
-			index: 0,
-			get node() {
-				return details;
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: realFocus,
-				containerEdit: makeStubContainerEdit()
-			}
-		});
+		const bundle = createStandardNestedActions(
+			state,
+			makeNestedActionsDeps({
+				index: 0,
+				getNode: () => details,
+				path: [0],
+				parent: {
+					blockEdit: makeStubBlockEdit(),
+					focus: realFocus,
+					containerEdit: makeStubContainerEdit()
+				}
+			})
+		);
 
 		await bundle.blockEdit.mergeWithNext(0);
 

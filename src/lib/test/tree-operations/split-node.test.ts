@@ -2,21 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
-import { generateBlockId } from '../../block-id';
-
-function applyReplace(
-	ids: string[],
-	at: number,
-	count: number,
-	newCount: number,
-	idMap: Record<number, number> = {}
-): void {
-	const oldIds = ids.slice(at, at + count);
-	const newIds = Array.from({ length: newCount }, (_, i) =>
-		idMap[i] !== undefined ? oldIds[idMap[i]] : generateBlockId()
-	);
-	ids.splice(at, count, ...newIds);
-}
+import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
 
 describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
@@ -36,8 +22,7 @@ describe('splitNode', () => {
 		const doc = parse(source);
 		const ids = ['original-id'];
 		const change = splitNode(doc, 0, 5);
-		if (change.op !== 'replace') throw new Error('expected replace');
-		applyReplace(ids, change.at, change.count, change.newCount, change.idMap);
+		applyStructuralChangeToIdsRefs(change, ids, [undefined]);
 		expect(ids).toHaveLength(2);
 		expect(ids[0]).toBe('original-id');
 		expect(ids[1]).not.toBe('original-id');

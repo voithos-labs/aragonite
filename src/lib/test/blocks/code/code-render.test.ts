@@ -24,13 +24,15 @@ function makeFencedCodeNode(
 	};
 }
 
-describe('renderCodeBlock', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
+// Language registry is register-once; reset + re-bootstrap before every test so a
+// leaked registration can't let one describe's grammar bleed into the next.
+beforeEach(() => {
+	__resetRegistryForTests();
+	__resetBootForTests();
+	bootstrapCodeLanguages();
+});
 
+describe('renderCodeBlock', () => {
 	it('renders opener marker + tokenized body + closer marker', () => {
 		const node = makeFencedCodeNode('```javascript\nconst x = 42;\n```\n', 'javascript');
 		const frag = renderCodeBlock(node);
@@ -105,12 +107,6 @@ describe('renderCodeBlock', () => {
 // (marker + its `\n`) with `display: none`; the wrappers must keep every raw byte
 // in document order, so textContent stays equal to trimTrailingLineEnding(raw).
 describe('renderCodeBlock — fence-line wrappers', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
-
 	function fenceLines(frag: DocumentFragment): HTMLElement[] {
 		return Array.from(frag.querySelectorAll('.md-fence-line'));
 	}
@@ -158,12 +154,6 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 });
 
 describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces)', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
-
 	// The fence-open grammar admits 0–3 leading spaces before the run. Those
 	// indent bytes must render ahead of the fence marker so textContent stays
 	// equal to trimTrailingLineEnding(raw): CodeBlock reads the block back through
@@ -198,12 +188,6 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 // No-grammar shapes isolate the trailing-line-ending strip; the language path's
 // interior-`\r` normalization is a separate ledgered defect, pinned below.
 describe('renderCodeBlock — CRLF trailing line ending', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
-
 	const shapes: Array<[string, CstNode]> = [
 		['closed no-info', makeFencedCodeNode('```\r\nhello\r\nworld\r\n```\r\n')],
 		['no-body', makeFencedCodeNode('```\r\n```\r\n')],
@@ -223,12 +207,6 @@ describe('renderCodeBlock — CRLF trailing line ending', () => {
 // Keeping an all-blank body's separator (so it renders N blank lines, not N−1) must
 // not disturb byte parity: textContent stays trimTrailingLineEnding(raw) in every mode.
 describe('renderCodeBlock — all-blank body byte parity', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
-
 	for (const blanks of [1, 2, 3]) {
 		it(`preserves textContent — ${blanks} blank line(s)`, () => {
 			const node = makeFencedCodeNode('```\n' + '\n'.repeat(blanks) + '```\n');
@@ -242,12 +220,6 @@ describe('renderCodeBlock — all-blank body byte parity', () => {
 // no ending to strip. textContent must still equal the raw verbatim (LF and CRLF) so
 // the closer survives CodeBlock's textContent readback on commit.
 describe('renderCodeBlock — closer without a final line ending', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
-
 	for (const [name, raw] of [
 		['LF', '```\ncode\n```'],
 		['CRLF', '```\r\ncode\r\n```']
@@ -269,12 +241,6 @@ describe('renderCodeBlock — closer without a final line ending', () => {
 // lines each keep their own ending. CodeBlock reads this textContent back as raw on
 // commit, so a dropped interior `\r` is a CRLF round-trip corruption.
 describe('renderCodeBlock — CRLF interior in the language path', () => {
-	beforeEach(() => {
-		__resetRegistryForTests();
-		__resetBootForTests();
-		bootstrapCodeLanguages();
-	});
-
 	const shapes: Array<[string, CstNode]> = [
 		[
 			'multi-line tagged body',

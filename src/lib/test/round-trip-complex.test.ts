@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../core/serializer';
 import { parse } from '../core/parser';
+import { describeRoundTrips } from '$lib/test/support/round-trip';
 
 // ── Complex Document Round-Trip Tests ───────────────────────────────────────
 
@@ -173,42 +174,33 @@ See [full docs](https://example.com) for details.
 
 // ── Edge Case Round-Trip Tests ──────────────────────────────────────────────
 
-describe('round-trip: edge cases', () => {
-	const cases: { name: string; source: string }[] = [
-		{ name: 'heading with closing hashes', source: '## Title ##\n' },
-		{ name: 'heading with trailing spaces', source: '# Title   \n' },
-		{ name: 'empty heading', source: '#\n' },
-		{ name: 'empty heading with space', source: '# \n' },
-		{ name: '7 hashes is not a heading', source: '####### Not a heading\n' },
+describeRoundTrips('round-trip: edge cases', [
+	{ name: 'heading with closing hashes', source: '## Title ##\n' },
+	{ name: 'heading with trailing spaces', source: '# Title   \n' },
+	{ name: 'empty heading', source: '#\n' },
+	{ name: 'empty heading with space', source: '# \n' },
+	{ name: '7 hashes is not a heading', source: '####### Not a heading\n' },
 
-		{ name: 'fence with trailing space on opener', source: '```  \ncode\n```\n' },
-		{ name: 'fence with empty content', source: '```\n```\n' },
-		{ name: 'tilde fence close must match character', source: '```\ncode\n~~~\nmore code\n```\n' },
+	{ name: 'fence with trailing space on opener', source: '```  \ncode\n```\n' },
+	{ name: 'fence with empty content', source: '```\n```\n' },
+	{ name: 'tilde fence close must match character', source: '```\ncode\n~~~\nmore code\n```\n' },
 
-		{ name: 'blockquote no space after >', source: '>text\n' },
-		{ name: 'blockquote containing a list', source: '> - A\n> - B\n' },
-		{ name: 'blockquote containing thematic break', source: '> ---\n' },
+	{ name: 'blockquote no space after >', source: '>text\n' },
+	{ name: 'blockquote containing a list', source: '> - A\n> - B\n' },
+	{ name: 'blockquote containing thematic break', source: '> ---\n' },
 
-		{ name: 'list item with empty content', source: '- \n' },
-		{ name: 'mixed list types are separate lists', source: '- A\n\n1. B\n' },
-		{ name: 'list item with special chars', source: '- Item with `code` and *emphasis*\n' },
+	{ name: 'list item with empty content', source: '- \n' },
+	{ name: 'mixed list types are separate lists', source: '- A\n\n1. B\n' },
+	{ name: 'list item with special chars', source: '- Item with `code` and *emphasis*\n' },
 
-		{ name: 'single newline only', source: '\n' },
-		{ name: 'single character no newline', source: 'x' },
-		{ name: 'spaces only line', source: '   \n' },
+	{ name: 'single newline only', source: '\n' },
+	{ name: 'single character no newline', source: 'x' },
+	{ name: 'spaces only line', source: '   \n' },
 
-		{ name: 'blockquote then list no gap', source: '> Quote\n- List\n' },
-		{ name: 'list then blockquote no gap', source: '- Item\n> Quote\n' },
-		{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' }
-	];
-
-	for (const { name, source } of cases) {
-		it(`round-trips: ${name}`, () => {
-			const doc = parse(source);
-			expect(serialize(doc)).toBe(source);
-		});
-	}
-});
+	{ name: 'blockquote then list no gap', source: '> Quote\n- List\n' },
+	{ name: 'list then blockquote no gap', source: '- Item\n> Quote\n' },
+	{ name: 'heading then blockquote no gap', source: '# Title\n> Quote\n' }
+]);
 
 // ── Ambiguity edge cases: what a construct is NOT ───────────────────────────
 
@@ -291,50 +283,41 @@ describe('construct-boundary edge cases', () => {
 
 // ── Reference-Style Links and Images ────────────────────────────────────────
 
-describe('round-trip: reference-style links and images', () => {
-	const cases: { name: string; source: string }[] = [
-		{
-			name: 'full reference link',
-			source: 'Click [here][go] now.\n\n[go]: https://example.com\n'
-		},
-		{
-			name: 'collapsed reference link',
-			source: 'See [Click Here][] today.\n\n[click here]: https://example.com\n'
-		},
-		{
-			name: 'shortcut reference link',
-			source: 'See [example] today.\n\n[example]: https://example.com\n'
-		},
-		{
-			name: 'reference link with title',
-			source: '[click][go]\n\n[go]: https://example.com "Go"\n'
-		},
-		{
-			name: 'reference image',
-			source: '![pic][img]\n\n[img]: /img.png "Alt"\n'
-		},
-		{
-			name: 'reference link inside emphasis',
-			source: '*see [click][go] now*\n\n[go]: https://example.com\n'
-		},
-		{
-			name: 'multi-LRD doc with mixed references',
-			source: '[a][one] and [b][two].\n\n[one]: https://1.com\n[two]: https://2.com\n'
-		},
-		{
-			name: 'unresolved reference (no matching LRD)',
-			source: '[broken][missing] text.\n'
-		},
-		{
-			name: 'reference link mixed with inline link',
-			source: '[ref][go] vs [inline](https://x.com).\n\n[go]: https://example.com\n'
-		}
-	];
-
-	for (const { name, source } of cases) {
-		it(`round-trips: ${name}`, () => {
-			const doc = parse(source);
-			expect(serialize(doc)).toBe(source);
-		});
+describeRoundTrips('round-trip: reference-style links and images', [
+	{
+		name: 'full reference link',
+		source: 'Click [here][go] now.\n\n[go]: https://example.com\n'
+	},
+	{
+		name: 'collapsed reference link',
+		source: 'See [Click Here][] today.\n\n[click here]: https://example.com\n'
+	},
+	{
+		name: 'shortcut reference link',
+		source: 'See [example] today.\n\n[example]: https://example.com\n'
+	},
+	{
+		name: 'reference link with title',
+		source: '[click][go]\n\n[go]: https://example.com "Go"\n'
+	},
+	{
+		name: 'reference image',
+		source: '![pic][img]\n\n[img]: /img.png "Alt"\n'
+	},
+	{
+		name: 'reference link inside emphasis',
+		source: '*see [click][go] now*\n\n[go]: https://example.com\n'
+	},
+	{
+		name: 'multi-LRD doc with mixed references',
+		source: '[a][one] and [b][two].\n\n[one]: https://1.com\n[two]: https://2.com\n'
+	},
+	{
+		name: 'unresolved reference (no matching LRD)',
+		source: '[broken][missing] text.\n'
+	},
+	{
+		name: 'reference link mixed with inline link',
+		source: '[ref][go] vs [inline](https://x.com).\n\n[go]: https://example.com\n'
 	}
-});
+]);

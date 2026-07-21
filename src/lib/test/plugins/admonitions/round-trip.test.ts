@@ -3,17 +3,14 @@ import { installPlugins, parse, serialize } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
 import type { AdmonitionMetadata } from '$lib/plugins/admonitions/kinds';
+import { roundTripCases } from '$lib/test/support/round-trip';
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
-function roundTrips(src: string): boolean {
-	return serialize(parse(src)) === src;
-}
-
 describe('admonition round-trip (registered)', () => {
-	const cases = [
+	roundTripCases([
 		':::note\nBody.\n:::\n',
 		':::tip Pro tip\nBody.\n:::\n',
 		':::warning Careful\nLine one.\n\nLine two.\n:::\n',
@@ -21,12 +18,7 @@ describe('admonition round-trip (registered)', () => {
 		':::caution\nDanger.\n:::\n',
 		'# Heading\n\n:::note Titled\nInside.\n:::\n\nAfter.\n',
 		'::::note\n:::tip\nnested inner directive stays body\n:::\n::::\n'
-	];
-	for (const src of cases) {
-		it(`round-trips ${JSON.stringify(src)}`, () => {
-			expect(roundTrips(src)).toBe(true);
-		});
-	}
+	]);
 
 	it('parses to the admonition kind and reads its name from metadata', () => {
 		const doc = parse(':::warning Careful\nBody.\n:::\n');

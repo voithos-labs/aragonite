@@ -1,16 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createListOverrides } from '$lib/editor-actions/list-overrides';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import {
-	makeStickyColumn,
-	makeStubBlockEdit,
-	makeStubFocus,
 	makeEditorActionsDeps,
+	makeNestedHarness,
 	makeNode
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
@@ -96,24 +90,7 @@ function makeNestedSetup() {
 		innerSuffix: ''
 	} as CstNode;
 
-	const { deps } = makeEditorActionsDeps([containerNode]);
-	const controller = createUndoController(deps);
-	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const containerState = createBlockListState(() => deps.doc.children[0]);
-	const bundle = createStandardNestedActions(containerState, {
-		index: 0,
-		get node() {
-			return deps.doc.children[0];
-		},
-		path: [0],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit: containerEditActions
-		}
-	});
+	const { deps, bundle, state: containerState } = makeNestedHarness([containerNode]);
 
 	return { bundle, containerNode, containerState, deps };
 }
@@ -189,38 +166,7 @@ function makeListSetup() {
 	const listNode = parse('- a\n- b\n').children[0];
 	expect(listNode.kind).toBe('list');
 
-	const { deps } = makeEditorActionsDeps([listNode]);
-	const controller = createUndoController(deps);
-	const containerEdit = createContainerEditActions(deps, controller);
-
-	const listState = createBlockListState(() => deps.doc.children[0]);
-
-	const bundle = createStandardNestedActions(
-		listState,
-		{
-			index: 0,
-			get node() {
-				return deps.doc.children[0];
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit
-			}
-		},
-		createListOverrides({
-			index: 0,
-			get node() {
-				return deps.doc.children[0];
-			},
-			path: [0],
-			state: listState,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentContainerEdit: containerEdit
-		})
-	);
+	const { bundle, state: listState } = makeNestedHarness([listNode], { listOverrides: true });
 
 	return { bundle, listNode, listState };
 }

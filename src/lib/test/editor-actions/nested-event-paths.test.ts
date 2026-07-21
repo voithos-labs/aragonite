@@ -8,7 +8,7 @@ import { createListContext } from '$lib/editor-actions/list-context';
 import { createBlockquoteOverrides } from '$lib/editor-actions/blockquote-overrides';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
@@ -28,19 +28,19 @@ function makeNestedList() {
 	const liveQuote = () => deps.doc.children[1];
 	const liveList = () => liveQuote().children![0];
 
-	const quoteBundle = createStandardNestedActions(createBlockListState(liveQuote), {
-		index: 1,
-		get node() {
-			return liveQuote();
-		},
-		path: [1],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit: rootContainerEdit
-		}
-	});
+	const quoteBundle = createStandardNestedActions(
+		createBlockListState(liveQuote),
+		makeNestedActionsDeps({
+			index: 1,
+			getNode: liveQuote,
+			path: [1],
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit: rootContainerEdit
+			}
+		})
+	);
 
 	const listState = createBlockListState(liveList);
 	// indentItem's destination scope resolves the previous item's state from the registry.
