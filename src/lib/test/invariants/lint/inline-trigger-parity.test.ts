@@ -1,5 +1,5 @@
 /**
- * G4.18 — inline-trigger parity, two pins on the reserved-trigger contract.
+ * G4.18 — inline-trigger parity, three pins on the reserved-trigger contract.
  *
  * (1) `BUILTIN_TRIGGERS` (in `core/inline/scan/plugin-syntax.ts`) must equal the
  * characters the `scanInline` switch in `core/inline/scan/index.ts` dispatches —
@@ -7,14 +7,20 @@
  * bare recognizer the switch then silently shadows, the exact failure the reserved
  * check exists to prevent.
  *
- * (2) The pre-switch prefix consultation — the seam a reserved trigger's prefix rung
+ * (2) Every reserved trigger is either scan-visible (in `SPECIAL_CHARS`, so
+ * `needsScan` reaches it) or named in `SCAN_INVISIBLE_RESERVED` (so registration
+ * rejects a prefix rung on it). A SPECIAL_CHARS edit that orphans a reserved trigger
+ * — leaving a prefix rung there a silent no-op the scan never visits — fails here
+ * instead of shipping.
+ *
+ * (3) The pre-switch prefix consultation — the seam a reserved trigger's prefix rung
  * outranks its built-in case through — has exactly one home, ahead of the switch.
  * A regression that copies the gate into a per-case arm (the sibling-path-parity bug
  * shape) would add a second consultation site; this fails the day that copy is born.
  *
- * Both sides of pin (1) are read in their source-literal form (`\\`, `\n`, backtick
- * as written) and compared without unescaping, so the newline trigger can't decay
- * into an actual line break mid-scan.
+ * Pins (1) and (2) read the literals in their source-literal form (`\\`, `\n`,
+ * backtick as written) and compare without unescaping, so the newline trigger can't
+ * decay into an actual line break mid-scan.
  */
 import { describe, it, expect } from 'vitest';
 import { readEditorFile } from './scan-source';
@@ -32,6 +38,24 @@ function builtinTriggers(): Set<string> {
 	const match = code.match(/BUILTIN_TRIGGERS\s*=\s*new Set\(\[([\s\S]*?)\]\)/);
 	if (!match) throw new Error('inline-trigger-parity: BUILTIN_TRIGGERS literal not found');
 	return new Set(singleQuotedLiterals(match[1]));
+}
+
+/** The `SCAN_INVISIBLE_RESERVED = new Set([...])` members from plugin-syntax.ts. */
+function scanInvisibleReserved(): Set<string> {
+	const { code } = readEditorFile('core/inline/scan/plugin-syntax.ts');
+	const match = code.match(/SCAN_INVISIBLE_RESERVED\s*=\s*new Set\(\[([\s\S]*?)\]\)/);
+	if (!match) throw new Error('inline-trigger-parity: SCAN_INVISIBLE_RESERVED literal not found');
+	return new Set(singleQuotedLiterals(match[1]));
+}
+
+/** The `SPECIAL_CHARS = '…'` string from index.ts, split into source-escaped char units. */
+function specialChars(): Set<string> {
+	const match = indexSource().match(/SPECIAL_CHARS\s*=\s*'((?:\\.|[^'\\])*)'/);
+	if (!match) throw new Error('inline-trigger-parity: SPECIAL_CHARS literal not found');
+	// `\\.` keeps `\\` and `\n` as one unit each, matching the source-escaped form
+	// `singleQuotedLiterals` produces for BUILTIN_TRIGGERS — so `\n` compares to `\n`.
+	const chars = [...match[1].matchAll(/\\.|[^\\]/g)].map((m) => m[0]);
+	return new Set(chars);
 }
 
 /** The `case '…':` labels of the one `scanInline` switch in index.ts. */
@@ -79,6 +103,26 @@ describe('G4.18 inline-trigger parity', () => {
 		expect(cases.size).toBeGreaterThan(5);
 		expect(triggers.has('[')).toBe(true);
 		expect(triggers.has('\\\\')).toBe(true); // the '\\' source literal (two backslash chars)
+	});
+
+	// A reserved trigger the `needsScan` fast bail never visits (absent from
+	// SPECIAL_CHARS) must be named in SCAN_INVISIBLE_RESERVED, or a prefix rung on it
+	// registers yet silently never fires. `overReach` catches the reverse rot: a
+	// rejected trigger that became scan-visible (or was never reserved) would wrongly
+	// block a now-valid registration with nothing to notice.
+	it('every reserved trigger is scan-visible or rejected as a scan-invisible no-op', () => {
+		const special = specialChars();
+		const rejected = scanInvisibleReserved();
+		expect(special.has('['), 'SPECIAL_CHARS extractor found nothing').toBe(true);
+		expect(rejected.has('!'), 'SCAN_INVISIBLE_RESERVED extractor found nothing').toBe(true);
+
+		const orphaned = [...triggers].filter((t) => !special.has(t) && !rejected.has(t)).sort();
+		const overReach = [...rejected].filter((t) => special.has(t) || !triggers.has(t)).sort();
+		expect(
+			{ orphaned, overReach },
+			'a reserved trigger sits outside SPECIAL_CHARS without a matching rejection, or the ' +
+				'rejected set names a scan-visible / non-reserved trigger'
+		).toEqual({ orphaned: [], overReach: [] });
 	});
 });
 
