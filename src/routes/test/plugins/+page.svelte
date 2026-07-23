@@ -87,6 +87,10 @@
 	// A block `$$…$$` leaf between two paragraphs, so the block-math e2e can drive
 	// focus/click reveal, blur re-render, and arrow nav in and out of the block.
 	const MATH_BLOCK_SEED = 'Before\n\n$$x^2$$\n\nAfter\n';
+	// GitHub's third math form: a ```math fence between two paragraphs, so the
+	// math-fence e2e can prove the distinct `mathFence` kind renders through the
+	// shared BlockMath component and survives a reveal→edit→commit round trip.
+	const MATH_FENCE_SEED = 'Before\n\n```math\nx^2\n```\n\nAfter\n';
 	// Inline math inside a table cell, so the portal-widget e2e can prove the cell
 	// render surface pools component widgets (mount id stable while typing in the cell).
 	const MATH_TABLE_SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
@@ -207,6 +211,7 @@
 		'math-two': MATH_TWO_SEED,
 		'math-multiline': MATH_MULTILINE_SEED,
 		mathblock: MATH_BLOCK_SEED,
+		mathfence: MATH_FENCE_SEED,
 		'mathblock-multiline': MATH_BLOCK_MULTILINE_SEED,
 		mathtable: MATH_TABLE_SEED,
 		mermaid: MERMAID_SEED,
