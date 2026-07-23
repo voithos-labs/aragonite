@@ -69,6 +69,7 @@ describe('createConstructReveal — trigger', () => {
 			get islands() {
 				return [];
 			},
+			getDocument: () => undefined,
 			brokenUrlCache: new Set<string>()
 		} as TextRenderDeps;
 		createTextRender(renderDeps).render();

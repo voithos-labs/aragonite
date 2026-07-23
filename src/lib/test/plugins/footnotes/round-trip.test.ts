@@ -29,7 +29,7 @@ describe('footnote round-trip with the plugin installed', () => {
 		roundTrips('[^win]: Windows line ending.\r\n    Continued.\r\n');
 	});
 
-	it('keeps a reference literal in surrounding prose (it is not a CST node)', () => {
+	it('keeps a reference literal in surrounding prose (rendered as an inline widget, bytes intact)', () => {
 		const src = 'See the note [^1] for details.\n\n[^1]: The detail.\n';
 		roundTrips(src);
 		const doc = parse(src);
@@ -45,7 +45,7 @@ describe('footnote round-trip for half-typed / incomplete syntax (plugin install
 	});
 
 	it('leaves an unterminated reference literal (no parsed node to corrupt)', () => {
-		// The reference decoration needs a closing `]`, and the opener needs `]:`, so
+		// The reference recognizer needs a closing `]`, and the opener needs `]:`, so
 		// `[^` / `[^foo` are never claimed — they stay literal text and round-trip.
 		for (const src of ['[^\n', '[^foo\n', 'A bare [^1] mark, no definition.\n']) {
 			roundTrips(src);

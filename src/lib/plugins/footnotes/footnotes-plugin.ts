@@ -1,21 +1,23 @@
 /**
- * GFM footnotes as a first-party plugin. This milestone ships the definition side
- * only: the `[^label]: content` block, a real editable container. References
- * (`[^label]` inline) land next and register a decoration source on top of this
- * same unit.
+ * GFM footnotes as a first-party plugin: the `[^label]: content` definition (a
+ * real editable strip container) and the `[^label]` reference (a first-class
+ * inline widget rendering the derived footnote number as a superscript).
  *
  * Numbering is derived, not stored — `assignFootnoteNumbers` reads first-reference
- * order off the live document, so the reference side needs no counter here.
+ * order off the live document, so the reference widget derives its own number and
+ * no counter is kept anywhere.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';
 import { registerFootnoteDefinition } from './footnote-definition';
+import { registerFootnoteReference } from './footnote-reference';
 
 export function footnotesPlugin(): EditorPlugin {
 	return definePlugin({
 		name: 'footnotes',
 		setup() {
 			registerFootnoteDefinition();
+			registerFootnoteReference();
 		}
 	});
 }

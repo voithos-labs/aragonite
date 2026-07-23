@@ -1,32 +1,31 @@
 /**
- * Derived footnote numbering, as a pure function over the read-only document —
- * the single source of truth Task 3's reference decorations read. GFM numbers
- * footnotes by first-reference order, not definition order, so the scan walks the
- * document top-to-bottom and assigns a number the first time each label is
- * referenced.
+ * Derived footnote numbering, as a pure function over the read-only document — the
+ * single source of truth the reference widget reads for its number. GFM numbers
+ * footnotes by first-reference order, not definition order, so the walk visits
+ * prose top-to-bottom and assigns a number the first time each label is referenced.
  *
- * References are recognized by a text scan (`[^label]`), not the parser — the
- * inline tier cannot claim the `[` trigger, so a reference is never a first-class
- * node. The scan is best-effort over a prose block's raw bytes: it skips code and
- * definition blocks, but a `[^x]` inside an inline code span is a known false
- * positive. An empty (childless) definition is a leaf whose raw still holds its
- * `[^label]:` marker, so `FOOTNOTE_DEF_KIND` stays in the skip set.
+ * References are first-class inline nodes (the `[^`-prefix ladder rung), so the
+ * walk parses each prose leaf's inline content and collects `footnote-ref` nodes.
+ * Two consequences fall out by construction: a `[^x]` inside an inline code span is
+ * an `inlineCode` node, never a reference; and a definition's own `[^label]:` marker
+ * lives in the container's raw, not a prose child, so it is never counted as a
+ * reference of itself.
  */
 
-import type { DocumentView, NodeView } from '$lib/plugin';
-import { FOOTNOTE_DEF_KIND } from './constants';
+import {
+	computeInlineContent,
+	isProseKind,
+	type DocumentView,
+	type InlineNode,
+	type NodeView
+} from '$lib/plugin';
+import { FOOTNOTE_REF_KIND } from './constants';
 
 export interface FootnoteReference {
 	label: string;
 	/** Doc-absolute block path of the prose leaf carrying the reference. */
 	path: number[];
-	/** Raw offsets of `[^label]` within that leaf's bytes. */
-	start: number;
-	end: number;
 }
-
-const REFERENCE = /\[\^([^\]\s]+)\]/g;
-const SKIP_SCAN = new Set(['fencedCode', 'indentedCode', 'htmlBlock', FOOTNOTE_DEF_KIND]);
 
 function forEachLeaf(
 	children: readonly NodeView[],
@@ -40,15 +39,23 @@ function forEachLeaf(
 	});
 }
 
-/** Every `[^label]` occurrence in prose, in document order. */
+function collectRefsInInline(
+	nodes: readonly InlineNode[],
+	path: number[],
+	out: FootnoteReference[]
+): void {
+	for (const node of nodes) {
+		if (node.kind === FOOTNOTE_REF_KIND) out.push({ label: node.label ?? '', path });
+		else if (node.children) collectRefsInInline(node.children, path, out);
+	}
+}
+
+/** Every `[^label]` reference in prose, in document order. */
 export function collectFootnoteReferences(document: DocumentView): FootnoteReference[] {
 	const refs: FootnoteReference[] = [];
-	forEachLeaf(document.children, (node, path) => {
-		if (SKIP_SCAN.has(node.kind)) return;
-		for (const match of node.raw.matchAll(REFERENCE)) {
-			const start = match.index ?? 0;
-			refs.push({ label: match[1], path, start, end: start + match[0].length });
-		}
+	forEachLeaf(document.children, (leaf, path) => {
+		if (!isProseKind(leaf.kind)) return;
+		collectRefsInInline(computeInlineContent(leaf), path, refs);
 	});
 	return refs;
 }

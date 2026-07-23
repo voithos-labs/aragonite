@@ -45,6 +45,7 @@ function makeHarness(initial: CstNode) {
 		get islands() {
 			return [];
 		},
+		getDocument: () => undefined,
 		brokenUrlCache: new Set<string>()
 	};
 	return { el, deps, setNode: (next: CstNode) => (node = next) };

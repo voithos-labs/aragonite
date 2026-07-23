@@ -376,6 +376,7 @@
 			return linkRef;
 		},
 		resolveLinkUrl,
+		getDocument: () => getDoc(),
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},

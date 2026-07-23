@@ -955,12 +955,13 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **CST node access and metadata**
 
-| Export                                   | Role                                                                                           |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node metadata without casting                         |
-| `getContentRange`, `ContentRange`        | The content span within a block's raw, syntax markers excluded (heading `#`, setext underline) |
-| `CstNode`                                | The tree-node shape your factory builds and your `rebuildRaw` mutates                          |
-| `NodeView`, `DocumentView`               | The bytes-readonly views every read surface hands you ([Views](#views))                        |
+| Export                                   | Role                                                                                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node metadata without casting                                                                                 |
+| `getContentRange`, `ContentRange`        | The content span within a block's raw, syntax markers excluded (heading `#`, setext underline)                                                         |
+| `computeInlineContent`, `isProseKind`    | Inline-parse a prose leaf (uncached, reactive-safe) and gate the walk — for document-wide state derived from inline structure, e.g. footnote numbering |
+| `CstNode`                                | The tree-node shape your factory builds and your `rebuildRaw` mutates                                                                                  |
+| `NodeView`, `DocumentView`               | The bytes-readonly views every read surface hands you ([Views](#views))                                                                                |
 
 **Idempotence probes**
 

@@ -8,7 +8,7 @@
  */
 
 import type { InlineNode } from '../../../core/nodes';
-import type { NodeView } from '../../../core/node-views';
+import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
@@ -30,6 +30,10 @@ export interface CellRenderDeps {
 	get node(): NodeView;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	resolveLinkUrl: ResolveLinkUrl;
+	/** Live root document, handed to component widgets whose derived value depends
+	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
+	 *  document across edits, never a mount-time snapshot. */
+	getDocument: () => DocumentView | undefined;
 	/** Position-sorted islands for this cell. A getter, read inside the render
 	 *  pass on purpose: that read is the reactive dependency that re-renders the
 	 *  cell when its island set changes. */
@@ -54,7 +58,7 @@ export interface CellRender {
 
 export function createCellRender(deps: CellRenderDeps): CellRender {
 	let lastRenderedKey = '';
-	const widgetPool = createSvelteWidgetPool(deps.reportRenderError);
+	const widgetPool = createSvelteWidgetPool(deps.reportRenderError, undefined, deps.getDocument);
 	let islandDestroys: Array<() => void> = [];
 
 	function destroyIslands(): void {

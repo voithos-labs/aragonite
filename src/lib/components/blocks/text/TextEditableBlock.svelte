@@ -340,6 +340,7 @@
 		get presentationMode() {
 			return presentationMode;
 		},
+		getDocument: () => getDoc(),
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
