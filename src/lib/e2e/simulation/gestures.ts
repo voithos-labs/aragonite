@@ -59,6 +59,15 @@ import {
 	leafBackspaceAtStart,
 	revealEditTextDirective
 } from './gestures/directive';
+import {
+	deleteFootnoteReference,
+	editFootnoteLabel,
+	footnoteDefinitionExitBackspace,
+	revealFootnoteReference,
+	splitFootnoteDefinitionBody,
+	typeFootnoteDefinition,
+	typeFootnoteReference
+} from './gestures/footnote';
 import { lateCorrection } from './gestures/correction';
 import { flipPresentationMode } from './gestures/presentation';
 import {
@@ -422,6 +431,41 @@ export class Gestures {
 
 	editContainerBody(bodyPath: number[], text: string): Promise<void> {
 		return editContainerBody(this.ctx, bodyPath, text);
+	}
+
+	// ── Footnotes (first-party plugin, `?seed=footnotes`) ────────────────────────
+	// Two tiers: the `[^label]: ` strip-container definition and the `[^label]` inline
+	// reference widget. Definition gestures gate on the container promotion; reference
+	// gestures on the widget mount/reveal swap. Each resyncs around the reparse — the
+	// derived reference number is display state the tracker never models, so nothing here
+	// predicts it. The delete degrades to text and nets to identity via a trailing undo.
+
+	typeFootnoteDefinition(targetIndex: number, label: string, body: string): Promise<void> {
+		return typeFootnoteDefinition(this.ctx, targetIndex, label, body);
+	}
+
+	splitFootnoteDefinitionBody(bodyPath: number[]): Promise<void> {
+		return splitFootnoteDefinitionBody(this.ctx, bodyPath);
+	}
+
+	footnoteDefinitionExitBackspace(bodyPath: number[]): Promise<void> {
+		return footnoteDefinitionExitBackspace(this.ctx, bodyPath);
+	}
+
+	typeFootnoteReference(label: string): Promise<void> {
+		return typeFootnoteReference(this.ctx, label);
+	}
+
+	revealFootnoteReference(refIndex: number, blurBlockIndex: number): Promise<void> {
+		return revealFootnoteReference(this.ctx, refIndex, blurBlockIndex);
+	}
+
+	editFootnoteLabel(refIndex: number, text: string): Promise<void> {
+		return editFootnoteLabel(this.ctx, refIndex, text);
+	}
+
+	deleteFootnoteReference(refIndex: number): Promise<void> {
+		return deleteFootnoteReference(this.ctx, refIndex);
 	}
 
 	// ── Cross-block selection + destruction ──────────────────────────────────────
