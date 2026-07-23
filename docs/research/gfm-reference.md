@@ -208,10 +208,11 @@ These are the formal extensions that distinguish GFM from plain CommonMark.
 | Row 2        |      Data      |          $200 |
 ```
 
-- **Strikethrough:** Cross out text using double tildes.
+- **Strikethrough:** Cross out text using tildes. A run of one or two tildes delimits (`~single~` and `~~double~~` both strike, matching cmark-gfm), while a run of three or more stays literal, and mixed-length runs never pair (a one-tilde opener does not close a two-tilde run).
 
 ```markdown
 ~~This text is crossed out~~
+~Also crossed out~
 ```
 
 - **Autolinks (§6.9):** Bare URLs and email addresses turn into links without angle brackets `< >` or `[text](url)` syntax.
@@ -268,6 +269,8 @@ $$
 \left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)
 $$
 ```
+
+The editor's inline `$…$` recognizer is digit-guarded on the opener: a `$` immediately followed by a digit stays currency, so `$5` and `$5 and $10` render as literal text rather than math. This is a deliberate divergence. The close is not digit-guarded, so `$x^2$` still closes on its `2`.
 
 - **Mermaid Diagrams:** Fenced code blocks with the `mermaid` language identifier render as diagrams.
 

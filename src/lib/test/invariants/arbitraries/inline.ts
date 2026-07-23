@@ -32,7 +32,7 @@ const word = fc.constantFrom(
 );
 
 const emphasisRun = fc
-	.tuple(fc.constantFrom('*', '**', '_', '__', '~~', '***'), word)
+	.tuple(fc.constantFrom('*', '**', '_', '__', '~', '~~', '***'), word)
 	.map(([marker, inner]) => marker + inner + marker);
 
 const codeSpan = fc
