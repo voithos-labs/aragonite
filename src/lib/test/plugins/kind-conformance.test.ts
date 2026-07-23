@@ -85,7 +85,8 @@ describe('kind conformance — plugin kinds enroll', () => {
 // listing is the canonical bundled set (the plugin-pack-parity lint derives from the
 // same listing), so a plugin dir born or dropped outside BUNDLED_INSTALLS fails the
 // dir lockstep below at birth. (highlight-occurrences registers no block kind —
-// decoration source only; latex's inline `math` is an inline kind, not a block.)
+// decoration source only; emoji registers an inline kind only; latex's inline
+// `math` is an inline kind, not a block.)
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
 	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
@@ -95,7 +96,7 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
 ];
 
-const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences']);
+const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);
 
 describe('kind conformance — bundled plugin kinds enroll', () => {
 	beforeEach(() => resetPluginPlatformForTests());
