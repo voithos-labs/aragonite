@@ -225,7 +225,10 @@ export function registerMathFence(): void {
 				mode: 'implemented',
 				via: 'render-primary reveal→edit→blur cycle commits as one undo entry'
 			},
-			simOracle: { mode: 'implemented', via: 'block-math editable-leaf e2e' }
+			// No note-taking simulation drives a ```math fence; the interactive path is
+			// pinned by the latex-math-fence e2e (render + kind + reveal→edit→commit
+			// round trip), which is a plugins battery, not the sim oracle.
+			simOracle: { mode: 'inherit-default' }
 		})
 	});
 
