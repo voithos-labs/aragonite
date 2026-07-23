@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import { footnotesPlugin } from '../../../../routes/test/plugins/footnotes/footnotes-plugin';
 import {
+	footnotesPlugin,
 	assignFootnoteNumbers,
-	collectFootnoteReferences,
-	footnoteReferenceDecorations
-} from '../../../../routes/test/plugins/footnotes/footnote-numbering';
+	collectFootnoteReferences
+} from '$lib/plugins/footnotes';
 
 describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {
@@ -50,27 +49,14 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(refs[0].label).toBe('q');
 		expect(refs[0].path.length).toBeGreaterThan(1);
 	});
-});
 
-describe('footnote reference decorations', () => {
-	beforeEach(() => {
-		resetPluginPlatformForTests();
-		installPlugins([footnotesPlugin()]);
-	});
-
-	it('emits one numbered replace island per reference over the exact bytes', () => {
-		const src = 'A [^b] and [^a] and [^b] tail.\n';
-		const doc = parse(src);
-		const paraRaw = doc.children[0].raw;
-		const decos = footnoteReferenceDecorations(doc);
-
-		expect(decos.map((d) => d.type)).toEqual(['replace', 'replace', 'replace']);
-		expect(decos.map((d) => paraRaw.slice(d.start, d.end))).toEqual(['[^b]', '[^a]', '[^b]']);
-		// Number rides the class (widget identity is class-keyed): b=1, a=2, b=1.
-		expect(decos.map((d) => d.class)).toEqual([
-			'footnote-ref footnote-ref-1',
-			'footnote-ref footnote-ref-2',
-			'footnote-ref footnote-ref-1'
-		]);
+	// The definition is now a container whose marker lives in its own raw, not in a
+	// child's bytes — so a def's own label is never miscounted as a reference. An
+	// empty (childless) def is the one leaf case, and the skip set covers it.
+	it('does not count a definition marker as a reference of itself', () => {
+		const numbers = assignFootnoteNumbers(parse('[^self]: A body that mentions nothing.\n'));
+		expect(numbers.size).toBe(0);
+		const emptyDef = assignFootnoteNumbers(parse('[^empty]:\n'));
+		expect(emptyDef.size).toBe(0);
 	});
 });
