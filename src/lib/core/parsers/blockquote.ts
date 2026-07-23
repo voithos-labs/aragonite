@@ -30,13 +30,17 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 	return true;
 }
 
-export function parseBlockquote(
+/**
+ * Scan a blockquote's extent (CommonMark §5.1 lazy continuation) and return its
+ * byte-exact `raw` plus the index past it — no child decomposition. The narrow
+ * shape a blockquote-shaped opener needs when it decomposes its own body
+ * (`> [!NOTE]` GitHub alerts strip the marker line before parsing children).
+ */
+export function blockquoteExtent(
 	lines: ParsedLine[],
 	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	depth: number = 0
-): { node: CstNode; nextIndex: number } {
+	endIndex: number
+): { raw: string; nextIndex: number } {
 	let i = startIndex;
 	let paragraphOpen = false;
 	while (i < endIndex) {
@@ -53,8 +57,17 @@ export function parseBlockquote(
 		}
 		break;
 	}
+	return { raw: joinRaw(lines, startIndex, i), nextIndex: i };
+}
 
-	const raw = joinRaw(lines, startIndex, i);
+export function parseBlockquote(
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number,
+	leadingTrivia: string,
+	depth: number = 0
+): { node: CstNode; nextIndex: number } {
+	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
 
 	// Lazy continuation lines have no `> ` to strip — pass them verbatim so
 	// the recursive paragraph parser sees a continuous multi-line paragraph.

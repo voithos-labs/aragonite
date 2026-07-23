@@ -24,6 +24,15 @@ export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' 
 export interface UnwrapRole {
 	firstChildBackspace: 'lift-first-child' | 'list-item-cascade';
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
+	/**
+	 * The container is quote-shaped: lifting its first child out (Rule U2) drops
+	 * the opener syntax and leaves a plain blockquote, so `unwrapFirstChildFromQuote`
+	 * takes the lift. A positive opt-in read by presence — a chrome container that
+	 * shares `firstChildBackspace: 'lift-first-child'` but omits this no-ops instead,
+	 * preserving its reserved chrome (the callout path). Keeps the core tree-op free
+	 * of any kind name; a future quote-shaped kind opts in here.
+	 */
+	quoteShaped?: true;
 }
 
 export interface BlockKindDescriptor {

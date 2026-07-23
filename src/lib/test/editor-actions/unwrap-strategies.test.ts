@@ -21,7 +21,8 @@ describe('unwrapRole declarations resolve to registered strategies', () => {
 	it('blockquote and list declare the legacy wiring; listItem stays undeclared (delegates up)', () => {
 		expect(tryGetBlockKindDescriptor('blockquote')?.unwrapRole).toEqual({
 			firstChildBackspace: 'lift-first-child',
-			middleChildBackspace: 'default-merge'
+			middleChildBackspace: 'default-merge',
+			quoteShaped: true
 		});
 		expect(tryGetBlockKindDescriptor('list')?.unwrapRole).toEqual({
 			firstChildBackspace: 'list-item-cascade',

@@ -28,6 +28,10 @@ dogfood, so a typed-from-scratch alert uses `tip`.
   the first body block out and drops the marker — no `githubAlert` remains, the
   content reparses as a plain block (a multi-block body's remainder is a plain
   blockquote), and bytes are never rewritten to `:::`
+- merge within on Backspace at a middle body block: pressing Backspace at the start
+  of a non-first body block merges it into the previous body block (the container
+  `default-merge`), the alert stays a single `githubAlert` root with its marker
+  intact — the merge never escapes the alert
 
 ## Edge cases
 
