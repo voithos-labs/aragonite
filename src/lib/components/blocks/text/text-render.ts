@@ -10,7 +10,7 @@
  */
 
 import type { AmbientPrefix } from '../../../block-component';
-import type { NodeView } from '../../../core/node-views';
+import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
@@ -52,6 +52,10 @@ export interface TextRenderDeps {
 	/** Effective mode. Read inside the render pass on purpose: the read is the
 	 *  reactive dependency that re-renders every mounted block on a mode flip. */
 	get presentationMode(): PresentationMode;
+	/** Live root document, handed to component widgets whose derived value depends
+	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
+	 *  document across edits, never a mount-time snapshot. */
+	getDocument: () => DocumentView | undefined;
 	get linkResolver(): LinkReferenceResolver | undefined;
 	/** A compact stamp that changes exactly when the document's LRD signature
 	 *  changes (the shell mints it — link-reference-resolver.ts). Reference-bearing
@@ -103,7 +107,11 @@ export function renderKeySegmentDiff(prev: string, next: string): string {
 
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
-	const widgetPool = createSvelteWidgetPool(deps.reportRenderError, () => deps.presentationMode);
+	const widgetPool = createSvelteWidgetPool(
+		deps.reportRenderError,
+		() => deps.presentationMode,
+		deps.getDocument
+	);
 	let islandDestroys: Array<() => void> = [];
 
 	function destroyIslands(): void {

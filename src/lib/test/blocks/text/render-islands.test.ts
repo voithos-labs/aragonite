@@ -60,6 +60,7 @@ function makeHarness(initialNode: CstNode) {
 		get presentationMode() {
 			return 'source' as const;
 		},
+		getDocument: () => undefined,
 		brokenUrlCache: new Set<string>()
 	};
 	return {

@@ -9,8 +9,8 @@ import {
 
 describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {
-		// Install so definition blocks parse as footnote-def and the scan skips them —
-		// otherwise a definition's leading [^label] is mis-counted as a reference.
+		// Install so `[^label]` parses as a footnote-ref inline node; without the
+		// plugin the walk finds no references at all.
 		resetPluginPlatformForTests();
 		installPlugins([footnotesPlugin()]);
 	});
@@ -43,20 +43,36 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(numbers.size).toBe(0);
 	});
 
-	it('finds references nested inside a container block', () => {
+	it('finds a reference nested inside a container block', () => {
 		const refs = collectFootnoteReferences(parse('> A quote with [^q] inside.\n\n[^q]: def.\n'));
 		expect(refs).toHaveLength(1);
 		expect(refs[0].label).toBe('q');
 		expect(refs[0].path.length).toBeGreaterThan(1);
 	});
 
-	// The definition is now a container whose marker lives in its own raw, not in a
-	// child's bytes — so a def's own label is never miscounted as a reference. An
-	// empty (childless) def is the one leaf case, and the skip set covers it.
+	it('finds a reference nested inside inline emphasis', () => {
+		// The walk recurses into inline children, so a reference inside `*…*` is found.
+		const numbers = assignFootnoteNumbers(parse('An *emphasized [^e]* mark.\n'));
+		expect(numbers.get('e')).toBe(1);
+	});
+
+	// The definition's marker lives in its own container raw, never a prose child, so
+	// a def's own label is never miscounted as a reference of itself. A childless
+	// (empty-body) def is a non-prose leaf, so the walk skips it too.
 	it('does not count a definition marker as a reference of itself', () => {
 		const numbers = assignFootnoteNumbers(parse('[^self]: A body that mentions nothing.\n'));
 		expect(numbers.size).toBe(0);
 		const emptyDef = assignFootnoteNumbers(parse('[^empty]:\n'));
 		expect(emptyDef.size).toBe(0);
+	});
+
+	// A `[^x]` inside an inline code span is an `inlineCode` node, never a
+	// `footnote-ref` — the false positive the regex probe documented is fixed by
+	// construction now that references are parsed, not text-scanned.
+	it('ignores a reference-shaped run inside an inline code span', () => {
+		const numbers = assignFootnoteNumbers(parse('Literal `[^x]` but real [^y].\n'));
+		expect(numbers.get('x')).toBeUndefined();
+		expect(numbers.get('y')).toBe(1);
+		expect(numbers.size).toBe(1);
 	});
 });

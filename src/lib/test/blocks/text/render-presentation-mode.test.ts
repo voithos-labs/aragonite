@@ -38,6 +38,7 @@ function makeDeps(node: CstNode, el: HTMLElement) {
 		get islands() {
 			return [];
 		},
+		getDocument: () => undefined,
 		brokenUrlCache: new Set<string>()
 	};
 	return {

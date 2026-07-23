@@ -10,7 +10,7 @@
 
 import type { Component } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../nodes';
-import type { NodeView } from '../node-views';
+import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
@@ -49,6 +49,12 @@ export interface InlineWidgetComponentProps {
 	 *  Always supplied by the editor's mount; optional so a bare harness can
 	 *  mount without it (absent reads as 'source'). */
 	getPresentationMode?: () => PresentationMode;
+	/** LIVE root-document read, a getter for the same reason as the mode: the pool
+	 *  keys on `${kind} ${source}`, so a widget whose derived value depends on the
+	 *  document (footnote numbering) survives edits elsewhere with no source change
+	 *  — a frozen snapshot would go stale. Supplied by the editor's render surfaces;
+	 *  optional so a bare harness can mount without it. */
+	getDocument?: () => DocumentView | undefined;
 }
 
 /**

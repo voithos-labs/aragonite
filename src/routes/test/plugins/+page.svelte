@@ -45,6 +45,7 @@
 		// The footnote definition is a block kind; scoped to its own seed so the `[^…]:`
 		// opener only claims lines under the footnotes battery, leaving sibling seeds' parses untouched.
 		footnotes: [footnotesPlugin()],
+		'footnotes-ref': [footnotesPlugin()],
 		hloccur: [highlightOccurrencesPlugin],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
@@ -119,6 +120,11 @@
 	// body is one editable paragraph — the container's edit/backspace/undo surface, with
 	// a blank starting line above for typing a fresh definition.
 	const FOOTNOTES_SEED = 'A note reference [^a] in prose.\n\n[^a]: The note body.\n';
+	// The reference-widget seed: the references sit in block 1 (not block 0), so typing
+	// an EARLIER reference into block 0 renumbers block 1's widgets while block 1 itself
+	// is never edited — the reactive-getter renumber the pool key cannot deliver.
+	const FOOTNOTES_REF_SEED =
+		'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -204,7 +210,8 @@
 		fold: FOLD_SEED,
 		'fold-table': FOLD_TABLE_SEED,
 		badge: BADGE_SEED,
-		footnotes: FOOTNOTES_SEED
+		footnotes: FOOTNOTES_SEED,
+		'footnotes-ref': FOOTNOTES_REF_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
