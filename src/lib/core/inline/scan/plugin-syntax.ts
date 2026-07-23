@@ -63,6 +63,16 @@ export interface InlineRung {
  */
 const BUILTIN_TRIGGERS = new Set(['\\', '`', '&', '\n', '*', '_', '~', '[', ']', '!', '<']);
 
+/**
+ * Reserved triggers `needsScan` (scan/index.ts) never visits in otherwise-plain
+ * text: they sit outside `SPECIAL_CHARS` because they only matter inside `[`-bearing
+ * ranges. A prefix rung on one would be accepted here yet never consulted — a silent
+ * no-op, the failure this registration seam exists to make impossible — so it is
+ * rejected. A future construct needing `!`/`]` must first make them scan-visible.
+ * Pinned against a SPECIAL_CHARS edit by the inline-trigger-parity lint (G4.18).
+ */
+const SCAN_INVISIBLE_RESERVED = new Set(['!', ']']);
+
 const NO_RUNGS: readonly InlineRung[] = [];
 
 // Reserved-trigger prefix rungs (consulted pre-switch) live apart from every other
@@ -98,6 +108,14 @@ export function registerInlineSyntax(
 			throw new Error(
 				`registerInlineSyntax: ${JSON.stringify(trigger)} is claimed by the built-in scanner, ` +
 					`which dispatches it before the plugin registry — the recognizer would never fire`
+			);
+		}
+		if (SCAN_INVISIBLE_RESERVED.has(trigger)) {
+			throw new Error(
+				`registerInlineSyntax: reserved trigger ${JSON.stringify(trigger)} is skipped by the ` +
+					`scanner's fast bail (absent from SPECIAL_CHARS in scan/index.ts; it matters only ` +
+					`inside "["-bearing ranges), so a prefix rung on it would never fire in plain text — ` +
+					`make the trigger scan-visible before registering`
 			);
 		}
 		if (priority >= INLINE_PRIORITIES.builtin) {

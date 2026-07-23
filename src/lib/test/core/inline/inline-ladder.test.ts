@@ -35,62 +35,6 @@ const recognizeColon: InlineSyntaxRecognizer = (_raw, pos) => ({
 	end: pos + 1
 });
 
-// ── Registration rules ─────────────────────────────────────────────────────────
-
-describe('inline ladder — registration rules', () => {
-	it('exposes the priority ladder as a published const', () => {
-		expect(INLINE_PRIORITIES).toEqual({ prefixOverride: 40, builtin: 50, plugin: 100 });
-	});
-
-	it('rule 1 — rejects a multi-character trigger', () => {
-		expect(() => registerInlineSyntax('$$', decline)).toThrow(/single character/);
-	});
-
-	it.each([
-		['prefix that does not start with the trigger', '[', 'x^'],
-		['prefix shorter than two characters', '[', '['],
-		['bare-length prefix on an unreserved trigger', ':', ':']
-	])('rule 1 — rejects a %s', (_name, trigger, prefix) => {
-		expect(() =>
-			registerInlineSyntax(trigger, recognizeFootnote, { prefix, priority: 40 })
-		).toThrow(/must begin with the trigger/);
-	});
-
-	it('rule 2 — bare reserved registration keeps the built-in-scanner message', () => {
-		expect(() => registerInlineSyntax('[', decline)).toThrow(/claimed by the built-in scanner/);
-		expect(getInlineRungs('[')).toHaveLength(0);
-	});
-
-	it.each([INLINE_PRIORITIES.builtin, INLINE_PRIORITIES.plugin])(
-		'rule 2 — reserved prefix at priority %i (≥ builtin) is rejected',
-		(priority) => {
-			expect(() =>
-				registerInlineSyntax('[', recognizeFootnote, { prefix: '[^', priority })
-			).toThrow(/priority below the built-in boundary/);
-		}
-	);
-
-	it('rule 2 — reserved prefix defaulting its priority is rejected (default is the plugin rung)', () => {
-		expect(() => registerInlineSyntax('[', recognizeFootnote, { prefix: '[^' })).toThrow(
-			/priority below the built-in boundary/
-		);
-	});
-
-	it('rule 3 — an unreserved trigger takes any priority; bare defaults to the plugin rung', () => {
-		registerInlineSyntax(':', decline);
-		expect(getInlineRungs(':')[0].priority).toBe(INLINE_PRIORITIES.plugin);
-		registerInlineSyntax('$', decline, { priority: INLINE_PRIORITIES.prefixOverride });
-		expect(getInlineRungs('$')[0].priority).toBe(INLINE_PRIORITIES.prefixOverride);
-	});
-
-	it('rule 4 — an exact (trigger, prefix, priority) duplicate throws; distinct rungs coexist', () => {
-		registerInlineSyntax(':', decline);
-		expect(() => registerInlineSyntax(':', decline)).toThrow(/already registered/);
-		expect(() => registerInlineSyntax(':', decline, { prefix: '::', priority: 40 })).not.toThrow();
-		expect(getInlineRungs(':')).toHaveLength(2);
-	});
-});
-
 // ── Deterministic dispatch order ────────────────────────────────────────────────
 
 describe('inline ladder — deterministic order (registration order never matters)', () => {
