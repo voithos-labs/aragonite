@@ -17,13 +17,13 @@
 
 import {
 	OPENER_PRIORITIES,
+	blockquoteExtent,
 	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockComponent,
 	getPluginMetadata,
 	parse,
-	parseBlockquote,
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockOpener,
@@ -41,21 +41,22 @@ function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null 
 	const alertType = matchAlertMarker(ctx.line.text);
 	if (!alertType) return null;
 
-	// Reuse the blockquote parser for the extent + byte-exact raw; rebuild the
-	// children from the body-only strip (the marker line is not a child).
-	const quote = parseBlockquote(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.depth);
-	const body = parse(stripBody(ctx.lines, ctx.index + 1, quote.nextIndex));
+	// Reuse the blockquote extent scan for the byte-exact raw + next index; the
+	// children come from the body-only strip below (the marker line is not a child),
+	// so the body is parsed exactly once.
+	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end);
+	const body = parse(stripBody(ctx.lines, ctx.index + 1, nextIndex));
 
 	const node: CstNode = {
 		kind: declaredPluginKind(GITHUB_ALERT),
 		leadingTrivia: ctx.leadingTrivia,
-		raw: quote.node.raw,
+		raw,
 		innerPrefix: body.prefix,
 		children: body.children,
 		innerSuffix: body.suffix
 	};
 	setPluginMetadata<GithubAlertMetadata>(node, { alertType });
-	return { node, nextIndex: quote.nextIndex };
+	return { node, nextIndex };
 }
 
 /** The `> `-stripped body: the lines after the marker with their quote prefix removed. */
@@ -125,7 +126,11 @@ export function registerGithubAlert(): void {
 			rebuildRaw: rebuildGithubAlertRaw,
 			// The alert IS a blockquote with a marker, so it unwraps exactly as one:
 			// lifting the first child out drops the marker and reparses plain.
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child',
+				middleChildBackspace: 'default-merge',
+				quoteShaped: true
+			}
 		},
 		closure: containerClosure({
 			roundTripVia:

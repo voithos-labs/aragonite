@@ -50,6 +50,27 @@ describe('github alert — the marker grammar claims a githubAlert', () => {
 	});
 });
 
+describe('github alert — MARKER whitespace edges', () => {
+	// MARKER allows optional spacing after `>` (`>[ \t]*`) and trailing whitespace
+	// after the `]` (`[ \t]*$`); only trailing non-whitespace content declines (the
+	// "marker with trailing text" decline below). These pin the whitespace edges the
+	// regex flags imply so a tightening of the spacing rule can't slip through green.
+
+	it('accepts trailing whitespace after the `]`', () => {
+		expect(firstKind('> [!NOTE]   \n> x\n')).toBe('githubAlert');
+		expect(firstKind('> [!NOTE]\t\n> x\n')).toBe('githubAlert');
+	});
+
+	for (const { name, marker } of [
+		{ name: 'no space after `>`', marker: '>[!NOTE]' },
+		{ name: 'a tab after `>`', marker: '>\t[!NOTE]' }
+	]) {
+		it(`accepts ${name}`, () => {
+			expect(firstKind(`${marker}\n> x\n`)).toBe('githubAlert');
+		});
+	}
+});
+
 describe('github alert — non-alert blockquotes stay plain', () => {
 	const declines = [
 		{ name: 'mid-quote marker (not the first line)', src: '> plain\n> [!NOTE]\n> more\n' },

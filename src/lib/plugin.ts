@@ -133,11 +133,11 @@ export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
 export type { FenceOpen } from './core/parsers/fenced-code';
 
 // ── Blockquote grammar (pre-freeze: refined against the alert-claiming reference plugin) ──
-// The built-in blockquote recognizer, so a plugin claiming a blockquote-shaped
-// construct (`> [!NOTE]` GitHub alerts) reuses the CommonMark §5.1 extent scan
-// (lazy continuation included) instead of forking it: match a line, then claim the
-// whole quote — its byte-exact raw and the index past it come back on the node.
-export { matchBlockquote, parseBlockquote } from './core/parsers/blockquote';
+// The built-in blockquote extent scanner, so a plugin claiming a blockquote-shaped
+// construct (`> [!NOTE]` GitHub alerts) reuses the CommonMark §5.1 lazy-continuation
+// extent instead of forking it: given the lines and a start, it returns the quote's
+// byte-exact raw and the index past it — the opener decomposes its own body.
+export { blockquoteExtent } from './core/parsers/blockquote';
 
 // ── CST node access ────────────────────────────────────────────────────────────
 export type { CstNode } from './core/nodes';

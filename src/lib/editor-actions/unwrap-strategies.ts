@@ -26,7 +26,8 @@ export interface UnwrapStrategyDeps {
 
 // ── First-child strategies ──────────────────────────────────────────────────
 
-/** Rule U2: lift the first child out of a quote-shaped container (blockquote / GitHub alert). */
+/** Rule U2: lift the first child out of a container that declares the quoteShaped
+ *  capability; a chrome container sharing this strategy no-ops (empty replacement). */
 async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
 	const node = deps.node;
 	const replacement = unwrapFirstChildFromQuote(node);

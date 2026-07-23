@@ -397,7 +397,11 @@ export function registerBuiltInDescriptors(): void {
 			contract: 'strip',
 			rebuildRaw: rebuildBlockquoteRaw,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child',
+				middleChildBackspace: 'default-merge',
+				quoteShaped: true
+			}
 		},
 		conformanceFixture: '> quoted\n',
 		closure: containerClosure({
