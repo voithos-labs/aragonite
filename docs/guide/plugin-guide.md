@@ -711,7 +711,7 @@ Two habits keep a transform sound:
 - **Decline cheaply, then convert precisely.** Probe the text for your marker first and return `null` when it is absent — the pipeline runs on every paste, so a fast reject keeps the common case free.
 - **Scope through the parser, not a naive text scan.** A line-level scanner rewrites marker-shaped lines that happen to sit inside a pasted code fence; a converter that parses first and rewrites only the blocks it means to is fence-safe. Keep the transform **idempotent** — re-running it on its own output must decline or reproduce it. A dev warning fires otherwise, catching paste feedback loops.
 
-The admonitions dogfood is the worked example: it probes for a GitHub-alert blockquote (`> [!NOTE]`), and when one is present converts only the top-level blockquote alerts to `:::name` directive source through a parse-scoped converter — so an alert-shaped line inside a pasted fence survives literally. The transform serves pastes; a host button running the same converter over `getSource()` serves already-loaded documents.
+The admonitions plugin is the worked example. It renders `> [!NOTE]` GitHub alerts as a native container kind with their bytes untouched, so the paste transform is **opt-in** (`admonitionsPlugin({ convertAlertsOnPaste: true })`, default off): when enabled it probes for an alert blockquote and converts only the top-level ones to `:::name` directive source through a parse-scoped converter, so an alert-shaped line inside a pasted fence survives literally. The transform serves pastes; a host button running the same converter over `getSource()` serves already-loaded documents whichever way the transform is set.
 
 ## What a plugin may and may not do
 
@@ -955,6 +955,13 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `matchFenceOpen`  | Recognize a CommonMark fence-opener line, verbatim indent/info bytes included                 |
 | `matchFenceClose` | Test a line as the closer for a matched opener (marker + minimum run length)                  |
 | `FenceOpen`       | The matched opener's shape: marker, run length, trimmed `info`, verbatim `indent` + `infoRaw` |
+
+**Blockquote grammar** _(pre-freeze / unstable)_
+
+| Export            | Role                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `matchBlockquote` | Recognize a blockquote-opener line (`>` after optional indent)                                |
+| `parseBlockquote` | Claim a whole blockquote (CommonMark §5.1 lazy continuation), returning its node + next index |
 
 **CST node access and metadata**
 

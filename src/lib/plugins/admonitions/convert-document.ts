@@ -4,8 +4,8 @@
  * transform → write the `source` prop back).
  *
  * Scoping through `parse` instead of raw line scanning means only real
- * top-level blockquote blocks convert: an alert-shaped line inside a code
- * fence stays untouched. Blockquotes nested inside other containers are left
+ * top-level alert / blockquote blocks convert: an alert-shaped line inside a
+ * code fence stays untouched. Alerts nested inside other containers are left
  * alone — rewriting one would require rebuilding its ancestors' raw, and
  * GitHub alerts are a top-level construct in practice.
  */
@@ -18,7 +18,11 @@ export function convertGithubAlertsInDocument(source: string): AlertConversion {
 	const parts: string[] = [doc.prefix];
 	for (const child of doc.children) {
 		parts.push(child.leadingTrivia);
-		const converted = child.kind === 'blockquote' ? convertAlertBlockquoteRaw(child.raw) : null;
+		// A native alert parses as `githubAlert`; a plain blockquote whose first line
+		// is not a marker parses as `blockquote` (its own body may still hold a mid-quote
+		// marker that must stay literal). Both raws feed the same first-line converter.
+		const isAlertShaped = child.kind === 'blockquote' || child.kind === 'githubAlert';
+		const converted = isAlertShaped ? convertAlertBlockquoteRaw(child.raw) : null;
 		if (converted !== null) {
 			parts.push(converted);
 			changed = true;
