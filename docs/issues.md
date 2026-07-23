@@ -169,6 +169,21 @@ content-version token every widget reads) once a real workload goes reference-de
 epoch that exists today (`linkStamp`) tracks only the LRD signature, not general edits, so that token is
 not cheaply available yet.
 
+### Installed-footnotes scan consultation is unmeasured by the standing perf gate
+
+**Severity:** watch (accepted at 0.9.33 ship; cost is bounded and off by default)
+**Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation),
+`src/lib/test/perf/` (the standing harness installs no reserved-prefix plugin)
+
+With a reserved-prefix rung registered (today: footnotes' `[^`), every `[` in a scanned range pays
+one registry lookup plus a two-char prefix compare before the built-in case. The standing keystroke
+ceilings measure only the empty-registry path, which is byte- and cost-identical to pre-ladder. The
+cost is O(occurrences of `[`) within ranges `needsScan` already admits, and the 0.9.33 final review
+accepted it on that reasoning rather than a measurement.
+
+**Fix direction:** when a perf-harness pass next touches fixtures, add one footnotes-installed
+keystroke row over a bracket-dense fixture so the accepted reasoning becomes a measured ceiling.
+
 **Why deferred:** sub-millisecond at real scale, and a correct memo needs a content-version token the
 editor does not cheaply expose. Re-open if a real workload holds a reference-dense region.
 
