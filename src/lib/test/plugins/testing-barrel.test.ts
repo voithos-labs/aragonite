@@ -28,7 +28,7 @@ import {
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
-import { getInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
+import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import { stripComments } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
@@ -81,7 +81,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
 		expect(pluginGlobalBinding('Mod+Shift+1')).toBeNull();
 		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
-		expect(getInlineSyntax('⌘')).toBeUndefined();
+		expect(getInlineRungs('⌘')).toHaveLength(0);
 
 		// The register-once dup throw is exactly what a third-party suite hits
 		// without a sanctioned reset — re-running the whole setup must be clean.

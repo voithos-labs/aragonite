@@ -16,7 +16,7 @@ import { registerBlockCommand, getBlockCommand } from '$lib/schema/block-command
 import type { AnyCommandId } from '$lib/schema/command-id';
 import {
 	registerInlineSyntax,
-	getInlineSyntax,
+	getInlineRungs,
 	__resetInlineSyntaxForTests,
 	type InlineSyntaxRecognizer
 } from '$lib/core/inline/scan/plugin-syntax';
@@ -110,7 +110,7 @@ describe('dev re-registration replaces instead of throwing', () => {
 		registerInlineSyntax('¬', first);
 		asDevNotTest();
 		expect(() => registerInlineSyntax('¬', second)).not.toThrow();
-		expect(getInlineSyntax('¬')).toBe(second);
+		expect(getInlineRungs('¬')[0].recognizer).toBe(second);
 	});
 
 	it('declarePluginKind returns the existing brand on re-declaration', () => {
