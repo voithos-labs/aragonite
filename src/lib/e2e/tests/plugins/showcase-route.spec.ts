@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 
-// The `/` showcase mounts <Editor> with all seven bundled plugins installed the
+// The `/` showcase mounts <Editor> with all eight bundled plugins installed the
 // consumer way (subpath imports, injected latex/mermaid engines) and exposes no
 // `window.__test` bridge — so this smoke asserts through rendered DOM only. The
 // shared fixture also fails on any `[invariant:…]` console fire, so a green run
@@ -27,9 +27,28 @@ test.describe('/ showcase route', () => {
 	test('math and mermaid islands render', async ({ page }) => {
 		// KaTeX output proves the injected latex engine ran on a math widget.
 		await expect(page.locator('.katex').first()).toBeVisible();
+		// Two block displays render — the `$$…$$` block and the ```math fence, the
+		// distinct kinds sharing one component (block math is followed by the fence).
+		await expect.poll(() => page.locator('.math-block-render').count()).toBeGreaterThan(1);
 		// Mermaid renders async (the adapter dynamic-imports the engine); settle on
 		// the always-present wrapper, not the engine's SVG, to stay timing-robust.
 		await expect(page.locator('.mermaid-block').first()).toBeVisible();
+	});
+
+	test('native GitHub alert renders as its own styled callout', async ({ page }) => {
+		await expect(page.locator(".admonition[data-alert-source='github']").first()).toBeVisible();
+	});
+
+	test('emoji shortcodes render as glyph widgets in prose, a heading, and a table cell', async ({
+		page
+	}) => {
+		// Prose, plus the two ambient contexts the ledgered coverage note flagged: the
+		// `:` rung runs the same in a heading and a table cell as in a paragraph.
+		await expect.poll(() => page.locator('.md-emoji-widget').count()).toBeGreaterThan(1);
+		await expect(
+			page.locator('[data-block-kind="heading"] .md-emoji-widget').first()
+		).toBeVisible();
+		await expect(page.locator('[data-block-kind="table"] .md-emoji-widget').first()).toBeVisible();
 	});
 
 	test('toc lists the document headings', async ({ page }) => {
