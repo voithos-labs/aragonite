@@ -13,7 +13,7 @@ import {
 	declaredPluginKind,
 	type EditorPlugin
 } from '$lib/plugin';
-import { registerMathInline, registerMathBlock, MATH_BLOCK } from './latex-kind';
+import { registerMathInline, registerMathBlock, MATH_BLOCK, MATH_FENCE } from './latex-kind';
 import { setMathRenderer, type MathRenderer } from './math-renderer';
 import BlockMath from './BlockMath.svelte';
 
@@ -23,8 +23,11 @@ export function latexPlugin(options: { renderer: MathRenderer }): EditorPlugin {
 		setup() {
 			setMathRenderer(options.renderer);
 			registerMathInline();
+			// registerMathBlock co-registers the ```math fence kind; both render through BlockMath.
 			registerMathBlock();
-			registerBlockComponent(declaredPluginKind(MATH_BLOCK), defineBlockComponent(BlockMath));
+			const blockMath = defineBlockComponent(BlockMath);
+			registerBlockComponent(declaredPluginKind(MATH_BLOCK), blockMath);
+			registerBlockComponent(declaredPluginKind(MATH_FENCE), blockMath);
 		}
 	});
 }
