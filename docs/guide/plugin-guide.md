@@ -958,10 +958,9 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Blockquote grammar** _(pre-freeze / unstable)_
 
-| Export            | Role                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `matchBlockquote` | Recognize a blockquote-opener line (`>` after optional indent)                                |
-| `parseBlockquote` | Claim a whole blockquote (CommonMark §5.1 lazy continuation), returning its node + next index |
+| Export             | Role                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blockquoteExtent` | Scan a blockquote's extent (CommonMark §5.1 lazy continuation) from a start line, returning its `raw` + `nextIndex` — no child decomposition |
 
 **CST node access and metadata**
 

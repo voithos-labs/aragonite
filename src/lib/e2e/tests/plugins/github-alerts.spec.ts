@@ -1,5 +1,12 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, readContainer, readDoc, roundTripStable, waitForDoc } from './helpers';
+import {
+	PluginsPage,
+	readContainer,
+	readDoc,
+	roundTripStable,
+	waitForContainer,
+	waitForDoc
+} from './helpers';
 
 /**
  * Native GitHub alerts: a `> [!TYPE]` blockquote renders as a styled alert box with
@@ -65,6 +72,28 @@ test.describe('plugin github alerts', () => {
 		expect(doc.kinds).not.toContain('githubAlert');
 		expect(doc.texts).toContain('hello there');
 		expect(await editor.bridge.getSource()).not.toContain('[!TIP]');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('Backspace at a middle body block merges within the alert, never escaping it', async ({
+		page
+	}) => {
+		await editor.loadContent('> [!TIP]\n> first\n>\n> second\n');
+		await waitForContainer(page, 0, (s) => s.childCount === 2);
+
+		await editor.focusBlockAtPath([0, 1], 0); // start of the second body paragraph
+		await page.keyboard.press('Backspace');
+
+		// The middle child folds into the previous body block (default-merge). The
+		// alert stays one githubAlert root with its marker intact — the merge is
+		// contained, never lifting the block out or dropping the marker.
+		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
+		expect(alert.rootCount).toBe(1);
+		expect(alert.kind).toBe('githubAlert');
+		expect(alert.childTexts[0]).toContain('first');
+		expect(alert.childTexts[0]).toContain('second');
+		expect(alert.raw).toContain('[!TIP]');
+		expect(await editor.bridge.getSource()).toContain('> [!TIP]');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
