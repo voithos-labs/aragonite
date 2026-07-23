@@ -1,9 +1,11 @@
 <!--
-  Renders an admonition: a kind-colored box whose first line is the editable
-  title chrome leaf (child 0) and whose body is the nested BlockList. All child-
-  list state, ancestor wiring, and windowing are hidden by createContainerBlock;
-  this component owns only its chrome. node/index/path are passed as thunks so each
-  is re-read live — a parent op or undo replacement is observed, never snapshotted.
+  Renders an alert box for both admonition kinds: the `:::name` directive admonition
+  (its first line the editable title chrome leaf, child 0) and the native GitHub
+  alert (`> [!TYPE]`, no title — a static badge stands in). The body is the nested
+  BlockList; all child-list state, ancestor wiring, and windowing are hidden by
+  createContainerBlock, so this component owns only its chrome. node/index/path are
+  passed as thunks so each is re-read live — a parent op or undo replacement is
+  observed, never snapshotted.
 -->
 <script lang="ts">
 	import {
@@ -13,7 +15,13 @@
 		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
-	import { capitalize, coerceAdmonitionName, type AdmonitionMetadata } from './kinds';
+	import {
+		capitalize,
+		coerceAdmonitionName,
+		GITHUB_ALERT,
+		type AdmonitionMetadata,
+		type GithubAlertMetadata
+	} from './kinds';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
@@ -25,8 +33,15 @@
 		getBoxEl: () => boxEl
 	});
 
-	const kind = $derived(coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name));
-	const titleEmpty = $derived((node.children?.[0]?.raw ?? '').trim() === '');
+	// A GitHub alert has no editable title; the type comes from its own metadata and
+	// its badge always shows the kind name (like an untitled directive admonition).
+	const isAlert = $derived(node.kind === GITHUB_ALERT);
+	const kind = $derived(
+		isAlert
+			? coerceAdmonitionName(getPluginMetadata<GithubAlertMetadata>(node)?.alertType?.toLowerCase())
+			: coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name)
+	);
+	const titleEmpty = $derived(isAlert || (node.children?.[0]?.raw ?? '').trim() === '');
 
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
@@ -63,10 +78,17 @@
 	class="admonition"
 	data-kind={kind}
 	data-title-empty={titleEmpty}
-	aria-label={`${capitalize(kind)} admonition`}
+	data-alert-source={isAlert ? 'github' : 'directive'}
+	aria-label={`${capitalize(kind)} ${isAlert ? 'alert' : 'admonition'}`}
 	bind:this={boxEl}
 	onkeydown={handleKeydown}
 >
+	{#if isAlert}
+		<!-- Static badge for the markerless alert: the empty title leaf's icon + kind
+		     name are drawn by the shared chrome CSS; contenteditable=false keeps the
+		     caret in the body, where the alert's real content lives. -->
+		<div class="admonition-title" contenteditable="false" aria-hidden="true"></div>
+	{/if}
 	<BlockList {...blockListProps} />
 </div>
 
@@ -114,6 +136,13 @@
 		padding-left: 1.7em;
 		min-height: 1.4em;
 		line-height: 1.4em;
+	}
+
+	/* The GitHub alert's badge is static chrome, not an editable title — never a
+	   caret target. */
+	.admonition[data-alert-source='github'] :global(.admonition-title) {
+		user-select: none;
+		cursor: default;
 	}
 
 	/* Kind icon, tinted to the accent via a mask so one glyph recolors per kind.

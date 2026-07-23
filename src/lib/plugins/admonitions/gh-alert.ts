@@ -1,12 +1,15 @@
 /**
- * Pure text transform: GitHub-alert blockquotes → `:::name` directive source.
+ * The GitHub-alert marker grammar — the single home for `> [!TYPE]` recognition —
+ * plus the `source → source` transform that rewrites alert blockquotes into
+ * `:::name` directive source.
  *
  *   > [!NOTE]        :::note
  *   > Body line   →  Body line
  *                    :::
  *
- * This is `source → source` only — it produces directive Markdown the editor's
- * own parser then turns into an admonition. Kept free of any editor import so it
+ * `matchAlertMarker` and `stripQuoteMarker` are the grammar the native
+ * `githubAlert` opener (github-alert-kind.ts) reuses, so the marker rule lives in
+ * exactly one place. The transform stays free of any editor import so it
  * unit-tests in isolation; the document-scoped wrapper (which needs `parse` to
  * skip code blocks) lives in `convert-document.ts`.
  */
@@ -20,8 +23,19 @@ const MARKER = /^(\s*)>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
 /** A blockquote continuation line: starts with `>` (after optional indent). */
 const QUOTE_LINE = /^[ \t]*>/;
 
+/**
+ * The alert type as it was typed (`NOTE`, `Note`, `warning`) when `line` is
+ * exactly a `> [!TYPE]` marker for a known type, else null. Callers that need the
+ * canonical name lowercase the result; the opener stores it verbatim so the source
+ * casing survives a rebuild.
+ */
+export function matchAlertMarker(line: string): string | null {
+	const typed = MARKER.exec(line)?.[2];
+	return typed && ALERT_NAMES.has(typed.toLowerCase()) ? typed : null;
+}
+
 /** Strip one leading `>` and at most one following space/tab (GFM blockquote marker). */
-function stripQuoteMarker(line: string): string {
+export function stripQuoteMarker(line: string): string {
 	const m = /^[ \t]*>[ \t]?/.exec(line);
 	return m ? line.slice(m[0].length) : line;
 }
@@ -40,11 +54,10 @@ export interface AlertConversion {
 export function convertAlertBlockquoteRaw(raw: string): string | null {
 	const trailingNewline = raw.endsWith('\n');
 	const lines = (trailingNewline ? raw.slice(0, -1) : raw).split('\n');
-	const marker = MARKER.exec(lines[0]);
-	const name = marker?.[2]?.toLowerCase();
-	if (!marker || !name || !ALERT_NAMES.has(name)) return null;
+	const typed = matchAlertMarker(lines[0]);
+	if (!typed) return null;
 	const body = lines.slice(1).map(stripQuoteMarker);
-	const out = [`:::${name}`, ...body, ':::'].join('\n');
+	const out = [`:::${typed.toLowerCase()}`, ...body, ':::'].join('\n');
 	return trailingNewline ? `${out}\n` : out;
 }
 
@@ -61,18 +74,17 @@ export function convertGithubAlerts(text: string): AlertConversion {
 	let i = 0;
 
 	while (i < lines.length) {
-		const marker = MARKER.exec(lines[i]);
-		const name = marker?.[2]?.toLowerCase();
+		const typed = matchAlertMarker(lines[i]);
 		const opensBlockquote = i === 0 || !QUOTE_LINE.test(lines[i - 1]);
 
-		if (marker && name && ALERT_NAMES.has(name) && opensBlockquote) {
+		if (typed && opensBlockquote) {
 			const body: string[] = [];
 			let j = i + 1;
 			while (j < lines.length && QUOTE_LINE.test(lines[j])) {
 				body.push(stripQuoteMarker(lines[j]));
 				j++;
 			}
-			out.push(`:::${name}`, ...body, ':::');
+			out.push(`:::${typed.toLowerCase()}`, ...body, ':::');
 			changed = true;
 			i = j;
 		} else {
@@ -88,8 +100,7 @@ export function convertGithubAlerts(text: string): AlertConversion {
 export function hasGithubAlert(text: string): boolean {
 	const lines = text.split('\n');
 	return lines.some((line, i) => {
-		const m = MARKER.exec(line);
-		if (!m || !ALERT_NAMES.has((m[2] ?? '').toLowerCase())) return false;
+		if (!matchAlertMarker(line)) return false;
 		return i === 0 || !QUOTE_LINE.test(lines[i - 1]);
 	});
 }

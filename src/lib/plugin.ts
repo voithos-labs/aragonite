@@ -132,6 +132,13 @@ export type { ParsedLine } from './core/lines';
 export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
 export type { FenceOpen } from './core/parsers/fenced-code';
 
+// ── Blockquote grammar (pre-freeze: refined against the alert-claiming reference plugin) ──
+// The built-in blockquote recognizer, so a plugin claiming a blockquote-shaped
+// construct (`> [!NOTE]` GitHub alerts) reuses the CommonMark §5.1 extent scan
+// (lazy continuation included) instead of forking it: match a line, then claim the
+// whole quote — its byte-exact raw and the index past it come back on the node.
+export { matchBlockquote, parseBlockquote } from './core/parsers/blockquote';
+
 // ── CST node access ────────────────────────────────────────────────────────────
 export type { CstNode } from './core/nodes';
 // The bytes-readonly views every read surface hands a plugin (component props,

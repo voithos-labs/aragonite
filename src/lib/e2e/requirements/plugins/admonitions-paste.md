@@ -1,33 +1,28 @@
-# Feature: Plugin Admonitions — paste transform
+# Feature: Plugin Admonitions — native alert paste
 
-The admonitions dogfood registers a content-keyed, pre-parse paste transform
-(`registerPasteTransform`). Pasted GitHub-alert blockquotes (`> [!TIP]`) are
-rewritten to `:::name` directive source before the editor parses, so they land
-as real admonition blocks — the fence-safe sibling of the host convert button
-(which serves loaded documents; the transform serves pastes). The transform is
-CST-scoped, so an alert-shaped line pasted inside a code fence stays literal.
-
-On `/test/plugins` the co-registered callout dogfood claims `note`/`warning`, so
-an admonition-owned alert type (`tip`) is pasted to assert the admonition kind.
-Real clipboard write + `Mod+V`; the CST is read by path via `window.__test`.
+With native alert rendering shipped, the admonitions paste transform is opt-in
+(`admonitionsPlugin({ convertAlertsOnPaste: true })`, default off). On the default
+`/test/plugins` harness the transform is NOT installed, so a pasted GitHub-alert
+blockquote (`> [!TIP]`) keeps its GitHub bytes and lands as a native `githubAlert`
+container — never rewritten to `:::name`. Real clipboard write + `Mod+V`; the CST is
+read by path via `window.__test`. The opt-in rewrite path is unit-covered
+(`github-alert-paste-opt-in`).
 
 ## User interactions
 
 - pasting a GitHub alert: a real clipboard write of `> [!TIP]` alert text plus
-  `Mod+V` at the caret converts it to a `:::tip` admonition — a root child of
-  kind `admonition` — and the document round-trips stable
-- single-commit undo: one `Ctrl+Z` after the paste restores the pre-paste
-  document byte-for-byte, proving the transform does not split the paste into
-  extra undo entries
+  `Mod+V` at the caret lands a root child of kind `githubAlert` whose bytes still
+  read `> [!TIP]` (no `:::tip`), and the document round-trips stable
+- single-commit undo: one `Ctrl+Z` after the paste restores the pre-paste document
+  byte-for-byte, proving the paste is a single undo entry
 
 ## Edge cases
 
-- fence-safe conversion: a single paste carrying both a top-level alert and a
-  fenced alert converts the top-level one to a `:::tip` admonition while leaving
-  the fenced `> [!NOTE]` byte-identical — never rewritten to `:::note`, because
-  the converter is parse-scoped, not a line scan. The pasted document holds both
-  an `admonition` and a `fencedCode` root child
+- fenced alert stays literal: a single paste carrying both a top-level alert and a
+  fenced alert lands the top-level one as a native `githubAlert` while the fenced
+  `> [!NOTE]` stays inside a `fencedCode` block — neither is rewritten to directive
+  source (no `:::` anywhere)
 - whole-table-selection paste: selecting an entire table (second Ctrl+A inside a
-  cell) and pasting alert text replaces the table with a `:::tip` admonition —
-  this route bypasses the shared paste dispatch and carries its own transform
-  call, so the transform must fire there too; the result round-trips stable
+  cell) and pasting alert text replaces the table with a native `githubAlert` — this
+  route bypasses the shared paste dispatch and carries its own parse, so the alert
+  must land there too; the result round-trips stable

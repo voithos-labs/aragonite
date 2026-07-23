@@ -21,7 +21,7 @@ import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind'
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
 import { FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
-import { ADMONITION } from '$lib/plugins/admonitions/kinds';
+import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
@@ -141,6 +141,9 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 	// swept kinds. `registerAdmonitions` activates the shared directive grammar, so
 	// the core generic-directive fallback kinds ride in — excluded here as they are
 	// core, not bundled plugins, and covered by `closure-fixtures.test.ts` + G1.24.
+	// It also co-registers the native `githubAlert` kind (a second fixtured kind under
+	// one dir), so that rides in too.
+	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
 		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);
@@ -148,7 +151,9 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 			.filter((k) => !isBuiltinBlockKind(k))
 			.filter((k) => getBlockKindDescriptor(k).conformanceFixture !== undefined)
 			.filter((k) => !directiveFallback.has(k));
-		expect(new Set(registeredBundled)).toEqual(new Set(BUNDLED_INSTALLS.map((b) => b.kind)));
+		expect(new Set(registeredBundled)).toEqual(
+			new Set([...BUNDLED_INSTALLS.map((b) => b.kind), ...CO_REGISTERED_FIXTURED])
+		);
 	});
 
 	// Cross-plugin priority parity: a shared opener priority is invisible to every

@@ -9,6 +9,8 @@ import {
 	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
+	defineBlockComponent,
+	registerBlockComponent,
 	registerBlockKind,
 	registerBlockCommand,
 	registerChromeLeaf,
@@ -29,6 +31,18 @@ import {
 	type AdmonitionMetadata
 } from './kinds';
 import { githubAlertsPasteTransform } from './convert-document';
+import { registerGithubAlert } from './github-alert-kind';
+import AdmonitionBlock from './AdmonitionBlock.svelte';
+
+export interface AdmonitionsOptions {
+	/**
+	 * Rewrite pasted GitHub-alert blockquotes to `:::name` directive source before
+	 * the parse (default false). With native alert rendering, pasted GitHub bytes
+	 * stay GitHub bytes and render as `githubAlert` unless a host opts in; the
+	 * convert-document affordance stays available either way.
+	 */
+	convertAlertsOnPaste?: boolean;
+}
 
 /**
  * Build the container from a parsed `:::note` fence. Child 0 is the title
@@ -62,7 +76,7 @@ const rebuildAdmonitionRaw = createDirectiveRebuild<AdmonitionMetadata>((meta) =
 	coerceAdmonitionName(meta?.name)
 );
 
-export function registerAdmonitions(): void {
+export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
 
 	const { admonition, title } = declareAdmonitionKinds();
@@ -122,8 +136,16 @@ export function registerAdmonitions(): void {
 	});
 
 	registerChromeLeaf(title, { blockClass: 'admonition-title' });
+	registerBlockComponent(admonition, defineBlockComponent(AdmonitionBlock));
 
-	// Pasted GitHub-alert blockquotes convert to `:::name` source pre-parse — the
-	// fence-safe sibling of the host convert button (which serves loaded documents).
-	registerPasteTransform(githubAlertsPasteTransform);
+	// Opt-in only: with native rendering, pasted GitHub-alert blockquotes stay
+	// GitHub bytes and render as `githubAlert`. A host that wants the directive
+	// rewrite instead re-enables this fence-safe sibling of the convert button.
+	if (options?.convertAlertsOnPaste) {
+		registerPasteTransform(githubAlertsPasteTransform);
+	}
+
+	// The shared component renders both kinds; the alert opener claims `> [!TYPE]`
+	// blockquotes as a native container, bytes preserved.
+	registerGithubAlert();
 }

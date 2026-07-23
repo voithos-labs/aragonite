@@ -325,6 +325,11 @@ export function updateNodeContent(
 	// absent (paste, split/merge reparse) defaults to the global grammar.
 	const parsed = parse(newText, { grammar }).children;
 	const first: CstNode | undefined = parsed[0];
+	// A container whose empty body will be backfilled: its typed raw can't account
+	// for the synthesized focus paragraph unless its marker line doubles as the
+	// blank body (blockquote/listItem). A marker-consuming container (a GitHub
+	// alert) needs its raw rebuilt from the backfilled body, or G1.1 stale-raw fires.
+	const firstBackfilled = !!first && isEmptyEditableContainer(first);
 	if (first) ensureEditableContainers(first);
 
 	// Multi-block: replace the slot with every parsed block. The first block is
@@ -336,6 +341,7 @@ export function updateNodeContent(
 		for (const sibling of rest) ensureEditableContainers(sibling);
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
+		if (firstBackfilled) reconcileBackfilledRaw(first);
 		parent.children.splice(blockIndex, 1, first, ...rest);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
 	}
@@ -351,6 +357,7 @@ export function updateNodeContent(
 		node.children = first?.children;
 		node.innerPrefix = first?.innerPrefix;
 		node.innerSuffix = first?.innerSuffix;
+		if (firstBackfilled) reconcileBackfilledRaw(node);
 		return { op: 'noop' };
 	}
 
@@ -360,6 +367,7 @@ export function updateNodeContent(
 	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
 	replacement.raw = newText;
 	replacement.leadingTrivia = node.leadingTrivia;
+	if (firstBackfilled) reconcileBackfilledRaw(replacement);
 	parent.children.splice(blockIndex, 1, replacement);
 	return replacePreservingFirst(blockIndex, 1, 1);
 }
@@ -428,6 +436,26 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
 }
 
 // ── Editable container backfill ──
+
+/**
+ * A container `ensureEditableContainers` will backfill: editable, not whole-block-
+ * focus, and currently childless. Read BEFORE the backfill runs — afterwards it
+ * holds the synthesized paragraph and no longer qualifies.
+ */
+function isEmptyEditableContainer(node: CstNode): boolean {
+	const d = getBlockKindDescriptor(node.kind);
+	return d.isContainer && d.blockFocus !== 'whole-block' && (node.children?.length ?? 0) === 0;
+}
+
+/**
+ * Sync a just-backfilled container's `raw` to its synthesized body via the kind's
+ * `rebuildRaw`. Needed only for a marker-consuming container whose typed raw lacks a
+ * blank body line (a GitHub alert's `> [!TYPE]`); blockquote/listItem already strip
+ * to the blank, so their rebuild is a no-op here.
+ */
+function reconcileBackfilledRaw(node: CstNode): void {
+	getBlockKindDescriptor(node.kind).rebuildRaw?.(node);
+}
 
 /**
  * Ensure every container has at least one child block, so the cursor always
