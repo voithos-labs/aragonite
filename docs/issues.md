@@ -169,23 +169,30 @@ content-version token every widget reads) once a real workload goes reference-de
 epoch that exists today (`linkStamp`) tracks only the LRD signature, not general edits, so that token is
 not cheaply available yet.
 
-### Installed-footnotes scan consultation is unmeasured by the standing perf gate
+### Installed inline-rung consultation is unmeasured by the standing perf gate
 
 **Severity:** watch (accepted at 0.9.33 ship; cost is bounded and off by default)
-**Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation),
-`src/lib/test/perf/` (the standing harness installs no reserved-prefix plugin)
+**Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation and the
+default-arm unreserved-rung consultation), `src/lib/test/perf/` (the standing harness installs
+no rung-registering plugin)
 
-With a reserved-prefix rung registered (today: footnotes' `[^`), every `[` in a scanned range pays
-one registry lookup plus a two-char prefix compare before the built-in case. The standing keystroke
-ceilings measure only the empty-registry path, which is byte- and cost-identical to pre-ladder. The
-cost is O(occurrences of `[`) within ranges `needsScan` already admits, and the 0.9.33 final review
-accepted it on that reasoning rather than a measurement.
+A registered inline rung adds a per-occurrence consultation on its trigger character that the
+standing empty-registry gate never measures. Two ship today, on the two rung shapes: footnotes'
+reserved-prefix `[^` (0.9.33), consulted before the built-in `[` case, so every `[` in a scanned
+range pays a registry lookup plus a two-char prefix compare; and emoji's unreserved `:` rung
+(0.9.34), consulted in the scanner's `default` arm, so every `:` that reaches it pays a lookup plus
+a recognizer attempt. Both are O(occurrences of the trigger) within ranges `needsScan` already
+admits, and the standing keystroke ceilings measure only the empty-registry path (byte- and
+cost-identical to pre-ladder). The 0.9.33 review accepted the `[^` cost on that reasoning rather
+than a measurement, and emoji's `:` rides the same unmeasured shape.
 
-**Fix direction:** when a perf-harness pass next touches fixtures, add one footnotes-installed
-keystroke row over a bracket-dense fixture so the accepted reasoning becomes a measured ceiling.
+**Fix direction:** when a perf-harness pass next touches fixtures, add a footnotes-installed row
+over a bracket-dense fixture and an emoji-installed row over a colon-dense fixture, so both rung
+shapes become measured ceilings.
 
-**Why deferred:** sub-millisecond at real scale, and a correct memo needs a content-version token the
-editor does not cheaply expose. Re-open if a real workload holds a reference-dense region.
+**Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path until a
+rung-registering plugin is installed. Re-open when a perf-harness pass next touches fixtures, or if
+a real workload holds a trigger-dense region under an installed rung.
 
 ## Code structure
 

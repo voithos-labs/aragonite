@@ -87,11 +87,11 @@ freeze**.
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
      land as pre-freeze refinements; a structural finding moves the cut.
-   - **1.3 dry-run** — footnotes, the riskiest of the three reference plugins, shipped pre-freeze
-     on the 0.9.33 inline precedence ladder (build-probed 0.9.30, then promoted whole), so this
-     check rests on a shipped consumer rather than a probe where it matters most; at the cut, walk
-     emoji and autolinks on paper against what footnotes exercised and confirm no
-     breaking-if-deferred gap remains.
+   - **1.3 dry-run** — the beyond-GFM reference plugins shipped pre-freeze rather than as paper
+     probes: footnotes, the riskiest, on the 0.9.33 inline precedence ladder (build-probed 0.9.30,
+     then promoted whole), and emoji on the 0.9.34 bare-`:` rung, so this check rests on shipped
+     consumers where it matters most. At the cut, confirm the one deliberately-excluded item (the
+     GitHub repo-context autolink sugar, § 1.3) carries no breaking-if-deferred gap.
    - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
      at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
      quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
@@ -280,7 +280,7 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 
 ### 1.3 — Beyond-GFM (as plugins)
 
-De-facto GitHub.com extensions, all built as plugins on the 1.0 authoring API + 1.2 DX — dogfood proof the API carries third-party contributions: emoji shortcodes and GitHub autolinks (admonitions, Mermaid, and footnotes already shipped pre-1.0 as reference plugins; footnotes rode the 0.9.33 inline precedence ladder, and emoji is the next of the two remaining). If any can't be built cleanly as a plugin, that reveals an API gap — fix the API, not the plugin.
+De-facto GitHub.com extensions built as plugins on the 1.0 authoring API, dogfood proof the API carries third-party contributions. The reference-plugin set shipped pre-1.0: admonitions, Mermaid, and footnotes (footnotes rode the 0.9.33 inline precedence ladder), and emoji shipped on the 0.9.34 bare-`:` rung as the last of them. GitHub autolinks need no plugin (bare, `www.`, and email autolinks are already native GFM), and the remaining GitHub.com repo-context sugar (issue/PR refs like `#123`, `@`-mentions, cross-repo `user/repo#123`) stays deliberately excluded: it resolves against a repo/vault the editor does not own, so it belongs to the consumer, not the editor library. The milestone's forward scope is therefore closed; it stands as the record that the authoring API carried every beyond-GFM extension it was asked to. Had any failed to build cleanly as a plugin, that would have revealed an API gap to fix; none did.
 
 ### 1.4 — Git-native integration (likely a first-party plugin)
 

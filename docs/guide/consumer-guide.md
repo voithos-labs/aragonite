@@ -134,13 +134,14 @@ A later editor may mount carrying a plugin an earlier one never had. The late in
 
 ### Bundled plugins
 
-Seven first-party plugins ship in the package as subpath exports — install them like any other unit:
+Eight first-party plugins ship in the package as subpath exports — install them like any other unit:
 
 ```ts
 import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
 import { detailsPlugin } from 'aragonite/plugins/details';
 import { tocPlugin } from 'aragonite/plugins/toc';
 import { footnotesPlugin } from 'aragonite/plugins/footnotes';
+import { emojiPlugin } from 'aragonite/plugins/emoji';
 import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
 import { latexPlugin } from 'aragonite/plugins/latex';
 import { mermaidPlugin } from 'aragonite/plugins/mermaid';
@@ -149,6 +150,10 @@ import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 `admonitionsPlugin()` renders `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) as styled boxes, GitHub bytes untouched. Pass `{ convertAlertsOnPaste: true }` to rewrite pasted alerts to directive source instead of rendering them natively.
 
 `footnotesPlugin()` teaches the editor GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers derived from first-reference order.
+
+`emojiPlugin()` teaches the editor GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph widget while the literal `:name:` bytes stay in the source, so round-trip and portability are untouched. Recognition is gated on installation — without the plugin, `:name:` is ordinary prose.
+
+`latexPlugin({ renderer })` renders all three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ```math form. Uninstalled, each stays its lossless plain reading (prose, or a plain `math` code block).
 
 latex and mermaid render through **injected engines** that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 

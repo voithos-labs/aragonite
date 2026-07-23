@@ -2,6 +2,40 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.34: emoji + native alerts + parity smalls
+
+GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on
+the 0.9.33 inline ladder, native `> [!TYPE]` alerts as a first-class container kind, and the two
+small GFM-parity fixes (single-tilde strikethrough, the ```math fence). Every one is
+byte-preserving and uninstall-clean: an installed extension changes rendering, never the source.
+
+- **Emoji shortcodes shipped as the first bare-trigger inline kind.** `:shortcode:` renders as an
+  atomic glyph widget on a bare `:` rung priced above the directive text tier, so the two disjoint
+  grammars coexist on one trigger and a table-lookup miss falls through byte for byte. The literal
+  `:name:` bytes stay in the raw, so round-trip and portability are untouched, and the widget
+  carries the decoded-entity edge policy (atomic delete, step-over caret). A gemoji shortcode table
+  is generated and checked in (no runtime or network dependency), and recognition is install-gated.
+  Ships at `aragonite/plugins/emoji`; the roadmap's 1.3 emoji item graduated pre-freeze.
+- **Native GitHub alerts became a first-class container kind.** A blockquote whose first line is
+  `> [!TYPE]` parses as its own `githubAlert` strip container (the ATX/setext per-kind precedent),
+  reusing the blockquote extent scan and the shared admonition chrome. The marker line lives only
+  in the container's raw and metadata, and the bytes are never rewritten to `:::`. With native
+  rendering shipped, the admonitions paste transform became opt-in
+  (`admonitionsPlugin({ convertAlertsOnPaste: true })`, default off): pasted GitHub bytes now stay
+  GitHub bytes and render natively, and the whole-document convert affordance is untouched.
+- **Two GFM-parity smalls landed.** The emphasis scanner now accepts tilde runs of length 1 or 2
+  per cmark-gfm: `~x~` and `~~x~~` both strike, a run of three stays literal, and a mixed-length
+  pair never matches (GitHub does not set `DOUBLE_TILDE`). The conformance pins that asserted the
+  old literal `~x~` reading were re-baselined. And GitHub's third math form, a fenced block whose
+  info-string first token is `math`, parses as a distinct `mathFence` kind sharing the block-math
+  render component; uninstalled it stays a lossless plain `math` code block.
+- **The corruption oracle tracks the new surface.** Two simulation gesture families drive the new
+  kinds under the structural and convergence oracle stack: emoji adjacency (mid-prose insert,
+  both-directions atomic step-over, single-press delete, undo unwind) and github-alert container
+  editing (from-scratch formation, kind-stable inner edit, contained middle-child merge,
+  marker-dropping unwrap). The alert and math-fence kinds each gained interactive e2e coverage, and
+  all three surfaces appear on the `/` showcase and in the consumer and plugin guides.
+
 ### 0.9.33: inline priority ladder + footnotes
 
 The inline recognizer gained a published priority ladder mirroring `OPENER_PRIORITIES`, and GFM
