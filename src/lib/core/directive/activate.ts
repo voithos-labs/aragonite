@@ -15,7 +15,7 @@
 import { registerDirectiveKinds, registerDirectiveTextKind, DIRECTIVE_TEXT } from './kinds';
 import { registerDirectiveOpeners } from './container-opener';
 import { declaredPluginInlineKind } from '../../schema/plugin-kind';
-import { getInlineSyntax, registerInlineSyntax } from '../inline/scan/plugin-syntax';
+import { getInlineRungs, registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
 
 export function activateDirectiveGrammar(): void {
@@ -23,7 +23,7 @@ export function activateDirectiveGrammar(): void {
 	registerDirectiveOpeners();
 	registerDirectiveTextKind();
 
-	if (getInlineSyntax(':') === undefined) {
+	if (getInlineRungs(':').length === 0) {
 		const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
 		registerInlineSyntax(':', (raw, pos, end) => recognizeTextDirective(raw, pos, end, kind));
 	}

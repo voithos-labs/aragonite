@@ -10,9 +10,21 @@ import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
 import { handleBacktick } from './code-spans';
 import { handleDelimiter, processEmphasis } from './emphasis';
-import { appendNode, createScanContext, flushPendingText, mergeAdjacentText } from './scan-state';
+import {
+	appendNode,
+	createScanContext,
+	flushPendingText,
+	mergeAdjacentText,
+	type ScanContext
+} from './scan-state';
 import { handleAmpersand, handleBackslash, handleNewline } from './simple-nodes';
-import { getInlineSyntax, hasInlineSyntax } from './plugin-syntax';
+import {
+	getPrefixRungs,
+	getUnreservedRungs,
+	hasInlineSyntax,
+	hasPrefixRungs,
+	type InlineRung
+} from './plugin-syntax';
 
 // Every character that can start a construct or anchor a lookback: the
 // dispatch cases below plus `@` (GFM email lookback). `!` and `]` are
@@ -42,18 +54,18 @@ function needsScan(raw: string, start: number, end: number): boolean {
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
 		if (code >= 128) {
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true;
+			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true;
 			continue;
 		}
 		const cls = SPECIAL[code];
 		if (cls === 0) {
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true;
+			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true;
 			continue;
 		}
 		if (cls === 1) return true;
 		if (cls === PROBE_SCHEME) {
 			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true; // ://
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true; // registered ':'
+			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true; // registered ':'
 		} else {
 			if (
 				(raw.charCodeAt(i + 1) | 0x20) === 0x77 &&
@@ -62,10 +74,33 @@ function needsScan(raw: string, start: number, end: number): boolean {
 			) {
 				return true; // www.
 			}
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true; // registered 'w'/'W'
+			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true; // registered 'w'/'W'
 		}
 	}
 	return false;
+}
+
+// Try a trigger's rungs in dispatch order: the first whose prefix matches at
+// `ctx.pos` and whose recognizer claims wins. The claim validation (a node must
+// start at the cursor and advance) lives here once — both the pre-switch
+// consultation and the `default` arm route through it. A decline leaves `ctx`
+// untouched, so a fall-through to a built-in case reads byte-identical bytes.
+function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
+	if (!rungs) return null;
+	const { raw, pos, end } = ctx;
+	for (const rung of rungs) {
+		if (!raw.startsWith(rung.prefix, pos)) continue;
+		const node = rung.recognizer(raw, pos, end);
+		if (!node) continue;
+		if (node.start !== pos) {
+			throw new Error(`inline-syntax "${rung.prefix}" started at ${node.start}, expected ${pos}`);
+		}
+		if (node.end <= pos) {
+			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
+		}
+		return node;
+	}
+	return null;
 }
 
 export function scanInline(
@@ -80,7 +115,17 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
+	// Reserved-trigger prefix rungs are consulted before the switch so they can
+	// outrank a built-in case. Hoisted so an empty registry adds no per-char cost.
+	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
+		if (consultPrefixRungs) {
+			const node = tryRungs(ctx, getPrefixRungs(raw[ctx.pos]));
+			if (node) {
+				appendNode(ctx, node);
+				continue;
+			}
+		}
 		switch (raw[ctx.pos]) {
 			case '\\':
 				handleBackslash(ctx);
@@ -113,24 +158,10 @@ export function scanInline(
 				break;
 			default: {
 				if (hasInlineSyntax()) {
-					const recognize = getInlineSyntax(raw[ctx.pos]);
-					if (recognize) {
-						const node = recognize(raw, ctx.pos, ctx.end);
-						if (node) {
-							// appendNode flushes pending text up to node.start and resumes at
-							// node.end, so a node that starts anywhere but the cursor gaps or
-							// overlaps coverage. Fail loud at the seam, not with a torn tree.
-							if (node.start !== ctx.pos) {
-								throw new Error(
-									`inline-syntax "${raw[ctx.pos]}" started at ${node.start}, expected ${ctx.pos}`
-								);
-							}
-							if (node.end <= ctx.pos) {
-								throw new Error(`inline-syntax "${raw[ctx.pos]}" did not advance`);
-							}
-							appendNode(ctx, node);
-							break;
-						}
+					const node = tryRungs(ctx, getUnreservedRungs(raw[ctx.pos]));
+					if (node) {
+						appendNode(ctx, node);
+						break;
 					}
 				}
 				ctx.pos++;
