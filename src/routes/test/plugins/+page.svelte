@@ -133,11 +133,12 @@
 	// the emoji e2e drives seed render, live typing, caret step-over, atomic delete, and
 	// a range copy that must yield the source bytes.
 	const EMOJI_SEED = 'Mood :smile: today\n\nType here\n';
-	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
-	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
-	// convert affordance untouched — the conversion route's positive and negative. `note`
-	// and `warning` are deliberately absent: the co-registered callout dogfood claims those
-	// two directive names first, so an admonition seed must use kinds callout does not own.
+	// Several directive admonition kinds (untitled important, titled tip/caution), one
+	// native GitHub-alert blockquote (renders styled with its bytes untouched), and a
+	// `> [!NOTE]` inside a fence that the convert affordance must leave literal — the
+	// conversion route's positive and negative. `note` and `warning` are deliberately
+	// absent: the co-registered callout dogfood claims those two directive names first,
+	// so an admonition seed must use kinds callout does not own.
 	const ADMONITIONS_SEED = [
 		'# Admonitions',
 		'',

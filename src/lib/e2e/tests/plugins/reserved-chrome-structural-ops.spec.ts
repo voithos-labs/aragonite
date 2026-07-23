@@ -73,9 +73,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 
-		// firstChildBackspace='lift-first-child' resolves to unwrapFirstChildFromBlockquote,
-		// which is hard-gated to kind==='blockquote' and returns [] for the callout —
-		// so the strategy early-returns. The chrome is neither lifted nor destroyed.
+		// firstChildBackspace='lift-first-child' resolves to unwrapFirstChildFromQuote,
+		// gated to the quote-shaped kinds (blockquote / githubAlert); it returns [] for
+		// the callout, so the strategy early-returns. The chrome is neither lifted nor destroyed.
 		const note = await readNote(page, 1);
 		expect(note.rootCount).toBe(2);
 		expect(note.childCount).toBe(2);

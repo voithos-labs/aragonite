@@ -58,6 +58,14 @@ describe('convertGithubAlertsInDocument', () => {
 		expect(converted).toBe('Intro.\n\n:::important\nLast block, no newline\n:::');
 	});
 
+	it('converts a natively-parsed githubAlert node, not only a blockquote', () => {
+		// With native rendering, a top-level alert is a `githubAlert`, not a
+		// `blockquote`; the convert affordance must still rewrite it to directive source.
+		const src = '> [!NOTE]\n> Native.\n';
+		expect(parse(src).children[0].kind).toBe('githubAlert');
+		expect(convertGithubAlertsInDocument(src).converted).toBe(':::note\nNative.\n:::\n');
+	});
+
 	it('output parses to admonitions and round-trips byte-for-byte', () => {
 		const src = 'Intro.\n\n> [!WARNING]\n> Careful now.\n\n```text\n> [!NOTE]\n```\n';
 		const { converted } = convertGithubAlertsInDocument(src);

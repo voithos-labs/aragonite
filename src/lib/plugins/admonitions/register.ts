@@ -1,19 +1,17 @@
 /**
- * The admonitions plugin: the five `:::name` directive kinds (`:::note` …
- * `:::caution`, registered by `registerAdmonitions`) plus the `AdmonitionBlock`
- * component. The plugin unit installs this setup once per process.
+ * The admonitions plugin: two block kinds from one setup. The `:::name` directive
+ * admonition (`:::note` … `:::caution`, all resolving to one `admonition` kind) and
+ * the native `githubAlert` (`> [!NOTE]` blockquotes), sharing one render component.
+ * A multi-kind plugin, so it wires `definePlugin` directly rather than the
+ * single-kind `definePluginBlock` sugar.
  */
 
-import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
-import { registerAdmonitions } from './admonition-kind';
-import { ADMONITION } from './kinds';
-import AdmonitionBlock from './AdmonitionBlock.svelte';
+import { definePlugin, type EditorPlugin } from '$lib/plugin';
+import { registerAdmonitions, type AdmonitionsOptions } from './admonition-kind';
 
-export function admonitionsPlugin(): EditorPlugin {
-	return definePluginBlock({
+export function admonitionsPlugin(options?: AdmonitionsOptions): EditorPlugin {
+	return definePlugin({
 		name: 'admonitions',
-		kind: ADMONITION,
-		component: AdmonitionBlock,
-		register: registerAdmonitions
+		setup: () => registerAdmonitions(options)
 	});
 }

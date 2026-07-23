@@ -9,7 +9,7 @@ import type { UnwrapRole } from '../schema/block-kind-descriptor';
 import {
 	deleteNode as performDelete,
 	unwrapFirstItemFromList,
-	unwrapFirstChildFromBlockquote,
+	unwrapFirstChildFromQuote,
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
 	isItemUserEmpty
@@ -26,10 +26,10 @@ export interface UnwrapStrategyDeps {
 
 // ── First-child strategies ──────────────────────────────────────────────────
 
-/** Rule U2: lift the first child out of the container (blockquote-shaped today). */
+/** Rule U2: lift the first child out of a quote-shaped container (blockquote / GitHub alert). */
 async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
 	const node = deps.node;
-	const replacement = unwrapFirstChildFromBlockquote(node);
+	const replacement = unwrapFirstChildFromQuote(node);
 	if (replacement.length === 0) return;
 	await deps.parent.blockEdit.replaceBlock(deps.index, replacement, {
 		replacementIndex: 0,
