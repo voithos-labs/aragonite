@@ -8,7 +8,9 @@
 
 import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
-import type { AnyBlockKind } from './core/nodes';
+import { computeInlineContent as parseLeafInline } from './core/inline';
+import type { AnyBlockKind, InlineNode } from './core/nodes';
+import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
 // ── Plugin unit (pre-freeze) ─────────────────────────────────────────────────
@@ -144,6 +146,21 @@ export { setPluginMetadata, getPluginMetadata } from './core/nodes';
 // `#` prefix, a setext underline) — the offsets a marker-reading plugin slices.
 export { getContentRange } from './core/inline';
 export type { ContentRange } from './core/inline';
+// Inline parse of a prose leaf, for a plugin deriving document-wide state from
+// inline structure (footnote numbering walks each prose leaf's `footnote-ref`
+// nodes). Pure and uncached — the reactive-safe path a widget's `$derived` reads;
+// `isProseKind` gates the walk so a code block's bytes are never inline-scanned.
+export { isProseKind } from './core/inline';
+
+/**
+ * Inline-parse a prose leaf into its inline nodes. The public form takes no
+ * link-reference resolver — resolution is an editor-internal concern a plugin has
+ * no handle to, so reference links parse as `unresolvedReference` here. Every other
+ * inline construct (emphasis, code spans, plugin inline kinds) is fully resolved.
+ */
+export function computeInlineContent(node: NodeView): InlineNode[] {
+	return parseLeafInline(node);
+}
 
 // ── Idempotent-registration probes ─────────────────────────────────────────────
 // The register-once registries throw on duplicate; a plugin re-registers safely

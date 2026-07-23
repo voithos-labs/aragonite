@@ -43,6 +43,7 @@ function mount(
 			return linkRef;
 		},
 		resolveLinkUrl,
+		getDocument: () => undefined,
 		get islands() {
 			return islands;
 		}

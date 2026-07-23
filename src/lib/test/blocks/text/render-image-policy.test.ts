@@ -44,6 +44,7 @@ function makeDeps(node: CstNode, el: HTMLElement, initialPolicy: ImageLoadPolicy
 		get presentationMode() {
 			return 'source' as const;
 		},
+		getDocument: () => undefined,
 		brokenUrlCache: new Set<string>()
 	};
 	return {
