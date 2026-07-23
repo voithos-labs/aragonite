@@ -9,6 +9,7 @@
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 	import { tocPlugin } from '$lib/plugins/toc';
+	import { footnotesPlugin } from '$lib/plugins/footnotes';
 	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
@@ -41,6 +42,9 @@
 	// occurrence of a word), so each installs only under its own seed — leaked
 	// into sibling seeds their decorations would perturb those batteries.
 	const seedPlugins: Record<string, EditorPlugin[]> = {
+		// The footnote definition is a block kind; scoped to its own seed so the `[^…]:`
+		// opener only claims lines under the footnotes battery, leaving sibling seeds' parses untouched.
+		footnotes: [footnotesPlugin()],
 		hloccur: [highlightOccurrencesPlugin],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
@@ -111,6 +115,10 @@
 	const FOLD_TABLE_SEED = '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n';
 	// Two headings among paragraphs for the badge predicate's positive and negative.
 	const BADGE_SEED = '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n';
+	// A prose paragraph carrying a reference literal, then a footnote definition whose
+	// body is one editable paragraph — the container's edit/backspace/undo surface, with
+	// a blank starting line above for typing a fresh definition.
+	const FOOTNOTES_SEED = 'A note reference [^a] in prose.\n\n[^a]: The note body.\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -195,7 +203,8 @@
 		ghost: GHOST_SEED,
 		fold: FOLD_SEED,
 		'fold-table': FOLD_TABLE_SEED,
-		badge: BADGE_SEED
+		badge: BADGE_SEED,
+		footnotes: FOOTNOTES_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];

@@ -27,6 +27,11 @@
 			"svelte": "./dist/plugins/details/index.js",
 			"default": "./dist/plugins/details/index.js"
 		},
+		"./plugins/footnotes": {
+			"types": "./dist/plugins/footnotes/index.d.ts",
+			"svelte": "./dist/plugins/footnotes/index.js",
+			"default": "./dist/plugins/footnotes/index.js"
+		},
 		"./plugins/latex": {
 			"types": "./dist/plugins/latex/index.d.ts",
 			"svelte": "./dist/plugins/latex/index.js",

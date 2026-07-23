@@ -9,6 +9,7 @@ import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
+import { listRegisteredOpeners } from '$lib/schema/block-openers';
 import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
@@ -17,6 +18,8 @@ import {
 	NOTE_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
+import { FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION } from '$lib/plugins/admonitions/kinds';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
@@ -85,6 +88,7 @@ describe('kind conformance — plugin kinds enroll', () => {
 // decoration source only; latex's inline `math` is an inline kind, not a block.)
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
+	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
@@ -144,6 +148,26 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 			.filter((k) => getBlockKindDescriptor(k).conformanceFixture !== undefined)
 			.filter((k) => !directiveFallback.has(k));
 		expect(new Set(registeredBundled)).toEqual(new Set(BUNDLED_INSTALLS.map((b) => b.kind)));
+	});
+
+	// Cross-plugin priority parity: a shared opener priority is invisible to every
+	// isolated suite — it only surfaces at runtime when the colliding plugins are
+	// co-installed AND a parse runs (the exact hole that hid footnote-def tying toc's
+	// `linkReferenceDefinition - 5` until an e2e mounted the whole bundle). Install the
+	// bundled set at once and assert the registry has no two openers sharing a priority,
+	// so a plugin landing on an occupied slot fails here rather than at the next e2e.
+	it('the co-installed bundle declares distinct opener priorities', () => {
+		for (const { install } of BUNDLED_INSTALLS) install();
+		const kindsByPriority = new Map<number, string[]>();
+		for (const { kind, priority } of listRegisteredOpeners()) {
+			const kinds = kindsByPriority.get(priority) ?? [];
+			kinds.push(kind);
+			kindsByPriority.set(priority, kinds);
+		}
+		const ties = [...kindsByPriority.entries()]
+			.filter(([, kinds]) => kinds.length > 1)
+			.map(([priority, kinds]) => `${priority}: ${kinds.sort().join(', ')}`);
+		expect(ties, `openers sharing a priority`).toEqual([]);
 	});
 });
 

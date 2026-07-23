@@ -414,6 +414,8 @@ Three rules for that file, each earned the hard way:
 
 The factory returns a fourth member the walkthrough doesn't destructure: **`updateOwnMetadata`**, the sanctioned commit path for a component that writes its own node's metadata. The [render-primary recipe](#recipe-a-render-primary-block) leans on it.
 
+A marker-bearing container (a footnote definition's `[^label]: `, mirroring a list item's `- `) hands the factory a **`getAmbientPrefix`** getter. Its first child then paints that string as a dimmed, read-only prefix before its own bytes, and the caret and offset walk skip it exactly as they do a list marker. Read it live so a marker derived from metadata re-renders after an edit.
+
 ### Wire it into a page
 
 Pass the plugin to the editor's `plugins` prop — it installs before the seed parses, so `:::note` resolves to your kind:
