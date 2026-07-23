@@ -88,6 +88,12 @@ import {
 	walkAcrossIsland
 } from './gestures/decoration';
 import { atomicDeleteEntityWidget, typeEntityWidget } from './gestures/entity';
+import { atomicDeleteEmoji, stepOverEmoji, typeEmojiShortcode } from './gestures/emoji';
+import {
+	mergeGithubAlertMiddleChild,
+	typeGithubAlert,
+	unwrapGithubAlert
+} from './gestures/github-alert';
 import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
 
 /**
@@ -595,6 +601,45 @@ export class Gestures {
 
 	atomicDeleteEntityWidget(blockIndex: number): Promise<void> {
 		return atomicDeleteEntityWidget(this.ctx, blockIndex);
+	}
+
+	// ── Emoji shortcode atomic widget (first-party plugin, `?seed=emoji`) ─────────
+	// Type a `:shortcode:` mid-prose (an atomic glyph widget), step the caret over it
+	// both ways, delete it whole in one atomic Backspace. The widget contributes its
+	// glyph not its raw, and the insert is mid-prose, so all three resync.
+
+	typeEmojiShortcode(blockIndex: number, offset: number, shortcode: string): Promise<void> {
+		return typeEmojiShortcode(this.ctx, blockIndex, offset, shortcode);
+	}
+
+	stepOverEmoji(blockIndex: number): Promise<void> {
+		return stepOverEmoji(this.ctx, blockIndex);
+	}
+
+	atomicDeleteEmoji(blockIndex: number): Promise<void> {
+		return atomicDeleteEmoji(this.ctx, blockIndex);
+	}
+
+	// ── Native GitHub alerts (admonitions plugin, `?seed=admonitions`) ────────────
+	// Form a `> [!TYPE]` alert container from live typing, merge a middle body child
+	// staying inside the container, unwrap the first child to drop the marker to a
+	// plain blockquote. Each gates on the promotion / structural change and resyncs;
+	// the merge and unwrap assert containment and marker-drop internally.
+
+	typeGithubAlert(
+		targetIndex: number,
+		alertType: 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION',
+		body: string
+	): Promise<void> {
+		return typeGithubAlert(this.ctx, targetIndex, alertType, body);
+	}
+
+	mergeGithubAlertMiddleChild(alertIndex: number, childIndex: number): Promise<void> {
+		return mergeGithubAlertMiddleChild(this.ctx, alertIndex, childIndex);
+	}
+
+	unwrapGithubAlert(alertIndex: number): Promise<void> {
+		return unwrapGithubAlert(this.ctx, alertIndex);
 	}
 
 	// ── IME composition (CDP-threaded) ───────────────────────────────────────────

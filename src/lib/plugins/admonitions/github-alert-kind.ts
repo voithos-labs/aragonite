@@ -144,7 +144,10 @@ export function registerGithubAlert(): void {
 				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge) — Backspace at the body start lifts the first child out and drops the marker, leaving a plain blockquote'
 			},
 			undo: { mode: 'inherit-default' },
-			simOracle: { mode: 'inherit-default' }
+			simOracle: {
+				mode: 'implemented',
+				via: 'github-alert-ops simulation under the loaded-ops corruption oracles (formation, contained merge, marker-dropping unwrap)'
+			}
 		})
 	});
 
