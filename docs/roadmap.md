@@ -87,10 +87,11 @@ freeze**.
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
      land as pre-freeze refinements; a structural finding moves the cut.
-   - **1.3 dry-run** — footnotes, the riskiest of the three post-1.0 reference plugins, was
-     build-probed pre-freeze against the public surface only (0.9.30), so this check is
-     executable rather than paper where it matters most; at the cut, walk emoji and autolinks
-     on paper against the probe's findings and confirm no breaking-if-deferred gap remains.
+   - **1.3 dry-run** — footnotes, the riskiest of the three reference plugins, shipped pre-freeze
+     on the 0.9.33 inline precedence ladder (build-probed 0.9.30, then promoted whole), so this
+     check rests on a shipped consumer rather than a probe where it matters most; at the cut, walk
+     emoji and autolinks on paper against what footnotes exercised and confirm no
+     breaking-if-deferred gap remains.
    - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
      at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
      quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
@@ -275,12 +276,11 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7) and the pre-1.0 global-command mint; `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent. The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
 - **Trigger-character suggest seam** — a `/` menu, `@`-mentions, `[[`-completion. Table stakes for a notes app, and the class Obsidian carries with `registerEditorSuggest`. Deferred deliberately: the pre-1.0 rect API makes a suggest popup _consumer_-buildable (caret geometry plus `getSelection()`), so the question 1.2 answers is whether it deserves a first-class editor seam or stays a consumer pattern. Decide against a real consumer, not on paper.
-- **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax. The pre-freeze footnotes probe (0.9.30) turned this from a sketch into a spec: `[` is a reserved built-in trigger (registration throws), so a GFM `[^label]` reference needs a prefix-recognizer that can win a reserved trigger's prefix and must define unterminated-construct behavior (`[^` that never closes). Additive-later by the freeze criterion — the reservation throws today, so a carve-out breaks no bound code — and a strong build-now candidate with footnotes as the validating consumer; until it ships, references are expressible as decoration overlays (the probe's working approximation).
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
-De-facto GitHub.com extensions, all built as plugins on the 1.0 authoring API + 1.2 DX — dogfood proof the API carries third-party contributions: footnotes, emoji shortcodes, GitHub autolinks (admonitions and Mermaid already shipped pre-1.0 as reference plugins). If any can't be built cleanly as a plugin, that reveals an API gap — fix the API, not the plugin.
+De-facto GitHub.com extensions, all built as plugins on the 1.0 authoring API + 1.2 DX — dogfood proof the API carries third-party contributions: emoji shortcodes and GitHub autolinks (admonitions, Mermaid, and footnotes already shipped pre-1.0 as reference plugins; footnotes rode the 0.9.33 inline precedence ladder, and emoji is the next of the two remaining). If any can't be built cleanly as a plugin, that reveals an API gap — fix the API, not the plugin.
 
 ### 1.4 — Git-native integration (likely a first-party plugin)
 

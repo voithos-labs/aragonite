@@ -146,6 +146,32 @@ declarers to a non-default clipboard cell.
 **Why deferred:** fold into the post-1.0 clipboard generalization that already owns the
 mid-chrome ledger entries above.
 
+### Footnote reference numbering is O(widgets × leaves) per reactive flush
+
+**Severity:** watch (sub-millisecond at real scale; superlinear only for a reference-dense document)
+**Files:** `src/lib/plugins/footnotes/footnote-numbering.ts` (`assignFootnoteNumbers` walks every prose
+leaf), `src/lib/plugins/footnotes/FootnoteReference.svelte` (each widget's `$derived` calls it independently)
+
+Each mounted reference widget derives its superscript number by walking the whole document through
+`assignFootnoteNumbers`, which inline-parses every prose leaf. The walk is not shared across a flush; it
+re-runs per widget, so a reactive flush costs O(widgets × leaves). Measured ~1.04 ms worst case on a
+40-paragraph document with 20 references (comfortably sub-keystroke), but the shape is superlinear: a
+reference-dense region of hundreds of references over hundreds of leaves runs an order of magnitude past a
+frame budget per keystroke.
+
+A bounded, identity-keyed memo over the document cannot fix it: the `$state` document proxy is mutated in
+place, so its object identity is stable across every edit, and an identity-keyed memo would hit on every
+call and return a stale number map, breaking the live renumber the feature is built on (verified in the
+Task 3 review).
+
+**Fix direction:** a per-epoch shared computation (one `assignFootnoteNumbers` walk per flush keyed on a
+content-version token every widget reads) once a real workload goes reference-dense. The one document
+epoch that exists today (`linkStamp`) tracks only the LRD signature, not general edits, so that token is
+not cheaply available yet.
+
+**Why deferred:** sub-millisecond at real scale, and a correct memo needs a content-version token the
+editor does not cheaply expose. Re-open if a real workload holds a reference-dense region.
+
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
@@ -290,3 +316,37 @@ the whole ref chain, across every block kind — blast radius only the simulatio
 
 **Target:** 1.2 — carry it with the container-seam ergonomics pass, not as a standalone pre-freeze
 change to the ref chain.
+
+### Footnote definition body ergonomics: Enter-at-end and non-prose-first-child residuals
+
+**Severity:** minor (edge ergonomics; byte round-trip and the common `[^label]: <prose>` shape hold)
+**Files:** `src/lib/plugins/footnotes/footnote-definition.ts` (`scanDefinitionEnd`, `rebuildFootnoteDefRaw`),
+`src/lib/plugins/footnotes/FootnoteDefinition.svelte` (the ambient marker forward)
+
+The footnote-def is a strip container whose body is real child blocks, and Enter/split inside the body
+inherits the shared blockquote split override (`createContainerBlock` always wires
+`createBlockquoteOverrides`). The `footnote-ops` simulation now pins that a mid-child split grows the
+container's children and never the document root (the boundary the Task 2 review flagged untested). Two
+edges remain:
+
+- **Enter at the end of the last body child** mints a trailing empty child, and a footnote-def's empty
+  continuation line carries no four-space indent, so `scanDefinitionEnd` drops it as a document blank on
+  reparse, and the live two-child tree then diverges from its one-child reparse. This is the documented
+  Enter-at-end split class (see "Enter-at-end can produce a live block pair…") reaching inside the strip
+  container: the split mints a single-newline, indent-free successor the reparse does not honor. The sim
+  splits mid-child to pin the in-container boundary without tripping it, so the end-split sub-case is
+  unpinned.
+- **A non-prose first child omits the ambient marker.** Only `TextEditableBlock` (which paints the marker)
+  and `ListItemBlock` (which re-forwards it) consume the `ambientPrefix` prop, so a degenerate definition
+  whose first child is a list or code block (`[^a]:\n    - item`) forwards `[^a]: ` to a child that ignores
+  it and the marker is silently absent. This is the platform's inherited `ambientPrefixForFirst` behavior,
+  shared with listItem, not a footnote-introduced one; GFM footnote definitions are effectively always
+  `[^label]: <prose>`, so the edge needs a constructed input.
+
+**Fix direction:** the Enter-at-end edge folds into the deferred splitNode separator design (a kind-aware
+blank-line separator at the split choke point); the marker edge, if ever tightened, should tighten for
+listItem in the same pass, since both inherit the same prefix-forward machinery.
+
+**Why deferred:** byte round-trip holds throughout, and both edges need a constructed input the common
+footnote shape never produces; the Enter-at-end fix is the same deferred splitNode design pass its
+top-level sibling entry already owns.
