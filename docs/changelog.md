@@ -6,7 +6,9 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 The inline recognizer gained a published priority ladder mirroring `OPENER_PRIORITIES`, and GFM
 footnotes shipped on it as the first-party `aragonite/plugins/footnotes` plugin. The pre-freeze
-footnotes probe (0.9.30) promoted whole into a bundled reference plugin with first-class references.
+probe's definition side (0.9.30) was rebuilt from an opaque leaf into an editable strip container,
+and the reference side is newly built: first-class inline widgets on the prefix ladder, replacing
+the probe's decoration-overlay approximation.
 
 - **Inline precedence overrides shipped.** The scan stage now consults a per-trigger rung list with
   published built-in anchors (`INLINE_PRIORITIES`), so a plugin recognizer can claim syntax that
