@@ -20,7 +20,7 @@ import type {
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { BlockComponent } from '../../block-component';
+import type { AmbientPrefix, BlockComponent } from '../../block-component';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -105,6 +105,15 @@ export interface ContainerBlockDeps {
 	 * `unknown`; the plugin casts it to its own type.
 	 */
 	commandHooks?: () => unknown;
+	/**
+	 * The read-only ambient prefix this container contributes to its FIRST child's
+	 * rendered content — a dimmed marker the child paints before its own bytes, the
+	 * listItem `- ` model (a footnote definition's `[^label]: `). The offset walk and
+	 * marker DOM are the child leaf's existing ambient-prefix machinery; the factory
+	 * only forwards the string. Read live so a marker derived from label metadata
+	 * re-renders after an edit or its undo. Absent = no prefix (blockquote/details).
+	 */
+	getAmbientPrefix?: () => AmbientPrefix;
 }
 
 /**
@@ -122,6 +131,7 @@ export interface ContainerBlockListProps {
 	parentPath?: number[];
 	window?: WindowResult;
 	reorderable?: boolean;
+	ambientPrefixForFirst?: AmbientPrefix;
 }
 
 // BlockList must accept everything the contract promises (contract ⊆ component)…
@@ -420,7 +430,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// Opaque containers are a reorder boundary (resolveReorderUnit declines inside
 		// them), so a handle on a chrome or body row would be a dead affordance. The
 		// container itself stays reorderable through its parent's BlockList.
-		reorderable: false
+		reorderable: false,
+		get ambientPrefixForFirst() {
+			return deps.getAmbientPrefix?.() ?? '';
+		}
 	};
 
 	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
