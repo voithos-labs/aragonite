@@ -35,6 +35,8 @@ the probe's decoration-overlay approximation.
   root, the blockquote-override boundary), and not-mergeable exit. The plugin ships at the
   `./plugins/footnotes` subpath, showcased on `/` and documented in the consumer and plugin guides.
 
+Ship gates: unit 4396→4442, e2e 1463, check 0/0, lint 0, perf 95, perf:check 24/24.
+
 ### 0.9.32: the elegance run
 
 An owner-directed whole-repo elegance pass: simplification, dedup, dead-code removal,
