@@ -27,6 +27,11 @@
 			"svelte": "./dist/plugins/details/index.js",
 			"default": "./dist/plugins/details/index.js"
 		},
+		"./plugins/emoji": {
+			"types": "./dist/plugins/emoji/index.d.ts",
+			"svelte": "./dist/plugins/emoji/index.js",
+			"default": "./dist/plugins/emoji/index.js"
+		},
 		"./plugins/footnotes": {
 			"types": "./dist/plugins/footnotes/index.d.ts",
 			"svelte": "./dist/plugins/footnotes/index.js",

@@ -48,7 +48,7 @@ export {
 export type { PluginInlineKind, InlineNode } from './core/nodes';
 export { registerInlineSyntax, INLINE_PRIORITIES } from './core/inline/scan/plugin-syntax';
 export type { InlineSyntaxRecognizer, InlineSyntaxOptions } from './core/inline/scan/plugin-syntax';
-export { registerInlineWidgetKind } from './core/inline/inline-widgets';
+export { registerInlineWidgetKind, mintWidgetShell } from './core/inline/inline-widgets';
 export type {
 	InlineWidgetDescriptor,
 	InlineWidgetComponentProps,
