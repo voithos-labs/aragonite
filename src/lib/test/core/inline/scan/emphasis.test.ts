@@ -36,11 +36,15 @@ describeScanCases('emphasis node shape (markers inside the range)', [
 ]);
 
 describeScanCases('strikethrough (GFM)', [
-	['exactly-two runs pair', '~~a~~', [strikethroughNode(0, 5, [textNode(2, 3, 'a')])]],
-	['single tilde stays literal', '~a~', [textNode(0, 3, '~a~')]],
-	// GFM edge: only exactly-2 runs delimit, so a
-	// 3-tilde run is literal — no partial consumption as with `*`.
+	['double-tilde run strikes', '~~a~~', [strikethroughNode(0, 5, [textNode(2, 3, 'a')])]],
+	['single-tilde run strikes', '~a~', [strikethroughNode(0, 3, [textNode(1, 2, 'a')])]],
+	// cmark-gfm delimits tilde runs of length 1 or 2; a run of 3+ never
+	// participates and stays literal (no partial consumption as with `*`).
 	['three-tilde runs stay literal', '~~~a~~~', [textNode(0, 7, '~~~a~~~')]],
+	// Mixed run lengths never pair: a one-tilde opener cannot close a
+	// two-tilde run (and vice versa), so both sides stay literal.
+	['one-then-two does not pair', '~a~~', [textNode(0, 4, '~a~~')]],
+	['two-then-one does not pair', '~~a~', [textNode(0, 4, '~~a~')]],
 	[
 		'sequential pairs do not chain',
 		'~~a~~b~~c~~',
@@ -50,8 +54,8 @@ describeScanCases('strikethrough (GFM)', [
 			strikethroughNode(6, 11, [textNode(8, 9, 'c')])
 		]
 	],
-	// Distinct exactly-2 runs DO nest (only a longer run, which cannot
-	// delimit, is prevented — direct `~~~~` nesting is unreachable).
+	// Distinct same-length runs DO nest (only a longer run, which cannot
+	// delimit, is prevented; direct `~~~~` nesting is unreachable).
 	[
 		'distinct runs nest',
 		'~~a ~~b~~ c~~',

@@ -150,17 +150,17 @@ describe('parseInline — strikethrough', () => {
 		expect(nodes[1].children).toEqual([{ kind: 'text', start: 8, end: 13, text: 'world' }]);
 	});
 
-	const rejectedTildes = [
-		{ label: 'single ~', input: 'Hello ~world~ end' },
-		{ label: 'triple ~', input: 'Hello ~~~world~~~ end' }
-	];
+	it('single ~ strikes (cmark-gfm delimits runs of 1 or 2)', () => {
+		const nodes = inlineOf('Hello ~world~ end');
+		const strike = nodes.find((n) => n.kind === 'strikethrough');
+		expect(strike).toBeDefined();
+		expect(strike!.children).toEqual([{ kind: 'text', start: 7, end: 12, text: 'world' }]);
+	});
 
-	for (const { label, input } of rejectedTildes) {
-		it(`${label} is not strikethrough`, () => {
-			const nodes = inlineOf(input);
-			expect(nodes.every((n) => n.kind === 'text')).toBe(true);
-		});
-	}
+	it('triple ~ is not strikethrough (a 3+ run stays literal)', () => {
+		const nodes = inlineOf('Hello ~~~world~~~ end');
+		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
+	});
 });
 
 describe('parseInline — hard line breaks', () => {
