@@ -134,16 +134,19 @@ A later editor may mount carrying a plugin an earlier one never had. The late in
 
 ### Bundled plugins
 
-Six first-party plugins ship in the package as subpath exports — install them like any other unit:
+Seven first-party plugins ship in the package as subpath exports — install them like any other unit:
 
 ```ts
 import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
 import { detailsPlugin } from 'aragonite/plugins/details';
 import { tocPlugin } from 'aragonite/plugins/toc';
+import { footnotesPlugin } from 'aragonite/plugins/footnotes';
 import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
 import { latexPlugin } from 'aragonite/plugins/latex';
 import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 ```
+
+`footnotesPlugin()` teaches the editor GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers derived from first-reference order.
 
 latex and mermaid render through **injected engines** that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 

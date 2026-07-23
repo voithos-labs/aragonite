@@ -2,6 +2,37 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.33: inline priority ladder + footnotes
+
+The inline recognizer gained a published priority ladder mirroring `OPENER_PRIORITIES`, and GFM
+footnotes shipped on it as the first-party `aragonite/plugins/footnotes` plugin. The pre-freeze
+footnotes probe (0.9.30) promoted whole into a bundled reference plugin with first-class references.
+
+- **Inline precedence overrides shipped.** The scan stage now consults a per-trigger rung list with
+  published built-in anchors (`INLINE_PRIORITIES`), so a plugin recognizer can claim syntax that
+  begins on a reserved trigger by registering a prefix rung priced below the built-in, the inline
+  mirror of an opener pricing below a built-in. `[` stays a reserved trigger (a bare registration
+  throws), but a `[^`-prefix rung wins it only where `[^` matches, and an unterminated `[^` declines
+  and falls back to the built-in link reading byte for byte. Rungs on one trigger dispatch by
+  priority ascending, then longer-prefix-first, then lexicographic, independent of registration
+  order. Graduated from the roadmap's 1.2 precedence-override item, build-validated by footnotes.
+- **Footnote definitions are an editable strip container.** `[^label]: content` parses to a
+  not-mergeable container in the listItem mold: the `[^label]: ` marker paints as a dimmed ambient
+  prefix on the first child, the body is real child blocks, and the container rebuilds its raw from
+  the marker plus four-space continuation indents so a post-edit rebuild canonicalizes exactly as
+  listItem does. The container factory grew a `getAmbientPrefix` thunk to forward the marker.
+- **Footnote references are first-class inline widgets.** `[^label]` recognizes through the new prefix
+  rung and renders as a superscript whose number derives reactively from first-reference order: an
+  earlier reference typed elsewhere renumbers a widget live though its own block is never edited and
+  its source never changes. The literal bytes stay in the raw, so round-trip and GFM portability are
+  untouched, and a caret-adjacent destructive key reveals the source rather than deleting the
+  reference whole. Numbering is a pure function over the read-only document (`assignFootnoteNumbers`).
+- **The corruption oracle tracks the new surface.** A `footnote-ops` simulation drives both tiers
+  under the structural and convergence oracle stack: reference type / reveal / edit / delete, and
+  definition formation, mid-body split (pinning that the split grows the container and never the
+  root, the blockquote-override boundary), and not-mergeable exit. The plugin ships at the
+  `./plugins/footnotes` subpath, showcased on `/` and documented in the consumer and plugin guides.
+
 ### 0.9.32: the elegance run
 
 An owner-directed whole-repo elegance pass: simplification, dedup, dead-code removal,
