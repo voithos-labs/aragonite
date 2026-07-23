@@ -6,7 +6,7 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on
 the 0.9.33 inline ladder, native `> [!TYPE]` alerts as a first-class container kind, and the two
-small GFM-parity fixes (single-tilde strikethrough, the ```math fence). Every one is
+small GFM-parity fixes (single-tilde strikethrough, the ` ```math ` fence). Every one is
 byte-preserving and uninstall-clean: an installed extension changes rendering, never the source.
 
 - **Emoji shortcodes shipped as the first bare-trigger inline kind.** `:shortcode:` renders as an

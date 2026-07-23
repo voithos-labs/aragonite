@@ -153,7 +153,7 @@ import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 
 `emojiPlugin()` teaches the editor GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph widget while the literal `:name:` bytes stay in the source, so round-trip and portability are untouched. Recognition is gated on installation — without the plugin, `:name:` is ordinary prose.
 
-`latexPlugin({ renderer })` renders all three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ```math form. Uninstalled, each stays its lossless plain reading (prose, or a plain `math` code block).
+`latexPlugin({ renderer })` renders all three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form. Uninstalled, each stays its lossless plain reading (prose, or a plain `math` code block).
 
 latex and mermaid render through **injected engines** that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
