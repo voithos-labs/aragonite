@@ -585,6 +585,8 @@ An inline kind is minted with `declarePluginInlineKind`, recognized by hooking t
 
 **A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws: built-in dispatch runs first, so a bare recognizer there would never fire, and a silent no-op is the one failure a public API must not have.
 
+The bundled **emoji** plugin (`aragonite/plugins/emoji`) is this bare-rung recipe end to end and the worked reference for an inline kind on an unreserved trigger: `:shortcode:` recognizes on the bare `:` trigger, renders as an atomic glyph widget through `buildWidget` + `mintWidgetShell`, and carries the `{ deleteGranularity: 'atomic', onEdge: 'step-over' }` edge policy so a caret-adjacent Backspace removes the whole `:name:` in one press and a plain arrow steps over it. It shares the `:` trigger with the directive text tier — disjoint grammars coexist on one trigger, so a table-lookup miss declines and falls through byte for byte. The literal `:name:` bytes stay in the raw, so an uninstalled document round-trips as ordinary prose.
+
 **To claim syntax that begins on a reserved trigger, register a prefix rung.** A GFM `[^label]` footnote reference starts on `[`, which the link scanner owns. Pass a `prefix` that begins with the trigger and a `priority` below `INLINE_PRIORITIES.builtin`, the inline mirror of an opener pricing below a built-in:
 
 ```ts
