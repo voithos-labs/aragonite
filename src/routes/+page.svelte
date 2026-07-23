@@ -2,6 +2,7 @@
 	import { admonitionsPlugin } from '$lib/plugins/admonitions';
 	import { detailsPlugin } from '$lib/plugins/details';
 	import { tocPlugin } from '$lib/plugins/toc';
+	import { footnotesPlugin } from '$lib/plugins/footnotes';
 	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 	import { latexPlugin } from '$lib/plugins/latex';
 	import { katexRenderer } from '$lib/plugins/latex/renderer';
@@ -17,6 +18,7 @@
 		admonitionsPlugin(),
 		detailsPlugin(),
 		tocPlugin(),
+		footnotesPlugin(),
 		highlightOccurrencesPlugin,
 		latexPlugin({ renderer: katexRenderer }),
 		mermaidPlugin({ renderer: mermaidRenderer })
