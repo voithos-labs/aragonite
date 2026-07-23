@@ -14,6 +14,7 @@
 	// render↔source swap visuals — the engine is injected through the `math-renderer` seam.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 	import { renderDisplayMath } from './math-renderer';
+	import { mathDisplaySource } from './latex-kind';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -37,23 +38,15 @@
 		}
 	});
 
-	// The renderer takes the inner formula: the fence stripped and surrounding blank
-	// lines trimmed (a bare `$$` multi-line fence has its content on later lines).
-	function mathInner(fenced: string): string {
-		let inner = fenced;
-		if (inner.startsWith('$$')) inner = inner.slice(2);
-		if (inner.endsWith('$$')) inner = inner.slice(0, -2);
-		return inner.trim();
-	}
-
 	// ── View rendering ──────────────────────────────────────────────────────────
 
 	// Rendered view: display render of the current source. Re-run on every mount of
 	// the render div (revealed → false recreates it) and on any source change; the
 	// document-wide memo clones a cached node, so re-rendering the same formula is cheap.
+	// `mathDisplaySource` strips the `$$` or ```math wrapper the source carries.
 	$effect(() => {
 		if (revealed || !renderEl) return;
-		renderEl.replaceChildren(renderDisplayMath(mathInner(leaf.sourceText)).dom);
+		renderEl.replaceChildren(renderDisplayMath(mathDisplaySource(leaf.sourceText)).dom);
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
 	});

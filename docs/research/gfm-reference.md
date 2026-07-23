@@ -270,6 +270,14 @@ $$
 $$
 ```
 
+Block math also has a third form: a fenced code block whose info string's first token is `math`.
+
+````markdown
+```math
+x^2 + y^2 = z^2
+```
+````
+
 The editor's inline `$…$` recognizer is digit-guarded on the opener: a `$` immediately followed by a digit stays currency, so `$5` and `$5 and $10` render as literal text rather than math. This is a deliberate divergence. The close is not digit-guarded, so `$x^2$` still closes on its `2`.
 
 - **Mermaid Diagrams:** Fenced code blocks with the `mermaid` language identifier render as diagrams.

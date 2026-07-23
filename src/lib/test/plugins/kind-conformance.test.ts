@@ -22,7 +22,7 @@ import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-defi
 import { FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
@@ -142,8 +142,9 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 	// the core generic-directive fallback kinds ride in — excluded here as they are
 	// core, not bundled plugins, and covered by `closure-fixtures.test.ts` + G1.24.
 	// It also co-registers the native `githubAlert` kind (a second fixtured kind under
-	// one dir), so that rides in too.
-	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT];
+	// one dir), so that rides in too; `registerMathBlock` likewise co-registers the
+	// ```math fence kind under the latex dir.
+	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT, MATH_FENCE];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
 		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);

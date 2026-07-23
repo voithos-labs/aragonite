@@ -4,16 +4,17 @@ import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invarian
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
-import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 
-// The three leaves migrated to simpleLeafClosure. Their real registered descriptors
-// must satisfy G1.24 — a migration that produced an incoherent block (a container
+// The leaves built on simpleLeafClosure. Their real registered descriptors must
+// satisfy G1.24 — a migration that produced an incoherent block (a container
 // contract slipped in, the not-mergeable mergeBackspace downgraded) fails here at
 // install, not at the next bootstrap flush.
 const MIGRATED: { kind: string; install: () => void }[] = [
 	{ kind: TOC_BLOCK, install: registerTocBlock },
 	{ kind: MATH_BLOCK, install: registerMathBlock },
+	{ kind: MATH_FENCE, install: registerMathBlock },
 	{ kind: MEMO_BLOCK, install: registerMemoBlock }
 ];
 
