@@ -3,7 +3,7 @@ import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import {
 	__resetInlineSyntaxForTests,
-	getInlineSyntax,
+	getInlineRungs,
 	hasInlineSyntax,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
@@ -31,8 +31,8 @@ describe('inline-syntax registry', () => {
 		expect(hasInlineSyntax()).toBe(false);
 		registerInlineSyntax('$', recognizeMath);
 		expect(hasInlineSyntax()).toBe(true);
-		expect(getInlineSyntax('$')).toBe(recognizeMath);
-		expect(getInlineSyntax('%')).toBeUndefined();
+		expect(getInlineRungs('$')[0].recognizer).toBe(recognizeMath);
+		expect(getInlineRungs('%')).toHaveLength(0);
 	});
 
 	it('registers a trigger once — a duplicate throws', () => {

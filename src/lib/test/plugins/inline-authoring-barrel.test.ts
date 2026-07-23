@@ -45,8 +45,11 @@ describe('aragonite/plugin inline authoring surface', () => {
 			'augmentInlineWidgetKind',
 			'getInlineWidgetEditing',
 			'getInlineWidgetComponent',
-			'getInlineSyntax',
 			'hasInlineSyntax',
+			'hasPrefixRungs',
+			'getInlineRungs',
+			'getUnreservedRungs',
+			'getPrefixRungs',
 			'__resetInlineSyntaxForTests',
 			'__resetInlineWidgetsForTests'
 		]) {
