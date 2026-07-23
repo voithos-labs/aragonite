@@ -10,6 +10,7 @@
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 	import { tocPlugin } from '$lib/plugins/toc';
 	import { footnotesPlugin } from '$lib/plugins/footnotes';
+	import { emojiPlugin } from '$lib/plugins/emoji';
 	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
@@ -46,6 +47,9 @@
 		// opener only claims lines under the footnotes battery, leaving sibling seeds' parses untouched.
 		footnotes: [footnotesPlugin()],
 		'footnotes-ref': [footnotesPlugin()],
+		// Emoji rides the bare `:` trigger process-wide once installed; scoped to its own
+		// seed so its rung never perturbs a sibling battery's `:`-bearing prose.
+		emoji: [emojiPlugin()],
 		hloccur: [highlightOccurrencesPlugin],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
@@ -125,6 +129,10 @@
 	// is never edited — the reactive-getter renumber the pool key cannot deliver.
 	const FOOTNOTES_REF_SEED =
 		'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n';
+	// A `:smile:` reference mid-prose (block 0) plus a plain typing target (block 1):
+	// the emoji e2e drives seed render, live typing, caret step-over, atomic delete, and
+	// a range copy that must yield the source bytes.
+	const EMOJI_SEED = 'Mood :smile: today\n\nType here\n';
 	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
 	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
 	// convert affordance untouched — the conversion route's positive and negative. `note`
@@ -211,7 +219,8 @@
 		'fold-table': FOLD_TABLE_SEED,
 		badge: BADGE_SEED,
 		footnotes: FOOTNOTES_SEED,
-		'footnotes-ref': FOOTNOTES_REF_SEED
+		'footnotes-ref': FOOTNOTES_REF_SEED,
+		emoji: EMOJI_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
