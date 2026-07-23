@@ -108,5 +108,11 @@ export const SHOWCASE_DOCUMENT = [
 	'\tA[Parse] --> B[Render]',
 	'\tB --> C[Serialize]',
 	'```',
+	'',
+	'## Footnotes',
+	'',
+	'A claim can carry a footnote reference[^note], numbered by first-reference order. Its definition renders as an editable block below.',
+	'',
+	'[^note]: The definition body is real Markdown; edit it like any other block, and the reference number re-derives live.',
 	''
 ].join('\n');

@@ -1,7 +1,7 @@
 # Feature: `/` showcase route (bundled-plugin smoke)
 
 The root route `/` is the developer-facing showcase: it mounts `<Editor>` with all
-six bundled plugins installed the way a consumer installs them (each imported from
+seven bundled plugins installed the way a consumer installs them (each imported from
 its `$lib/plugins/<name>` subpath, latex/mermaid engines injected), seeded with a
 document that exercises every built-in block kind alongside each plugin's syntax.
 Unlike the machine-facing `/test/*` routes it exposes no `window.__test` bridge and
@@ -10,7 +10,7 @@ the rendered DOM only.
 
 The bar is deliberately just "the whole surface renders clean": the shared e2e
 `test` fixture fails on any `[invariant:…]` console fire, so a passing run also
-proves the showcase document loads without tripping an invariant under all six
+proves the showcase document loads without tripping an invariant under all seven
 plugins. Editing behavior is owned by the machine-facing batteries and is not
 re-tested here.
 
@@ -25,6 +25,9 @@ re-tested here.
   the async-rendered engine output is not asserted, only the settled container
 - the table of contents lists the document's headings (`.toc-block-item` entries
   present)
+- a footnote reference renders as a superscript number (`.footnote-ref` reading "1"
+  by first-reference order) and its definition renders as an editable block
+  (`.footnote-def` visible) — both plugin tiers on one document
 - a sampling of built-in kinds is visible: a table and a fenced code block
 
 ## Edge cases

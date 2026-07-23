@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 
-// The `/` showcase mounts <Editor> with all six bundled plugins installed the
+// The `/` showcase mounts <Editor> with all seven bundled plugins installed the
 // consumer way (subpath imports, injected latex/mermaid engines) and exposes no
 // `window.__test` bridge — so this smoke asserts through rendered DOM only. The
 // shared fixture also fails on any `[invariant:…]` console fire, so a green run
@@ -35,6 +35,13 @@ test.describe('/ showcase route', () => {
 	test('toc lists the document headings', async ({ page }) => {
 		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 		await expect.poll(() => page.locator('.toc-block-item').count()).toBeGreaterThan(1);
+	});
+
+	test('footnotes render a reference widget and an editable definition', async ({ page }) => {
+		// The reference renders as a superscript number (first-reference order → "1"), and the
+		// definition renders as its own editable block — both plugin tiers on one document.
+		await expect(page.locator('.footnote-ref').first()).toHaveText('1');
+		await expect(page.locator('.footnote-def').first()).toBeVisible();
 	});
 
 	test('built-in kinds render alongside the plugins', async ({ page }) => {
