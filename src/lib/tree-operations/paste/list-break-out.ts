@@ -26,7 +26,7 @@ import {
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import type { MultiScopeTarget } from './paste-deps';
+import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -98,10 +98,9 @@ export async function applyListBreakOut(
 
 	for (const node of replacement) ensureEditableContainers(node);
 
-	const parentScope = resolveParentScope(plan, ctx);
+	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
-	const listIndex = plan.listPath[plan.listPath.length - 1] ?? plan.listPath[0];
-	const spliceIndex = plan.listPath.length === 1 ? plan.listPath[0] : listIndex;
+	const spliceIndex = plan.listPath[plan.listPath.length - 1];
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
@@ -216,19 +215,4 @@ export function buildListBreakOutReplacement(
 	}
 
 	return { replacement, hasTrailingResidue };
-}
-
-// ── Internal ─────────────────────────────────────────────────────────────────
-
-function resolveParentScope(
-	plan: ListBreakOut,
-	ctx: PasteDispatchContext
-): MultiScopeTarget | null {
-	if (plan.listPath.length === 1) {
-		return ctx.controller.getDocScope();
-	}
-	const parentPath = plan.listPath.slice(0, -1);
-	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
-	if (!parent) return null;
-	return { node: parent, state: ctx.controller.expectState(parent), path: parentPath };
 }

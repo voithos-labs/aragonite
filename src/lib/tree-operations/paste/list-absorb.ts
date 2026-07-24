@@ -23,6 +23,7 @@ import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList, normalizeItemMarkerToList } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
+import { containerScopeState } from './parent-scope';
 import {
 	buildListItemWithContent,
 	orderedBaseOf,
@@ -88,7 +89,7 @@ export async function applyListAbsorb(
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!outer?.children) return;
-	const outerState = ctx.controller.expectState(outer);
+	const outerState = containerScopeState(ctx.controller, outer);
 
 	const item = outer.children[plan.itemIndex];
 	if (!item?.children) return;
