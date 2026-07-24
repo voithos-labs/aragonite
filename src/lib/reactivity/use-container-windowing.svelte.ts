@@ -57,10 +57,12 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getOwnEl: opts.getOwnEl,
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
-		getRevealAnchorIndex: isRoot
+		getRevealAnchorTarget: isRoot
 			? () => {
-					const p = revealAnchor?.get() ?? null;
-					return p && p.length > 0 ? p[0] : null;
+					const target = revealAnchor?.get() ?? null;
+					return target && target.path.length > 0
+						? { index: target.path[0], block: target.block }
+						: null;
 				}
 			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
