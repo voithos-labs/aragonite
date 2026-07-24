@@ -45,6 +45,41 @@ async function caretRect(page: EditorPage['page']): Promise<PlainRect> {
 	});
 }
 
+async function scrollTo(
+	page: EditorPage['page'],
+	path: number[],
+	opts?: { block?: 'nearest' | 'center' }
+): Promise<boolean> {
+	return page.evaluate(
+		({ path, opts }) => (window as any).__test.rects.scrollTo(path, opts) as Promise<boolean>,
+		{ path, opts }
+	);
+}
+
+type CenterMetrics = {
+	viewportCenter: number;
+	viewportHeight: number;
+	scrollTop: number;
+	blockCenter: number | null;
+};
+
+async function centerMetrics(page: EditorPage['page'], path: number[]): Promise<CenterMetrics> {
+	return page.evaluate((p) => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const er = editorEl.getBoundingClientRect();
+		const block = document.querySelector(
+			`[data-block-path='${JSON.stringify(p)}']`
+		) as HTMLElement | null;
+		const br = block?.getBoundingClientRect() ?? null;
+		return {
+			viewportCenter: er.top + er.height / 2,
+			viewportHeight: er.height,
+			scrollTop: editorEl.scrollTop,
+			blockCenter: br ? br.top + br.height / 2 : null
+		};
+	}, path);
+}
+
 type CrossBlockCaretProbe = { captured: boolean; rect: PlainRect };
 
 test.describe('public rect api', () => {
@@ -162,5 +197,37 @@ test.describe('public rect api', () => {
 		const revealed = await page.evaluate((i) => (window as any).__test.rects.reveal([i]), last);
 		expect(revealed).toBe(true);
 		await expect(page.locator(`[data-block-path='${JSON.stringify([last])}']`)).toHaveCount(1);
+	});
+
+	test('scrollTo on an out-of-range path resolves false', async ({ page }) => {
+		await editor.loadContent('only block\n');
+		expect(await scrollTo(page, [99])).toBe(false);
+	});
+
+	test('scrollTo centers a windowed-out mid-document block in the viewport', async ({ page }) => {
+		const count = await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
+		// A mid-document target has content both above and below, so 'center' can't be
+		// clamped to an edge — the discriminating case for the scroll half. `last` (used
+		// by the reveal test) can't center: the container hits max scrollTop and lands it
+		// at the bottom, ~half a viewport off, indistinguishable from a mount-only top pin.
+		const mid = Math.floor(count / 2);
+		const sel = JSON.stringify([mid]);
+
+		// Precondition: off-window, or there is nothing for scrollTo to mount + move to.
+		await expect(page.locator(`[data-block-path='${sel}']`)).toHaveCount(0);
+
+		expect(await scrollTo(page, [mid], { block: 'center' })).toBe(true);
+		await editor.waitForRenderFlush();
+
+		// Mount half.
+		await expect(page.locator(`[data-block-path='${sel}']`)).toHaveCount(1);
+
+		// Scroll half: the viewport moved far from the top, AND the target sits near the
+		// vertical center — not pinned to the viewport top, which is exactly where a
+		// mount-only reveal (the false-green) would leave it (~half a viewport off center).
+		const m = await centerMetrics(page, [mid]);
+		expect(m.blockCenter).not.toBeNull();
+		expect(m.scrollTop).toBeGreaterThan(m.viewportHeight);
+		expect(Math.abs(m.blockCenter! - m.viewportCenter)).toBeLessThan(m.viewportHeight * 0.3);
 	});
 });

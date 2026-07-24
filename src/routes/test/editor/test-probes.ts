@@ -438,7 +438,9 @@ export function installTestProbes({
 			rangeRects: (path: number[], start: number, end: number): DOMRect[] =>
 				editor.getRects().rangeRects(path, start, end),
 			caretRect: (): DOMRect | null => editor.getRects().caretRect(),
-			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path)
+			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path),
+			scrollTo: (path: number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean> =>
+				editor.getRects().scrollTo(path, opts)
 		},
 		// ── Cross-block caretRect timing probe ─────────────────────────────
 		// Captures editor.getRects().caretRect() the first time a selectionChange
