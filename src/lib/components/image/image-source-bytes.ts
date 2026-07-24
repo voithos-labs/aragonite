@@ -55,10 +55,28 @@ function escapeTitle(title: string): string {
 }
 
 // Alt sits inside `[...]`; an unescaped bracket closes the scan early and the
-// image degrades to literal text on the next parse. Backslash-escape so the
-// inline escape pass restores the literal characters.
+// image degrades to literal text on the next parse. Unlike `title` and `url`,
+// which arrive spec-processed, `alt` carries RAW label bytes — the scanner slices
+// the label without unescaping — so a blanket escape re-escapes what the source
+// already escaped and doubles every backslash on each commit (a drag-resize alone
+// grew `![C:\path]` to `![C:\\path]` to `![C:\\\\path]`). Pass any backslash PAIR
+// through untouched and escape only bare bytes: idempotent, like
+// `encodeDestination`, and byte-exact on alt the source already escaped. The pair
+// is "backslash + anything", not "backslash + escapable punctuation" — a backslash
+// before an ordinary letter is inert for the label scan, so escaping it would grow
+// the user's bytes for nothing.
 function escapeAlt(alt: string): string {
-	return alt.replace(/[[\]\\]/g, '\\$&');
+	let out = '';
+	for (let i = 0; i < alt.length; i++) {
+		const ch = alt[i];
+		if (ch === '\\' && i + 1 < alt.length) {
+			out += ch + alt[i + 1];
+			i++;
+			continue;
+		}
+		out += ch === '[' || ch === ']' || ch === '\\' ? '\\' + ch : ch;
+	}
+	return out;
 }
 
 // Bare destinations end at whitespace/`"`/`'` and may carry parens only as
