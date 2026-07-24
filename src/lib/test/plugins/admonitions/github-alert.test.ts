@@ -3,6 +3,7 @@ import { installPlugins, parse } from '$lib';
 import { getPluginMetadata } from '$lib/plugin';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { GithubAlertMetadata } from '$lib/plugins/admonitions/kinds';
+import { roundTripCases } from '$lib/test/support/round-trip';
 
 // Native GitHub alerts: a blockquote whose FIRST line is exactly `> [!TYPE]` parses
 // as its own `githubAlert` container kind, bytes untouched. The marker line lives in
@@ -69,6 +70,40 @@ describe('github alert — MARKER whitespace edges', () => {
 			expect(firstKind(`${marker}\n> x\n`)).toBe('githubAlert');
 		});
 	}
+});
+
+describe('github alert — the CommonMark block-indent boundary', () => {
+	// 4+ spaces (or a tab) makes a line indented code, not a blockquote, so
+	// `blockquoteExtent` refuses to claim it. A marker regex that accepted the indent
+	// anyway matched, consumed nothing, and returned a non-advancing index — the
+	// parse-loop hang. The 3-space case pins the legal side of the same boundary.
+
+	it('claims a marker indented up to three spaces', () => {
+		expect(firstKind('   > [!NOTE]\n   > body\n')).toBe('githubAlert');
+	});
+
+	for (const { name, source, kinds } of [
+		{ name: 'tab-indented marker', source: '\t> [!NOTE]\n', kinds: ['indentedCode'] },
+		{
+			name: 'four-space-indented marker',
+			source: 'Example:\n\n    > [!NOTE]\n    > body\n',
+			kinds: ['paragraph', 'indentedCode']
+		}
+	]) {
+		it(`leaves a ${name} as indented code`, () => {
+			expect(parse(source).children.map((c) => c.kind)).toEqual(kinds);
+		});
+	}
+
+	it('lets an over-indented marker continue a paragraph instead of interrupting it', () => {
+		expect(parse('Intro\n\t> [!NOTE]\n').children.map((c) => c.kind)).toEqual(['paragraph']);
+	});
+
+	roundTripCases([
+		{ name: 'tab-indented marker', source: '\t> [!NOTE]\n' },
+		{ name: 'four-space-indented marker', source: 'Example:\n\n    > [!NOTE]\n    > body\n' },
+		{ name: 'three-space-indented marker', source: '   > [!NOTE]\n   > body\n' }
+	]);
 });
 
 describe('github alert — non-alert blockquotes stay plain', () => {

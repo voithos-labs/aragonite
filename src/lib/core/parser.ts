@@ -123,30 +123,49 @@ function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } 
 	}
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
-		if (result) {
-			if (import.meta.env.DEV) guardOpenerResult(ctx, result);
-			return result;
+		if (!result) continue;
+		if (result.nextIndex <= ctx.index) {
+			reportNonAdvancingOpener(ctx, result);
+			continue;
 		}
+		if (import.meta.env.DEV) assertOpenerRawMatches(ctx, result);
+		return result;
 	}
 	// Paragraph is the total fallback; it also detects setext headings and tables.
 	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 }
 
 /**
- * DEV-only trust check on a plugin opener's return, at the one site the parser
- * consumes it. A non-advancing `nextIndex` would spin the parse loop forever
- * (browser hang on load), so it throws — naming the offending kind — instead of
- * hanging. A `raw` that doesn't byte-match the consumed lines silently breaks
- * `serialize(parse(source)) === source` (serialize reads `raw` only), so it fires
- * the invariant channel. Both O(consumed lines); tree-shaken in production.
+ * The `[invariant:…]` fire behind the call site's decline. An opener that matched but
+ * consumed nothing is declined in every build, not just DEV: returning it would leave
+ * `index` where it was and spin the parse loop forever (a hung tab on document load),
+ * and declining is always safe — the next opener, ultimately the paragraph fallback,
+ * covers the line. The message names the decline as well as the kind, so an author can
+ * connect "my block renders as a paragraph" to its cause.
  */
-function guardOpenerResult(ctx: OpenContext, result: { node: CstNode; nextIndex: number }): void {
-	if (result.nextIndex <= ctx.index) {
-		throw new Error(
-			`block opener for kind "${result.node.kind}" did not advance past line ${ctx.index} — ` +
-				`an opener must consume at least one line (return nextIndex > ctx.index)`
-		);
-	}
+function reportNonAdvancingOpener(
+	ctx: OpenContext,
+	result: { node: CstNode; nextIndex: number }
+): void {
+	assertInvariant('opener-advance', () => ({
+		code: 'opener-did-not-advance',
+		message:
+			`block opener for kind "${result.node.kind}" consumed no line at ${ctx.index} and was ` +
+			`declined — an opener must consume at least one line (return nextIndex > ctx.index)`,
+		detail: result.node.kind
+	}));
+}
+
+/**
+ * DEV-only trust check on a plugin opener's `raw`, at the one site the parser
+ * consumes it: bytes that don't match the consumed lines silently break
+ * `serialize(parse(source)) === source` (serialize reads `raw` only).
+ * O(consumed lines); tree-shaken in production.
+ */
+function assertOpenerRawMatches(
+	ctx: OpenContext,
+	result: { node: CstNode; nextIndex: number }
+): void {
 	assertInvariant('opener-raw', () =>
 		result.node.raw === joinRaw(ctx.lines, ctx.index, result.nextIndex)
 			? null
