@@ -165,34 +165,46 @@ call and return a stale number map, breaking the live renumber the feature is bu
 Task 3 review).
 
 **Fix direction:** a per-epoch shared computation (one `assignFootnoteNumbers` walk per flush keyed on a
-content-version token every widget reads) once a real workload goes reference-dense. The one document
-epoch that exists today (`linkStamp`) tracks only the LRD signature, not general edits, so that token is
-not cheaply available yet.
+content-version token every widget reads) once a real workload goes reference-dense. No such token reaches
+a widget today: `linkStamp` tracks only the LRD signature rather than general edits, and the decoration
+engine's general `editEpoch` reaches a `DecorationSource`'s `provide` and nothing else — which is exactly
+why highlight-occurrences (a decoration source) could memoize this same walk shape and a reference widget
+cannot.
 
 ### Installed inline-rung consultation is unmeasured by the standing perf gate
 
 **Severity:** watch (accepted at 0.9.33 ship; cost is bounded and off by default)
-**Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation and the
-default-arm unreserved-rung consultation), `src/lib/test/perf/` (the standing harness installs
-no rung-registering plugin)
+**Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation, the
+default-arm unreserved-rung consultation, and `needsScan`'s per-character probe),
+`src/lib/test/perf/` (the standing harness installs no rung-registering plugin)
 
-A registered inline rung adds a per-occurrence consultation on its trigger character that the
-standing empty-registry gate never measures. Two ship today, on the two rung shapes: footnotes'
-reserved-prefix `[^` (0.9.33), consulted before the built-in `[` case, so every `[` in a scanned
-range pays a registry lookup plus a two-char prefix compare; and emoji's unreserved `:` rung
-(0.9.34), consulted in the scanner's `default` arm, so every `:` that reaches it pays a lookup plus
-a recognizer attempt. Both are O(occurrences of the trigger) within ranges `needsScan` already
-admits, and the standing keystroke ceilings measure only the empty-registry path (byte- and
-cost-identical to pre-ladder). The 0.9.33 review accepted the `[^` cost on that reasoning rather
-than a measurement, and emoji's `:` rides the same unmeasured shape.
+A registered inline rung adds a consultation the standing empty-registry gate never measures. Three
+bundled rungs ship, on the two rung shapes:
 
-**Fix direction:** when a perf-harness pass next touches fixtures, add a footnotes-installed row
-over a bracket-dense fixture and an emoji-installed row over a colon-dense fixture, so both rung
-shapes become measured ceilings.
+- **Reserved-prefix** — footnotes' `[^` (0.9.33), consulted before the built-in `[` case, so every
+  `[` in a scanned range pays a registry lookup plus a two-char prefix compare. O(occurrences of
+  the trigger) within ranges `needsScan` already admits.
+- **Unreserved** — emoji's `:` (0.9.34) and latex's `$` (a bare registration predating the ladder,
+  riding its default rung), consulted in the scanner's `default` arm, so every occurrence pays a
+  lookup plus a recognizer attempt. The directive text tier adds a second `:` rung wherever
+  `activateDirectives()` runs.
 
-**Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path until a
-rung-registering plugin is installed. Re-open when a perf-harness pass next touches fixtures, or if
-a real workload holds a trigger-dense region under an installed rung.
+The unreserved shape's cost is **not** confined to its trigger: unreserved triggers are held out of
+`SPECIAL_CHARS`, so registering any one of them flips `needsScan`'s per-character probe on, and
+every ordinary character in a scanned range then pays a map lookup before the fast bail decides. A
+document with latex or emoji installed therefore runs a more expensive bail loop than the standing
+ceilings measure, on every keystroke, not merely a denser trigger cost.
+
+**Fix direction:** when a perf-harness pass next touches fixtures, install each rung shape and
+measure it: a bracket-dense fixture under footnotes, a colon-dense one under emoji, a dollar-dense
+one under latex — plus a **plain-prose** row under any installed unreserved rung, which is the row
+that measures the bail-probe cost the current gate is blindest to.
+
+**Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path on an
+empty registry. The bail probe itself predates the ladder — latex's `$` has ridden it since inline
+math shipped — so this is a standing measurement gap, not a ladder regression. Re-open when a
+perf-harness pass next touches fixtures, or if a real workload holds a trigger-dense region under
+an installed rung.
 
 ### Reveal into a collapsed container silently degrades (toc navigation, search)
 
