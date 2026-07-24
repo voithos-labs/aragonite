@@ -5,6 +5,7 @@
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
+import type { EditorRects } from './editor-rects';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -80,6 +81,10 @@ export interface BlockComponentProps {
 	ambientPrefix: AmbientPrefix;
 	/** The root document, readonly by type — mutation stays a commit-ceremony concern. */
 	document?: DocumentView;
+	/** The owning instance's rect surface: measure/reveal/scroll by path. The live
+	 *  instance object (delivered through editor context), so a block navigating to
+	 *  another block shares the editor's one seam. */
+	rects?: EditorRects;
 }
 
 // ── BlockComponent ─────────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
 # Feature: Public rect API
 
 `editor.getRects()` (and the plugin `editor.rects` door) expose viewport-space geometry over the
-rendered document: a block's box, the rects covering an inline range, the native caret, and a
-reveal that mounts a windowed-out block. Ranges inherit `measurePartialRects`' per-surface offset
+rendered document: a block's box, the rects covering an inline range, the native caret, a reveal
+that mounts a windowed-out block, and a `scrollTo` that mounts then scrolls the viewport to a block
+by path. Ranges inherit `measurePartialRects`' per-surface offset
 semantics — raw offsets (dimmed markers included) on prose leaves, cell-index coordinates on grid
 surfaces. Rects are real only in a browser: jsdom reports ~0-sized boxes, so this surface is
 e2e-tested.
@@ -23,10 +24,15 @@ e2e-tested.
   reporting the live native caret
 - `reveal` on a block scrolled out of the virtual window mounts it and resolves `true`; the
   block's element resolves afterward
+- `scrollTo` on a windowed-out mid-document block mounts it AND scrolls the viewport so the block
+  is on screen — both halves, not just the mount (a mount-only reveal is the false-green to avoid)
+- `scrollTo` with `{ block: 'center' }` lands the target near the vertical center of the editor
+  viewport, distinguishing it from the top-pinned mount and proving the scroll half ran
 
 ## Edge cases
 
 - `reveal` on an unrevealable path (out of range, no block to mount) resolves `false`
+- `scrollTo` on an unrevealable path (out of range) resolves `false` and scrolls nothing
 - grid-surface `SELECTION_END` semantics are inherited from `measurePartialRects` and are tested
   at the text-surface clamp only: passing the sentinel as `end` on a table addresses "through the
   last cell", but no spec pins that clamp on a grid — recorded, not covered

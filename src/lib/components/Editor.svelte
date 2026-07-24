@@ -563,17 +563,17 @@
 		getDoc,
 		decorations,
 		replace: gatedSearchReplace,
-		// Reveal mounts the target block (windowed-out case), then scroll the
+		// Reveal + scroll rides the one public seam (rects.scrollTo): it brings the
 		// active match's element into view — a no-op when already on screen, so it
-		// also covers the mounted-but-scrolled-out case. getBlockElByPath resolves
-		// the same path revealPath consumed; `?.` degrades to no-scroll otherwise.
-		reveal: async (p) => {
-			// Hold this target's screen position through the band's async image-decode
-			// churn (cleared on the next user gesture) so the reveal scroll isn't
+		// also covers the mounted-but-scrolled-out case.
+		reveal: (p) => {
+			// The reveal anchor stays a search concern (not folded into scrollTo, which
+			// must leave a 'center' scroll un-pinned): hold this target's screen position
+			// through the band's async image-decode churn (cleared on the next user
+			// gesture) so the reveal scroll isn't
 			// clamped off it — see cursor/reveal-anchor.ts.
 			revealAnchor.set(p);
-			await focus.revealPath(p);
-			getBlockElByPath(p)?.scrollIntoView({ block: 'nearest' });
+			return rects.scrollTo(p);
 		},
 		onClose: () => {
 			// Restore the native single-block caret when its container is still in
@@ -630,7 +630,8 @@
 		pasteCoordinator,
 		reorder,
 		reorderAnnounce: announceReorder,
-		registryView
+		registryView,
+		rects
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {

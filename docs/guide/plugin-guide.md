@@ -74,7 +74,7 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 | `events`      | The subscribe-only event view — `events.on('edit', …)` returns a disposer                   |
 | `options`     | The options this editor passed, typed when you write `definePlugin<Options>` (see below)    |
 | `decorations` | This editor's decoration registry — register a source ([Decorations](#decorations))         |
-| `rects`       | This editor's viewport-space geometry reads — block box, range rects, caret, reveal         |
+| `rects`       | This editor's viewport-space geometry — block box, range rects, caret, reveal, scrollTo     |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is **synchronous-only** — call `onEditor` from `setup`, not from a later callback.
 
@@ -1005,9 +1005,9 @@ View-only annotations layered over the rendered document — never part of the C
 
 Viewport-space geometry over the rendered document, reached through `editor.rects` (your `onEditor` context).
 
-| Export        | Role                                                                                                                                 |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `EditorRects` | The `editor.rects` surface — a block's box, an inline range's rects, the native caret, and a reveal that mounts a windowed-out block |
+| Export        | Role                                                                                                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EditorRects` | The `editor.rects` surface — a block's box, an inline range's rects, the native caret, a reveal that mounts a windowed-out block, and a scrollTo that mounts then scrolls the viewport to a block |
 
 **Selection geometry** _(pre-freeze / unstable)_
 

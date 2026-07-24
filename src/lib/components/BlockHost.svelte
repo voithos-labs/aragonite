@@ -52,6 +52,9 @@
 	// kit) get no provider and read the global default — behavior-preserving.
 	const registryView = services?.registryView ?? defaultRegistryView;
 	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
+	// The instance's rect surface, delivered to the block as a prop. Stable object,
+	// so a plain read (not a getter); bare mounts without the shell get undefined.
+	const rects = services?.rects;
 	const getDragHandles = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.blockDragHandles;
@@ -236,6 +239,7 @@
 				{myPath}
 				{ambientPrefix}
 				document={getDoc?.()}
+				{rects}
 				bind:this={ref}
 				{...entry.extraProps?.(node) ?? {}}
 			/>
@@ -246,6 +250,7 @@
 				{myPath}
 				{ambientPrefix}
 				document={getDoc?.()}
+				{rects}
 				bind:this={ref}
 				blockClass="raw-block"
 			/>
