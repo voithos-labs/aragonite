@@ -36,6 +36,8 @@ byte-preserving and uninstall-clean: an installed extension changes rendering, n
   marker-dropping unwrap). The alert and math-fence kinds each gained interactive e2e coverage, and
   all three surfaces appear on the `/` showcase and in the consumer and plugin guides.
 
+Ship gates: unit 4547, e2e 1479, check 0/0, lint 0, perf 95, perf:check 24/24.
+
 ### 0.9.33: inline priority ladder + footnotes
 
 The inline recognizer gained a published priority ladder mirroring `OPENER_PRIORITIES`, and GFM
