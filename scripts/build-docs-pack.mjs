@@ -3,6 +3,9 @@
 //   node scripts/build-docs-pack.mjs             run both gates
 //   node scripts/build-docs-pack.mjs <dir>       run both gates, then write the pack to <dir>
 //
+// <dir> is cleared before the write, so it must be absent or hold nothing but .md
+// files — see the refusal at the bottom.
+//
 // Gate 1 — the public docs pack: the exact doc set a third-party plugin author
 // receives (docs/guide/, not a manifest — a doc is authoring documentation or it
 // isn't, and the folder is where that call is already recorded). The pack ships
@@ -11,8 +14,16 @@
 // Gate 2 — the rest of the corpus (README, CONTRIBUTING, docs/): a relative link
 // that once resolved rots silently when its target moves or is deleted, so every
 // one must still resolve to a real file or directory.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	statSync,
+	unlinkSync
+} from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 
 const SOURCE_DIR = 'docs/guide';
 
@@ -159,7 +170,34 @@ if (!target) {
 	process.exit(0);
 }
 
-rmSync(target, { recursive: true, force: true });
-mkdirSync(target, { recursive: true });
-for (const name of packNames) copyFileSync(join(SOURCE_DIR, name), join(target, name));
+// ── Pack write ──────────────────────────────────────────────────────────
+
+// Writing the pack clears the target first, so a mistyped argument (`… src`) must
+// not be able to take a tree with it. Two refusals bound what is clearable: the
+// pack's own inputs (`docs/guide` is all-.md, so the shape test alone would let the
+// clear eat them and then fail mid-copy), and any directory holding an entry the
+// pack never writes. With those held, clearing is a flat unlink of .md files — this
+// script owns no recursive delete to misfire.
+function refusalReason(dir) {
+	if (dir === resolve(SOURCE_DIR)) return 'it is the pack source directory';
+	if (!existsSync(dir)) return null;
+	if (!statSync(dir).isDirectory()) return 'it is not a directory';
+	const foreign = readdirSync(dir, { withFileTypes: true })
+		.filter((entry) => !entry.isFile() || !entry.name.endsWith('.md'))
+		.map((entry) => entry.name);
+	return foreign.length === 0
+		? null
+		: `it holds entries the pack never writes: ${foreign.join(', ')}`;
+}
+
+const packDir = resolve(target);
+const refusal = refusalReason(packDir);
+if (refusal) {
+	console.error(`docs-pack: refusing to write the pack to ${target} — ${refusal}`);
+	process.exit(1);
+}
+
+mkdirSync(packDir, { recursive: true });
+for (const name of readdirSync(packDir)) unlinkSync(join(packDir, name));
+for (const name of packNames) copyFileSync(join(SOURCE_DIR, name), join(packDir, name));
 console.log(`docs-pack: ${packNames.length} docs → ${target}`);
