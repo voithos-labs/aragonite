@@ -10,6 +10,7 @@
  */
 
 import {
+	createBoundedMemo,
 	declarePluginInlineKind,
 	declarePluginKind,
 	registerInlineSyntax,
@@ -38,6 +39,38 @@ const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
 /**
+ * Closer positions (`$` with a non-whitespace char before it) for one block's raw.
+ * A forward search per consultation costs a full block scan every time it declines,
+ * and a paragraph of shell prose (`$HOME $PATH $USER …`) declines at every `$` — so
+ * the predicate, which reads only `raw`, is materialized once and each consultation
+ * looks it up (the backtick-run index's shape). Bounded rather than weak-keyed
+ * because a string cannot key a WeakMap; two entries cover a block's own scan, the
+ * only place consecutive consultations share a `raw`.
+ */
+const closerIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
+
+function indexMathClosers(raw: string): Int32Array {
+	const positions: number[] = [];
+	for (let i = 1; i < raw.length; i++) {
+		if (raw[i] === '$' && !isWhitespace(raw[i - 1])) positions.push(i);
+	}
+	return Int32Array.from(positions);
+}
+
+/** First closer position at or after `from`, or -1 when the block holds none. */
+function firstCloserFrom(raw: string, from: number): number {
+	const positions = closerIndex(raw, () => indexMathClosers(raw));
+	let lo = 0;
+	let hi = positions.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >>> 1;
+		if (positions[mid] < from) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo < positions.length ? positions[lo] : -1;
+}
+
+/**
  * `$`-flanking recognizer over `raw[pos, end)`, where `pos` is the opening `$`.
  * Opens only when the next char is neither whitespace nor a digit — the digit
  * guard is what keeps `$5` / `$5 and $10` currency, not math. Closes on the
@@ -55,12 +88,11 @@ function recognizeMath(
 	const opener = raw[afterOpen];
 	if (isWhitespace(opener) || isDigit(opener)) return null;
 
-	for (let close = pos + 2; close < end; close++) {
-		if (raw[close] !== '$') continue;
-		if (isWhitespace(raw[close - 1])) continue;
-		return { kind, start: pos, end: close + 1 };
-	}
-	return null;
+	// The index spans the whole block, so `end` — not the block string — decides the
+	// claim: a closer past the scan range leaves the `$` literal.
+	const close = firstCloserFrom(raw, pos + 2);
+	if (close === -1 || close >= end) return null;
+	return { kind, start: pos, end: close + 1 };
 }
 
 // ── Registration ─────────────────────────────────────────────────────────────
