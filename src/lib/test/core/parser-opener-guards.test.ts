@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 import { registerBlockOpener, type OpenContext } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { configureEditorEnv, resetEditorEnv } from '../../env';
-import type { CstNode } from '../../core/nodes';
+import type { CstNode, Document } from '../../core/nodes';
 
 type OpenerResult = { node: CstNode; nextIndex: number };
 
@@ -25,17 +26,34 @@ function registerSyntheticOpener(
 	});
 }
 
-describe('parser opener trust guards (DEV)', () => {
+describe('parser opener trust guards', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 	afterEach(() => resetEditorEnv());
 
-	it('throws, naming the kind, when an opener does not advance', () => {
+	// Two consecutive stuck dispatches, not one: a single decline proves the branch,
+	// while a second one proves the loop still terminates when every dispatch declines
+	// — the shape that hangs a tab if the decline is missing.
+	it('declines a non-advancing opener instead of spinning the parse loop', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false });
 		registerSyntheticOpener('synthetic-stuck', '@@stuck@@', (ctx, kind) => ({
 			node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
 			nextIndex: ctx.index // never advances — would spin the parse loop forever
 		}));
-		expect(() => parse('@@stuck@@\n')).toThrow(/synthetic-stuck/);
-		expect(() => parse('@@stuck@@\n')).toThrow(/did not advance/);
+
+		const source = '@@stuck@@\n\n@@stuck@@\n';
+		let doc!: Document;
+		expect(() => {
+			doc = parse(source);
+		}).not.toThrow();
+
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
+		expect(serialize(doc)).toBe(source);
+		expect(warnSpy).toHaveBeenCalledTimes(2);
+		expect(warnSpy.mock.calls[0][0]).toMatch(/invariant:opener-advance/);
+		expect(warnSpy.mock.calls[0][0]).toMatch(/synthetic-stuck/);
+		expect(warnSpy.mock.calls[0][0]).toMatch(/declined/);
+		warnSpy.mockRestore();
 	});
 
 	it('dev-warns, naming the kind, when raw does not byte-match the consumed lines', () => {

@@ -45,6 +45,11 @@ function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null 
 	// children come from the body-only strip below (the marker line is not a child),
 	// so the body is parsed exactly once.
 	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end);
+	// The extent scan, not the marker regex, is the authority on whether this line
+	// opens a blockquote at all. Declining when it claims nothing keeps a marker-rule
+	// drift from ever reaching the parse loop as a non-advancing return.
+	if (nextIndex <= ctx.index) return null;
+
 	const body = parse(stripBody(ctx.lines, ctx.index + 1, nextIndex));
 
 	const node: CstNode = {
