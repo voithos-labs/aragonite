@@ -25,6 +25,11 @@ single-newline lazy-merge divergence — convergence runs unconditionally.
 
 ## Edge cases
 
+- Alt+Arrow on a body block permutes it among its siblings WITHIN the alert (the strip
+  container reorder-within capability, the seam the quote-unwrap climb didn't reach); the
+  alert keeps its `githubAlert` kind, its `> [!TYPE]` marker, its root slot, and its child
+  count, asserted by the gesture, so a regression to the whole-alert teleport (root count
+  changes) or a rebuild-as-blockquote (marker drops) fails loudly
 - Backspace at the start of a non-first body block merges it into the previous body block
   (the container `default-merge`); the alert stays one `githubAlert` root with its marker
   intact and its root slot held — the merge never escapes the container, asserted by the

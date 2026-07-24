@@ -97,6 +97,30 @@ test.describe('plugin github alerts', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
+	test('Alt+Arrow reorders a body block within the alert, no whole-container teleport', async ({
+		page
+	}) => {
+		await editor.loadContent('TOP\n\n> [!TIP]\n> first\n>\n> second\n\nTAIL\n'); // [1] = alert
+		await waitForContainer(page, 1, (s) => s.childCount === 2);
+
+		await editor.focusBlockAtPath([1, 0], 0); // caret in "first"
+		await page.keyboard.press('Alt+ArrowDown'); // move "first" below "second"
+
+		await editor.bridge.waitForSourceMatches(/> second[\s\S]*> first/);
+		const alert = await readContainer(page, 1);
+		expect(alert.kind).toBe('githubAlert');
+		expect(alert.childCount).toBe(2);
+		expect(alert.childTexts[0]).toContain('second');
+		expect(alert.childTexts[1]).toContain('first');
+		expect(alert.raw).toContain('[!TIP]'); // the marker survived the rebuild
+		// No teleport: the surrounding document siblings keep their positions.
+		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'githubAlert', 'paragraph']);
+		expect(await roundTripStable(page)).toBe(true);
+
+		await editor.undo(); // one entry restores the order
+		await editor.bridge.waitForSourceMatches(/> first[\s\S]*> second/);
+	});
+
 	test('typing a marker line then a body from scratch lands a native alert', async ({ page }) => {
 		await editor.loadContent('Start here.\n');
 		await editor.focusBlockEnd(0);

@@ -13,7 +13,8 @@ describe('resolveReorderUnit', () => {
 		expect(resolveReorderUnit(doc, [1])).toEqual({
 			parentPath: [],
 			index: 1,
-			parentKind: 'document'
+			scope: 'document',
+			renumberMarkers: false
 		});
 	});
 
@@ -22,7 +23,8 @@ describe('resolveReorderUnit', () => {
 		expect(resolveReorderUnit(doc, [0, 1, 0])).toEqual({
 			parentPath: [0],
 			index: 1,
-			parentKind: 'list'
+			scope: 'container',
+			renumberMarkers: true
 		});
 	});
 
@@ -31,7 +33,8 @@ describe('resolveReorderUnit', () => {
 		expect(resolveReorderUnit(doc, [0, 1])).toEqual({
 			parentPath: [0],
 			index: 1,
-			parentKind: 'blockquote'
+			scope: 'container',
+			renumberMarkers: false
 		});
 	});
 
@@ -41,7 +44,8 @@ describe('resolveReorderUnit', () => {
 		expect(resolveReorderUnit(doc, [0, 2])).toEqual({
 			parentPath: [0],
 			index: 2,
-			parentKind: 'list'
+			scope: 'container',
+			renumberMarkers: true
 		});
 	});
 
@@ -52,7 +56,8 @@ describe('resolveReorderUnit', () => {
 		expect(resolveReorderUnit(doc, [0, 0, 0])).toEqual({
 			parentPath: [],
 			index: 0,
-			parentKind: 'document'
+			scope: 'document',
+			renumberMarkers: false
 		});
 	});
 
@@ -74,13 +79,13 @@ describe('resolveReorderUnit', () => {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
 		} as unknown as CstNode;
 		const doc: Document = { kind: 'document', prefix: '', children: [nested], suffix: '' };
-		// Pre-fix this returned { parentPath: [0], index: 0, parentKind: 'document' } —
-		// treating the alias as a reorderable parent. It now walks past to the real
-		// root, moving the nested node as a top-level unit.
+		// Pre-fix this returned the alias as a reorderable parent. It now walks past to
+		// the real root, moving the nested node as a top-level unit.
 		expect(resolveReorderUnit(doc, [0, 0])).toEqual({
 			parentPath: [],
 			index: 0,
-			parentKind: 'document'
+			scope: 'document',
+			renumberMarkers: false
 		});
 	});
 });
@@ -153,7 +158,8 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 		expect(resolveReorderUnit(doc, [1, 1, 1])).toEqual({
 			parentPath: [1, 1],
 			index: 1,
-			parentKind: 'blockquote'
+			scope: 'container',
+			renumberMarkers: false
 		});
 	});
 });
