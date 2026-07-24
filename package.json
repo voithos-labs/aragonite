@@ -1,6 +1,6 @@
 {
 	"name": "aragonite",
-	"version": "0.9.34",
+	"version": "0.9.35",
 	"description": "CST block editor for GFM Markdown",
 	"type": "module",
 	"license": "MIT",
