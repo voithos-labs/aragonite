@@ -1,6 +1,7 @@
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
+import { trailingLineEnding } from '../../core/lines';
 import { cloneNode } from '../clone';
 import { emptyParagraph } from '../node-ops';
 import { assembleListHalf, orderedBaseOf } from './list-builders';
@@ -54,7 +55,9 @@ export function buildExitReplacement(
 	const firstHalfItems = wasFirstItem ? [] : [...before, ...promotedItems];
 	const secondHalfItems = wasFirstItem ? [...promotedItems, ...after] : after;
 
-	const exitParagraph = emptyParagraph();
+	// Every byte this op mints is a line ending, so it takes the list's (G4.20).
+	const lineEnding = trailingLineEnding(list.raw);
+	const exitParagraph = emptyParagraph('', lineEnding);
 
 	// Preserve the original list's starting number across the split.
 	const base = orderedBaseOf(items[0]);
@@ -64,7 +67,7 @@ export function buildExitReplacement(
 		blocks.push(assembleListHalf(list, firstHalfItems, base));
 		// The exit paragraph follows the surviving list; without a blank line the
 		// parser lazy-continues a typed line into the list's last item on reload.
-		exitParagraph.leadingTrivia = '\n';
+		exitParagraph.leadingTrivia = lineEnding;
 	}
 	const paragraphIndex = blocks.length;
 	blocks.push(exitParagraph);

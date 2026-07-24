@@ -8,6 +8,7 @@
 import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
+import { trailingLineEnding } from '../../core/lines';
 import type { SharingState } from '../sharing';
 import { cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
@@ -252,7 +253,7 @@ export function mergeListItemIntoPrevious(
 	const currentFirstParagraph = currentItem.children[0];
 	const currentFirstText = (currentFirstParagraph.raw ?? '').replace(/\r?\n$/, '');
 
-	const lineEnding = (targetParagraph.raw ?? '').endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
 	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
 
 	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);

@@ -156,7 +156,11 @@ function deleteFromProseIntoTable(
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	let truncatedReplacement: CstNode[] | null = null;
 	if (!startIsChrome) {
-		truncatedReplacement = reparseWithFallback(startHead, startBlock.leadingTrivia);
+		truncatedReplacement = reparseWithFallback(
+			startHead,
+			startBlock.leadingTrivia,
+			trailingLineEnding(startBlock.raw)
+		);
 		for (const node of truncatedReplacement) sharing.stamp(node);
 	}
 
@@ -209,6 +213,7 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	const lineEnding = trailingLineEnding(table.raw);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
 		table,
@@ -227,7 +232,8 @@ function deleteFromTableIntoProse(
 		if (!endIsChrome) {
 			tailReplacement = reparseWithFallback(
 				endTail || trailingLineEnding(endBlock.raw),
-				endBlock.leadingTrivia
+				endBlock.leadingTrivia,
+				trailingLineEnding(endBlock.raw)
 			);
 			for (const node of tailReplacement) sharing.stamp(node);
 		}
@@ -276,7 +282,7 @@ function deleteFromTableIntoProse(
 		tableResult === 'tableEmpty'
 			? tailPath
 				? { path: tailPath, offset: 0 }
-				: caretNearestSurvivor(doc, start.path, sharing)
+				: caretNearestSurvivor(doc, start.path, sharing, lineEnding)
 			: survivingAnchorCellCaret(table, start.path, startCell);
 
 	return {
@@ -324,6 +330,7 @@ function deleteAcrossTwoTables(
 	endTable: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	const lineEnding = trailingLineEnding(startTable.raw);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
 		startTable,
@@ -373,7 +380,7 @@ function deleteAcrossTwoTables(
 		// its first surviving cell (row 0, col 0).
 		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
 	} else {
-		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing);
+		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing, lineEnding);
 	}
 
 	const tableRowSplices = [
@@ -389,10 +396,15 @@ function deleteAcrossTwoTables(
 // materialize an empty paragraph (the document emptied — mirrors the prose
 // rangeDelete fallback). Adjacent surviving tables get deep cell carets,
 // never a shallow table path.
+//
+// `lineEnding` is the deleted start table's, captured before the mutation
+// (G4.20): the placeholder IS a line ending, and nothing survives to read one
+// from, so a defaulted LF silently flips a CRLF document to LF.
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],
-	sharing: SharingState
+	sharing: SharingState,
+	lineEnding: string
 ): SelectionPoint {
 	const children = doc.children;
 	const beforeIdx = startPath[0] - 1;
@@ -406,7 +418,7 @@ function caretNearestSurvivor(
 		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
 	}
 
-	const filler = emptyParagraph();
+	const filler = emptyParagraph('', lineEnding);
 	sharing.stamp(filler);
 	doc.children.push(filler);
 	return { path: [0], offset: 0 };

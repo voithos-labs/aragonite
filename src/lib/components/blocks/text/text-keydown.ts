@@ -5,7 +5,7 @@
  * helpers own the string math.
  */
 
-import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
+import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
 
 export interface TextEditResult {
 	newRaw: string;
@@ -33,20 +33,28 @@ export function cycleHeading(raw: string, level: number, preEditOffset: number):
 }
 
 /**
- * Insert a GFM hard-break (`\\\n`) at `offset` within the display portion. At
- * end-of-display the inserted `\n` becomes the block's trailing ending, so the
- * break is transitional there — a literal trailing `\` until the next keystroke
- * supplies its following line. The caret lands at the start of the continuation
- * line, clamped to the new display length so it is valid immediately.
+ * Insert a GFM hard-break (a backslash at end of line) at `offset` within the
+ * display portion. At end-of-display the break's own line ending becomes the
+ * block's trailing ending, so the break is transitional there — a literal trailing
+ * `\` until the next keystroke supplies its following line. The caret lands at the
+ * start of the continuation line, clamped to the new display length so it is valid
+ * immediately.
  */
 export function insertHardBreak(raw: string, offset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
 	const trailing = raw.slice(displayLength(raw));
-	const newDisplay = display.slice(0, offset) + '\\\n' + display.slice(offset);
-	// At end-of-display the inserted `\n` is itself the trailing ending; reattaching
+	// The break carries the block's own ending (G4.20) — CommonMark reads a backslash
+	// before either LF or CRLF as a hard break, so a CRLF block stays CRLF whether the
+	// break lands mid-display or becomes the new trailing ending.
+	const breakBytes = '\\' + trailingLineEnding(raw);
+	const newDisplay = display.slice(0, offset) + breakBytes + display.slice(offset);
+	// At end-of-display the inserted ending is itself the trailing ending; reattaching
 	// the original would double it into a blank line and break list-item continuation.
 	const newRaw = offset >= display.length ? newDisplay : newDisplay + trailing;
-	return { newRaw, caretOffset: Math.min(offset + 2, displayLength(newRaw)) };
+	return {
+		newRaw,
+		caretOffset: Math.min(offset + breakBytes.length, displayLength(newRaw))
+	};
 }
 
 /** Insert a literal tab character at `offset` within the display portion. */
