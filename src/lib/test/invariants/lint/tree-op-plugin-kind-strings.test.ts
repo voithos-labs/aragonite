@@ -1,13 +1,18 @@
 /**
- * G4.x — no plugin kind name in a core tree-op. `editor.md` §16 lesson 4 forbids
- * core code branching on a specific kind NAME; the enforcement ladder says that
- * coupling must climb off the "documented" rung. A `githubAlert` string once lived
- * in a `tree-operations/` Set beside `blockquote` (the quote-unwrap discriminator),
- * re-derived at the descriptor capability instead. This is the source-scan guard
- * that fails the day a plugin block-kind literal reappears in `tree-operations/`,
- * instead of at the next audit.
+ * G4.x — no plugin kind name in a core dispatch layer. `editor.md` §16 lesson 4
+ * forbids core code branching on a specific kind NAME; the enforcement ladder says
+ * that coupling must climb off the "documented" rung. A `githubAlert` string once
+ * lived in a `tree-operations/` Set beside `blockquote` (the quote-unwrap
+ * discriminator), re-derived at the descriptor capability instead. This is the
+ * source-scan guard that fails the day a plugin block-kind literal reappears in a
+ * dispatch layer, instead of at the next audit.
  *
- * Miss-analysis (the coupling that shipped): the tree-op read correctly and every
+ * Scope covers the layers where the 0.9.35 strip-container parity sweep found the
+ * blockquote-hardcoded sibling paths — `tree-operations/`, `editor-actions/` and
+ * `selection/` (the reorder rebuild and the clipboard prefix recovery lived in the
+ * latter two, unguarded by the tree-operations-only original scope).
+ *
+ * Miss-analysis (the coupling that shipped): the dispatch read correctly and every
  * behavioral test passed, so nothing flagged the DIRECTIONAL smell of core naming a
  * plugin kind. No guard scanned the layer for plugin kind strings — this is it.
  *
@@ -15,14 +20,18 @@
  * brands via `declarePluginKind` (block kinds; inline kinds are a separate registry
  * that never enters the block tree tree-ops mutate). A new plugin kind joins the set
  * automatically. Built-in kinds (`blockquote`, `list`) are core's own vocabulary and
- * are NOT forbidden — the tree-op legitimately constructs a `blockquote` remainder.
+ * are NOT forbidden — the dispatch legitimately constructs a `blockquote` remainder.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { collectEditorSources, type SourceFile } from './scan-source';
 
 const PLUGIN_SRC = path.resolve('src/lib/plugins');
-const TREE_OPS_SRC = path.resolve('src/lib/tree-operations');
+const DISPATCH_SRCS = [
+	path.resolve('src/lib/tree-operations'),
+	path.resolve('src/lib/editor-actions'),
+	path.resolve('src/lib/selection')
+];
 
 // ── Forbidden-set derivation (plugin block-kind literals) ─────────────────────
 
@@ -65,15 +74,15 @@ function mentionsAsLiteral(code: string, kind: string): boolean {
 	return new RegExp(`(['"\`])${escaped}\\1`).test(code);
 }
 
-/** `{ file, kinds[] }` for every tree-op source naming a plugin kind. */
+/** `{ file, kinds[] }` for every dispatch source naming a plugin kind. */
 function violations(
-	treeOps: SourceFile[],
+	sources: SourceFile[],
 	forbidden: Set<string>
 ): Array<{
 	file: string;
 	kinds: string[];
 }> {
-	return treeOps
+	return sources
 		.map((f) => ({
 			file: f.relPath,
 			kinds: [...forbidden].filter((k) => mentionsAsLiteral(f.code, k))
@@ -83,9 +92,9 @@ function violations(
 
 // ── The scan ──────────────────────────────────────────────────────────────────
 
-describe('G4.x no plugin kind name in a core tree-op', () => {
+describe('G4.x no plugin kind name in a core dispatch layer', () => {
 	const pluginSources = collectEditorSources(PLUGIN_SRC);
-	const treeOps = collectEditorSources(TREE_OPS_SRC);
+	const dispatchSources = DISPATCH_SRCS.flatMap((dir) => collectEditorSources(dir));
 	const forbidden = pluginBlockKindLiterals(pluginSources);
 
 	it('derived a non-trivial forbidden set including the known instance', () => {
@@ -96,15 +105,18 @@ describe('G4.x no plugin kind name in a core tree-op', () => {
 		expect(forbidden.has('blockquote')).toBe(false);
 	});
 
-	it('scanned real tree-op sources', () => {
-		expect(treeOps.length).toBeGreaterThan(0);
+	it('scanned real dispatch sources across all covered layers', () => {
+		expect(dispatchSources.length).toBeGreaterThan(0);
+		for (const dir of DISPATCH_SRCS) {
+			expect(collectEditorSources(dir).length).toBeGreaterThan(0);
+		}
 	});
 
-	it('no tree-operations source names a plugin block kind', () => {
-		const found = violations(treeOps, forbidden);
+	it('no dispatch-layer source names a plugin block kind', () => {
+		const found = violations(dispatchSources, forbidden);
 		expect(
 			found,
-			`plugin kind name(s) in a core tree-op — route the dispatch through a descriptor capability: ${found
+			`plugin kind name(s) in a core dispatch layer — route the dispatch through a descriptor capability: ${found
 				.map((v) => `${v.file} → ${v.kinds.join(', ')}`)
 				.join('; ')}`
 		).toEqual([]);
@@ -113,7 +125,7 @@ describe('G4.x no plugin kind name in a core tree-op', () => {
 
 // ── Non-vacuity ───────────────────────────────────────────────────────────────
 
-describe('G4.x no plugin kind name in a core tree-op — non-vacuity', () => {
+describe('G4.x no plugin kind name in a core dispatch layer — non-vacuity', () => {
 	const forbidden = pluginBlockKindLiterals(collectEditorSources(PLUGIN_SRC));
 
 	it('resolves a const-defined plugin kind and a directly-quoted one', () => {

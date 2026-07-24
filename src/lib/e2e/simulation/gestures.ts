@@ -91,6 +91,7 @@ import { atomicDeleteEntityWidget, typeEntityWidget } from './gestures/entity';
 import { atomicDeleteEmoji, stepOverEmoji, typeEmojiShortcode } from './gestures/emoji';
 import {
 	mergeGithubAlertMiddleChild,
+	reorderGithubAlertBodyChild,
 	typeGithubAlert,
 	unwrapGithubAlert
 } from './gestures/github-alert';
@@ -636,6 +637,10 @@ export class Gestures {
 
 	mergeGithubAlertMiddleChild(alertIndex: number, childIndex: number): Promise<void> {
 		return mergeGithubAlertMiddleChild(this.ctx, alertIndex, childIndex);
+	}
+
+	reorderGithubAlertBodyChild(alertIndex: number, childIndex: number, dir: -1 | 1): Promise<void> {
+		return reorderGithubAlertBodyChild(this.ctx, alertIndex, childIndex, dir);
 	}
 
 	unwrapGithubAlert(alertIndex: number): Promise<void> {

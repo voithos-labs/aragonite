@@ -81,9 +81,17 @@ test.describe('github-alert-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toContain('Fresh alert body plus');
 		await checkOracles('body-edited');
 
+		// ── Reorder the seeded alert's body children within the container ────────────
+		// Alt+ArrowDown permutes body child 0 in place; the alert keeps its kind, marker,
+		// and root slot — the teleport the strip-container parity fix removed.
+		await g.reorderGithubAlertBodyChild(1, 0, 1);
+		expect(await editor.bridge.getBlockKind(1)).toBe('githubAlert');
+		expect(await editor.bridge.getSource()).toContain('[!WARNING]');
+		await checkOracles('body-reordered');
+
 		// ── Middle-child merge on the seeded alert stays inside the container ────────
-		// Backspace at the start of `second body` folds it into `first body`; the alert
-		// keeps its kind, marker, and root slot — the gesture asserts containment.
+		// Backspace at the start of the non-first body child folds it into its previous
+		// sibling; the alert keeps its kind, marker, and root slot — assert containment.
 		await g.mergeGithubAlertMiddleChild(1, 1);
 		await checkOracles('middle-child-merge');
 

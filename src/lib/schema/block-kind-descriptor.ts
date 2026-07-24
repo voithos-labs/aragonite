@@ -35,6 +35,25 @@ export interface UnwrapRole {
 	quoteShaped?: true;
 }
 
+/**
+ * A container whose direct children reorder among themselves (Alt+Arrow nudge /
+ * drag handle). The reorder walk resolves the unit at the nearest ancestor
+ * declaring this; absent means children are NOT independently reorderable — a
+ * listItem's leaf resolves to the item under the list, and an opaque container
+ * declines the reorder at its boundary rather than teleporting the whole block.
+ * Distinct from `quoteShaped`: a list is reorder-within but not quote-shaped, and
+ * a listItem is strip but not reorder-within.
+ */
+export interface ReorderChildrenRole {
+	/**
+	 * Direct children carry position-dependent markers that must be renumbered
+	 * after a permutation (ordered-list numbering). Absent = the per-line marker
+	 * is position-independent (a uniform quote/indent prefix — blockquote,
+	 * githubAlert, footnote-def), so the descriptor's rebuildRaw alone re-emits it.
+	 */
+	renumberMarkers?: true;
+}
+
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -127,6 +146,8 @@ export interface BlockKindDescriptor {
 	};
 	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
 	unwrapRole?: UnwrapRole;
+	/** This container's direct children reorder among themselves. Absent = not reorder-within. */
+	reorderChildren?: ReorderChildrenRole;
 	/**
 	 * Declarative chord -> command map for this kind. Consulted by
 	 * dispatchKeyCommand before the editor-global table, so a kind can shadow a
@@ -177,6 +198,7 @@ export interface ContainerDescriptorGroup {
 	reservedChrome?: BlockKindDescriptor['reservedChrome'];
 	containerPaste?: BlockKindDescriptor['containerPaste'];
 	unwrapRole?: UnwrapRole;
+	reorderChildren?: ReorderChildrenRole;
 }
 
 // One source for both the type-level Omit and the runtime strip: excess-property
@@ -188,7 +210,8 @@ const CONTAINER_ONLY_KEYS = [
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',
-	'unwrapRole'
+	'unwrapRole',
+	'reorderChildren'
 ] as const;
 type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
 
@@ -277,6 +300,7 @@ function mergeBlockKindFields(
 		next.reservedChrome = container.reservedChrome ?? existing.reservedChrome;
 		next.containerPaste = container.containerPaste ?? existing.containerPaste;
 		next.unwrapRole = container.unwrapRole ?? existing.unwrapRole;
+		next.reorderChildren = container.reorderChildren ?? existing.reorderChildren;
 	}
 	registry.set(kind, next);
 	enqueueRegistrationCheck(kind);
