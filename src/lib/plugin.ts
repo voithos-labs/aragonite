@@ -268,7 +268,8 @@ export type {
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────
 // Viewport-space geometry over the rendered document, reached through
 // `editor.rects` (its onEditor context): a block's box, an inline range's rects,
-// the native caret, and a reveal that mounts a windowed-out block.
+// the native caret, a reveal that mounts a windowed-out block, and a scrollTo that
+// mounts then scrolls the viewport to a block by path.
 export type { EditorRects } from './editor-rects';
 
 // ── Selection geometry (pre-freeze) ──────────────────────────────────────────

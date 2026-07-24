@@ -307,12 +307,13 @@ Two read/annotate surfaces for building chrome _around_ the document — toolbar
 
 **`getRects()`** answers "where is that, on screen?" in viewport coordinates:
 
-| Method                         | Returns                                                                                           |
-| ------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                         |
-| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table |
-| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)           |
-| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists         |
+| Method                         | Returns                                                                                              |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                            |
+| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table    |
+| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)              |
+| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists            |
+| `scrollTo(path, opts?)`        | Mounts the block, then scrolls the viewport to it (`opts.block`: `'nearest'` default, or `'center'`) |
 
 Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the exported `SELECTION_END` sentinel as `end`, meaning "through the block's last measurable position".
 

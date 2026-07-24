@@ -64,7 +64,8 @@ function stubbedServices(): EditorServices {
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
 		reorderAnnounce: () => {},
-		registryView: defaultRegistryView
+		registryView: defaultRegistryView,
+		rects: {} as EditorServices['rects']
 	};
 }
 

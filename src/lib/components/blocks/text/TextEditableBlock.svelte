@@ -3,6 +3,7 @@
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
+	import type { EditorRects } from '../../../editor-rects';
 	import { emitCommandError } from '../../../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -77,6 +78,9 @@
 		// every block uniformly; this surface reads the doc from the document facet,
 		// so the prop stays unbound (binding it would shadow the global `document`).
 		document?: DocumentView;
+		// Accepted for BlockComponentProps parity; this surface navigates through the
+		// editor, not the rect seam, so the prop stays unbound.
+		rects?: EditorRects;
 	} = $props();
 
 	const ambientPrefixText = $derived(

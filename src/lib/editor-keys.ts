@@ -20,6 +20,7 @@ import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
 import type { UndoController } from './editor-actions/deps';
 import type { ReorderAction } from './editor-actions/reorder-action';
@@ -131,6 +132,9 @@ export interface EditorServices {
 	 *  BlockHost resolves component/descriptor through it so a per-instance
 	 *  enablement filter reaches the render path. */
 	registryView: RegistryView;
+	/** The instance's rect surface, delivered to every block component as a prop
+	 *  so a block can measure/reveal/scroll by path through the one seam. */
+	rects: EditorRects;
 }
 
 /** Host-supplied render/behavior policies: URL resolution, load and drag-handle

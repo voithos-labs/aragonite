@@ -30,6 +30,12 @@ export interface EditorRects {
 	/** Scroll a windowed-out block into its window and await its mount. Resolves
 	 *  true once the block's element is present. */
 	reveal(path: number[]): Promise<boolean>;
+	/**
+	 * Reveal (mount) the block at `path`, then scroll the viewport to it. Resolves
+	 * true when the block exists and is scrolled into view. `block` defaults to
+	 * `'nearest'` (bring minimally into view); `'center'` centers it.
+	 */
+	scrollTo(path: readonly number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean>;
 }
 
 export function createEditorRects(deps: {
@@ -64,6 +70,13 @@ export function createEditorRects(deps: {
 		async reveal(path) {
 			await deps.revealPath(path);
 			return deps.getBlockElByPath(path) != null;
+		},
+		async scrollTo(path, opts) {
+			const p = [...path];
+			await deps.revealPath(p);
+			const el = deps.getBlockElByPath(p);
+			el?.scrollIntoView({ block: opts?.block ?? 'nearest' });
+			return el != null;
 		}
 	};
 }
