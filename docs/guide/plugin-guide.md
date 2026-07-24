@@ -648,21 +648,28 @@ Islands (`widget` / `replace`) render in prose blocks and in table cells, applie
 
 ```ts
 let lastEpoch = -1;
-let cached: MarkDecoration[] = [];
+let index = new Map<string, MarkDecoration[]>(); // word → its occurrence marks
+let caret: EditorSelection | null = null;
 
 const handle = editor.decorations.addSource({
 	name: 'occurrences',
 	provide: (doc, { editEpoch }) => {
 		if (editEpoch !== lastEpoch) {
 			lastEpoch = editEpoch;
-			cached = expensiveScan(doc); // once per edit
+			index = buildWordIndex(doc); // one whole-document walk per edit
 		}
-		return filterByCurrentWord(cached); // cheap remap on every invalidate()
+		const word = wordUnderCaret(doc, caret);
+		return word ? (index.get(word) ?? []) : []; // one map read per invalidate()
 	}
 });
 
-editor.events.on('selectionChange', () => handle.invalidate());
+editor.events.on('selectionChange', (sel) => {
+	caret = sel; // the source's own state — read on the next invalidate
+	handle.invalidate();
+});
 ```
+
+Keying the cache on an index (word → marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind` — the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor.
 
 A source that throws is contained: the editor emits an `error` event attributed to your source name and keeps the previous decorations on screen — a throw never blanks the view. Pair a source with `editor.rects` when you need geometry (anchor a popup to a decorated range, say): `rects.rangeRects(path, start, end)` returns viewport-space rects for any measurable range, one per visual line.
 

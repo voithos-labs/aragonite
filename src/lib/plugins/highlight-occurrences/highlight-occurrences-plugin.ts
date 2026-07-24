@@ -1,26 +1,29 @@
-// Dogfood for a selection-driven mark source on public doors only: onEditor →
-// addSource whose provide scans for the word under the caret, re-run by
-// invalidate() on every selectionChange. The scan itself is pure (occurrences.ts).
-import { definePlugin, type EditorSelection } from '$lib/plugin';
-import { occurrenceMarks } from './occurrences';
+/**
+ * Highlight-occurrences as a first-party plugin, on public doors only: onEditor →
+ * a selection-driven mark source whose scan is memoized on the edit epoch, so a
+ * caret move re-filters the cached word index instead of re-walking the document.
+ * The scan and the memo are pure (occurrences.ts / occurrence-source.ts).
+ */
 
-export const highlightOccurrencesPlugin = definePlugin({
-	name: 'highlight-occurrences',
-	setup(ctx) {
-		ctx.onEditor((editor) => {
-			let selection: EditorSelection | null = null;
-			const handle = editor.decorations.addSource({
-				name: 'highlight-occurrences',
-				provide: (doc) => occurrenceMarks(doc, selection)
+import { definePlugin, type EditorPlugin } from '$lib/plugin';
+import { createOccurrenceSource } from './occurrence-source';
+
+export function highlightOccurrencesPlugin(): EditorPlugin {
+	return definePlugin({
+		name: 'highlight-occurrences',
+		setup(ctx) {
+			ctx.onEditor((editor) => {
+				const occurrences = createOccurrenceSource();
+				const handle = editor.decorations.addSource(occurrences.source);
+				const off = editor.events.on('selectionChange', (selection) => {
+					occurrences.setSelection(selection);
+					handle.invalidate();
+				});
+				return () => {
+					off();
+					handle.dispose();
+				};
 			});
-			const off = editor.events.on('selectionChange', (sel) => {
-				selection = sel;
-				handle.invalidate();
-			});
-			return () => {
-				off();
-				handle.dispose();
-			};
-		});
-	}
-});
+		}
+	});
+}
