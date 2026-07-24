@@ -17,10 +17,21 @@ import { ADMONITION_KINDS } from './kinds';
 
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
 
-/** `> [!NOTE]` alone on the line (case-insensitive type, optional indent/space). */
-const MARKER = /^(\s*)>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
+/**
+ * `> [!NOTE]` alone on the line (case-insensitive type, optional space after `>`).
+ * The indent is capped at CommonMark's block indent: 4+ spaces or a tab makes the
+ * line indented code, not a blockquote, so the extent scan would claim nothing and
+ * the opener would consume no line.
+ */
+const MARKER = /^ {0,3}>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
 
-/** A blockquote continuation line: starts with `>` (after optional indent). */
+/**
+ * A `>`-prefixed line, for the transform's body scan and blockquote-start test.
+ * Its indent stays uncapped where MARKER's is capped: this one gates no opener, so
+ * over-acceptance can only mis-scope a `source → source` rewrite. `stripQuoteMarker`
+ * is uncapped too but does run on the opener path, where over-acceptance mis-scopes
+ * the body strip — both are ledgered in `docs/issues.md`.
+ */
 const QUOTE_LINE = /^[ \t]*>/;
 
 /**
@@ -30,7 +41,7 @@ const QUOTE_LINE = /^[ \t]*>/;
  * casing survives a rebuild.
  */
 export function matchAlertMarker(line: string): string | null {
-	const typed = MARKER.exec(line)?.[2];
+	const typed = MARKER.exec(line)?.[1];
 	return typed && ALERT_NAMES.has(typed.toLowerCase()) ? typed : null;
 }
 
