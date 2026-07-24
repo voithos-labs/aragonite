@@ -84,17 +84,6 @@ export function buildOccurrenceIndex(doc: DocumentView): OccurrenceIndex {
 	return index;
 }
 
-/** Every whole-word occurrence mark of the word under the caret. The fused pure
- *  scan — a live source splits the two halves so the index survives caret moves. */
-export function occurrenceMarks(
-	doc: DocumentView,
-	selection: EditorSelection | null
-): MarkDecoration[] {
-	const word = anchorWord(doc, selection);
-	if (!word) return [];
-	return buildOccurrenceIndex(doc).get(word) ?? [];
-}
-
 // ── Internal ────────────────────────────────────────────────────────────────
 
 function leafAt(doc: DocumentView, path: number[]): NodeView | null {
