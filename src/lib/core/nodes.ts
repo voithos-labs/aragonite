@@ -186,6 +186,19 @@ export function getPluginMetadata<T>(node: NodeView): T | undefined {
 	return node.metadata as unknown as T | undefined;
 }
 
+/**
+ * The level of an ATX or setext heading, or null for any other node. The one
+ * heading-metadata read the authoring barrel exposes: `metadata.level` narrows
+ * only past `isBuiltinBlockNode` (kept off the barrel), so an outline plugin has
+ * no other typed path to a heading's depth. Sibling to `getContentRange` in the
+ * marker-reading family.
+ */
+export function headingLevel(node: NodeView): number | null {
+	if (node.kind === 'heading') return metadataOf(node, 'heading').level;
+	if (node.kind === 'setextHeading') return metadataOf(node, 'setextHeading').level;
+	return null;
+}
+
 // ── Node Types ──────────────────────────────────────────────────────────────
 
 /**
