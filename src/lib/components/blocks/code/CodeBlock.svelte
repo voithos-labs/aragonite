@@ -40,7 +40,11 @@
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
 	import { computeFenceExit } from './code-fence-exit';
-	import { classifyFenceBoundary, clampEnterOffsetToBody } from './code-fence-boundary';
+	import {
+		classifyFenceBoundary,
+		clampEnterOffsetToBody,
+		clampRangeToBody
+	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
@@ -425,13 +429,16 @@
 	// single undo restores the open fence and drops the paragraph together.
 	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
 		const meta = metadataOf(node, 'fencedCode');
+		const lineEnding = trailingLineEnding(node.raw);
 		const closedFence: CstNode = {
 			kind: 'fencedCode',
 			leadingTrivia: '',
-			raw: closedDisplay + trailingLineEnding(node.raw),
+			raw: closedDisplay + lineEnding,
 			metadata: { ...meta, closed: true }
 		};
-		const paragraphBelow = emptyParagraph('\n');
+		// The blank separator line and the paragraph's own line are both pure line
+		// ending, so both take the fence's (G4.20) — the same one the closer above got.
+		const paragraphBelow = emptyParagraph(lineEnding, lineEnding);
 		void blockEdit.replaceBlock(index, [closedFence, paragraphBelow], {
 			replacementIndex: 1,
 			offset: 0
@@ -468,15 +475,17 @@
 		}
 	}
 
+	// Both gestures rewrite whole LINES, so their range clamps out of the fence
+	// lines — the multi-line sibling of codeNewline's clampEnterOffsetToBody.
 	function indentSelection(): void {
 		if (!el) return;
-		applyIndentResult(indentLines(el.textContent ?? '', currentRange()));
+		applyIndentResult(indentLines(el.textContent ?? '', clampRangeToBody(node, currentRange())));
 	}
 
 	function dedentSelection(): void {
 		if (!el) return;
 		const text = el.textContent ?? '';
-		const result = dedentLines(text, currentRange());
+		const result = dedentLines(text, clampRangeToBody(node, currentRange()));
 		if (result.text === text) return;
 		applyIndentResult(result);
 	}

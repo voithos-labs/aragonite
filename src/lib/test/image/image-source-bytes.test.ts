@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildImageSourceBytes } from '../../components/image/image-source-bytes';
+import {
+	buildImageSourceBytes,
+	imageFieldsFromInline
+} from '../../components/image/image-source-bytes';
 import { parseInline } from '../../core/inline';
 
 describe('buildImageSourceBytes', () => {
@@ -117,6 +120,38 @@ describe('buildImageSourceBytes — output re-parses as an image', () => {
 		expect(buildImageSourceBytes({ alt: 'a', url: 'x%20y' })).toBe(
 			buildImageSourceBytes({ alt: 'a', url: 'x y' })
 		);
+	});
+
+	// The `alt` an image node carries is RAW label bytes (the scanner slices the
+	// label without unescaping), unlike `title`/`url`, which arrive spec-processed.
+	// A blanket re-escape therefore doubled every backslash on each commit — a
+	// drag-resize alone grew `![C:\path]` to `![C:\\path]` to `![C:\\\\path]`.
+	const rebuildSpan = (source: string): string => {
+		const image = parseInline(source, 0, source.length)[0];
+		return buildImageSourceBytes(imageFieldsFromInline(image));
+	};
+
+	it.each([
+		['a Windows path in the alt', '![C:\\path](x.png)'],
+		['an already-escaped close bracket', '![a\\]b](x.png)'],
+		['an already-escaped backslash', '![a\\\\b](x.png)'],
+		['a trailing backslash', '![a\\\\](x.png)']
+	])('%s rebuilds byte-for-byte and stays put on a second rebuild', (_label, source) => {
+		expect(rebuildSpan(source)).toBe(source);
+		expect(rebuildSpan(rebuildSpan(source))).toBe(source);
+	});
+
+	it('repeated resizes do not grow the alt', () => {
+		let bytes = '![C:\\path](x.png)';
+		for (let round = 0; round < 3; round++) {
+			const image = parseInline(bytes, 0, bytes.length)[0];
+			bytes = buildImageSourceBytes({ ...imageFieldsFromInline(image), width: 400 });
+		}
+		expect(bytes).toBe('![C:\\path|400](x.png)');
+	});
+
+	it('still escapes a bare bracket the user typed into the alt', () => {
+		expect(buildImageSourceBytes({ alt: 'a]b[c', url: 'u' })).toBe('![a\\]b\\[c](u)');
 	});
 
 	it('encodes both parens so the destination never carries an unbalanced pair', () => {
