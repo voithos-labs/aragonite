@@ -25,7 +25,7 @@ const BUCKETS = [
 	{ label: 'Selection, caret, markers', dirs: ['selection', 'cursor', 'ambient'] },
 	{ label: 'Public API & wiring', dirs: ['.'] },
 	{ label: 'Schema & plugin registry', dirs: ['schema'] },
-	{ label: '6 bundled plugins', dirs: ['plugins'] },
+	{ label: '8 bundled plugins', dirs: ['plugins'] },
 	{ label: 'Invariants & debug tooling', dirs: ['invariants', 'testing', 'debug', 'perf'] },
 	{ label: 'Windowing & reactivity', dirs: ['reactivity'] },
 	{ label: 'Decorations & search', dirs: ['decorations', 'search'] }
