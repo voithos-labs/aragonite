@@ -9,7 +9,13 @@ import { parse } from '../../../core/parser';
 import { createGrammarView } from '../../../schema/block-openers';
 import { createSharingState } from '../../../tree-operations/sharing';
 import { registerBlockListState } from '../../../reactivity/state-registry';
-import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
+import { createUndoController } from '../../../editor-actions/commit/undo-controller';
+import { createPasteCoordinator } from '../../../editor-actions/paste-coordinator';
+import {
+	makeEditorActionsDeps,
+	makeStubBlockEdit,
+	makeStubController
+} from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { BlockComponent } from '../../../block-component';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
@@ -123,36 +129,41 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 	// (parse(serialize(live)) would then diverge). The non-join sibling routes
 	// through updateBlockContent → the funnel; the join branch must mirror it.
 	it('completing an ordered-list marker re-mints the block as a list', async () => {
-		const doc = parse('. item\n');
-		expect(doc.children[0].kind).toBe('paragraph');
+		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
+		expect(deps.doc.children[0].kind).toBe('paragraph');
 
 		await pasteDispatch(
 			{ pastedText: '1', targetPath: [0], offset: 0 },
-			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController(), undoEntry: 'join' }
+			{
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: createPasteCoordinator(createUndoController(deps)),
+				undoEntry: 'join'
+			}
 		);
 
-		expect(doc.children[0].raw).toBe('1. item\n');
-		expect(doc.children[0].kind).toBe('list');
+		expect(deps.doc.children[0].raw).toBe('1. item\n');
+		expect(deps.doc.children[0].kind).toBe('list');
 	});
 
 	// The join reparse is content-commit-class, so it threads the instance grammar:
 	// an instance whose grammar drops the list opener keeps the completion a paragraph.
 	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
-		const doc = parse('. item\n');
+		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
 
 		await pasteDispatch(
 			{ pastedText: '1', targetPath: [0], offset: 0 },
 			{
-				doc,
+				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: makeStubController(),
+				controller: createPasteCoordinator(createUndoController(deps)),
 				undoEntry: 'join',
 				grammar: createGrammarView((kind) => kind !== 'list')
 			}
 		);
 
-		expect(doc.children[0].raw).toBe('1. item\n');
-		expect(doc.children[0].kind).toBe('paragraph');
+		expect(deps.doc.children[0].raw).toBe('1. item\n');
+		expect(deps.doc.children[0].kind).toBe('paragraph');
 	});
 });
 

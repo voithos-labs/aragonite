@@ -94,7 +94,7 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete);
-		applyInlineResult(input.targetPath, result, ctx);
+		await applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
 
@@ -160,7 +160,7 @@ export async function pasteDispatch(
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, pastedText, input.preDelete);
-		applyInlineResult(input.targetPath, result, ctx);
+		await applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
 

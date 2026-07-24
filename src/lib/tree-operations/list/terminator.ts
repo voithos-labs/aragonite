@@ -10,17 +10,27 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import { rebuildListItemRaw } from '../../schema/container-rebuilders';
+import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 
-export function ensureListItemNewlineTerminated(item: CstNode): void {
-	if (item.raw.endsWith('\n')) return;
-	if (!item.children || item.children.length === 0) {
-		item.raw += '\n';
+/**
+ * Terminate the deepest trailing leaf, then rebuild every container above it —
+ * a nested container's raw is DERIVED from its children, so appending to it
+ * directly leaves the two halves disagreeing (G1.1) and its own tail item
+ * unterminated, which the next rebuild mashes into the following one.
+ */
+function terminateDeepestLeaf(node: CstNode): void {
+	if (node.raw.endsWith('\n')) return;
+	const children = node.children;
+	if (!children || children.length === 0) {
+		node.raw += '\n';
 		return;
 	}
-	const last = item.children[item.children.length - 1];
-	if (!last.raw.endsWith('\n')) last.raw += '\n';
-	rebuildListItemRaw(item);
+	terminateDeepestLeaf(children[children.length - 1]);
+	rebuildContainerRawIfContainer(node);
+}
+
+export function ensureListItemNewlineTerminated(item: CstNode): void {
+	terminateDeepestLeaf(item);
 }
 
 /** Normalize every pasted listItem in `items` (non-listItems pass through). */

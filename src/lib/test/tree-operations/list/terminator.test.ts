@@ -6,6 +6,7 @@ import {
 	spliceTerminatedItems
 } from '$lib/tree-operations/list/terminator';
 import { rebuildListRaw } from '$lib/schema/container-rebuilders';
+import { checkStaleRaw } from '$lib/invariants/node-shape';
 import type { CstNode } from '$lib/core/nodes';
 
 describe('ensureListItemNewlineTerminated', () => {
@@ -32,6 +33,33 @@ describe('ensureListItemNewlineTerminated', () => {
 		ensureListItemNewlineTerminated(item);
 		expect(item.children![item.children!.length - 1].raw).toBe('a\n');
 		expect(item.raw).toBe('- a\n');
+	});
+
+	// The last child may be a CONTAINER. Patching its raw without descending left
+	// raw and children disagreeing (G1.1) the instant the item was terminated, and
+	// the next rebuild of the nested list mashed its unterminated tail item into
+	// the following one — three items serializing as two.
+	it('descends into a nested container instead of patching its raw alone', () => {
+		const item = parse('- a\n  - b').children[0].children![0];
+		const nested = item.children![item.children!.length - 1];
+		expect(nested.kind).toBe('list');
+
+		ensureListItemNewlineTerminated(item);
+
+		expect(checkStaleRaw(nested)).toBeNull();
+		expect(item.raw).toBe('- a\n  - b\n');
+	});
+
+	it('leaves a terminated nested container able to take a following sibling item', () => {
+		const item = parse('- a\n  - b').children[0].children![0];
+		const nested = item.children![item.children!.length - 1];
+
+		ensureListItemNewlineTerminated(item);
+		spliceTerminatedItems(nested.children!, 1, 0, parse('- two\n').children[0].children!);
+		rebuildListRaw(nested);
+
+		expect(nested.children).toHaveLength(2);
+		expect(nested.raw).toBe('- b\n- two\n');
 	});
 });
 
