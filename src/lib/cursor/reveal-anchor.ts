@@ -14,6 +14,14 @@
  * Set when a reveal begins; cleared on the next user-intent event (keydown /
  * pointerdown / wheel in the document) so normal-scroll anchoring is untouched —
  * NOT on `scroll`, which a programmatic `correctAnchor` write itself fires.
+ *
+ * Single claimant, no per-claimant ownership: the slot holds one target, so two
+ * reveals racing within the settle window clash — the later `set` overwrites the
+ * slot, and an earlier claimant's terminal `clear()` can nuke a later one's pin.
+ * Per-block navigation serialization (`plugins/toc/navigation-queue.ts`) narrows
+ * this to one claimant per block, but does not close it across blocks or across
+ * claimants (a toc navigate and a search reveal share this one slot). Recorded in
+ * `docs/issues.md`; a real second consumer is what would shape per-call ownership.
  */
 export type RevealBlock = 'nearest' | 'center';
 

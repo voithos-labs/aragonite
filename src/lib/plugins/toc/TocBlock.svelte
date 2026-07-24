@@ -13,6 +13,7 @@
 		type NodeView
 	} from '$lib/plugin';
 	import { collectHeadings } from './heading-outline';
+	import { createNavigationQueue } from './navigation-queue';
 
 	let {
 		node,
@@ -50,33 +51,15 @@
 	// projection is synchronous and uncached, so the derived stays reactive-safe.
 	const headings = $derived(collectHeadings(document, maxDepth));
 
-	// One in-flight `scrollTo` per block, later clicks superseding: the process-global
-	// reveal anchor has no per-call ownership, so two overlapping `scrollTo`s from this
-	// block would let the earlier call's terminal clear strand the later target
-	// (m3-task-1-fix-review §F3). Awaiting each call to completion before issuing the
-	// next means this block never has two in flight — the anchor cannot leak — while a
-	// click mid-flight overwrites `pendingPath`, so the newest target always wins.
-	let navigating = false;
-	let pendingPath: number[] | null = null;
+	// Serialize navigation per block (see `navigation-queue.ts` for why). No rect
+	// surface (a bare harness) → `scrollTo` resolves immediately, so entries are inert.
+	const navigation = createNavigationQueue({
+		scrollTo: (path) => rects?.scrollTo(path) ?? Promise.resolve()
+	});
 
-	async function navigateTo(path: number[]): Promise<void> {
-		if (!rects) return; // bare harness with no rect surface: entries are inert
-		pendingPath = path;
-		if (navigating) return;
-		navigating = true;
-		try {
-			while (pendingPath) {
-				const target = pendingPath;
-				pendingPath = null;
-				await rects.scrollTo(target);
-			}
-		} finally {
-			navigating = false;
-		}
-	}
-
-	// Suppress the leaf's reveal-on-pointerdown so an entry click navigates instead of
-	// folding the block open; the click then runs navigation. View-only in every mode.
+	// Suppress the leaf's reveal-on-pointerdown so an entry activation navigates instead
+	// of folding the block open; a `<button>` entry then navigates on click AND on
+	// Enter/Space (native activation). View-only in every mode, so it works in reading.
 	function onEntryPointerDown(e: PointerEvent): void {
 		e.stopPropagation();
 	}
@@ -115,10 +98,9 @@
 		aria-label="TOC source"
 	></div>
 {:else}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="toc-block-render"
-		role="button"
-		tabindex="-1"
 		aria-label="Table of contents (click to edit)"
 		onpointerdown={leaf.onRenderPointerDown}
 	>
@@ -128,17 +110,19 @@
 			{:else}
 				<ol>
 					{#each headings as heading (heading.id)}
-						<!-- Mouse nav on a list item, not a nested `<button>`: the reveal
-						     container is `role="button"`, so an interactive child would nest
-						     interactive content. Keyboard/SR navigation of entries is the
-						     deferred stretch (fragment-link resolution). -->
-						<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-						<li
-							class="toc-block-item toc-block-level-{heading.level}"
-							onpointerdown={onEntryPointerDown}
-							onclick={() => navigateTo(heading.path)}
-						>
-							{heading.label}
+						<!-- A real `<button>`, not a role-tagged `<li>`: native focus, tab order,
+						     and Enter/Space activation, valid now the container carries no
+						     `role="button"`. Its pointerdown is suppressed so the click
+						     navigates instead of revealing the block's raw source. -->
+						<li>
+							<button
+								type="button"
+								class="toc-block-item toc-block-level-{heading.level}"
+								onpointerdown={onEntryPointerDown}
+								onclick={() => navigation.navigateTo(heading.path)}
+							>
+								{heading.label}
+							</button>
 						</li>
 					{/each}
 				</ol>
@@ -184,9 +168,19 @@
 		list-style: none;
 	}
 
+	/* Reset the native button chrome to a plain, full-row text entry — the accent
+	   hover and focus ring are the only affordances. */
 	.toc-block-item {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: 0;
+		border: none;
+		background: none;
+		font-family: inherit;
 		font-size: 0.9em;
 		line-height: 1.6;
+		color: inherit;
 		cursor: pointer;
 		border-radius: 3px;
 	}
@@ -194,6 +188,11 @@
 	.toc-block-item:hover {
 		color: var(--color-accent, #567b67);
 		text-decoration: underline;
+	}
+
+	.toc-block-item:focus-visible {
+		outline: 2px solid var(--color-accent, #567b67);
+		outline-offset: 1px;
 	}
 
 	/* Indent by heading level — a flat `<ol>` keeps list semantics while the padding
