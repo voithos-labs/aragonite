@@ -277,6 +277,26 @@ nested residual needs a tall container plus a late decode), and the ownership mo
 real consumer navigating concurrently to shape it; designing per-call ownership against a single
 caller risks the wrong abstraction.
 
+### The find bar carries its active-match position across a document swap
+
+**Severity:** trivial (navigation position only; the match set and every overlay are correct)
+**Files:** `src/lib/search/search-state.svelte.ts` (`rescan`'s downward-only clamp)
+
+`rescan()` clamps `activeIndex` only when it overruns the new match set
+(`if (activeIndex >= matches.length) activeIndex = 0`). A `source` prop swap under an open find bar
+now re-scans correctly, but an active position carried from the previous document survives when the
+new one has at least as many matches: navigate to `3 / 3`, swap to a document with five matches, and
+the bar reads `3 / 5` on a document the user has never navigated. Surfaced by the epoch fix that made
+the swap re-scan at all; the position was equally carried before, behind a set that never updated.
+
+**Fix direction:** restart navigation at the first match on an epoch-driven rescan, the way
+`setQuery` already does for a new query — the swap is a new document, so the position means nothing.
+Option toggles must keep their clamp-only behavior (they deliberately hold the user's place).
+
+**Why deferred:** it is a behavior change to search navigation semantics, not a regression, and it
+wants deciding alongside whether an in-place edit should also restart navigation (today it does not,
+by the same clamp).
+
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte

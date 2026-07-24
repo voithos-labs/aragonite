@@ -47,9 +47,10 @@ export type DecorationWidgetSpec =
 	| { buildDom: (dec: Decoration) => HTMLElement };
 
 export interface ProvideContext {
-	/** Monotonic counter bumped once per document edit (never by invalidate()) —
-	 *  the memo key for sources that cache their scan. `doc.children` identity is
-	 *  NOT a valid change signal: routine typing mutates in place. */
+	/** Monotonic counter bumped once per document change — an edit, or a whole-document
+	 *  `source` replacement — and never by invalidate(). The memo key for sources that
+	 *  cache their scan. `doc.children` identity is NOT a valid change signal: routine
+	 *  typing mutates in place. */
 	editEpoch: number;
 }
 export interface DecorationSource {
