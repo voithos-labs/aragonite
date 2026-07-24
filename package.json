@@ -2,6 +2,25 @@
 	"name": "aragonite",
 	"version": "0.9.35",
 	"description": "CST block editor for GFM Markdown",
+	"keywords": [
+		"markdown",
+		"gfm",
+		"editor",
+		"block-editor",
+		"wysiwyg",
+		"contenteditable",
+		"syntax-tree",
+		"svelte"
+	],
+	"homepage": "https://github.com/voithos-labs/aragonite#readme",
+	"bugs": {
+		"url": "https://github.com/voithos-labs/aragonite/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/voithos-labs/aragonite.git"
+	},
+	"author": "voithos-labs",
 	"type": "module",
 	"license": "MIT",
 	"svelte": "./dist/index.js",
@@ -141,7 +160,7 @@
 		"lint:eslint": "eslint .",
 		"docs:pack:check": "node scripts/build-docs-pack.mjs",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
-		"prepack": "npm run package"
+		"prepack": "npm run package && node scripts/verify-pack.mjs"
 	},
 	"dependencies": {
 		"highlight.js": "^11.11.1"
