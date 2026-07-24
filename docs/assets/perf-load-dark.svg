@@ -22,24 +22,24 @@
 <line x1="584" y1="356" x2="584" y2="361" stroke="#383835" stroke-width="1"/>
 <text x="584" y="378" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="middle">10 MB</text>
 <text x="342" y="398" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="middle">document size (log-spaced) · vertical axis is log scale</text>
-<polygon points="100,266.2226784220865 342,247.20054319934133 584,178.97688959647746 584,224.86855052651237 342,283.0144543859234 100,314.2332901301196" fill="#3987e5" opacity="0.16"/>
-<polyline points="100,296.23311182586224 342,264.3064568500988 584,203.5295862323194" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
-<circle cx="100" cy="296.23311182586224" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<circle cx="342" cy="264.3064568500988" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<circle cx="584" cy="203.5295862323194" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<polyline points="100,296.7023986553605 342,243.1893527274097 584,164.199531094641" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round"/>
-<circle cx="100" cy="296.7023986553605" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
-<text x="100" y="284.7023986553605" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">66 ms</text>
-<circle cx="342" cy="243.1893527274097" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
-<text x="342" y="231.1893527274097" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">366 ms</text>
-<circle cx="584" cy="164.199531094641" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
-<text x="584" y="152.199531094641" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">4.5 s</text>
-<circle cx="636" cy="160.199531094641" r="4" fill="#d95926"/>
-<text x="646" y="164.199531094641" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">many small blocks</text>
-<text x="646" y="180.199531094641" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">392k blocks at 10 MB,</text>
-<text x="646" y="196.199531094641" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">the block count extreme</text>
-<circle cx="636" cy="220.199531094641" r="4" fill="#3987e5"/>
-<text x="646" y="224.199531094641" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">8 other fixture shapes</text>
-<text x="646" y="240.199531094641" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">band and median,</text>
-<text x="646" y="256.199531094641" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">656 ms to 2.8 s at 10 MB</text>
+<polygon points="100,270.776046741022 342,245.6135765694769 584,177.2095626813672 584,222.96276073313555 342,282.1109977701109 100,318.47833775476363" fill="#3987e5" opacity="0.16"/>
+<polyline points="100,294.2041509472652 342,263.5831104997129 584,201.61205939890164" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="294.2041509472652" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="342" cy="263.5831104997129" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="584" cy="201.61205939890164" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<polyline points="100,294.46721074074355 342,242.44354729390528 584,164.22577047766634" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="294.46721074074355" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="100" y="282.46721074074355" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">71 ms</text>
+<circle cx="342" cy="242.44354729390528" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="342" y="230.44354729390528" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">374 ms</text>
+<circle cx="584" cy="164.22577047766634" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="584" y="152.22577047766634" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">4.5 s</text>
+<circle cx="636" cy="160.22577047766634" r="4" fill="#d95926"/>
+<text x="646" y="164.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">many small blocks</text>
+<text x="646" y="180.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">392k blocks at 10 MB,</text>
+<text x="646" y="196.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">the block count extreme</text>
+<circle cx="636" cy="220.22577047766634" r="4" fill="#3987e5"/>
+<text x="646" y="224.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">8 other fixture shapes</text>
+<text x="646" y="240.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">band and median,</text>
+<text x="646" y="256.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">697 ms to 3.0 s at 10 MB</text>
 </svg>

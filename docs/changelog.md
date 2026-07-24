@@ -79,6 +79,11 @@ capability gap a plugin hit was closed at the API level first, then consumed by 
 
 Ship gates: unit 4606, e2e 1506, check 0/0, lint 0, perf 95, perf:check 24/24.
 
+Post-stamp records: the perf baseline's e2e rows were re-blessed 2026-07-24 on the calibration
+machine (27 fixture rows; the gate re-verified green against the fresh floor) and the README's
+perf and lines-of-code charts re-rendered from live data — library ~53k lines, tests ~97k,
+eight bundled plugins.
+
 ### 0.9.34: emoji + native alerts + parity smalls
 
 GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on
