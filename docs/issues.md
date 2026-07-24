@@ -6,6 +6,31 @@ or a **Why deferred** rationale (if not). Remove entries when shipped.
 
 ## Core editing
 
+### A ranged edit spanning a fence line corrupts the fence
+
+**Severity:** important (byte corruption; the block absorbs the rest of the document on reload)
+**Files:** `src/lib/components/blocks/code/CodeBlock.svelte` (`codeBackspace` / `codeDelete` bail on
+a non-collapsed selection; `onBeforeInput` intercepts only `insertText` and `insertLineBreak`;
+`cutTail` writes the spliced display text directly),
+`src/lib/components/blocks/code/code-fence-boundary.ts` (`classifyFenceBoundary` takes one offset,
+not a range)
+
+The fence lines are structure, not content, and every gesture that rewrites whole lines is now
+clamped to the body window. The gestures that rewrite a **range** are not. Select across a fence
+line and press Backspace, Delete, or any printable key: the block's own guards decline on sight of a
+selection, `onBeforeInput` does not claim the input type, so the native ranged edit lands in the
+contenteditable and the surface commits whatever text remains. The committed block is an unclosed
+fence, which absorbs every following block on the next parse. `cutTail` is the same family's
+explicit-write member: it splices the display text itself with no clamp.
+
+**Repro:** in a fenced code block, select from the last body line through the closer fence and press
+Backspace; save and reload.
+
+**Why deferred:** closing this needs a beforeinput-level ranged-edit guard covering delete, cut and
+type-over together, not a clamp per gesture: the block-level guards run below the point where the
+selection is still known to be a range. Fixing one member is 1-of-N and would additionally make cut
+and copy disagree about what a fence-crossing selection means, which is its own decision.
+
 ### Interactive reading mode (live task checkboxes) — deferred product question
 
 **Severity:** minor (product decision, not a defect)
@@ -118,33 +143,109 @@ integration — the same decision decides which shape is right.
 **Files:** `src/lib/core/inline/scan/emphasis.ts` (`wrapMatch` — `nodes.indexOf` + splice)
 
 Measured (2026-07-21 elegance run): `'*a*'.repeat(N)` scans at 0.86ms/8.2ms/94ms for
-6KB/24KB/96KB single blocks — O(N^~2), where the sibling flood paths (backticks,
-directive closers, entities, and the autolink prune, measured linear) are linear. Only
-reachable by pasting emphasis-dense content into ONE block, i.e. inside the axis
-`docs/design/performance.md` already documents as transient (any Enter splits it); at
-24KB the cost still sits under the 10MB keystroke ceiling.
+6KB/24KB/96KB single blocks — O(N^~2). Only reachable by pasting emphasis-dense
+content into ONE block, i.e. inside the axis `docs/design/performance.md` already
+documents as transient (any Enter splits it); at 24KB the cost still sits under the
+10MB keystroke ceiling.
+
+The 2026-07-21 entry called four sibling flood paths linear. Re-measured 2026-07-24,
+two of the four were wrong: backticks (growth exponent 0.01) and entities (0.91) are
+linear and stand; the autolink delimiter prune measured 2.00 and is now bounded (a
+lookup over the sorted, disjoint matches); the directive closer lookup measured 1.95
+and has its own entry below.
+
+**The deferral envelope is understated, not wrong.** Every measurement above stops at
+96 KB, where the cost is a stall. The 0.9.35 adversarial pass measured the same scan at
+roughly 53 s on an 800 KB single block, which is one ordinary paste and a reload to
+recover from. So the deferral stands on reachability (the shape needs emphasis-dense
+content pasted into ONE block, and any Enter splits it), not on the cost being small.
 
 **Why deferred:** the true fix is porting commonmark.js's linked delimiter list —
 med-high conformance-fidelity risk against a faithful port, for a shape the perf model
 already brackets. Re-open only if a real workload holds emphasis-dense multi-KB single
 blocks.
 
-### Closure-cell overrides are honesty-checked, not behavior-enforced
+### Directive closer lookup is O(openers × closers) when nothing closes the openers
 
-**Severity:** watch (guard gap surfaced by the elegance run's review probes)
-**Files:** `src/lib/schema/closure.ts` (`containerClosure`), the chrome-container registrations
+**Severity:** watch (adversarial block shape; the residual of the closer-index fix, not a regression of it)
+**Files:** `src/lib/core/directive/container-opener.ts` (`findDirectiveCloser` — binary
+search to the first later closer, then a forward walk for one long enough)
 
-A revert-probe showed that dropping a directive-title container's `clipboard:
-implemented` override (falling to the preset's baked `inherit-default`) leaves every
-suite green — the override's protection is matrix honesty, not a failing test. A future
-edit could silently downgrade a row.
+Measured 2026-07-24: `':::a\n:\n'.repeat(N)` parses at 12.2ms / 126.8ms / 1889.9ms for
+N = 2k / 8k / 32k, growth exponent 1.95. Read from the source the same day: the closer
+index removed the per-opener scan over every line, but the lookup still walks the closer
+list forward until it finds a colon run at least as long as the opener's. A document
+whose closer-shaped lines are all shorter than its openers never finds one, so every
+opener walks every closer.
 
-**Fix direction:** teach the conformance battery to exercise the clipboard cell for
-chrome containers (the mid-title copy shape), or a coherence rule tying reservedChrome
-declarers to a non-default clipboard cell.
+**Fix direction:** index closer positions per colon count, so the lookup is a binary
+search per candidate count instead of a walk — the shape the position index already uses.
 
-**Why deferred:** fold into the post-1.0 clipboard generalization that already owns the
-mid-chrome ledger entries above.
+**Why deferred:** the shape needs a document of unterminated long fences alongside
+short colon-run lines, which no authoring workload produces; a real unclosed `:::a`
+flood (the shape the index was built for) stays linear. Fold into the next scan-bounds
+pass rather than editing the opener for it alone.
+
+### Blank-line detection admits Unicode whitespace, where GFM means space and tab
+
+**Severity:** minor (block structure diverges from GFM on a common paste artifact; byte round-trip
+holds either way)
+**Files:** `src/lib/core/parser.ts` (`isBlankLine`, exported and consumed by the blockquote, HTML
+block, indented-code, list, paragraph and table parsers),
+`src/lib/plugins/footnotes/footnote-definition.ts` (a private duplicate with the same body)
+
+Both predicates ask `String.trim()`, which strips the whole Unicode whitespace set. GFM's blank line
+is spaces and tabs only. So a line holding nothing but a non-breaking space, the commonest artifact
+of a paste out of a word processor or a web page, reads as blank and splits one paragraph into two,
+and a document whose only content is an NBSP parses to zero children. The ASCII vertical tab and
+form feed are admitted on the same route.
+
+**Repro:** paste a three-line paragraph whose middle line holds one U+00A0 and nothing else; the
+editor shows two paragraphs where GitHub renders one. Parsing that line on its own yields a
+document with no children.
+
+**Why deferred:** narrowing to a space-and-tab test is byte-safe (the line stops terminating its
+block and becomes a paragraph continuation, so its bytes stay inside one node's `raw`), but it
+changes block structure on four axes at once: where a blockquote or paragraph ends, whether a list
+is loose or tight, how far an indented-code run reaches, and when an HTML block terminates. That is
+its own change with the parser owner and its own conformance pass, not a ride-along. The private
+duplicate must move with it, which is the second half of the reason: the rule has two homes and
+should have one, reachable from `$lib/plugin`.
+
+### Closure cells are honesty-checked, not behavior-enforced, and one is already false
+
+**Severity:** important (a shipped built-in's declared behavior is not the behavior; the false
+claim reaches the published docs pack)
+**Files:** `src/lib/schema/built-in-descriptors.ts` (`thematicBreak`'s `focus` and
+`mergeBackspace` cells), `src/lib/schema/block-kind-descriptor.ts` (`blockFocus`),
+`src/lib/editor-actions/block-edit-core.ts` (the branch that reads it),
+`src/lib/schema/closure.ts` (`containerClosure`), the chrome-container registrations
+
+A closure cell is prose the compiler cannot check. A revert-probe first showed the gap in the
+abstract: dropping a directive-title container's `clipboard: implemented` override (falling to the
+preset's baked `inherit-default`) leaves every suite green, so an override's protection is matrix
+honesty, not a failing test.
+
+**The 0.9.35 review found the live instance.** `thematicBreak` declares no `blockFocus`, so
+`mergeWithPreviousInterior` reaches the non-editable arm and **deletes it on the first press**. Its
+own closure cells say otherwise: `focus` claims "whole-block focus (focus-then-delete model)" and
+`mergeBackspace` claims "caret-adjacent Backspace focuses, a second press deletes". `mermaid` is the
+only kind that declares `blockFocus: 'whole-block'` and therefore the only one where those cells are
+true. The design spec and the **published** plugin guide had been naming the thematic break as the
+reference model an author should copy; that attribution is corrected, the descriptor and the
+behavior are not.
+
+**Fix direction:** a bootstrap coherence rule (the G1.24 family) making the pair unrepresentable: a
+kind whose `focus` or `mergeBackspace` cell claims focus-then-delete must declare
+`blockFocus: 'whole-block'`. That decides `thematicBreak` on its own: either it declares the field
+and gains the behavior its cells promise, or the cells are rewritten to say "deletes on a
+caret-adjacent Backspace". The sibling rule for the chrome-container case is the same shape
+(`reservedChrome` declarers must carry a non-default `clipboard` cell), and the conformance battery
+exercising the mid-title copy shape is its behavioral half.
+
+**Why deferred:** the coherence rule is cheap, but choosing which way `thematicBreak` resolves is a
+behavior decision on a built-in kind that the whole-block-focus documentation is written around, so
+it wants the pass that owns the rule rather than a ride-along.
 
 ### Footnote reference numbering is O(widgets × leaves) per reactive flush
 
@@ -171,9 +272,14 @@ engine's general `editEpoch` reaches a `DecorationSource`'s `provide` and nothin
 why highlight-occurrences (a decoration source) could memoize this same walk shape and a reference widget
 cannot.
 
+**Why deferred:** the fix needs a content-version token on the widget surface, which is public plugin
+surface and therefore a freeze-relevant addition, worth taking against a real reference-dense workload
+rather than the synthetic shape. Sub-millisecond until one exists.
+
 ### Installed inline-rung consultation is unmeasured by the standing perf gate
 
-**Severity:** watch (accepted at 0.9.33 ship; cost is bounded and off by default)
+**Severity:** watch (measurement gap; the per-consultation cost the entry once assumed is now
+measured and bounded)
 **Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation, the
 default-arm unreserved-rung consultation, and `needsScan`'s per-character probe),
 `src/lib/test/perf/` (the standing harness installs no rung-registering plugin)
@@ -182,12 +288,22 @@ A registered inline rung adds a consultation the standing empty-registry gate ne
 bundled rungs ship, on the two rung shapes:
 
 - **Reserved-prefix** — footnotes' `[^` (0.9.33), consulted before the built-in `[` case, so every
-  `[` in a scanned range pays a registry lookup plus a two-char prefix compare. O(occurrences of
-  the trigger) within ranges `needsScan` already admits.
+  `[` in a scanned range pays a registry lookup plus a two-char prefix compare, within ranges
+  `needsScan` already admits.
 - **Unreserved** — emoji's `:` (0.9.34) and latex's `$` (a bare registration predating the ladder,
   riding its default rung), consulted in the scanner's `default` arm, so every occurrence pays a
   lookup plus a recognizer attempt. The directive text tier adds a second `:` rung wherever
   `activateDirectives()` runs.
+
+**The entry's original cost model was wrong and is fixed.** It priced a consultation as
+O(occurrences of the trigger), which assumed each consultation is O(1). Three of the four bundled
+recognizers scanned to the end of the range before declining, so the real cost was quadratic in the
+block: measured 2026-07-24 at growth exponent ~2.0, seconds per parse at 96 KB in one paragraph, on
+ordinary content (`$HOME $PATH $USER` is a shell-documentation paragraph, not an attack). Each
+recognizer now materializes its decline predicate once per block behind a bounded memo and looks it
+up, so the stated model finally describes the code. What the entry always got right is that the perf
+gate cannot see any of this: the measurements came from the adversarial pass, not the standing
+ceilings.
 
 The unreserved shape's cost is **not** confined to its trigger: unreserved triggers are held out of
 `SPECIAL_CHARS`, so registering any one of them flips `needsScan`'s per-character probe on, and
@@ -198,7 +314,9 @@ ceilings measure, on every keystroke, not merely a denser trigger cost.
 **Fix direction:** when a perf-harness pass next touches fixtures, install each rung shape and
 measure it: a bracket-dense fixture under footnotes, a colon-dense one under emoji, a dollar-dense
 one under latex — plus a **plain-prose** row under any installed unreserved rung, which is the row
-that measures the bail-probe cost the current gate is blindest to.
+that measures the bail-probe cost the current gate is blindest to. The trigger-dense half now has
+growth bounds in the unit suites (each recognizer's `*-bounds` file), so what is still unmeasured
+is the keystroke ceiling and the plain-prose bail row.
 
 **Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path on an
 empty registry. The bail probe itself predates the ladder — latex's `$` has ridden it since inline
@@ -308,6 +426,11 @@ resolved to 0 for the full 5s); the same specs pass 3/3 in isolation and the imm
 rerun was green. The failure window contains M3's pointerdown anchor-clear wiring
 (`cursor/reveal-anchor.ts`), which is a suspect, not a finding.
 
+**One clean data point since.** The 0.9.35 review ran two full e2e batteries, both green with zero
+flaky and no retry of any spec, and confirmed `retries: 0` in the Playwright config with no CI
+override, so a recurrence reads red rather than being silently retried away, and neither battery
+saw one.
+
 **Fix direction:** if this reds again (CI or a local battery), investigate the anchor pointerdown
 listener's interaction with click-caret placement under load FIRST, before any timeout raise; a
 timeout raise without a mechanism is quieting the checker.
@@ -316,6 +439,48 @@ timeout raise without a mechanism is quieting the checker.
 battery-order-flake precedent records falsified causes, so this entry starts with its protocol.
 
 ## Code structure
+
+### `parseInline` returns plausible wrong output instead of throwing on the wrong arity
+
+**Severity:** minor (silently wrong output on a public export; freeze-surface shape)
+**Files:** `src/lib/index.ts` (the export), `src/lib/core/inline/scan/index.ts` (the scanner it
+aliases)
+
+The function takes a source string plus the start and end of the range to scan. Called with only the
+source (the natural first guess, and the one a JavaScript consumer or an `any`-typed call site can
+make without a compile error), the missing bounds flow through every comparison as `undefined`, the
+scan is skipped, and the caller gets back one text node holding the whole string. That is a
+plausible-looking result: no throw, no warning, and the inline structure the caller asked for is
+silently absent. This review found it by making the mistake, and only noticed because the wrong
+answer briefly falsified a real finding.
+
+**Repro:** call `parseInline('a *b* c')` and observe `[{ kind: 'text', text: 'a *b* c' }]` rather
+than an emphasis node or an error.
+
+**Why deferred:** the fix (reject a call that does not carry both bounds) is a behavior change on a
+frozen-at-1.0 export, so it belongs to the freeze cut's surface pass rather than to a records commit.
+Cheap now and breaking later, which is what puts it on that list rather than this one.
+
+### `emptyParagraph`'s line-ending default is the next N+1 hazard
+
+**Severity:** minor (no live defect; a shape that makes the next instance compile clean)
+**Files:** `src/lib/tree-operations/node-ops.ts` (`emptyParagraph`'s defaulted `lineEnding`
+parameter)
+
+The 0.9.35 line-ending family was one rule reimplemented at N sites, and its second half was seven
+paragraph-mint sites that took this parameter's `'\n'` default and therefore downgraded a CRLF
+document. Every live site now passes the document's ending explicitly. The default that let them all
+be wrong is still there, so a new mint site that omits the argument compiles clean, reads as
+correct, and reintroduces the class, with no guard able to see it, because the call-site scan
+cannot reach a defaulted parameter.
+
+**Fix direction:** the enforcement-ladder climb the family's own miss-analysis points at: make the
+parameter required, so a mint site must answer the question. The one caller that genuinely mints
+into an unknown document (an empty source) already computes an ending to pass.
+
+**Why deferred:** it is a small mechanical change across every mint site, and it wants to land with
+the wider seam question the family raised (whether the ending should be carried by the scope rather
+than passed per call) rather than as a lone signature edit.
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
 
@@ -341,8 +506,11 @@ boundaries the plan owns the key.
 **Fix direction:** give the cell a key-aware caret-edge path for non-reveal
 widgets — a one-press atomic delete on Backspace/Delete, a caret hop on arrows —
 which needs the dispatch to hand `enterWidget` the gesture kind (or a separate
-destructive hook). Bundled with the whole-table keymap migration below, since
-both want the cell keydown path expressed declaratively rather than special-cased.
+destructive hook).
+
+**Why deferred:** bundled with the whole-table keymap migration below, since both want the cell
+keydown path expressed declaratively rather than special-cased, and every end state here is
+byte-safe and round-trip stable.
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
@@ -377,6 +545,70 @@ reader, so the fix is cosmetic until a consumer needs a non-editable container s
 
 ## Test coverage
 
+### The property suites cannot reach a plugin rung, the block-indent boundary, or any shape at scale
+
+**Severity:** minor (coverage shape; the specific defects it hid are fixed and pinned)
+**Files:** `src/lib/test/invariants/round-trip.property.test.ts` and its siblings (none install
+plugins), `src/lib/test/invariants/arbitraries/gfm.ts` (`arbGfmDoc`),
+`src/lib/test/invariants/arbitraries/raw-string.ts` (`lazyQuoteShapes`),
+`src/lib/test/invariants/inline-total-coverage.property.test.ts` (G2.11's kind vocabulary)
+
+The parse-loop hang a tab-indented `> [!NOTE]` produced was invisible to every generator, for two
+compounding reasons. No suite under `src/lib/test/invariants/` installs plugins, so the property
+tests parse through the built-in grammar alone and no plugin opener's return has ever been under
+property coverage — the surface where a third-party opener bug would live. And the generators cap
+out below the boundary regardless: `arbGfmDoc` composes every block at column 0 (its only
+indentation is list-item continuation padding, and it emits no tabs), while `arbRawString`'s
+blockquote vocabulary tops out at a 3-space indent with no 4-space or tab-before-`>` shape. So the
+0–3-versus-4 block-indent rule — the CommonMark boundary that separates a blockquote from indented
+code — is outside the reachable input space for built-ins too.
+
+**The same suites are also capped far below every failure scale.** `arbRawString` tops out around a
+few hundred bytes and `arbGfmDoc` at a handful of short blocks, while every complexity defect the
+0.9.35 review measured lives three or four orders of magnitude past that: the quadratic inline
+declines, the argument-spread `RangeError` at tens of thousands of matches, the render recursion's
+stack overflow. No flood, no overflow, and no superlinear growth is expressible in the input space
+at all, so the marquee round-trip invariant is structurally blind to the class. The inline-rung half
+is worse than bounded: G2.11's kind vocabulary is derived from the built-in union, so installing any
+rung makes the property throw on its vocabulary check before it can test tiling, which is why every
+grammar shipped in 0.9.33-0.9.35, the newest and least-audited code, sits outside the invariant.
+
+**Fix direction:** four independent additions, in value order. Run one round-trip property pass with
+the bundled plugins installed, so plugin openers and inline rungs are covered by the marquee
+invariant rather than by per-kind fixtures only. Add one large-input size tier at a low run count,
+which reaches the scale the complexity defects live at without slowing the fast tier. Give the raw
+and GFM arbitraries a leading-indent dimension (0–4 spaces and a tab before a block marker) so the
+block-indent boundary becomes reachable. And split G2.11's vocabulary assertion from its contract
+assertion, widening the vocabulary to registered plugin kinds.
+
+**Why deferred:** the indent dimension widens the corpus for every property suite at once and wants
+its own measured pass (the suites are seeded and run 1000 cases each), the plugin-installed pass
+needs a decision on registry isolation between property runs, and the size tier needs its run count
+chosen against the suite's wall-clock budget. None is a prerequisite for the defects already pinned
+directly.
+
+### The block-component mount harness exists but covers a minority of block components
+
+**Severity:** minor (coverage shape; the pure layer below these components is well covered)
+**Files:** `src/lib/test/harness/mount-context.ts` (the harness), the block components with no test
+at their own level: `BlockquoteBlock`, `ListBlock`, `ListItemBlock`, `TableBlock`, `TableRowBlock`,
+`TableCellBlock`, `DirectiveContainerBlock`, `ThematicBreakBlock`
+
+The harness assembles every context a block component reads, so mounting one in isolation is a few
+lines. It is used by a small handful of suites. The components it is not used for include several of
+the repo's highest bugfix-density files, and the 0.9.35 review's own miss-analysis named this shape
+twice: the pure helper is tested, the entry layer that produces its inputs is not, so a helper's
+documented refusal path is pinned by its own unit test while nothing pins what that refusal means at
+the caller. Where a component has no test at its own level, that gap is total.
+
+**Fix direction:** for each pure helper with a documented refusal path, one test at a caller
+asserting the contrapositive, which for a component-level caller means a mount through the harness.
+Prioritize by bugfix density rather than by component size.
+
+**Why deferred:** this is a suite-shaping program rather than a fix, and it wants the pre-1.0
+re-audit's unit-suite pass to scope it, since that pass is the one artifact class the 0.9.35 review did
+not cover, so its findings should set the priority order rather than this entry guessing it.
+
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
 **Severity:** watch (no field report yet; Chromium-only test coverage)
@@ -388,6 +620,11 @@ others). The second end would reach G1.27 with `composing` already cleared and w
 legal-if-buggy browser sequence. If a field report shows it, relax the predicate from
 per-window pairing to once-per-focus: track "saw a start since this element gained focus"
 and fire only when even that is absent — the wired-end-without-start bug it exists to catch.
+
+**Why deferred:** the relaxation trades real detection power against a browser behavior nothing in
+the suite can exercise, and no field report has arrived. Loosening a dev predicate on speculation is
+the wrong direction on the enforcement ladder; a warn on a legal-if-buggy sequence is the cheaper
+failure.
 
 ## Plugin containers
 
@@ -416,6 +653,36 @@ author writes on their container passes.
 reorder among themselves; absent means a child's reorder resolves at an ancestor.
 
 **Target:** the next guide pass, before the freeze cut — the member is already public.
+
+### The admonitions blockquote grammar still over-accepts indent outside the marker rule
+
+**Severity:** minor (a conversion false negative and a body-strip divergence; neither can hang or
+break byte round-trip)
+**Files:** `src/lib/plugins/admonitions/gh-alert.ts` (`QUOTE_LINE`, `stripQuoteMarker`),
+`src/lib/core/parsers/blockquote.ts` (`matchBlockquote`, `remapStrippedLines` — the rule they
+should agree with)
+
+The marker rule was capped at CommonMark's 0–3 space block indent when its unbounded form turned
+out to hang the parse loop. Two siblings in the same file keep the unbounded `[ \t]*` indent, and
+neither can produce a non-advancing opener, so both were left alone:
+
+- `QUOTE_LINE` decides "was the previous line already inside a blockquote" in the `source → source`
+  transform. Over-broad, so an indented-code line that happens to start with `>` suppresses
+  conversion of the alert that follows it — a false negative in a legacy path.
+- `stripQuoteMarker` strips a quote prefix from lines the extent scan already claimed. The built-in
+  gates the same strip on `matchBlockquote` and passes lazy-continuation lines verbatim; the plugin
+  strips unconditionally, so `> [!NOTE]\n\t> body\n` yields a `body` paragraph child where the
+  built-in blockquote would keep the tab-indented bytes.
+
+**Fix direction:** align both with `matchBlockquote`, but not as a ride-along — tightening
+`stripQuoteMarker` changes an alert's child structure (paragraph → indented code) and therefore its
+post-edit rebuild bytes, so it needs its own red-first pin and its own decision on what a lazy
+continuation inside an alert body should become. The wider question underneath is whether the
+plugin's body strip should reuse the built-in's `remapStrippedLines` gating instead of forking it.
+
+**Why deferred:** the hang class is closed (the opener declines when the extent claims nothing), and
+these two are byte-safe. Neither has a reported symptom, and the `stripQuoteMarker` half is a
+behavior decision rather than a defect.
 
 ### Search replace skips matches inside childless opaque containers
 
@@ -465,17 +732,17 @@ direction into the post-1.0 clipboard/hook generalization with the container-exi
 
 ### Container components re-export the component surface member-by-member
 
-**Severity:** trivial (authoring ergonomics; all eight containers now guarded)
+**Severity:** trivial (authoring ergonomics; every container is guarded)
 **Files:** `src/lib/components/BlockHost.svelte` (ref binding); every container component
 
 A container block re-exports each `ContainerBlockComponent` member as its own `export const` so
 `bind:this` on `<Comp>` in BlockHost captures the full surface — Svelte 5 instance exports are
 individual top-level declarations, with no spread. That is ~11 identical lines in every container
-component. All eight containers — the four plugin ones (callout, details, admonition, mermaid) and
-the four built-ins (BlockquoteBlock, ListBlock, ListItemBlock, DirectiveContainerBlock) — now end
+component. Every container, built-in and bundled-plugin alike, now ends
 the block with a `satisfies ContainerBlockComponent` guard, so a forgotten member is a compile
 error everywhere (the built-ins' redundant `!` non-null assertions are gone with it). The
-duplication itself remains.
+duplication itself remains. Read the guard's own call sites for the list a migration must cover
+rather than an enumeration here, which has already drifted once as plugins landed.
 
 **Fix direction:** let a container expose ONE well-known instance export (its `containerApi`) and
 have BlockHost read `ref.<that>` as the `BlockComponent` surface it stores and dispatches through

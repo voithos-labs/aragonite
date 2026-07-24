@@ -244,6 +244,11 @@ function registerNote(): void {
 				firstChildBackspace: 'lift-first-child',
 				middleChildBackspace: 'default-merge'
 			}
+			// Declare `reorderChildren` here if your container's direct children should
+			// reorder among themselves (drag, or Alt+ArrowUp/ArrowDown). Absent, a child's
+			// reorder resolves at an ancestor instead, which moves the whole container
+			// among its own siblings. The closure block does not ask about this axis, and
+			// a behavioural test on your container passes either way.
 		},
 		keymap: [
 			{ chord: 'Mod+7', command: setVariant, arg: 'note' },
@@ -516,7 +521,7 @@ fence claim ──▶ opaque container, NO children ──▶ component renders 
 - **Interior interactivity stays inside your DOM.** Pan/zoom, buttons, overlays — anything draggable must `stopPropagation()` on pointerdown, or the drag starts a cross-block selection. A focus view is just a fixed-position overlay in the component's own tree: mount it in place, focus it on open, close on Escape.
 - **View-state commands reach the component through `ctx.hooks`** — see [block commands](#block-commands).
 
-**What you give up with the textarea.** The code text is not editor-native: no cross-block selection through it, and the textarea's caret and IME are the browser's, not the editor's. Because the container has no children, a caret cannot land _inside_ it — so opt into **whole-block focus**: declare `blockFocus: 'whole-block'` on the kind and hand the factory a `getFocusEl` getter returning the element that takes DOM focus (a `tabindex=0` viewport). Arrows then stop on the block (the thematic break's model), a caret-adjacent Backspace/Delete focuses it before a second press deletes, Enter inserts a paragraph below, and Alt+arrows reorder it. Keyboard and click share the one focus state, and keys inside your own editing surface never trigger a block delete.
+**What you give up with the textarea.** The code text is not editor-native: no cross-block selection through it, and the textarea's caret and IME are the browser's, not the editor's. Because the container has no children, a caret cannot land _inside_ it — so opt into **whole-block focus**: declare `blockFocus: 'whole-block'` on the kind and hand the factory a `getFocusEl` getter returning the element that takes DOM focus (a `tabindex=0` viewport). Arrows then stop on the block (the bundled mermaid diagram is the shipped reference), a caret-adjacent Backspace/Delete focuses it before a second press deletes, Enter inserts a paragraph below, and Alt+arrows reorder it. Keyboard and click share the one focus state, and keys inside your own editing surface never trigger a block delete.
 
 Supply a focus element for **every steady state** — error, loading, and static fallbacks included — so a broken render stays keyboard-reachable. If the getter returns null anyway, the editor degrades to focusing your chrome box and warns in dev.
 
@@ -599,6 +604,8 @@ registerInlineSyntax('[', recognizeFootnote, {
 ```
 
 The scanner consults the rung ahead of the built-in `[` case, but only when `[^` matches at the cursor, so a plain `[` that opens a link is untouched. Your recognizer claims `[^label]` by returning a node, or declines with `null`. A `[^` that never closes declines and falls back to the built-in link reading byte for byte, so an unterminated reference is never a hang and never a byte change. Rungs on one trigger coexist and dispatch by priority ascending, then longer prefixes first, then lexicographic, independent of registration order (the `OPENER_PRIORITIES` model, one layer down). Reach for a replace decoration (see Decorations below) only to annotate bytes you do **not** own; syntax that is genuinely your kind's belongs in a prefix rung.
+
+**Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger — quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar cannot contain, the way the emoji recognizer stops at the first non-shortcode byte; where the grammar has no such character, materialize the predicate once per block behind `createBoundedMemo` and look it up, the way the bundled math and footnote recognizers index their closers.
 
 The bundled **footnotes** plugin (`aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` read, so the number re-derives when a reference is added elsewhere), and reveals its source to edit. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
 
@@ -755,7 +762,7 @@ Why the dev build is where plugin development belongs — what each mistake does
 | ----------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
 | `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                 | Silent until the bytes surface in a round-trip      |
 | A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path | Same containment (the boundary ships in production) |
-| An opener returns a non-advancing index   | Parse throws, naming the kind, before the loop can spin             | Parse loop spins — the tab hangs on load            |
+| An opener returns a non-advancing index   | Warns, naming the kind, and declines the opener                     | Declines the same way, silently — no hang           |
 | An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                        | Silent round-trip break                             |
 | An opener throws                          | Propagates uncaught (parse runs at init and on every edit)          | Same — uncaught                                     |
 
@@ -954,10 +961,10 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Renderer utilities**
 
-| Export               | Role                                                                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createBoundedMemo`  | A bounded LRU memo for a renderer's per-source work — sync (with an optional `cloneOnRead`) or async (the render promise is the cached value) |
-| `BoundedMemoOptions` | The memo's options — the entry `cap` and the optional `cloneOnRead`                                                                           |
+| Export               | Role                                                                                                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createBoundedMemo`  | A bounded LRU memo for per-source work — a renderer's render, a recognizer's scan index — sync (with an optional `cloneOnRead`) or async (the render promise is the cached value) |
+| `BoundedMemoOptions` | The memo's options — the entry `cap` and the optional `cloneOnRead`                                                                                                               |
 
 **Fence grammar** _(pre-freeze / unstable)_
 
