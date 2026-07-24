@@ -552,6 +552,8 @@ A block component gets its own node — but a table-of-contents block needs the 
 
 `document` is a **`DocumentView`** — read-only by type ([Views](#views)); deriving from it is the whole point, and mutation stays a commit-ceremony concern.
 
+A block that needs to _navigate_ to what it read — a table-of-contents entry scrolling to its heading — receives the owning instance's rect surface as **`BlockComponentProps.rects`**, the same object `EditorContext.rects` hands your per-instance callback. So `rects.scrollTo(path)` works from inside a block without reaching for an editor context a component does not have, and the navigation shares the editor's one reveal-and-scroll seam rather than a second copy of the rule. Navigating is view-only, so it stays legal in reading mode; the bundled **toc** plugin is this recipe and that call end to end.
+
 ## Opener priority
 
 An opener's `priority` decides dispatch order — **lower runs first**. `OPENER_PRIORITIES` is the authoritative built-in ladder (a readonly map, the same constant the built-ins register with):

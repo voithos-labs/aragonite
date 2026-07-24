@@ -149,9 +149,13 @@ import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 
 `admonitionsPlugin()` renders `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) as styled boxes, GitHub bytes untouched. Pass `{ convertAlertsOnPaste: true }` to rewrite pasted alerts to directive source instead of rendering them natively.
 
-`footnotesPlugin()` teaches the editor GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers derived from first-reference order.
+`tocPlugin()` turns a `[[toc]]` line into a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard. The walk descends into containers, so headings inside blockquotes, lists, and callouts are listed too. Pass `{ maxDepth }` (1 through 6, default 6) to list only the top levels. Navigation is view-only, so entries work in every presentation mode.
+
+`footnotesPlugin()` teaches the editor GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers derived from first-reference order. One clipboard consequence to know: copying part of a single-paragraph definition's body carries its `[^label]: ` marker along (the marker is that block's own source, and a slice without it reparses as a bare paragraph), so pasting that slice elsewhere lands a second definition under the same label.
 
 `emojiPlugin()` teaches the editor GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph widget while the literal `:name:` bytes stay in the source, so round-trip and portability are untouched. Recognition is gated on installation — without the plugin, `:name:` is ordinary prose.
+
+`highlightOccurrencesPlugin()` highlights every other occurrence of the word under the caret across the document's prose blocks — a view-only decoration, never a byte change.
 
 `latexPlugin({ renderer })` renders all three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form. Uninstalled, each stays its lossless plain reading (prose, or a plain `math` code block).
 
@@ -316,6 +320,16 @@ Two read/annotate surfaces for building chrome _around_ the document — toolbar
 | `scrollTo(path, opts?)`        | Mounts the block, then scrolls the viewport to it (`opts.block`: `'nearest'` default, or `'center'`) |
 
 Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the exported `SELECTION_END` sentinel as `end`, meaning "through the block's last measurable position".
+
+### Recipe: navigating to a block
+
+`getRects().scrollTo(path, opts)` is the programmatic navigation door — jump to a heading, an outline entry, a cross-reference target. Three things to know:
+
+- **It mounts first.** A block the virtual window has unmounted has no element to scroll to, so `scrollTo` reveals it and then scrolls. `reveal(path)` is that same mount without the scroll, for measuring something offscreen.
+- **The boolean is honest.** It resolves only after the position settles, so `true` means the block is genuinely in view — not merely that the call ran. A target that cannot mount (one inside a collapsed `<details>` or admonition, say) resolves `false` and leaves nothing pinned.
+- **`'nearest'` holds, `'center'` places.** The default `'nearest'` keeps the target visible through the reflow a mount triggers (images decoding above it collapse the document height), which is why the built-in search reveal uses it. `'center'` places the block precisely once the scroll settles, and stops holding it after.
+
+Paths are child indices into the document tree, so resolve one by walking `parse(getSource())` — filter for `heading` and `setextHeading`, recursing into container children so headings inside blockquotes and lists are reachable too. The bundled toc plugin does exactly that walk over its live document, and clicking one of its entries is a `scrollTo` call.
 
 ### Recipe: a selection toolbar
 
