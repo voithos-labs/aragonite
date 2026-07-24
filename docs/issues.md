@@ -297,6 +297,24 @@ Option toggles must keep their clamp-only behavior (they deliberately hold the u
 wants deciding alongside whether an in-place edit should also restart navigation (today it does not,
 by the same clamp).
 
+### adjacent-widget-boundary click-snap helper flaked once under full-battery contention
+
+**Severity:** watch (1-of-2 full-battery repro at the 0.9.35 ship gate; isolation and rerun green)
+**Files:** `src/lib/e2e/tests/blocks/image/adjacent-widget-boundary.spec.ts` (`snapAfterFirstWidget` —
+mouse click at a computed point, 5s snap-indicator wait)
+
+At the 0.9.35 ship battery, both specs using the click-snap helper failed together (`.md-snap-after/.md-snap-before`
+resolved to 0 for the full 5s); the same specs pass 3/3 in isolation and the immediate full-battery
+rerun was green. The failure window contains M3's pointerdown anchor-clear wiring
+(`cursor/reveal-anchor.ts`), which is a suspect, not a finding.
+
+**Fix direction:** if this reds again (CI or a local battery), investigate the anchor pointerdown
+listener's interaction with click-caret placement under load FIRST, before any timeout raise; a
+timeout raise without a mechanism is quieting the checker.
+
+**Why deferred:** non-deterministic 1-of-2 repro; no mechanism established; the sibling
+battery-order-flake precedent records falsified causes, so this entry starts with its protocol.
+
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte

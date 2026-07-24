@@ -77,6 +77,8 @@ capability gap a plugin hit was closed at the API level first, then consumed by 
   timing. The `/` showcase nests its headings so the outline's hierarchy is visible, and the consumer
   guide documents the navigation door — the honest boolean included — end to end.
 
+Ship gates: unit 4606, e2e 1506, check 0/0, lint 0, perf 95, perf:check 24/24.
+
 ### 0.9.34: emoji + native alerts + parity smalls
 
 GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on
