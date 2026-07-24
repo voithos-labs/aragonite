@@ -77,3 +77,20 @@ describe('occurrenceMarks', () => {
 		]);
 	});
 });
+
+// A fenced code block is not an inline-prose surface (supportsInline: false, read
+// through isProseKind) — the declared capability occurrence highlighting scopes to.
+// Its bytes are neither scanned for occurrences nor a valid anchor.
+describe('occurrenceMarks: non-prose leaves are out of scope', () => {
+	const doc = parse('cat one\n\n```\ncat inside code\n```\n');
+
+	it('never marks an occurrence inside a fenced code block', () => {
+		const marks = occurrenceMarks(doc, caret([0], 0));
+		expect(marks.map((m) => m.path)).toEqual([[0]]);
+	});
+
+	it('returns nothing when the caret sits inside a code block', () => {
+		// Offset 4 lands on the code fence body's 'cat' (raw: '```\ncat inside…').
+		expect(occurrenceMarks(doc, caret([1], 5))).toEqual([]);
+	});
+});

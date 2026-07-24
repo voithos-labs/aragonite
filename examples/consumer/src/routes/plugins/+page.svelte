@@ -17,8 +17,7 @@
 	// the consumer has no mermaid engine, so its block renders its code statically,
 	// exercising the packaged plugin's no-engine fallback from outside the repo. toc
 	// turns on the `[[toc]]` leaf (its render lists the seed's headings);
-	// highlightOccurrencesPlugin is already a plugin object, not a factory, so it
-	// installs directly.
+	// highlightOccurrencesPlugin marks every occurrence of the word under the caret.
 	const plugins = [
 		calloutPlugin(),
 		detailsPlugin(),
@@ -26,7 +25,7 @@
 		latexPlugin({ renderer: katexRenderer }),
 		mermaidPlugin(),
 		tocPlugin(),
-		highlightOccurrencesPlugin
+		highlightOccurrencesPlugin()
 	];
 </script>
 
