@@ -262,6 +262,14 @@ describe('block-edit core — chrome.descendToBody', () => {
 		expect(body.calls).toEqual([0]);
 	});
 
+	// The minted body IS a line ending, so a defaulted `\n` strands a lone LF
+	// inside a CRLF container (G4.20).
+	it('the minted body paragraph takes the chrome sibling’s line ending', async () => {
+		const { scope, children } = stubScope([leaf('Title\r\n')], true, []);
+		await createBlockEditCore(scope).descendToBody(0);
+		expect(children[1].raw).toBe('\r\n');
+	});
+
 	it('consumes the key without minting when the body ref is windowed out', async () => {
 		// Body child exists in the array but its ref is off-window: the caret stays
 		// put (no focus lands) and nothing is created.

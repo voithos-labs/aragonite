@@ -10,6 +10,7 @@ import { FOCUS_LAST_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
+import { trailingLineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { MultiScopeTarget, UndoController } from './deps';
 import {
@@ -154,7 +155,9 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						taskChecked: false,
 						taskMarker: inheritTask ? '[ ] ' : null
 					},
-					[emptyParagraph()]
+					// The new item's body IS a line ending, so it takes the list's (G4.20);
+					// rebuildListItemRaw derives the item's raw from it.
+					[emptyParagraph('', trailingLineEnding(node.raw))]
 				);
 			}
 

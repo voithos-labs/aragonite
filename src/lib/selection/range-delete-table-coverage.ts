@@ -11,6 +11,7 @@ import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { deleteNode, emptyParagraph } from '../tree-operations/node-ops';
+import { trailingLineEnding } from '../core/lines';
 import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
 import {
 	deleteRow as mutDeleteRow,
@@ -129,6 +130,9 @@ async function commitFullTableDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
+			// Read before the delete: with the table gone there is no block left to
+			// take an ending from, and the filler below IS a line ending (G4.20).
+			const lineEnding = trailingLineEnding(children[tableIdx]?.raw ?? '\n');
 			const change = deleteNode({ children }, tableIdx, ctx.controller.sharing);
 			ctx.selection.collapse();
 			// A sole-table doc empties to zero blocks, which leaves no editable
@@ -136,7 +140,7 @@ async function commitFullTableDelete(
 			// paragraph in the same commit so the descriptor mints its id and the
 			// undo entry restores the table in one step.
 			if (children.length === 0) {
-				const filler = emptyParagraph();
+				const filler = emptyParagraph('', lineEnding);
 				ctx.controller.sharing.stamp(filler);
 				children.push(filler);
 				collapsedCaret = { path: [0], offset: 0 };
