@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
+import { BOUNDED_GROWTH_CEILING, measureScanGrowth } from '../../harness/scan-growth';
+
+/** G2.11 total coverage: every byte of the block is claimed by exactly one node. */
+const tiles = (source: string) =>
+	parseInline(source, 0, source.length)
+		.map((n) => source.slice(n.start, n.end))
+		.join('');
 
 // Stopgap bounds for three super-linear inline scans: the entity `;` search is
 // capped at the longest possible reference body, the autolink paren trim keeps a
@@ -38,4 +45,30 @@ describe('adversarial scan bounds', () => {
 		expect(nodes.every((n) => n.kind === 'text')).toBe(true);
 		expect(nodes.map((n) => source.slice(n.start, n.end)).join('')).toBe(source);
 	}, 60_000);
+});
+
+// The GFM autolink pass hands two shapes to the same code: the delimiter prune it
+// runs after claiming, and the array surgery that splices claims into the node list.
+// Each fails on a different axis, and neither is reachable from the round-trip
+// property generator (capped at a few hundred bytes).
+describe('GFM autolink pass bounds', () => {
+	// Neither input alone is superlinear — it is the pairing. A prune that asks every
+	// delimiter about every match is O(delimiters x matches); the matches are sorted
+	// and disjoint, so an overlap is one lookup.
+	it('prunes delimiters against matches within a bounded growth ratio', () => {
+		const source = (raw: string) => parseInline(raw, 0, raw.length);
+		const { times, ratio } = measureScanGrowth(source, 'www.a.bc _x ', [48, 192]);
+		expect(ratio, `48KB=${times[0].toFixed(1)}ms 192KB=${times[1].toFixed(1)}ms`).toBeLessThan(
+			BOUNDED_GROWTH_CEILING
+		);
+	}, 300_000);
+
+	// Spreading a match array as call arguments dies on V8's argument limit, and the
+	// resulting RangeError takes the whole block to the failed-block fallback, which
+	// cannot heal: the error boundary resets on a `raw` change the block can no longer
+	// receive. Well past the limit so the guard holds whatever the runner's stack size.
+	it('splices a match count past the argument limit without throwing', () => {
+		const source = 'www.a.bc '.repeat(120_000);
+		expect(tiles(source)).toBe(source);
+	}, 120_000);
 });

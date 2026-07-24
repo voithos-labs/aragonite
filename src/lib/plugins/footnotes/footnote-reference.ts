@@ -11,6 +11,7 @@
 
 import {
 	INLINE_PRIORITIES,
+	createBoundedMemo,
 	declarePluginInlineKind,
 	isInlineKindDeclared,
 	registerInlineSyntax,
@@ -22,6 +23,39 @@ import FootnoteReference from './FootnoteReference.svelte';
 import { FOOTNOTE_REF_KIND } from './constants';
 
 const isWhitespace = (ch: string) => /\s/.test(ch);
+
+/**
+ * Label-terminator positions (`]` closes, whitespace declines) for one block's raw.
+ * A forward search per consultation costs a full block scan every time it declines,
+ * and an unterminated `[^` declines by reaching the end — so a paragraph carrying
+ * many of them paid one block scan each. The terminator set reads only `raw`, so it
+ * is materialized once and each consultation looks it up (the backtick-run index's
+ * shape). Bounded rather than weak-keyed because a string cannot key a WeakMap; two
+ * entries cover a block's own scan, the only place consecutive consultations share
+ * a `raw`.
+ */
+const terminatorIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
+
+function indexLabelTerminators(raw: string): Int32Array {
+	const positions: number[] = [];
+	for (let i = 0; i < raw.length; i++) {
+		if (raw[i] === ']' || isWhitespace(raw[i])) positions.push(i);
+	}
+	return Int32Array.from(positions);
+}
+
+/** First label terminator at or after `from`, or -1 when the block holds none. */
+function firstTerminatorFrom(raw: string, from: number): number {
+	const positions = terminatorIndex(raw, () => indexLabelTerminators(raw));
+	let lo = 0;
+	let hi = positions.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >>> 1;
+		if (positions[mid] < from) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo < positions.length ? positions[lo] : -1;
+}
 
 /**
  * `[^label]` recognizer over `raw[pos, end)`, where `pos` is the opening `[`.
@@ -39,13 +73,12 @@ function recognizeFootnoteReference(
 ): InlineNode | null {
 	if (raw[pos] !== '[' || raw[pos + 1] !== '^') return null;
 	const labelStart = pos + 2;
-	let i = labelStart;
-	while (i < end && raw[i] !== ']') {
-		if (isWhitespace(raw[i])) return null;
-		i++;
-	}
-	if (i >= end || i === labelStart) return null;
-	return { kind, start: pos, end: i + 1, label: raw.slice(labelStart, i) };
+	// The index spans the whole block, so `end` — not the block string — decides the
+	// claim: a `]` past the scan range leaves the reference unterminated.
+	const close = firstTerminatorFrom(raw, labelStart);
+	if (close === -1 || close >= end) return null;
+	if (raw[close] !== ']' || close === labelStart) return null;
+	return { kind, start: pos, end: close + 1, label: raw.slice(labelStart, close) };
 }
 
 export function registerFootnoteReference(): void {

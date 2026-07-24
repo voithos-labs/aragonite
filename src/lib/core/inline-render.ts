@@ -107,15 +107,33 @@ function renderInlineCode(
 	return frag;
 }
 
+// ── Nesting frames ───────────────────────────────────────────────────────────
+
+/**
+ * One construct's pending child render. Children accumulate in a detached fragment
+ * and `close` assembles the construct from it — wrapper, then closing markers —
+ * when the frame drains. Assembly stays bottom-up: appending into a fragment that
+ * is still detached keeps each insertion's ancestor bookkeeping O(1) rather than
+ * O(depth). Nothing else can reach the construct's container in between, since the
+ * frame sits on top of the stack until it drains, so the emitted order is source
+ * order.
+ */
+interface RenderFrame {
+	nodes: InlineNode[];
+	index: number;
+	content: DocumentFragment;
+	close: ((content: DocumentFragment) => void) | null;
+}
+
 // ── Wrapped spans (emphasis / strong / strikethrough) ───────────────────────
 
-function renderWrapped(
+function openWrapped(
 	node: InlineNode,
 	raw: string,
 	tag: string,
-	opts: RenderInlineOptions
-): DocumentFragment {
-	const frag = document.createDocumentFragment();
+	opts: RenderInlineOptions,
+	container: Node
+): RenderFrame {
 	const children = node.children ?? [];
 
 	let openEnd: number;
@@ -131,195 +149,245 @@ function renderWrapped(
 		closeStart = mid;
 	}
 
-	const openMarker = raw.slice(node.start, openEnd);
-	const closeMarker = raw.slice(closeStart, node.end);
-
-	frag.appendChild(tagConstruct(markerSpan(openMarker), node, opts));
-
+	container.appendChild(tagConstruct(markerSpan(raw.slice(node.start, openEnd)), node, opts));
 	const wrapper = document.createElement(tag);
-	const innerFrag = renderInlineNodes(children, raw, opts);
-	wrapper.appendChild(innerFrag);
-	frag.appendChild(wrapper);
+	const closeMarker = tagConstruct(markerSpan(raw.slice(closeStart, node.end)), node, opts);
 
-	frag.appendChild(tagConstruct(markerSpan(closeMarker), node, opts));
-	return frag;
+	return {
+		nodes: children,
+		index: 0,
+		content: document.createDocumentFragment(),
+		close(content) {
+			wrapper.appendChild(content);
+			container.appendChild(wrapper);
+			container.appendChild(closeMarker);
+		}
+	};
+}
+
+// ── Links ────────────────────────────────────────────────────────────────────
+
+// Markers come from raw.slice; never reconstruct from parsed fields (the parsed
+// url/title can differ from the source bytes).
+function openLink(
+	node: InlineNode,
+	raw: string,
+	opts: RenderInlineOptions,
+	container: Node
+): RenderFrame | null {
+	const children = node.children ?? [];
+	if (children.length === 0) {
+		// Empty link text: [](url)
+		const mid = raw.indexOf(']', node.start);
+		container.appendChild(
+			tagConstruct(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)), node, opts)
+		);
+		if (mid !== -1) {
+			container.appendChild(tagConstruct(markerSpan(raw.slice(mid, node.end)), node, opts));
+		}
+		return null;
+	}
+
+	const lastChild = children[children.length - 1];
+	// Split the close marker into the closing `]` of the text bracket and the
+	// trailing marker (`(url)` for inline form, `[label]` / `[]` for reference
+	// forms). Reference forms get a separate `md-ref-label` class so CSS can dim
+	// them more aggressively than inline markers.
+	const closingTextBracket =
+		raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
+	const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
+
+	container.appendChild(
+		tagConstruct(markerSpan(raw.slice(node.start, children[0].start)), node, opts)
+	);
+	const href = resolveHref(opts, node.url);
+	const linkEl = document.createElement(href !== undefined ? 'a' : 'span');
+	linkEl.className = href !== undefined ? 'md-link-content' : 'md-link-content md-link-blocked';
+	if (href !== undefined) {
+		linkEl.setAttribute('href', href);
+		if (node.title !== undefined) linkEl.setAttribute('title', node.title);
+	}
+
+	const trailing: Node[] = [];
+	if (closingTextBracket) {
+		trailing.push(tagConstruct(markerSpan(closingTextBracket), node, opts));
+	}
+	if (trailingMarker) {
+		if (node.label !== undefined) {
+			const span = document.createElement('span');
+			span.className = 'md-ref-label';
+			span.textContent = trailingMarker;
+			trailing.push(tagConstruct(span, node, opts));
+		} else {
+			trailing.push(tagConstruct(markerSpan(trailingMarker), node, opts));
+		}
+	}
+
+	return {
+		nodes: children,
+		index: 0,
+		content: document.createDocumentFragment(),
+		close(content) {
+			linkEl.appendChild(content);
+			container.appendChild(linkEl);
+			for (const marker of trailing) container.appendChild(marker);
+		}
+	};
 }
 
 // ── Main renderer ────────────────────────────────────────────────────────────
+
+/**
+ * Append one node's DOM to `container`, returning the frame for its children when
+ * it has any — the driver owns the descent so nesting depth costs no call stack.
+ */
+function renderNode(
+	node: InlineNode,
+	raw: string,
+	opts: RenderInlineOptions,
+	container: Node
+): RenderFrame | null {
+	switch (node.kind) {
+		case 'text':
+			container.appendChild(document.createTextNode(node.text ?? ''));
+			return null;
+
+		case 'inlineCode':
+			container.appendChild(renderInlineCode(node, raw, opts));
+			return null;
+
+		case 'emphasis':
+			return openWrapped(node, raw, 'em', opts, container);
+
+		case 'strong':
+			return openWrapped(node, raw, 'strong', opts, container);
+
+		case 'strikethrough':
+			return openWrapped(node, raw, 's', opts, container);
+
+		case 'hardLineBreak': {
+			// Text node carries the line ending (LF or CRLF) so textContent equals
+			// raw byte-for-byte; <br> would diverge across browsers.
+			const breakRaw = raw.slice(node.start, node.end);
+			const nlIdx = breakRaw.indexOf('\n');
+			const lineEndingStart = nlIdx > 0 && breakRaw[nlIdx - 1] === '\r' ? nlIdx - 1 : nlIdx;
+			if (lineEndingStart > 0) {
+				container.appendChild(markerSpan(breakRaw.slice(0, lineEndingStart)));
+			}
+			container.appendChild(document.createTextNode(breakRaw.slice(lineEndingStart)));
+			return null;
+		}
+
+		case 'link':
+			return openLink(node, raw, opts, container);
+
+		case 'image': {
+			const renderWidgets = opts.renderImagesAsWidgets ?? true;
+			const resolveUrl = opts.resolveImageUrl ?? ((u) => u);
+			if (renderWidgets && opts.buildImageWidget) {
+				container.appendChild(
+					opts.buildImageWidget(node, raw, {
+						resolveImageUrl: resolveUrl,
+						imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
+					})
+				);
+			} else {
+				const altText = node.alt ?? '';
+				const altStart = node.start + 2;
+				const altEnd = altStart + altText.length;
+				container.appendChild(
+					tagConstruct(markerSpan(raw.slice(node.start, altStart)), node, opts)
+				);
+				container.appendChild(document.createTextNode(altText));
+				container.appendChild(tagConstruct(markerSpan(raw.slice(altEnd, node.end)), node, opts));
+			}
+			return null;
+		}
+
+		case 'autolink': {
+			const href = resolveHref(opts, node.url);
+			const el = document.createElement(href !== undefined ? 'a' : 'span');
+			el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
+			if (href !== undefined) el.setAttribute('href', href);
+			el.textContent = raw.slice(node.start, node.end);
+			container.appendChild(el);
+			return null;
+		}
+
+		case 'escape':
+			container.appendChild(markerSpan(raw[node.start]));
+			container.appendChild(document.createTextNode(raw.slice(node.start + 1, node.end)));
+			return null;
+
+		case 'entityReference':
+			// A visibly-rendering reference builds an atomic widget of its decoded
+			// glyph; an invisible one (whitespace/control decoding) is not a widget,
+			// so buildCoreInlineWidget returns null and it keeps its literal-source span.
+			container.appendChild(
+				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+					sourceSpan(raw, node, 'md-entity')
+			);
+			return null;
+
+		case 'unresolvedReference':
+			container.appendChild(
+				sourceSpan(
+					raw,
+					node,
+					node.refKind === 'image'
+						? 'md-unresolved-ref md-unresolved-ref-image'
+						: 'md-unresolved-ref'
+				)
+			);
+			return null;
+
+		case 'rawHtml':
+			container.appendChild(
+				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+					sourceSpan(raw, node, 'md-raw-html')
+			);
+			return null;
+
+		default:
+			// Registered plugin widget kinds render through the registry; anything
+			// still unrecognized falls back to its raw source, mirroring the
+			// unknown-block fallback so every byte round-trips.
+			container.appendChild(
+				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
+					sourceSpan(raw, node, 'md-unknown-inline')
+			);
+			return null;
+	}
+}
 
 export function renderInlineNodes(
 	nodes: InlineNode[],
 	raw: string,
 	opts: RenderInlineOptions = {}
 ): DocumentFragment {
-	const frag = document.createDocumentFragment();
-
-	for (const node of nodes) {
-		switch (node.kind) {
-			case 'text':
-				frag.appendChild(document.createTextNode(node.text ?? ''));
-				break;
-
-			case 'inlineCode':
-				frag.appendChild(renderInlineCode(node, raw, opts));
-				break;
-
-			case 'emphasis':
-				frag.appendChild(renderWrapped(node, raw, 'em', opts));
-				break;
-
-			case 'strong':
-				frag.appendChild(renderWrapped(node, raw, 'strong', opts));
-				break;
-
-			case 'strikethrough':
-				frag.appendChild(renderWrapped(node, raw, 's', opts));
-				break;
-
-			case 'hardLineBreak': {
-				// Text node carries the line ending (LF or CRLF) so textContent equals
-				// raw byte-for-byte; <br> would diverge across browsers.
-				const breakRaw = raw.slice(node.start, node.end);
-				const nlIdx = breakRaw.indexOf('\n');
-				const lineEndingStart = nlIdx > 0 && breakRaw[nlIdx - 1] === '\r' ? nlIdx - 1 : nlIdx;
-				if (lineEndingStart > 0) {
-					frag.appendChild(markerSpan(breakRaw.slice(0, lineEndingStart)));
-				}
-				frag.appendChild(document.createTextNode(breakRaw.slice(lineEndingStart)));
-				break;
-			}
-
-			case 'link': {
-				// Markers come from raw.slice; never reconstruct from parsed fields
-				// (the parsed url/title can differ from the source bytes).
-				const children = node.children ?? [];
-				if (children.length > 0) {
-					const lastChild = children[children.length - 1];
-					const openMarker = raw.slice(node.start, children[0].start);
-					// Split closeMarker into the closing `]` of the text bracket and the
-					// trailing marker (`(url)` for inline form, `[label]` / `[]` for
-					// reference forms). Reference forms get a separate `md-ref-label`
-					// class so CSS can dim them more aggressively than inline markers.
-					const closingTextBracket =
-						raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
-					const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
-
-					frag.appendChild(tagConstruct(markerSpan(openMarker), node, opts));
-					const href = resolveHref(opts, node.url);
-					const linkEl = document.createElement(href !== undefined ? 'a' : 'span');
-					linkEl.className =
-						href !== undefined ? 'md-link-content' : 'md-link-content md-link-blocked';
-					if (href !== undefined) {
-						linkEl.setAttribute('href', href);
-						if (node.title !== undefined) linkEl.setAttribute('title', node.title);
-					}
-					linkEl.appendChild(renderInlineNodes(children, raw, opts));
-					frag.appendChild(linkEl);
-					if (closingTextBracket) {
-						frag.appendChild(tagConstruct(markerSpan(closingTextBracket), node, opts));
-					}
-					if (trailingMarker) {
-						if (node.label !== undefined) {
-							const span = document.createElement('span');
-							span.className = 'md-ref-label';
-							span.textContent = trailingMarker;
-							frag.appendChild(tagConstruct(span, node, opts));
-						} else {
-							frag.appendChild(tagConstruct(markerSpan(trailingMarker), node, opts));
-						}
-					}
-				} else {
-					// Empty link text: [](url)
-					const mid = raw.indexOf(']', node.start);
-					frag.appendChild(
-						tagConstruct(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)), node, opts)
-					);
-					if (mid !== -1) {
-						frag.appendChild(tagConstruct(markerSpan(raw.slice(mid, node.end)), node, opts));
-					}
-				}
-				break;
-			}
-
-			case 'image': {
-				const renderWidgets = opts.renderImagesAsWidgets ?? true;
-				const resolveUrl = opts.resolveImageUrl ?? ((u) => u);
-				if (renderWidgets && opts.buildImageWidget) {
-					frag.appendChild(
-						opts.buildImageWidget(node, raw, {
-							resolveImageUrl: resolveUrl,
-							imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
-						})
-					);
-				} else {
-					const altText = node.alt ?? '';
-					const altStart = node.start + 2;
-					const altEnd = altStart + altText.length;
-					frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, altStart)), node, opts));
-					frag.appendChild(document.createTextNode(altText));
-					frag.appendChild(tagConstruct(markerSpan(raw.slice(altEnd, node.end)), node, opts));
-				}
-				break;
-			}
-
-			case 'autolink': {
-				const href = resolveHref(opts, node.url);
-				const el = document.createElement(href !== undefined ? 'a' : 'span');
-				el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
-				if (href !== undefined) el.setAttribute('href', href);
-				el.textContent = raw.slice(node.start, node.end);
-				frag.appendChild(el);
-				break;
-			}
-
-			case 'escape': {
-				frag.appendChild(markerSpan(raw[node.start]));
-				frag.appendChild(document.createTextNode(raw.slice(node.start + 1, node.end)));
-				break;
-			}
-
-			case 'entityReference':
-				// A visibly-rendering reference builds an atomic widget of its decoded
-				// glyph; an invisible one (whitespace/control decoding) is not a widget,
-				// so buildCoreInlineWidget returns null and it keeps its literal-source span.
-				frag.appendChild(
-					buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-						sourceSpan(raw, node, 'md-entity')
-				);
-				break;
-
-			case 'unresolvedReference':
-				frag.appendChild(
-					sourceSpan(
-						raw,
-						node,
-						node.refKind === 'image'
-							? 'md-unresolved-ref md-unresolved-ref-image'
-							: 'md-unresolved-ref'
-					)
-				);
-				break;
-
-			case 'rawHtml':
-				frag.appendChild(
-					buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-						sourceSpan(raw, node, 'md-raw-html')
-				);
-				break;
-
-			default:
-				// Registered plugin widget kinds render through the registry; anything
-				// still unrecognized falls back to its raw source, mirroring the
-				// unknown-block fallback so every byte round-trips.
-				frag.appendChild(
-					buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-						sourceSpan(raw, node, 'md-unknown-inline')
-				);
-				break;
+	// Iterative: inline nesting depth is input-controlled (each `*`-run pair nests one
+	// level), so a per-level recursion overflows the call stack on a large paragraph —
+	// and the RangeError strands the block in the failed-block fallback, which cannot
+	// heal. The sibling scan (`scanChildren`, inline/scan/autolinks.ts) is iterative
+	// for the same reason.
+	const root: RenderFrame = {
+		nodes,
+		index: 0,
+		content: document.createDocumentFragment(),
+		close: null
+	};
+	const stack: RenderFrame[] = [root];
+	while (stack.length > 0) {
+		const frame = stack[stack.length - 1];
+		if (frame.index === frame.nodes.length) {
+			stack.pop();
+			frame.close?.(frame.content);
+			continue;
 		}
+		const child = renderNode(frame.nodes[frame.index++], raw, opts, frame.content);
+		if (child !== null) stack.push(child);
 	}
-
-	return frag;
+	return root.content;
 }
 
 // ── Cursor mapping ───────────────────────────────────────────────────────────
@@ -338,20 +406,26 @@ export interface OffsetResult {
  * a walk-space offset to a live `(node, offset)` DOM position.
  */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
+	// Iterative for the reason the renderer is: nesting depth is input-controlled.
+	// Descent never backtracks — the first containing sibling wins its level — so the
+	// answer is the deepest containing node, or the last one when descent finds none.
+	let level = nodes;
+	let found: OffsetResult | null = null;
+	for (;;) {
+		const node = containingNode(level, offset);
+		if (node === null) return found;
+		found = { node, localOffset: offset - node.start };
+		if (node.children === undefined || node.children.length === 0) return found;
+		level = node.children;
+	}
+}
+
+/** First node covering `offset`; only the last node claims its own `end`. */
+function containingNode(nodes: InlineNode[], offset: number): InlineNode | null {
 	for (let i = 0; i < nodes.length; i++) {
 		const node = nodes[i];
 		const isLast = i === nodes.length - 1;
-
-		const inRange = offset >= node.start && (offset < node.end || (isLast && offset === node.end));
-		if (!inRange) continue;
-
-		if (node.children && node.children.length > 0) {
-			const childResult = findNodeAtOffset(node.children, offset);
-			if (childResult) return childResult;
-		}
-
-		return { node, localOffset: offset - node.start };
+		if (offset >= node.start && (offset < node.end || (isLast && offset === node.end))) return node;
 	}
-
 	return null;
 }
