@@ -256,9 +256,26 @@ rapid cross-block double-click driving two toc blocks' navigations inside the se
 claimant cannot clear a fresher pin), or seam-level serialization at `scrollTo` itself (one in-flight
 reveal per editor instance) instead of each caller serializing its own.
 
-**Why deferred:** honest-failing (the loser's target just isn't held — no crash, no corruption), and
-the ownership model wants a second real consumer navigating concurrently to shape it; designing
-per-call ownership against a single caller risks the wrong abstraction.
+**Second coarseness, same redesign:** `scrollTo` accepts any path, but the anchor it sets holds only
+the target's TOP-LEVEL ancestor (`use-container-windowing.svelte.ts` narrows to `target.path[0]`, and
+`list-windowing.svelte.ts`'s `correctAnchor` re-asserts a top-pin on that index). Inside the settle
+loop the per-tick `scrollIntoView` refine gets the last word, so a nested target resolves correctly —
+verified live: a `[[toc]]` inside a blockquote navigating to a nested heading in a 163-block windowed
+document lands it in view. But `'nearest'` deliberately KEEPS its anchor after resolving, and what
+survives holds the container, not the heading: a container taller than the viewport with an image
+decoding below it on a later measure pass would have the anchor re-assert the container's top and
+push the already-resolved nested target back out of view. Same fix (per-call ownership carrying the
+full target path, not a narrowed index), so it is folded here rather than filed apart.
+
+**Coverage gap:** no test drives a nested `scrollTo` target at all — `rect-api.spec.ts` and
+`scroll-to-settle.spec.ts` both use top-level paths, and `toc-navigation.spec.ts` pins nested
+_listing_ only. A nested-target e2e (tall container, nested heading, assert the target stays in view
+past the settle) belongs with the fix.
+
+**Why deferred:** honest-failing (the loser's target just isn't held — no crash, no corruption; the
+nested residual needs a tall container plus a late decode), and the ownership model wants a second
+real consumer navigating concurrently to shape it; designing per-call ownership against a single
+caller risks the wrong abstraction.
 
 ## Code structure
 
@@ -335,6 +352,32 @@ per-window pairing to once-per-focus: track "saw a start since this element gain
 and fire only when even that is absent — the wired-end-without-start bug it exists to catch.
 
 ## Plugin containers
+
+### A third-party `strip` container silently inherits reorder-within absence
+
+**Severity:** minor (authoring-surface discoverability; the capability itself ships correct)
+**Files:** `src/lib/tree-operations/reorder-unit.ts` (`resolveReorderUnit`), `src/lib/plugin.ts`
+(public `ContainerDescriptorGroup`), `src/lib/schema/closure.ts` (`containerClosure`'s `reorder`
+cell), `docs/guide/plugin-guide.md` (no mention), `docs/contributing/adding-a-block.md` (the only
+mention)
+
+`resolveReorderUnit` resolves reorder-within from the declared `reorderChildren` capability and
+declines at an `opaque` boundary. A container that is `strip` and does NOT declare `reorderChildren`
+falls through both branches and the walk continues upward — correct and load-bearing for `listItem`
+(whose unit is the item under the list), but for a top-level plugin strip container it reproduces the
+exact teleport this ledger carried for `githubAlert`: `Alt+↑/↓` on a body child moves the whole
+container among document siblings. The capability is on the public authoring surface, but the only
+prose naming it lives in an internal contributing doc, and nothing prompts the author either —
+`containerClosure` bakes the `reorder` cell to "whole-block reorder through the parent BlockList",
+which describes the container's own reorder and stays true either way. So the one place a kind is
+forced to answer a cross-cutting question says nothing about this axis, and every behavioral test the
+author writes on their container passes.
+
+**Fix direction:** one sentence in `docs/guide/plugin-guide.md` beside the container walkthrough's
+`container: { … }` block — declare `reorderChildren` if your container's direct children should
+reorder among themselves; absent means a child's reorder resolves at an ancestor.
+
+**Target:** the next guide pass, before the freeze cut — the member is already public.
 
 ### Search replace skips matches inside childless opaque containers
 
