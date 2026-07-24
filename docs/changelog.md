@@ -50,6 +50,14 @@ capability gap a plugin hit was closed at the API level first, then consumed by 
   highlighting is an inline-prose feature. The export unified with its siblings as
   `highlightOccurrencesPlugin()`, and the plugin-guide recipe that contradicted the implementation
   now tells one story with it.
+- **A `source` prop swap now signals the decoration engine.** The edit epoch means "the document
+  changed", and a whole-document replacement is that, but the swap reset (doc, ids, refs, undo,
+  selection, LRD resolver) never notified the engine, so every epoch-memoized source kept serving a
+  document that no longer existed: occurrence marks painted into the wrong blocks, and an open find
+  bar held its old count over a phantom overlay. The bump site is now one named function both the
+  post-commit subscriber and the swap reset call, so the guard and the deferred tick cannot diverge
+  between them. The gap predated the epoch itself; what this milestone added was the first bundled
+  consumer of the memo and the recipe telling third-party authors to build on it.
 - **Strip containers reorder and copy through declared capabilities, not kind names.**
   Reorder-within membership became a container-descriptor capability (`reorderChildren`, whose one
   honest sub-discriminant is `renumberMarkers` — only ordered-list markers are position-dependent),
