@@ -239,6 +239,17 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   claim the fence, render the run surface, keep the bytes. If post-1.0 demand shows genuine need
   for in-place replacement, Plugin System II is its home — after the battery exists to make "you
   own what you replace" checkable.
+- **GitHub's rendered extras that aragonite keeps literal** — inline HTML as live widgets
+  (`<kbd>`, `<sub>`, `<sup>`, `<ins>`) and the diagram fences past mermaid (geoJSON, topoJSON,
+  STL). **Decided: neither pre-1.0** (owner, at the 2026-07 GitHub-parity run). Both are
+  plugin-shaped on surfaces that already ship, so deferring forecloses nothing. A curated tag
+  set is a prefix rung on the reserved `<` trigger rendering an atomic widget over unchanged
+  bytes (the entity-reference mold); the whole design question is the curation — which tags
+  earn a widget, and the answer for every other tag staying "render as literal source", which
+  is also its uninstall story. A diagram fence is a fence claim on the mermaid precedent,
+  priced ahead of `fencedCode` and declining every info string it does not own; those
+  additionally drag heavy render engines for a niche audience, which is why they sit as
+  post-1.0 candidates rather than pre-freeze work.
 - **Heading-anchor `#fragment` navigation** (GitHub/Obsidian in-note links) — a `[jump](#deep-heading)`
   prose link scrolling to the matching heading. **Decided: deferred, additive-later** (assessed at
   toc v2, 0.9.35). The heading half is cheap and in reach: a pure `slugify` over the same

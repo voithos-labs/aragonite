@@ -2,6 +2,73 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.35: the navigation API + toc v2
+
+Path-addressed navigation became a public surface, and the two bundled plugins that had been bare
+surface dogfoods — toc and highlight-occurrences — grew into the shapes a real editor's user
+expects. This closes the GitHub-parity package's editor side on the package's own rule: every
+capability gap a plugin hit was closed at the API level first, then consumed by the plugin.
+
+- **`rects.scrollTo(path, opts?)` shipped as the one navigation seam.** `reveal(path)` keeps its
+  mount-only semantics (measuring something offscreen must never scroll); its new sibling mounts the
+  target and then scrolls the viewport to it, and search's private reveal wiring migrated onto it
+  rather than leaving a second copy of the rule. Reveal-and-scroll turned out to be two
+  responsibilities: `scrollIntoView` places a target once, but a windowed-out target past undecoded
+  images strands anyway — the images reserve height off-window and collapse on mount, so the document
+  shrinks and the browser clamps the scroll away from it. So `scrollTo` sets the reveal anchor at the
+  requested placement and the windowing scope re-asserts it on every post-mount measure pass,
+  refining `'center'` to exact placement once mounted and then releasing it. The boolean resolves
+  only after the position settles, so `true` means genuinely in view. Fixing the strand surfaced a
+  root defect underneath: the anchor correction wrote `scrollTop` directly, which fires no `scroll`
+  event, so the window's derived scrollTop stayed stale and never re-sliced — the target sat at the
+  anchored position, unmounted.
+- **Block components reach the editor's geometry.** `BlockComponentProps` grew a `rects` field
+  carrying the owning instance's rect surface (growth-as-fields, the frozen-shape rule), delivered
+  through editor context and threaded on both of BlockHost's dispatch branches — pinned by a parity
+  lint that fails the day a branch drops it, and which codifies the previously e2e-only `document`
+  precedent alongside it. A block can now reveal, scroll, and measure without an editor context it
+  does not have. Caret placement by path stays deliberately unexposed, recorded in the contract as a
+  decision rather than an omission.
+- **The toc plugin became a table of contents.** Entries indent by heading level; labels project the
+  inline parse to clean text (formatting markers dropped, links and images reduced to their text,
+  emoji and entities shown as their glyph); the heading walk recurses into containers, so a heading
+  inside a blockquote or a callout is listed; and each entry is a real button that navigates to its
+  heading on click or Enter, in every presentation mode — a navigation click is view-only, verified
+  against the reading-inertness lint rather than assumed. `tocPlugin({ maxDepth })` trims the outline
+  to the top N levels, and the heading-level read the hierarchy needs graduated to the authoring
+  barrel as `headingLevel`. Navigation is serialized per block (one scroll in flight, latest target
+  wins), so overlapping clicks cannot strand the later target on the process-global reveal anchor.
+  The stretch goal — GitHub-style slugs plus `#fragment` link navigation — stayed a roadmap entry
+  with its design sketch: the slug half is cheap, but resolution needs an inline-link-activation seam
+  the editor does not have, plus a which-gesture-navigates-versus-edits decision the toc plugin
+  cannot make alone.
+- **highlight-occurrences hardened into the shape its own recipe describes.** The word index is built
+  once per edit epoch and a caret move re-filters it with a single map read, where before every
+  un-debounced selection change re-walked the whole document. Non-prose leaves are skipped through
+  the descriptor's declared `supportsInline` capability rather than a kind check — deliberately
+  narrower than the true mark-painting set, since code blocks do paint marks and occurrence
+  highlighting is an inline-prose feature. The export unified with its siblings as
+  `highlightOccurrencesPlugin()`, and the plugin-guide recipe that contradicted the implementation
+  now tells one story with it.
+- **Strip containers reorder and copy through declared capabilities, not kind names.**
+  Reorder-within membership became a container-descriptor capability (`reorderChildren`, whose one
+  honest sub-discriminant is `renumberMarkers` — only ordered-list markers are position-dependent),
+  and the clipboard's sole-child marker recovery keys on the `strip` container contract. Both had
+  dispatched on a hardcoded `list`/`blockquote` allowlist, so a plugin strip container — a native
+  alert, a footnote definition — fell through: a body child's reorder teleported the whole container
+  among document siblings, and a partial copy lost its wrapper. Correcting the ledger entry this
+  closes: the predicted marker-dropping corruption is ceremony-masked and was never observable in
+  committed state (the commit ceremony rebuilds a scope container's raw through its own descriptor),
+  so the real defects were the teleport and the wrapper-less slice, and the reorder rebuild hardcode
+  is deleted rather than routed. The parity lint that would have caught the class now scans
+  `editor-actions/` and `selection/` beside `tree-operations/`.
+- **The oracles and the showcase track the new surface.** A reorder-within gesture joined the
+  github-alert simulation family under the structural and convergence oracle stack, and new e2e
+  specs cover the scrollTo settle over an image band, toc navigation (windowed-out target, keyboard
+  entry, both presentation modes), and the occurrence memo through a live scan counter rather than
+  timing. The `/` showcase nests its headings so the outline's hierarchy is visible, and the consumer
+  guide documents the navigation door — the honest boolean included — end to end.
+
 ### 0.9.34: emoji + native alerts + parity smalls
 
 GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on
