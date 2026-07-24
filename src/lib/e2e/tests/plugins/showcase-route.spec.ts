@@ -51,9 +51,13 @@ test.describe('/ showcase route', () => {
 		await expect(page.locator('[data-block-kind="table"] .md-emoji-widget').first()).toBeVisible();
 	});
 
-	test('toc lists the document headings', async ({ page }) => {
+	test('toc lists the document headings, indented by level', async ({ page }) => {
 		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 		await expect.poll(() => page.locator('.toc-block-item').count()).toBeGreaterThan(1);
+		// The showcase nests headings to depth 4, so the default outline (maxDepth 6)
+		// demonstrates real indentation instead of one flat level.
+		await expect(page.locator('.toc-block-item.toc-block-level-2').first()).toBeVisible();
+		await expect(page.locator('.toc-block-item.toc-block-level-4').first()).toBeVisible();
 	});
 
 	test('footnotes render a reference widget and an editable definition', async ({ page }) => {

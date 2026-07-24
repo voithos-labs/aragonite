@@ -24,7 +24,9 @@ re-tested here.
 - the mermaid block renders its container (`.mermaid-block` visible) — presence of
   the async-rendered engine output is not asserted, only the settled container
 - the table of contents lists the document's headings (`.toc-block-item` entries
-  present)
+  present), indented by level: the showcase nests to depth 4, so entries at more
+  than one level class are present and the default outline shows real hierarchy
+  rather than a flat list
 - a footnote reference renders as a superscript number (`.footnote-ref` reading "1"
   by first-reference order) and its definition renders as an editable block
   (`.footnote-def` visible) — both plugin tiers on one document
