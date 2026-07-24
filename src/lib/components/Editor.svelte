@@ -37,6 +37,7 @@
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
+	import { trailingLineEnding } from '../core/lines';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
 	import {
@@ -148,7 +149,10 @@
 	} {
 		const d = parse(src);
 		if (d.children.length === 0) {
-			d.children.push(emptyParagraph());
+			// A source that is nothing but blank lines parses to zero blocks; the
+			// caret placeholder standing in for them takes the source's own ending
+			// (G4.20), so a CRLF file doesn't gain a lone LF on mount.
+			d.children.push(emptyParagraph('', trailingLineEnding(src)));
 		}
 		for (const child of d.children) {
 			ensureEditableContainers(child);

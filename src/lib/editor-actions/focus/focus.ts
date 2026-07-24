@@ -7,6 +7,7 @@ import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { FocusPosition } from '../../block-component';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { emptyParagraph } from '../../tree-operations';
+import { trailingLineEnding } from '../../core/lines';
 import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -27,8 +28,12 @@ export function createFocusActions(
 				if (options?.append === false) return;
 				// Past the last block — create a new empty paragraph via the commit
 				// primitive so the append participates in undo history and edit
-				// events like every other structural mutation.
-				const newBlock = emptyParagraph('\n');
+				// events like every other structural mutation. Both the separating
+				// blank line and the paragraph's own line ARE line endings, so both
+				// take the document's (G4.20), read off the block being appended after.
+				const lastBlock = deps.doc.children[deps.doc.children.length - 1];
+				const lineEnding = trailingLineEnding(lastBlock?.raw ?? '\n');
+				const newBlock = emptyParagraph(lineEnding, lineEnding);
 				// The appended slot (one past the end) is the coordinate for both the
 				// event and the restore fallback — it names the block this op creates.
 				const appendPath = docPathFrom([deps.doc.children.length]);

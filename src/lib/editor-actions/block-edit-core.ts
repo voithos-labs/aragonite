@@ -8,7 +8,7 @@
 
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { displayLength } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
 import {
 	splitNode as performSplit,
 	mergeWithNext as performMergeNext,
@@ -88,7 +88,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
-					const body = emptyParagraph();
+					// The synthesized body line IS a line ending, so it takes the chrome
+					// sibling's (G4.20) — a defaulted LF strands one in a CRLF container.
+					const body = emptyParagraph('', trailingLineEnding(view.children[i]?.raw ?? '\n'));
 					view.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);
