@@ -22,24 +22,24 @@
 <line x1="584" y1="356" x2="584" y2="361" stroke="#c3c2b7" stroke-width="1"/>
 <text x="584" y="378" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="middle">10 MB</text>
 <text x="342" y="398" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="middle">document size (log-spaced) · vertical axis is log scale</text>
-<polygon points="100,314.40275917810754 342,310.9812657430922 584,307.8861484455489 584,326.2442351947627 342,324.97057578134087 100,324.97057578134087" fill="#2a78d6" opacity="0.16"/>
-<polyline points="100,321.9892034418722 342,322.5639822047706 584,315.3175845279872" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
-<circle cx="100" cy="321.9892034418722" r="4" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
-<circle cx="342" cy="322.5639822047706" r="4" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
-<circle cx="584" cy="315.3175845279872" r="4" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
-<polyline points="100,269.38402492119974 342,201.24160482853236 584,126.16973142691006" fill="none" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
-<circle cx="100" cy="269.38402492119974" r="4" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
-<text x="100" y="257.38402492119974" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#52514e" text-anchor="middle" style="font-variant-numeric:tabular-nums">14 ms</text>
-<circle cx="342" cy="201.24160482853236" r="4" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
-<text x="342" y="189.24160482853236" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#52514e" text-anchor="middle" style="font-variant-numeric:tabular-nums">117 ms</text>
-<circle cx="584" cy="126.16973142691006" r="4" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
-<text x="584" y="114.16973142691006" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#52514e" text-anchor="middle" style="font-variant-numeric:tabular-nums">1.2 s</text>
-<circle cx="636" cy="122.16973142691006" r="4" fill="#eb6834"/>
-<text x="646" y="126.16973142691006" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="start">single giant paragraph</text>
-<text x="646" y="142.16973142691006" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">the whole file as one block,</text>
-<text x="646" y="158.16973142691006" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">the recorded exception</text>
-<circle cx="636" cy="311.3175845279872" r="4" fill="#2a78d6"/>
-<text x="646" y="315.3175845279872" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="start">8 other fixture shapes</text>
-<text x="646" y="331.3175845279872" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">band and median, 2.5 ms</text>
-<text x="646" y="347.3175845279872" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">to 4.4 ms at every size</text>
+<polygon points="100,312.64697199852924 342,311.8034400962299 584,312.64697199852924 584,324.97057578134087 342,326.2442351947627 100,327.5698948632185" fill="#2a78d6" opacity="0.16"/>
+<polyline points="100,322.5639822047706 342,323.14911789721936 584,320.32349718643513" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="322.5639822047706" r="4" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle cx="342" cy="323.14911789721936" r="4" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<circle cx="584" cy="320.32349718643513" r="4" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<polyline points="100,273.4636297025866 342,206.77737801318187 584,126.43669278254362" fill="none" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="273.4636297025866" r="4" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<text x="100" y="261.4636297025866" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#52514e" text-anchor="middle" style="font-variant-numeric:tabular-nums">13 ms</text>
+<circle cx="342" cy="206.77737801318187" r="4" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<text x="342" y="194.77737801318187" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#52514e" text-anchor="middle" style="font-variant-numeric:tabular-nums">99 ms</text>
+<circle cx="584" cy="126.43669278254362" r="4" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<text x="584" y="114.43669278254362" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#52514e" text-anchor="middle" style="font-variant-numeric:tabular-nums">1.2 s</text>
+<circle cx="636" cy="122.43669278254362" r="4" fill="#eb6834"/>
+<text x="646" y="126.43669278254362" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="start">single giant paragraph</text>
+<text x="646" y="142.43669278254362" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">the whole file as one block,</text>
+<text x="646" y="158.43669278254362" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">the recorded exception</text>
+<circle cx="636" cy="316.32349718643513" r="4" fill="#2a78d6"/>
+<text x="646" y="320.32349718643513" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="start">8 other fixture shapes</text>
+<text x="646" y="336.32349718643513" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">band and median, 2.4 ms</text>
+<text x="646" y="352.32349718643513" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">to 3.9 ms at every size</text>
 </svg>

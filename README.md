@@ -163,7 +163,7 @@ Also, shipping a kind forces the boring questions up front: the registration typ
 
 This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
 
-Does the design actually work in practice? Well, the six bundled plugins (admonitions, details, math, diagrams, table of contents, occurrence highlighting) are built on the exact surface third parties get, so you tell me.
+Does the design actually work in practice? Well, the eight bundled plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting) are built on the exact surface third parties get, so you tell me.
 
 # Lean
 
@@ -171,14 +171,14 @@ Let's start by establishing the right context: most editors ship as a toolkit, a
 
 (And it drags almost nothing behind it. Exactly one hard runtime dependency, highlight.js, for code-block syntax colors. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
-For all of that surface area the code stays relatively compact: about 49k lines of typescript and svelte for the shipped library, roughly 2.7k of which is the six bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
+For all of that surface area the code stays relatively compact: about 53k lines of typescript and svelte for the shipped library, roughly 5.8k of which is the eight bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">
-  <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, and selection; the schema registry, invariants, bundled plugins, public API, windowing, and decorations each take progressively smaller slices." src="docs/assets/loc-light.svg">
+  <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, selection, and the bundled plugins; the schema registry, invariants, public API, decorations, and windowing each take progressively smaller slices." src="docs/assets/loc-light.svg">
 </picture>
 
-I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with one hard dependency behind it. The test suite, meanwhile, is nearly twice the size of the library (~92k lines), which says more about my paranoia than the leanness.
+I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with one hard dependency behind it. The test suite, meanwhile, is nearly twice the size of the library (~97k lines), which says more about my paranoia than the leanness.
 
 # Fast
 
@@ -272,7 +272,7 @@ Now let me show you some pretty graphs.
   <img alt="Document load time across the same nine shapes, log scale: load grows roughly linearly with size; every shape loads within a few seconds at 10 MB, the 392,000-block extreme taking the longest." src="docs/assets/perf-load-light.svg">
 </picture>
 
-_Recorded 2026-07-16 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^16]
+_Recorded 2026-07-24 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^16]
 
 Now, the numbers here depend on the machine; however, the scale of the numbers and the shape of the graph should tell you the story I want to share.
 
@@ -323,7 +323,7 @@ One last snarky remark to make... All these - all four styles, follow one render
 
 [^12]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
 
-[^13]: counted from the tracked `src/lib` source, excluding the ~92k lines of tests. Give or take a refactor; it is a description, not a promise.
+[^13]: counted from the tracked `src/lib` source, excluding the ~97k lines of tests. Give or take a refactor; it is a description, not a promise.
 
 [^14]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
 
