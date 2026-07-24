@@ -239,6 +239,19 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   claim the fence, render the run surface, keep the bytes. If post-1.0 demand shows genuine need
   for in-place replacement, Plugin System II is its home — after the battery exists to make "you
   own what you replace" checkable.
+- **Heading-anchor `#fragment` navigation** (GitHub/Obsidian in-note links) — a `[jump](#deep-heading)`
+  prose link scrolling to the matching heading. **Decided: deferred, additive-later** (assessed at
+  toc v2, 0.9.35). The heading half is cheap and in reach: a pure `slugify` over the same
+  `heading-outline` walk — GitHub's rule (lowercase, drop all but word chars / spaces / hyphens,
+  spaces → `-`), then dedupe collisions with `-1`, `-2`… in document order — yields a `slug → path`
+  map. The blocker is the **resolution seam**: aragonite has no inline-link-click hook, and in a
+  contenteditable a plain click on a link places the caret (editing), so intercepting it to navigate
+  needs a new editor-level convention (a modifier-click, or a rendered-link activation seam) plus DOM
+  identification of the link's fragment — cross-cutting inline-render / pointer work past a toc-local
+  ~150-line budget, and a which-gesture-navigates-vs-edits UX decision the toc plugin cannot make
+  alone. Direction: when built, the slug utility ships on the plugin barrel beside `headingLevel`, and
+  resolution rides whatever inline-link-activation seam the editor grows, reading the one
+  `heading-outline` walk. No pre-freeze driver forces it.
 
 **Standing posture — the enforcement ladder: unrepresentable > guarded > documented.** Every
 load-bearing contract climbs as high as it can: prefer types/seams that make the violation
