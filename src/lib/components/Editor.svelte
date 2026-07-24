@@ -495,7 +495,8 @@
 		getBlockComponentByPath: getBlockComponent,
 		revealPath,
 		getEditorRoot: () => editorEl ?? null,
-		isCrossBlock: () => selectionState.isCrossBlock
+		isCrossBlock: () => selectionState.isCrossBlock,
+		revealAnchor
 	});
 
 	// Per-instance plugin contexts. Placed after getDoc (not beside `events`) so it
@@ -565,16 +566,10 @@
 		replace: gatedSearchReplace,
 		// Reveal + scroll rides the one public seam (rects.scrollTo): it brings the
 		// active match's element into view — a no-op when already on screen, so it
-		// also covers the mounted-but-scrolled-out case.
-		reveal: (p) => {
-			// The reveal anchor stays a search concern (not folded into scrollTo, which
-			// must leave a 'center' scroll un-pinned): hold this target's screen position
-			// through the band's async image-decode churn (cleared on the next user
-			// gesture) so the reveal scroll isn't
-			// clamped off it — see cursor/reveal-anchor.ts.
-			revealAnchor.set(p);
-			return rects.scrollTo(p);
-		},
+		// also covers the mounted-but-scrolled-out case. scrollTo owns the reveal
+		// anchor now (it sets it per `block`, defaulting to the top-pin search wants),
+		// so the band's async image-decode churn can't clamp the reveal off the match.
+		reveal: (p) => rects.scrollTo(p),
 		onClose: () => {
 			// Restore the native single-block caret when its container is still in
 			// the DOM (not windowed out, not detached by a replace). Otherwise fall

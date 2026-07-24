@@ -13,6 +13,7 @@ import { createBlockWindow, type BlockWindow, type WindowResult } from './block-
 import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { NodeView } from '../core/node-views';
+import type { RevealBlock } from '../cursor/reveal-anchor';
 
 export interface ListWindowingDeps {
 	oracle: HeightOracle;
@@ -24,11 +25,12 @@ export interface ListWindowingDeps {
 	getScrollEl: () => HTMLElement | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;
-	/** Top-level-ancestor index of an active reveal target, else null. While set,
-	 *  `correctAnchor` holds THAT index instead of the top-of-viewport block, so an
-	 *  image-decode shrink above it can't clamp the reveal off-screen. Wired on the
-	 *  ROOT scope only (single-claimant — nested scopes would fight over one scrollTop). */
-	getRevealAnchorIndex?: () => number | null;
+	/** Top-level-ancestor index of an active reveal target (plus the `block` placement
+	 *  the reveal asked for), else null. While set, `correctAnchor` holds THAT index at
+	 *  the requested placement instead of the top-of-viewport block, so an image-decode
+	 *  shrink above it can't clamp the reveal off-screen. Wired on the ROOT scope only
+	 *  (single-claimant — nested scopes would fight over one scrollTop). */
+	getRevealAnchorTarget?: () => { index: number; block: RevealBlock } | null;
 	/** Monotonic counter bumped on an editor WIDTH change (after the oracle's measured
 	 *  cache is cleared). Rebuilds the model at the new width and re-measures mounted blocks. */
 	getWidthVersion: () => number;
@@ -152,18 +154,33 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// no-op).
 	function correctAnchor(mutate: () => void): void {
 		const scrollEl = deps.getScrollEl();
-		const revealIdx = deps.getRevealAnchorIndex?.() ?? null;
-		if (revealIdx != null && revealIdx < model.size && scrollEl) {
+		const reveal = deps.getRevealAnchorTarget?.() ?? null;
+		if (reveal != null && reveal.index < model.size && scrollEl) {
 			// A reveal is in flight: re-assert the target's absolute scroll position
 			// after the measure shrinks the model, overriding the browser's auto-clamp
 			// (which otherwise drags scrollTop off the target as undecoded off-window
 			// images measure ~0 and the document shrinks). Delta-compensation can't win
 			// this — the clamp outpaces it — so we re-scroll to the target the same way
-			// revealChild does. Holds until the user takes over (clears the anchor).
+			// revealChild does. `'center'` re-centers instead of top-pinning, so a
+			// centered reveal survives the same shrink. Holds until the user takes over.
 			mutate();
 			const listEl = deps.getListEl();
 			if (listEl) {
-				scrollEl.scrollTop = listTopWithinContent(scrollEl, listEl) + model.offsetOf(revealIdx);
+				const targetTop = listTopWithinContent(scrollEl, listEl) + model.offsetOf(reveal.index);
+				// Center off `scrollEl.clientHeight`, NOT `viewportHeight()`: the reveal anchor
+				// is a root-scope claimant (viewport === the editor box), and clientHeight is
+				// stable through the shrink, whereas viewportHeight()'s scope-intersection reads
+				// listEl geometry mid-mutate — pre-flush and collapsing — and would center off a
+				// transiently-tiny viewport. Model reads (offsetOf/heightOf) stay synchronous.
+				scrollEl.scrollTop =
+					reveal.block === 'center'
+						? targetTop - Math.max(0, (scrollEl.clientHeight - model.heightOf(reveal.index)) / 2)
+						: targetTop;
+				// A programmatic scrollTop write fires no `scroll` event, so the window's
+				// derived scrollTop would stay stale and never re-slice — leaving the target
+				// windowed OUT at the very position we just scrolled it to (revealChild syncs
+				// for exactly this reason). Push it so the window follows and the target mounts.
+				win.syncScrollTop();
 			}
 			return;
 		}
