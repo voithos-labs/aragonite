@@ -6,7 +6,7 @@
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata } from '../clone';
 import { parseFirstBlock } from '../parse-block';
@@ -152,7 +152,7 @@ export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number
 ): { leadingNode: CstNode | null; trailingNode: CstNode | null; lineEnding: '\n' | '\r\n' } {
-	const lineEnding: '\n' | '\r\n' = leaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(leaf.raw);
 	const display = trimTrailingLineEnding(leaf.raw);
 	const leadingText = display.slice(0, offset);
 	const trailingText = display.slice(offset).replace(/^[ \t]/, '');

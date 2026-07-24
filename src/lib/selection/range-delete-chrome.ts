@@ -98,7 +98,8 @@ export function chromeAwareRangeDelete(
 		} else {
 			const tailReplacement = reparseWithFallback(
 				endTail || trailingLineEnding(endBlock.raw),
-				endBlock.leadingTrivia
+				endBlock.leadingTrivia,
+				trailingLineEnding(endBlock.raw)
 			);
 			for (const node of tailReplacement) sharing.stamp(node);
 			replaceAtPath(doc, end.path, tailReplacement);
@@ -118,7 +119,8 @@ export function chromeAwareRangeDelete(
 	} else {
 		const headReplacement = reparseWithFallback(
 			terminateLine(startHead, startBlock.raw),
-			startBlock.leadingTrivia
+			startBlock.leadingTrivia,
+			trailingLineEnding(startBlock.raw)
 		);
 		for (const node of headReplacement) sharing.stamp(node);
 		replaceAtPath(doc, start.path, headReplacement);
@@ -194,11 +196,20 @@ export function terminateLine(text: string, sourceRaw: string): string {
 	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
 }
 
-/** Reparse a truncated endpoint slice, preserving its leading trivia; empty → a bare paragraph. */
-export function reparseWithFallback(raw: string, leadingTrivia: string): CstNode[] {
-	const reparsed = parse(raw || '\n');
+/**
+ * Reparse a truncated endpoint slice, preserving its leading trivia; empty → a bare
+ * paragraph. `lineEnding` is the source block's (G4.20): a slice that is nothing but
+ * an ending parses to no blocks, and the placeholder standing in for it must not
+ * downgrade a CRLF block to LF.
+ */
+export function reparseWithFallback(
+	raw: string,
+	leadingTrivia: string,
+	lineEnding: string
+): CstNode[] {
+	const reparsed = parse(raw || lineEnding);
 	if (reparsed.children.length === 0) {
-		return [emptyParagraph(leadingTrivia)];
+		return [emptyParagraph(leadingTrivia, lineEnding)];
 	}
 	const cloned = reparsed.children.slice();
 	cloned[0] = { ...cloned[0], leadingTrivia };

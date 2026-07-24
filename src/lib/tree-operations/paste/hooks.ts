@@ -7,7 +7,7 @@
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
 import { focusIndexBeforeResidue } from './focus-target';
 import {
@@ -40,7 +40,7 @@ export function defaultInlineHook(
 	preDelete?: PasteRange
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
-	const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(node.raw);
 
 	let effectiveDisplay = display;
 	let effectiveOffset = offset;
@@ -68,7 +68,7 @@ export function defaultStructuralHook(
 	let effectiveOffset = offset;
 	if (preDelete && preDelete.start < preDelete.end) {
 		const display = trimTrailingLineEnding(node.raw);
-		const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
+		const lineEnding = trailingLineEnding(node.raw);
 		synthLeaf = { ...node, raw: cutPreDelete(display, preDelete) + lineEnding };
 		effectiveOffset = preDelete.start;
 	}

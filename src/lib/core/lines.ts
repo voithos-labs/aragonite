@@ -17,11 +17,11 @@ export function trimTrailingLineEnding(raw: string): string {
 
 /**
  * The block's authored trailing line ending — `\r\n` for a CRLF block, `\n`
- * otherwise. A commit that reattaches the trailing ending reads it here so a
- * CRLF-authored block keeps its ending; a block with no trailing ending keeps the
- * `\n` the commit path has always appended (the code-paste-surface sibling idiom).
+ * otherwise. Every site that reattaches or mints a line ending reads it here (G4.20)
+ * so a CRLF-authored block keeps its ending; a block with no trailing ending keeps
+ * the `\n` the commit paths have always appended.
  */
-export function trailingLineEnding(raw: string): string {
+export function trailingLineEnding(raw: string): '\n' | '\r\n' {
 	return raw.endsWith('\r\n') ? '\r\n' : '\n';
 }
 

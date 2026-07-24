@@ -10,6 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
+import { trailingLineEnding } from '../core/lines';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
@@ -93,9 +94,13 @@ export function rangeDelete(
 		};
 	}
 
-	const reparsed = parse(mergedRaw || '\n');
+	// A range that consumes both endpoints whole leaves only a bare ending to
+	// reparse, which yields no blocks — the placeholder that stands in for it takes
+	// the start block's ending, not a literal LF (G4.20).
+	const lineEnding = trailingLineEnding(startRaw);
+	const reparsed = parse(mergedRaw || lineEnding);
 	const replacement: CstNode[] =
-		reparsed.children.length > 0 ? reparsed.children : [emptyParagraph()];
+		reparsed.children.length > 0 ? reparsed.children : [emptyParagraph('', lineEnding)];
 	for (const node of replacement) sharing.stamp(node);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past end —

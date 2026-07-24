@@ -7,7 +7,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
@@ -209,7 +209,7 @@ async function applyContainerMatchingMerge(
 	const firstLeaf = firstItem.children?.[0];
 	if (!firstLeaf) return;
 
-	const targetLineEnding = targetLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const targetLineEnding = trailingLineEnding(targetLeaf.raw);
 	const targetDisplay = trimTrailingLineEnding(targetLeaf.raw);
 	const displayBefore = targetDisplay.slice(0, merge.offset);
 	const displayAfter = targetDisplay.slice(merge.offset);
@@ -264,7 +264,7 @@ async function applyContainerMatchingMerge(
 	// clean no-op rather than a half-applied mutation.
 	const lastLeaf = lastItem.children?.[0];
 	if (!lastLeaf) return;
-	const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 
 	await ctx.controller.commitMultiScope({

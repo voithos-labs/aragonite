@@ -1,5 +1,6 @@
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBuiltinBlockNode } from '../core/nodes';
+import { trimTrailingLineEnding } from '../core/lines';
 
 export interface DumpTreeOptions {
 	maxRawChars?: number;
@@ -38,7 +39,7 @@ function renderNode(
 		header.push(`children=${node.children.length}`);
 	}
 
-	const rawDisplay = truncate(trimTrailingNewline(node.raw), opts.maxRawChars);
+	const rawDisplay = truncate(trimTrailingLineEnding(node.raw), opts.maxRawChars);
 	const triviaStr =
 		node.leadingTrivia && node.leadingTrivia.length > 0
 			? `trivia=${JSON.stringify(node.leadingTrivia)}`
@@ -115,10 +116,6 @@ function formatMetadata(node: NodeView, opts: Required<DumpTreeOptions>): string
 	}
 	if (opts.showAllMetadata) frags.push(`metaRaw=${JSON.stringify(m)}`);
 	return frags.join(' ');
-}
-
-function trimTrailingNewline(raw: string): string {
-	return raw.endsWith('\r\n') ? raw.slice(0, -2) : raw.endsWith('\n') ? raw.slice(0, -1) : raw;
 }
 
 function truncate(s: string, max: number): string {

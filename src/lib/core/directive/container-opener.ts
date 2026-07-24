@@ -18,7 +18,7 @@ import {
 	type Document
 } from '../nodes';
 import { parseBlocks, joinRaw } from '../parser';
-import { splitLines, type ParsedLine } from '../lines';
+import { splitLines, trailingLineEnding, type ParsedLine } from '../lines';
 import { defaultGrammarView } from '../../schema/block-openers';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
@@ -40,7 +40,7 @@ export function registerDirectiveOpeners(): void {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;
 
-			const lineEnding = ctx.line.raw.endsWith('\r\n') ? '\r\n' : '\n';
+			const lineEnding = trailingLineEnding(ctx.line.raw);
 
 			if (fence.tier === 'leaf') {
 				const def = resolveDirective('leaf', fence.name);
