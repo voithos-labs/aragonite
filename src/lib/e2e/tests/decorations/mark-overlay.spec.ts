@@ -143,6 +143,24 @@ test.describe('decoration mark overlay', () => {
 			.toBeGreaterThan(0);
 	});
 
+	test('a mark still paints after flipping to reading mode (decorations are view-only)', async ({
+		page
+	}) => {
+		await editor.loadContent('hello world\n');
+		await page.evaluate(() => {
+			(window as any).__test.decorations.addSource({
+				name: 'e2e-reading',
+				provide: () => [{ type: 'mark', path: [0], start: 0, end: 5, class: 'e2e-reading' }]
+			});
+		});
+		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
+
+		// Reading makes the surface inert (no caret), but a view-only decoration is not
+		// caret-driven — it must still paint over its range in the read-only view.
+		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await expect(page.locator('.decoration-overlay.e2e-reading')).toHaveCount(1);
+	});
+
 	test('disposing the source unpaints its overlays', async ({ page }) => {
 		await editor.loadContent('bye now\n');
 		await page.evaluate(() => {
