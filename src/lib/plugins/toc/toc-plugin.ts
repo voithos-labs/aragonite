@@ -79,12 +79,28 @@ export function registerTocBlock(): void {
 	});
 }
 
-export function tocPlugin(): EditorPlugin {
+/** Heading levels shown in the outline; entries deeper than this are filtered out. */
+export type MaxHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface TocOptions {
+	/** Deepest heading level listed (default 6 = every level). */
+	maxDepth?: MaxHeadingLevel;
+}
+
+export function tocPlugin(options?: TocOptions): EditorPlugin {
+	// Definition-time option: the register-once component entry carries it as a
+	// constant extraProp, so a single install fixes the depth process-wide (the
+	// documented first-wins install semantics). Per-instance depth would need the
+	// EditorContext options channel, which this bundled plugin deliberately skips.
+	const maxDepth = options?.maxDepth ?? 6;
 	return definePlugin({
 		name: 'toc',
 		setup() {
 			registerTocBlock();
-			registerBlockComponent(declaredPluginKind(TOC_BLOCK), defineBlockComponent(TocBlock));
+			registerBlockComponent(
+				declaredPluginKind(TOC_BLOCK),
+				defineBlockComponent(TocBlock, () => ({ maxDepth }))
+			);
 		}
 	});
 }
