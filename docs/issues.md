@@ -194,6 +194,60 @@ shapes become measured ceilings.
 rung-registering plugin is installed. Re-open when a perf-harness pass next touches fixtures, or if
 a real workload holds a trigger-dense region under an installed rung.
 
+### Reveal into a collapsed container silently degrades (toc navigation, search)
+
+**Severity:** minor (silent dead affordance; the honest-boolean floor holds — no crash, no strand)
+**Files:** `src/lib/reactivity/publish-ref.svelte.ts` (`revealChildOrWait` — degrades when the
+target index is outside the current window), `src/lib/editor-actions/container-block-component.ts`
+(`revealByPath`), `src/lib/plugins/details/DetailsBlock.svelte` + the container factory's
+`isCollapsed` window clamp
+
+A collapsed collapsible container (`details`, an admonition) clamps its render window to the chrome
+row (child 0), so a body child never mounts. A reveal targeting a body child of a collapsed
+container therefore degrades at the reveal seam: `revealByPath` → `revealChildOrWait` finds the
+index outside the live window (`isInWindow` false) and returns immediately, `scrollTo` resolves
+`false`, the anchor clears — no mount, no scroll, no error. The class is "reveal into a collapsed
+container", not toc-local:
+
+- **toc side (symptom):** a heading inside a collapsed `details` IS listed by the outline walk (the
+  walk reads the whole CST regardless of collapse view-state), but clicking its entry silently
+  no-ops.
+- **search side (sibling):** search's `revealActive` binds `reveal` to the same `rects.scrollTo`
+  (`Editor.svelte`), so a find match inside a collapsed container navigates to nothing the same way.
+  A future `#fragment` link resolution would share the class.
+
+Nothing in the reveal path force-expands a collapsed ancestor.
+
+**Fix direction:** teach the reveal seam to expand collapsed ancestors before mounting the target
+(the `hidden=until-found` / Obsidian precedent), designed against the collapse-probe contract
+(`reservedChrome.isCollapsed` — the same probe the clamp reads) so the expansion is driven by the
+declared collapse state, not a per-kind special-case.
+
+**Why deferred:** a reveal-machinery behavior change wants its own design pass (which claimant
+expands, whether the expansion is transient or committed, its undo semantics). The honest-boolean
+floor holds today, so the symptom is a dead click, not corruption.
+
+### Reveal anchor is a single process-global slot with no per-claimant ownership
+
+**Severity:** watch (rare cross-claimant residual; no corruption, no strand within a block)
+**Files:** `src/lib/cursor/reveal-anchor.ts` (the single-target slot), `src/lib/plugins/toc/navigation-queue.ts`
+(the per-block narrowing), `src/lib/editor-rects.ts` (`scrollTo` set/clear)
+
+The reveal anchor holds one target with no per-call ownership. Two reveals racing within the settle
+window (~12 ticks) clash on the one slot: the later `set` overwrites it, and an earlier claimant's
+terminal `clear()` (a `!landed` or `'center'` scroll) can nuke a later claimant's pin. Per-block
+navigation serialization (`navigation-queue.ts`) narrows this to one claimant per block, but two
+DIFFERENT toc blocks — or a toc navigate and a search reveal — still share the slot. Repro shape: a
+rapid cross-block double-click driving two toc blocks' navigations inside the settle window.
+
+**Fix direction:** per-call anchor ownership (a claim token the `clear()` checks, so a stale
+claimant cannot clear a fresher pin), or seam-level serialization at `scrollTo` itself (one in-flight
+reveal per editor instance) instead of each caller serializing its own.
+
+**Why deferred:** honest-failing (the loser's target just isn't held — no crash, no corruption), and
+the ownership model wants a second real consumer navigating concurrently to shape it; designing
+per-call ownership against a single caller risks the wrong abstraction.
+
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte

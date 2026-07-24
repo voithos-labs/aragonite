@@ -119,6 +119,30 @@ test.describe('toc outline: click-to-navigate', () => {
 		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
 	});
 
+	// Entries are real `<button>`s: tab-focusable, activating on Enter/Space. Keyboard
+	// navigation is view-only, so it must work in reading mode exactly as in source.
+	for (const mode of ['source', 'reading'] as const) {
+		test(`keyboard: focusing an entry and pressing Enter scrolls its heading into view (${mode} mode)`, async ({
+			page
+		}) => {
+			if (mode === 'reading') {
+				await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+				await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+			}
+			const errors = capturePageErrors(page);
+			await expect(page.locator(`[data-block-path='[${target}]']`)).toHaveCount(0);
+
+			const entry = editor.entry('Deep Target Heading');
+			await entry.focus();
+			await expect(entry).toBeFocused();
+			await page.keyboard.press('Enter');
+			await editor.waitForRenderFlush();
+
+			await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+			expect(errors).toEqual([]);
+		});
+	}
+
 	test('rapid clicks on two entries settle on the last target without stranding', async ({
 		page
 	}) => {
@@ -154,5 +178,22 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 		// text, so the block's reveal-on-pointerdown fires instead of an entry navigation.
 		await editor.render.click({ position: { x: 2, y: 2 } });
 		await expect(editor.source).toHaveCount(1);
+	});
+
+	test('in reading mode a non-entry click is inert — no reveal, no navigation', async ({
+		page
+	}) => {
+		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		const errors = capturePageErrors(page);
+
+		await editor.render.click({ position: { x: 2, y: 2 } });
+		await editor.waitForRenderFlush();
+
+		// Reading mode gates the reveal (`onRenderPointerDown` early-returns on isReading),
+		// and a non-entry click reaches no navigation button: the outline just stays shown.
+		await expect(editor.source).toHaveCount(0);
+		await expect(editor.render).toBeVisible();
+		expect(errors).toEqual([]);
 	});
 });

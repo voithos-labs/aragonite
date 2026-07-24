@@ -33,8 +33,14 @@ user-facing outline + navigation behavior.)
 - **Navigate in reading mode:** with the editor in reading mode, clicking an entry
   still scrolls to its heading — a navigation click is view-only, so reading-mode
   edit inertness is untouched
+- **Keyboard-activate an entry:** entries are real `<button>`s — tab-focusable and
+  activating on Enter/Space; focusing an entry and pressing Enter scrolls its heading
+  into view, in both source and reading mode (navigation is view-only)
 - **Non-entry click still reveals (source mode):** clicking the block's non-entry
   area reveals the raw source as before, in source mode only
+- **Non-entry click is inert in reading mode:** clicking the block's non-entry area
+  in reading mode neither reveals the source nor navigates — reading gates the reveal
+  and a non-entry click reaches no navigation entry
 
 ## Error cases
 
