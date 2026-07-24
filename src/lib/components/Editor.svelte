@@ -235,15 +235,19 @@
 		return () => dispose();
 	});
 
-	// Re-run decoration sources after a commit, deferred a tick past the edit event so
-	// no source ever reads a half-applied tree (the DEV commit-scope assert guards it).
-	// Skipped entirely when no source is registered — zero keystroke work by default
-	// (perf contract, checked by perf:check). Search rides this too: its source lives
-	// only while the bar is open, and this bump is what re-scans it after an edit.
+	// The one bump site for `editEpoch`, which means "the document changed" — a commit
+	// and a whole-document `source` swap are both that, and a source memoized on the
+	// epoch has no other signal to watch. Deferred a tick so no source ever reads a
+	// half-applied tree (the DEV commit-scope assert guards it). Skipped entirely when
+	// no source is registered — zero keystroke work by default (perf contract, checked
+	// by perf:check). Search rides this too: its source lives only while the bar is
+	// open, and this bump is what re-scans it.
+	function notifyDocumentChanged(): void {
+		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
+	}
+
 	$effect(() => {
-		const dispose = events.on('edit', () => {
-			if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
-		});
+		const dispose = events.on('edit', () => notifyDocumentChanged());
 		return () => dispose();
 	});
 
@@ -266,6 +270,7 @@
 			currentResolver = reset.resolver;
 			currentSignature = next.signature;
 			signatureEpoch = next.epoch;
+			notifyDocumentChanged();
 		}
 	});
 
@@ -1096,6 +1101,11 @@
 		getBlockComponent,
 		getUndoStack,
 		getOperationsLog,
+		// The engine itself, not the `addSource`-only public registry: a unit test
+		// mounting this component reads the derived per-path buckets the overlays read,
+		// which is the only oracle that distinguishes a stale bucket from a fresh one
+		// (jsdom measures every range at zero width, so no overlay ever paints there).
+		getDecorationEngine: () => decorationEngine,
 		// Deterministically constructs the stale-slot artifact the windowed
 		// each-block's conditional cleanup can leave behind (see revealPath's
 		// isStale wiring); e2e-only, via test-probes' replantBlockRef.
