@@ -646,7 +646,7 @@ Islands (`widget` / `replace`) render in prose blocks and in table cells, applie
 
 ### Recipe: memoize the scan on `editEpoch`
 
-`provide` runs on every edit, so an expensive scan wants a memo. Do **not** key it on `doc.children` identity — routine typing mutates the tree in place. The second `provide` argument carries `editEpoch`, a counter that bumps once per document edit and **never** on `invalidate()`, which is exactly the split a memo needs: epoch miss → the document changed, rescan; epoch hit → only your own state changed, remap the cached scan.
+`provide` runs on every document change, so an expensive scan wants a memo. Do **not** key it on `doc.children` identity — routine typing mutates the tree in place. The second `provide` argument carries `editEpoch`, a counter that bumps once per document change (an edit, or a whole-document `source` replacement) and **never** on `invalidate()`, which is exactly the split a memo needs: epoch miss → the document changed, rescan; epoch hit → only your own state changed, remap the cached scan.
 
 ```ts
 let lastEpoch = -1;
