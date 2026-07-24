@@ -14,7 +14,7 @@ import { cellRowCol } from '../cursor/coordinate-spaces';
 import { displayLength } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
 import { isReservedChromeChild } from '../schema/reserved-chrome';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -176,11 +176,15 @@ function emitTablePortion(
 
 /**
  * The container marker prefix a partial-leaf clipboard slice must keep when the
- * leaf is the sole child of a listItem / blockquote (e.g. "3. " so "3. thi"
- * survives rather than "thi"). Without it, CommonMark §5.2 stops a following
- * "N." line from interrupting the paragraph and the round-trip collapses into
- * one multi-line block. Null when the container isn't eligible — the callers
- * prepend nothing and keep the bare leaf slice.
+ * leaf is the sole child of a strip container (e.g. "3. " so "3. thi" survives
+ * rather than "thi"). Without it, CommonMark §5.2 stops a following "N." line
+ * from interrupting the paragraph and the round-trip collapses into one
+ * multi-line block. Null when the container isn't eligible — the callers prepend
+ * nothing and keep the bare leaf slice.
+ *
+ * Eligibility is the descriptor's `strip` contract (raw is a per-line marker
+ * around serialize(children)), not a kind list: listItem, blockquote, githubAlert
+ * and footnote-def all recover their wrapper by the same suffix arithmetic.
  *
  * Sole-child is required: with earlier siblings, their text sits between the
  * marker and the leaf's raw, so the suffix arithmetic wouldn't recover a prefix.
@@ -192,7 +196,7 @@ function soleChildContainerPrefix(
 ): string | null {
 	const parent = nodeAt(doc, leafPath.slice(0, -1));
 	if (!parent || !isBlockNode(parent) || !parent.children) return null;
-	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
+	if (tryGetBlockKindDescriptor(parent.kind)?.containerContract !== 'strip') return null;
 	if (parent.children.length !== 1) return null;
 	if (leafPath[leafPath.length - 1] !== 0) return null;
 	if (!parent.raw.endsWith(leafRaw)) return null;

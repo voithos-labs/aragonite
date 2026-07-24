@@ -135,7 +135,10 @@ export function registerFootnoteDefinition(): void {
 		editable: true,
 		supportsInline: false,
 		conformanceFixture: '[^1]: A footnote definition.\n',
-		container: { contract: 'strip', rebuildRaw: rebuildFootnoteDefRaw },
+		// A strip container in the listItem mold, but its body blocks reorder within
+		// (unlike a listItem, whose leaf resolves to the item under the list). The
+		// `[^label]:` marker is position-independent, so rebuildRaw re-emits it.
+		container: { contract: 'strip', rebuildRaw: rebuildFootnoteDefRaw, reorderChildren: {} },
 		closure: containerClosure({
 			roundTripVia:
 				'container contract=strip — rebuildFootnoteDefRaw re-emits the [^label]: marker + four-space continuation indent',

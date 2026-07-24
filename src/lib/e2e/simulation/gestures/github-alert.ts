@@ -111,6 +111,47 @@ export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Pr
 	tracker.resync(await editor.bridge.getSource());
 }
 
+/**
+ * Alt+Arrow reorder of the body child at `[alertIndex, childIndex]` WITHIN the alert
+ * (dir -1 up, +1 down) — the seam the 0.9.35 strip-container parity task reached. The
+ * alert is a blockquote-shaped strip container, so its body child permutes in place
+ * while the container keeps its `githubAlert` kind, its `> [!TYPE]` marker, its root
+ * slot, and its child count. A regression to the pre-fix teleport would move the whole
+ * alert among the document siblings (root count changes) or rebuild it as a plain
+ * blockquote (marker drops); both guards throw loudly rather than record a corrupted
+ * tree as truth.
+ */
+export async function reorderGithubAlertBodyChild(
+	ctx: SimContext,
+	alertIndex: number,
+	childIndex: number,
+	dir: -1 | 1
+): Promise<void> {
+	const { page, editor, tracker } = ctx;
+	const before = await alertShape(ctx, alertIndex);
+	const beforeSource = await editor.bridge.getSource();
+
+	await editor.clickBlockAtPath([alertIndex, childIndex], 0);
+	await editor.waitForRenderFlush();
+	await page.keyboard.press(dir < 0 ? 'Alt+ArrowUp' : 'Alt+ArrowDown');
+	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, beforeSource);
+
+	const after = await alertShape(ctx, alertIndex);
+	if (
+		after.rootCount !== before.rootCount ||
+		after.kind !== 'githubAlert' ||
+		!after.hasMarker ||
+		after.childCount !== before.childCount
+	) {
+		throw new Error(
+			`[${ctx.label}] alert body reorder escaped the container or dropped the marker.\n` +
+				`BEFORE: ${JSON.stringify(before)}\nAFTER:  ${JSON.stringify(after)}`
+		);
+	}
+	await assertStructuralIntegrity(ctx);
+	tracker.resync(await editor.bridge.getSource());
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 interface AlertShape {

@@ -32,6 +32,11 @@ dogfood, so a typed-from-scratch alert uses `tip`.
   of a non-first body block merges it into the previous body block (the container
   `default-merge`), the alert stays a single `githubAlert` root with its marker
   intact — the merge never escapes the alert
+- reorder within on Alt+Arrow: with the caret in a body block, Alt+ArrowUp/Down
+  permutes that body block among its siblings inside the alert — the container keeps
+  its `githubAlert` kind, its `> [!TYPE]` marker, and its child count, the surrounding
+  document siblings never move (no whole-alert teleport), and one `Ctrl+Z` restores
+  the order
 
 ## Edge cases
 

@@ -130,7 +130,11 @@ export function registerGithubAlert(): void {
 				firstChildBackspace: 'lift-first-child',
 				middleChildBackspace: 'default-merge',
 				quoteShaped: true
-			}
+			},
+			// A blockquote-shaped strip container: body children reorder within, exactly
+			// as a blockquote's do. The `> [!TYPE]` marker is position-independent, so the
+			// descriptor's rebuildRaw re-emits it after the move.
+			reorderChildren: {}
 		},
 		closure: containerClosure({
 			roundTripVia:

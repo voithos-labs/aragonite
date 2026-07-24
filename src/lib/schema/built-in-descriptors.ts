@@ -401,7 +401,8 @@ export function registerBuiltInDescriptors(): void {
 				firstChildBackspace: 'lift-first-child',
 				middleChildBackspace: 'default-merge',
 				quoteShaped: true
-			}
+			},
+			reorderChildren: {}
 		},
 		conformanceFixture: '> quoted\n',
 		closure: containerClosure({
@@ -435,7 +436,8 @@ export function registerBuiltInDescriptors(): void {
 			unwrapRole: {
 				firstChildBackspace: 'list-item-cascade',
 				middleChildBackspace: 'list-item-cascade'
-			}
+			},
+			reorderChildren: { renumberMarkers: true }
 		},
 		conformanceFixture: '- item\n',
 		closure: containerClosure({
