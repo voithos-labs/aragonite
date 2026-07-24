@@ -26,7 +26,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { displayLength, trimTrailingLineEnding } from '../core/lines';
+import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
@@ -44,13 +44,15 @@ export type NodeParent = { children: CstNode[] };
 
 /**
  * The empty-paragraph placeholder that keeps an emptied document or container
- * caret-addressable; its `'\n'` collapses back into trivia on
- * `parse(serialize(...))`. Returns a fresh node every call — a shared instance
- * would alias across tree positions and corrupt the snapshot/unshare model
+ * caret-addressable; its line ending collapses back into trivia on
+ * `parse(serialize(...))`. Callers minting it into an existing document pass that
+ * document's ending (G4.20) — the placeholder IS a line ending, so a defaulted `\n`
+ * inside a CRLF file is a lone LF. Returns a fresh node every call — a shared
+ * instance would alias across tree positions and corrupt the snapshot/unshare model
  * (G1.9), so this must never hand back a cached or module-level node.
  */
-export function emptyParagraph(leadingTrivia = ''): CstNode {
-	return { kind: 'paragraph', leadingTrivia, raw: '\n' };
+export function emptyParagraph(leadingTrivia = '', lineEnding = '\n'): CstNode {
+	return { kind: 'paragraph', leadingTrivia, raw: lineEnding };
 }
 
 // ── Path resolution ──
@@ -121,7 +123,7 @@ export function splitNode(
 	if (descriptor.contextDependentKind) return { op: 'noop' };
 
 	const rawText = node.raw;
-	const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(rawText);
 
 	const suffixSplit = structuralSuffixSplit(descriptor, node, offset);
 	let firstRaw = suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, offset);
@@ -229,7 +231,7 @@ export function mergeIntoPrevDeepLeaf(
 
 	const targetRaw = target.raw ?? '';
 	const currRaw = curr.raw ?? '';
-	const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(targetRaw);
 	const targetText = trimTrailingLineEnding(targetRaw);
 	const currText = trimTrailingLineEnding(currRaw);
 	const joinOffset = targetText.length;
@@ -471,14 +473,17 @@ export function ensureEditableContainers(node: CstNode): void {
 		if (node.children.length === 0) {
 			// discovered-descendant mutation, see file header
 			const chromeKind = reservedChromeKindOf(node.kind);
+			// Backfilled lines take the container's own ending (G4.20) — they are pure
+			// line ending, so a literal LF strands one inside a CRLF container.
+			const lineEnding = trailingLineEnding(node.raw);
 			// A chrome-declaring container must re-mint its child-0 leaf too, or the
 			// backfilled paragraph would occupy the reserved slot and violate G1.14.
 			if (chromeKind !== undefined) {
 				// Runtime chrome kind — generic-mint cast (the paragraph below is a literal arm).
-				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' } as CstNode);
+				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: lineEnding } as CstNode);
 			}
-			node.children.push(emptyParagraph());
-			// The synthesized paragraph's '\n' already represents the trailing
+			node.children.push(emptyParagraph('', lineEnding));
+			// The synthesized paragraph's ending already represents the trailing
 			// blank that parseBlocks routed into innerPrefix when there were no
 			// children. Leaving both in place double-counts the line on rebuild
 			// — `- \n` + edit produces `- \n  X\n` instead of `- X\n`.

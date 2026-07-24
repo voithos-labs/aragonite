@@ -9,6 +9,7 @@
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
+import { trailingLineEnding } from '../../../core/lines';
 import { matchFenceClose } from '../../../core/parsers/fenced-code';
 
 export interface FenceExitInput {
@@ -46,7 +47,7 @@ export function computeFenceExit(input: FenceExitInput): FenceExitResult {
 	}
 
 	if (offset === text.length && text.endsWith('\n')) {
-		const ending = text.endsWith('\r\n') ? '\r\n' : '\n';
+		const ending = trailingLineEnding(text);
 		const body = text.slice(0, text.length - ending.length);
 		const closer = meta.fenceMarker.repeat(meta.fenceLength);
 		return { kind: 'closeAndExit', newText: body + ending + closer };

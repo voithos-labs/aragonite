@@ -8,6 +8,7 @@
 import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import { concatChildren } from '../core/serializer';
+import { splitLines, trailingLineEnding } from '../core/lines';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
@@ -15,10 +16,9 @@ import { concatChildren } from '../core/serializer';
 export function rebuildBlockquoteRaw(node: CstNode): void {
 	if (!node.children) return;
 
-	const innerContent =
-		(node.innerPrefix ?? '') + concatChildren(node.children) + (node.innerSuffix ?? '');
-
-	node.raw = prefixLines(innerContent, '> ', '>');
+	node.raw = splitLines(innerContentOf(node))
+		.map((line) => (line.text === '' ? '>' : '> ' + line.text) + line.lineEnding)
+		.join('');
 }
 
 // ── List ─────────────────────────────────────────────────────────────────────
@@ -35,18 +35,13 @@ export function rebuildListItemRaw(node: CstNode): void {
 	const taskMarker = meta.taskMarker ?? '';
 	const indent = ' '.repeat(marker.length);
 
-	const innerContent =
-		(node.innerPrefix ?? '') + concatChildren(node.children) + (node.innerSuffix ?? '');
-
-	const lines = innerContent.split('\n');
-	node.raw = lines
+	node.raw = splitLines(innerContentOf(node))
 		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (i === 0) return marker + taskMarker + line;
-			if (line === '') return '';
-			return indent + line;
+			if (i === 0) return marker + taskMarker + line.text + line.lineEnding;
+			if (line.text === '') return line.lineEnding;
+			return indent + line.text + line.lineEnding;
 		})
-		.join('\n');
+		.join('');
 }
 
 export function rebuildListRaw(node: CstNode): void {
@@ -56,11 +51,11 @@ export function rebuildListRaw(node: CstNode): void {
 
 // ── Table ────────────────────────────────────────────────────────────────────
 
-/** `| c0 | c1 | ... |\n` (single-space padding, trailing newline). */
-export function rebuildTableRowRaw(node: CstNode): void {
+/** `| c0 | c1 | ... |` plus `lineEnding` (single-space padding). */
+export function rebuildTableRowRaw(node: CstNode, lineEnding = trailingLineEnding(node.raw)): void {
 	if (!node.children) return;
 	const cells = node.children.map((c) => c.raw);
-	node.raw = '| ' + cells.join(' | ') + ' |\n';
+	node.raw = '| ' + cells.join(' | ') + ' |' + lineEnding;
 }
 
 /**
@@ -70,16 +65,21 @@ export function rebuildTableRowRaw(node: CstNode): void {
  * single-space padding on first structural mutation — matches the delimiter-row
  * normalization rule. Without the per-row rebuild, untouched rows would keep
  * their original parser-padded raw and the table would land in a mixed state.
+ *
+ * The table's own ending drives every emitted line (G4.20): a row minted by a
+ * structural op has no authored ending to read, so per-row detection would strand
+ * it on LF inside a CRLF table.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = metadataOf(node, 'table');
-	for (const row of node.children) rebuildTableRowRaw(row);
+	const lineEnding = trailingLineEnding(node.raw);
+	for (const row of node.children) rebuildTableRowRaw(row, lineEnding);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);
 
 	const delimiterCells = meta.alignments.map(formatAlignmentCell).join(' | ');
-	const delimiterLine = '| ' + delimiterCells + ' |\n';
+	const delimiterLine = '| ' + delimiterCells + ' |' + lineEnding;
 
 	let raw = (headerRow?.raw ?? '') + delimiterLine;
 	for (const r of bodyRows) raw += r.raw;
@@ -105,13 +105,7 @@ function formatAlignmentCell(a: TableAlignment): string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function prefixLines(text: string, contentPrefix: string, blankPrefix: string): string {
-	const lines = text.split('\n');
-	return lines
-		.map((line, i) => {
-			if (i === lines.length - 1 && line === '') return '';
-			if (line === '') return blankPrefix;
-			return contentPrefix + line;
-		})
-		.join('\n');
+/** The bytes a `strip` container re-prefixes: inner trivia around its serialized children. */
+function innerContentOf(node: CstNode): string {
+	return (node.innerPrefix ?? '') + concatChildren(node.children!) + (node.innerSuffix ?? '');
 }

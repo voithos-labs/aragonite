@@ -5,6 +5,7 @@
  */
 
 import { metadataOf } from '../../../core/nodes';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
 import type { PasteSurface, InlinePasteResult } from '../../../tree-operations/paste-surfaces';
 import { computeCodePaste } from './code-paste';
 
@@ -12,10 +13,8 @@ export const codePasteSurface: PasteSurface = {
 	kind: 'fencedCode',
 	onInlinePaste(node, offset, text, preDelete): InlinePasteResult {
 		const meta = metadataOf(node, 'fencedCode');
-		const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
-		const display = node.raw.endsWith(lineEnding)
-			? node.raw.slice(0, -lineEnding.length)
-			: node.raw;
+		const lineEnding = trailingLineEnding(node.raw);
+		const display = trimTrailingLineEnding(node.raw);
 
 		const start = preDelete?.start ?? offset;
 		const end = preDelete?.end ?? offset;

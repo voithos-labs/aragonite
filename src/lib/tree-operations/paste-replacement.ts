@@ -10,7 +10,7 @@
 
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { trimTrailingLineEnding } from '../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { ensureEditableContainers } from './node-ops';
 import { parseFirstBlock } from './parse-block';
 
@@ -22,7 +22,7 @@ export function buildPastedReplacement(
 	if (blocks.length === 0) return [];
 
 	const leafRaw = leaf.raw;
-	const lineEnding = leafRaw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(leafRaw);
 	const display = trimTrailingLineEnding(leafRaw);
 	const rawBefore = display.slice(0, offset);
 	const rawAfter = display.slice(offset);
