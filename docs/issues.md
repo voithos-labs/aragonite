@@ -316,6 +316,44 @@ not the bounded closer-synthesis the END case uses.
 **Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
 direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
 
+### GitHub-alert body child reorders as a whole-container teleport
+
+**Severity:** minor (a11y/UX correctness; byte-safe, undoable, no invariant fire)
+**Files:** `src/lib/tree-operations/reorder-unit.ts` (`resolveReorderUnit` — the reorder-within
+allowlist is hardcoded to `list`/`blockquote`), `src/lib/editor-actions/reorder-action.ts` (the
+non-list container rebuild hardcodes `rebuildBlockquoteRaw`)
+
+`githubAlert` is the first non-opaque (`strip`) plugin container. `resolveReorderUnit` resolves
+reorder-within only for `list`/`blockquote` and declines only inside `opaque` containers, so an
+alert body child matches neither: the walk continues past the alert to the document root and
+`Alt+ArrowDown`/drag reorders the whole alert among document siblings instead of the body block
+within it — the teleport the opaque-decline guard exists to prevent. `footnote-def` (also `strip`)
+shares the latent gap but is single-body in practice.
+
+**Fix hazard (do not shortcut):** adding `githubAlert` to the allowlist alone is a _corruption_
+trap — `reorder-action.ts`'s non-list rebuild calls `rebuildBlockquoteRaw`, which would rebuild the
+alert as a blockquote and drop the `[!TYPE]` marker. The fix must dispatch the rebuild through the
+descriptor's declared `rebuildRaw` (per kind) and generalize the allowlist to a strip/reorder
+capability, red-first.
+
+**Target:** 0.9.35 (the M3 strip-container parity task — the sibling seam the 0.9.34 quote-unwrap
+capability climb did not reach).
+
+### Clipboard sole-child prefix recovery skips githubAlert
+
+**Severity:** minor (clipboard fidelity; sole-child alert + partial-leaf slice only)
+**Files:** `src/lib/selection/clipboard-text.ts` (`soleChildContainerPrefix`)
+
+The marker-prefix recovery that keeps a partial-leaf clipboard slice reparseable for a sole-child
+`listItem`/`blockquote` excludes `githubAlert` by a hardcoded kind check, though an alert with a
+sole body paragraph satisfies the same shape (recovered prefix `> [!TYPE]\n> `). A partial mid-leaf
+copy from a sole-child alert body loses its wrapper and pastes as bare text.
+
+**Fix direction:** fold into the M3 strip-container parity task; both entries are "a new `strip`
+container the blockquote-hardcoded sibling paths didn't learn."
+
+**Target:** 0.9.35.
+
 ### Container components re-export the component surface member-by-member
 
 **Severity:** trivial (authoring ergonomics; all eight containers now guarded)

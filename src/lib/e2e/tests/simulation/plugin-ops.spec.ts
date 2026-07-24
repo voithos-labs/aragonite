@@ -265,10 +265,11 @@ test.describe('plugin-container ops simulation', () => {
 		await g.undo();
 		await checkOracles('cross-container-undo');
 
-		// ── Paste a GitHub alert → the admonitions pre-parse transform ──────────
-		// The transform rewrites the pasted `> [!TIP]` blockquote to a `:::tip`
-		// admonition before the parse, bringing the content-keyed paste surface
-		// under the round-trip/nested-state/no-errors oracles.
+		// ── Paste a GitHub alert → the native githubAlert grammar ───────────────
+		// Conversion is opt-in since 0.9.34, so the pasted `> [!TIP]` blockquote
+		// keeps its bytes and parses as a first-class githubAlert container,
+		// bringing the native alert paste path under the
+		// round-trip/nested-state/no-errors oracles.
 		tailIdx = (await rootCount(page)) - 1;
 		await g.clickToReposition([tailIdx], 0);
 		await page.keyboard.press('End');
