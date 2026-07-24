@@ -84,6 +84,68 @@ machine (27 fixture rows; the gate re-verified green against the fresh floor) an
 perf and lines-of-code charts re-rendered from live data — library ~53k lines, tests ~97k,
 eight bundled plugins.
 
+**Post-ship review (2026-07-24).** A repo-wide forge review of this version, and the fixes it
+routed. Twenty scopes covered the library source, the docs and comment corpora, stylesheets, CI,
+packaging and the e2e suite; the unit suite's own quality was the one artifact class no pass
+reached, and it carries forward to the pre-freeze re-audit. The record itself stays in git history
+rather than a tracked document, following 0.9.27 and 0.9.32.
+
+- **A non-advancing block opener hung the parse loop in production.** The github-alert marker
+  accepted unbounded leading indent while the blockquote extent scan refuses a four-space line, so
+  the opener consumed nothing and the loop spun. The guard that caught it was DEV-only, so a
+  production build tree-shook the check and a hand-typable document froze the tab on load. The
+  marker is bounded to CommonMark's 0-3 space rule, the opener declines when the extent does not
+  advance, and the parser now treats a non-advancing opener as a decline in every build. That last
+  part is what makes "the worst case for a parser bug is bad styling, not a corrupted file" true
+  for a third-party opener and not just for the built-ins.
+- **One byte-corruption family, closed at its seams.** A block's trailing ending must come from the
+  block's own raw, never a literal: four reported sites turned out to be nine, because the root
+  cause was a shared paragraph mint hard-coding `\n` across four branches at once. A second pass
+  found seven live mint sites that took that parameter's default and downgraded a CRLF document
+  the same way. Two guards landed with them, since a call-site scan cannot see a pure transform or
+  a defaulted parameter: a third lint arm covering container rebuild provenance, and an
+  outcome-level oracle that runs thirteen gestures over an LF fixture and its CRLF mirror and
+  asserts the results match. Separately, the cross-block inline paste arm was the one paste route
+  mutating children outside the commit ceremony, so a container's ids desynced permanently and no
+  edit event fired at all; the list terminator patched a nested container's raw without its
+  children, which mashed two list items together on the next edit; fence lines came into range for
+  indent, dedent and CRLF forward-delete, each of which could un-close a fence and let the block
+  absorb the rest of the document on reload; and image alt escaping became idempotent instead of
+  doubling backslashes on every commit.
+- **Every inline recognizer now bounds its decline, not just its claim.** Three of the six inline
+  recognizers scanned to the end of the range before declining, which is quadratic in the block. All
+  three are bundled rungs; the fourth bundled rung (emoji) was already linear. At 96 KB in one
+  paragraph, over a full inline parse: latex `$` 8168 ms to 8.8 ms, footnotes `[^` 15407 ms to
+  18.4 ms, the directive text tier 2779 ms to 14.4 ms. Each materializes its decline predicate once
+  per block behind a bounded memo and looks it up per consultation. The latex leg needed no
+  adversarial intent: a paragraph of shell documentation is ordinary content. The autolink
+  delimiter prune was quadratic too (677 ms to 38 ms at 384 KB) and became a binary search over the
+  sorted, disjoint match list, which took two `RangeError`s with it; the wrapped-inline renderer was
+  de-recursed to a frame stack, removing a stack overflow and running about twice as fast at every
+  depth. A realistic paragraph carrying all four constructs parses in 0.052 ms with every parse a
+  forced cache miss, so the headline costs nothing at the keystroke.
+- **The release path and the review workflow.** The tarball verifier moved onto the publish
+  lifecycle, where it had been running in CI only, so a dangling export subpath can no longer ship;
+  repository metadata was added; and the docs-pack script's unguarded recursive delete is gone
+  rather than guarded. The review workflow's blast radius over untrusted PR content narrowed: the
+  job token no longer persists in the checkout, default permissions drop to read, and the prompt
+  frames fork content as data. What did not change is the trigger gate, which was already
+  admin-gated and fail-closed.
+- **The review corrected the project's own records.** Three ledger entries rested on claims this
+  run falsified by measurement: two of four "measured linear" sibling flood paths were quadratic,
+  and the installed-rung cost model priced a consultation as constant when three of the four
+  bundled rungs scanned the whole block before declining. The closure-cell entry's hypothetical
+  turned out to be live, on a built-in: the thematic break's cells promise focus-then-delete while
+  the kind declares no `blockFocus`, so it deletes on the first press, and the design spec and the
+  published plugin guide had been teaching it as the reference model. The attribution is corrected
+  in both, and the descriptor's own cells are ledgered as the live instance.
+  `CLAUDE.md`'s layer-contract sentence and its new-block-kind rule were both false as written, and
+  the documented ship gate named a script that already runs inside `npm test` while the real
+  ceiling gate went unnamed in every contributor doc.
+
+Review gates: unit 4606 to 4695, e2e 1506 passed / 60 skipped with zero flaky over two full
+batteries, check 0/0, lint 0, perf:check 24/24 with several fixtures faster than the fresh floor.
+
 ### 0.9.34: emoji + native alerts + parity smalls
 
 GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on

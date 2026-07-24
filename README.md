@@ -315,7 +315,7 @@ One last snarky remark to make... All these - all four styles, follow one render
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: Parse then serialize returns the exact same bytes every time. However, aragonite cannot promise that editing never normalizes; where GFM itself mandates ignoring malformed input, those bytes survive load and save untouched, then drop the first time you edit the block around them. Today the lone case is a table body row wider than its header, whose surplus cells GFM discards.
+[^9]: Parse then serialize returns the exact same bytes every time. However, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax: a table's cell padding and delimiter row take their canonical spelling (`|a|b|` becomes `| a | b |`, `|:--|` becomes `| :--- |`), a body row wider than its header loses the surplus cells GFM discards, and a blockquote marker authored with no space after it (`>a`) gains one. Content bytes are never touched, blocks you never edit keep everything they were authored with, and line endings survive either way. [syntax-tree.md](./docs/design/syntax-tree.md) covers why the alternative (phantom children, or a `raw` that disagrees with `children`) is worse.
 
 [^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 

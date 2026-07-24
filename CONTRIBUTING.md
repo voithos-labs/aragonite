@@ -16,8 +16,8 @@ npm run dev      # demo editor at /test/editor
 Which gate you run scales with what you're doing. Gate scope follows the **files you touched**, not the task's theme — a change under `editor-actions/` runs that area's suite even if the task was "about" something else.
 
 - **Inner loop** — the per-area scripts (`test:editor:<area>`, `test:e2e:<area>`) while iterating. Fast feedback; not sufficient to commit.
-- **Commit gate** — `npm test` (full unit + every E2E project) plus `npm run check` (svelte-check, 0 errors) and `npm run lint` (Prettier). Green before every commit.
-- **Ship gate** — the commit gate plus `npm run test:editor:perf` (the performance ceilings) before a merge or release.
+- **Commit gate** — `npm test` (full unit + every E2E project) plus `npm run check` (svelte-check, 0 errors) and `npm run lint` (Prettier, the docs-pack link gate, ESLint). Green before every commit.
+- **Ship gate** — the commit gate plus `npm run perf:check` (the browser-measured performance ceilings) before a merge or release. Not `test:editor:perf`: that one already runs inside `npm test`, so it adds no signal the commit gate did not have.
 
 Two rules from [`docs/contributing/culture.md`](docs/contributing/culture.md), both paid for by incidents: **never pipe a gate command** (`npm test | tail` reports the pipe's exit code, not the gate's — capture to a file and check the exit explicitly), and **long batteries run alone**, never concurrently with other work on the same tree.
 
