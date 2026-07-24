@@ -21,8 +21,9 @@ user-facing behavior only.)
 - A top-level `[[toc]]` renders a `<nav>` list of the document's headings above it:
   the two ATX headings and the one setext heading, each as its marker-stripped text,
   and no `[[toc]]` source is exposed while folded
-- Clicking the folded list reveals the raw `[[toc]]` source as editable text; the CST
-  is untouched by the reveal (a view toggle)
+- Clicking the block's non-entry area (its accent border/padding, away from an entry —
+  an entry click navigates instead) reveals the raw `[[toc]]` source as editable text;
+  the CST is untouched by the reveal (a view toggle)
 
 ## User interactions
 

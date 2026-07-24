@@ -38,9 +38,10 @@ class TocPage extends PluginsPage {
 		return this.page.locator("[data-block-path='[2,0]'] .toc-block-item").nth(index);
 	}
 
-	/** Reveal the folded list by clicking it; the render swaps to the source element. */
+	/** Reveal the folded list by clicking its non-entry area (the accent border/padding,
+	 *  away from any entry, which would navigate); the render swaps to the source. */
 	async revealByClick(): Promise<void> {
-		await this.render.click();
+		await this.render.click({ position: { x: 2, y: 2 } });
 		await expect(this.source).toHaveCount(1);
 	}
 }
@@ -69,7 +70,7 @@ test.describe('toc dogfood: the document prop consumer', () => {
 		expect(await editor.itemTexts()).toEqual(['OverviewX', 'Details', 'Appendix']);
 	});
 
-	test('clicking the list reveals the raw source without touching the CST', async () => {
+	test('clicking the block (non-entry area) reveals the raw source without touching the CST', async () => {
 		const before = await editor.bridge.getSource();
 		await editor.revealByClick();
 
