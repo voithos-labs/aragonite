@@ -29,6 +29,16 @@ function mountCode(source: string) {
 	return { instance, el, blockEdit };
 }
 
+/** Collapse the DOM selection at the end of the block's display text. */
+function selectEnd(el: HTMLElement): void {
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	range.collapse(false);
+	const selection = window.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
+
 let mounted: ReturnType<typeof mountCode>;
 afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
@@ -56,6 +66,25 @@ describe('CodeBlock keystroke commit preserves the trailing line ending', () => 
 		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(newRaw.endsWith('\r\n')).toBe(false);
 		expect(newRaw.endsWith('\n')).toBe(true);
+	});
+});
+
+describe('CodeBlock fence auto-close mints a CRLF paragraph below', () => {
+	// Enter on the trailing blank line of an UNCLOSED fence mints the closer AND
+	// the paragraph below in one replaceBlock. That paragraph is a blank separator
+	// line plus its own line — pure line ending both, so both take the fence's
+	// (G4.20); a defaulted `\n` pair strands two lone LFs in a CRLF file.
+	it('the minted paragraph carries the fence’s line ending, not a literal LF', () => {
+		mounted = mountCode('```js\r\ncode\r\n\r\n');
+		const { instance, el } = mounted;
+		el.focus();
+		selectEnd(el);
+		instance.runCommand('code.newline');
+
+		const [, replacement] = vi.mocked(mounted.blockEdit.replaceBlock).mock.calls[0];
+		expect(replacement[0].raw).toBe('```js\r\ncode\r\n```\r\n');
+		expect(replacement[1].leadingTrivia).toBe('\r\n');
+		expect(replacement[1].raw).toBe('\r\n');
 	});
 });
 

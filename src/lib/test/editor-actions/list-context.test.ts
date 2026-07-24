@@ -169,6 +169,26 @@ describe('list-context — insertItemAfter', () => {
 		});
 		expect(items[1].raw).toBe('2. [ ] \n');
 	});
+
+	// The new item's body is nothing but a line ending, and rebuildListItemRaw
+	// derives the item's raw from it — so a defaulted `\n` reaches the document's
+	// bytes as a lone LF inside a CRLF list (G4.20).
+	it('the new item takes the list’s line ending', async () => {
+		const doc = parse('1. a\r\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		registerBlockListState(
+			list.children![0],
+			makeBlockListState(() => deps.doc.children[0].children![0], ['para-0']) as any
+		);
+
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
+		await listContext.insertItemAfter(0);
+
+		expect(liveList().children![1].raw).toBe('2. \r\n');
+		expect(liveList().raw).toBe('1. a\r\n2. \r\n');
+	});
 });
 
 // ── ordered-marker suffix normalization on indent / promote ────────────────
