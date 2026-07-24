@@ -124,11 +124,26 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
 export function scanGfmAutolinks(ctx: ScanContext): void {
 	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
 	if (matches.length > 0) {
-		ctx.delimiters = ctx.delimiters.filter(
-			(d) => !matches.some((m) => m.start < d.node.end && d.node.start < m.end)
-		);
+		ctx.delimiters = ctx.delimiters.filter((d) => !meetsAMatch(matches, d.node.start, d.node.end));
 	}
 	scanChildren(ctx.raw, ctx.nodes);
+}
+
+/**
+ * Whether `[start, end)` overlaps any match. Matches are disjoint and ascending —
+ * one left-to-right pass per run, runs walked in order — so the first match ending
+ * past `start` is the only candidate. Asking every delimiter about every match is
+ * O(delimiters x matches), quadratic on a block that is dense in both.
+ */
+function meetsAMatch(matches: InlineNode[], start: number, end: number): boolean {
+	let lo = 0;
+	let hi = matches.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >>> 1;
+		if (matches[mid].end <= start) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo < matches.length && matches[lo].start < end;
 }
 
 function scanChildren(raw: string, nodes: InlineNode[]): void {
@@ -145,12 +160,22 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 	}
 }
 
-/** Match and splice bare autolinks into `nodes` in place; returns the matches. */
+/**
+ * Match and splice bare autolinks into `nodes` in place; returns the matches.
+ *
+ * The replacement is accumulated and written back rather than spliced in per run:
+ * spreading a match array as call arguments dies on V8's argument limit past ~65k
+ * matches, and that RangeError drops the whole block to the failed-block fallback,
+ * which cannot heal — its error boundary resets on a `raw` change the block is no
+ * longer editable enough to receive.
+ */
 function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 	const all: InlineNode[] = [];
+	const rebuilt: InlineNode[] = [];
 	let i = 0;
 	while (i < nodes.length) {
 		if (nodes[i].kind !== 'text') {
+			rebuilt.push(nodes[i]);
 			i++;
 			continue;
 		}
@@ -158,13 +183,17 @@ function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 		while (j + 1 < nodes.length && nodes[j + 1].kind === 'text') j++;
 		const matches = scanRunForBareAutolinks(raw, nodes[i].start, nodes[j].end);
 		if (matches.length === 0) {
-			i = j + 1;
-			continue;
+			for (let k = i; k <= j; k++) rebuilt.push(nodes[k]);
+		} else {
+			for (const match of matches) all.push(match);
+			for (const node of spliceRun(raw, nodes.slice(i, j + 1), matches)) rebuilt.push(node);
 		}
-		all.push(...matches);
-		const replaced = spliceRun(raw, nodes.slice(i, j + 1), matches);
-		nodes.splice(i, j - i + 1, ...replaced);
-		i += replaced.length;
+		i = j + 1;
+	}
+	// In place: the working list is held by identity (ctx.nodes, a parent's children).
+	if (all.length > 0) {
+		nodes.length = 0;
+		for (const node of rebuilt) nodes.push(node);
 	}
 	return all;
 }
