@@ -153,6 +153,10 @@ export { setPluginMetadata, getPluginMetadata } from './core/nodes';
 // `#` prefix, a setext underline) — the offsets a marker-reading plugin slices.
 export { getContentRange } from './core/inline';
 export type { ContentRange } from './core/inline';
+// A heading's level (ATX or setext), null otherwise — the outline reader for a
+// plugin building a table of contents. The typed path past the built-in-node
+// narrowing the barrel keeps internal.
+export { headingLevel } from './core/nodes';
 // Inline parse of a prose leaf, for a plugin deriving document-wide state from
 // inline structure (footnote numbering walks each prose leaf's `footnote-ref`
 // nodes). Pure and uncached — the reactive-safe path a widget's `$derived` reads;

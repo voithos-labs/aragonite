@@ -970,6 +970,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node metadata without casting                                                                                 |
 | `getContentRange`, `ContentRange`        | The content span within a block's raw, syntax markers excluded (heading `#`, setext underline)                                                         |
+| `headingLevel`                           | A heading's level (ATX or setext), null otherwise — the outline reader for a table-of-contents plugin                                                  |
 | `computeInlineContent`, `isProseKind`    | Inline-parse a prose leaf (uncached, reactive-safe) and gate the walk — for document-wide state derived from inline structure, e.g. footnote numbering |
 | `CstNode`                                | The tree-node shape your factory builds and your `rebuildRaw` mutates                                                                                  |
 | `NodeView`, `DocumentView`               | The bytes-readonly views every read surface hands you ([Views](#views))                                                                                |
