@@ -21,7 +21,7 @@
 		tocPlugin(),
 		footnotesPlugin(),
 		emojiPlugin(),
-		highlightOccurrencesPlugin,
+		highlightOccurrencesPlugin(),
 		latexPlugin({ renderer: katexRenderer }),
 		mermaidPlugin({ renderer: mermaidRenderer })
 	];

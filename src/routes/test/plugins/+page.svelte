@@ -12,6 +12,7 @@
 	import { footnotesPlugin } from '$lib/plugins/footnotes';
 	import { emojiPlugin } from '$lib/plugins/emoji';
 	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
+	import { hloccurScanProbePlugin } from './hloccur-scan/hloccur-scan-plugin';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
@@ -50,7 +51,10 @@
 		// Emoji rides the bare `:` trigger process-wide once installed; scoped to its own
 		// seed so its rung never perturbs a sibling battery's `:`-bearing prose.
 		emoji: [emojiPlugin()],
-		hloccur: [highlightOccurrencesPlugin],
+		hloccur: [highlightOccurrencesPlugin()],
+		// The memoization battery installs the observability wrapper (same shipped
+		// createOccurrenceSource) so it can read the index-rebuild count off window.
+		'hloccur-memo': [hloccurScanProbePlugin],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],
@@ -115,6 +119,11 @@
 	// 'cat' twice in block 0 and once in block 1; 'catalog' pins the whole-word scan.
 	const HLOCCUR_SEED =
 		'the cat sat on a mat and a cat ran\n\na cat sleeps\n\nthe catalog is here.\n';
+	// The memoization + capability-skip seed: 'alpha' twice in the paragraph, once in a
+	// table body cell (highlights), and once inside a fenced code block (skipped — a
+	// non-prose leaf). Block [0] paragraph, [1] table, [2] fenced code.
+	const HLOCCUR_MEMO_SEED =
+		'alpha beta alpha\n\n| head | note |\n| --- | --- |\n| alpha | ok |\n\n```\nalpha in code\n```\n';
 	// Two plain paragraphs: the ghost island follows focus between them, and an
 	// Enter split provides the empty-paragraph caret-anchor case.
 	const GHOST_SEED = 'Hello world\n\nSecond paragraph\n';
@@ -220,6 +229,7 @@
 		toc: TOC_SEED,
 		'toc-nested': TOC_NESTED_SEED,
 		hloccur: HLOCCUR_SEED,
+		'hloccur-memo': HLOCCUR_MEMO_SEED,
 		ghost: GHOST_SEED,
 		fold: FOLD_SEED,
 		'fold-table': FOLD_TABLE_SEED,
