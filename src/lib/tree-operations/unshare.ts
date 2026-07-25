@@ -11,8 +11,8 @@
  * tree wraps stored values in proxies, and later writes must go through the
  * canonical wrapper or proxy readers see a stale view.
  *
- * Callers live in editor-actions/ and selection/ — the layers that know paths;
- * tree-operations stays path-free internally.
+ * Any layer that knows a path may call in; tree-operations ops own their own
+ * spine rather than assuming an upstream unshare.
  *
  * This seam is the ONE sanctioned view→mutable door (core/node-views.ts):
  * inputs accept readonly views, returns are owned mutable nodes — the runtime

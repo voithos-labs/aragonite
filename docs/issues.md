@@ -118,25 +118,6 @@ switch the tail to the proven copy-event fallback behind the same shared seam.
 
 **Why deferred:** watch-class; needs the real embedder to falsify.
 
-### The editable-surface grammar thread is optional and unsupplied, so join-paste always reparses with the global grammar
-
-**Severity:** minor (latent parity hole; unobservable until per-instance enablement ships)
-**Files:** `src/lib/components/blocks/editable-surface.ts` (`grammar?: GrammarView`),
-`src/lib/selection/cross-block/dispatch.ts` (the required-nullable sibling)
-
-`CrossBlockDispatchDeps.grammar` is required-nullable by design so a construction site
-cannot silently skip the thread, but `EditableSurfaceDeps` re-widened it to optional and
-none of the four production surfaces supplies it — the cross-block join-paste reparse
-always uses the global grammar. Byte-identical today (instance grammar cannot diverge
-until the enablement predicate gets a public prop), which is why nothing observes it.
-
-**Fix direction:** either wire `registryView.grammar` at the four surfaces and make the
-seam field required-nullable to match the dispatch tier, or delete the dead optional and
-re-add it with the enablement API.
-
-**Why deferred:** adjudicate with the enablement prop's design at the limestone
-integration — the same decision decides which shape is right.
-
 ### Emphasis-dense giant paragraphs scan quadratically
 
 **Severity:** watch (adversarial shape inside the documented-transient giant-paragraph axis)
@@ -152,7 +133,7 @@ The 2026-07-21 entry called four sibling flood paths linear. Re-measured 2026-07
 two of the four were wrong: backticks (growth exponent 0.01) and entities (0.91) are
 linear and stand; the autolink delimiter prune measured 2.00 and is now bounded (a
 lookup over the sorted, disjoint matches); the directive closer lookup measured 1.95
-and has its own entry below.
+and is now bounded too (a max-of-counts descent over the closer index, 0.9.36).
 
 **The deferral envelope is understated, not wrong.** Every measurement above stops at
 96 KB, where the cost is a stall. The 0.9.35 adversarial pass measured the same scan at
@@ -164,27 +145,6 @@ content pasted into ONE block, and any Enter splits it), not on the cost being s
 med-high conformance-fidelity risk against a faithful port, for a shape the perf model
 already brackets. Re-open only if a real workload holds emphasis-dense multi-KB single
 blocks.
-
-### Directive closer lookup is O(openers × closers) when nothing closes the openers
-
-**Severity:** watch (adversarial block shape; the residual of the closer-index fix, not a regression of it)
-**Files:** `src/lib/core/directive/container-opener.ts` (`findDirectiveCloser` — binary
-search to the first later closer, then a forward walk for one long enough)
-
-Measured 2026-07-24: `':::a\n:\n'.repeat(N)` parses at 12.2ms / 126.8ms / 1889.9ms for
-N = 2k / 8k / 32k, growth exponent 1.95. Read from the source the same day: the closer
-index removed the per-opener scan over every line, but the lookup still walks the closer
-list forward until it finds a colon run at least as long as the opener's. A document
-whose closer-shaped lines are all shorter than its openers never finds one, so every
-opener walks every closer.
-
-**Fix direction:** index closer positions per colon count, so the lookup is a binary
-search per candidate count instead of a walk — the shape the position index already uses.
-
-**Why deferred:** the shape needs a document of unterminated long fences alongside
-short colon-run lines, which no authoring workload produces; a real unclosed `:::a`
-flood (the shape the index was built for) stays linear. Fold into the next scan-bounds
-pass rather than editing the opener for it alone.
 
 ### Blank-line detection admits Unicode whitespace, where GFM means space and tab
 
@@ -211,41 +171,6 @@ is loose or tight, how far an indented-code run reaches, and when an HTML block 
 its own change with the parser owner and its own conformance pass, not a ride-along. The private
 duplicate must move with it, which is the second half of the reason: the rule has two homes and
 should have one, reachable from `$lib/plugin`.
-
-### Closure cells are honesty-checked, not behavior-enforced, and one is already false
-
-**Severity:** important (a shipped built-in's declared behavior is not the behavior; the false
-claim reaches the published docs pack)
-**Files:** `src/lib/schema/built-in-descriptors.ts` (`thematicBreak`'s `focus` and
-`mergeBackspace` cells), `src/lib/schema/block-kind-descriptor.ts` (`blockFocus`),
-`src/lib/editor-actions/block-edit-core.ts` (the branch that reads it),
-`src/lib/schema/closure.ts` (`containerClosure`), the chrome-container registrations
-
-A closure cell is prose the compiler cannot check. A revert-probe first showed the gap in the
-abstract: dropping a directive-title container's `clipboard: implemented` override (falling to the
-preset's baked `inherit-default`) leaves every suite green, so an override's protection is matrix
-honesty, not a failing test.
-
-**The 0.9.35 review found the live instance.** `thematicBreak` declares no `blockFocus`, so
-`mergeWithPreviousInterior` reaches the non-editable arm and **deletes it on the first press**. Its
-own closure cells say otherwise: `focus` claims "whole-block focus (focus-then-delete model)" and
-`mergeBackspace` claims "caret-adjacent Backspace focuses, a second press deletes". `mermaid` is the
-only kind that declares `blockFocus: 'whole-block'` and therefore the only one where those cells are
-true. The design spec and the **published** plugin guide had been naming the thematic break as the
-reference model an author should copy; that attribution is corrected, the descriptor and the
-behavior are not.
-
-**Fix direction:** a bootstrap coherence rule (the G1.24 family) making the pair unrepresentable: a
-kind whose `focus` or `mergeBackspace` cell claims focus-then-delete must declare
-`blockFocus: 'whole-block'`. That decides `thematicBreak` on its own: either it declares the field
-and gains the behavior its cells promise, or the cells are rewritten to say "deletes on a
-caret-adjacent Backspace". The sibling rule for the chrome-container case is the same shape
-(`reservedChrome` declarers must carry a non-default `clipboard` cell), and the conformance battery
-exercising the mid-title copy shape is its behavioral half.
-
-**Why deferred:** the coherence rule is cheap, but choosing which way `thematicBreak` resolves is a
-behavior decision on a built-in kind that the whole-block-focus documentation is written around, so
-it wants the pass that owns the rule rather than a ride-along.
 
 ### Footnote reference numbering is O(widgets × leaves) per reactive flush
 
@@ -395,26 +320,6 @@ nested residual needs a tall container plus a late decode), and the ownership mo
 real consumer navigating concurrently to shape it; designing per-call ownership against a single
 caller risks the wrong abstraction.
 
-### The find bar carries its active-match position across a document swap
-
-**Severity:** trivial (navigation position only; the match set and every overlay are correct)
-**Files:** `src/lib/search/search-state.svelte.ts` (`rescan`'s downward-only clamp)
-
-`rescan()` clamps `activeIndex` only when it overruns the new match set
-(`if (activeIndex >= matches.length) activeIndex = 0`). A `source` prop swap under an open find bar
-now re-scans correctly, but an active position carried from the previous document survives when the
-new one has at least as many matches: navigate to `3 / 3`, swap to a document with five matches, and
-the bar reads `3 / 5` on a document the user has never navigated. Surfaced by the epoch fix that made
-the swap re-scan at all; the position was equally carried before, behind a set that never updated.
-
-**Fix direction:** restart navigation at the first match on an epoch-driven rescan, the way
-`setQuery` already does for a new query — the swap is a new document, so the position means nothing.
-Option toggles must keep their clamp-only behavior (they deliberately hold the user's place).
-
-**Why deferred:** it is a behavior change to search navigation semantics, not a regression, and it
-wants deciding alongside whether an in-place edit should also restart navigation (today it does not,
-by the same clamp).
-
 ### adjacent-widget-boundary click-snap helper flaked once under full-battery contention
 
 **Severity:** watch (1-of-2 full-battery repro at the 0.9.35 ship gate; isolation and rerun green)
@@ -439,48 +344,6 @@ timeout raise without a mechanism is quieting the checker.
 battery-order-flake precedent records falsified causes, so this entry starts with its protocol.
 
 ## Code structure
-
-### `parseInline` returns plausible wrong output instead of throwing on the wrong arity
-
-**Severity:** minor (silently wrong output on a public export; freeze-surface shape)
-**Files:** `src/lib/index.ts` (the export), `src/lib/core/inline/scan/index.ts` (the scanner it
-aliases)
-
-The function takes a source string plus the start and end of the range to scan. Called with only the
-source (the natural first guess, and the one a JavaScript consumer or an `any`-typed call site can
-make without a compile error), the missing bounds flow through every comparison as `undefined`, the
-scan is skipped, and the caller gets back one text node holding the whole string. That is a
-plausible-looking result: no throw, no warning, and the inline structure the caller asked for is
-silently absent. This review found it by making the mistake, and only noticed because the wrong
-answer briefly falsified a real finding.
-
-**Repro:** call `parseInline('a *b* c')` and observe `[{ kind: 'text', text: 'a *b* c' }]` rather
-than an emphasis node or an error.
-
-**Why deferred:** the fix (reject a call that does not carry both bounds) is a behavior change on a
-frozen-at-1.0 export, so it belongs to the freeze cut's surface pass rather than to a records commit.
-Cheap now and breaking later, which is what puts it on that list rather than this one.
-
-### `emptyParagraph`'s line-ending default is the next N+1 hazard
-
-**Severity:** minor (no live defect; a shape that makes the next instance compile clean)
-**Files:** `src/lib/tree-operations/node-ops.ts` (`emptyParagraph`'s defaulted `lineEnding`
-parameter)
-
-The 0.9.35 line-ending family was one rule reimplemented at N sites, and its second half was seven
-paragraph-mint sites that took this parameter's `'\n'` default and therefore downgraded a CRLF
-document. Every live site now passes the document's ending explicitly. The default that let them all
-be wrong is still there, so a new mint site that omits the argument compiles clean, reads as
-correct, and reintroduces the class, with no guard able to see it, because the call-site scan
-cannot reach a defaulted parameter.
-
-**Fix direction:** the enforcement-ladder climb the family's own miss-analysis points at: make the
-parameter required, so a mint site must answer the question. The one caller that genuinely mints
-into an unknown document (an empty source) already computes an ending to pass.
-
-**Why deferred:** it is a small mechanical change across every mint site, and it wants to land with
-the wider seam question the family raised (whether the ending should be carried by the scope rather
-than passed per call) rather than as a lone signature edit.
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
 

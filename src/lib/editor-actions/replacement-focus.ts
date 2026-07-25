@@ -1,7 +1,7 @@
 /**
- * Shared helpers for `updateBlockContent`'s structural arm, used by both the
- * top-level and container factories: the pre-commit reparse probe that picks
- * structural-vs-typing, and the post-commit caret restore.
+ * Shared helpers for `updateBlockContent`'s structural arm: the pre-commit
+ * reparse probe that picks structural-vs-typing, and the post-commit caret
+ * restore.
  */
 
 import { updateNodeContent, focusTargetInReplacement } from '../tree-operations';

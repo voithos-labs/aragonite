@@ -89,12 +89,12 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 
 /**
  * Adjacent-only contract: `focusByPath` is sync and does NOT reveal an
- * off-window head, so an unmounted `refs[first]` silently no-ops. Every caller
- * (merge-into-previous, deep-leaf merge) lands on a block adjacent to a mounted
- * caret, i.e. within overscan of the pinned focus index → mounted. A far
- * (>overscan) head under windowing would no-op the caret — VR-12, latent and
- * not currently reachable. A future far caller must route through `revealByPath`
- * first (the async sibling, which scrolls + mounts).
+ * off-window head, so an unmounted `refs[first]` silently no-ops. The
+ * precondition is the CALLER's, not this function's: the target must be within
+ * overscan of the pinned focus index. A caller whose target index can scale
+ * with anything other than caret distance (a clipboard item count, say) must
+ * route through `revealByPath` first — the async sibling, which scrolls +
+ * mounts. VR-12 (docs/design/virtual-rendering.md § VR Identifier Catalog).
  */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],

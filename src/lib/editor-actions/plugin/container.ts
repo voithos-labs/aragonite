@@ -1,6 +1,6 @@
 /**
  * The container-authoring seam a plugin block component builds on. Collapses the
- * built-in container wiring — block-list state, nested actions + the five ancestor
+ * built-in container wiring — block-list state, nested actions + the ancestor
  * contexts, container-exit override, nested windowing, and the `BlockComponent`
  * shim — into one factory, so a plugin never touches an editor context key or the
  * internal helpers. Mirrors `BlockquoteBlock`'s wiring exactly; the plugin supplies

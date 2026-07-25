@@ -1,7 +1,8 @@
 /**
- * Action interfaces that block components invoke through Svelte context:
- * structural edits, focus movement, history requests, container commits,
- * and the list-item operations a parent list exposes to its children.
+ * Every action interface a block component invokes upward through Svelte
+ * context, plus the commit vocabulary those calls are expressed in and the
+ * per-container contracts a parent exposes to its own children. The section
+ * dividers below are the index; this header deliberately doesn't restate them.
  */
 
 import type { CstNode, TableAlignment } from './core/nodes';

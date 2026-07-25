@@ -114,7 +114,7 @@ Time to survey the field again. Notion has no plugin system in the editor at all
 | how plugins extend the editor     | they don't (external REST API) | CM6 extensions + post processors | node types + views + plugin state | own a kind: descriptor + component + grammar |
 | custom content, editable in place | no                             | mostly read-only previews        | yes (contentDOM)                  | yes (real nested blocks)                     |
 | round trips your bytes            | no, export is a translation    | yes, it _is_ the bytes           | no, the serializer decides        | yes, serialize reads raw only                |
-| a plugin can break your file      | n/a                            | nothing structural stops it      | a schema/serializer bug can       | no write path: serialize reads raw only      |
+| a plugin can break your file      | n/a                            | nothing structural stops it      | a schema/serializer bug can       | only through its own kind's raw rebuild      |
 
 Notice the pattern though. When plugins cannot own structure, everything collapses into the same two primitives: decorations (annotate text you don't own) and plugin-local state (a slot you re-map through every edit). Useful primitives, and aragonite ships the first one too. But a system built on only those two can decorate a document; it cannot really extend one. That is the box the flat model puts you in.
 
@@ -150,11 +150,13 @@ Ofc, for everything that owns no syntax (spellcheck squiggles, ghost text, comme
 
 Note what is "missing" here: a plugin state API. That is on purpose. Elsewhere, plugin state exists mostly to hold a decoration set and remap it through every edit, because a position is an integer into one flat sequence and goes stale the moment someone types above it. An aragonite position is a path plus an offset into a tree rederived from raw on every edit, so there is nothing to re-map [^12]. A plugin that wants state keeps its own map keyed on the editor's id, and the platform stores nothing.
 
-Circling back to the lossless promise - turns out that also helps here as a safety property (i.e. a plugin cannot corrupt your file):
+Circling back to the lossless promise - turns out that also helps here as a safety property (i.e. a plugin has no accidental path to corrupting your file):
 
 1. serialization reads raw and nothing else
-2. the document a plugin sees is readonly on its bytes at compile time
+2. every node a plugin _reads_ is readonly on its bytes at compile time
 3. mutation happens through commits the editor referees
+
+The one deliberate byte write a plugin makes is its own kind's raw rebuild, which the commit ceremony hands an owned node precisely because that is when a byte write is legal. So the blast radius of a plugin bug is its own syntax rather than your whole document, and it is one function you can test - which is what the published testing seam drives round trips over.
 
 A plugin component that throws takes down its own block, which degrades to a readable fallback while its siblings keep working. Uninstall a plugin and every document written with it still round trips byte for byte, because unknown syntax is handled gracefully.
 

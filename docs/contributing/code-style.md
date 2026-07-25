@@ -64,3 +64,5 @@ Prettier owns every formatting decision, so there is nothing to argue about. Tab
 npm run format   # write
 npm run lint     # check (this one is in the commit gate)
 ```
+
+`npm run lint` runs three arms in order: the Prettier check above, the docs-pack link gate (`docs/README.md`), then ESLint. A failure names its own arm, so read the first one that fires rather than assuming formatting.

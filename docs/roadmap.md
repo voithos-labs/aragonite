@@ -75,7 +75,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
      `git log`.
-   - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
+   - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
+     markers in `src/lib/plugin.ts` are the published signal telling an external author which
+     parts of the frozen contract are not yet frozen, so `grep -c pre-freeze src/lib/plugin.ts`
+     returning nonzero after the cut means the API is lying about its own stability; pending
+     owner decisions land:
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
      the claim), grouping `BlockComponent`'s optional capability probes into named facets, an

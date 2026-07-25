@@ -499,8 +499,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * Verify a scope's path still resolves to its node. Runs over ALL scopes
 	 * BEFORE any spine is unshared: preparing an earlier scope copies spine
 	 * nodes that a later, overlapping scope's captured reference still points
-	 * at, so checking mid-preparation false-fires on the ceremony's own copies
-	 * (promoteNestedItem's parentItem scope shipped that fire).
+	 * at, so checking mid-preparation false-fires on the ceremony's own copies.
 	 */
 	function assertScopeIdentity(s: MultiScopeTarget): void {
 		if ((s.node as unknown) === (deps.doc as unknown)) return;
