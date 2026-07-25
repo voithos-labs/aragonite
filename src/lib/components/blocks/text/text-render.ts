@@ -90,7 +90,15 @@ export interface TextRender {
 
 // The NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
 // trailing segment islandRenderKeyPart contributes (absent ⇒ no sixth part).
-const RENDER_KEY_SEGMENTS = ['ambient', 'raw', 'ref', 'imgPolicy', 'mode', 'islands'] as const;
+const RENDER_KEY_SEGMENTS = [
+	'ambient',
+	'raw',
+	'ref',
+	'imgPolicy',
+	'mode',
+	'kind',
+	'islands'
+] as const;
 
 /** Which renderKey segment(s) differ between two keys — the interaction trace's
  *  rebuild cause. Pure over the key format so the recorder never learns the NUL
@@ -225,7 +233,12 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const mode = deps.presentationMode;
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
+		// The kind is a render input, not just a branch selector: it picks the content
+		// range (so the block's own dimmed marker) and `renderImagesAsWidgets`. Two
+		// prose kinds can share a raw when the registry gains an opener for bytes
+		// already in the document, and the memo would then early-return onto the
+		// previous kind's DOM.
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
 

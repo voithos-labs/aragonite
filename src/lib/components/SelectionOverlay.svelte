@@ -35,8 +35,13 @@
 		hasChildHosts?: boolean;
 	} = $props();
 
-	const { selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { editorRoot: getEditorRoot, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	// Optional, like every context BlockHost itself reads: a bare mount (unit
+	// harness, conformance kit) provides no shell, and every use below is already
+	// written for absence. Destructuring these threw before those reads ran.
+	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
+	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
+	const getEditorRoot = editorDoc?.editorRoot;
+	const getDoc = editorDoc?.doc;
 
 	// Containers that supply their own measurePartialRects (table) paint cell
 	// rects from this overlay; their children don't render BlockHost wrappers.
@@ -144,7 +149,7 @@
 			);
 		}
 
-		const editorRoot = getEditorRoot?.();
+		const editorRoot = getEditorRoot?.() ?? null;
 		return wireOverlayRemeasure({ el, editorRoot, blockRef: ref, measure });
 	});
 </script>

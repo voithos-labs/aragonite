@@ -25,6 +25,7 @@
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
+	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import { toggleInlineFormat } from './format-toggle';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
 	import { createTextClipboard } from './text-clipboard';
@@ -230,7 +231,7 @@
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
-		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? 800,
+		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		widgetSelection,
 		blockEdit,
@@ -776,7 +777,7 @@
 	}
 
 	.text-editable-block :global(.md-marker) {
-		opacity: var(--syntax-marker-dim, 0.4);
+		opacity: var(--syntax-marker-dim, 0.65);
 		font-weight: normal;
 		font-style: normal;
 	}

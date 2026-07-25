@@ -224,7 +224,8 @@
 					start: clampEnterOffsetToBody(node, range.start),
 					end: clampEnterOffsetToBody(node, range.end)
 				},
-				mode: 'soft'
+				mode: 'soft',
+				ending: trailingLineEnding(node.raw)
 			});
 			blockEdit.updateBlockContent(
 				index,
@@ -391,21 +392,23 @@
 
 		// Electric indent: between an empty bracket pair, expand into three lines
 		// with an extra indent on the middle line. Quote pairs stay inline.
+		const ending = trailingLineEnding(node.raw);
 		if (isBetweenEmptyBracketPair(text, splice)) {
 			const indent = getLineLeadingWhitespace(text, splice);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
-			const newText = text.slice(0, splice) + '\n' + inner + '\n' + indent + text.slice(splice);
-			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), offset);
-			pendingCursorOffset = splice + 1 + inner.length;
+			const newText = text.slice(0, splice) + ending + inner + ending + indent + text.slice(splice);
+			blockEdit.updateBlockContent(index, newText + ending, offset);
+			pendingCursorOffset = splice + ending.length + inner.length;
 			return true;
 		}
 
 		const enter = computeCodeEnter({
 			display: text,
 			selection: { start: splice, end: splice },
-			mode: 'normal'
+			mode: 'normal',
+			ending
 		});
-		blockEdit.updateBlockContent(index, enter.newText + trailingLineEnding(node.raw), offset);
+		blockEdit.updateBlockContent(index, enter.newText + ending, offset);
 		pendingCursorOffset = enter.newCursor;
 		return true;
 	}
@@ -593,7 +596,7 @@
 	}
 
 	.code-block :global(.md-marker) {
-		opacity: var(--syntax-marker-dim, 0.4);
+		opacity: var(--syntax-marker-dim, 0.65);
 	}
 
 	.code-block :global(.md-marker.md-lang) {

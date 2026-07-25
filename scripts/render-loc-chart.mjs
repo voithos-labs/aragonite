@@ -16,6 +16,21 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── Count ────────────────────────────────────────────────────────────────────
 
+const files = execSync('git ls-files src/lib', { cwd: root, encoding: 'utf8' })
+	.split('\n')
+	.filter((f) => /\.(ts|svelte)$/.test(f) && !/\/(test|e2e)\//.test(f));
+
+// One directory under src/lib/plugins is one bundled plugin package. Counted from
+// the same file list the bars are measured from: a number written into a label
+// beside a live count can only ever drift out of step with it.
+const bundledPluginCount = new Set(
+	files
+		.filter((f) => f.startsWith('src/lib/plugins/'))
+		.map((f) => f.slice('src/lib/plugins/'.length))
+		.filter((rest) => rest.includes('/'))
+		.map((rest) => rest.slice(0, rest.indexOf('/')))
+).size;
+
 // Functional buckets, each a set of src/lib module dirs. A label says what the
 // bucket *does* — the point of the chart is the feature surface, not the dirs.
 const BUCKETS = [
@@ -25,15 +40,11 @@ const BUCKETS = [
 	{ label: 'Selection, caret, markers', dirs: ['selection', 'cursor', 'ambient'] },
 	{ label: 'Public API & wiring', dirs: ['.'] },
 	{ label: 'Schema & plugin registry', dirs: ['schema'] },
-	{ label: '8 bundled plugins', dirs: ['plugins'] },
+	{ label: `${bundledPluginCount} bundled plugins`, dirs: ['plugins'] },
 	{ label: 'Invariants & debug tooling', dirs: ['invariants', 'testing', 'debug', 'perf'] },
 	{ label: 'Windowing & reactivity', dirs: ['reactivity'] },
 	{ label: 'Decorations & search', dirs: ['decorations', 'search'] }
 ];
-
-const files = execSync('git ls-files src/lib', { cwd: root, encoding: 'utf8' })
-	.split('\n')
-	.filter((f) => /\.(ts|svelte)$/.test(f) && !/\/(test|e2e)\//.test(f));
 
 const linesOf = (f) => {
 	const body = readFileSync(join(root, f), 'utf8');

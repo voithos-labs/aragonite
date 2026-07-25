@@ -1,7 +1,7 @@
 /**
  * Pure Enter-at-cursor splice for code blocks. `'normal'` auto-indents from
  * the current line; `'soft'` (Shift+Enter / mobile `insertLineBreak`) inserts
- * a bare `\n`.
+ * the line ending alone.
  */
 
 import { getLineLeadingWhitespace } from './code-editing';
@@ -12,6 +12,10 @@ export interface CodeEnterInput {
 	display: string;
 	selection: { start: number; end: number };
 	mode: CodeEnterMode;
+	/** The block's own ending, from `trailingLineEnding(node.raw)`. Required rather
+	 *  than defaulted: a literal `\n` here leaves a lone LF inside a CRLF body, and
+	 *  the caller already reads this helper to reattach the trailing ending. */
+	ending: '\n' | '\r\n';
 }
 
 export interface CodeEnterResult {
@@ -22,13 +26,13 @@ export interface CodeEnterResult {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function computeCodeEnter(input: CodeEnterInput): CodeEnterResult {
-	const { display, selection, mode } = input;
+	const { display, selection, mode, ending } = input;
 	const { start, end } = selection;
 
 	// Indent reads from the SELECTION START's line — Enter on a non-collapsed
 	// range deletes the range first, so the surviving line is that one.
 	const indent = mode === 'normal' ? getLineLeadingWhitespace(display, start) : '';
-	const inserted = '\n' + indent;
+	const inserted = ending + indent;
 
 	return {
 		newText: display.slice(0, start) + inserted + display.slice(end),

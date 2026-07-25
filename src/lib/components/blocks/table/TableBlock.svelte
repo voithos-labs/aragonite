@@ -7,7 +7,11 @@
 		FocusActions,
 		TableContext
 	} from '../../../action-contracts';
-	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
+	import {
+		CURSOR_END,
+		type BlockComponent,
+		type StickyColumnDirection
+	} from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
@@ -214,7 +218,7 @@
 
 	function offsetForPosition(position: CellPosition): number {
 		if (position === 'start') return 0;
-		if (position === 'end') return Number.MAX_SAFE_INTEGER;
+		if (position === 'end') return CURSOR_END;
 		return position;
 	}
 

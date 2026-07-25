@@ -25,3 +25,10 @@ export const HEIGHT_ESTIMATES = {
  * estimates above.
  */
 export const FALLBACK_LINE_HEIGHT = 20;
+
+/**
+ * Fallback content width when no editor element is measurable yet (pre-mount
+ * geometry guesses, jsdom). A representative prose column; wrong is fine, a
+ * second home is not.
+ */
+export const FALLBACK_CONTENT_WIDTH = 800;

@@ -86,14 +86,24 @@ export function rebuildGithubAlertRaw(node: CstNode): void {
 		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
 
 	if (body === '') {
-		node.raw = node.raw.endsWith('\n') ? marker + markerEnding(node.raw) : marker;
+		node.raw = node.raw.endsWith('\n') ? marker + firstLineEnding(node.raw) : marker;
 		return;
 	}
-	node.raw = marker + markerEnding(node.raw) + prefixQuoteLines(body);
+	node.raw = marker + firstLineEnding(node.raw) + prefixQuoteLines(body);
 }
 
-/** The marker line's own ending — the first ending in `raw`, defaulting to LF. */
-function markerEnding(raw: string): string {
+/**
+ * The FIRST line ending in `raw`, defaulting to LF — the marker occupies line 1,
+ * so this is that line's own ending.
+ *
+ * Deliberately not `core/lines.ts`'s `trailingLineEnding`, which reads the block's
+ * LAST ending: the two agree only in a uniformly-terminated block, and on a mixed
+ * one (`> [!NOTE]\r\n> body\n`) the trailing reader would rewrite the marker's CRLF
+ * to LF and change bytes. Rebuilding threads each line's own ending — the sibling
+ * `prefixQuoteLines` below does the same for the body — so this is a different rule
+ * from the trailing-ending family, not another spelling of it.
+ */
+function firstLineEnding(raw: string): string {
 	const nl = raw.indexOf('\n');
 	if (nl < 0) return '\n';
 	return raw[nl - 1] === '\r' ? '\r\n' : '\n';
