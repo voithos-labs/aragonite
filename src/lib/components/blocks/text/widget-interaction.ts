@@ -58,7 +58,11 @@ export interface WidgetInteractionDeps {
 	blockEdit: BlockEditActions;
 	focusActions: FocusActions;
 	setSnapTarget: (offset: number | null) => void;
-	setPendingCursor: (offset: number | null) => void;
+	/** Park a caret for the post-render restore. `writtenText` is the text that
+	 *  offset addresses: a kind whose write sink rewrites bytes (tableCell escapes
+	 *  every free `|`) moves the offset, and only the text it was measured against
+	 *  can map it. */
+	setPendingCursor: (offset: number | null, writtenText?: string) => void;
 	/** The block's live DOM read as raw text (widget-aware). Read on reveal commit
 	 *  to pick up the ephemeral source edit that never went through the CST. */
 	readRawText: () => string;
@@ -271,17 +275,17 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// for serialize/undo. The caret lands on the math's new trailing edge, read from
 	// the revealed source node's live position so an edit to the surrounding prose
 	// shifts it correctly (a length delta off the widget's old end would not).
+	//
+	// This ALWAYS folds, so a null return means only that nothing was open. A caller
+	// that wants to withhold the fold pre-guards; a refusal reported as null would be
+	// read by the clipboard seam as "nothing to wait for", and it would then splice
+	// node.raw bytes the ephemeral edit never reached.
 	function commitReveal(reason: RevealFoldReason = 'commit'): number | null {
 		assertFoldTargetsActiveReveal('commitReveal');
 		if (!revealState) return null;
 		// Alias the record before any call: TS drops the null-narrowing of a
 		// closure-reassigned `let` across an intervening call.
 		const active = revealState;
-		// Sibling of editable-leaf's `commitReveal`: a cross-block selection sweeping
-		// through keeps the source revealed so its rects measure real text, not a
-		// folded island — folding now would strand a selection endpoint anchored in
-		// the source text node.
-		if (deps.isCrossBlock()) return null;
 		traceRevealFold(reason);
 		const el = deps.getEl();
 		const sourceNode = activeSourceNode;
@@ -315,7 +319,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			caretBefore,
 			caretAfter
 		);
-		deps.setPendingCursor(caretAfter);
+		deps.setPendingCursor(caretAfter, editedDisplay);
 		return caretAfter;
 	}
 
@@ -497,8 +501,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return false;
 	}
 
+	// The one fold that stands down mid-cross-block (sibling of editable-leaf's
+	// commitReveal): a selection sweeping through keeps the source revealed so its
+	// rects measure real text, not a folded island, and no endpoint anchored in the
+	// source text node is stranded. Every other fold — clipboard, click, Enter —
+	// destroys or replaces that selection anyway, so folding beats slicing bytes the
+	// ephemeral edit never reached. The escape fold carries the same rule in
+	// selectionEscapedSource.
 	function commitRevealOnBlur(): void {
-		if (revealState) commitReveal('blur');
+		if (revealState && !deps.isCrossBlock()) commitReveal('blur');
 	}
 
 	// A clipboard mutation (cut/paste) runs the full CST pipeline against node.raw,

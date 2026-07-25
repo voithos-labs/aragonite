@@ -1,7 +1,7 @@
 /**
  * Small native-vs-synthetic guards shared across the text surface: does the caret
  * sit in real text (so native rendering wins over a synthetic overlay), and is a
- * key a plain typed byte (versus a modifier chord the keymap owns).
+ * key plain — no modifier chord, and for typing exactly one character.
  */
 
 /** True when the caret sits in a real text node — a valid in-text caret
@@ -12,9 +12,15 @@ export function caretIsInTextContent(el: HTMLElement, sel: Selection | null): bo
 	return range.startContainer.nodeType === Node.TEXT_NODE && el.contains(range.startContainer);
 }
 
-/** A plain printable key: no ctrl/meta/alt chord, exactly one character. The text
- *  surfaces treat it as a typed byte; a modifier chord is a command. */
+/** Ctrl/meta/alt held — a platform command scoped to a word or the app, never an
+ *  edit of the byte beside the caret. Every caret-edge arm declines one, so the
+ *  predicate has one home rather than a copy per arm. */
+export function hasModifier(e: KeyboardEvent): boolean {
+	return e.ctrlKey || e.metaKey || e.altKey;
+}
+
+/** A plain printable key: no modifier chord, exactly one character. The text
+ *  surfaces treat it as a typed byte; a chord is a command. */
 export function isPlainTypingKey(e: KeyboardEvent): boolean {
-	if (e.ctrlKey || e.metaKey || e.altKey) return false;
-	return e.key.length === 1;
+	return !hasModifier(e) && e.key.length === 1;
 }

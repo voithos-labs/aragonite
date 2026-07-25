@@ -13,7 +13,7 @@
 - Backspace merges endpoint blocks into one (start block survives).
 - Cross-block delete spanning three blocks leaves only the merged result.
 - Type-replace inserts the character at the correct offset in the merged block.
-- Type-replace over a cross-block selection is one undo unit: a single Ctrl+Z restores the pre-replace document (delete + typed character share the same undo seam, with op:'delete' followed by op:'input' on the event stream).
+- Type-replace over a cross-block selection is one undo unit: a single Ctrl+Z restores the pre-replace document (delete + typed character share the same undo seam, with op:'delete' followed by op:'updateContent' on the event stream — the typed character re-derives the leaf's kind, so it is not an `input`).
 
 ## User interactions
 

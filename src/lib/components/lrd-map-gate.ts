@@ -7,9 +7,12 @@ import { nodeAt } from '../tree-operations/node-ops';
  * the keystroke hot path. The op discriminates the two ways the set changes:
  *
  *   - A kind change to/from `linkReferenceDefinition` commits structurally as
- *     `updateContent` (the noop-kind-stable path emits the debounced `input`
- *     instead), so any op that is NOT a kind-stable `input`/`metadataUpdate`
- *     could add or remove a definition — rebuild.
+ *     `updateContent`, so any op that is NOT a kind-stable `input`/`metadataUpdate`
+ *     could add or remove a definition — rebuild. The gate cannot verify that
+ *     premise itself: it runs post-commit, so a destroyed definition is
+ *     indistinguishable from ordinary prose. `input` is therefore kind-stable by
+ *     CONSTRUCTION — only the debounced flush emits it, held by the input-op
+ *     kind-stability lint under `test/invariants/lint/`.
  *   - A kind-stable edit can only change the set if it edits a definition's own
  *     bytes (label/url/title) — so an `input`/`metadataUpdate` rebuilds only
  *     when its target node is itself an LRD.
