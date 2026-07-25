@@ -45,13 +45,14 @@ export type NodeParent = { children: CstNode[] };
 /**
  * The empty-paragraph placeholder that keeps an emptied document or container
  * caret-addressable; its line ending collapses back into trivia on
- * `parse(serialize(...))`. Callers minting it into an existing document pass that
- * document's ending (G4.20) — the placeholder IS a line ending, so a defaulted `\n`
- * inside a CRLF file is a lone LF. Returns a fresh node every call — a shared
- * instance would alias across tree positions and corrupt the snapshot/unshare model
- * (G1.9), so this must never hand back a cached or module-level node.
+ * `parse(serialize(...))`. Both arguments are required: the placeholder IS a line
+ * ending, so a mint site must answer which document it lands in (G4.20) rather than
+ * inherit a `\n` that strands a lone LF in a CRLF file. Returns a fresh node every
+ * call — a shared instance would alias across tree positions and corrupt the
+ * snapshot/unshare model (G1.9), so this must never hand back a cached or
+ * module-level node.
  */
-export function emptyParagraph(leadingTrivia = '', lineEnding = '\n'): CstNode {
+export function emptyParagraph(leadingTrivia: string, lineEnding: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia, raw: lineEnding };
 }
 

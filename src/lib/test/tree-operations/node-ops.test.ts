@@ -10,16 +10,21 @@ import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 
 describe('emptyParagraph', () => {
-	it('mints the empty-paragraph placeholder shape, trivia parameterized', () => {
-		expect(emptyParagraph()).toEqual({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
-		expect(emptyParagraph('\n')).toEqual({ kind: 'paragraph', leadingTrivia: '\n', raw: '\n' });
+	it('mints the empty-paragraph placeholder shape, trivia and ending parameterized', () => {
+		expect(emptyParagraph('', '\n')).toEqual({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+		expect(emptyParagraph('\n', '\n')).toEqual({
+			kind: 'paragraph',
+			leadingTrivia: '\n',
+			raw: '\n'
+		});
+		expect(emptyParagraph('', '\r\n').raw).toBe('\r\n');
 	});
 
 	// A shared/module-level node would alias across tree positions and break the
 	// snapshot/unshare model (G1.9). Every call must hand back a fresh object.
 	it('returns a distinct object on every call', () => {
-		const first = emptyParagraph();
-		const second = emptyParagraph();
+		const first = emptyParagraph('', '\n');
+		const second = emptyParagraph('', '\n');
 		expect(first).not.toBe(second);
 		first.raw = 'mutated\n';
 		expect(second.raw).toBe('\n');

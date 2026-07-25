@@ -102,8 +102,8 @@ export interface EditableLeafDeps {
 /**
  * The one-spread source surface: `<div {...leaf.surfaceProps}>` wires every
  * handler and attribute a source contenteditable needs, so a consumer cannot
- * drop one (a forgotten `oncompositionend` breaks IME silently). Beyond the nine
- * DOM handlers and the four attributes, it carries — as symbol-keyed Svelte
+ * drop one (a forgotten `oncompositionend` breaks IME silently). Beyond the
+ * DOM handlers and attributes, it carries — as symbol-keyed Svelte
  * attachments — the two view-lifecycle contracts the component would otherwise
  * hand-write: the populate/sync of the source text as a SINGLE text node (so
  * `textContent === source` and the ambient offset walk stays exact) and the
@@ -232,6 +232,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		stickyColumn,
 		reorder,
 		selection,
+		registryView,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationModeCtx } =
@@ -293,6 +294,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
+		grammar: registryView.grammar,
 		getFocusOffset,
 		getTextLen,
 		readText,
