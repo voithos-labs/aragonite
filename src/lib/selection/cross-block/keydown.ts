@@ -52,6 +52,12 @@ async function handleKeyDown(
 ): Promise<boolean> {
 	const { selection } = ctx;
 
+	// Before the dispatch, not after: every branch below can consume the key and
+	// return, and the collapse/extend arms run no commit, so a reset deferred to
+	// the shared prelude would never fire. The dispatcher holds a range rather
+	// than a caret, so it supplies no measurement — a vertical arrow preserves.
+	ctx.stickyColumn.noteKey(e);
+
 	if (selection.isCrossBlock) {
 		const handled = await handleCrossBlockActive(ctx, mutCtx, e);
 		if (handled) return true;

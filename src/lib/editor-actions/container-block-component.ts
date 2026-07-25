@@ -16,6 +16,7 @@ import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
+import type { StickyColumnState } from '../cursor/sticky-column';
 import { devWarn } from '../dev-warn';
 
 // ── Whole-block focus surface ───────────────────────────────────────────────
@@ -79,6 +80,7 @@ export interface WholeBlockKeyDeps {
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
 	focus: Pick<FocusActions, 'moveFocus'>;
 	isReading: () => boolean;
+	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
 }
 
 /**
@@ -92,6 +94,15 @@ export interface WholeBlockKeyDeps {
  * branch lands once, not branch-by-branch at both.
  */
 export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps): void {
+	// The classification door, before any branch. A whole-block surface is a
+	// keydown entry path like any other, and skipping it let the column captured
+	// before entering the block survive a horizontal traversal out of it (capture
+	// is idempotent, so the next vertical key in the landing block reused the
+	// stale X). No `measureX`: there is no caret here to measure, which is also
+	// the right semantics, since a vertical run passing THROUGH the block keeps
+	// its column while every other key ends the run.
+	deps.stickyColumn.noteKey(e);
+
 	if (e.key === 'Enter') {
 		e.preventDefault();
 		if (!deps.isReading())

@@ -60,7 +60,7 @@ export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent
 
 export function makeStickyColumn(x: number | null = null): StickyColumnState {
 	const stickyX = x === null ? null : asEditorX(x);
-	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn() };
+	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn(), noteKey: vi.fn() };
 }
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
@@ -133,7 +133,8 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		captureCurrentState: vi.fn(),
 		collapsedSelectionAt: vi.fn(),
 		resolveState: getStateForNode,
-		expectState: expectStateForNode
+		expectState: expectStateForNode,
+		focusByPath: vi.fn()
 	} as unknown as UndoController & PasteCommitCoordinator;
 }
 

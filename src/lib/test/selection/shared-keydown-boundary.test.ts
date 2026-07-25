@@ -18,6 +18,7 @@ import {
 	extendFocusToPreviousBlock
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
+import { createStickyColumnState } from '../../cursor/sticky-column';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -37,7 +38,7 @@ function makeCtx(over: {
 		getIndex: () => 1,
 		crossBlock: { handleKeyDown: async () => false, handleBeforeInput: async () => false },
 		selection: { resetSelectAllCount: () => {} },
-		stickyColumn: { capture: () => {}, reset: () => {} },
+		stickyColumn: createStickyColumnState(),
 		history: {},
 		focus: {},
 		getDoc: () => doc,

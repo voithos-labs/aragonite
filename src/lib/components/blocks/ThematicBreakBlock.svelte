@@ -30,7 +30,11 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const { reorder, events: editorEvents } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		reorder,
+		stickyColumn,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
@@ -110,7 +114,8 @@
 			getRaw: () => node.raw,
 			blockEdit,
 			focus: focusActions,
-			isReading
+			isReading,
+			stickyColumn
 		});
 	}
 </script>
