@@ -255,6 +255,13 @@
 		return () => dispose();
 	});
 
+	// Counts whole-document REPLACEMENTS, which the edit epoch cannot distinguish
+	// from a keystroke. Anything holding a position into the outgoing document
+	// (today: the find bar's active match) restarts on a bump. Deliberately NOT
+	// $state: its readers run inside decoration `provide`, which must register no
+	// reactive dependency — the swap's own edit notification is what re-runs them.
+	let documentGeneration = 0;
+
 	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive State Plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
@@ -273,6 +280,7 @@
 			undoManager.clear();
 			stickyColumn.reset();
 			selectionState.clear();
+			documentGeneration++;
 			// Resolver refreshes unconditionally (the old one closes over the swapped-out
 			// doc); the epoch bumps only if the new document's LRD signature differs.
 			const next = advanceSignatureEpoch(currentSignature, signatureEpoch, reset.signature);
@@ -581,6 +589,7 @@
 	};
 	const searchState = createSearchState({
 		getDoc,
+		getDocumentGeneration: () => documentGeneration,
 		decorations,
 		replace: gatedSearchReplace,
 		// Reveal + scroll rides the one public seam (rects.scrollTo): it brings the
