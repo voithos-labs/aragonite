@@ -22,7 +22,7 @@
 	},
 	"author": "voithos-labs",
 	"type": "module",
-	"license": "MIT",
+	"license": "GPL-3.0-or-later",
 	"svelte": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
