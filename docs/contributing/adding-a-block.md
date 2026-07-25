@@ -95,7 +95,7 @@ Container kinds declare their container-only fields as one `container` group: re
 
 Call `registerBlockComponent(kind, defineBlockComponent(YourBlock, extraProps?))` in `components/built-in-blocks.ts`. Go through `defineBlockComponent` rather than building the entry object by hand — it's the typed constructor, and it enforces at the call site that your component's exported surface really is `BlockComponent` and its props really are a subset of what BlockHost passes.
 
-BlockHost looks up by kind and hands every block the same standard props (`node`, `index`, `myPath`, `ambientPrefix`, `ref`). `extraProps` is a `(node) => Record<string, unknown>` supplying anything beyond that — the heading's `blockClass`, for instance.
+BlockHost looks up by kind and hands every block the same standard props: `node`, `index`, `myPath`, `ambientPrefix`, `ref`, plus the two it reads from editor context and threads on both dispatch branches — `document` (the root, readonly, so a block at any depth can read structure above its own node) and `rects` (the instance's measure/reveal/scroll-by-path surface). `extraProps` is a `(node) => Record<string, unknown>` supplying anything beyond that — the heading's `blockClass`, for instance.
 
 ### 3. The opener, if you need one
 

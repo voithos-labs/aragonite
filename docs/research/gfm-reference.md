@@ -1,6 +1,6 @@
 # GFM Reference
 
-Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is planned as plugins on the plugin-authoring API.
+Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 core scope. Section 3 is where the plugin platform shows: alerts, diagrams, math, footnotes, collapsible sections and emoji shortcodes all ship today as bundled plugins on the plugin-authoring API; syntax-highlighting aliases ride the built-in code-block highlighter; relative links are a consumer concern (the `resolveLinkUrl` prop) rather than a syntax; and GitHub-specific autolinks are deliberately excluded — see `docs/roadmap.md`.
 
 <!-- Examples demonstrating alternative syntaxes use `text` fences on purpose:
      prettier formats `markdown`-tagged fences as markdown and normalizes away

@@ -97,3 +97,22 @@ The load-bearing gate is a **mounted-block count**, not a render count or a timi
 ## Known Limitations
 
 - **Cross-scope anchor residual.** Anchor correction is scope-local: it fixes the scroll position only for height mutations within its own scope. The channel a nested scope uses to push its re-measured subtotal into its parent is deliberately uncorrected (so a deep leaf measure does not cascade scroll fixes up the chain). So when a nested container above the viewport grows after the viewport has settled, the parent's top spacer grows with no compensating shift — the same content-jump, one scope up. Minor and graceful: it surfaces only when an off-screen nested container measures in after the viewport settles (the common case measures the whole chain in one flush before paint), and its magnitude is bounded by the now-per-scope width estimate.
+
+## VR Identifier Catalog
+
+Windowing hazards carry `VR-N` tags the way invariants carry G-numbers, cited from source comments, tests, and e2e requirement files. This table is the catalog those citations resolve against; it is derived from the sites that use them, so an identifier absent here is one nothing currently cites.
+
+| ID    | What it names                                                                                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VR-1  | Width invalidation. A width change re-wraps prose, so measured heights are stale; the scope re-measures while holding the anchor.                                                                                               |
+| VR-2  | Scroll-anchor correction. A jump into an unmeasured band swaps estimates for real heights mid-flush; the correction compensates so the viewport does not slide. Native `overflow-anchor` stays off for this reason.             |
+| VR-3  | Per-scope width. A nested scope estimates at its own content width, never the editor's.                                                                                                                                         |
+| VR-4  | Measure batching. A scope reads every mounted height before writing any, so a fling costs one reflow per frame instead of one per block (and one per table row).                                                                |
+| VR-5  | Mount-wait termination. A reveal whose target can never mount (a collapsed body, a scroll that missed) degrades instead of awaiting forever; the wait is woken only by a same-index mount.                                      |
+| VR-6  | Off-window answers. Predicates that gate traversal read the CST, not the sparse ref array, so a windowed document answers identically to an unwindowed one.                                                                     |
+| VR-8  | Spacer skeleton. A compositor fling can outrun mounting, so spacers paint a placeholder tint rather than blank; overscan widens the band.                                                                                       |
+| VR-9  | Height-model robustness. Out-of-range writes and reads must not poison the Fenwick tree.                                                                                                                                        |
+| VR-11 | Viewport intersection. A scope occupies only its intersection with the editor viewport, so scopes tiling the viewport sum to roughly one viewport's mounted set.                                                                |
+| VR-12 | Sync focus cannot reveal. `focusByPath` is synchronous and does not mount an off-window head, so a landing farther than overscan silently no-ops the caret. A caller that can land far must route through `revealByPath` first. |
+| VR-14 | Inverted window. A window whose end precedes its start (from a stale derive) collapses to empty rather than producing a negative slice.                                                                                         |
+| VR-K1 | Row-windowed table geometry. Index 0 is the first _mounted_ row, not row 0, so column geometry must be read from whichever row is mounted.                                                                                      |

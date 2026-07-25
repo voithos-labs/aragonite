@@ -1,7 +1,14 @@
 /**
- * DOM renderer for InlineNode trees. textContent of the returned fragment
- * equals raw.slice over the covered range — every character in raw has a
- * corresponding text node in the DOM.
+ * DOM renderer for InlineNode trees. Over a widget-free range, textContent of
+ * the returned fragment equals raw.slice — every character in raw has a
+ * corresponding text node.
+ *
+ * Atomic widgets break that by design: a widget contributes its OWN text (an
+ * entity's decoded glyph, one character for six raw bytes) or none at all (an
+ * image, a `<br>`), carrying its source bytes on `data-source-*` instead. So a
+ * raw offset is recovered only through the shared walk (cursor/widget-offset.ts),
+ * never by counting textContent. The property test states the scoped invariant
+ * both ways (G2.4).
  */
 
 import type { InlineNode } from './nodes';
