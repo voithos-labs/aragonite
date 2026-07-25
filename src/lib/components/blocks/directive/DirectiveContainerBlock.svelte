@@ -4,21 +4,22 @@
 	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
 	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
 	// (a document should feel like a document, not a pile of blocks).
-	import {
-		BlockList,
-		createContainerBlock,
-		getPluginMetadata,
-		type ContainerBlockComponent
-	} from '$lib/plugin';
+	import { BlockList, createContainerBlock, type ContainerBlockComponent } from '$lib/plugin';
 	import type { NodeView } from '$lib/core/node-views';
-	import type { DirectiveContainerMetadata } from '$lib/core/directive/kinds';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	const meta = $derived(getPluginMetadata<DirectiveContainerMetadata>(node));
-	const marker = $derived(':'.repeat(meta?.colonCount ?? 3) + (meta?.name ?? ''));
+	// The opener line sliced verbatim, not rebuilt from metadata: the metadata
+	// carries the colon count and the name, but the line can also hold an indent,
+	// attributes, or trailing spaces. Reconstructing renders bytes the document does
+	// not have, and this marker sits directly above the body it labels.
+	const marker = $derived.by(() => {
+		const end = node.raw.indexOf('\n');
+		const line = end === -1 ? node.raw : node.raw.slice(0, end);
+		return line.endsWith('\r') ? line.slice(0, -1) : line;
+	});
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
 		getNode: () => node,
@@ -71,7 +72,7 @@
 	.directive-marker {
 		display: block;
 		font-family: var(--font-editor, ui-monospace, monospace);
-		opacity: var(--syntax-marker-dim, 0.4);
+		opacity: var(--syntax-marker-dim, 0.65);
 		user-select: none;
 		-webkit-user-select: none;
 		cursor: default;

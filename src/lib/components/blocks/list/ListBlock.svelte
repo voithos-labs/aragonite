@@ -184,7 +184,5 @@
 <style>
 	.list-block {
 		margin: 4px 0;
-		padding-left: 0;
-		list-style: none;
 	}
 </style>

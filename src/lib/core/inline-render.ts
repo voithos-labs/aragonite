@@ -99,9 +99,14 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	const content = node.text ?? '';
-	const tickLen = (node.end - node.start - content.length) / 2;
-	const ticks = raw.slice(node.start, node.start + tickLen);
+	// Fence length is read back off `raw`, not inferred from `node.text`'s length:
+	// the rendered bytes must reconstruct `raw` exactly, so every span this function
+	// emits is a slice of it rather than a parsed field that happens to agree.
+	let contentStart = node.start;
+	while (contentStart < node.end && raw[contentStart] === '`') contentStart++;
+	const tickLen = contentStart - node.start;
+	const ticks = raw.slice(node.start, contentStart);
+	const content = raw.slice(contentStart, node.end - tickLen);
 
 	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
 
@@ -256,7 +261,7 @@ function renderNode(
 ): RenderFrame | null {
 	switch (node.kind) {
 		case 'text':
-			container.appendChild(document.createTextNode(node.text ?? ''));
+			container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
 			return null;
 
 		case 'inlineCode':

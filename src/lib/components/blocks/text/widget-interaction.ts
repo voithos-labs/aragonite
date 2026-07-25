@@ -36,7 +36,7 @@ import {
 	type RevealFoldReason
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../invariants/assert';
-import { caretIsInTextContent, isPlainTypingKey } from './click-snap-guard';
+import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import {
 	findWidgetNodeByStart,
 	findFirstEdgeWidget,
@@ -561,6 +561,19 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			});
 			if (consumed) return true;
 		}
+		// One gate, so every arm below it is modifier-free by construction: a platform
+		// chord is a command, never an edit of the construct beside the caret — the
+		// rule the caret-edge dispatch already carries. Declining hands the chord to
+		// the keymap dispatch, which sits AFTER this handler in the block's keydown
+		// chain and owns undo/redo; swallowing it left undo dead for as long as a
+		// widget stayed selected. Arrows are the exception: selecting cleared the
+		// native range, so a shared-pipeline arm reading the caret would see offset 0
+		// and move focus to a block that is not there.
+		if (hasModifier(e)) {
+			if (!e.key.startsWith('Arrow')) return false;
+			e.preventDefault();
+			return true;
+		}
 		// A kind that claims no Shift+Arrow key still swallows it — stepping out is
 		// reserved for plain Arrow (the branches below).
 		if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
@@ -627,8 +640,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			deps.widgetSelection.clear();
 			return true;
 		}
-		// Selected-and-here swallows every remaining key, so navigation can't
-		// leak into the shared pipeline mid-selection.
+		// Selected-and-here swallows every remaining key, so navigation can't leak into
+		// the shared pipeline mid-selection. preventDefault as well: reporting the key
+		// consumed only stops THIS editor's chain, and the browser's own default would
+		// still mutate the contenteditable behind the CST.
+		e.preventDefault();
 		return true;
 	}
 
