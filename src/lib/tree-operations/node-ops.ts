@@ -34,6 +34,7 @@ import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/bloc
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
+import { resyncChildIds } from './children';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 
 // ── Types ──
@@ -134,12 +135,8 @@ export function splitNode(
 		firstRaw += lineEnding;
 	}
 
-	if (secondRaw.length === 0 || !secondRaw.endsWith('\n')) {
-		if (secondRaw.length === 0) {
-			secondRaw = lineEnding;
-		} else {
-			secondRaw += lineEnding;
-		}
+	if (!secondRaw.endsWith('\n')) {
+		secondRaw += lineEnding;
 	}
 
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
@@ -361,6 +358,11 @@ export function updateNodeContent(
 		node.raw = newText;
 		node.metadata = first?.metadata;
 		node.children = first?.children;
+		// The reparse can change the child count (a blockquote gaining a paragraph),
+		// and this branch reports `noop`, so no downstream descriptor resyncs the
+		// parallel id array — and `createBlockListState` backfills only an ABSENT
+		// one, making a wrong length permanent.
+		resyncChildIds(node);
 		node.innerPrefix = first?.innerPrefix;
 		node.innerSuffix = first?.innerSuffix;
 		if (firstBackfilled) reconcileBackfilledRaw(node);

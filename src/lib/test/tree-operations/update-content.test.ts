@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
+import { assignIds } from '../../block-id';
 import { deleteNode, updateNodeContent } from '../../tree-operations';
 import { replacePreservingFirst } from '../../tree-operations/structural-change';
 
@@ -24,6 +25,38 @@ describe('updateNodeContent', () => {
 		const before = doc.children[0];
 		updateNodeContent(doc, 0, 'edited\n');
 		expect(doc.children[0]).toBe(before);
+	});
+
+	// The in-place branch reassigns `children` and reports `noop`, so nothing
+	// downstream resyncs the parallel id array: a reparse that changes the child
+	// count left `childIds` the wrong length permanently (createBlockListState
+	// backfills only an ABSENT array), and the keyed each rendered children under
+	// their predecessors' ids.
+	it('same-kind edit keeps childIds in lockstep with a reparsed child count', () => {
+		const doc = parse('> a\n');
+		const quote = doc.children[0];
+		quote.childIds = assignIds(quote.children!);
+		const survivingId = quote.childIds[0];
+
+		updateNodeContent(doc, 0, '> a\n>\n> b\n');
+
+		expect(quote.children).toHaveLength(2);
+		expect(quote.childIds).toHaveLength(2);
+		// The surviving slot keeps its id — a blanket re-mint would remount every
+		// child of the container on routine typing.
+		expect(quote.childIds[0]).toBe(survivingId);
+	});
+
+	it('same-kind edit keeps the surviving childIds when the count shrinks', () => {
+		const doc = parse('> a\n>\n> b\n');
+		const quote = doc.children[0];
+		quote.childIds = assignIds(quote.children!);
+		const survivingId = quote.childIds[0];
+
+		updateNodeContent(doc, 0, '> a\n');
+
+		expect(quote.children).toHaveLength(1);
+		expect(quote.childIds).toEqual([survivingId]);
 	});
 
 	it('kind change swaps the node object (mint-and-replace)', () => {

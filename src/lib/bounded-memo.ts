@@ -14,6 +14,8 @@
  * hit makes the first key the least recently used.
  */
 
+import { devWarn } from './dev-warn';
+
 export interface BoundedMemoOptions<V> {
 	/** Maximum live entries; the least-recently-used is evicted past it. */
 	cap: number;
@@ -24,7 +26,14 @@ export interface BoundedMemoOptions<V> {
 export function createBoundedMemo<K, V>(
 	options: BoundedMemoOptions<V>
 ): (key: K, compute: () => V) => V {
-	const { cap, cloneOnRead } = options;
+	const { cloneOnRead } = options;
+	// Reported at creation, not per read: a non-positive cap already behaved as 1
+	// (evict-then-insert), so the author who meant "no caching" got caching anyway
+	// with nothing to read in the console.
+	if (options.cap < 1) {
+		devWarn('bounded-memo', `cap must be at least 1; got ${options.cap} — using 1`);
+	}
+	const cap = Math.max(1, options.cap);
 	const cache = new Map<K, V>();
 
 	return (key, compute) => {
