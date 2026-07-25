@@ -12,6 +12,10 @@
 
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
+// Type-only, erased at build: there is no runtime edge to `components/` here. It
+// buys the two-way conformance check below, which is what makes an internal
+// BlockList prop edit fail `npm run check` instead of silently rewriting the
+// public container contract. Inverting it to a registration would delete that.
 import type BlockList from '../../components/BlockList.svelte';
 import type {
 	BlockEditActions,
@@ -256,6 +260,28 @@ export function gateMoveFocusOnCollapse(
 	};
 }
 
+export type NestedActionsOverrides = ReturnType<NestedActionsOverrideFactory>;
+
+/**
+ * Layer the two collapse gates onto a base override map. Each surface spreads its
+ * base first: a gate ADDS one member, it never replaces what the base declared
+ * there. Extracted from the factory so the rule is checkable without mounting a
+ * container — the two lines are otherwise free to drift, and one of them had.
+ */
+export function composeCollapseGates(
+	base: NestedActionsOverrides,
+	gates: {
+		descendToBody: NonNullable<BlockEditActions['descendToBody']>;
+		moveFocus: FocusActions['moveFocus'];
+	}
+): NestedActionsOverrides {
+	return {
+		...base,
+		blockEdit: { ...base.blockEdit, descendToBody: gates.descendToBody },
+		focus: { ...base.focus, moveFocus: gates.moveFocus }
+	};
+}
+
 // ── Kind-command target ──────────────────────────────────────────────────────
 
 /**
@@ -338,24 +364,16 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	// chrome ArrowDown/ArrowRight must exit past the unmounted body (I-1). All
 	// override the same `defaults`, so the blockquote's `splitBlock` and the two
 	// gates coexist. For a non-collapsing container the gates are inert.
-	const overrideFactory: NestedActionsOverrideFactory = (defaults) => {
-		const base = blockquoteOverrides(defaults);
-		return {
-			...base,
-			blockEdit: {
-				...base.blockEdit,
-				descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody)
-			},
-			focus: {
-				moveFocus: gateMoveFocusOnCollapse(
-					collapsed,
-					defaults.focus.moveFocus,
-					parentFocus,
-					deps.getIndex
-				)
-			}
-		};
-	};
+	const overrideFactory: NestedActionsOverrideFactory = (defaults) =>
+		composeCollapseGates(blockquoteOverrides(defaults), {
+			descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
+			moveFocus: gateMoveFocusOnCollapse(
+				collapsed,
+				defaults.focus.moveFocus,
+				parentFocus,
+				deps.getIndex
+			)
+		});
 
 	const bundle = createStandardNestedActions(
 		listState,
@@ -501,7 +519,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			getRaw: () => deps.getNode().raw,
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
-			isReading: () => reading
+			isReading: () => reading,
+			stickyColumn
 		});
 	}
 

@@ -260,6 +260,11 @@
 	let lastSource = source;
 	$effect(() => {
 		if (source !== lastSource) {
+			// Before anything reads the new source: a pending typing batch addresses
+			// the OUTGOING document, so it flushes here, while its path still
+			// resolves. Left armed, the timer would fire an `input` edit carrying
+			// note A's path against note B.
+			controller.flushDebouncedCheckpoint();
 			lastSource = source;
 			const reset = initDocument(source);
 			doc = reset.doc;
@@ -548,7 +553,12 @@
 	// Lifetime signal: aborted when this Editor unmounts. Document-level
 	// listeners (drag-pointer) observe it to cancel mid-operation work.
 	const lifetimeController = new AbortController();
-	$effect(() => () => lifetimeController.abort());
+	$effect(() => () => {
+		// Same reason as the source swap: a timer outliving the component would
+		// emit into subscribers the host still holds, for a document that is gone.
+		controller.flushDebouncedCheckpoint();
+		lifetimeController.abort();
+	});
 
 	// Per-instance broken-image-URL cache: scoped here so two editors on one
 	// page never leak load failures into each other's broken-state recompute.

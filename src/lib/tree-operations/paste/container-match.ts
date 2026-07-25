@@ -9,7 +9,7 @@ import { CURSOR_END } from '../../block-component';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
@@ -19,7 +19,6 @@ import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
-import { dispatchFocusByPath } from '../../editor-actions/focus/focus-dispatch';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 
 interface ContainerUnwrap {
@@ -54,7 +53,7 @@ export function findContainerMatchingUnwrap(
 ): ContainerUnwrap | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
-	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste) return null;
 	if (!topBlock.children || topBlock.children.length === 0) return null;
 
@@ -247,7 +246,7 @@ async function applyContainerMatchingMerge(
 				// that leaf, not a block index — the container ref's focus(number) clamps
 				// a non-sentinel offset to the last child's end, so descend by path.
 				const subPath = merge.targetLeafPath.slice(unwrap.outerPath.length);
-				dispatchFocusByPath(
+				ctx.controller.focusByPath(
 					outerState.innerBlockRefs,
 					subPath,
 					displayBefore.length + firstItemText.length
@@ -309,7 +308,11 @@ async function applyContainerMatchingMerge(
 			// join before the reattached residue (displayAfter) — a char offset in
 			// that leaf, so descend by path rather than CURSOR_END on the item ref.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			dispatchFocusByPath(outerState.innerBlockRefs, [lastInsertedIdx, 0], lastDisplay.length);
+			ctx.controller.focusByPath(
+				outerState.innerBlockRefs,
+				[lastInsertedIdx, 0],
+				lastDisplay.length
+			);
 		}
 	});
 }
