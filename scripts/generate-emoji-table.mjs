@@ -2,18 +2,23 @@
 // `db/emoji.json`. Run explicitly by a developer — the emoji plugin ships the
 // generated table checked in and pulls no data at build or runtime.
 //
-//   node scripts/generate-emoji-table.mjs                 # fetch the live gemoji db
+//   node scripts/generate-emoji-table.mjs                 # fetch the pinned gemoji db
 //   node scripts/generate-emoji-table.mjs --input db.json # regenerate from a local copy
 //
 // The output is deterministic (aliases sorted), so a regen against the same input
 // reproduces the file byte-for-byte. The table is `.prettierignore`d — the emitted
-// form is the committed form.
+// form is the committed form. `scripts/verify-emoji-table.mjs` gates that equality.
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const GEMOJI_DB_URL = 'https://raw.githubusercontent.com/github/gemoji/master/db/emoji.json';
-const DEFAULT_OUTPUT = 'src/lib/plugins/emoji/emoji-table.ts';
+// Pinned to a commit, not `master`: a moving ref makes a regen unreproducible and
+// lets an upstream glyph or alias change arrive unreviewed and undated. Bumping it
+// is the deliberate act of adopting a new upstream revision — bump, regenerate, and
+// review the table diff together.
+export const GEMOJI_DB_URL =
+	'https://raw.githubusercontent.com/github/gemoji/0eca75db9301421efc8710baf7a7576793ae452a/db/emoji.json';
+export const EMOJI_TABLE_PATH = 'src/lib/plugins/emoji/emoji-table.ts';
 
 // ── Pure core (unit-tested) ───────────────────────────────────────────────────
 
@@ -54,12 +59,25 @@ export function renderEmojiTable(entries) {
 	);
 }
 
+// ── Source loading (shared with verify-emoji-table.mjs) ───────────────────────
+
+/**
+ * The gemoji db, from a local path when given and the pinned revision otherwise.
+ * @param {string | undefined} input
+ */
+export async function loadGemojiDb(input) {
+	if (input) return JSON.parse(await readFile(input, 'utf8'));
+	const res = await fetch(GEMOJI_DB_URL);
+	if (!res.ok) throw new Error(`gemoji fetch failed: ${res.status} ${res.statusText}`);
+	return res.json();
+}
+
 // ── CLI ────────────────────────────────────────────────────────────────────────
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
 	let input;
-	let output = DEFAULT_OUTPUT;
+	let output = EMOJI_TABLE_PATH;
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === '--input') input = argv[++i];
 		else if (argv[i] === '--output') output = argv[++i];
@@ -67,17 +85,9 @@ function parseArgs(argv) {
 	return { input, output };
 }
 
-/** @param {string | undefined} input */
-async function loadDb(input) {
-	if (input) return JSON.parse(await readFile(input, 'utf8'));
-	const res = await fetch(GEMOJI_DB_URL);
-	if (!res.ok) throw new Error(`gemoji fetch failed: ${res.status} ${res.statusText}`);
-	return res.json();
-}
-
 async function main() {
 	const { input, output } = parseArgs(process.argv.slice(2));
-	const db = await loadDb(input);
+	const db = await loadGemojiDb(input);
 	const entries = emojiTableEntries(db);
 	await writeFile(path.resolve(output), renderEmojiTable(entries), 'utf8');
 	console.log(`wrote ${entries.length} shortcodes to ${output}`);
