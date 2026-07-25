@@ -133,7 +133,9 @@ test.describe('table block: caret/selection recovery on undo', () => {
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('| B | C |');
+		// Settle on column A's disappearance: '| A | B | C |' contains '| B | C |',
+		// so waiting for the post-delete header would return before the Backspace ran.
+		await editor.bridge.waitForSourceNotContains('| A |');
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);

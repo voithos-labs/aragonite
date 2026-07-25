@@ -106,7 +106,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		await editor.dragFromTo([0], 2, [1, 1], 2);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains('dy1');
+		await editor.bridge.waitForSourceEquals('Ab\n\n:::note\ndy1\n\nBody2\n:::\n\nBelow\n');
 
 		const note = await readNote(page, 1);
 		expect(note.childKinds).toEqual(['note-title', 'paragraph', 'paragraph']);
@@ -132,7 +132,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		await editor.dragFromTo([1, 0], 3, [2], 3);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::note Tit');
+		await editor.bridge.waitForSourceEquals('Above\n\n:::note Tit\n:::\n\now\n');
 
 		const note = await readNote(page, 1);
 		expect(note.childCount).toBe(1);

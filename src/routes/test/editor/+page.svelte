@@ -15,6 +15,7 @@
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { installTestProbes, liveSelectionText, dumpFocusedInlineTree } from './test-probes';
+	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
@@ -104,6 +105,18 @@
 		return editor?.getSource() ?? source;
 	});
 
+	// The LIVE tree first, because the panel's whole job is the state a reparse
+	// cannot express: a live-kind-vs-raw desync, or a transient block the serializer
+	// trims. The reparse rides along as a second labeled view — when the two differ,
+	// the difference IS the bug being hunted.
+	function cstSection(): string {
+		const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
+		if (!editor) return reparse;
+		return `--- LIVE ---\n${dumpTree(editor.__test.getDocument())}\n\n${reparse}`;
+	}
+
+	trackParityDocument(() => editor);
+
 	$effect(() => {
 		if (!editor) return;
 		installTestProbes({
@@ -164,7 +177,7 @@
 		</div>
 		<DebugPanel
 			rawSource={liveSource}
-			getCst={() => dumpTree(parse(liveSource))}
+			getCst={cstSection}
 			getSelection={() => {
 				void panelTick;
 				return liveSelectionText(editor);

@@ -12,9 +12,11 @@ import { type SimContext, assertCoreOracles } from '../../simulation/invariants'
 // the silent-corruption class the simulation's oracle stack (structured error +
 // `[invariant:…]` watcher, live-CST round-trip, nested-state audit) exists to
 // catch — and until this profile no gesture had ever driven a math widget under
-// a state-accumulating watcher. Mirrors plugin-ops.spec.ts: a loaded document on
-// the plugins route, the math gesture vocabulary, all oracles re-checked after
-// every move, fixed rng for determinism.
+// a state-accumulating watcher. The ```math fence is the third session: a distinct
+// kind on the same render-primary component, whose bytes no session had ever moved
+// or deleted across. Mirrors plugin-ops.spec.ts: a loaded document on the plugins
+// route, the math gesture vocabulary, all oracles re-checked after every move,
+// fixed rng for determinism.
 
 const MATH_DOC =
 	'Alpha lead paragraph.\n\n' + 'Beta middle paragraph.\n\n' + 'Gamma tail paragraph.\n';
@@ -24,6 +26,11 @@ const MATH_DOC =
 // dynamic-import engine, so the SVG wait is generous.
 const MERMAID_DOC =
 	'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
+
+// A ```math fence flanked by prose, mirroring the mermaid shape: the structural
+// gestures drive the fence from a neighbour on either side, so both a sibling
+// reorder and a range delete reach its bytes without ever focusing it.
+const MATH_FENCE_DOC = 'Above the fence\n\n```math\nx^2\n```\n\nBelow the fence\n';
 
 class MathSimPage extends EditorPage {
 	async gotoPlugins(): Promise<void> {
@@ -135,5 +142,37 @@ test.describe('math-ops simulation', () => {
 
 		await g.backspaceTwoStepDeleteUndoMermaid(2);
 		await checkOracles('two-step-delete-undo');
+	});
+
+	test('a ```math fence survives a sibling reorder and a range delete that spans it', async ({
+		page
+	}) => {
+		const errors = attachErrorCollector(page);
+		await errors.start();
+
+		await editor.loadContent(MATH_FENCE_DOC);
+		await editor.waitForRenderFlush();
+		await expect(page.locator('.math-block-render')).toHaveCount(1);
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+
+		const tracker = new ExpectationTracker(await editor.bridge.getSource());
+		const ctx: SimContext = { page, editor, tracker, errors, label: 'math-fence' };
+		const g = new Gestures(ctx, makeRng(1));
+
+		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
+		await checkOracles('loaded');
+
+		// Move the prose above the fence down past it and back. The fence never takes
+		// focus; only its position in the sibling array changes, and its raw + kind must
+		// come back untouched (the gesture asserts both at the intermediate position).
+		await g.reorderPastMathFence(0, 1);
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		await checkOracles('reordered-past');
+
+		// Delete a range that covers the fence whole, then undo. The gesture asserts no
+		// fence byte survived the collapse and the undo restored the document exactly.
+		await g.deleteAcrossMathFence(1);
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
+		await checkOracles('deleted-across-undone');
 	});
 });

@@ -102,7 +102,7 @@ test.describe('plugin container: :::note callout editability', () => {
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceContains(':::note Tit');
+		await editor.bridge.waitForSourceMatches(/:::note[\s\S]*:::note/);
 
 		const noteCount = await page.evaluate(
 			() =>

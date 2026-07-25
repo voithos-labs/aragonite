@@ -58,10 +58,10 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceMatches(/one\n\s*\n\s*two/);
+		await editor.bridge.waitForSourceMatches(/target[\s\S]*\n\s*\n\s*two/);
 
 		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/one\n\s*\n\s*two/);
+		expect(source).toMatch(/target[\s\S]*\n\s*\n\s*two/);
 	});
 
 	test('cross-block copy then paste into another block', async () => {
@@ -80,7 +80,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.page.keyboard.press('End');
 
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceContains('first block');
+		await editor.bridge.waitForSourceMatches(/first block[\s\S]*first block/);
 
 		const afterSource = await editor.bridge.getSource();
 

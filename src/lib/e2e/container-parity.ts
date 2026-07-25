@@ -13,6 +13,11 @@
  * on the editor harness, not on the doc node). The walker starts from each
  * top-level CST node and descends from there.
  *
+ * Subjects come from `window.__parityDocuments` — every mounted editor on the
+ * page, published by `src/routes/parity-documents.ts`. Reading the single-editor
+ * `window.__test` handle instead would audit whichever editor registered first,
+ * which on a two-editor route is not the one under test.
+ *
  * `childIds` is minted lazily when a container's keyed BlockList mounts
  * (`createBlockListState`), so a windowed-out / never-mounted container carries
  * `childIds === undefined` — not a desync, and unable to render the keyed each
@@ -51,17 +56,19 @@ export async function getContainerParityMismatches(page: Page): Promise<ParityMi
 			}
 			for (const c of n.children) walk(c as Parameters<typeof walk>[0]);
 		};
-		const test = (window as { __test?: { getDocument?: () => { children?: unknown[] } } }).__test;
-		// A missing bridge means the walk would visit nothing and report `[]` — a
-		// vacuous green that hides the desync class this probe exists to catch.
-		// Callers that may run on a bridge-less route gate on presence BEFORE calling.
-		if (typeof test?.getDocument !== 'function') {
+		const documents = (window as { __parityDocuments?: Array<() => { children?: unknown[] }> })
+			.__parityDocuments;
+		// No registered document means the walk would visit nothing and report `[]` —
+		// a vacuous green that hides the desync class this probe exists to catch.
+		// Callers that may run on an editor-less route gate on presence BEFORE calling.
+		if (!documents || documents.length === 0) {
 			throw new Error(
-				'container-parity: __test.getDocument is unavailable; the parity walk cannot run and must not report vacuous success'
+				'container-parity: no editor registered a live document; the parity walk cannot run and must not report vacuous success'
 			);
 		}
-		const doc = test.getDocument();
-		for (const top of doc?.children ?? []) walk(top as Parameters<typeof walk>[0]);
+		for (const getDocument of documents) {
+			for (const top of getDocument()?.children ?? []) walk(top as Parameters<typeof walk>[0]);
+		}
 		return mismatches;
 	});
 }

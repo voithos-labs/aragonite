@@ -25,12 +25,14 @@ import {
 import { insertImage, resizeImage } from './gestures/image';
 import {
 	backspaceRevealEditInlineMath,
+	deleteAcrossMathFence,
 	deleteAroundInlineMath,
 	deleteInlineMathWidget,
 	editBlockMath,
 	editInlineMath,
 	insertBlockMath,
 	insertInlineMath,
+	reorderPastMathFence,
 	walkThroughInlineMath
 } from './gestures/math';
 import {
@@ -334,6 +336,23 @@ export class Gestures {
 	 *  commit by escaping the trailing edge — the caret-escape reveal-commit path. */
 	backspaceRevealEditInlineMath(blockIndex: number, insert: string): Promise<void> {
 		return backspaceRevealEditInlineMath(this.ctx, blockIndex, insert);
+	}
+
+	// A ```math fence is its own `mathFence` kind on the shared render-primary
+	// component. Both fence gestures act from a flanking prose block and never focus
+	// the fence, whose render would reveal its source on pointerdown; they put its raw
+	// bytes under a sibling permutation and a range delete that spans it.
+
+	/** Alt+Arrow the prose above the fence past it and back — a net-identity sibling
+	 *  permutation the fence's raw and kind must survive unchanged. */
+	reorderPastMathFence(proseIndex: number, fenceIndex: number): Promise<void> {
+		return reorderPastMathFence(this.ctx, proseIndex, fenceIndex);
+	}
+
+	/** Backspace a cross-block range built from the prose above to the prose below, so
+	 *  the fence is wholly interior — every fence byte must go, and one undo restores it. */
+	deleteAcrossMathFence(fenceIndex: number): Promise<void> {
+		return deleteAcrossMathFence(this.ctx, this, fenceIndex);
 	}
 
 	// ── Mermaid (whole-block focus, plugins route) ──────────────────────────────

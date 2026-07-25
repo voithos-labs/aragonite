@@ -72,6 +72,7 @@ test.describe('text editing — Enter at block start', () => {
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(2);
+		await editor.bridge.waitForSourceEquals('\nContent\n');
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Content\n');

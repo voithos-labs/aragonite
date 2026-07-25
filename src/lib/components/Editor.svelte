@@ -1124,6 +1124,11 @@
 		getBlockComponent,
 		getUndoStack,
 		getOperationsLog,
+		// The state the `data-cross-block` attribute mirrors. Specs need the state,
+		// not the mirror: the attribute is written by a deferred $effect, and an
+		// intra-table rectangle keeps one path on both endpoints, so neither the DOM
+		// read nor a path comparison over getSelection() answers this reliably.
+		isCrossBlockActive: () => selectionState.isCrossBlock,
 		// The engine itself, not the `addSource`-only public registry: a unit test
 		// mounting this component reads the derived per-path buckets the overlays read,
 		// which is the only oracle that distinguishes a stale bucket from a fresh one

@@ -27,8 +27,9 @@ the oracle for the live renumber, so this session asserts structural integrity, 
   blank-line-separated paragraph (not one split off by Enter, whose single-newline separator
   would let the `interruptsParagraph: false` definition lazily merge back on reparse — the
   documented Enter-at-end divergence, a general split defect not a footnote one), and it is
-  entered as one event (per-character typing routes the `[^label]` prefix through a transient
-  reference widget whose atomic boundary is a separate platform interaction)
+  typed per character, which routes the line through a transient inline reference widget: the
+  `[^label]` prefix mounts one on its closing `]`, and the `: ` plus body are typed against
+  that widget's trailing edge before the reparse resolves the line to a definition marker
 - Enter in the middle of a definition body child splits it into two body children; the
   container's children grow, the document root does not (the strip container inherits
   blockquote's split override). The split is mid-child, not at the child's end: an end-split

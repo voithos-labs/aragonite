@@ -9,9 +9,9 @@ import { type ConsoleMessage, type Page } from '@playwright/test';
 //
 // detailsPlugin registers the `details` opener AFTER editor 1 has parsed and consumed
 // the grammar, so exactly one `[invariant:late-opener-registration]` is expected. The
-// shared fixture blanket-forbids `[invariant:` fires, so this describe opts out and
-// re-asserts the teeth locally: that one tag, nothing else.
-test.use({ expectInvariants: true });
+// fixture requires that tag and forbids every other; the local count below adds the
+// part the fixture cannot express — that it fires once, not twice.
+test.use({ expectInvariants: ['late-opener-registration'] });
 
 interface BlockInfo {
 	kind: string;
@@ -80,15 +80,11 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 		expect(kindsOf(editorOne)).toContain('note');
 		expect(kindsOf(editorOne)).not.toContain('details');
 
-		// The late details opener fires exactly one tagged invariant on editor 2's
-		// mount; the fixture's blanket guard is off, so assert that boundary here.
-		// Sound for one consumer (this local `.toBe(1)` requires the warn, which an
-		// allowlist would let vanish silently). A SECOND opt-out consumer promotes a
-		// per-tag require/allow into the invariant-watcher fixture (choke-point rule).
+		// The fixture requires the tag and forbids the rest; only the multiplicity is
+		// left to assert here — a second registration would mean editor 1 re-parsed.
 		await expect
 			.poll(() => invariantFires.filter((f) => f.includes('late-opener-registration')).length)
 			.toBe(1);
-		expect(invariantFires.filter((f) => !f.includes('late-opener-registration'))).toEqual([]);
 	});
 
 	test('the shared callout plugin resolves the note in both editors', () => {

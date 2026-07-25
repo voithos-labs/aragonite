@@ -1,11 +1,16 @@
 <script lang="ts">
 	import { Editor } from '$lib';
+	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	// A post-hydration readiness signal: once both editor instances are bound, their
 	// mount effects (including each document-level keydown listener) have run. Tests
 	// wait on this before pressing chords, so a chord never races a cold editor.
 	let left = $state<ReturnType<typeof Editor>>();
 	let right = $state<ReturnType<typeof Editor>>();
+
+	trackParityDocument(() => left);
+	trackParityDocument(() => right);
+
 	$effect(() => {
 		if (left && right) (window as unknown as { __editorsReady?: boolean }).__editorsReady = true;
 	});

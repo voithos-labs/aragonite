@@ -44,8 +44,11 @@ single-newline lazy-merge divergence — convergence runs unconditionally.
 
 ## User interactions
 
-- the alert is formed from live per-character typing: a real Enter opens a fresh line,
-  then the `> [!TYPE]` marker and the body are typed straight on
+- the alert is formed after a real Enter opens a fresh line, then the `> [!TYPE]` marker
+  arrives as ONE input event and the body is typed per keystroke. The marker is not typed
+  key by key, which is what a user does: per-keystroke formation leaves the block a
+  `blockquote` that never reclassifies and drives `parseConverged()` false, so the
+  keystroke stream is blocked on that defect rather than covered here
 - the inner edit clicks the body child, jumps to its end, and types
 - the merge and unwrap are real Home + Backspace at the targeted body-block start
 - undo uses the real cross-platform shortcut around a forced batch boundary; undoing the

@@ -50,9 +50,9 @@ test.describe('prose keyboard shortcuts', () => {
 		await editor.loadContent('## title\n');
 		await editor.focusBlock(0, 3);
 		await editor.page.keyboard.press('Control+0');
-		await editor.bridge.waitForSourceContains('title');
+		await editor.bridge.waitForSourceMatches(/^title$/m);
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('title');
+		expect(source).toMatch(/^title$/m);
 		expect(source).not.toMatch(/^##/m);
 	});
 
