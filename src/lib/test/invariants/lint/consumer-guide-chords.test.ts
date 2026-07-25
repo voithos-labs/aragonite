@@ -10,9 +10,9 @@
  *     predicates in `cell-keydown-plan.ts`, not the keymap (the single-source
  *     gap tracked in docs/issues.md); a chord "resolves" when the plan is
  *     non-native for a synthesized key event.
- *   - Find / replace → literal presence in the search components
- *     (`Editor.svelte` / `SearchBar.svelte`) plus the reserved Ctrl+F / Ctrl+H
- *     source (`schema/commands.ts`, read by the root handler via
+ *   - Find / replace → literal presence in the two dispatch sites
+ *     (`editor-root-keydown.ts` / `SearchBar.svelte`) plus the reserved Ctrl+F /
+ *     Ctrl+H source (`schema/commands.ts`, read by the root handler via
  *     `isReservedUiChord`); these route outside the keymap by design, so an
  *     unknown find chord fails until it's wired.
  *   - Clipboard → the whole-block key tail (`container-block-component.ts`) and
@@ -123,7 +123,7 @@ function cellPlanResolves(chord: string): boolean {
 // the root handler reads via isReservedUiChord. The token each chord must show in
 // that (comment-stripped) source; an undocumented-in-code chord has no entry and fails.
 const SEARCH_SOURCE = [
-	readEditorFile('components/Editor.svelte').code,
+	readEditorFile('components/editor-root-keydown.ts').code,
 	readEditorFile('components/SearchBar.svelte').code,
 	readEditorFile('schema/commands.ts').code
 ].join('\n');
