@@ -157,7 +157,7 @@ function deleteFromProseIntoTable(
 	let truncatedReplacement: CstNode[] | null = null;
 	if (!startIsChrome) {
 		truncatedReplacement = reparseWithFallback(
-			startHead,
+			terminateLine(startHead, startBlock.raw),
 			startBlock.leadingTrivia,
 			trailingLineEnding(startBlock.raw)
 		);
