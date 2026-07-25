@@ -92,6 +92,8 @@
 			<span class="search-count" class:error={!!search.error}>
 				{#if search.error}
 					{search.error}
+				{:else if search.isScanning}
+					Searching…
 				{:else if search.matches.length}
 					{search.activeIndex + 1} / {search.matches.length}
 				{:else if search.replacedCount != null}
