@@ -1,8 +1,8 @@
 /**
- * Shared vocabulary for the admonitions plugin: the two block kinds it mints and
- * the five directive names that resolve to the single admonition kind. Kept in
- * one module so the registration module and the component agree on names without
- * a circular import.
+ * Shared vocabulary for the admonitions plugin: the block kinds it mints and the
+ * directive names that resolve to the single admonition kind. Kept in one module
+ * so the registration module and the component agree on names without a circular
+ * import.
  */
 import { declarePluginKind, declaredPluginKind, type PluginBlockKind } from '$lib/plugin';
 
@@ -12,8 +12,8 @@ export const ADMONITION_TITLE = 'admonition-title';
  *  `:::name` directive admonition so kind stability and rebuildRaw stay per-kind. */
 export const GITHUB_ALERT = 'githubAlert';
 
-/** The five directive names, in cycle order — index 0 is the default fallback
- *  when a node carries no name in its metadata. */
+/** The directive names, in cycle order. Index 0 is the default fallback when a
+ *  node carries no name in its metadata. */
 export const ADMONITION_KINDS = ['note', 'tip', 'important', 'warning', 'caution'] as const;
 export type AdmonitionName = (typeof ADMONITION_KINDS)[number];
 

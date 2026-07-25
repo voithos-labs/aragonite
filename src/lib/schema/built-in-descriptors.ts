@@ -104,7 +104,7 @@ const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 
 // The prose trio (paragraph, heading, setextHeading) share a closure that differs
 // only in three via strings — the merge role and what selection/search painting
-// skips — plus paragraph's reorder addendum. Bake the six structurally-fixed rows;
+// skips — plus paragraph's reorder addendum. Bake the structurally-fixed rows;
 // demand the varying vias so the honesty rule stays author-supplied.
 function proseLeafClosure(vias: {
 	mergeBackspaceVia: string;
@@ -212,6 +212,7 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,
+		blockFocus: 'whole-block',
 		keymap: [
 			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -221,11 +222,11 @@ export function registerBuiltInDescriptors(): void {
 			roundTrip: { mode: 'inherit-default' },
 			focus: {
 				mode: 'implemented',
-				via: 'ThematicBreakBlock whole-block focus (focus-then-delete model)'
+				via: 'blockFocus=whole-block — focus-then-delete; ThematicBreakBlock supplies the focus surface'
 			},
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'not-mergeable — caret-adjacent Backspace focuses, a second press deletes'
+				via: 'blockFocus=whole-block — caret-adjacent Backspace focuses, a second press deletes'
 			},
 			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect (no partial offsets)' },
 			searchPaint: {

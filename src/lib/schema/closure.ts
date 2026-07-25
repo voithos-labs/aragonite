@@ -16,7 +16,7 @@
  * named). Do not claim a capability to fill a cell.
  */
 
-/** The nine cross-cutting systems a caret-bearing kind meets — one per matrix column. */
+/** The cross-cutting systems a caret-bearing kind meets — one per matrix column. */
 export type ClosureColumn =
 	| 'roundTrip'
 	| 'focus'
@@ -41,15 +41,15 @@ export type ClosureBlock = Record<ClosureColumn, ClosureCell>;
 /**
  * The five columns a not-mergeable, childless, source-editable leaf built on
  * `createEditableLeaf` answers the same way every such leaf does — structurally
- * fixed, so re-typing them teaches an author nothing (the audit's "meaningless to
- * an author" ceremony). `reorder`/`selectionPaint`/`clipboard` name the platform
+ * fixed, so re-typing them teaches an author nothing.
+ * `reorder`/`selectionPaint`/`clipboard` name the platform
  * floor a `createEditableLeaf` leaf inherits (whole-block drag, `measurePartialRects`,
  * byte-slice copy); `mergeBackspace` is fixed by `not-mergeable`; `roundTrip`
  * inherits the default `leadingTrivia + raw` serialize.
  *
  * NOT for containers (a `rebuildRaw` is the round-trip mechanism, so G1.24 forces
  * `roundTrip: implemented`) nor whole-block-focus opaque leaves (they paint a cover
- * rect, not partial rects); those hand-write the full nine.
+ * rect, not partial rects); those hand-write the full column set.
  */
 const SIMPLE_LEAF_BAKED: Pick<
 	ClosureBlock,

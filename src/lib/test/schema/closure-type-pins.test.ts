@@ -5,6 +5,7 @@ import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kin
 import type { ClosureBlock } from '$lib/schema/closure';
 import { containerClosure, simpleLeafClosure } from '$lib/schema/closure';
 import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
+import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { testClosure } from '$lib/test/support/closure';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
@@ -12,16 +13,8 @@ const leaf = { mergeRole: 'not-mergeable', editable: true, supportsInline: false
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
-const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry => {
-	const d = getBlockKindDescriptor(kind);
-	return {
-		kind,
-		notMergeable: d.mergeRole === 'not-mergeable',
-		hasContainerContract: d.containerContract !== undefined,
-		roundTripMode: d.closure.roundTrip.mode,
-		mergeBackspaceMode: d.closure.mergeBackspace.mode
-	};
-};
+const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry =>
+	closureCoherenceEntry(kind, getBlockKindDescriptor(kind));
 
 // ── Compile-time pins ───────────────────────────────────────────────────────
 // Never invoked — `npm run check` is the gate. An "unused '@ts-expect-error'"
