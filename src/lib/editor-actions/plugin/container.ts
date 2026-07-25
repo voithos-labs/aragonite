@@ -25,7 +25,7 @@ import type {
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { AmbientPrefix, BlockComponent } from '../../block-component';
-import { isCollapsedContainer } from '../../schema/reserved-chrome';
+import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
 import { isReadingMode, type PresentationMode } from '../../presentation-mode';
@@ -215,6 +215,30 @@ export function composeCollapseProbe(
 			);
 		}
 		return value;
+	};
+}
+
+/**
+ * The expand door a reveal opens before descending into a collapsed body. Reads the
+ * SAME declaration the window clamp reads — `reservedChrome.expandPatch`, beside the
+ * collapse probe — and commits it through this container's own metadata path, so an
+ * expansion is a real undoable document edit, not a view-only divergence from the CST.
+ * Declines (leaving the reveal to degrade exactly as it did before the door existed)
+ * when the container is already open, its kind declares no patch, or the mode is
+ * reading, which commits nothing.
+ */
+export function composeExpandDoor(deps: {
+	getNode: () => NodeView;
+	isCollapsed: () => boolean;
+	getPresentationMode: () => PresentationMode;
+	commit: (patch: Record<string, unknown>) => void | Promise<void>;
+}): () => Promise<boolean> {
+	return async () => {
+		if (!deps.isCollapsed() || isReadingMode(deps.getPresentationMode)) return false;
+		const patch = expandContainerPatch(deps.getNode());
+		if (!patch) return false;
+		await deps.commit(patch);
+		return true;
 	};
 }
 
@@ -413,6 +437,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			)
 		: undefined;
 
+	// The commit is reached through a closure, not the `updateOwnMetadata` value:
+	// that const is declared below and only ever read at reveal time.
+	const expandCollapsed = composeExpandDoor({
+		getNode: deps.getNode,
+		isCollapsed: collapsed,
+		getPresentationMode,
+		commit: (patch) => updateOwnMetadata(patch)
+	});
+
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
@@ -426,6 +459,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
 		isCollapsed: collapsed,
+		expandCollapsed,
 		getFocusEl: wholeBlockSurface,
 		getBoxEl: () => deps.getBoxEl()
 	});

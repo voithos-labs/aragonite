@@ -90,7 +90,8 @@ export function registerDetailsKind(): void {
 			rebuildRaw: rebuildDetailsRaw,
 			reservedChrome: {
 				kind: detailsSummary,
-				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open
+				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
+				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
@@ -104,7 +105,7 @@ export function registerDetailsKind(): void {
 			},
 			undo: {
 				mode: 'implemented',
-				via: 'updateOwnMetadata — the open-state toggle commits as one undoable metadataUpdate'
+				via: 'updateOwnMetadata — an open-state flip (disclosure toggle, or a reveal opening the expandPatch door) commits as one undoable metadataUpdate'
 			},
 			clipboard: {
 				mode: 'implemented',
