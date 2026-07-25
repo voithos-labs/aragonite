@@ -24,7 +24,7 @@
 		getIndex: () => index,
 		getPath: () => myPath,
 		getBoxEl: () => boxEl,
-		getAmbientPrefix: () => `[^${getPluginMetadata<FootnoteDefMetadata>(node)?.label ?? ''}]: `
+		getAmbientPrefix: () => `[^${label}]: `
 	});
 
 	export const editable = containerApi.editable;

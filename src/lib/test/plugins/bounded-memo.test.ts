@@ -2,6 +2,9 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('$lib/dev-warn', () => ({ devWarn: vi.fn() }));
+import { devWarn } from '$lib/dev-warn';
 import { createBoundedMemo } from '$lib/bounded-memo';
 
 describe('createBoundedMemo', () => {
@@ -103,6 +106,23 @@ describe('createBoundedMemo', () => {
 		await expect(first).rejects.toBe(rejection);
 		await expect(second).rejects.toBe(rejection);
 		expect(first).toBe(second);
+		expect(compute).toHaveBeenCalledTimes(1);
+	});
+});
+
+// `cap` is on the published plugin surface, so a nonsensical value must report
+// rather than throw: cap 0 silently behaved as cap 1 (evict-then-insert), which
+// reads as "caching is off" right up until a plugin author debugs a stale entry.
+describe('createBoundedMemo with a non-positive cap', () => {
+	it('dev-warns at creation and clamps to a usable cap', () => {
+		vi.mocked(devWarn).mockClear();
+
+		const memo = createBoundedMemo<string, number>({ cap: 0 });
+		const compute = vi.fn(() => 1);
+		memo('k', compute);
+		memo('k', compute);
+
+		expect(vi.mocked(devWarn)).toHaveBeenCalledTimes(1);
 		expect(compute).toHaveBeenCalledTimes(1);
 	});
 });

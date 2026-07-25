@@ -27,8 +27,10 @@ export function registerGlobalCommand(
 	// IS the id the mint returns, so it doubles as the same-command candidate that
 	// lets a dev re-eval replace its own prior binding instead of throwing.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
-	const id = mintCommandId(name);
 	const owner = currentInstallingPlugin();
+	// Owner-attributed like the block sibling: it is what lets a plugin re-mint its
+	// own name and what names the prior owner in a cross-plugin collision.
+	const id = mintCommandId(name, owner);
 	owners.set(id, owner);
 	registerCommand(id, (ctx) => {
 		const editor = ctx.pluginEditor?.(owner ?? '');

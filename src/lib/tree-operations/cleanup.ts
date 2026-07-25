@@ -1,6 +1,7 @@
 import type { CstNode, Document } from '../core/nodes';
+import type { SharingState } from './sharing';
 import { spliceChildren } from './children';
-import { nodeAt } from './node-ops';
+import { ensureUnsharedPath } from './unshare';
 
 /**
  * Walk from `deletedPath`'s parent up toward the document root, removing
@@ -11,22 +12,26 @@ import { nodeAt } from './node-ops';
  * replacement) in their descendant tree and can't legitimately be empty.
  *
  * `lcaPath = []` means "walk all the way to the document root if needed".
+ *
+ * Takes `sharing` because it splices at arbitrary depth and so owns its spine
+ * (unshare.ts header): each level is unshared before its child is removed, or the
+ * splice lands on a node an undo entry still references.
  */
 export function cascadeCleanupEmptyAncestors(
 	doc: Document,
 	deletedPath: number[],
-	lcaPath: number[]
+	lcaPath: number[],
+	sharing: SharingState
 ): void {
 	let currentPath = deletedPath.slice(0, -1);
 	while (currentPath.length > lcaPath.length) {
-		const node = nodeAt(doc, currentPath);
-		if (!node || !('children' in node) || !node.children) break;
-		if (node.children.length > 0) break;
 		const parentPath = currentPath.slice(0, -1);
-		const parent = nodeAt(doc, parentPath);
-		if (!parent || !('children' in parent) || !parent.children) break;
+		const chain = ensureUnsharedPath(doc, parentPath, sharing);
+		const parent: CstNode | Document = chain[chain.length - 1] ?? doc;
+		if (!parent.children) break;
 		const idx = currentPath[currentPath.length - 1];
-		// discovered-ancestor mutation, see node-ops.ts header
+		const node = parent.children[idx];
+		if (!node || !node.children || node.children.length > 0) break;
 		spliceChildren(parent as CstNode, idx, 1);
 		currentPath = parentPath;
 	}

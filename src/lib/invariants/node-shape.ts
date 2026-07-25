@@ -2,7 +2,7 @@ import { makeBlockNode, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
-import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
@@ -10,21 +10,14 @@ import type { InvariantViolation } from './assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 
-const MERGE_ROLES: ReadonlySet<MergeRole> = new Set([
-	'prose',
-	'prose-absorber',
-	'container',
-	'self-merge',
-	'not-mergeable'
-]);
-
 /**
  * G1.5 — a node's fields match its kind's category. Implications are
  * one-directional (a container *may* be transiently childless mid-edit, so we
  * never require fields, only forbid illegal ones):
  *   - non-containers must not carry `children`;
- *   - container structural fields (`innerPrefix`/`innerSuffix`) only on containers;
- *   - `mergeRole` must be one of the five legal roles.
+ *   - container structural fields (`innerPrefix`/`innerSuffix`) only on containers.
+ * The `mergeRole` vocabulary is a per-KIND fact, so it is checked once per
+ * registration (G1.30) rather than once per committed node.
  * Editor-level fields (`childIds`, `ownerEpoch`) are deliberately unchecked —
  * legal on every kind; the predicate forbids category-bound fields only.
  */
@@ -39,9 +32,6 @@ export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	}
 	if (!d.isContainer && node.innerSuffix !== undefined) {
 		return illegalField(node.kind, 'innerSuffix', 'leaf carries container structural field');
-	}
-	if (!MERGE_ROLES.has(d.mergeRole)) {
-		return illegalField(node.kind, 'mergeRole', `unknown mergeRole "${d.mergeRole}"`);
 	}
 	return null;
 }

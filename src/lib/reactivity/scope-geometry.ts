@@ -10,11 +10,13 @@
  *  editor root. Nested content lays out narrower (indent/padding) and the oracle's
  *  line-wrap is monotonic in width, so the root width systematically undercounts at
  *  depth. Falls back to the root, then a constant, when neither element is mounted. */
+import { FALLBACK_CONTENT_WIDTH } from '../cursor/typography-estimates';
+
 export function estimateWidth(
 	listEl: { clientWidth: number } | null,
 	scrollEl: { clientWidth: number } | null
 ): number {
-	return listEl?.clientWidth || scrollEl?.clientWidth || 800;
+	return listEl?.clientWidth || scrollEl?.clientWidth || FALLBACK_CONTENT_WIDTH;
 }
 
 /** This scope's effective viewport height: the height of the intersection between

@@ -56,7 +56,8 @@ export function filterToSubtreeRoots(paths: number[][]): number[][] {
 export function deleteSubtreesIdentityGated(
 	doc: Document,
 	deletionPaths: number[][],
-	lcaPath: number[]
+	lcaPath: number[],
+	sharing: SharingState
 ): void {
 	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
 	const reverseSortedIndices = deletionPaths
@@ -66,7 +67,7 @@ export function deleteSubtreesIdentityGated(
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
 			deleteAtPath(doc, path);
-			cascadeCleanupEmptyAncestors(doc, path, lcaPath);
+			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}
 }
@@ -106,6 +107,9 @@ export function resolveEndWall(
 export interface DeletionPlan {
 	deletionPaths: number[][];
 	chromeClearChain: CstNode[] | null;
+	/** The epoch the plan was collected against; the apply step's splices own their
+	 *  spines through it, so no case has to re-thread it. */
+	sharing: SharingState;
 }
 
 /**
@@ -143,7 +147,7 @@ function collectDeletionPlan(
 		candidates = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
 		candidates.push(wall.container.path.slice());
 	}
-	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain };
+	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain, sharing };
 }
 
 /**
@@ -177,7 +181,7 @@ export function planCrossBlockDeletion(
 export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
 	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
 	if (chrome) chrome.raw = '\n';
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath, plan.sharing);
 }
 
 /**

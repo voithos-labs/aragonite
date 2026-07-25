@@ -3,6 +3,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import type { BlockEditActions } from '$lib/action-contracts';
 import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-column';
+import { eventToChord } from '$lib/schema/keybindings';
 import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 
 // G2.10 sticky-column matrix. The idempotent-capture and non-finite guards live
@@ -27,6 +28,19 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 
 	it('every documented preserve key preserves', () => {
 		for (const key of PRESERVE_KEYS_NON_ARROW) {
+			expect(classifyStickyKey(key)).toBe('preserve');
+		}
+	});
+
+	// The keydown flow carried two hand-written bare-modifier lists that disagreed:
+	// the chord parser's (which decides "this keystroke is not a chord yet") had
+	// AltGraph and CapsLock, the sticky list did not — so an AltGraph press
+	// mid-`ArrowDown`-run, or a CapsLock tap, silently dropped the column.
+	it('every bare modifier the chord parser ignores also preserves', () => {
+		const press = (key: string) =>
+			({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false }) as KeyboardEvent;
+		for (const key of ['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock']) {
+			expect(eventToChord(press(key))).toBeNull();
 			expect(classifyStickyKey(key)).toBe('preserve');
 		}
 	});

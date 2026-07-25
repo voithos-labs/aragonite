@@ -96,10 +96,14 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	// commits and would serve stale matches while typing. notifyEdit bumps the
 	// epoch (edit → miss → rescan); invalidate leaves it (navigation → hit →
 	// active-class remap only).
-	function provide(_doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
+	function provide(doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
 		const { caseSensitive, wholeWord, regex } = options;
 		scanMemo(`${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`, () => {
-			rescan();
+			// Scan the document the registry is providing FOR, not whatever the deps
+			// getter resolves to. The two agree today; a source reading its own getter
+			// instead of its argument is the shape this file would be teaching, since
+			// the plugin guide points decoration authors here.
+			rescan(doc);
 			return null;
 		});
 		return matches.map(
@@ -113,7 +117,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 		);
 	}
 
-	function rescan(): void {
+	function rescan(doc: DocumentView = deps.getDoc()): void {
 		// A whole-document REPLACEMENT restarts navigation at the first match, the way
 		// a new query does: the carried position indexes a document the user never
 		// navigated. In-place edits, undo and option toggles keep it — they leave the
@@ -136,10 +140,10 @@ export function createSearchState(deps: SearchDeps): SearchState {
 		}
 		error = null;
 		if (options.regex && query !== '') {
-			startRegexScan();
+			startRegexScan(doc);
 			return;
 		}
-		applyMatches(scanDocument(deps.getDoc(), r.matcher));
+		applyMatches(scanDocument(doc, r.matcher));
 	}
 
 	function applyMatches(found: Match[]): void {
@@ -156,9 +160,9 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	// Regex is the only path that can run away, so it is the only one that leaves
 	// the main thread. Matches clear at kickoff: overlays from the query being
 	// replaced must not sit over the document while the new scan runs.
-	function startRegexScan(): void {
+	function startRegexScan(doc: DocumentView): void {
 		const epoch = scanEpoch;
-		const targets = collectScanTargets(deps.getDoc());
+		const targets = collectScanTargets(doc);
 		const { pattern, flags } = buildRegexSpec(query, options);
 		matches = [];
 		scanning = true;

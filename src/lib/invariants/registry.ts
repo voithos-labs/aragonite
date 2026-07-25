@@ -282,3 +282,38 @@ export function checkClosureCoherence(
 	}
 	return null;
 }
+
+export interface MergeRoleEntry {
+	kind: AnyBlockKind;
+	mergeRole: string;
+}
+
+const MERGE_ROLES: ReadonlySet<string> = new Set([
+	'prose',
+	'prose-absorber',
+	'container',
+	'self-merge',
+	'not-mergeable'
+]);
+
+/**
+ * G1.30 — every registered kind declares a `mergeRole` from the known vocabulary.
+ * A per-KIND fact, so it is validated once at registration: an unknown role makes
+ * the merge dispatcher fall through silently on every gesture that reaches the
+ * kind, and a plugin reaching the field through a widened cast is the only way to
+ * get one. Reports the first offender.
+ */
+export function checkMergeRoleVocabulary(
+	entries: readonly MergeRoleEntry[]
+): InvariantViolation | null {
+	for (const { kind, mergeRole } of entries) {
+		if (!MERGE_ROLES.has(mergeRole)) {
+			return {
+				code: 'merge-role-vocabulary',
+				message: `kind "${kind}" declares unknown mergeRole "${mergeRole}"`,
+				detail: { kind, mergeRole }
+			};
+		}
+	}
+	return null;
+}
