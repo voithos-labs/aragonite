@@ -80,3 +80,27 @@ describe('text-render key across a prose→non-prose flip', () => {
 		expect(el.textContent).toBe('<di');
 	});
 });
+
+describe('text-render key across a prose→prose flip', () => {
+	// Both kinds render through the prose arm, so the key's early return is the only
+	// thing standing between them — and every other segment (ambient, raw, ref,
+	// image policy, mode, islands) is equal by construction. The kind still decides
+	// the content range, so the heading owns a dimmed `# ` marker the paragraph does
+	// not. A registry that gains an opener for a raw already in the document (a
+	// plugin installed after load) produces exactly this pair.
+	it('rebuilds when the kind changes under an unchanged raw', () => {
+		const heading = blockNode('# a\n');
+		expect(heading.kind).toBe('heading');
+		const paragraph = { kind: 'paragraph', raw: '# a\n' } as CstNode;
+
+		const { el, deps, setNode } = makeHarness(paragraph);
+		const render = createTextRender(deps);
+
+		render.render();
+		expect(el.querySelector('.md-marker')).toBeNull();
+
+		setNode(heading);
+		render.render();
+		expect(el.querySelector('.md-marker')?.textContent).toBe('# ');
+	});
+});
