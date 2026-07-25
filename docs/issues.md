@@ -628,35 +628,53 @@ failure.
 
 ## Plugin containers
 
-### The admonitions blockquote grammar still over-accepts indent outside the marker rule
+### A details body line reproducing `</details>` destroys the container, and no rebuild can repair it
 
-**Severity:** minor (a conversion false negative and a body-strip divergence; neither can hang or
-break byte round-trip)
-**Files:** `src/lib/plugins/admonitions/gh-alert.ts` (`QUOTE_LINE`, `stripQuoteMarker`),
-`src/lib/core/parsers/blockquote.ts` (`matchBlockquote`, `remapStrippedLines` — the rule they
-should agree with)
+**Severity:** important (container destruction on reload; guarded, not silent)
+**Files:** `src/lib/plugins/details/details-kind.ts` (the opaque rebuild),
+`src/lib/invariants/node-shape.ts` (G1.12, which now covers the directive/details tier),
+`src/lib/test/plugins/details/terminator-collision.test.ts` (the floor pins)
 
-The marker rule was capped at CommonMark's 0–3 space block indent when its unbounded form turned
-out to hang the parse loop. Two siblings in the same file keep the unbounded `[ \t]*` indent, and
-neither can produce a non-advancing opener, so both were left alone:
+`</details>` is a fixed terminator with no fence length to escalate, so a body line reproducing
+it is unrepresentable: every byte sequence containing that literal line closes the element, in
+aragonite and on GitHub alike. The 2026-07-25 escalation pass proved repair is not available at
+the rebuild seam: escaping the child's bytes on the way out diverges the container's raw from
+its live children, which is exactly the staleness G1.12 exists to fire on. The `:::` containers
+got the fence-escalation fix; this kind structurally cannot.
 
-- `QUOTE_LINE` decides "was the previous line already inside a blockquote" in the `source → source`
-  transform. Over-broad, so an indented-code line that happens to start with `>` suppresses
-  conversion of the alert that follows it — a false negative in a legacy path.
-- `stripQuoteMarker` strips a quote prefix from lines the extent scan already claimed. The built-in
-  gates the same strip on `matchBlockquote` and passes lazy-continuation lines verbatim; the plugin
-  strips unconditionally, so `> [!NOTE]\n\t> body\n` yields a `body` paragraph child where the
-  built-in blockquote would keep the tab-indented bytes.
+**Guarded floor (pinned by five tests):** the collision is reachable through the real commit
+path, bytes still round-trip, and G1.12 catches the live-tree-versus-reparse divergence, so the
+dev channel and the e2e invariant watcher see it rather than the document corrupting silently.
+On reload the container is gone and its tail re-parses as siblings.
 
-**Fix direction:** align both with `matchBlockquote`, but not as a ride-along — tightening
-`stripQuoteMarker` changes an alert's child structure (paragraph → indented code) and therefore its
-post-edit rebuild bytes, so it needs its own red-first pin and its own decision on what a lazy
-continuation inside an alert body should become. The wider question underneath is whether the
-plugin's body strip should reuse the built-in's `remapStrippedLines` gating instead of forking it.
+**Fix direction:** a commit-path escape seam: the kind translates the offending body edit at
+commit time (escape or transform the typed `</details>` before bytes land), the same seam the
+opaque-write / kind-aware replace work needs. Decide the byte policy there, not in `rebuildRaw`.
 
-**Why deferred:** the hang class is closed (the opener declines when the extent claims nothing), and
-these two are byte-safe. Neither has a reported symptom, and the `stripQuoteMarker` half is a
-behavior decision rather than a defect.
+**Why deferred:** the rebuild-side fix is proven impossible, the commit-path seam is a design
+pass shared with the post-1.0 opaque-write work, and the floor is honest (loud in dev, byte
+round-trip intact).
+
+### The alert stream converter cannot be parser-exact: blockquote extent is stateful
+
+**Severity:** minor (legacy source-to-source path only; the divergent cases are pinned byte-exact)
+**Files:** `src/lib/plugins/admonitions/gh-alert.ts` (`convertGithubAlerts`, `QUOTED_BODY_LINE`),
+`src/lib/core/parsers/blockquote.ts` (`blockquoteExtent`, the stateful authority),
+`src/lib/test/plugins/admonitions/converter-parity.test.ts` (the differential + `known fork` pins)
+
+The parser's blockquote extent tracks paragraph state: a lazy or over-indented `>` line is
+absorbed only while a paragraph is open. A line regex has no such state, so the stream converter
+must over- or under-claim on some input. The 2026-07-25 fix chose the favorable side: a
+tab-indented `> ` continuation (ordinary authoring) stays inside the alert, at the cost of one
+over-claim shape (a body line that closes the paragraph, followed by an over-indented `>` line,
+is claimed where the parser would end the quote). Both divergent cases are asserted byte-exact
+in the `known fork` block of the parity test, which a future consolidation deletes.
+
+**Fix direction:** consolidate the stream path onto one extent authority (run `blockquoteExtent`
+over the stream window instead of a line regex), then delete the `known fork` block.
+
+**Why deferred:** the stream converter is a legacy convenience export; the in-editor paste path
+converts through the parser and has no fork. The differential test makes the residual loud.
 
 ### Search replace skips matches inside childless opaque containers
 
