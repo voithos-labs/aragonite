@@ -92,6 +92,24 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   surface must answer the question, and `undefined` means the global grammar deliberately.
   Byte-identical today, since an instance grammar cannot yet diverge.
 
+- **Navigating into a collapsed container opens it instead of doing nothing.** A collapsed
+  collapsible clamps its render window to the chrome row, so a reveal aimed at a body child found
+  its target outside the live window and returned: clicking a toc entry for a heading inside a
+  closed `<details>`, or navigating to a search match found there, was a dead click with no crash
+  and no error to notice. The reveal seam now opens the container first. Expansion is a real
+  committed edit, not a view-only override: the `open` state is serialized bytes, so a transient
+  flip would put the view and the CST into exactly the disagreement the architecture forbids. One
+  Ctrl+Z therefore takes it back, the `edit` event sees it, and the commit error seam contains it.
+  Which containers can be opened, and how, is declared rather than special-cased. **New plugin
+  surface: the container contract's `reservedChrome` gains an optional `expandPatch` field**, a pure
+  hook returning the metadata that opens a collapsed node, declared beside the `isCollapsed` probe
+  the window clamp already reads. Additive, so no existing plugin changes; a collapsible that
+  declares no door keeps degrading exactly as before. Reading mode expands nothing,
+  since a mode that commits no edits cannot make an exception for this one. Nested collapsed
+  ancestors each open, outermost first, and each is its own undo entry: batching them into one would
+  have put commit vocabulary into the navigation signature a plugin author is about to be frozen
+  against, for the doubly-nested case alone.
+
 ### 0.9.35: the navigation API + toc v2
 
 Path-addressed navigation became a public surface, and the two bundled plugins that had been bare

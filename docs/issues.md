@@ -249,38 +249,32 @@ math shipped — so this is a standing measurement gap, not a ladder regression.
 perf-harness pass next touches fixtures, or if a real workload holds a trigger-dense region under
 an installed rung.
 
-### Reveal into a collapsed container silently degrades (toc navigation, search)
+### A navigation click leaves focus where editor-global chords do not reach
 
-**Severity:** minor (silent dead affordance; the honest-boolean floor holds — no crash, no strand)
-**Files:** `src/lib/reactivity/publish-ref.svelte.ts` (`revealChildOrWait` — degrades when the
-target index is outside the current window), `src/lib/editor-actions/container-block-component.ts`
-(`revealByPath`), `src/lib/plugins/details/DetailsBlock.svelte` + the container factory's
-`isCollapsed` window clamp
+**Severity:** minor (a chord that does nothing; no corruption, and the next click restores it)
+**Files:** `src/lib/components/Editor.svelte` (the editor-root keydown effect — the global-chord arm
+gates on `active === root` or an unfocused document), `src/lib/plugins/toc/TocBlock.svelte` (entries
+are real `<button>`s, so activating one parks focus on the button)
 
-A collapsed collapsible container (`details`, an admonition) clamps its render window to the chrome
-row (child 0), so a body child never mounts. A reveal targeting a body child of a collapsed
-container therefore degrades at the reveal seam: `revealByPath` → `revealChildOrWait` finds the
-index outside the live window (`isInWindow` false) and returns immediately, `scrollTo` resolves
-`false`, the anchor clears — no mount, no scroll, no error. The class is "reveal into a collapsed
-container", not toc-local:
+Clicking a toc entry leaves DOM focus on the entry `<button>`: inside the editor root, but neither
+the root itself nor a block. The root keydown effect's undo/redo + plugin-global arm deliberately
+fires only when NO element holds focus (the windowed-out-caret case), so it declines; no block
+handler runs either, since the button is not an editable surface. Ctrl+Z immediately after a
+navigation click therefore does nothing until the caret returns to the document.
 
-- **toc side (symptom):** a heading inside a collapsed `details` IS listed by the outline walk (the
-  walk reads the whole CST regardless of collapse view-state), but clicking its entry silently
-  no-ops.
-- **search side (sibling):** search's `revealActive` binds `reveal` to the same `rects.scrollTo`
-  (`Editor.svelte`), so a find match inside a collapsed container navigates to nothing the same way.
-  A future `#fragment` link resolution would share the class.
+Latent until 0.9.36, when navigating into a collapsed container started committing an expansion:
+the gesture that makes the edit now leaves focus exactly where the undo for it cannot be typed.
+Reproduced in `details-reveal-expand.spec.ts`, whose undo case restores the caret first and says why.
 
-Nothing in the reveal path force-expands a collapsed ancestor.
+**Fix direction:** decide which focus states own the editor-global chords. Widening the arm to any
+non-editable element inside the root is the obvious move and the risky one: whole-block-focus
+surfaces (thematic break, a mermaid viewport) are also non-editable tabindex elements that run their
+own chord dispatch, so the widening has to prove it cannot double-fire, and the arm's containment
+guards exist because an unguarded version once let one Ctrl+Z revert two editors on a page.
 
-**Fix direction:** teach the reveal seam to expand collapsed ancestors before mounting the target
-(the `hidden=until-found` / Obsidian precedent), designed against the collapse-probe contract
-(`reservedChrome.isCollapsed` — the same probe the clamp reads) so the expansion is driven by the
-declared collapse state, not a per-kind special-case.
-
-**Why deferred:** a reveal-machinery behavior change wants its own design pass (which claimant
-expands, whether the expansion is transient or committed, its undo semantics). The honest-boolean
-floor holds today, so the symptom is a dead click, not corruption.
+**Why deferred:** it is a focus-ownership decision across every whole-block surface, not a toc
+patch, and the workaround is the click a user makes anyway. Belongs with the anchor-ownership pass
+below, which is the other half of "who owns a navigation in flight".
 
 ### Reveal anchor is a single process-global slot with no per-claimant ownership
 
@@ -310,10 +304,12 @@ decoding below it on a later measure pass would have the anchor re-assert the co
 push the already-resolved nested target back out of view. Same fix (per-call ownership carrying the
 full target path, not a narrowed index), so it is folded here rather than filed apart.
 
-**Coverage gap:** no test drives a nested `scrollTo` target at all — `rect-api.spec.ts` and
-`scroll-to-settle.spec.ts` both use top-level paths, and `toc-navigation.spec.ts` pins nested
-_listing_ only. A nested-target e2e (tall container, nested heading, assert the target stays in view
-past the settle) belongs with the fix.
+**Coverage gap (partly closed):** `details-reveal-expand.spec.ts` now drives a nested `scrollTo`
+target for real — a toc click to a heading inside a collapsed `details` in a windowed document,
+asserting the nested block lands in view past the settle. What that spec does NOT reach is the
+residual above: its container is short, so the anchor's top-level narrowing never fights a nested
+target taller than the viewport, and nothing decodes late. The remaining gap is that shape
+specifically (tall container + a late image decode), not nested targets in general.
 
 **Why deferred:** honest-failing (the loser's target just isn't held — no crash, no corruption; the
 nested residual needs a tall container plus a late decode), and the ownership model wants a second
@@ -342,6 +338,63 @@ timeout raise without a mechanism is quieting the checker.
 
 **Why deferred:** non-deterministic 1-of-2 repro; no mechanism established; the sibling
 battery-order-flake precedent records falsified causes, so this entry starts with its protocol.
+
+### Typing a `> [!TYPE]` marker never forms a GitHub alert (only an atomic insert does)
+
+**Severity:** important (the documented way to author an alert does not work, and the live tree
+diverges from its own bytes)
+**Files:** `src/lib/plugins/admonitions/` (the `githubAlert` reclassification), the blockquote
+kind-transition path
+
+Typing `>` promotes the paragraph to a blockquote and auto-completes the marker to `> `. Typing the
+rest of `[!TIP]` one key at a time leaves the block a **`blockquote` forever** — it never
+reclassifies to `githubAlert`, not on marker completion, not on the following Enter, not after a
+body is typed. `parseConverged()` goes **false**: the live CST holds `blockquote` while a reparse of
+its own serialization yields `githubAlert`. The body then concatenates onto the marker line
+(`> [!TIP]Fresh alert body`) instead of landing in the container.
+
+Inserting the whole marker as ONE input event reparses the block and classifies it correctly, which
+is why every driver in the repo used to pass: both the simulation gesture and the e2e spec formed
+the alert with a single `insertText`. That atomic path is the only reason this was invisible.
+
+**Repro:** on `/test/plugins?seed=admonitions`, put the caret at the end of a paragraph, press
+Enter, then `typeSlowly('>')` followed by `typeSlowly('[!TIP]')`. `getBlockKind` reports
+`blockquote` and `parseConverged()` is `false`.
+
+**Why deferred:** the fix is in the kind-reclassification path, not the test layer; the 2026-07-24
+theme-K pass that found it owns oracles, not the parser. The two drivers are back on the atomic
+insert with an inline comment naming this entry, and both requirement files now state that
+per-keystroke formation is uncovered _because_ of this defect rather than by choice — so restoring
+the per-keystroke gesture is part of the fix.
+
+## Virtual rendering
+
+### Pasting a long list into a windowed list loses the caret (VR-12, reachable)
+
+**Severity:** important (the user pastes, types, and nothing happens)
+**Files:** `src/lib/tree-operations/paste/container-match.ts` (the `afterTick` focus landing),
+`src/lib/editor-actions/focus/focus-dispatch.ts` (`dispatchFocusByPath`, the adjacent-only contract)
+
+The container-matching paste lands the caret with
+`focusByPath(outerState.innerBlockRefs, [spliceIndex + remainingItems.length, 0], …)`. That index
+scales with the CLIPBOARD's item count, unrelated to where the caret was, so it is not adjacent to
+a mounted block the way `dispatchFocusByPath`'s docstring assumes of its callers. Once the pasted
+run clears the container window's overscan (6) the target ref is unmounted, the dispatcher returns
+silently, and the caret is lost. This is the third caller of that function and the only one whose
+landing is not one step from the caret — the sibling-path-parity shape, with the docstring's
+caller enumeration (audited at two callers) as the instrument that hid it. `dispatchFocusByPath`'s
+own comment calls VR-12 "latent and not currently reachable"; that clause is false and should go
+with the fix.
+
+**Repro:** pinned and executing as `src/lib/e2e/tests/perf/vr-paste-focus.spec.ts` as an
+INVERTED assertion (it asserts the caret is lost), so the file turns red the day it is fixed. Load ~600 list items so container windowing
+activates, put a 40-item list on the clipboard, click into item 2, paste, then type — the typed
+characters reach the document nowhere at all.
+
+**Why deferred:** the fix is to route this landing through the async `revealByPath` (scroll +
+mount) rather than the sync dispatcher, which changes the paste's commit/afterTick shape; the
+focus path is owned by a separate wave. The oracle exists and self-retires, so the defect cannot
+be lost.
 
 ## Code structure
 
@@ -407,48 +460,6 @@ command reaches the mounted component through `ctx.hooks`, threaded by the conta
 reader, so the fix is cosmetic until a consumer needs a non-editable container surface.
 
 ## Test coverage
-
-### The property suites cannot reach a plugin rung, the block-indent boundary, or any shape at scale
-
-**Severity:** minor (coverage shape; the specific defects it hid are fixed and pinned)
-**Files:** `src/lib/test/invariants/round-trip.property.test.ts` and its siblings (none install
-plugins), `src/lib/test/invariants/arbitraries/gfm.ts` (`arbGfmDoc`),
-`src/lib/test/invariants/arbitraries/raw-string.ts` (`lazyQuoteShapes`),
-`src/lib/test/invariants/inline-total-coverage.property.test.ts` (G2.11's kind vocabulary)
-
-The parse-loop hang a tab-indented `> [!NOTE]` produced was invisible to every generator, for two
-compounding reasons. No suite under `src/lib/test/invariants/` installs plugins, so the property
-tests parse through the built-in grammar alone and no plugin opener's return has ever been under
-property coverage — the surface where a third-party opener bug would live. And the generators cap
-out below the boundary regardless: `arbGfmDoc` composes every block at column 0 (its only
-indentation is list-item continuation padding, and it emits no tabs), while `arbRawString`'s
-blockquote vocabulary tops out at a 3-space indent with no 4-space or tab-before-`>` shape. So the
-0–3-versus-4 block-indent rule — the CommonMark boundary that separates a blockquote from indented
-code — is outside the reachable input space for built-ins too.
-
-**The same suites are also capped far below every failure scale.** `arbRawString` tops out around a
-few hundred bytes and `arbGfmDoc` at a handful of short blocks, while every complexity defect the
-0.9.35 review measured lives three or four orders of magnitude past that: the quadratic inline
-declines, the argument-spread `RangeError` at tens of thousands of matches, the render recursion's
-stack overflow. No flood, no overflow, and no superlinear growth is expressible in the input space
-at all, so the marquee round-trip invariant is structurally blind to the class. The inline-rung half
-is worse than bounded: G2.11's kind vocabulary is derived from the built-in union, so installing any
-rung makes the property throw on its vocabulary check before it can test tiling, which is why every
-grammar shipped in 0.9.33-0.9.35, the newest and least-audited code, sits outside the invariant.
-
-**Fix direction:** four independent additions, in value order. Run one round-trip property pass with
-the bundled plugins installed, so plugin openers and inline rungs are covered by the marquee
-invariant rather than by per-kind fixtures only. Add one large-input size tier at a low run count,
-which reaches the scale the complexity defects live at without slowing the fast tier. Give the raw
-and GFM arbitraries a leading-indent dimension (0–4 spaces and a tab before a block marker) so the
-block-indent boundary becomes reachable. And split G2.11's vocabulary assertion from its contract
-assertion, widening the vocabulary to registered plugin kinds.
-
-**Why deferred:** the indent dimension widens the corpus for every property suite at once and wants
-its own measured pass (the suites are seeded and run 1000 cases each), the plugin-installed pass
-needs a decision on registry isolation between property runs, and the size tier needs its run count
-chosen against the suite's wall-clock budget. None is a prerequisite for the defects already pinned
-directly.
 
 ### The block-component mount harness exists but covers a minority of block components
 
