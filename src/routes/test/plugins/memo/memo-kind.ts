@@ -65,7 +65,7 @@ export function registerMemoBlock(): void {
 			if (!ctx.line.text.startsWith('%%')) return null;
 			return {
 				node: { kind: memo, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		}
 	});

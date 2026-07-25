@@ -319,13 +319,13 @@ Most of the boundary is enforced by **shape** (the factories never expose raw co
 
 What each misuse does in dev versus production — the reason the dev build is where plugin development belongs:
 
-| Misuse                               | Dev                                                                                                                                | Production                                                                                 |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `rebuildRaw` writes the wrong bytes  | commit-time invariant warn (opaque-container staleness / rebuild determinism), naming the kind                                     | silent until the bytes surface in a round-trip                                             |
-| Component throws while rendering     | contained by the per-block error boundary — failed-block fallback plus an `error` event (`origin: 'render'`), attributable by path | same containment (the boundary ships in production)                                        |
-| Opener returns a non-advancing index | invariant warns (`invariant:opener-advance`), naming the kind and the decline                                                      | declined identically — the line falls through to the paragraph fallback, silently; no hang |
-| Opener's `raw` ≠ the consumed lines  | parse dev-warns (`invariant:opener-raw`), naming the kind                                                                          | silent `serialize(parse(x)) !== x` round-trip break                                        |
-| Opener throws                        | propagates uncaught — parse runs at editor init and inside the commit ceremony, outside the per-block boundary                     | same — uncaught                                                                            |
+| Misuse                                 | Dev                                                                                                                                | Production                                                                                 |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `rebuildRaw` writes the wrong bytes    | commit-time invariant warn (opaque-container staleness / rebuild determinism), naming the kind                                     | silent until the bytes surface in a round-trip                                             |
+| Component throws while rendering       | contained by the per-block error boundary — failed-block fallback plus an `error` event (`origin: 'render'`), attributable by path | same containment (the boundary ships in production)                                        |
+| Opener claims no line (`consumed < 1`) | invariant warns (`invariant:opener-advance`), naming the kind and the decline                                                      | declined identically — the line falls through to the paragraph fallback, silently; no hang |
+| Opener's `raw` ≠ the consumed lines    | parse dev-warns (`invariant:opener-raw`), naming the kind                                                                          | silent `serialize(parse(x)) !== x` round-trip break                                        |
+| Opener throws                          | propagates uncaught — parse runs at editor init and inside the commit ceremony, outside the per-block boundary                     | same — uncaught                                                                            |
 
 ## Target shapes (designed ahead)
 
@@ -366,7 +366,7 @@ The contract's load-bearing rules are guarded by the invariant catalog (`docs/de
 - Keymap coherence over the live registries — a plugin keymap's command ids validate against the minted `PluginCommandId`s (the earlier built-ins-only gap is closed) — and a container's `reservedChrome` declaration gets bootstrap coherence.
 - Closure-block coherence (G1.24): the required `closure` block agrees with the rest of the descriptor at bootstrap, and each declared `conformanceFixture` parses to its kind.
 - Opaque-container staleness, rebuild determinism, and the reserved-chrome slot, at every commit.
-- A plugin opener's return checked at parse: a non-advancing return is declined in every build — the parse loop can no longer be spun by a plugin — and warns; raw-mismatch warns.
+- A plugin opener's return checked at parse: an opener that claims no line is declined in every build — the parse loop can no longer be spun by a plugin — and warns; raw-mismatch warns.
 - Duplicate registration throws at the call site.
 
 The plugins e2e project fails on any dev-invariant fire.

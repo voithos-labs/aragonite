@@ -7,7 +7,12 @@
 import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
-import { defaultGrammarView, type GrammarView, type OpenContext } from '../schema/block-openers';
+import {
+	defaultGrammarView,
+	type BlockOpenerResult,
+	type GrammarView,
+	type OpenContext
+} from '../schema/block-openers';
 import { assertInvariant } from '../invariants/assert';
 import { parseParagraph } from './parsers/paragraph';
 import { registerBuiltInOpeners } from './parsers/built-in-openers';
@@ -104,10 +109,10 @@ export function parseBlocks(
 			grammar,
 			depth
 		};
-		const { node, nextIndex } = parseNextBlock(ctx);
+		const { node, consumed } = parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
-		index = nextIndex;
+		index += consumed;
 	}
 
 	return { prefix, children, suffix: pendingTrivia };
@@ -115,7 +120,7 @@ export function parseBlocks(
 
 // ── Dispatch ────────────────────────────────────────────────────────────
 
-function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } {
+function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 	// At the nesting cap, no container may recurse further — everything folds into
 	// a paragraph so the remaining bytes stay covered without another stack frame.
 	if (ctx.depth >= MAX_NESTING_DEPTH) {
@@ -124,7 +129,7 @@ function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } 
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
 		if (!result) continue;
-		if (result.nextIndex <= ctx.index) {
+		if (result.consumed <= 0) {
 			reportNonAdvancingOpener(ctx, result);
 			continue;
 		}
@@ -143,15 +148,12 @@ function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } 
  * covers the line. The message names the decline as well as the kind, so an author can
  * connect "my block renders as a paragraph" to its cause.
  */
-function reportNonAdvancingOpener(
-	ctx: OpenContext,
-	result: { node: CstNode; nextIndex: number }
-): void {
+function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-advance', () => ({
 		code: 'opener-did-not-advance',
 		message:
-			`block opener for kind "${result.node.kind}" consumed no line at ${ctx.index} and was ` +
-			`declined — an opener must consume at least one line (return nextIndex > ctx.index)`,
+			`block opener for kind "${result.node.kind}" claimed no line at ${ctx.index} and was ` +
+			`declined — an opener must consume at least one line (return consumed >= 1)`,
 		detail: result.node.kind
 	}));
 }
@@ -162,18 +164,15 @@ function reportNonAdvancingOpener(
  * `serialize(parse(source)) === source` (serialize reads `raw` only).
  * O(consumed lines); tree-shaken in production.
  */
-function assertOpenerRawMatches(
-	ctx: OpenContext,
-	result: { node: CstNode; nextIndex: number }
-): void {
+function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-raw', () =>
-		result.node.raw === joinRaw(ctx.lines, ctx.index, result.nextIndex)
+		result.node.raw === joinRaw(ctx.lines, ctx.index, ctx.index + result.consumed)
 			? null
 			: {
 					code: 'opener-stale-raw',
 					message:
 						`opener for kind "${result.node.kind}" built raw that does not byte-match its ` +
-						`${result.nextIndex - ctx.index} consumed source line(s)`,
+						`${result.consumed} consumed source line(s)`,
 					detail: result.node.kind
 				}
 	);
