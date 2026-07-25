@@ -32,6 +32,7 @@ import {
 	traceStickyCapture,
 	traceStickyReset
 } from '../debug/interaction-trace';
+import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
 export interface StickyColumnState {
 	get(): EditorX | null;
@@ -97,15 +98,14 @@ export function createStickyColumnState(): StickyColumnState {
 /**
  * Keys that neither capture nor reset sticky column. Vertical arrows capture
  * separately; every other key not in this list resets. PageUp/PageDown don't
- * move the caret in contenteditable; bare modifiers are noise.
+ * move the caret in contenteditable; bare modifiers are the chord parser's set,
+ * read rather than re-listed — a local copy missing AltGraph/CapsLock is how a
+ * modifier tap mid-arrow-run dropped the column.
  */
 export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
 	'PageUp',
 	'PageDown',
-	'Shift',
-	'Control',
-	'Alt',
-	'Meta'
+	...BARE_MODIFIER_KEYS
 ];
 
 /** What a keydown does to sticky column, decided purely from `e.key`. */

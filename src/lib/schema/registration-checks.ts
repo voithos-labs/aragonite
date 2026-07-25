@@ -22,7 +22,9 @@ import {
 	checkReservedChromeCoherence,
 	checkClosureCoherence,
 	checkLateOpenerRegistration,
-	type ClosureCoherenceEntry
+	checkMergeRoleVocabulary,
+	type ClosureCoherenceEntry,
+	type MergeRoleEntry
 } from '../invariants/registry';
 import {
 	tryGetBlockKindDescriptor,
@@ -92,10 +94,18 @@ const closureEntries = (kinds: readonly AnyBlockKind[]) =>
 		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
 		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
 
+// Widened to `string` on the way out: the vocabulary check exists for the callers
+// the `MergeRole` union cannot bind (a plugin registering through a cast).
+const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
+	kinds.flatMap((kind) => {
+		const mergeRole: string | undefined = tryGetBlockKindDescriptor(kind)?.mergeRole;
+		return mergeRole === undefined ? [] : [{ kind, mergeRole }];
+	});
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24). First call sweeps the
+ * Run the registry coherence checks (G1.2/10/11/17/18/24/30). First call sweeps the
  * whole world — bootstrap semantics; later calls validate only the kinds
  * registered since the previous flush, plus opener coherence over the full
  * registry (a new opener's priority collision is inherently cross-entry).
@@ -124,6 +134,7 @@ export function flushPendingRegistrationChecks(
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
 	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
+	report('merge-role-vocabulary', () => checkMergeRoleVocabulary(mergeRoleEntries(kinds)));
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
 	}

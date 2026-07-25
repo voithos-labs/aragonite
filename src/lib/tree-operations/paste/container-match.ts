@@ -286,16 +286,18 @@ async function applyContainerMatchingMerge(
 			// children carry correct raws in one reactive flush.
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
+			// The siblings land after the merged target, which keeps its own slot.
+			const insertAt = unwrap.spliceIndex + 1;
 			const change: StructuralChange = {
 				op: 'insert',
-				at: unwrap.spliceIndex + 1,
+				at: insertAt,
 				count: remainingItems.length
 			};
-			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex + 1, 0, remainingItems);
+			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
 			// Renumber the already-proxied tail below the spliced siblings; the merged
 			// target keeps its number. No-op for unordered lists / non-list containers.
-			renumberOrderedList(scopeView.node, unwrap.spliceIndex + 1 + remainingItems.length, sharing);
+			renumberOrderedList(scopeView.node, insertAt + remainingItems.length, sharing);
 			return [change];
 		},
 		op: {

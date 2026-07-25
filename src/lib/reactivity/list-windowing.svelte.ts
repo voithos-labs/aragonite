@@ -152,38 +152,50 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// model write only marks `$state` dirty, so the spacer's bound `style.height` flushes in
 	// a later microtask and a DOM read here would see pre-flush layout (a ~0 delta, a silent
 	// no-op).
-	function correctAnchor(mutate: () => void): void {
+	/**
+	 * The reveal claim, which outranks either anchor rule: while a reveal is in
+	 * flight the target's absolute position is re-asserted after the mutation,
+	 * overriding the browser's auto-clamp (which otherwise drags scrollTop off the
+	 * target as undecoded off-window images measure ~0 and the document shrinks).
+	 * Delta-compensation can't win this — the clamp outpaces it — so we re-scroll
+	 * the way revealChild does. `'center'` re-centers instead of top-pinning, so a
+	 * centered reveal survives the same shrink. Holds until the user takes over.
+	 *
+	 * Returns true when it ran the mutation and owns the scroll position. It lives
+	 * here rather than in one corrector because BOTH correctors run while a reveal
+	 * can be in flight, and the structural one carried no reveal branch at all —
+	 * its rebuild dropped the pin.
+	 */
+	function reassertRevealAnchor(mutate: () => void): boolean {
 		const scrollEl = deps.getScrollEl();
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal != null && reveal.index < model.size && scrollEl) {
-			// A reveal is in flight: re-assert the target's absolute scroll position
-			// after the measure shrinks the model, overriding the browser's auto-clamp
-			// (which otherwise drags scrollTop off the target as undecoded off-window
-			// images measure ~0 and the document shrinks). Delta-compensation can't win
-			// this — the clamp outpaces it — so we re-scroll to the target the same way
-			// revealChild does. `'center'` re-centers instead of top-pinning, so a
-			// centered reveal survives the same shrink. Holds until the user takes over.
-			mutate();
-			const listEl = deps.getListEl();
-			if (listEl) {
-				const targetTop = listTopWithinContent(scrollEl, listEl) + model.offsetOf(reveal.index);
-				// Center off `scrollEl.clientHeight`, NOT `viewportHeight()`: the reveal anchor
-				// is a root-scope claimant (viewport === the editor box), and clientHeight is
-				// stable through the shrink, whereas viewportHeight()'s scope-intersection reads
-				// listEl geometry mid-mutate — pre-flush and collapsing — and would center off a
-				// transiently-tiny viewport. Model reads (offsetOf/heightOf) stay synchronous.
-				scrollEl.scrollTop =
-					reveal.block === 'center'
-						? targetTop - Math.max(0, (scrollEl.clientHeight - model.heightOf(reveal.index)) / 2)
-						: targetTop;
-				// A programmatic scrollTop write fires no `scroll` event, so the window's
-				// derived scrollTop would stay stale and never re-slice — leaving the target
-				// windowed OUT at the very position we just scrolled it to (revealChild syncs
-				// for exactly this reason). Push it so the window follows and the target mounts.
-				win.syncScrollTop();
-			}
-			return;
+		if (reveal == null || reveal.index >= model.size || !scrollEl) return false;
+
+		mutate();
+		const listEl = deps.getListEl();
+		if (listEl) {
+			const targetTop = listTopWithinContent(scrollEl, listEl) + model.offsetOf(reveal.index);
+			// Center off `scrollEl.clientHeight`, NOT `viewportHeight()`: the reveal anchor
+			// is a root-scope claimant (viewport === the editor box), and clientHeight is
+			// stable through the shrink, whereas viewportHeight()'s scope-intersection reads
+			// listEl geometry mid-mutate — pre-flush and collapsing — and would center off a
+			// transiently-tiny viewport. Model reads (offsetOf/heightOf) stay synchronous.
+			scrollEl.scrollTop =
+				reveal.block === 'center'
+					? targetTop - Math.max(0, (scrollEl.clientHeight - model.heightOf(reveal.index)) / 2)
+					: targetTop;
+			// A programmatic scrollTop write fires no `scroll` event, so the window's
+			// derived scrollTop would stay stale and never re-slice — leaving the target
+			// windowed OUT at the very position we just scrolled it to (revealChild syncs
+			// for exactly this reason). Push it so the window follows and the target mounts.
+			win.syncScrollTop();
 		}
+		return true;
+	}
+
+	function correctAnchor(mutate: () => void): void {
+		if (reassertRevealAnchor(mutate)) return;
+		const scrollEl = deps.getScrollEl();
 		const anchorIndex = model.indexAtOffset(localScrollTop());
 		const before = model.offsetOf(anchorIndex);
 		mutate();
@@ -200,6 +212,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// the width-version trigger (ids unchanged → newIndex === anchorIndex). If the anchor block
 	// itself was deleted (not found), skip — there is no surviving block to hold the line.
 	function correctAnchorByStableId(mutate: () => void): void {
+		if (reassertRevealAnchor(mutate)) return;
 		const scrollEl = deps.getScrollEl();
 		const lst = localScrollTop();
 		const anchorIndex = model.indexAtOffset(lst);

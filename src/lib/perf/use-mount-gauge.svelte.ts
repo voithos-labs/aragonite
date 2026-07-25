@@ -8,9 +8,11 @@ import { perfEnabled, incMountedBlocks, decMountedBlocks } from './instruments';
 
 export function useMountGauge(): void {
 	$effect(() => {
-		if (perfEnabled()) incMountedBlocks();
-		return () => {
-			if (perfEnabled()) decMountedBlocks();
-		};
+		// One decision per mount: the gauge is a net balance, so re-reading the flag
+		// at teardown lets an arm/disarm flip between the two decrement a mount that
+		// was never counted (or strand one that was).
+		if (!perfEnabled()) return;
+		incMountedBlocks();
+		return decMountedBlocks;
 	});
 }

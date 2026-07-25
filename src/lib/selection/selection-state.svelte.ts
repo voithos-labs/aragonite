@@ -15,6 +15,8 @@ import {
 	snapCrossBlockTableEndpoints
 } from './table-endpoint-snap';
 import { pathsEqual } from './path-math';
+import { assertInvariant } from '../invariants/assert';
+import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
 
 // ── Public factory ──────────────────────────────────────────────────────────
 
@@ -155,6 +157,7 @@ class SelectionStateImpl implements SelectionState {
 			this.#anchor = null;
 			this.#focus = null;
 		} else {
+			this.#assertEndpointCoordinates(a, f);
 			this.#anchor = a;
 			this.#focus = f;
 		}
@@ -179,9 +182,21 @@ class SelectionStateImpl implements SelectionState {
 			this.#anchor = null;
 			this.#focus = null;
 		} else {
+			this.#assertEndpointCoordinates(this.#anchor, f);
 			this.#focus = f;
 		}
 		this.#onChange?.();
+	}
+
+	// G1.29 at the storing seam: #normalizePoint is meant to make this unfireable,
+	// and did not for a length-1 table path (its walk runs zero iterations there).
+	// Both entries carry it because both store an endpoint pair.
+	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
+		const getDoc = this.#getDoc;
+		if (!getDoc) return;
+		assertInvariant('cross-block-endpoint-coordinates', () =>
+			checkCrossBlockEndpointCoordinates(getDoc(), anchor, focus)
+		);
 	}
 
 	// Same prose leaf, distinct offsets — the range shape that must never enter

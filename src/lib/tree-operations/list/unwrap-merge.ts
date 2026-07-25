@@ -10,7 +10,7 @@ import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
 import type { SharingState } from '../sharing';
-import { cloneNode } from '../clone';
+import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
@@ -81,7 +81,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		leadingTrivia: '',
 		raw: '',
 		metadata: clonedList.metadata
-			? ({ ...clonedList.metadata } as ListMetadata)
+			? (cloneMetadata(clonedList.metadata) as ListMetadata)
 			: { ordered: parentOrdered },
 		children: remainingItems,
 		childIds: assignIds(remainingItems),

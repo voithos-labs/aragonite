@@ -27,6 +27,7 @@ import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
 
@@ -107,7 +108,13 @@ export function ensureUnsharedChild(
 	sharing: SharingState
 ): CstNode {
 	const child = parent.children![index];
-	if (!sharing.isShared(child)) return child;
+	// G1.22, the same gate the spine walk carries: an index off the end is a caller
+	// bug either way, but reading `ownerEpoch` off the gap made it epoch-dependent —
+	// silent before the first snapshot, a TypeError inside `isShared` after one.
+	assertInvariant('unshare-path-in-range', () =>
+		child ? null : { code: 'unshare-path', message: `child index ${index} out of range` }
+	);
+	if (!child || !sharing.isShared(child)) return child;
 	parent.children![index] = copyNode(child, sharing);
 	// Write-then-re-read (file header).
 	return parent.children![index];
@@ -144,11 +151,17 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 // ── Sharing-aware raw rebuilds ───────────────────────────────────────────────
 
 /**
- * Rebuild one owned container's raw. A table rebuild rewrites EVERY row's raw
- * (canonical padding), so table rows are unshared first.
+ * Rebuild one owned container's raw. A grid rebuild rewrites its children's raw
+ * (the table's canonical padding), so a grid's children are unshared first — read
+ * off the container contract, not a `table` kind test, or a plugin grid writes
+ * through shared children. Over-broad by one level (a row's rebuild only reads its
+ * cells), which is the safe direction: an unnecessary copy is correct, a missed one
+ * corrupts history.
  */
 export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): void {
-	if (node.kind === 'table') ensureUnsharedChildren(node, sharing);
+	if (getBlockKindDescriptor(node.kind).containerContract === 'grid') {
+		ensureUnsharedChildren(node, sharing);
+	}
 	rebuildContainerRawIfContainer(node);
 }
 

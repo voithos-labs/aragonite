@@ -17,6 +17,7 @@ import { stampStructuralChange, type StructuralChange } from '../structural-chan
 import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
+import { trailingLineEnding } from '../../core/lines';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
@@ -200,8 +201,10 @@ export function buildListBreakOutReplacement(
 		const cloned = cloneNode(block);
 		// No children-array splice here — the cloned list itself is the unit;
 		// normalize its items so its rebuilt raw can't mash into the next block.
+		// The ending comes from the list being broken out of: the pasted block is
+		// landing among its lines.
 		if (cloned.kind === 'list' && cloned.children) {
-			newlineTerminateListItems(cloned.children);
+			newlineTerminateListItems(cloned.children, trailingLineEnding(list.raw));
 			rebuildListRaw(cloned);
 		}
 		replacement.push(cloned);

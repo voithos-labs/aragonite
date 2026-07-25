@@ -19,3 +19,25 @@ describe('assignIds', () => {
 		expect(id1.length).toBeGreaterThan(0);
 	});
 });
+
+// `crypto.randomUUID` is secure-context-only. An embedder serving the editor over
+// plain http (an intranet, a LAN preview) has `crypto` but not that method, and a
+// throwing id generator takes down every keyed render — while these ids are
+// keyed-each keys, not secrets.
+describe('generateBlockId without randomUUID', () => {
+	it('falls back to a unique id instead of throwing', () => {
+		// `randomUUID` lives on Crypto.prototype, so shadow it with an own undefined
+		// rather than deleting — an insecure context reads exactly this shape.
+		Object.defineProperty(globalThis.crypto, 'randomUUID', {
+			value: undefined,
+			configurable: true
+		});
+		try {
+			const ids = new Set([generateBlockId(), generateBlockId(), generateBlockId()]);
+			expect(ids.size).toBe(3);
+			for (const id of ids) expect(id.length).toBeGreaterThan(0);
+		} finally {
+			Reflect.deleteProperty(globalThis.crypto, 'randomUUID');
+		}
+	});
+});
