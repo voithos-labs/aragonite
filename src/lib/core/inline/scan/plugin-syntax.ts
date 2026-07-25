@@ -101,8 +101,8 @@ export function registerInlineSyntax(
 
 	const reserved = BUILTIN_TRIGGERS.has(trigger);
 	if (reserved) {
-		// Bare-reserved throw is a pinned contract (the 0.9.30 footnotes probe wall) —
-		// keep the message verbatim. A reserved trigger is reachable only through a
+		// Bare-reserved throw is a pinned contract — keep the message verbatim.
+		// A reserved trigger is reachable only through a
 		// prefix rung priced below the switch anchor.
 		if (prefix === undefined) {
 			throw new Error(

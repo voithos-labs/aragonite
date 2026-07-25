@@ -100,6 +100,7 @@
 		stickyColumn,
 		selection,
 		widgetSelection,
+		registryView,
 		events: editorEvents,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -195,6 +196,7 @@
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
+		grammar: registryView.grammar,
 		getFocusOffset: () => {
 			if (!el) return null;
 			const sel = window.getSelection();
