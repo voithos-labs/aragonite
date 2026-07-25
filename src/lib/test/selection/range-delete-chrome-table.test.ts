@@ -53,7 +53,10 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 	it('between-hole: prose above → body table cell clears the chrome in place', () => {
 		// end.offset 1 = inclusive last cell of header row → header removed, body promoted.
 		const { doc, source, caret } = run(TBL_FIXTURE, point([0], 2), point([1, 1], 1));
-		expect(source).toBe('Ab\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
+		// The truncated prose head keeps its line ending, so the blank line the
+		// source had between it and the container survives — matching the
+		// chrome-start case below, whose arm always terminated its head.
+		expect(source).toBe('Ab\n\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
 		const note = doc.children[1];
 		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'table']);
 		expect(note.children?.[0].raw).toBe('\n');
@@ -74,7 +77,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		// last-child chain — no unit delete, the wall clear applies instead.
 		const source = 'Above\n\n:::note Title\n| a | b |\n| --- | --- |\n\nAfter\n:::\n\nBelow\n';
 		const { doc, source: out } = run(source, point([0], 2), point([1, 1], 1));
-		expect(out).toBe('Ab\n:::note\n\nAfter\n:::\n\nBelow\n');
+		expect(out).toBe('Ab\n\n:::note\n\nAfter\n:::\n\nBelow\n');
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
 	});
 

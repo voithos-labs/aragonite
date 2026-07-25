@@ -120,7 +120,7 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath);
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing);
 
 	replaceAtPath(doc, start.path, replacement);
 
