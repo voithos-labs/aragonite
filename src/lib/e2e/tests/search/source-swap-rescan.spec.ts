@@ -37,4 +37,17 @@ test.describe('search — an open find bar across a source swap', () => {
 		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
 		await expect(overlays(page)).toHaveCount(1);
 	});
+
+	test('a swap restarts navigation at the first match of the new document', async ({ page }) => {
+		// Drives the real prop write, so this is the one level that covers the editor
+		// counting the replacement — a harness that bumps its own counter cannot.
+		await findInput(page).press('Enter');
+		await findInput(page).press('Enter');
+		await expect(count(page)).toHaveText(/3\s*\/\s*3/);
+
+		// Five matches, so nothing clamps the carried position down: the regression
+		// reads 3 / 5 on a document the user has never navigated.
+		await editor.loadContent('alpha alpha\n\nalpha alpha\n\nalpha\n');
+		await expect(count(page)).toHaveText(/1\s*\/\s*5/);
+	});
 });

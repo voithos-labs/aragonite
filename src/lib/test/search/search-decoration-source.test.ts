@@ -21,6 +21,7 @@ function makeHarness(source: string, replace: ReplaceStub = stubReplace) {
 			scans++;
 			return doc;
 		},
+		getDocumentGeneration: () => 0,
 		decorations: engine,
 		replace,
 		reveal: async () => null,

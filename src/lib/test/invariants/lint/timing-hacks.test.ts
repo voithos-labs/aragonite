@@ -29,7 +29,13 @@ const ALLOWLIST: Record<string, string> = {
 	// setTimeout is wall-clock pause detection for undo debounce ("user stopped
 	// typing ~250ms"). tick() is microtask-grained and cannot express a wall-clock
 	// pause — documented at the call site.
-	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce'
+	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce',
+	// setTimeout is the cancellation deadline on an off-thread regex scan, not an
+	// ordering primitive: nothing waits on the timer, and the only thing it can do
+	// is terminate a worker stuck inside an uninterruptible `RegExp.exec`. tick()
+	// cannot express a wall-clock ceiling, and no main-thread budget can interrupt
+	// a single exec at all — which is why the worker exists.
+	'src/lib/search/regex-executor.ts': 'setTimeout regex-scan cancellation deadline'
 };
 
 const TIMING_RE = /\b(setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/;
