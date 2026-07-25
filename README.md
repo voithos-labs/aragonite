@@ -296,6 +296,10 @@ Check out some screenshots of the actual app:
 
 One last snarky remark to make... All these - all four styles, follow one render path. There is never a second rendering, never a derived raw tree, never a rich text model swapped in behind the scenes. I never exactly planned for live preview, it just so happened that I valued the right promises and made the right decisions that made features like this easily buildable.
 
+# License
+
+Copyright (c) 2026 voithos-labs. aragonite is free software, released under [GPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under GPL-compatible terms. An editor built to keep your notes yours shouldn't end up locked inside someone's proprietary app.
+
 # Footnote
 
 [^1]: read docs/changelog.md to experience my suffering.
