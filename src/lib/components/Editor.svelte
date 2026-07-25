@@ -70,19 +70,11 @@
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
-	import { eventToChord } from '../schema/keybindings';
-	import {
-		isEditorGlobalChord,
-		isReservedUiChord,
-		resolveGlobalBinding,
-		getCommand
-	} from '../schema/commands';
+	import { createEditorRootKeydown } from './editor-root-keydown';
 	import {
 		registerEditor,
 		unregisterEditor,
 		markEditorInteracted,
-		claimsBodyChord,
-		isForeignTextEntry,
 		releaseInteractedEditor
 	} from '../active-editor';
 	import type { CommandErrorSink } from '../schema/block-commands';
@@ -291,8 +283,37 @@
 		}
 	});
 
+	// ── Listener ritual ─────────────────────────────────────────────────
+	//
+	// Every root listener below installs on an $effect and removes on its teardown.
+	// Retyping the pair per site is how a cleanup drifts — an asymmetric remove list,
+	// or a teardown that re-reads a binding the unmount already nulled. These two
+	// capture the target and the handler once, so neither can be spelled twice.
+	//
+	// Typed off `Event` rather than the per-target event maps: those names are
+	// type-only, and this file runs on ESLint's untyped net, where a type-only
+	// global is an undefined identifier.
+
+	function onRoot<E extends Event>(
+		target: EventTarget,
+		type: string,
+		handler: (event: E) => void,
+		options?: { capture?: boolean; passive?: boolean }
+	): () => void {
+		const listener = handler as (event: Event) => void;
+		target.addEventListener(type, listener, options);
+		// Removal matches on capture alone — `passive` is an add-time hint, and the
+		// remove signature rejects it.
+		return () => target.removeEventListener(type, listener, options?.capture);
+	}
+
+	function removeAll(...removers: (() => void)[]): () => void {
+		return () => removers.forEach((remove) => remove());
+	}
+
 	$effect(() => {
 		if (!editorEl) return;
+		const root = editorEl;
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
@@ -310,8 +331,7 @@
 				e.preventDefault();
 			}
 		};
-		editorEl.addEventListener('click', handleClick);
-		return () => editorEl?.removeEventListener('click', handleClick);
+		return onRoot(root, 'click', handleClick);
 	});
 
 	// Clear the reveal anchor on the next user-intent gesture in the document, so it
@@ -322,44 +342,33 @@
 		if (!editorEl) return;
 		const root = editorEl;
 		const clear = () => revealAnchor.clear();
-		root.addEventListener('keydown', clear);
-		root.addEventListener('pointerdown', clear);
-		root.addEventListener('wheel', clear, { passive: true });
-		return () => {
-			root.removeEventListener('keydown', clear);
-			root.removeEventListener('pointerdown', clear);
-			root.removeEventListener('wheel', clear);
-		};
+		return removeAll(
+			onRoot(root, 'keydown', clear),
+			onRoot(root, 'pointerdown', clear),
+			onRoot(root, 'wheel', clear, { passive: true })
+		);
 	});
 
 	$effect(() => {
-		const handleFocusOut = (e: FocusEvent) => {
-			// focusout bubbles — reset only when focus leaves the editor entirely, not
-			// on a block-to-block move.
-			if (!editorEl) return;
+		if (!editorEl) return;
+		const root = editorEl;
+		// focusout bubbles — reset only when focus leaves the editor entirely, not
+		// on a block-to-block move.
+		return onRoot(root, 'focusout', (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
-			if (next && editorEl.contains(next)) return;
+			if (next && root.contains(next)) return;
 			stickyColumn.reset();
-		};
-
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'hidden') {
-				stickyColumn.reset();
-			}
-		};
-
-		if (editorEl) {
-			editorEl.addEventListener('focusout', handleFocusOut);
-		}
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-
-		return () => {
-			if (editorEl) {
-				editorEl.removeEventListener('focusout', handleFocusOut);
-			}
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-		};
+		});
 	});
+
+	// Its own effect, not folded into the focusout one above: this reads no root
+	// binding, so pairing them would make it wait for the bind and re-install on
+	// every root change for no reason.
+	$effect(() =>
+		onRoot(document, 'visibilitychange', () => {
+			if (document.visibilityState === 'hidden') stickyColumn.reset();
+		})
+	);
 
 	// Register this editor as a body-chord claimant and track which one the user last
 	// interacted with, so the document-level keydown handler routes a body-level chord
@@ -372,10 +381,9 @@
 		if (!editorEl) return;
 		const root = editorEl;
 		registerEditor(root);
-		const mark = () => markEditorInteracted(root);
-		root.addEventListener('focusin', mark);
+		const removeMark = onRoot(root, 'focusin', () => markEditorInteracted(root));
 		return () => {
-			root.removeEventListener('focusin', mark);
+			removeMark();
 			releaseInteractedEditor(root);
 			unregisterEditor(root);
 		};
@@ -724,16 +732,12 @@
 		const onVisibility = () => {
 			if (document.visibilityState === 'hidden') apply(false);
 		};
-		document.addEventListener('keydown', onKey);
-		document.addEventListener('keyup', onKey);
-		window.addEventListener('blur', reset);
-		document.addEventListener('visibilitychange', onVisibility);
-		return () => {
-			document.removeEventListener('keydown', onKey);
-			document.removeEventListener('keyup', onKey);
-			window.removeEventListener('blur', reset);
-			document.removeEventListener('visibilitychange', onVisibility);
-		};
+		return removeAll(
+			onRoot(document, 'keydown', onKey),
+			onRoot(document, 'keyup', onKey),
+			onRoot(window, 'blur', reset),
+			onRoot(document, 'visibilitychange', onVisibility)
+		);
 	});
 
 	// Drag-to-reorder: a delegated handle-drag on the editor root. Installed once
@@ -767,8 +771,7 @@
 			if (!anchorNode || !root.contains(anchorNode)) return;
 			events.emit('selectionChange', getSelection());
 		};
-		document.addEventListener('selectionchange', handler);
-		return () => document.removeEventListener('selectionchange', handler);
+		return onRoot(document, 'selectionchange', handler);
 	});
 
 	// ── Editor-root keydown routing ──────────────────────────────────────
@@ -809,80 +812,37 @@
 	// is contained to THIS instance: the listener sees every editor's keystrokes on
 	// the page, so an unguarded handler let one Ctrl+Z revert two editors and an
 	// outside-input Ctrl+F steal focus into this editor's search bar.
+	const rootKeydown = createEditorRootKeydown({
+		get searchBarEnabled() {
+			return searchBar;
+		},
+		get mode() {
+			return effectiveMode;
+		},
+		get canReplace() {
+			return canReplace;
+		},
+		get keybindingOverrides() {
+			return overridesMap;
+		},
+		get isCrossBlock() {
+			return selectionState.isCrossBlock;
+		},
+		search: searchState,
+		history,
+		pluginEditor: pluginEditorLookup,
+		onCommandError: commandErrorSink,
+		crossBlock: editorCrossBlock,
+		saveSearchRange: (range) => (savedRange = range),
+		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
+	});
+
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
-		const onKeyDown = (e: KeyboardEvent) => {
-			// eventToChord normalizes the key (CapsLock uppercases e.key without
-			// Shift), matching every other chord-dispatch site.
-			const rootChord = eventToChord(e);
-			const active = root.ownerDocument.activeElement;
-
-			// Search / Escape: focus INSIDE this editor (a block, the find input, or the
-			// root), or a search chord this instance claims. claimsBodyChord is true for
-			// the sole editor (or, among several, the last-interacted one), so a lone
-			// editor claims Find/Replace page-wide — even with focus on a sibling toolbar
-			// control — restoring the pre-containment behavior; a second mounted editor
-			// can't steal it (an outside-focus Ctrl+F opens no bar when 2+ editors exist).
-			// The one exception: a foreign text-entry surface (a consumer's own
-			// <textarea>/<input>/contenteditable) owns page-global Ctrl+F while the user
-			// types in it, so the editor yields there rather than hijacking it.
-			if (root.contains(active) || (claimsBodyChord(root) && !isForeignTextEntry(active))) {
-				if (searchBar && rootChord && isReservedUiChord(rootChord)) {
-					e.preventDefault();
-					// Seed the query from the live native selection before open() —
-					// focusing the find input collapses it. Guard the saved-caret
-					// snapshot on !isOpen so a repeat Mod+F (focus already in the find
-					// input) can't clobber the pre-search caret with the collapsed one.
-					const sel = window.getSelection();
-					const selected = sel?.toString() ?? '';
-					if (!searchState.isOpen) {
-						savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-					}
-					replaceExpanded = rootChord === 'Mod+H' && canReplace;
-					searchState.open();
-					if (selected) searchState.setQuery(selected);
-					return;
-				}
-				if (e.key === 'Escape' && searchState.isOpen) {
-					e.preventDefault();
-					searchState.close();
-					return;
-				}
-			}
-
-			// Undo/redo, plugin-global chords, cross-block motion fire only when NO block
-			// holds focus: active === root (the caret's block windowed out and parked on
-			// THIS root, unique per editor), or nothing focused (body/null — windowed out
-			// and blurred to a page-shared target, claimed by the sole/last-interacted
-			// editor). Unlike the search chords above, these collide with a focused
-			// outside element's native behavior — a text input owns Ctrl+Z — so they
-			// yield to any focused element and act only on the windowed-out caret.
-			const noElementFocused = active === null || active === root.ownerDocument.body;
-			if (!(active === root || (noElementFocused && claimsBodyChord(root)))) return;
-
-			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
-			// caret whose block unmounted, not necessarily a selection. No block is
-			// focused here, so resolve at global scope (consumer override, else default).
-			// This branch runs getCommand directly (no dispatchKeyCommand), so it
-			// carries the reading-mode gate itself — sibling: ThematicBreakBlock.
-			if (rootChord && isEditorGlobalChord(rootChord)) {
-				e.preventDefault();
-				if (effectiveMode === 'reading') return;
-				const binding = resolveGlobalBinding(rootChord, overridesMap);
-				if (binding)
-					getCommand(binding.command)?.({
-						history,
-						pluginEditor: pluginEditorLookup,
-						onCommandError: commandErrorSink
-					});
-				return;
-			}
-
-			if (selectionState.isCrossBlock) void editorCrossBlock.handleKeyDown(e);
-		};
-		root.ownerDocument.addEventListener('keydown', onKeyDown);
-		return () => root.ownerDocument.removeEventListener('keydown', onKeyDown);
+		return onRoot(root.ownerDocument, 'keydown', (e: KeyboardEvent) =>
+			rootKeydown.handleKeyDown(e, root)
+		);
 	});
 
 	// ── Virtual rendering (top-level windowing) ──────────────────────────
@@ -975,12 +935,7 @@
 			focusedPath = null;
 			setFocusedHost(null);
 		};
-		root.addEventListener('focusin', onFocusIn);
-		root.addEventListener('focusout', onFocusOut);
-		return () => {
-			root.removeEventListener('focusin', onFocusIn);
-			root.removeEventListener('focusout', onFocusOut);
-		};
+		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));
 	});
 	// The document facet is assembled here, after the windowing signals it carries
 	// (heightOracle, widthVersion, focusedPath) exist — the block components and the

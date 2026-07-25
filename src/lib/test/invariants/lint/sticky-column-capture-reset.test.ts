@@ -70,12 +70,15 @@ const isKeydownFile = (relPath: string) => /keydown/i.test(relPath);
  * it also collects files that hold no column state at all, which pass its
  * zero-reset check trivially and make the arm read wider than it is. Pinning the
  * set exact turns a new keydown-named file into a decision — dispatcher (it joins
- * the seam list and must reach the door) or pure transform (it joins this map) —
- * rather than a silent pass.
+ * the seam list and must reach the door), router (it consumes no caret motion of
+ * its own and hands the keys that move a caret to a listed dispatcher), or pure
+ * transform (it joins this map) — rather than a silent pass.
  */
 const KEYDOWN_PATH_NAMED_FILES: Record<string, string> = {
 	'src/lib/selection/shared-keydown.ts': 'dispatcher — classifies through noteKey',
 	'src/lib/selection/cross-block/keydown.ts': 'dispatcher — classifies through noteKey',
+	'src/lib/components/editor-root-keydown.ts':
+		'router — chord arms (search, Escape, editor-global) move no caret; the one arm that does delegates to the cross-block dispatcher, which owns the door',
 	'src/lib/components/blocks/text/text-keydown.ts':
 		'pure raw transforms (hard break, heading cycle, literal tab); returns bytes, touches no column',
 	'src/lib/components/blocks/table/cell-keydown-plan.ts':
