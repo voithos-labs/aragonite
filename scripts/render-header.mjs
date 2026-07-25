@@ -8,6 +8,9 @@
 // The subject is aragonite's sputnik habit: hexagonal prisms radiating from a
 // dense nucleus. Every ray is placed by hand below — the uneven angles and the
 // two dominant spars are the difference between a mineral and a snowflake.
+//
+// outdated because fking finn made a better banner in a min on figma
+// thanks finn
 
 import { writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
