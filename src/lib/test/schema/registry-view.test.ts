@@ -23,7 +23,7 @@ const lineOpener = (kind: PluginBlockKind): BlockOpener => ({
 		ctx.line.text.startsWith('@x')
 			? {
 					node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-					nextIndex: ctx.index + 1
+					consumed: 1
 				}
 			: null,
 	interruptsParagraph: (t) => t.startsWith('@x')

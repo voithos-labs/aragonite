@@ -5,9 +5,9 @@
  * the type tag from `matchHtmlBlock`.
  */
 
-import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
+import type { BlockOpenerResult } from '../../schema/block-openers';
 import { OPEN_TAG_SOURCE, CLOSE_TAG_SOURCE } from '../inline/html-tag-grammar';
 
 export type HtmlBlockType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -86,7 +86,7 @@ export function parseHtmlBlock(
 	endIndex: number,
 	leadingTrivia: string,
 	type: HtmlBlockType
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	let i = startIndex;
 	while (i < endIndex) {
 		if (closesOnLine(type, lines[i].text)) {
@@ -101,6 +101,6 @@ export function parseHtmlBlock(
 	const raw = joinRaw(lines, startIndex, i);
 	return {
 		node: { kind: 'htmlBlock', leadingTrivia, raw },
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }

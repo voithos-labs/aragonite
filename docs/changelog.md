@@ -4,6 +4,21 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Breaking, plugin surface: a block opener returns a consumed-lines count, not a resume
+  index.** `tryOpen` now returns `{ node, consumed }` where `consumed` is the number of lines the
+  opener claimed starting at `ctx.index`, and the parser advances by that delta; the shape is named
+  and exported as `BlockOpenerResult`, so an author no longer hand-inlines it. Migration is one line
+  per opener: `{ node, nextIndex: ctx.index + 1 }` becomes `{ node, consumed: 1 }`. The point is
+  what the type can no longer express: an absolute index could name any position, including
+  `ctx.index` itself, which is the return that hung a tab on document load until the parse loop
+  learned to decline it. That runtime decline is unchanged here; what is new is that the shape no
+  longer offers an easy way to write the bad return. A count carries no origin to get wrong, and the
+  six single-line built-in and bundled openers now say `consumed: 1` with no reference to the cursor
+  at all. The `consumed < 1` case keeps its existing semantics exactly: declined in every build,
+  dev-warned by `invariant:opener-advance`. Taken pre-freeze deliberately, since the same change
+  costs an ecosystem migration after 1.0. Scanners are unaffected and still hand back positions:
+  `blockquoteExtent` returns a `nextIndex` its callers slice with.
+
 - **Breaking, testing surface: `ContainerConformanceProfile` requires a `terminatorCollision`
   cell.** The container conformance kit grew a sixth invariant, that a body line reproducing the
   container's own terminator stays inside it, and the cell is required rather than optional, so an

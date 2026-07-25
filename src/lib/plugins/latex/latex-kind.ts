@@ -197,7 +197,7 @@ export function registerMathBlock(): void {
 			if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) {
 				return {
 					node: { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-					nextIndex: ctx.index + 1
+					consumed: 1
 				};
 			}
 			if (text !== BLOCK_FENCE) return null;
@@ -211,7 +211,7 @@ export function registerMathBlock(): void {
 				.map((l) => l.raw)
 				.join('');
 			const node: CstNode = { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw };
-			return { node, nextIndex: i + 1 };
+			return { node, consumed: i + 1 - ctx.index };
 		}
 	});
 
@@ -289,7 +289,7 @@ export function registerMathFence(): void {
 				.map((l) => l.raw)
 				.join('');
 			const node: CstNode = { kind: mathFence, leadingTrivia: ctx.leadingTrivia, raw };
-			return { node, nextIndex: closeIdx + 1 };
+			return { node, consumed: closeIdx + 1 - ctx.index };
 		}
 	});
 }

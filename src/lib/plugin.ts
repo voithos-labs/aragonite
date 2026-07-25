@@ -89,7 +89,7 @@ export type { BlockComponent, BlockComponentProps } from './block-component';
 
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
-export type { BlockOpener, OpenContext } from './schema/block-openers';
+export type { BlockOpener, BlockOpenerResult, OpenContext } from './schema/block-openers';
 // The built-in priority ladder a plugin opener prices against — see the plugin
 // guide's opener-priority section for the two placement rules.
 export { OPENER_PRIORITIES } from './schema/opener-priorities';

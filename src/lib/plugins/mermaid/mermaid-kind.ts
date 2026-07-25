@@ -208,7 +208,7 @@ export function registerMermaidKind(): void {
 			});
 			// Raw comes FROM the rebuild, so opener and rebuild agree by construction.
 			rebuildMermaidRaw(node);
-			return { node, nextIndex: closeIdx === -1 ? ctx.end : closeIdx + 1 };
+			return { node, consumed: (closeIdx === -1 ? ctx.end : closeIdx + 1) - ctx.index };
 		}
 	});
 }

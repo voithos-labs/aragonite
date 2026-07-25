@@ -191,7 +191,7 @@ export function registerDetailsKind(): void {
 				lineEnding: ctx.line.lineEnding,
 				closerNewline: ctx.lines[closeIdx].lineEnding !== ''
 			});
-			return { node, nextIndex: closeIdx + 1 };
+			return { node, consumed: closeIdx + 1 - ctx.index };
 		}
 	});
 }

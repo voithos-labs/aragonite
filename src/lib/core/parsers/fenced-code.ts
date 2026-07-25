@@ -1,6 +1,6 @@
-import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw } from '../parser';
+import type { BlockOpenerResult } from '../../schema/block-openers';
 
 /**
  * The recognizer-grade fence-open shape, re-exported on `aragonite/plugin` for
@@ -44,7 +44,7 @@ export function parseFencedCode(
 	endIndex: number,
 	leadingTrivia: string,
 	fence: { marker: '`' | '~'; length: number; info: string }
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	let i = startIndex + 1;
 	let closed = false;
 
@@ -70,6 +70,6 @@ export function parseFencedCode(
 				closed
 			}
 		},
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }

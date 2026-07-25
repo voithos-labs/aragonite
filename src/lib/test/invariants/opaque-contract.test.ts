@@ -81,7 +81,7 @@ function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind 
 					children: [titleChild, ...body.children],
 					innerSuffix: body.suffix
 				},
-				nextIndex: i + 1
+				consumed: i + 1 - ctx.index
 			};
 		}
 	});

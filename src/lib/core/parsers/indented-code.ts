@@ -1,9 +1,9 @@
 // Paragraph-interruption guard is dispatch-context, not a line-level match —
 // it lives with the opener registration, not the matcher.
 
-import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
+import type { BlockOpenerResult } from '../../schema/block-openers';
 
 export function matchIndentedCode(text: string): boolean {
 	return /^(?: {4}|\t)/.test(text);
@@ -14,7 +14,7 @@ export function parseIndentedCode(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	let i = startIndex;
 
 	while (i < endIndex) {
@@ -37,6 +37,6 @@ export function parseIndentedCode(
 	const raw = joinRaw(lines, startIndex, i);
 	return {
 		node: { kind: 'indentedCode', leadingTrivia, raw },
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }

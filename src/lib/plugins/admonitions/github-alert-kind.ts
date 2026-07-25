@@ -29,6 +29,7 @@ import {
 	registerBlockOpener,
 	serializeChildren,
 	setPluginMetadata,
+	type BlockOpenerResult,
 	type CstNode,
 	type OpenContext,
 	type ParsedLine
@@ -37,7 +38,7 @@ import { matchAlertMarker, stripQuoteMarker } from './gh-alert';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
 
-function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null {
+function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const alertType = matchAlertMarker(ctx.line.text);
 	if (!alertType) return null;
 
@@ -48,7 +49,8 @@ function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null 
 	// The extent scan, not the marker regex, is the authority on whether this line
 	// opens a blockquote at all. Declining when it claims nothing keeps a marker-rule
 	// drift from ever reaching the parse loop as a non-advancing return.
-	if (nextIndex <= ctx.index) return null;
+	const consumed = nextIndex - ctx.index;
+	if (consumed <= 0) return null;
 
 	const body = parse(stripBody(ctx.lines, ctx.index + 1, nextIndex));
 
@@ -61,7 +63,7 @@ function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null 
 		innerSuffix: body.suffix
 	};
 	setPluginMetadata<GithubAlertMetadata>(node, { alertType });
-	return { node, nextIndex };
+	return { node, consumed };
 }
 
 /** The `> `-stripped body: the lines after the marker with their quote prefix removed. */

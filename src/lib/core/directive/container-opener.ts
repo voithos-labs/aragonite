@@ -55,7 +55,7 @@ export function registerDirectiveOpeners(): void {
 						closerNewline: false,
 						lineEnding
 					};
-					return { node: factory(parsed), nextIndex: ctx.index + 1 };
+					return { node: factory(parsed), consumed: 1 };
 				}
 				// A leaf re-derives its content range from `node.raw`, so a generic leaf
 				// needs no metadata; a kind-only registration just restamps the kind.
@@ -64,7 +64,7 @@ export function registerDirectiveOpeners(): void {
 					leadingTrivia: ctx.leadingTrivia,
 					raw: ctx.line.raw
 				});
-				return { node, nextIndex: ctx.index + 1 };
+				return { node, consumed: 1 };
 			}
 
 			// Colon-count-aware lookup of the matching closer: a shorter nested closer
@@ -98,7 +98,7 @@ export function registerDirectiveOpeners(): void {
 					closerNewline,
 					lineEnding
 				};
-				return { node: factory(parsed), nextIndex: closerIdx + 1 };
+				return { node: factory(parsed), consumed: closerIdx + 1 - ctx.index };
 			}
 
 			const node: CstNode = {
@@ -117,7 +117,7 @@ export function registerDirectiveOpeners(): void {
 				closerNewline,
 				lineEnding
 			});
-			return { node, nextIndex: closerIdx + 1 };
+			return { node, consumed: closerIdx + 1 - ctx.index };
 		}
 	});
 }

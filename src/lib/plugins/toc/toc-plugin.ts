@@ -73,7 +73,7 @@ export function registerTocBlock(): void {
 			if (ctx.line.text !== TOC_LINE) return null;
 			return {
 				node: { kind: toc, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		}
 	});

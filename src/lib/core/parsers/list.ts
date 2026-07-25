@@ -12,7 +12,11 @@
 import type { CstNode } from '../nodes';
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
-import { defaultGrammarView, lineInterruptsParagraph } from '../../schema/block-openers';
+import {
+	defaultGrammarView,
+	lineInterruptsParagraph,
+	type BlockOpenerResult
+} from '../../schema/block-openers';
 
 export function matchListItem(
 	text: string
@@ -59,7 +63,7 @@ export function parseList(
 	endIndex: number,
 	leadingTrivia: string,
 	depth: number = 0
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	const firstMatch = matchListItem(lines[startIndex].text)!;
 	const ordered = firstMatch.ordered;
 	const items: CstNode[] = [];
@@ -148,7 +152,7 @@ export function parseList(
 			children: items,
 			innerSuffix: ''
 		},
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }
 
