@@ -104,4 +104,27 @@ describe('CodeBlock code.newline commit preserves the trailing line ending', () 
 		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(newRaw.endsWith('\r\n')).toBe(true);
 	});
+
+	// The reattached trailing ending was never the whole rule: the newline Enter
+	// SPLICES INTO THE BODY has to match it too, or one keystroke leaves a lone LF
+	// inside a CRLF block. Stripping every CRLF pair leaves any lone LF exposed.
+	it('the spliced newline is CRLF too, not a bare LF in the body', () => {
+		mounted = mountCode('```\r\ncode\r\n```\r\n');
+		const { instance, el, blockEdit } = mounted;
+		el.focus();
+		instance.runCommand('code.newline');
+
+		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		expect(newRaw.replace(/\r\n/g, '')).not.toContain('\n');
+	});
+
+	it('an LF block still splices a bare LF', () => {
+		mounted = mountCode('```\ncode\n```\n');
+		const { instance, el, blockEdit } = mounted;
+		el.focus();
+		instance.runCommand('code.newline');
+
+		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		expect(newRaw).not.toContain('\r');
+	});
 });
