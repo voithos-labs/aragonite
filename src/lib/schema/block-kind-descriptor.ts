@@ -107,6 +107,16 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
+	 * Make text legal as this kind's `raw` before an in-place write lands. The
+	 * companion of `contextDependentKind`: a container that joins its children's
+	 * bytes verbatim gives those bytes delimiter meaning, so a write carrying a
+	 * delimiter would restructure the container instead of adding text (a bare `|`
+	 * in a tableCell deletes the row's last column). Applied at the write sink so
+	 * no gesture carries the rule; must be idempotent and prefix-composable, since
+	 * callers map their caret through the same pass. Absent = raw is written as given.
+	 */
+	normalizeRawWrite?: (raw: string) => string;
+	/**
 	 * Declares child index 0 of this container as a reserved chrome leaf of the
 	 * given kind (a title/summary whose bytes live in the container's own raw —
 	 * e.g. the callout opener line). The machinery enforces: always present,

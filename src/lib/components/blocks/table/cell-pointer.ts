@@ -160,9 +160,12 @@ export function handleCellShiftClick(
 
 // ── DOM geometry ─────────────────────────────────────────────────────────────
 //
-// The cell grid's one selector contract: rows carry `data-table-row-idx`, cells
-// carry `role="cell"`. Every table walker addresses the grid through these two
-// helpers so a markup change lands in one place.
+// The cell grid's selector contract: rows carry `data-table-row-idx`, cells carry
+// `role="cell"`. These helpers are the table module's readers of it, not the only
+// ones — `selection/path-lookup.ts` walks the same selectors upward (element → cell
+// path) because it cannot import a component module, and `Editor.svelte`'s
+// `getBlockElByPath` walks them downward (cell path → element). A markup change
+// lands in all three.
 
 /**
  * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the

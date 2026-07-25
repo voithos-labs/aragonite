@@ -26,6 +26,7 @@ import {
 	rebuildTableRaw,
 	rebuildTableRowRaw
 } from './container-rebuilders';
+import { normalizeCellRaw } from './table-cell-raw';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -328,6 +329,7 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		contextDependentKind: true,
+		normalizeRawWrite: normalizeCellRaw,
 		getContentRange: tableCellContentRange,
 		renderImagesAsWidgets: false,
 		keymap: [

@@ -21,6 +21,7 @@ import { applyRangesToText } from '../search/replace';
 import type { Match } from '../search/document-scan';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { toEditEvent } from '../editor-events';
+import { docPathFrom } from '../cursor/coordinate-spaces';
 
 function descend(root: CstNode, rel: number[]): CstNode | null {
 	let node: CstNode | undefined = root;
@@ -28,11 +29,16 @@ function descend(root: CstNode, rel: number[]): CstNode | null {
 	return node ?? null;
 }
 
-// GFM table-cell raw uses `|` and newline as delimiters; escape pipes and collapse
-// newlines so a replacement carrying either lands as literal text in one cell
-// instead of splitting the row or spilling into adjacent cells.
-function escapeTableCell(replacement: string): string {
-	return replacement.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+/**
+ * Substituted text made legal as this kind's raw. This path reparses a private
+ * clone rather than routing through `updateNodeContent`, so it is the one write
+ * that must apply the kind's rule itself instead of inheriting it from the sink.
+ * Reading it off the descriptor keeps the rule (and the kind's name) out of here:
+ * a second implementation is what let two cell escapes disagree.
+ */
+function toLegalRaw(kind: CstNode['kind'], substituted: string): string {
+	const normalize = getBlockKindDescriptor(kind).normalizeRawWrite;
+	return normalize ? normalize(substituted) : substituted;
 }
 
 function groupBy<K>(matches: Match[], key: (m: Match) => K): Map<K, Match[]> {
@@ -58,8 +64,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
 			if (!leaf) continue;
-			const escape = leaf.kind === 'tableCell' ? escapeTableCell : undefined;
-			leaf.raw = applyRangesToText(leaf.raw, ranges, template, escape);
+			const substituted = applyRangesToText(leaf.raw, ranges, template);
+			leaf.raw = toLegalRaw(leaf.kind, substituted);
 		}
 		// A nested leaf's edit must propagate up the clone's materialized container
 		// raw before we reparse from `child.raw`; a top-level leaf (rel empty) needs none.
@@ -95,10 +101,27 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		// restores the original document on undo (the commit publishes only on
 		// success), so recovery stays one Ctrl+Z — intentional.
 		controller.pushUndoSnapshotPath(seed.path, seed.start);
-		let total = 0;
+		let newBlockCount = 0;
+		let applied = 0;
 		for (const topIndex of indices) {
-			const newNodes = buildSubtree(topIndex, groups.get(topIndex)!, template);
-			total += newNodes.length;
+			const group = groups.get(topIndex)!;
+			let newNodes: CstNode[];
+			try {
+				newNodes = buildSubtree(topIndex, group, template);
+			} catch (error) {
+				// buildSubtree reparses and dispatches into the kind's `rebuildRaw` —
+				// plugin code, running outside every commit ceremony, so nothing else
+				// would attribute this. Report on the ceremony's own channel and stop:
+				// the single snapshot above still restores the whole batch in one undo.
+				deps.events.emit('error', {
+					origin: 'commit',
+					error,
+					context: { op: 'replaceBlock', path: docPathFrom([topIndex]) }
+				});
+				break;
+			}
+			newBlockCount += newNodes.length;
+			applied += group.length;
 			await controller.commitStructural({
 				snapshot: 'skip', // batch shares the single snapshot pushed above
 				mutate: (children) => {
@@ -110,11 +133,16 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				// op omitted → no per-commit edit event; one is emitted after the batch
 			});
 		}
+		if (applied === 0) return 0;
+		// A single-subtree replace operates on one known top-level node, so the
+		// aggregate event carries its doc-absolute path (editor.md §12); a batch
+		// spanning several subtrees genuinely has no single operated node.
+		const eventPath = indices.length === 1 ? docPathFrom([indices[0]]) : [];
 		deps.events.emit(
 			'edit',
-			toEditEvent({ kind: 'replaceBlock', detail: { count: total } }, [], Date.now())
+			toEditEvent({ kind: 'replaceBlock', detail: { count: newBlockCount } }, eventPath, Date.now())
 		);
-		return replaceable.length;
+		return applied;
 	}
 
 	return {

@@ -64,7 +64,7 @@ export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentVi
 export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentView | null {
 	let cur: NodeView | DocumentView = doc;
 	for (const idx of path) {
-		if (!cur.children || idx >= cur.children.length) return null;
+		if (!cur.children || idx < 0 || idx >= cur.children.length) return null;
 		cur = cur.children[idx];
 	}
 	return cur;
@@ -314,12 +314,15 @@ export function updateNodeContent(
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
+	const oldDescriptor = getBlockKindDescriptor(oldKind);
 
 	// A context-dependent kind (tableCell, plugin chrome) has no standalone
 	// recognizer, so reparsing would downgrade it. Its container's rebuildRaw
-	// owns the surrounding syntax; keep the kind and just write raw.
-	if (getBlockKindDescriptor(oldKind).contextDependentKind) {
-		node.raw = newText;
+	// owns the surrounding syntax; keep the kind and just write raw — through the
+	// kind's own legality pass, because this branch is where every gesture's text
+	// reaches those bytes and a delimiter arriving bare restructures the container.
+	if (oldDescriptor.contextDependentKind) {
+		node.raw = oldDescriptor.normalizeRawWrite?.(newText) ?? newText;
 		return { op: 'noop' };
 	}
 
