@@ -32,3 +32,7 @@ Symbol-prefixed, lowercase, one logical change per commit. Full convention: [`do
 ## Fixing bugs
 
 Root-cause first — never patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis — what test should have caught this, and why none did — in the commit message.
+
+## Licensing
+
+aragonite is licensed under [GPL-3.0-or-later](LICENSE). Contributions are accepted under the same terms (inbound = outbound): by submitting a change you agree it is licensed under the project license.
