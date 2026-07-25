@@ -10,7 +10,7 @@ import type { Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings } from '../../core/lines';
+import { normalizeLineEndings, trailingLineEnding } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
@@ -138,10 +138,10 @@ async function replaceTableWithPaste(
 	// transforms run here too — the rule lives in the helper, applied at both sites.
 	const parsed = parse(applyPasteTransforms(pasted));
 	if (parsed.children.length === 0) return;
-	const blocks = materializeBlankLines(parsed.children);
 
 	const tableNode = blockNodeAt(doc, tablePath);
 	if (!tableNode) return;
+	const blocks = materializeBlankLines(parsed.children, trailingLineEnding(tableNode.raw));
 	const replacement = normalizeReplacementTrivia(tableNode, blocks);
 	for (const node of replacement) ensureEditableContainers(node);
 

@@ -107,6 +107,7 @@
 		stickyColumn,
 		selection,
 		widgetSelection,
+		registryView,
 		events: editorEvents,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -225,6 +226,7 @@
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
+		grammar: registryView.grammar,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),

@@ -119,10 +119,11 @@ export interface EditableSurfaceDeps {
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
-	 *  Optional at this seam: a leaf that omits it falls back to the global grammar
-	 *  (byte-identical). Supplied via `registryView.grammar` where a surface wires it. */
-	grammar?: GrammarView;
+	/** The instance's block grammar (`registryView.grammar`), forwarded to the
+	 *  cross-block join-paste reparse. Required-nullable to match the dispatch tier it
+	 *  feeds: a surface must answer the question, and `undefined` means the global
+	 *  grammar deliberately. */
+	grammar: GrammarView | undefined;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
 	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
@@ -151,7 +152,7 @@ export interface EditableSurface {
 	onCompositionEnd: () => void;
 }
 
-/** The BlockComponent methods shared verbatim across the three surfaces. */
+/** The BlockComponent methods shared verbatim across every editable surface. */
 export interface EditableSurfaceMethods {
 	focus(offset: number): void;
 	focusAtColumn(x: number, from: StickyColumnDirection): void;

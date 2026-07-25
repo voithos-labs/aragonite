@@ -66,6 +66,7 @@
 		stickyColumn,
 		reorder,
 		selection,
+		registryView,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
@@ -122,6 +123,7 @@
 		onCommandError,
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
+		grammar: registryView.grammar,
 		getFocusOffset,
 		getTextLen,
 		readText,
