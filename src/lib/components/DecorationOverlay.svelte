@@ -30,8 +30,20 @@
 		hasChildHosts?: boolean;
 	} = $props();
 
-	const engine = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.decorations;
+	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	const engine = services?.decorations;
 	const { editorRoot: getEditorRoot } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+
+	/** A mark's `interactive.onClick` is author code on a user gesture, so it routes
+	 *  to the same seam every other decoration entry point uses (editor.md §12)
+	 *  rather than surfacing as an unattributed window error. */
+	function runInteraction(run: () => void): void {
+		try {
+			run();
+		} catch (error) {
+			services?.events.emit('error', { origin: 'decoration', error, context: { path } });
+		}
+	}
 
 	// A grid container (table) supplies cellRect, so its descendant cell marks —
 	// which never get their own BlockHost overlay — paint as whole cells here.
@@ -129,7 +141,9 @@
 				height: r.height,
 				cls,
 				attrs: dec.attrs,
-				onClick: interactive ? (ev) => interactive.onClick(dec, ev) : undefined
+				onClick: interactive
+					? (ev: MouseEvent) => runInteraction(() => interactive.onClick(dec, ev))
+					: undefined
 			};
 		}
 

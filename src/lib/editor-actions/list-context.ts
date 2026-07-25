@@ -104,9 +104,13 @@ export function createListContext(deps: ListContextDeps): ListContext {
 							normalizeItemMarkerToList(moved, destList);
 						}
 					} else {
-						destList = buildListShell(ordered, [movedItem]);
-						sharing.stamp(destList);
-						destScope.children.push(destList);
+						const shell = buildListShell(ordered, [movedItem]);
+						sharing.stamp(shell);
+						destScope.children.push(shell);
+						// Write-then-re-read (tree-operations/unshare.ts header): the writes
+						// below must go through the tree-held value, not the raw shell the
+						// $state proxy has now observed.
+						destList = destScope.children[destScope.children.length - 1];
 					}
 
 					// Renumber writes the moved item's marker — sharing unshares it.

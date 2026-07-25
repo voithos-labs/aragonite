@@ -54,7 +54,14 @@ export function createBlockEditActions(
 			postEditFocusOffset?: number
 		): Promise<void> {
 			deps.stickyColumn.reset();
-			controller.pushUndoSnapshotDebounced([blockIndex], preEditOffset ?? 0);
+			// Keyed by block, not by slot — the container sibling's rule. A bare index
+			// identifies the position, so a different block arriving at the same
+			// top-level slot would silently continue the previous block's batch.
+			controller.pushUndoSnapshotDebounced(
+				[blockIndex],
+				preEditOffset ?? 0,
+				deps.blockIds[blockIndex]
+			);
 
 			// The live mutation for the structural path runs inside the ceremony so a
 			// multi-block splice never touches the live children array out-of-commit.
