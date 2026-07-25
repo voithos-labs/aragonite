@@ -1,6 +1,6 @@
 /**
  * Native GitHub alerts: a blockquote whose FIRST line is exactly `> [!TYPE]`
- * (`NOTE`/`TIP`/`IMPORTANT`/`WARNING`/`CAUTION`) parses as its own `githubAlert`
+ * (an `ADMONITION_KINDS` name, uppercased) parses as its own `githubAlert`
  * container kind, bytes untouched — never rewritten to `:::note`. A strip container
  * in the blockquote mold: the opener claims the whole blockquote (reusing the
  * built-in extent scan, so lazy continuation matches), stores its byte-exact raw,

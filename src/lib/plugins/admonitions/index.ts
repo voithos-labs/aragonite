@@ -1,6 +1,6 @@
 // Admonitions plugin — public entry. `admonitionsPlugin()` teaches the editor two
-// kinds sharing one component: the five `:::name` directives (`:::note` …
-// `:::caution`), which all resolve to one admonition kind, and native GitHub alerts
+// kinds sharing one component: the `:::name` directives (`ADMONITION_KINDS`),
+// which all resolve to one admonition kind, and native GitHub alerts
 // (`> [!NOTE]` blockquotes, kind `githubAlert`). Pass `{ convertAlertsOnPaste: true }`
 // to rewrite pasted alerts to directive source instead of rendering them natively.
 export { admonitionsPlugin } from './register';

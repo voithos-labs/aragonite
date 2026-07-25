@@ -13,6 +13,7 @@
  * uninitialized state.
  */
 import { ALL_BLOCK_KINDS, type AnyBlockKind } from '../core/nodes';
+import type { ClosureCell } from './closure';
 import { assertInvariant, type InvariantViolation } from '../invariants/assert';
 import {
 	checkRegistryCompleteness,
@@ -20,9 +21,14 @@ import {
 	checkKeymapCoherence,
 	checkReservedChromeCoherence,
 	checkClosureCoherence,
-	checkLateOpenerRegistration
+	checkLateOpenerRegistration,
+	type ClosureCoherenceEntry
 } from '../invariants/registry';
-import { tryGetBlockKindDescriptor, getAllRegisteredKinds } from './block-kind-descriptor';
+import {
+	tryGetBlockKindDescriptor,
+	getAllRegisteredKinds,
+	type BlockKindDescriptor
+} from './block-kind-descriptor';
 import { getBlockComponent } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
@@ -56,17 +62,35 @@ const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
 		};
 	});
 
+const viaOf = (cell: ClosureCell): string | undefined =>
+	cell.mode === 'implemented' ? cell.via : undefined;
+
+/**
+ * Descriptor → G1.24 entry. Exported because the suites that check a live
+ * descriptor project the same fields: a test-local copy that missed a column would
+ * pass while the rule it claims to exercise went unread.
+ */
+export const closureCoherenceEntry = (
+	kind: AnyBlockKind,
+	d: BlockKindDescriptor
+): ClosureCoherenceEntry => ({
+	kind,
+	notMergeable: d.mergeRole === 'not-mergeable',
+	hasContainerContract: d.containerContract !== undefined,
+	roundTripMode: d.closure.roundTrip.mode,
+	mergeBackspaceMode: d.closure.mergeBackspace.mode,
+	declaresWholeBlockFocus: d.blockFocus === 'whole-block',
+	focusVia: viaOf(d.closure.focus),
+	mergeBackspaceVia: viaOf(d.closure.mergeBackspace),
+	declaresReservedChrome: d.reservedChrome !== undefined,
+	clipboardMode: d.closure.clipboard.mode
+});
+
 const closureEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds
 		.map((kind) => ({ kind, d: tryGetBlockKindDescriptor(kind) }))
 		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
-		.map(({ kind, d }) => ({
-			kind,
-			notMergeable: d.mergeRole === 'not-mergeable',
-			hasContainerContract: d.containerContract !== undefined,
-			roundTripMode: d.closure.roundTrip.mode,
-			mergeBackspaceMode: d.closure.mergeBackspace.mode
-		}));
+		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
 
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 

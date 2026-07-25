@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { declaredPluginKind } from '$lib/plugin';
-import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
+import { checkClosureCoherence } from '$lib/invariants/registry';
+import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
@@ -24,14 +25,6 @@ describe('simpleLeafClosure migrations stay closure-coherent', () => {
 	it.each(MIGRATED)('$kind passes G1.24 as registered', ({ kind, install }) => {
 		install();
 		const k = declaredPluginKind(kind);
-		const d = getBlockKindDescriptor(k);
-		const entry: ClosureCoherenceEntry = {
-			kind: k,
-			notMergeable: d.mergeRole === 'not-mergeable',
-			hasContainerContract: d.containerContract !== undefined,
-			roundTripMode: d.closure.roundTrip.mode,
-			mergeBackspaceMode: d.closure.mergeBackspace.mode
-		};
-		expect(checkClosureCoherence([entry])).toBeNull();
+		expect(checkClosureCoherence([closureCoherenceEntry(k, getBlockKindDescriptor(k))])).toBeNull();
 	});
 });
