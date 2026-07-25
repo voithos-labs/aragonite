@@ -7,6 +7,8 @@
 	import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 	import { tocPlugin } from 'aragonite/plugins/toc';
 	import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
+	import { emojiPlugin } from 'aragonite/plugins/emoji';
+	import { footnotesPlugin } from 'aragonite/plugins/footnotes';
 
 	// Module scope so the factories run once per process, not once per (SSR) render —
 	// a re-render minting fresh same-name plugins would trip installPlugins' first-wins
@@ -18,6 +20,11 @@
 	// exercising the packaged plugin's no-engine fallback from outside the repo. toc
 	// turns on the `[[toc]]` leaf (its render lists the seed's headings);
 	// highlightOccurrencesPlugin marks every occurrence of the word under the caret.
+	//
+	// emoji and footnotes share their trigger byte with constructs already in the seed
+	// (`:` with `:::name`, `[` with `[[toc]]`), so installing them here is also the
+	// outside-the-repo check that the recognizer rungs coexist rather than contest a
+	// claim — a mis-ordered priority would eat `:::mystery` or the toc leaf.
 	const plugins = [
 		calloutPlugin(),
 		detailsPlugin(),
@@ -25,7 +32,9 @@
 		latexPlugin({ renderer: katexRenderer }),
 		mermaidPlugin(),
 		tocPlugin(),
-		highlightOccurrencesPlugin()
+		highlightOccurrencesPlugin(),
+		emojiPlugin(),
+		footnotesPlugin()
 	];
 </script>
 
@@ -65,6 +74,12 @@
 		':::mystery',
 		'Unregistered directive body',
 		':::',
+		'',
+		'Emoji :sparkles: inline',
+		'',
+		'Footnote reference[^1] in prose',
+		'',
+		'[^1]: Footnote definition body',
 		''
 	].join('\n');
 
