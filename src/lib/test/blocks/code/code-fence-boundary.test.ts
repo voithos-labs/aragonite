@@ -179,7 +179,8 @@ describe('clampEnterOffsetToBody', () => {
 		const enter = computeCodeEnter({
 			display,
 			selection: { start: offset, end: offset },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(enter.newText).toBe('```js\n\nconst x = 1\n```');
 		// Caret stays with the content, now on the second body line.

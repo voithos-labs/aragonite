@@ -2,7 +2,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { useMountGauge } from '../../perf/use-mount-gauge.svelte';
-import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '../../perf/instruments';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	resetPerfInstruments,
+	perfSnapshot
+} from '../../perf/instruments';
 
 describe('useMountGauge', () => {
 	beforeEach(() => {
@@ -20,6 +25,37 @@ describe('useMountGauge', () => {
 		expect(perfSnapshot().mountedBlockCount).toBe(1);
 
 		dispose();
+		expect(perfSnapshot().mountedBlockCount).toBe(0);
+	});
+
+	// The gauge is a net balance, so arm and disarm must be decided ONCE per
+	// mount. Re-reading `perfEnabled()` at teardown let a flip between the two
+	// decrement a mount that was never counted, and the count went negative —
+	// which reads as "windowing unmounted more than it mounted".
+	it('does not decrement a mount it never counted when perf arms mid-life', () => {
+		disablePerfInstruments();
+		const dispose = $effect.root(() => {
+			useMountGauge();
+		});
+		flushSync();
+
+		enablePerfInstruments();
+		dispose();
+
+		expect(perfSnapshot().mountedBlockCount).toBe(0);
+	});
+
+	// The other direction (disarm mid-life) is held by the counters' own gate: with
+	// the instrument off there is nothing to keep balanced, and re-arming goes
+	// through resetPerfInstruments.
+	it('never reads negative across an arm flip on many mounts', () => {
+		disablePerfInstruments();
+		const disposers = [0, 1, 2].map(() => $effect.root(() => useMountGauge()));
+		flushSync();
+
+		enablePerfInstruments();
+		for (const dispose of disposers) dispose();
+
 		expect(perfSnapshot().mountedBlockCount).toBe(0);
 	});
 });
