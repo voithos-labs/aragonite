@@ -7,11 +7,7 @@
 		FocusActions,
 		TableContext
 	} from '../../../action-contracts';
-	import {
-		SELECTION_END,
-		type BlockComponent,
-		type StickyColumnDirection
-	} from '../../../block-component';
+	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
@@ -26,11 +22,12 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX, cellRowCol } from '../../../cursor/coordinate-spaces';
+	import { asEditorX } from '../../../cursor/coordinate-spaces';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { intraTableRect } from './cell-clipboard';
+	import { selectedCells } from './selected-cells';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
@@ -593,7 +590,14 @@
 
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
 		if (!tableEl || rowCount === 0) return [];
-		const cells = collectSelectedCells(start, end);
+		const cells = selectedCells({
+			rect: selection ? intraTableRect(selection) : null,
+			myPath,
+			start,
+			end,
+			rowCount,
+			columnCount
+		});
 		const rects: DOMRect[] = [];
 		for (const { rowIdx, colIdx } of cells) {
 			const cellEl = cellElementAt(rowIdx, colIdx);
@@ -610,36 +614,6 @@
 
 	export function mountedRowWindow(): { start: number; end: number } {
 		return { start: win.start, end: win.end };
-	}
-
-	function collectSelectedCells(start: number, end: number): { rowIdx: number; colIdx: number }[] {
-		const rect = selection ? intraTableRect(selection) : null;
-
-		if (rect) {
-			const { row: aRow, col: aCol } = cellRowCol(rect.anchorCellIdx, columnCount);
-			const { row: fRow, col: fCol } = cellRowCol(rect.focusCellIdx, columnCount);
-			const minRow = Math.min(aRow, fRow);
-			const maxRow = Math.max(aRow, fRow);
-			const minCol = Math.min(aCol, fCol);
-			const maxCol = Math.max(aCol, fCol);
-			const cells: { rowIdx: number; colIdx: number }[] = [];
-			for (let r = minRow; r <= maxRow; r++) {
-				for (let c = minCol; c <= maxCol; c++) {
-					cells.push({ rowIdx: r, colIdx: c });
-				}
-			}
-			return cells;
-		}
-
-		const cellCount = rowCount * columnCount;
-		const linearEnd = end === SELECTION_END ? cellCount : Math.min(end, cellCount);
-		const linearStart = Math.max(0, start);
-		const cells: { rowIdx: number; colIdx: number }[] = [];
-		for (let i = linearStart; i < linearEnd; i++) {
-			const { row, col } = cellRowCol(i, columnCount);
-			cells.push({ rowIdx: row, colIdx: col });
-		}
-		return cells;
 	}
 
 	function cellElementAt(rowIdx: number, colIdx: number): HTMLElement | null {

@@ -19,18 +19,24 @@ export interface CellClipboardDeps {
 	getDoc: DocumentGetter;
 }
 
+export interface IntraTableRect {
+	tablePath: number[];
+	anchorCellIdx: number;
+	focusCellIdx: number;
+}
+
 /**
  * A live intra-table rectangle: both cross-block endpoints share the table path,
  * so each `offset` is a row-major cell index established by that shared scope
  * (unflagged — see `selection/primitives` on context-established cell offsets).
  * Returns the shared table path and the two cell indices, or null when the
  * selection isn't such a rectangle. Callers decode the indices with `cellRowCol`
- * against their own column count. One home for a predicate the copy, highlight,
- * and cell-collection paths otherwise each spelled out inline.
+ * against their own column count, and compare `tablePath` against their own —
+ * with two tables on screen the rectangle belongs to at most one of them. One
+ * home for a predicate the copy, highlight, and cell-collection paths otherwise
+ * each spelled out inline.
  */
-export function intraTableRect(
-	selection: SelectionState
-): { tablePath: number[]; anchorCellIdx: number; focusCellIdx: number } | null {
+export function intraTableRect(selection: SelectionState): IntraTableRect | null {
 	const { anchor, focus } = selection;
 	if (!selection.isCustomRendered || !anchor || !focus || !pathsEqual(anchor.path, focus.path)) {
 		return null;
