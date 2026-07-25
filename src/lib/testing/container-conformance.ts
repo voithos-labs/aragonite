@@ -21,9 +21,17 @@
  *       declared unwrapRole names implemented strategies, a declared
  *       containerPaste is shaped as the paste path consumes it, and rebuildRaw
  *       runs non-throwing over a parsed fixture.
+ *   (f) terminator collision — a body line reproducing the container's own
+ *       terminator survives the rebuild: the container still holds it, instead
+ *       of closing early and ejecting everything below it on reparse.
  *
  * Register your kind before calling: the kit parses its fixtures, so the opener
  * (or directive) that produces the kind must be live.
+ *
+ * Which answer a container owes that cell (escalate, immune by construction, or
+ * exempt) is spelled out in the plugin guide's "Conformance-testing a container"
+ * section, which ships with the published docs pack. That is the copy authors
+ * read; a second one here would only drift from it.
  *
  * Strip vs grid vs opaque. Strip containers decompose as outer-syntax-around-
  * children, so their `rebuildRaw` reads only their own direct children and the
@@ -107,6 +115,17 @@ export interface LocalIndexFixture {
 	targetChild: number;
 }
 
+/**
+ * `source` must parse to a document whose FIRST top-level block is the kind under
+ * test; `bodyRaw` replaces that node's LAST child and must contain a line
+ * reproducing the container's terminator (a bare `:::` for a colon fence, a
+ * `</details>` line for an HTML close tag).
+ */
+export interface TerminatorCollisionFixture {
+	source: string;
+	bodyRaw: string;
+}
+
 export interface ContainerConformanceProfile {
 	/**
 	 * A nesting where this kind is an intermediate ancestor of a deep editable
@@ -117,10 +136,13 @@ export interface ContainerConformanceProfile {
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
+	/** Required when `terminatorCollision` asserts. */
+	terminatorCollisionFixture?: TerminatorCollisionFixture;
 	localIndex: ConformanceCoverage;
 	ancestry: ConformanceCoverage;
 	multiScope: ConformanceCoverage;
 	focusBubble: ConformanceCoverage;
+	terminatorCollision: ConformanceCoverage;
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
@@ -130,6 +152,7 @@ export type ConformanceCell =
 	| 'ancestry'
 	| 'multiScope'
 	| 'focusBubble'
+	| 'terminatorCollision'
 	| 'declarations';
 
 export interface ConformanceCellReport {
@@ -183,6 +206,9 @@ export async function runContainerConformance(
 	await runCell('multiScope', profile.multiScope, () => checkOneUndoPerMultiScope(kind));
 	await runCell('focusBubble', profile.focusBubble, () =>
 		checkFocusBubbleTermination(kind, profile)
+	);
+	await runCell('terminatorCollision', profile.terminatorCollision, () =>
+		checkTerminatorCollision(kind, profile)
 	);
 	await runCell('declarations', { mode: 'assert' }, () => checkDeclarationSanity(kind, profile));
 
@@ -540,6 +566,35 @@ export async function checkFocusBubbleTermination(
 	assertIs(bubbled.length, 2, 'root received exactly (index, position)');
 	assertIs(bubbled[0], 2, 'root received the bubbled index');
 	assertIs(bubbled[1], 'end', 'root received the bubbled position');
+}
+
+// ── (f) terminator collision ─────────────────────────────────────────────────
+
+/**
+ * Write a terminator-shaped line into the container's last child, rebuild, and
+ * require the live tree to still converge with a fresh parse of its own bytes.
+ * Convergence — not a byte round-trip — is the oracle: `serialize(parse(s)) === s`
+ * holds throughout a collision (the raw is emitted verbatim either way), while the
+ * container silently stops containing what the live tree says it holds.
+ */
+export function checkTerminatorCollision(
+	kind: AnyBlockKind,
+	profile: ContainerConformanceProfile
+): void {
+	const fixture = profile.terminatorCollisionFixture;
+	if (!fixture)
+		fail('terminatorCollision asserts but the profile carries no terminatorCollisionFixture');
+
+	const doc = parse(fixture.source);
+	const node = doc.children[0];
+	assertIs(node?.kind, kind, 'terminatorCollisionFixture source opens with a node of the kind');
+	const children = node.children ?? [];
+	assert(children.length > 0, 'the fixture node has a body child to overwrite');
+
+	children[children.length - 1].raw = fixture.bodyRaw;
+	rebuildContainerRawIfContainer(node);
+
+	assertParseConverged(doc, `${kind} survives a body line reproducing its terminator`);
 }
 
 // ── (e) declaration sanity ───────────────────────────────────────────────────

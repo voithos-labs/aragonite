@@ -809,13 +809,16 @@ The mounted-DOM cells — focus, selection paint, search paint — are executed 
 
 If your plugin registers a **container** kind, `aragonite/testing` also publishes the harness the built-in containers are held to — the same checks, pointed at your kind. It is the fastest way to find out whether your container behaves like a first-class one:
 
-| Cell           | What it holds you to                                                                               |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| `localIndex`   | Children are addressed by their **local** index at each nesting level, not a global offset         |
-| `ancestry`     | An edit deep inside rebuilds raw inner→outer, so the root's `raw` reflects the leaf change         |
-| `multiScope`   | One logical multi-scope op pushes exactly **one** undo entry                                       |
-| `focusBubble`  | A boundary focus event bubbles to the root and terminates — no loop, no double-escape              |
-| `declarations` | Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` runs |
+| Cell                  | What it holds you to                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `localIndex`          | Children are addressed by their **local** index at each nesting level, not a global offset         |
+| `ancestry`            | An edit deep inside rebuilds raw inner→outer, so the root's `raw` reflects the leaf change         |
+| `multiScope`          | One logical multi-scope op pushes exactly **one** undo entry                                       |
+| `focusBubble`         | A boundary focus event bubbles to the root and terminates — no loop, no double-escape              |
+| `terminatorCollision` | A body line reproducing your container's own terminator stays inside it                            |
+| `declarations`        | Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` runs |
+
+`terminatorCollision` is new, and **required** — a profile written before it stops compiling until the cell is declared. Assert it and supply a `terminatorCollisionFixture` (body bytes carrying a line that reproduces your terminator), or declare it `exempt` with a reason if your terminator is a fixed token with no length to grow; the paragraph below the example says which of those you are.
 
 You supply the fixtures, because the kit parses its way to your kind — so register the plugin first, then hand it Markdown that produces your container:
 
@@ -829,15 +832,20 @@ it('my container conforms', async () => {
 		// The chain of container indices down to your kind, and which child to edit.
 		localIndexFixture: { source: OUTER_WRAPPING_INNER, containerChain: [0, 1], targetChild: 2 },
 		focusSource: ONE_OF_MY_CONTAINERS,
+		// Body bytes carrying a line that reproduces your terminator.
+		terminatorCollisionFixture: { source: ONE_OF_MY_CONTAINERS, bodyRaw: 'before\nMY_TERMINATOR\nafter\n' },
 		localIndex: { mode: 'assert' },
 		ancestry: { mode: 'assert' },
 		multiScope: { mode: 'exempt', reason: 'my container owns no ≥2-scope op — its inner ops are single-scope' },
-		focusBubble: { mode: 'assert' }
+		focusBubble: { mode: 'assert' },
+		terminatorCollision: { mode: 'assert' }
 	});
 });
 ```
 
 Pick a **non-first** child at a **non-zero** chain position for `localIndexFixture`. At chain `[0, 0]` / child 0 a local path and a flat global offset are the same number, and the check proves nothing.
+
+`terminatorCollision` is the one most container authors have not considered. If your container wraps body bytes between an opener and a terminator, a body line that reproduces that terminator closes it early, and everything below leaves the container the next time the document is parsed. Byte round-trip does not catch it: the bytes are re-emitted verbatim either way, and only the live tree disagrees with them. A fence-shaped terminator escalates (the `:::` containers lengthen their fence past the body's runs, which the editor does for you); a strip container is immune, because it prefixes every line it emits. A fixed-token terminator such as an HTML close tag can do neither, so it declares the cell `exempt` (there is no fence length for the invariant to bite on) and leans on the dev-time staleness guard. Escaping the offending bytes is not an option for an opaque container: its `raw` is byte-compared against its live children, so rewriting a child on the way out reads as staleness.
 
 Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is declared, not skipped: `exempt` means the invariant has nothing to bite on (no multi-scope op exists), `boundary` means asserting it would need something the harness cannot reach (a mounted component, a DOM). Both demand a substantive `reason` — a thin one fails the run, so an exemption stays visible instead of quietly hollowing the harness out. The call resolves with a report of what was asserted and what was excused; it throws an `Error` naming every failed cell otherwise, so it drops straight into a test case under any runner.
 
@@ -898,15 +906,16 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Directive authoring** _(pre-freeze / unstable)_ — full semantics in the [directives guide](directives.md)
 
-| Export                                                                                             | Role                                                                                            |
-| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `activateDirectives`                                                                               | Turn the `:::name` grammar on; call once at startup, before the first parse                     |
-| `registerDirective`                                                                                | Map a `(tier, name)` to one of your kinds                                                       |
-| `isDirectiveRegistered`                                                                            | Idempotence probe for a directive registration                                                  |
-| `parseDirectiveAttributes`                                                                         | Opt-in reader pulling `[label]{attrs}` out of a directive's info string                         |
-| `serializeDirective`                                                                               | Serialize a fence back to bytes losslessly from a registered kind                               |
-| `createDirectiveRebuild`                                                                           | Build the `rebuildRaw` for a title-child-0 directive container — owns the CRLF-safe fence bytes |
-| `DirectiveDefinition`, `ParsedDirective`, `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The registration definition, the parsed fence handed to your factory, and the supporting shapes |
+| Export                                                                                             | Role                                                                                                                   |
+| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `activateDirectives`                                                                               | Turn the `:::name` grammar on; call once at startup, before the first parse                                            |
+| `registerDirective`                                                                                | Map a `(tier, name)` to one of your kinds                                                                              |
+| `isDirectiveRegistered`                                                                            | Idempotence probe for a directive registration                                                                         |
+| `parseDirectiveAttributes`                                                                         | Opt-in reader pulling `[label]{attrs}` out of a directive's info string                                                |
+| `serializeDirective`                                                                               | Serialize a fence back to bytes losslessly from a registered kind                                                      |
+| `escalatedColonCount`                                                                              | The fence length a body needs, for an emitter building `:::name` text by hand rather than through `serializeDirective` |
+| `createDirectiveRebuild`                                                                           | Build the `rebuildRaw` for a title-child-0 directive container — owns the CRLF-safe fence bytes                        |
+| `DirectiveDefinition`, `ParsedDirective`, `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The registration definition, the parsed fence handed to your factory, and the supporting shapes                        |
 
 **Inline authoring** _(pre-freeze / unstable)_ — the two render paths and the tier's limits are in [Inline kinds](#inline-kinds)
 

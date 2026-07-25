@@ -9,13 +9,37 @@
  *
  * `matchAlertMarker` and `stripQuoteMarker` are the grammar the native
  * `githubAlert` opener (github-alert-kind.ts) reuses, so the marker rule lives in
- * exactly one place. The transform stays free of any editor import so it
- * unit-tests in isolation; the document-scoped wrapper (which needs `parse` to
- * skip code blocks) lives in `convert-document.ts`.
+ * exactly one place.
+ *
+ * Two converters, one grammar, and a fork worth knowing about.
+ * `convertAlertBlockquoteRaw` is handed an extent the parser already decided;
+ * `convertGithubAlerts` scans for its own, one line at a time. No line test can
+ * reproduce the parser there — CommonMark lazy continuation is stateful, absorbing
+ * a line only while a paragraph is open — so the two disagree on an over-indented
+ * `>` line following a body line that closed the paragraph, and on a plain lazy
+ * line. `test/plugins/admonitions/converter-parity.test.ts` pins both where they
+ * agree and where they fork. Reach for the parse-scoped wrapper in
+ * `convert-document.ts` on a whole document; the stream scanner is the fallback for
+ * callers holding nothing but a string.
  */
+import { escalatedColonCount } from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
 
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
+
+const CANONICAL_COLONS = 3;
+
+/**
+ * The `:::name` … `:::` wrapper for one alert's stripped body lines, with the
+ * fence lengthened past any colon run the body reproduces — an unescalated bare
+ * `:::` body line would read as the container's own closer and push the rest of
+ * the alert out of it. This transform writes its output into the document, so
+ * the damage would be persisted, not merely live.
+ */
+function wrapAsDirective(name: string, body: string[]): string[] {
+	const colons = ':'.repeat(escalatedColonCount(body.join('\n'), CANONICAL_COLONS));
+	return [`${colons}${name}`, ...body, colons];
+}
 
 /**
  * `> [!NOTE]` alone on the line (case-insensitive type, optional space after `>`).
@@ -26,13 +50,23 @@ const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
 const MARKER = /^ {0,3}>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
 
 /**
- * A `>`-prefixed line, for the transform's body scan and blockquote-start test.
- * Its indent stays uncapped where MARKER's is capped: this one gates no opener, so
- * over-acceptance can only mis-scope a `source → source` rewrite. `stripQuoteMarker`
- * is uncapped too but does run on the opener path, where over-acceptance mis-scopes
- * the body strip — both are ledgered in `docs/issues.md`.
+ * A `>` line that opens a blockquote, capped at CommonMark's 0–3 space block
+ * indent like the built-in `matchBlockquote`: past that the line is indented code
+ * and opens nothing. Answers "was the previous line already inside a quote", which
+ * is what makes a marker count only at its quote's first line.
  */
-const QUOTE_LINE = /^[ \t]*>/;
+const QUOTE_OPEN = /^ {0,3}>/;
+
+/**
+ * A line the stream converter's body scan still claims. Uncapped where the other
+ * two gates are capped, because the cap means the opposite thing here: at the strip
+ * it declines and leaves the bytes alone, but at a scan it STOPS, and a stop ejects
+ * the rest of the alert. A tab-indented continuation emitted a body-less
+ * `:::note` / `:::` pair with the body outside it, where both other converters kept
+ * it in. Claiming the line and letting `stripQuoteMarker` decline reproduces the
+ * parser's own handling of it.
+ */
+const QUOTED_BODY_LINE = /^[ \t]*>/;
 
 /**
  * The alert type as it was typed (`NOTE`, `Note`, `warning`) when `line` is
@@ -45,9 +79,14 @@ export function matchAlertMarker(line: string): string | null {
 	return typed && ALERT_NAMES.has(typed.toLowerCase()) ? typed : null;
 }
 
-/** Strip one leading `>` and at most one following space/tab (GFM blockquote marker). */
+/**
+ * Strip one leading `>` and at most one following space/tab (GFM blockquote
+ * marker). Indent is capped at CommonMark's 0–3 spaces, matching the built-in
+ * `stripBlockquotePrefix`: past that the line is indented code, and its `>` is
+ * literal text a strip would silently promote to a quote marker on rebuild.
+ */
 export function stripQuoteMarker(line: string): string {
-	const m = /^[ \t]*>[ \t]?/.exec(line);
+	const m = /^ {0,3}>[ \t]?/.exec(line);
 	return m ? line.slice(m[0].length) : line;
 }
 
@@ -68,7 +107,7 @@ export function convertAlertBlockquoteRaw(raw: string): string | null {
 	const typed = matchAlertMarker(lines[0]);
 	if (!typed) return null;
 	const body = lines.slice(1).map(stripQuoteMarker);
-	const out = [`:::${typed.toLowerCase()}`, ...body, ':::'].join('\n');
+	const out = wrapAsDirective(typed.toLowerCase(), body).join('\n');
 	return trailingNewline ? `${out}\n` : out;
 }
 
@@ -86,16 +125,15 @@ export function convertGithubAlerts(text: string): AlertConversion {
 
 	while (i < lines.length) {
 		const typed = matchAlertMarker(lines[i]);
-		const opensBlockquote = i === 0 || !QUOTE_LINE.test(lines[i - 1]);
 
-		if (typed && opensBlockquote) {
+		if (typed && startsBlockquote(lines, i)) {
 			const body: string[] = [];
 			let j = i + 1;
-			while (j < lines.length && QUOTE_LINE.test(lines[j])) {
+			while (j < lines.length && QUOTED_BODY_LINE.test(lines[j])) {
 				body.push(stripQuoteMarker(lines[j]));
 				j++;
 			}
-			out.push(`:::${typed.toLowerCase()}`, ...body, ':::');
+			out.push(...wrapAsDirective(typed.toLowerCase(), body));
 			changed = true;
 			i = j;
 		} else {
@@ -110,8 +148,10 @@ export function convertGithubAlerts(text: string): AlertConversion {
 /** Whether `text` contains at least one convertible GitHub alert. */
 export function hasGithubAlert(text: string): boolean {
 	const lines = text.split('\n');
-	return lines.some((line, i) => {
-		if (!matchAlertMarker(line)) return false;
-		return i === 0 || !QUOTE_LINE.test(lines[i - 1]);
-	});
+	return lines.some((line, i) => matchAlertMarker(line) !== null && startsBlockquote(lines, i));
+}
+
+/** Whether the line at `index` opens its blockquote rather than continuing one. */
+function startsBlockquote(lines: string[], index: number): boolean {
+	return index === 0 || !QUOTE_OPEN.test(lines[index - 1]);
 }

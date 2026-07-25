@@ -2,6 +2,17 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.36 (unreleased)
+
+- **Breaking, testing surface: `ContainerConformanceProfile` requires a `terminatorCollision`
+  cell.** The container conformance kit grew a sixth invariant, that a body line reproducing the
+  container's own terminator stays inside it, and the cell is required rather than optional, so an
+  external profile written against 0.9.35 stops compiling until it declares one. Declare `assert`
+  and supply a `terminatorCollisionFixture`, or `exempt` with a reason where the terminator is a
+  fixed token with no length to grow. Required on purpose: the collision is invisible to byte
+  round-trip, so an optional cell would have been left undeclared by exactly the containers that
+  need it.
+
 ### 0.9.35: the navigation API + toc v2
 
 Path-addressed navigation became a public surface, and the two bundled plugins that had been bare

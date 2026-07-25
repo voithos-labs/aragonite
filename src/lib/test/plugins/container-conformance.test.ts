@@ -29,14 +29,31 @@ const NO_MULTI_SCOPE_OP =
 	'the callout/details containers own no ≥2-scope author op — their inner ops ' +
 	'(split/merge/delete) are single-scope, like the blockquote';
 
+// An HTML close tag has no length to grow, so a details body line that IS the
+// close tag cannot be represented: any byte sequence containing that literal line
+// closes the element, for aragonite and for GitHub alike. The only repair would
+// rewrite the child's bytes, which an opaque container may not do — its raw is
+// byte-compared against its live children. G1.12 catches the state instead.
+const DETAILS_TERMINATOR_UNREPRESENTABLE =
+	'the `</details>` terminator is a fixed token with no fence length to escalate, so a body line ' +
+	'reproducing it is unrepresentable: emitting it closes the container early, and escaping it would ' +
+	'diverge the container raw from its live children (the opaque staleness guard fires on exactly ' +
+	'that). Repair needs a commit-path escape seam; the collision is guarded by G1.12, pinned in ' +
+	'test/plugins/details/terminator-collision.test.ts';
+
 const noteProfile: ContainerConformanceProfile = {
 	deepNesting: { source: NESTED_NOTES, leafPath: [0, 1, 1] },
 	localIndexFixture: { source: NESTED_NOTES, containerChain: [0, 1], targetChild: 2 },
 	focusSource: ':::note T\nA\n\nB\n:::\n',
+	terminatorCollisionFixture: {
+		source: ':::note T\nbody\n:::\n',
+		bodyRaw: 'before\n:::\nafter\n'
+	},
 	localIndex: { mode: 'assert' },
 	ancestry: { mode: 'assert' },
 	multiScope: { mode: 'exempt', reason: NO_MULTI_SCOPE_OP },
-	focusBubble: { mode: 'assert' }
+	focusBubble: { mode: 'assert' },
+	terminatorCollision: { mode: 'assert' }
 };
 
 const detailsProfile: ContainerConformanceProfile = {
@@ -46,7 +63,8 @@ const detailsProfile: ContainerConformanceProfile = {
 	localIndex: { mode: 'assert' },
 	ancestry: { mode: 'assert' },
 	multiScope: { mode: 'exempt', reason: NO_MULTI_SCOPE_OP },
-	focusBubble: { mode: 'assert' }
+	focusBubble: { mode: 'assert' },
+	terminatorCollision: { mode: 'exempt', reason: DETAILS_TERMINATOR_UNREPRESENTABLE }
 };
 
 describe('G4.3 conformance kit — plugin containers', () => {
@@ -65,6 +83,7 @@ describe('G4.3 conformance kit — plugin containers', () => {
 			'ancestry:asserted',
 			'multiScope:exempt',
 			'focusBubble:asserted',
+			'terminatorCollision:asserted',
 			'declarations:asserted'
 		]);
 		expect(report.cells.find((c) => c.cell === 'multiScope')?.reason).toBe(NO_MULTI_SCOPE_OP);
@@ -98,6 +117,25 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerCalloutKind();
+		registerDetailsKind();
+	});
+
+	// Non-vacuity for the terminator cell: details is the container that genuinely
+	// cannot survive the collision, so asserting the cell for it MUST fail. If this
+	// stops throwing, the check has gone blind.
+	it('fails terminatorCollision when the body line truncates the container', async () => {
+		await expect(
+			runContainerConformance(DETAILS_KIND(), {
+				...detailsProfile,
+				terminatorCollisionFixture: {
+					source: '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n',
+					bodyRaw: '</details>\n'
+				},
+				terminatorCollision: { mode: 'assert' }
+			})
+		).rejects.toThrow(
+			/terminatorCollision: details survives a body line reproducing its terminator/
+		);
 	});
 
 	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', async () => {
