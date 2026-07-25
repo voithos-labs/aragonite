@@ -56,6 +56,8 @@ inner body
 ::::              outer closes (4 ≥ 4)
 ```
 
+You only author that length rule. On the write side the editor holds it for you: when an edit leaves a colon run inside a container's body, the rebuild lengthens that container's own fence past the longest run before re-emitting it, so the body stays inside instead of the container closing early. Deleting the colliding line narrows the fence back for as long as that container is live. It does not narrow across a reload: the widened opener is what the file now says, so the reparsed container starts from `::::` and keeps it.
+
 ## Registering a directive
 
 `registerDirective(tier, name, definition)` maps a `(tier, name)` to a kind. The tier scopes the key, so a container and a leaf may share a name.

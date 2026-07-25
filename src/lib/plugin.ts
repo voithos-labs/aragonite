@@ -229,7 +229,15 @@ export type { StickyColumnDirection } from './block-component';
 export { activateDirectives } from './components/blocks/directive/activate-directives';
 export { registerDirective, isDirectiveRegistered } from './core/directive/registry';
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
-export { parseDirectiveAttributes, serializeDirective } from './core/directive/grammar';
+// `escalatedColonCount` is the write-side rule `serializeDirective` applies for you;
+// it is exported for the emitter that builds `:::name` text by concatenation rather
+// than through the CST — a `source → source` converter, a scaffold generator — where
+// a body line reproducing the fence would otherwise close the container early.
+export {
+	escalatedColonCount,
+	parseDirectiveAttributes,
+	serializeDirective
+} from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
 // Build the `rebuildRaw` for a directive container whose child 0 is an editable
 // title — owns the title→opener, body serialization, and CRLF line-ending threading.

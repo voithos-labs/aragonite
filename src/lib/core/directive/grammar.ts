@@ -47,6 +47,23 @@ export function isDirectiveCloser(lineText: string, openColonCount: number): boo
 	return count >= openColonCount && count === lineText.length;
 }
 
+/**
+ * The colon count a fence needs to wrap `body` — one past the body's longest
+ * whole-line colon run, never below `minimum`. The write-side inverse of
+ * `isDirectiveCloser`: without it, a body line reproducing the terminator reads
+ * as the container's own closer and ejects everything below it on reparse.
+ */
+export function escalatedColonCount(body: string, minimum: number): number {
+	let required = minimum;
+	for (const line of body.split('\n')) {
+		// Splitting on `\n` leaves a CRLF body's `\r` on each segment's tail; a
+		// closer line's text excludes it, so the run test must too.
+		const text = line.endsWith('\r') ? line.slice(0, -1) : line;
+		if (text.length >= required && isDirectiveCloser(text, required)) required = text.length + 1;
+	}
+	return required;
+}
+
 // ── Serialize ─────────────────────────────────────────────────────────────────
 
 export function serializeDirective(parts: {
@@ -66,10 +83,17 @@ export function serializeDirective(parts: {
 	closerLineEnding?: string;
 }): string {
 	const lineEnding = parts.lineEnding ?? '\n';
-	const opener = ':'.repeat(parts.colonCount);
-	const closer = ':'.repeat(parts.closerColonCount ?? parts.colonCount);
+	const inner = `${parts.innerPrefix}${parts.body}${parts.innerSuffix}`;
+	// Re-derived from the body on every emit rather than latched into metadata, so
+	// two emits over the same state always agree (G1.13). `colonCount` is a floor,
+	// not a target: the fence narrows back when the colliding line goes away, though
+	// only within the node's life, since a reparse reads the widened opener as the
+	// new floor.
+	const colonCount = escalatedColonCount(inner, parts.colonCount);
+	const opener = ':'.repeat(colonCount);
+	const closer = ':'.repeat(Math.max(colonCount, parts.closerColonCount ?? colonCount));
 	const closerEnd = (parts.closerNewline ?? true) ? (parts.closerLineEnding ?? lineEnding) : '';
-	return `${opener}${parts.name}${parts.info}${lineEnding}${parts.innerPrefix}${parts.body}${parts.innerSuffix}${closer}${closerEnd}`;
+	return `${opener}${parts.name}${parts.info}${lineEnding}${inner}${closer}${closerEnd}`;
 }
 
 // ── Attributes ────────────────────────────────────────────────────────────────
