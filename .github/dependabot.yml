@@ -1,0 +1,39 @@
+# GitHub reads this file from the default branch, so it activates when it
+# lands on main. Version updates target dev to ride the normal dev -> main
+# flow; security updates (a repo setting, not configured here) always
+# target main regardless.
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    target-branch: 'dev'
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: '~'
+      include: 'scope'
+    # Minor + patch bumps arrive as one grouped PR per dependency type;
+    # majors fall outside the groups and arrive individually.
+    groups:
+      production-minor-patch:
+        dependency-type: 'production'
+        update-types: ['minor', 'patch']
+      development-minor-patch:
+        dependency-type: 'development'
+        update-types: ['minor', 'patch']
+
+  # The workflows pin third-party actions to commit SHAs with the version in
+  # a trailing comment; dependabot bumps the SHA and the comment together.
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    target-branch: 'dev'
+    commit-message:
+      prefix: '~'
+      include: 'scope'
+    groups:
+      actions:
+        patterns: ['*']
