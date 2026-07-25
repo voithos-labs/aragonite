@@ -1,4 +1,4 @@
-<img alt="aragonite: a lossless markdown block editor. A coral-orange aragonite cluster, hexagonal prisms radiating from a dense center, on a dark field." src="docs/assets/aragonite-header.png" width="100%">
+# <img width="3840" height="1020" alt="image" src="https://github.com/user-attachments/assets/3ecfc2f5-91de-4317-bd40-8cb95f2218fd" />
 
 ---
 
