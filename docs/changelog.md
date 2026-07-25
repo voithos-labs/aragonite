@@ -110,6 +110,42 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   have put commit vocabulary into the navigation signature a plugin author is about to be frozen
   against, for the doubly-nested case alone.
 
+- **The adjacent-widget-boundary click-snap flake was the spec's own race, not an editor
+  defect.** The geometry read ran with no image-decode barrier, so a pre-decode 0x0 widget box put
+  the click inside the image once it decoded, and the widget select suppressed the snap caret. The
+  spec now waits for the decode and asserts the specific edge; the ledger entry's original suspect
+  (the reveal-anchor pointerdown clear) is falsified in the entry's closing record. Reproduced
+  naturally at 15/60 under contention, 180/180 green after.
+
+- **The byte-corruption family from the 0.9.35 review is closed.** Typing `:::` in an admonition
+  body no longer truncates the container: every directive container escalates its fence past the
+  longest body colon run at the one serializer choke point, narrowing again when the collision
+  goes, and G1.12 now guards the directive tier it used to exempt. `</details>` has no fence to
+  grow; that collision is proven unrepairable at the rebuild seam and pinned as a guarded floor
+  (loud in dev, bytes round-trip), ledgered with the commit-path design it needs. Shift+click out
+  of a table cell mints a cell coordinate instead of a character offset, so copy no longer drops
+  the header row; every cell write escapes freed pipes over the post-splice raw at a schema
+  descriptor seam the tree-op sink applies (the rule had been carried at call sites, and the one
+  bare sink deleted a column); a cross-block delete from prose into a table terminates the
+  truncated head line, so the next parse no longer swallows the table; and a plugin throw inside
+  the commit ceremony rolls the tree back byte-identical and lands attributed on the error
+  channel, from every gate including the paste path. Alongside: word-modifier chords no longer arm
+  a destructive widget state, a selected widget declines chords instead of eating Mod+Z, deleting
+  a link-reference definition refreshes the resolver, `(www.)` stays literal, and the
+  ambient-marker pin covers all four inline wrapper shapes.
+
+- **The suite now reaches what shipped its misses.** Component-level mount suites cover the
+  highest bugfix-density files that had none (blockquote, list, table, BlockHost, the cross-block
+  keydown dispatcher), and finding two latent byte defects on the way is what the program was for.
+  The property lanes reach bundled-plugin syntax, 100 KB inputs, the 0-3-vs-4 block-indent
+  boundary, and CRLF documents holding structured blocks — each previously outside every
+  generator's expressible space. Repo-wide source lints scan the reference plugins and the
+  consumer example; a settle whose expectation is a substring of the loaded content now fails a
+  lint (58 sites repaired); and the e2e invariant watcher names its expected tags instead of
+  waiving whole files. Two live defects the new oracles surfaced are ledgered with executing
+  repros rather than fixed: typing a `> [!TYPE]` marker per keystroke never forms an alert, and a
+  long paste into a windowed list loses the caret (VR-12).
+
 ### 0.9.35: the navigation API + toc v2
 
 Path-addressed navigation became a public surface, and the two bundled plugins that had been bare

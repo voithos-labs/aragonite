@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { waitForFirstImageLoaded } from './helpers';
 
 /**
  * Two image widgets flush against each other share a boundary (A.end === B.start).
@@ -22,7 +23,10 @@ async function snapAfterFirstWidget(editor: EditorPage): Promise<void> {
 		return { x: a.right + 2, y: a.top + a.height / 2 };
 	});
 	await editor.page.mouse.click(point.x, point.y);
-	await expect(editor.page.locator('.md-snap-after, .md-snap-before')).toHaveCount(1);
+	// Assert the edge, not just "some snap caret exists": the three key tests all
+	// depend on the caret sitting at A's TRAILING edge, so a landing on any other
+	// edge has to fail here rather than downstream.
+	await expect(editor.page.locator('[data-image-widget]').first()).toHaveClass(/md-snap-after/);
 }
 
 test.describe('caret at a shared adjacent-widget boundary', () => {
@@ -33,6 +37,12 @@ test.describe('caret at a shared adjacent-widget boundary', () => {
 		await editor.goto();
 		await editor.loadContent(TWO_IMAGES);
 		await expect(page.locator('[data-image-widget]')).toHaveCount(2);
+		// An undecoded <img> lays out 0x0. Measure A's box before it decodes and the
+		// click point computed from it lands INSIDE A once it does, which selects the
+		// widget instead of snapping past its trailing edge, and no snap caret is ever
+		// painted. Only A needs the barrier: it is first in block flow, so B's decode
+		// cannot move it.
+		await waitForFirstImageLoaded(page);
 	});
 
 	test('Delete selects the following widget instead of deleting it', async ({ page }) => {

@@ -316,29 +316,6 @@ nested residual needs a tall container plus a late decode), and the ownership mo
 real consumer navigating concurrently to shape it; designing per-call ownership against a single
 caller risks the wrong abstraction.
 
-### adjacent-widget-boundary click-snap helper flaked once under full-battery contention
-
-**Severity:** watch (1-of-2 full-battery repro at the 0.9.35 ship gate; isolation and rerun green)
-**Files:** `src/lib/e2e/tests/blocks/image/adjacent-widget-boundary.spec.ts` (`snapAfterFirstWidget` —
-mouse click at a computed point, 5s snap-indicator wait)
-
-At the 0.9.35 ship battery, both specs using the click-snap helper failed together (`.md-snap-after/.md-snap-before`
-resolved to 0 for the full 5s); the same specs pass 3/3 in isolation and the immediate full-battery
-rerun was green. The failure window contains M3's pointerdown anchor-clear wiring
-(`cursor/reveal-anchor.ts`), which is a suspect, not a finding.
-
-**One clean data point since.** The 0.9.35 review ran two full e2e batteries, both green with zero
-flaky and no retry of any spec, and confirmed `retries: 0` in the Playwright config with no CI
-override, so a recurrence reads red rather than being silently retried away, and neither battery
-saw one.
-
-**Fix direction:** if this reds again (CI or a local battery), investigate the anchor pointerdown
-listener's interaction with click-caret placement under load FIRST, before any timeout raise; a
-timeout raise without a mechanism is quieting the checker.
-
-**Why deferred:** non-deterministic 1-of-2 repro; no mechanism established; the sibling
-battery-order-flake precedent records falsified causes, so this entry starts with its protocol.
-
 ### Typing a `> [!TYPE]` marker never forms a GitHub alert (only an atomic insert does)
 
 **Severity:** important (the documented way to author an alert does not work, and the live tree

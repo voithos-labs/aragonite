@@ -3,7 +3,10 @@ import { type Page } from '@playwright/test';
 // Shared image-widget probes for the image block e2e specs.
 
 // Resolve once the first image widget's <img> has finished decoding, so a
-// subsequent geometry read sees the real box, not a zero-size placeholder.
+// subsequent geometry read sees the real box, not the 0x0 placeholder. Skipping
+// this does not merely blur a coordinate: a point computed from the placeholder
+// box lands INSIDE the widget once it decodes, which selects the image instead
+// of placing a caret near it.
 export async function waitForFirstImageLoaded(page: Page): Promise<void> {
 	await page.waitForFunction(
 		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
