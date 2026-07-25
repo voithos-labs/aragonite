@@ -129,6 +129,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      the consumer's actual history representation, together with the `EditEvent` real-delta
      discriminant (`plugin-contract.md` § Deferred) — the two are one design, and neither is
      shaped without the consumer at the table.
+   - **Branch protection at the flip to public**: run `node scripts/apply-branch-protection.mjs`.
+     The API plan-gates protection on private free-plan repos, so it cannot be pre-applied; the
+     required status contexts mirror ci.yml's job names (a job rename updates the script).
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
 
