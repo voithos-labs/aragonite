@@ -200,19 +200,45 @@ export interface ClosureCoherenceEntry {
 	hasContainerContract: boolean;
 	roundTripMode: ClosureCellMode;
 	mergeBackspaceMode: ClosureCellMode;
+	/** The descriptor declares `blockFocus: 'whole-block'`. */
+	declaresWholeBlockFocus: boolean;
+	/** `via` prose of an `implemented` cell; undefined for the other two modes. */
+	focusVia: string | undefined;
+	mergeBackspaceVia: string | undefined;
+	declaresReservedChrome: boolean;
+	clipboardMode: ClosureCellMode;
 }
 
 /**
- * G1.24 — closure-block coherence: the two cross-checks between a kind's closure
- * cells and the rest of its descriptor that a compiler can't reach. (a) A
- * container (declares `container.contract`) cannot claim `roundTrip:
- * inherit-default` — its `rebuildRaw` IS the round-trip mechanism, so the cell
- * must name it. (b) A `not-mergeable` kind cannot claim `mergeBackspace:
- * inherit-default` — the default merge does not apply to it, so the cell must
- * name the non-merge behavior (`implemented`) or mark it `not-supported`. The
- * fixture-parses-to-kind check (rule c) runs in the unit sweep, not here: a
- * `parse` import would close a `schema → core/parser → schema` cycle. Reports
- * the first offending kind.
+ * The vocabulary a closure cell uses to claim the focus-then-delete model. Fixed
+ * phrases rather than a loose pattern: the claim is what a plugin author copies out
+ * of the shipped descriptors, and "moves focus" (what an ordinary not-mergeable leaf
+ * does at its edge) must stay outside the set.
+ */
+const FOCUS_THEN_DELETE_CLAIMS = ['focus-then-delete', 'a second press deletes'] as const;
+
+const claimsFocusThenDelete = (via: string | undefined): boolean =>
+	via !== undefined && FOCUS_THEN_DELETE_CLAIMS.some((phrase) => via.includes(phrase));
+
+/**
+ * G1.24 — closure-block coherence: the cross-checks between a kind's closure cells
+ * and the rest of its descriptor that a compiler can't reach.
+ *
+ * (a) A container (declares `container.contract`) cannot claim `roundTrip:
+ * inherit-default` — its `rebuildRaw` IS the round-trip mechanism, so the cell must
+ * name it. (b) A `not-mergeable` kind cannot claim `mergeBackspace:
+ * inherit-default` — the default merge does not apply to it, so the cell must name
+ * the non-merge behavior (`implemented`) or mark it `not-supported`. (c) A cell
+ * claiming focus-then-delete must be backed by `blockFocus: 'whole-block'`, the one
+ * declaration that routes the caret-adjacent merge fallbacks to a focus move —
+ * without it the block deletes on the first press and the cell is prose that the
+ * published docs pack repeats. (d) A `reservedChrome` container cannot leave
+ * `clipboard: inherit-default`: its chrome bytes live in the container's opener
+ * line, so a slice starting mid-chrome has semantics the default cannot state.
+ *
+ * The fixture-parses-to-kind check runs in the unit sweep, not here: a `parse`
+ * import would close a `schema → core/parser → schema` cycle. Reports the first
+ * offending kind.
  */
 export function checkClosureCoherence(
 	entries: readonly ClosureCoherenceEntry[]
@@ -230,6 +256,27 @@ export function checkClosureCoherence(
 				code: 'closure-coherence',
 				message: `kind "${entry.kind}" is not-mergeable but its closure mergeBackspace is inherit-default — a not-mergeable kind has no default merge to inherit; name the non-merge mechanism (implemented) or mark it not-supported`,
 				detail: { kind: entry.kind, column: 'mergeBackspace' }
+			};
+		}
+		if (!entry.declaresWholeBlockFocus) {
+			const column = claimsFocusThenDelete(entry.focusVia)
+				? 'focus'
+				: claimsFocusThenDelete(entry.mergeBackspaceVia)
+					? 'mergeBackspace'
+					: undefined;
+			if (column !== undefined) {
+				return {
+					code: 'closure-coherence',
+					message: `kind "${entry.kind}" claims the focus-then-delete model in its closure ${column} cell but declares no blockFocus: 'whole-block' — without it the caret-adjacent merge fallback deletes on the first press; declare the field or rewrite the cell to say what the kind actually does`,
+					detail: { kind: entry.kind, column }
+				};
+			}
+		}
+		if (entry.declaresReservedChrome && entry.clipboardMode === 'inherit-default') {
+			return {
+				code: 'closure-coherence',
+				message: `kind "${entry.kind}" declares reservedChrome but its closure clipboard is inherit-default — the chrome bytes live in the container's own opener line, so a slice crossing that boundary has no default semantics; name what a copy produces (implemented) or mark it not-supported`,
+				detail: { kind: entry.kind, column: 'clipboard' }
 			};
 		}
 	}

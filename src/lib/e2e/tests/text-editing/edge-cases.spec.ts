@@ -41,18 +41,27 @@ test.describe('text editing — edge cases', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
 	});
 
-	test('Backspace after thematic break deletes the break', async () => {
+	// The thematic break is a whole-block-focus kind, so a caret-adjacent Backspace
+	// focuses it and only a second press deletes — the same two-step the mermaid
+	// diagram gets (plugins/mermaid-focus.spec.ts pins the plugin twin).
+	test('Backspace after thematic break focuses it, and a second press deletes it', async () => {
 		await editor.loadContent('Before\n\n---\n\nAfter\n');
+		const original = await editor.bridge.getSource();
 		const countBefore = await editor.bridge.getBlockCount();
+		const breakBlock = editor.page.locator('.thematic-break-block');
 
 		await editor.focusBlockStart(2);
 		await editor.page.keyboard.press('Backspace');
 
-		const countAfter = await editor.bridge.getBlockCount();
-		expect(countAfter).toBeLessThan(countBefore);
+		await expect(breakBlock).toBeFocused();
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(original);
+		expect(await editor.bridge.getBlockCount()).toBe(countBefore);
 
-		const source = await editor.bridge.getSource();
-		expect(source).not.toContain('---');
+		await editor.page.keyboard.press('Backspace');
+
+		await editor.bridge.waitForSourceNotContains('---');
+		expect(await editor.bridge.getBlockCount()).toBeLessThan(countBefore);
 	});
 
 	test('kind change reversal — deleting # prefix reverts heading to paragraph', async () => {

@@ -82,7 +82,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	const { admonition, title } = declareAdmonitionKinds();
 	const build = admonitionFromDirective(admonition);
 
-	// All five names resolve to one kind; the kind reads its variant back from
+	// Every name resolves to one kind; the kind reads its variant back from
 	// metadata. Any unregistered `:::name` falls through to the generic fallback.
 	for (const name of ADMONITION_KINDS) {
 		if (!isDirectiveRegistered('container', name)) {

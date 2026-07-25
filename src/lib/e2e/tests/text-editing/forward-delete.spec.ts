@@ -29,10 +29,20 @@ test.describe('forward delete', () => {
 		expect(source).toContain('Helloworld');
 	});
 
-	test('Delete before thematic break removes the break', async () => {
+	// Forward twin of the Backspace two-step (text-editing/edge-cases.spec.ts): the
+	// thematic break takes whole-block focus first, and deletes on the second press.
+	test('Delete before thematic break focuses it, and a second press removes it', async () => {
 		await editor.loadContent('Hello\n\n---\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
+		const original = await editor.bridge.getSource();
+
 		await editor.focusBlockEnd(0);
+		await editor.page.keyboard.press('Delete');
+
+		await expect(editor.page.locator('.thematic-break-block')).toBeFocused();
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(original);
+
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForBlockCount(1);
 		expect(await editor.bridge.getBlockCount()).toBe(1);
