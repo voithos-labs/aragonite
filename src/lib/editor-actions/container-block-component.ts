@@ -173,6 +173,10 @@ export interface ContainerBlockComponentDeps {
 	 *  focus extremum entering the container clamps to it instead of no-oping on
 	 *  an unmounted last child (the caret-walk-into-collapsed rule). */
 	readonly isCollapsed?: () => boolean;
+	/** Open this container so a reveal can descend into its clamped-out body, as a
+	 *  real committed edit; resolves true when an expansion landed. Absent (a kind
+	 *  with no declared expand door) leaves the reveal to degrade on the chrome row. */
+	readonly expandCollapsed?: () => Promise<boolean>;
 	/** Whole-block-focus element for an opaque childless container (a plugin
 	 *  diagram): when supplied, caret entry focuses this element instead of
 	 *  walking into children (which no-op on `children: []`), and the cursor
@@ -264,6 +268,11 @@ export function createContainerBlockComponent(
 		async revealByPath(path: number[]): Promise<BlockComponent | null> {
 			if (path.length === 0) return null;
 			const [head, ...rest] = path;
+			// The chrome row (child 0) stays mounted while collapsed, so only a body
+			// target needs the door opened. Awaited: the expansion is a real commit, and
+			// everything below must run against the post-commit window. A declined
+			// expansion changes nothing — the reveal degrades on the clamp as before.
+			if (head >= 1 && deps.isCollapsed?.()) await deps.expandCollapsed?.();
 			// A child scrolled off-window can leave a stale (detached) ref in this
 			// scope's slot: publishRefSlot's cleanup is conditional, so slot truthiness
 			// is a cache, not a mount oracle. Gate the scroll on the live window bounds

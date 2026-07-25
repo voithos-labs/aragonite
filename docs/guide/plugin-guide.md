@@ -132,7 +132,7 @@ Two editors share one process-global registration but may still run different op
 
 ## Views
 
-Every surface that hands a plugin a node to **read** types it as a view — `NodeView` for a block node, `DocumentView` for the root. A view is deep-readonly on the serialized bytes (`raw`, `kind`, `metadata`, trivia, children structure), so "never mutate the tree from the view layer" is compiler-enforced: a byte write through a view is a compile error, not a dev-mode warning. Views arrive on `BlockComponentProps.node` / `document`, `EditorContext.document`, a `DecorationSource`'s `provide(document, …)`, the descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`), and the command contexts.
+Every surface that hands a plugin a node to **read** types it as a view — `NodeView` for a block node, `DocumentView` for the root. A view is deep-readonly on the serialized bytes (`raw`, `kind`, `metadata`, trivia, children structure), so "never mutate the tree from the view layer" is compiler-enforced: a byte write through a view is a compile error, not a dev-mode warning. Views arrive on `BlockComponentProps.node` / `document`, `EditorContext.document`, a `DecorationSource`'s `provide(document, …)`, the descriptor read hooks (`getContentRange`, `estimateHeight`, `reservedChrome.isCollapsed`, `reservedChrome.expandPatch`), and the command contexts.
 
 `CstNode` and `Document` stay the shapes a plugin **constructs and owns**: an opener or directive factory builds a `CstNode`, and `rebuildRaw` receives one to write — the ceremony hands it an owned node, which is exactly when byte writes are legal. A document you parsed yourself is mutable and feeds every view-typed parameter with no conversion.
 
@@ -443,7 +443,7 @@ Pass the plugin to the editor's `plugins` prop — it installs before the seed p
 <Editor bind:this={editor} source={SEED} {plugins} theme="light" />
 ```
 
-The chords are live: focus the note, press `Mod+7` / `Mod+8` to switch it between `note` and `tip`, then read `editor.getSource()` back and watch the opener line change with it. Add a collapse toggle by giving `reservedChrome` an `isCollapsed` probe over the node — every focus walk, merge, and window clamp then reads that one declaration.
+The chords are live: focus the note, press `Mod+7` / `Mod+8` to switch it between `note` and `tip`, then read `editor.getSource()` back and watch the opener line change with it. Add a collapse toggle by giving `reservedChrome` an `isCollapsed` probe over the node — every focus walk, merge, and window clamp then reads that one declaration. Add `expandPatch` beside it, returning the metadata that opens the node, and a reveal into the collapsed body (a toc entry, a search match) opens the container first and commits it as one undoable edit; without it, such a reveal has nowhere to land and reports that it did not.
 
 ## Editable-content tiers
 
