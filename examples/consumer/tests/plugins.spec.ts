@@ -96,3 +96,28 @@ test('unregistered directive round-trips byte-for-byte through the generic fallb
 	const src = await getSource(page);
 	expect(src).toContain(':::mystery\nUnregistered directive body\n:::');
 });
+
+// The two below assert resolution, not emoji/footnote behavior — the in-repo plugin
+// e2e suites own that. What only this file can prove is that the packaged subpath
+// installs and paints from outside the repo, alongside a seed whose `:::` and `[[`
+// constructs share their trigger byte.
+
+test('emoji paints the glyph from the packaged subpath while the shortcode stays in the source', async ({
+	page
+}) => {
+	await expect(page.locator('.md-emoji-widget')).toHaveText('✨');
+	const src = await getSource(page);
+	expect(src).toContain('Emoji :sparkles: inline');
+	expect(src).toContain(':::mystery'); // the `:` rung did not eat the directive fence
+});
+
+test('footnote reference derives its number and its definition round-trips', async ({ page }) => {
+	// The number is derived from first-reference order, never stored — a `1` here is
+	// the packaged numbering seam running in the consumer, not a byte from the seed.
+	await expect(page.locator('sup.footnote-ref')).toHaveText('1');
+	await expect(page.locator('.footnote-def')).toBeVisible();
+	const src = await getSource(page);
+	expect(src).toContain('Footnote reference[^1] in prose');
+	expect(src).toContain('[^1]: Footnote definition body');
+	expect(src).toContain('[[toc]]'); // the `[` rung did not eat the toc leaf
+});

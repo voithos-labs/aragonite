@@ -15,3 +15,18 @@ export const _probe = (): { kind: string; describe: (d: BlockKindDescriptor) => 
 // so this stays a type-only import: erased at build, never bundled.
 export type MermaidRendererProbe =
 	typeof import('aragonite/plugins/mermaid/renderer').mermaidRenderer;
+
+// Type-level proof the `aragonite/testing` subpath resolves from outside the repo —
+// the seam a third-party plugin's own suite installs against, so a break here breaks
+// every external author at once. Type-only by necessity, not convenience: the barrel
+// is test-process-only (`resetPluginPlatformForTests` throws outside a detected test
+// env), so a runtime import would pull a test seam into an app bundle.
+//
+// One entry per re-export cluster, because each pulls a different declaration file:
+// the failure this guards is the barrel reaching into `src/lib/test/**`, and a single
+// probe would only prove the cluster it happens to name.
+export type TestingSurfaceProbe = {
+	reset: typeof import('aragonite/testing').resetPluginPlatformForTests;
+	containerConformance: typeof import('aragonite/testing').runContainerConformance;
+	kindConformance: typeof import('aragonite/testing').runKindConformance;
+};
