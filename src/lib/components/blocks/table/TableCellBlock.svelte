@@ -52,7 +52,7 @@
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { intraTableRectPayload } from './cell-clipboard';
-	import { escapeCellCommit } from './table-cell-paste';
+	import { escapedCellOffset } from './table-cell-paste';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
@@ -69,6 +69,9 @@
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 
 	type ExitDirection = 'up' | 'down';
+
+	// The chord that continues a select-all run rather than ending it.
+	const SELECT_ALL_CHORD = 'Mod+A';
 
 	let {
 		node,
@@ -94,7 +97,7 @@
 		getRef?: (i: number) => BlockComponent | undefined;
 	} = $props();
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
+	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
@@ -126,6 +129,30 @@
 	// The constant fallback keeps the zero-cost render path — an empty island set
 	// never enters the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
+
+	// ── The cell's write door ───────────────────────────────────────────────
+	//
+	// Every write of this cell's raw goes through `blockEdit`; `parentBlockEdit`
+	// is written to nowhere else. The delimiter escape itself belongs to the kind
+	// (`normalizeRawWrite`) and runs at the write sink, so what remains here is the
+	// caret half a seam cannot do for us: the offset a caller hands back addresses
+	// the text it wrote, and the sink's inserted backslashes move it.
+	//
+	// A trailing ending is stripped rather than left to the sink's collapse: the
+	// prose-shaped reveal / caret-edge / selected-widget factories append one, and
+	// a cell would otherwise gain a trailing space per commit.
+	const blockEdit: BlockEditActions = {
+		...parentBlockEdit,
+		updateBlockContent(i, text, caretBefore, caretAfter) {
+			const cellText = trimTrailingLineEnding(text);
+			return parentBlockEdit.updateBlockContent(
+				i,
+				cellText,
+				caretBefore,
+				caretAfter === undefined ? undefined : escapedCellOffset(cellText, caretAfter)
+			);
+		}
+	};
 
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
@@ -188,37 +215,16 @@
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
-		// Cells can't carry a raw newline, so no trailing '\n' (unlike text/code);
-		// savedOffset re-focuses if the edit remounts the cell. Escape typed/IME
-		// pipes to `\|` — the same bytes a paste writes — so a bare `|` never splits
-		// the row on reparse; the returned caret shifts past the inserted backslash.
+		// The keystroke/IME commit; `savedOffset` re-focuses if the edit remounts
+		// the cell, so it is reported through the door's escape.
 		commitInput: (text, preEdit, saved) => {
-			const committed = escapeCellCommit(text, saved);
-			void blockEdit.updateBlockContent(index, committed.text, preEdit, committed.caret);
-			return committed.caret;
+			void blockEdit.updateBlockContent(index, text, preEdit, saved);
+			return escapedCellOffset(text, saved);
 		}
 	});
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
-
-	// The reveal / caret-edge / selected-widget factories are prose-shaped: they
-	// commit through `blockEdit` directly, appending a trailing line ending and
-	// leaving pipes bare. A cell carries neither — a raw `\n` is invalid and a bare
-	// `|` splits the row (`rebuildTableRowRaw` joins cell raws verbatim). This wrapper
-	// makes those commits cell-safe: strip the appended ending, then escape unescaped
-	// pipes like the keystroke path (`commitInput`), shifting the post-caret past the
-	// inserted backslashes. `escapeUnescapedPipes` is idempotent, so delete-path slices
-	// from the already-escaped raw pass untouched.
-	const cellBlockEdit: BlockEditActions = {
-		...blockEdit,
-		updateBlockContent(i, text, caretBefore, caretAfter) {
-			const cellText = trimTrailingLineEnding(text);
-			const caret = Math.min(caretAfter ?? cellText.length, cellText.length);
-			const committed = escapeCellCommit(cellText, caret);
-			return blockEdit.updateBlockContent(i, committed.text, caretBefore, committed.caret);
-		}
-	};
 
 	// The prose inline-widget seams, threaded with cell-shaped deps: zero ambient,
 	// no snap overlay (cells render no image widgets), and the escaping blockEdit.
@@ -239,7 +245,7 @@
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? 800,
 		cursor,
 		widgetSelection,
-		blockEdit: cellBlockEdit,
+		blockEdit,
 		focusActions,
 		setSnapTarget: () => {},
 		setPendingCursor: (offset) => {
@@ -275,7 +281,7 @@
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
-		blockEdit: cellBlockEdit,
+		blockEdit,
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
@@ -316,8 +322,18 @@
 		// Anchor undo at the live post-toggle caret, not preEditOffset: cross-block
 		// dispatch reaches toggleFormat via runCommand with no preceding onKeyDown to
 		// refresh preEditOffset, so it would be stale. Mirrors TextEditableBlock.
-		blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart);
-		tick().then(() => setSelection(result.newSelStart, result.newSelEnd));
+		void blockEdit.updateBlockContent(
+			index,
+			result.newDisplay,
+			result.newSelStart,
+			result.newSelStart
+		);
+		// The door may have inserted backslashes inside the toggled span (wrapping
+		// `**` can strand a `|` the preceding backslash used to escape), so both
+		// selection edges are read back through the escape.
+		const selStart = escapedCellOffset(result.newDisplay, result.newSelStart);
+		const selEnd = escapedCellOffset(result.newDisplay, result.newSelEnd);
+		void tick().then(() => setSelection(selStart, selEnd));
 		return true;
 	}
 
@@ -469,6 +485,18 @@
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing || !el) return;
 
+		// The select-all stage counter's reset lives in the shared prelude, which the
+		// cell reaches only on the 'native' plan arm — so every key the plan claims
+		// (cell nav, Tab, Enter, the structural chords) left the counter armed and the
+		// next Ctrl+A resumed a run the user had ended: in the next cell it selected
+		// the whole table, and after an arrow exit it selected the whole document from
+		// a paragraph's first press. Reset here, ahead of the plan, in the prelude's
+		// own position. `eventToChord` declines exactly the bare modifiers, which are
+		// part of the chord rather than a separate action, and uppercases the key, so
+		// the run also survives CapsLock.
+		const chord = eventToChord(e);
+		if (chord !== null && chord !== SELECT_ALL_CHORD) selection.resetSelectAllCount();
+
 		// Cross-block dispatch must precede cellKeydownPlan: the plan claims keys like
 		// ArrowLeft@0 / ArrowUp / ArrowDown and preventDefaults without reaching the
 		// cross-block handler, so an active selection would survive and the next
@@ -521,7 +549,6 @@
 				// Cells route navigation through cellKeydownPlan, but inline-format
 				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
 				// other editable surface.
-				const chord = eventToChord(e);
 				if (
 					chord &&
 					dispatchKeyCommand(
@@ -641,8 +668,9 @@
 			const text = readCellText();
 			const inserted = '<br>';
 			const newText = text.slice(0, offset) + inserted + text.slice(offset);
-			blockEdit.updateBlockContent(index, newText, offset, offset + inserted.length);
-			pendingCursorOffset = offset + inserted.length;
+			const caret = offset + inserted.length;
+			void blockEdit.updateBlockContent(index, newText, offset, caret);
+			pendingCursorOffset = escapedCellOffset(newText, caret);
 			return;
 		}
 	}
@@ -767,8 +795,8 @@
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const newDisplay = display.slice(0, start) + display.slice(end);
-		blockEdit.updateBlockContent(index, newDisplay, start, start);
-		pendingCursorOffset = start;
+		void blockEdit.updateBlockContent(index, newDisplay, start, start);
+		pendingCursorOffset = escapedCellOffset(newDisplay, start);
 	}
 
 	async function applyCellPaste(

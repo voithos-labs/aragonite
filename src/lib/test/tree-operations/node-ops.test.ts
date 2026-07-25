@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { ensureEditableContainers, emptyParagraph } from '../../tree-operations/node-ops';
+import { ensureEditableContainers, emptyParagraph, nodeAt } from '../../tree-operations/node-ops';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { declarePluginKind } from '../../schema/plugin-kind';
@@ -23,6 +23,28 @@ describe('emptyParagraph', () => {
 		expect(first).not.toBe(second);
 		first.raw = 'mutated\n';
 		expect(second.raw).toBe('\n');
+	});
+});
+
+// Every caller reads `nodeAt` as total — an unresolvable path returns null. It
+// bounded the high side only, so a negative index read `children[-1]`: undefined
+// as a final step (returned as if it were a node) and a TypeError as a walked one.
+// Path composers arithmetic their way to negatives (`index - 1` at a boundary, a
+// decoded coordinate), so this is reachable from any of them, not one subsystem.
+describe('nodeAt — an out-of-range index resolves to nothing, either side', () => {
+	const doc = parse('- alpha\n- beta\n');
+
+	it('declines a negative index as the final step', () => {
+		expect(nodeAt(doc, [-1])).toBeNull();
+	});
+
+	it('declines a negative index it has to walk through', () => {
+		expect(nodeAt(doc, [0, -1, 0])).toBeNull();
+	});
+
+	it('still declines past the high end, and still resolves a real path', () => {
+		expect(nodeAt(doc, [99])).toBeNull();
+		expect(nodeAt(doc, [0, 0])).not.toBeNull();
 	});
 });
 

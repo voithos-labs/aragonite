@@ -3,6 +3,8 @@ import { updateNodeContent, splitNode } from '../../tree-operations/node-ops';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { rebuildTableRowRaw } from '../../schema/container-rebuilders';
+import { parse } from '../../core/parser';
 import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '../../core/nodes';
 
@@ -38,6 +40,64 @@ describe('updateNodeContent — contextDependentKind stickiness', () => {
 		};
 		updateNodeContent(parent as never, 0, '# hi\n');
 		expect(parent.children[0].kind).toBe('heading'); // ordinary reparse unaffected
+	});
+});
+
+// The write branch above is where every cell gesture's text reaches the bytes the
+// row joins verbatim, so it is where the kind's legality pass has to run. Three
+// gestures carried that escape above this point and each lost it; these pin the
+// sink so a fourth cannot.
+describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write', () => {
+	beforeEach(() => __resetSchemaRegistriesForTests());
+
+	/**
+	 * Cell `at` of a body row rewritten through the funnel, read back the way the
+	 * user gets it: the row's rebuilt bytes reparsed inside their own table.
+	 */
+	function writeCellAndReparse(cellRaws: string[], at: number, text: string): string[] {
+		const row: CstNode = {
+			kind: 'tableRow',
+			leadingTrivia: '',
+			raw: '',
+			metadata: { isHeader: false },
+			children: cellRaws.map((raw) => ({ kind: 'tableCell', leadingTrivia: '', raw }))
+		};
+		updateNodeContent(row as never, at, text);
+		rebuildTableRowRaw(row, '\n');
+		return bodyCellsOf(cellRaws.length, row.raw);
+	}
+
+	/** Body-cell raws of a `columns`-wide table whose single body row is `rowRaw`. */
+	function bodyCellsOf(columns: number, rowRaw: string): string[] {
+		const header = '|' + ' h |'.repeat(columns) + '\n';
+		const delimiter = '|' + ' --- |'.repeat(columns) + '\n';
+		const table = parse(header + delimiter + rowRaw).children[0];
+		return (table.children?.[1].children ?? []).map((cell) => cell.raw);
+	}
+
+	it('a bare pipe written into a cell costs the row no column', () => {
+		// Written bare, the row reads `| d|X | e | f |`: one cell too wide for the
+		// delimiter, so the parser truncates and the last column's content is gone.
+		expect(bodyCellsOf(3, '| d|X | e | f |\n')).toEqual(['d', 'X', 'e']);
+
+		expect(writeCellAndReparse(['d', 'e', 'f'], 0, 'd|X')).toEqual(['d\\|X', 'e', 'f']);
+	});
+
+	it('a newline written into a cell cannot spill into the next row', () => {
+		expect(writeCellAndReparse(['d', 'e'], 0, 'd\nX')).toEqual(['d X', 'e']);
+	});
+
+	it('is idempotent through the seam — rewriting an escaped cell adds no backslash', () => {
+		expect(writeCellAndReparse(['a\\|b', 'keep'], 0, 'a\\|bY')).toEqual(['a\\|bY', 'keep']);
+	});
+
+	it('leaves a context-dependent kind that declares no rule writing raw verbatim', () => {
+		const chrome = registerChromeKind();
+		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
+
+		updateNodeContent(parent as never, 0, 'a|b\n');
+
+		expect(parent.children[0].raw).toBe('a|b\n');
 	});
 });
 
