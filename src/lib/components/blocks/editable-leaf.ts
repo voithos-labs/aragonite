@@ -359,7 +359,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function commitReveal(): void {
 		if (mode !== 'render-primary' || !isRevealed()) return;
 		// A cross-block selection sweeping through keeps the source revealed so its
-		// rects measure real text; it folds when the selection clears.
+		// rects measure real text. Nothing re-folds it when that selection clears:
+		// focusout is this fold's only entry, and the sweep already spent it, so the
+		// leaf stays in source view (and an uncommitted DOM edit stays uncommitted)
+		// until the user focuses it and leaves again. The inline sibling recovers via
+		// its selectionchange escape-fold; a leaf has no such listener, and adding one
+		// is component wiring rather than a change to this factory.
 		if (selection.isCrossBlock) return;
 		// Only wired to onFocusOut — the block leaf folds on blur, never Escape-cancel.
 		traceRevealFold('blur');

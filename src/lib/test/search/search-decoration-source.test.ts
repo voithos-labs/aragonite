@@ -16,12 +16,14 @@ function makeHarness(source: string, replace: ReplaceStub = stubReplace) {
 	let scans = 0;
 	const engine = createDecorationEngine({ getDoc: () => doc });
 	const state = createSearchState({
-		// rescan is the only deps.getDoc reader, so this counts document scans.
-		getDoc: () => {
+		getDoc: () => doc,
+		// rescan reads the generation exactly once, at its top — and scans the doc the
+		// decoration registry hands `provide`, not this getter — so the generation read
+		// is what counts rescans.
+		getDocumentGeneration: () => {
 			scans++;
-			return doc;
+			return 0;
 		},
-		getDocumentGeneration: () => 0,
 		decorations: engine,
 		replace,
 		reveal: async () => null,

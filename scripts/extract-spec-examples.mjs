@@ -12,7 +12,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Parser } from 'commonmark';
 
-const REFERENCE_VERSION = '0.31.2';
+// Read from the pinned devDependency rather than written down again: this stamp is
+// asserted equal to `reference.ts`'s REFERENCE_VERSION, which is itself asserted
+// equal to this same field, so a literal here is a third copy that can disagree
+// with the corpus it labels.
+const REFERENCE_VERSION = JSON.parse(
+	readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')
+).devDependencies.commonmark;
 
 const parser = new Parser();
 
@@ -25,6 +31,19 @@ function isInlineOnly(markdown) {
 const specPath = process.argv[2];
 if (!specPath) {
 	console.error('usage: node scripts/extract-spec-examples.mjs <path-to-spec.json>');
+	process.exit(1);
+}
+
+// spec.json carries no version of its own, so the stamp cannot be read off the
+// input. The download URL does carry one; when the path kept it, disagreeing with
+// the pinned reference means the corpus would be labelled with a version it was
+// not generated from.
+const versionInPath = specPath.match(/\b(\d+\.\d+(?:\.\d+)?)\b/);
+if (versionInPath && versionInPath[1] !== REFERENCE_VERSION) {
+	console.error(
+		`extract-spec-examples: ${specPath} looks like spec ${versionInPath[1]}, but the pinned ` +
+			`reference implementation is ${REFERENCE_VERSION}. Download the matching spec.json.`
+	);
 	process.exit(1);
 }
 

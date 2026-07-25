@@ -89,8 +89,13 @@
    root, the browser's native ::selection painting is suppressed so it
    doesn't double up with SelectionOverlay's custom highlights. The caret
    is also hidden inside blocks while in cross-block mode so a second
-   focus marker doesn't float over the overlay. */
-:where(.editor)[data-cross-block] ::selection {
+   focus marker doesn't float over the overlay.
+
+   Scoped to `.block-list` — the document content — rather than to every
+   descendant: the find/replace bar is a sibling inside the same root, and a
+   bare descendant combinator left its inputs unable to paint a selection for
+   as long as a cross-block selection was live. */
+:where(.editor)[data-cross-block] .block-list ::selection {
 	background: transparent;
 }
 
@@ -150,7 +155,7 @@
 /* Generic inline directive `:name[...]` with no plugin renderer: show its source
    dimmed like a marker until a later tier reveals it for editing. */
 :where(.editor) .directive-text-widget {
-	opacity: var(--syntax-marker-dim, 0.4);
+	opacity: var(--syntax-marker-dim, 0.65);
 }
 
 /* Decoded-entity glyph (`&copy;` → ©): an atomic island rendering as a plain
@@ -343,7 +348,7 @@
 /* Image-variant unresolved refs get a subtle background to set them apart from
    link-variant ones at a glance. */
 :where(.editor) .md-unresolved-ref-image {
-	background: rgba(192, 57, 43, 0.08);
+	background: var(--md-unresolved-image-bg, rgba(192, 57, 43, 0.08));
 	padding: 0 2px;
 	border-radius: 2px;
 }
@@ -593,7 +598,7 @@
 	.block-host[data-focused]
 	.md-marker[contenteditable='false'] {
 	visibility: visible;
-	opacity: var(--syntax-marker-dim, 0.4);
+	opacity: var(--syntax-marker-dim, 0.65);
 }
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]

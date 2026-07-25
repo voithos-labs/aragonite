@@ -29,6 +29,7 @@
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
+	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
 		domTextOffsetAtNode,
 		rawTextOfNode,
@@ -257,7 +258,7 @@
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
-		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? 800,
+		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		widgetSelection,
 		blockEdit,

@@ -33,11 +33,14 @@ function series(metric, exceptionShape) {
 	const band = SIZES.map((size) => {
 		const values = others.map((s) => byShape.get(s)[size][metric]);
 		values.sort((a, b) => a - b);
-		const mid = values.length / 2;
+		// Odd counts take the middle sample; only an even count averages the pair.
+		// A bare `length / 2` indexes on a half and yields NaN for every odd series
+		// count, which is what the band collapses to when a shape is added.
+		const mid = values.length >> 1;
 		return {
 			min: values[0],
 			max: values[values.length - 1],
-			median: (values[mid - 1] + values[mid]) / 2
+			median: values.length % 2 === 1 ? values[mid] : (values[mid - 1] + values[mid]) / 2
 		};
 	});
 	const exception = SIZES.map((size) => byShape.get(exceptionShape)[size][metric]);

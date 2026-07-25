@@ -91,6 +91,7 @@
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
 	--md-link-blocked-color: rgba(128, 128, 128, 0.7);
 	--md-unresolved-color: #c0392b;
+	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	--md-reorder-indicator: #6496ff;

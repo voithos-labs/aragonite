@@ -9,6 +9,7 @@ import { expectStateForNode } from '../../reactivity/state-registry';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
 import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
@@ -194,7 +195,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function getEditorContentWidth(): number {
-		return getEditorEl()?.clientWidth ?? 800;
+		return getEditorEl()?.clientWidth ?? FALLBACK_CONTENT_WIDTH;
 	}
 
 	function attachWidgetSelectListener(): () => void {

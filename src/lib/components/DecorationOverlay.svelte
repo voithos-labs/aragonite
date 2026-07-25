@@ -32,7 +32,9 @@
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const engine = services?.decorations;
-	const { editorRoot: getEditorRoot } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	// Optional for the same reason `services` above is: a bare mount provides no
+	// shell, and the one use below already optional-calls it.
+	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
 	/** A mark's `interactive.onClick` is author code on a user gesture, so it routes
 	 *  to the same seam every other decoration entry point uses (editor.md §12)
@@ -147,7 +149,7 @@
 			};
 		}
 
-		const editorRoot = getEditorRoot?.();
+		const editorRoot = getEditorRoot?.() ?? null;
 		return wireOverlayRemeasure({ el, editorRoot, blockRef: ref, measure });
 	});
 </script>

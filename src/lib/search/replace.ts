@@ -19,21 +19,19 @@ export interface ReplaceRange {
 	groups?: string[];
 }
 
-/** Apply ranges to `text`, substituting right-to-left so earlier offsets stay valid.
- *  `escape` post-processes each expanded replacement (e.g. to escape delimiters
- *  when the target leaf's raw is structural, like a table cell). */
-export function applyRangesToText(
-	text: string,
-	ranges: ReplaceRange[],
-	template: string,
-	escape?: (replacement: string) => string
-): string {
+/**
+ * Apply ranges to `text`, substituting right-to-left so earlier offsets stay valid.
+ *
+ * Deliberately has no per-replacement escape hook. A structural leaf's delimiters
+ * have to be escaped over the WHOLE post-splice raw — a freeing backslash usually
+ * comes from the surrounding text, not the inserted fragment — so that step is the
+ * caller's `toLegalRaw` pass over the result, not a callback fired per fragment.
+ */
+export function applyRangesToText(text: string, ranges: ReplaceRange[], template: string): string {
 	let out = text;
 	const ordered = [...ranges].sort((a, b) => b.start - a.start);
 	for (const r of ordered) {
-		const expanded = expandReplacement(template, r.groups);
-		const replacement = escape ? escape(expanded) : expanded;
-		out = out.slice(0, r.start) + replacement + out.slice(r.end);
+		out = out.slice(0, r.start) + expandReplacement(template, r.groups) + out.slice(r.end);
 	}
 	return out;
 }

@@ -63,6 +63,31 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 	return end;
 }
 
+const HOST_CHAR = /[\p{L}\p{N}_.-]/u;
+
+/**
+ * Per GFM §6.9 a valid domain carries no underscore in either of its last two
+ * dot-separated segments, so `www.xxx._yyy.zzz` stays literal while
+ * `www._xxx.yyy.zzz` links. The host ends at the first non-host character, which
+ * is what keeps an underscore in a path or query out of the decision.
+ *
+ * cmark-gfm additionally exempts hosts carrying more than ten dots, an artifact
+ * of its two-counter implementation rather than spec text; this module answers to
+ * the spec (see the file header), so that escape is deliberately not reproduced.
+ */
+function hasValidDomain(raw: string, domainStart: number, limit: number): boolean {
+	let hostEnd = domainStart;
+	while (hostEnd < limit && HOST_CHAR.test(raw[hostEnd])) hostEnd++;
+	let dotsSeen = 0;
+	let i = hostEnd;
+	while (i > domainStart && dotsSeen < 2) {
+		i--;
+		if (raw[i] === '.') dotsSeen++;
+		else if (raw[i] === '_') return false;
+	}
+	return true;
+}
+
 /**
  * Per GFM §6.9: a bare autolink is valid only at start-of-region or after
  * whitespace, `*`, `_`, `~`, or `(`.
@@ -280,6 +305,7 @@ function matchBareHttpAutolink(
 	if (urlEnd <= pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
 	if (urlEnd <= pos + schemeLen) return null;
+	if (!hasValidDomain(raw, pos + schemeLen, urlEnd)) return null;
 	return { kind: 'autolink', start: pos, end: urlEnd, url: raw.slice(pos, urlEnd) };
 }
 
@@ -299,6 +325,7 @@ function matchBareWwwAutolink(
 	// and leave a bare `www` — a live link to a host the user never wrote. Every
 	// floor check in this family is at-or-below for that reason.
 	if (urlEnd <= pos + 4) return null;
+	if (!hasValidDomain(raw, pos, urlEnd)) return null;
 	// GFM §6.9: a www autolink has no scheme in its bytes; `http` is inserted
 	// automatically. The node's raw span stays verbatim (start..urlEnd) — only
 	// the derived href gains the scheme, exactly like email prepends `mailto:`.
@@ -339,13 +366,13 @@ function matchBareEmailAutolink(
 	}
 	if (domainEnd === firstSegEnd) return null; // never got a second segment
 
-	const urlEnd = trimTrailingPunctuation(raw, localStart, domainEnd);
-	if (urlEnd <= domainStart) return null; // trim ate everything past @
-
+	// No trailing-punctuation trim: the segment walk above only ever advances over
+	// `[A-Za-z0-9-]` and refuses a segment ending in `-`, so `domainEnd` already sits
+	// after an alphanumeric and there is nothing for the trim to remove.
 	return {
 		kind: 'autolink',
 		start: localStart,
-		end: urlEnd,
-		url: `mailto:${raw.slice(localStart, urlEnd)}`
+		end: domainEnd,
+		url: `mailto:${raw.slice(localStart, domainEnd)}`
 	};
 }

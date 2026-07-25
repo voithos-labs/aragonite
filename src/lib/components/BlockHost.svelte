@@ -44,6 +44,11 @@
 	} = $props();
 
 	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
+	// The optional reads below (and the two overlays') are what keep THIS component
+	// from throwing there; the leaf it mounts is a separate question, and today every
+	// one of them destructures the action and facet contexts as required. So a
+	// shell-less mount reaches the render boundary, not a rendered block — bare
+	// mounting is a property of the host, not yet of the subtree.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
