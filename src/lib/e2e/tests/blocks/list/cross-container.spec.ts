@@ -30,7 +30,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(/^1\. first$/m);
+		await editor.bridge.waitForSourceMatches(/^2\. secondtext$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. first$/m);
 		expect(source).toMatch(/^2\. secondtext$/m);
@@ -44,7 +44,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(/^- a$/m);
+		await editor.bridge.waitForSourceMatches(/^\s+- btext$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^- a$/m);
 		expect(source).toMatch(/^\s+- btext$/m);
@@ -75,16 +75,17 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		expect(source).not.toMatch(/^text$/m);
 	});
 
+	// The fallback moves the caret into the code block and leaves the tree alone,
+	// so absence-of-mutation is the whole observable — no source predicate can
+	// discriminate it, and a byte-exact re-read is the only honest oracle.
 	test('list with opaque deepest leaf: fall back to move-focus', async () => {
 		await editor.loadContent('- item\n\n  ```\n  code\n  ```\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });
 		await para.click();
+		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(/^- item$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^- item$/m);
-		expect(source).toMatch(/^text$/m);
-		expect(source).toContain('code');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

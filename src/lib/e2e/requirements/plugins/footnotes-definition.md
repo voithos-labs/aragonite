@@ -14,7 +14,7 @@ path via `window.__test`, the serialized bytes, and the rendered marker DOM.
 - definition renders as a container: the `?seed=footnotes` route mounts the `FootnoteDefinition` component (a `.footnote-def` box holding a `.block-list`), not the raw-markdown fallback
 - ambient marker renders: the first child paints a dimmed `[^a]: ` marker (an `.md-marker`) before the body text, and the body itself is an editable paragraph child
 - body edits round-trip: typing into the definition body updates the child bytes and the container's own raw rebuilds to `[^a]: <edited>` — the source stays byte-round-trippable
-- type a definition from scratch: typing `[^b]: <body>` into an empty paragraph forms the container live (the block flips to a footnote definition with one paragraph child)
+- type a definition from scratch: typing `[^b]: <body>` into an empty paragraph one keystroke at a time forms the container live (the block flips to a footnote definition with one paragraph child), crossing the transient inline reference widget the `[^b]` prefix mounts on its closing `]`
 
 ## Edge cases
 

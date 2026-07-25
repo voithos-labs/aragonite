@@ -159,6 +159,9 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForListItemCount(4);
+		// The new empty item pushes Third to 4; without pinning that, the
+		// post-Backspace `3. Third` is just the document as loaded.
+		await editor.bridge.waitForSourceMatches(/^4\. Third$/m);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/3\.\s*Third/);
 		const source = await editor.bridge.getSource();

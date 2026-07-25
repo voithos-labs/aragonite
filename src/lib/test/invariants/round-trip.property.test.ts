@@ -7,6 +7,8 @@ import {
 	arbCrlfString,
 	arbDeepNesting,
 	arbGfmDoc,
+	arbIndentedGfmDoc,
+	arbLargeDoc,
 	freshOrFixedSeed
 } from './arbitraries';
 import { describeRoundTrips } from '$lib/test/support/round-trip';
@@ -39,6 +41,10 @@ describe('G2.1 round-trip + totality', () => {
 	it('preserves deeply nested container prefixes', () => {
 		fc.assert(fc.property(arbDeepNesting, roundTrips), PARAMS);
 	});
+
+	it('serialize(parse(s)) === s across the block-indent boundary', () => {
+		fc.assert(fc.property(arbIndentedGfmDoc, roundTrips), PARAMS);
+	});
 });
 
 // G2.2: the parser absorbs unterminated blocks to EOF rather than recovering.
@@ -53,6 +59,20 @@ describeRoundTrips('G2.2 EOF edge states', [
 	{ name: 'unterminated multi-line comment', source: '<!--\nline\nmore' },
 	{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
 ]);
+
+// The size tier. Low run count because each case is ~100KB: the point is
+// reaching the scale every complexity defect lives at, not sampling it densely.
+// Shrinking is disabled — a 100KB counterexample shrinks for minutes and the
+// raw case is already the diagnostic, since the shapes are chosen, not searched.
+describe('G2.1 round-trip at scale', () => {
+	it('serialize(parse(s)) === s over ~100KB floods, runs and unclosed containers', () => {
+		fc.assert(fc.property(arbLargeDoc, roundTrips), {
+			numRuns: 20,
+			seed: freshOrFixedSeed(424242),
+			endOnFailure: true
+		});
+	}, 60_000);
+});
 
 // Adversarial fixed cases the generators cannot reach at useful sizes — their
 // nesting dial (arbDeepNesting) tops out around a dozen levels, well below the

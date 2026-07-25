@@ -70,7 +70,7 @@ test.describe('inline editing — backslash escapes', () => {
 
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceContains('*foo*');
+		await editor.bridge.waitForSourceMatches(/^\*foo\*$/m);
 
 		await expect(block.locator('em')).toHaveCount(1);
 		await expect(block.locator('em')).toHaveText('foo');

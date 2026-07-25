@@ -19,16 +19,20 @@ const REF = '.footnote-ref';
 
 /**
  * Turn the whole prose paragraph at `targetIndex` into a footnote-def strip container: select
- * its line and enter `[^label]: body` over it, forming the container with one paragraph child
- * on the reparse. Marker formation from scratch, with two deliberate choices. It enters over a
- * blank-line-separated paragraph rather than a paragraph split off by Enter: an Enter-split
- * successor carries only a single-newline separator, and a footnote-def is `interruptsParagraph:
- * false`, so its line would lazily merge back into the block above on reparse (the documented
- * Enter-at-end divergence, `docs/issues.md`) — a general split defect, not a footnote one, that
- * convergence would flag here. And it enters as one event, not per character: typed char by
- * char the `[^label]` prefix first mounts an inline reference widget, and the trailing `:` lands
- * after that atomic widget — a separate platform interaction. Settles on the container mounting
- * (`.footnote-def` count rising) plus the marker in the source, and resyncs.
+ * its line and type `[^label]: body` over it, forming the container with one paragraph child
+ * on the reparse. Marker formation from live typing. It enters over a blank-line-separated
+ * paragraph rather than a paragraph split off by Enter: an Enter-split successor carries only
+ * a single-newline separator, and a footnote-def is `interruptsParagraph: false`, so its line
+ * would lazily merge back into the block above on reparse (the documented Enter-at-end
+ * divergence, `docs/issues.md`) — a general split defect, not a footnote one, that convergence
+ * would flag here.
+ *
+ * Typed PER KEYSTROKE, which routes the line through a transient inline reference widget: the
+ * `[^label]` prefix mounts one on its closing `]`, and the `: ` plus body are typed against
+ * that atomic widget's trailing edge before the reparse resolves the whole line to a
+ * definition marker. That intermediate state is the one a real author produces and the one an
+ * atomic insert never reaches. Settles on the container mounting (`.footnote-def` count
+ * rising) plus the marker in the source, and resyncs.
  */
 export async function typeFootnoteDefinition(
 	ctx: SimContext,
@@ -41,7 +45,12 @@ export async function typeFootnoteDefinition(
 
 	await editor.focusBlockStart(targetIndex);
 	await page.keyboard.press('Shift+End');
-	await editor.typeText(`[^${label}]: ${body}`);
+	// The separating space is NOT typed: closing the marker with `:` auto-completes
+	// it to `[^label]: `, so a literal space here would land a second one. Typing the
+	// finished string as one `insertText` hid that — the editor never ran the
+	// per-keystroke completion, so the whole string arrived verbatim.
+	await editor.typeSlowly(`[^${label}]:`);
+	await editor.typeSlowly(body);
 	await editor.bridge.waitForSourceContains(`[^${label}]: ${body}`);
 	await waitForNodeCount(ctx, DEF, defsBefore + 1);
 	await editor.waitForRenderFlush();

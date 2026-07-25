@@ -15,21 +15,28 @@
 
 <script lang="ts">
 	import { Editor } from '$lib';
+	import { trackParityDocument } from '../../../parity-documents.svelte';
 
 	// Both editors parse the SAME seed with the global grammar, so both hold a memo
 	// CST node. The left editor resolves NO component for it (disabled) → the
 	// raw-editable fallback (the unknown-kind rule); the right resolves MemoBlock.
 	const SEED = 'Before\n\n%% memo text\n\nAfter\n';
+
+	let disabled = $state<ReturnType<typeof Editor>>();
+	let enabled = $state<ReturnType<typeof Editor>>();
+
+	trackParityDocument(() => disabled);
+	trackParityDocument(() => enabled);
 </script>
 
 <div class="enablement-harness aragonite-editor-theme">
 	<div class="pane" data-testid="editor-disabled">
 		<h2>memo disabled</h2>
-		<Editor source={SEED} {plugins} __registryEnablement={disableMemo} />
+		<Editor bind:this={disabled} source={SEED} {plugins} __registryEnablement={disableMemo} />
 	</div>
 	<div class="pane" data-testid="editor-enabled">
 		<h2>memo enabled</h2>
-		<Editor source={SEED} {plugins} />
+		<Editor bind:this={enabled} source={SEED} {plugins} />
 	</div>
 </div>
 

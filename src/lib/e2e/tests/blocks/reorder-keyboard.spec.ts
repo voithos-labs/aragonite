@@ -1,4 +1,4 @@
-import { test } from '../../fixtures';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Reorder resolves the unit from the caret path and moves it among its siblings;
@@ -78,7 +78,8 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceEquals('XA\n\nB\n');
 
 		await editor.page.keyboard.press('Alt+ArrowUp'); // first block — nothing above
-		await editor.bridge.waitForSourceEquals('XA\n\nB\n');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('XA\n\nB\n');
 
 		await editor.page.keyboard.press('Control+z'); // undoes the typing, not a phantom reorder
 		await editor.bridge.waitForSourceEquals('A\n\nB\n');
@@ -87,7 +88,9 @@ test.describe('keyboard reorder', () => {
 	test('Alt+ArrowDown on the last block is a no-op', async () => {
 		await editor.loadContent('A\n\nB\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).click();
+		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('Alt+ArrowDown');
-		await editor.bridge.waitForSourceEquals('A\n\nB\n');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

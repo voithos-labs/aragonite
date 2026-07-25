@@ -14,15 +14,11 @@ test.describe('list Backspace — forward Delete behavior', () => {
 		await editor.loadContent('- first\n- middle\n- last\n');
 		const middle = editor.page.locator('[contenteditable="true"]', { hasText: 'middle' });
 		await middle.click();
+		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Delete');
-		// wait 200ms — no-op produces no source change; verify state is stable before asserting.
-		await editor.bridge.waitForSourceMatches(/^- first$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^- first$/m);
-		expect(source).toMatch(/^- middle$/m);
-		expect(source).toMatch(/^- last$/m);
-		expect(source).not.toMatch(/middlelast/);
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('Delete at end of last item merges following paragraph into the last item', async () => {

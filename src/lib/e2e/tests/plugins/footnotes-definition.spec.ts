@@ -88,7 +88,13 @@ test.describe('plugin container: footnote definition', () => {
 		await page.keyboard.press('Enter');
 		await editor.waitForRenderFlush();
 
-		await editor.typeText('[^b]: brand new note');
+		// Per keystroke: the `[^b]` prefix mounts a transient inline reference widget on its
+		// closing `]`, and the body is typed against that widget's trailing edge before the
+		// reparse resolves the line to a definition marker. The separating space is not
+		// typed — `:` auto-completes the marker to `[^b]: `, and the atomic `insertText`
+		// this replaced never ran that completion, so it hid the difference.
+		await editor.typeSlowly('[^b]:');
+		await editor.typeSlowly('brand new note');
 		await editor.bridge.waitForSourceContains('[^b]: brand new note');
 
 		const def = await readContainer(page, 1);

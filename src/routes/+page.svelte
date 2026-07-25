@@ -30,10 +30,17 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
 	import { SHOWCASE_DOCUMENT } from './showcase-content';
+	import { trackParityDocument } from './parity-documents.svelte';
 
 	// Live-changeable prop — the toggle flips it in place, no remount.
 	const MODES: PresentationMode[] = ['source', 'reading', 'preview-block', 'preview-inline'];
 	let presentationMode = $state<PresentationMode>('source');
+
+	// The showcase installs no probe surface, so its containers (blockquotes, nested
+	// lists, task lists, a table, `<details>`, two admonitions, a footnote
+	// definition) were outside every parity net.
+	let editor = $state<ReturnType<typeof Editor>>();
+	trackParityDocument(() => editor);
 </script>
 
 <div class="showcase aragonite-editor-theme">
@@ -57,7 +64,12 @@
 		>
 	</header>
 	<div class="showcase-editor">
-		<Editor source={SHOWCASE_DOCUMENT} plugins={showcasePlugins} {presentationMode} />
+		<Editor
+			bind:this={editor}
+			source={SHOWCASE_DOCUMENT}
+			plugins={showcasePlugins}
+			{presentationMode}
+		/>
 	</div>
 </div>
 

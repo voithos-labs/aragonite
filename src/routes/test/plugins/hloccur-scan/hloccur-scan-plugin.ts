@@ -1,10 +1,9 @@
-// Harness observability wrapper over the bundled highlight-occurrences memo. It
-// installs the SAME createOccurrenceSource the plugin ships, adding an onScan hook
-// that publishes the index-rebuild count to window — so the memoization e2e can
-// assert a caret move re-filters the cached index without re-scanning. The bundled
-// plugin stays clean (doc-stats precedent: the harness owns the window channel).
-import { definePlugin } from '$lib/plugin';
-import { createOccurrenceSource } from '$lib/plugins/highlight-occurrences/occurrence-source';
+// Harness observability wrapper over the bundled highlight-occurrences plugin. It
+// CONFIGURES the shipped unit through its public `onScan` option instead of
+// re-declaring the wiring against a private module: the memoization battery now
+// pins the plugin consumers get, so a divergence in the real
+// addSource/selectionChange/invalidate/dispose chain reaches it.
+import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 
 declare global {
 	interface Window {
@@ -12,25 +11,10 @@ declare global {
 	}
 }
 
-export const hloccurScanProbePlugin = definePlugin({
-	name: 'hloccur-scan-probe',
-	setup(ctx) {
-		ctx.onEditor((editor) => {
-			window.__hloccurScans = 0;
-			const occurrences = createOccurrenceSource({
-				onScan: () => {
-					window.__hloccurScans = (window.__hloccurScans ?? 0) + 1;
-				}
-			});
-			const handle = editor.decorations.addSource(occurrences.source);
-			const off = editor.events.on('selectionChange', (selection) => {
-				occurrences.setSelection(selection);
-				handle.invalidate();
-			});
-			return () => {
-				off();
-				handle.dispose();
-			};
-		});
+// Each spec navigates to a fresh page, so the counter starts undefined and the
+// readers' `?? 0` is the zero point — no module-scope window write on the SSR path.
+export const hloccurScanProbePlugin = highlightOccurrencesPlugin({
+	onScan: () => {
+		window.__hloccurScans = (window.__hloccurScans ?? 0) + 1;
 	}
 });

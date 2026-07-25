@@ -125,10 +125,18 @@ test.describe('plugin github alerts', () => {
 		await editor.loadContent('Start here.\n');
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('Enter');
-		// Completing the marker forms an empty alert with the caret in its body, so the
-		// body is typed straight on — no second Enter (which would exit the quote).
+		// Per keystroke, so the editor crosses the blockquote promotion at `>`, the inline
+		// recognizer's `[` rung, and the alert reclassification at `]` as distinct input
+		// events. Completing the marker forms an empty alert with the caret in its body, so
+		// the body is typed straight on — no second Enter (which would exit the quote).
+		// Atomic on purpose, and NOT what a user does. Per-keystroke formation is
+		// blocked by a live defect: typing `>` then `[!TIP]` leaves the block a
+		// `blockquote` forever — it never reclassifies, `parseConverged()` goes false,
+		// and the body concatenates onto the marker line. One `insertText` reparses the
+		// block and classifies correctly. Restore per-keystroke once that is fixed.
 		await editor.typeText('> [!TIP]');
-		await editor.typeText('Fresh alert body');
+		await editor.bridge.waitForSourceContains('> [!TIP]');
+		await editor.typeSlowly('Fresh alert body');
 
 		const doc = await waitForDoc(page, (s) => s.kinds.includes('githubAlert'));
 		const alertIndex = doc.kinds.indexOf('githubAlert');

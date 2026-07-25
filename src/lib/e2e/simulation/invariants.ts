@@ -84,8 +84,8 @@ export async function assertNoErrors(ctx: SimContext): Promise<void> {
  * `childIds` gives the trailing keyed-each entries `undefined` keys — Svelte's
  * earliest signal of the desync class, caught here at checkpoint cadence rather
  * than waiting for the boundary to throw mid-render. The walker throws (not
- * returns `[]`) if the doc bridge is absent, so a missing probe is loud, never
- * vacuously green.
+ * returns `[]`) when no editor registered a document, so an empty walk is loud,
+ * never vacuously green.
  */
 export async function assertContainerParity(ctx: SimContext): Promise<void> {
 	const mismatches = await getContainerParityMismatches(ctx.page);

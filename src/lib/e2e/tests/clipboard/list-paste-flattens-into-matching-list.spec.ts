@@ -19,7 +19,9 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two\n3\. three/);
+		// The round-trip's end state IS its start state, so no source predicate can
+		// observe the paste. The selection collapsing is the one real transition.
+		await editor.waitForCrossBlock(false);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two\n3. three');
@@ -35,7 +37,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceMatches(/1\. one\n2\. two/);
+		await editor.waitForCrossBlock(false);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('1. one\n2. two');
@@ -51,7 +53,7 @@ test.describe('copy-paste round-trip: container-matching list paste flattens', (
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceMatches(/- alpha\n- beta\n- gamma/);
+		await editor.waitForCrossBlock(false);
 
 		const src = await editor.bridge.getSource();
 		expect(src.trim()).toBe('- alpha\n- beta\n- gamma');

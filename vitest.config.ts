@@ -14,7 +14,7 @@ export default defineConfig({
 		conditions: ['browser']
 	},
 	test: {
-		include: ['src/lib/test/**/*.test.ts'],
+		include: ['src/lib/test/**/*.test.ts', 'src/lib/e2e/lint/**/*.test.ts'],
 		setupFiles: ['./src/lib/test/support/register-built-ins.ts']
 	}
 });

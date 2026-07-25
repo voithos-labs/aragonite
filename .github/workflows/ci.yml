@@ -89,11 +89,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # perf:check:prod builds and previews the app, then gates the keystroke rows
       # against that prod build (the e2e-perf-prod project) — a dev-server run would
-      # measure vite transform overhead, not the editor. Gate rows only: the
-      # attribution axes are diagnostic profiling instruments (they break per-keystroke
-      # cost down on the largest fixtures and run long there), not regression-gate rows,
-      # so the gate excludes them.
-      - run: npm run perf:check:prod -- --grep-invert attribution
+      # measure vite transform overhead, not the editor. The report-only rows exclude
+      # themselves via their own PERF_GATE skip, so this needs no row filter.
+      - run: npm run perf:check:prod
 
   consumer-smoke:
     runs-on: ubuntu-latest

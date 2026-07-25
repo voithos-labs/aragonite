@@ -13,8 +13,28 @@ const escapes = ['\\*', '\\\\', '\\`', '\\[', '\\]', '\\!', '\\', '\\&'];
 const whitespaceRuns = ['', ' ', '  ', '\t', ' \t ', '   '];
 
 // Lazy-continuation blockquote shapes: a marker line followed by a bare
-// continuation the parser must absorb without re-deriving the prefix.
-const lazyQuoteShapes = ['> ', '>', '> > ', '>> ', '   > ', '> \n', '>\tlazy'];
+// continuation the parser must absorb without re-deriving the prefix. The
+// indents straddle the CommonMark block-indent boundary deliberately — up to
+// three spaces the marker still opens a quote, at four the line is indented
+// code and the `>` is content, and a tab counts as four columns. The vocabulary
+// stopped at three spaces, so the boundary itself was never crossed.
+const lazyQuoteShapes = [
+	'> ',
+	'>',
+	'> > ',
+	'>> ',
+	'   > ',
+	'> \n',
+	'>\tlazy',
+	'    > ',
+	'\t> ',
+	'     > ',
+	'  \t> ',
+	'    - ',
+	'\t- ',
+	'    1. ',
+	'    # '
+];
 
 const arbFragment = fc.oneof(
 	{ arbitrary: fc.string({ unit: 'binary', maxLength: 8 }), weight: 3 },
@@ -51,7 +71,20 @@ export const arbCrlfString = fc
 export const arbDeepNesting = fc
 	.array(
 		fc.tuple(
-			fc.constantFrom('> ', '>', '  - ', '- ', '1. ', '   > ', '\t', '    '),
+			fc.constantFrom(
+				'> ',
+				'>',
+				'  - ',
+				'- ',
+				'1. ',
+				'   > ',
+				'\t',
+				'    ',
+				'    > ',
+				'\t> ',
+				'\t\t- ',
+				'     1. '
+			),
 			fc.string({ unit: 'grapheme-ascii', maxLength: 8 })
 		),
 		{ minLength: 1, maxLength: 12 }

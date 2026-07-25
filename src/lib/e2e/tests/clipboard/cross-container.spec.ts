@@ -39,9 +39,10 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('top');
+		await editor.bridge.waitForSourceNotContains('> inside quote');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('top');
+		expect(source).not.toContain('> inside quote');
 	});
 
 	test('cross-container cut then undo restores structure', async () => {
@@ -63,10 +64,12 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
+
+		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('Control+c');
-		await editor.bridge.waitForSourceContains('para');
-		expect(await editor.bridge.getSource()).toContain('para');
-		expect(await editor.bridge.getSource()).toContain('> quote');
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
