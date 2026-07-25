@@ -628,32 +628,6 @@ failure.
 
 ## Plugin containers
 
-### A third-party `strip` container silently inherits reorder-within absence
-
-**Severity:** minor (authoring-surface discoverability; the capability itself ships correct)
-**Files:** `src/lib/tree-operations/reorder-unit.ts` (`resolveReorderUnit`), `src/lib/plugin.ts`
-(public `ContainerDescriptorGroup`), `src/lib/schema/closure.ts` (`containerClosure`'s `reorder`
-cell), `docs/guide/plugin-guide.md` (no mention), `docs/contributing/adding-a-block.md` (the only
-mention)
-
-`resolveReorderUnit` resolves reorder-within from the declared `reorderChildren` capability and
-declines at an `opaque` boundary. A container that is `strip` and does NOT declare `reorderChildren`
-falls through both branches and the walk continues upward — correct and load-bearing for `listItem`
-(whose unit is the item under the list), but for a top-level plugin strip container it reproduces the
-exact teleport this ledger carried for `githubAlert`: `Alt+↑/↓` on a body child moves the whole
-container among document siblings. The capability is on the public authoring surface, but the only
-prose naming it lives in an internal contributing doc, and nothing prompts the author either —
-`containerClosure` bakes the `reorder` cell to "whole-block reorder through the parent BlockList",
-which describes the container's own reorder and stays true either way. So the one place a kind is
-forced to answer a cross-cutting question says nothing about this axis, and every behavioral test the
-author writes on their container passes.
-
-**Fix direction:** one sentence in `docs/guide/plugin-guide.md` beside the container walkthrough's
-`container: { … }` block — declare `reorderChildren` if your container's direct children should
-reorder among themselves; absent means a child's reorder resolves at an ancestor.
-
-**Target:** the next guide pass, before the freeze cut — the member is already public.
-
 ### The admonitions blockquote grammar still over-accepts indent outside the marker rule
 
 **Severity:** minor (a conversion false negative and a body-strip divergence; neither can hang or
