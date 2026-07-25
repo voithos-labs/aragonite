@@ -8,9 +8,9 @@ import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-action
 // G2.10 sticky-column matrix. The idempotent-capture and non-finite guards live
 // on the state object itself and are covered in cursor/sticky-column.test.ts;
 // here we pin the two faces the plan calls out that those tests don't reach:
-// (1) the key→action decision the shared keydown prelude enacts
-// (classifyStickyKey, which shared-keydown.ts consumes), and (2) the structural
-// reset policy — commit ceremony resets sticky on every structural op.
+// (1) the key→action decision every keydown path enacts through noteKey
+// (classifyStickyKey), and (2) the structural reset policy — commit ceremony
+// resets sticky on every structural op.
 
 // ── Decision matrix (classifyStickyKey) ──────────────────────────────────────
 

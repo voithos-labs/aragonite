@@ -28,6 +28,7 @@ import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf } from './primitives';
 import { asCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
 import { comparePaths } from './path-math';
+import { devWarn } from '../dev-warn';
 
 /**
  * A cross-block selection endpoint inside a table must address the table block
@@ -63,17 +64,33 @@ export function normalizeTableEndpoint(
 }
 
 /**
- * Inverse of {@link normalizeTableEndpoint}: expand a cell-coordinate endpoint
- * back to its deep `[tableIdx, row, col]` leaf path so reveal/caret placement can
- * reach the off-window cell. Null for non-cell-coordinate points (the path is
- * already the leaf).
+ * Inverse of {@link normalizeTableEndpoint}: expand an endpoint addressing a
+ * table block back to its deep `[tableIdx, row, col]` leaf path so reveal/caret
+ * placement can reach the off-window cell. Null when there is no deep path to
+ * give — the path is already a leaf, or the cell index lands outside the grid.
+ *
+ * Resolution is on the NODE KIND, not the `cellCoordinate` flag: an intra-table
+ * rectangle's focus is unflagged by the same-path convention (see
+ * {@link SelectionPoint}) yet its offset is still a cell index, so a flag gate
+ * left every forward-extended rectangle resolving no cell. A table path is
+ * cell space in both worlds, which makes the kind the honest discriminant —
+ * and why the index is minted directly rather than through `cellIndexOf`, whose
+ * flag guard would warn on every legitimate intra-table point. That mint carries
+ * no range opinion, so the index is bounds-checked against the grid here: an
+ * out-of-grid index otherwise composed a path to a row that does not exist and
+ * sent `revealPath` after it, which is strictly worse than the caller's null
+ * branch (each falls back to the table block itself).
  */
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
-	if (!point.cellCoordinate) return null;
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const colCount = metadataOf(node, 'table').columnCount;
-	const cellIdx = cellIndexOf(point, 'cellEndpointDeepPath');
+	const cellIdx = asCellIndex(point.offset);
+	const cellCount = (node.children?.length ?? 0) * colCount;
+	if (cellIdx < 0 || cellIdx >= cellCount) {
+		devWarn('table-endpoint-snap', 'cell index outside the grid', { point, colCount, cellCount });
+		return null;
+	}
 	const { row, col } = cellRowCol(cellIdx, colCount);
 	return [...point.path, row, col];
 }

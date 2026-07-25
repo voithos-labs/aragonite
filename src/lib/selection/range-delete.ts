@@ -13,6 +13,7 @@ import { parse } from '../core/parser';
 import { trailingLineEnding } from '../core/lines';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
+import { firstLeafAtOrAfter } from './path-lookup';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
@@ -128,8 +129,17 @@ export function rangeDelete(
 		rebuildUnsharedAncestry(doc, path, sharing);
 	}
 
-	return {
-		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset }
-	};
+	// The re-parse is allowed to change kind, including leaf → CONTAINER (a list
+	// marker joined to its item text, a header row joined to its delimiter). The
+	// caret is restored by walking the block element at its path, so a container
+	// path walks the whole rendered subtree and drops focus on a non-editable
+	// wrapper. Descend to the leaf instead. The join offset indexes the merged
+	// raw, which only the surviving leaf owns — a descended caret starts at 0.
+	const leafPath = firstLeafAtOrAfter(doc, start.path);
+	const collapsedCaret: SelectionPoint =
+		leafPath && leafPath.length > start.path.length
+			? { path: leafPath, offset: 0 }
+			: { path: start.path.slice(), offset: startOffset };
+
+	return { newDoc: doc, collapsedCaret };
 }
