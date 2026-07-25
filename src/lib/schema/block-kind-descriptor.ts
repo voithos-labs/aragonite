@@ -132,6 +132,14 @@ export interface BlockKindDescriptor {
 		 * at the chrome leaf instead of reaching into the clamped-out body.
 		 */
 		isCollapsed?: (node: NodeView) => boolean;
+		/**
+		 * The metadata patch that expands a collapsed node, so a reveal aimed at a
+		 * clamped-out body child opens the container instead of dead-ending on it.
+		 * Pure like the probe beside it (node in, patch out); the container seam owns
+		 * the commit — one undoable metadata edit, inert in reading mode. Absent, or a
+		 * null return, means no door: the reveal degrades to the chrome row.
+		 */
+		expandPatch?: (node: NodeView) => Record<string, unknown> | null;
 	};
 	/**
 	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
