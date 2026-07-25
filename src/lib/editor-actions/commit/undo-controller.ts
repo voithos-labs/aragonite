@@ -273,6 +273,19 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		};
 	}
 
+	/**
+	 * The one place a contained ceremony failure reaches the `error` channel, so
+	 * every throw site attributes the same way (editor.md §12). Both the
+	 * synchronous ceremony and the post-tick callback route here.
+	 */
+	function reportCommitError(args: CommitArgs, error: unknown): void {
+		deps.events.emit('error', {
+			origin: 'commit',
+			error,
+			context: { op: args.op?.kind, path: args.op?.eventPath }
+		});
+	}
+
 	function runCommitCeremony(args: CommitArgs): boolean {
 		deps.stickyColumn.reset();
 		textBatch.interrupt();
@@ -289,21 +302,25 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			);
 		}
 
+		// Captured outside the try: the stack registers must be read BEFORE the push
+		// below mutates them.
 		const rollback = captureRollbackFrame(args);
-		if (args.snapshot !== 'skip') {
-			// With no live caret (e.g. a handle drag) the snapshot restores to the
-			// declared coordinate. (When a caret IS live — every keyboard path — it
-			// wins and this fallback is unused.)
-			pushUndoSnapshotPath(args.snapshot.path, args.snapshot.offset);
-		}
 
 		// A `discardIfNoop` structural op that changed nothing (chrome split, a
-		// no-target merge) rolls back the snapshot pushed above — the benign twin
+		// no-target merge) rolls back the snapshot pushed below — the benign twin
 		// of the throw path: same stack/tree restore, minus the error emit. Skips
 		// publish and the edit event; afterTick still runs (caret is a view
 		// concern, so the no-target merge's focus fallback survives).
 		let discarded = false;
 		try {
+			if (args.snapshot !== 'skip') {
+				// Inside the try: readCurrentSelection walks live block refs, including
+				// plugin-authored leaves, so this is a reporting throw site like every
+				// other one in the ceremony. With no live caret (e.g. a handle drag) the
+				// snapshot restores to the declared coordinate. (When a caret IS live —
+				// every keyboard path — it wins and this fallback is unused.)
+				pushUndoSnapshotPath(args.snapshot.path, args.snapshot.offset);
+			}
 			if (args.kind === 'document') {
 				const childrenCopy = [...deps.doc.children];
 				const idsCopy = [...deps.blockIds];
@@ -344,11 +361,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			}
 		} catch (err) {
 			rollback.restore();
-			deps.events.emit('error', {
-				origin: 'commit',
-				error: err,
-				context: { op: args.op?.kind, path: args.op?.eventPath }
-			});
+			reportCommitError(args, err);
 			// Loud for developers; production swallows so a single failed mutation
 			// doesn't kill the editor (the tree stays intact: the document branch
 			// publishes only on success, the container branch is rolled back above).
@@ -376,7 +389,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 		if (!committed) return;
 		await tick();
-		args.afterTick?.();
+		try {
+			args.afterTick?.();
+		} catch (err) {
+			// No rollback: the commit succeeded and the tree is correct — a post-tick
+			// view callback failing is not a reason to unwind it. Contained
+			// unconditionally, like the block-command seam: a plugin callback (the
+			// public `updateOwnMetadata(patch, afterTick)` threads one straight here)
+			// becomes a reported no-op, never an unhandled rejection on a promise
+			// every caller voids.
+			reportCommitError(args, err);
+		}
 	}
 
 	// ── Structural-mutation ceremony ─────────────────────────────────────────
@@ -444,6 +467,32 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		 */
 		savedStateIds: string[];
 		savedStateRefs: (BlockComponent | undefined)[];
+		/**
+		 * Pre-mutate bytes for every node this scope's commit writes in place. The
+		 * structural registers above recover the shape; without this the restored
+		 * children disagree with the serialized raw and the next `serialize()`
+		 * emits a half-applied document.
+		 */
+		savedRaws: SavedRaw[];
+	}
+
+	interface SavedRaw {
+		node: CstNode;
+		raw: string;
+	}
+
+	/**
+	 * Bytes at risk for one scope: the unshared spine (every target of the chain
+	 * rebuild, which runs after all scopes' writes and dispatches into a
+	 * descriptor's `rebuildRaw`) plus the scope's direct children (a grid rebuild
+	 * rewrites its rows; renumber and marker passes rewrite its items). Depth
+	 * mirrors the structural register — one level below the owned node, the same
+	 * granularity `savedChildren` restores.
+	 */
+	function captureScopeRaws(chain: CstNode[], owned: CstNode): SavedRaw[] {
+		const saved: SavedRaw[] = chain.map((node) => ({ node, raw: node.raw }));
+		for (const child of owned.children ?? []) saved.push({ node: child, raw: child.raw });
+		return saved;
 	}
 
 	/**
@@ -475,9 +524,22 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	function prepareScopeView(s: MultiScopeTarget): PreparedScope {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
+		if (!isDoc && chain.length !== s.path.length) {
+			// The unshare walk ran off a live child, so the chain has no scope node to
+			// hand over. Falling back to the caller's node would give the mutation a
+			// still-shared node and corrupt the snapshot entry that shares it (G1.9) —
+			// silently, since G1.19/G1.22 are dev-only warnings. Bail the commit, the
+			// answer the sibling seam (`withUnsharedSpine`, G1.20) already gives.
+			const message = `commitMultiScope: unshared chain depth ${chain.length} != scope path depth ${s.path.length} (path [${s.path.join(',')}])`;
+			assertInvariant('multi-scope-scope-depth', () => ({
+				code: 'multi-scope-scope-depth',
+				message
+			}));
+			throw new Error(message);
+		}
 		// The ceremony's view→mutable door (core/node-views.ts): the unshared
 		// chain owns the scope node; the doc scope owns the root by construction.
-		const owned = isDoc ? (s.node as CstNode) : (chain[chain.length - 1] ?? (s.node as CstNode));
+		const owned = isDoc ? (s.node as CstNode) : chain[chain.length - 1];
 		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
 		const refs = [...s.state.innerBlockRefs];
 		// Distinct copies: `ids`/`refs` above are mutated in place by
@@ -486,6 +548,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const savedStateRefs = [...s.state.innerBlockRefs];
 		const savedChildren = owned.children;
 		const savedChildIds = owned.childIds;
+		const savedRaws = captureScopeRaws(chain, owned);
 		owned.children = [...(owned.children ?? [])];
 		return {
 			target: s,
@@ -498,7 +561,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			savedChildren,
 			savedChildIds,
 			savedStateIds,
-			savedStateRefs
+			savedStateRefs,
+			savedRaws
 		};
 	}
 
@@ -533,13 +597,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		args: CommitMultiScopeArgs<S>
 	): Promise<void> {
 		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop } = args;
-		let prepared: PreparedScope[] = [];
+		const prepared: PreparedScope[] = [];
 		await __commit({
 			kind: 'container',
 			snapshot,
 			mutate: () => {
 				for (const s of scopes) assertScopeIdentity(s);
-				prepared = scopes.map(prepareScopeView);
+				// Pushed as each scope resolves, not assigned at the end: a scope that
+				// fails to prepare must still leave the frame holding the registers of
+				// the scopes prepared before it.
+				for (const s of scopes) prepared.push(prepareScopeView(s));
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
 				// Dynamically-built scope arrays degrade to array typing, so the
 				// runtime arity check stays as the backstop behind the tuple types.
@@ -581,6 +648,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
+					// Bytes as well as shape: the chain rebuild runs after every scope's
+					// writes and dispatches into `descriptor.rebuildRaw` (plugin code at
+					// the freeze boundary), so both a throw there and the discardIfNoop
+					// bail behind it unwind raws the restored children no longer justify.
+					for (const { node, raw } of p.savedRaws) node.raw = raw;
 					// publishScopeView may have written the mutated ids/refs into reactive
 					// state before the throw; restore them so top-level blockIds/refs don't
 					// reflect the rolled-back mutation. Doc-scope ids route through the

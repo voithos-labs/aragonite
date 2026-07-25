@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
 function makeContainer(childRaws: string[]): CstNode {
@@ -61,6 +64,25 @@ describe('debounce batch key — sibling leaves inside one container', () => {
 		await bundle.blockEdit.updateBlockContent(0, 'hi123\n', 4);
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
+		controller.flushDebouncedCheckpoint();
+	});
+});
+
+// ── The same rule one level up ───────────────────────────────────────────────
+
+describe('debounce batch key — top-level blocks', () => {
+	it('a different block arriving at the same slot breaks the batch', async () => {
+		const { deps } = makeEditorActionsDeps(parse('a\n\nb\n').children);
+		const controller = createUndoController(deps);
+		const blockEdit = createBlockEditActions(deps, controller);
+
+		await blockEdit.updateBlockContent(0, 'a1\n', 1);
+		// Slot 0 now holds a different block. A slot-keyed batch cannot see this and
+		// folds the next keystroke into the previous block's undo entry.
+		deps.setBlockIds(['block-new', deps.blockIds[1]]);
+		await blockEdit.updateBlockContent(0, 'x1\n', 1);
+
+		expect(deps.undoManager.getStacks().undo).toHaveLength(2);
 		controller.flushDebouncedCheckpoint();
 	});
 });

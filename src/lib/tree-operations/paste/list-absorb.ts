@@ -18,7 +18,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { containerPasteFor } from './container-paste';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList, normalizeItemMarkerToList } from '../list/ordered-markers';
@@ -61,7 +61,7 @@ export function findListAbsorb(
 ): ListAbsorb | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
-	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste?.siblingAbsorb) return null;
 
 	const enclosing = findEnclosingListForPaste(doc, targetPath);

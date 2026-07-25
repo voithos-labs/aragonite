@@ -14,7 +14,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
 import {
@@ -58,7 +58,7 @@ export function findListBreakOut(
 ): ListBreakOut | null {
 	if (parsed.children.length === 0) return null;
 	const topBlock = parsed.children[0];
-	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste?.siblingAbsorb) return null;
 
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
