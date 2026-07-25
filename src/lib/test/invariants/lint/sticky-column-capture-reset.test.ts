@@ -64,6 +64,24 @@ const KEYDOWN_RESET_EXCEPTIONS: Record<string, { count: number; why: string }> =
 
 const isKeydownFile = (relPath: string) => /keydown/i.test(relPath);
 
+/**
+ * Every file the path-name scan sweeps in, and what each one is. The scan exists
+ * as a net for a dispatcher nobody remembered to add to `KEYDOWN_SEAM_FILES`, but
+ * it also collects files that hold no column state at all, which pass its
+ * zero-reset check trivially and make the arm read wider than it is. Pinning the
+ * set exact turns a new keydown-named file into a decision — dispatcher (it joins
+ * the seam list and must reach the door) or pure transform (it joins this map) —
+ * rather than a silent pass.
+ */
+const KEYDOWN_PATH_NAMED_FILES: Record<string, string> = {
+	'src/lib/selection/shared-keydown.ts': 'dispatcher — classifies through noteKey',
+	'src/lib/selection/cross-block/keydown.ts': 'dispatcher — classifies through noteKey',
+	'src/lib/components/blocks/text/text-keydown.ts':
+		'pure raw transforms (hard break, heading cycle, literal tab); returns bytes, touches no column',
+	'src/lib/components/blocks/table/cell-keydown-plan.ts':
+		'pure key→plan classifier; the plan’s executor owns the column, not this module'
+};
+
 describe('G2.10 capture-without-reset guard', () => {
 	const sources = collectEditorSources();
 
@@ -140,6 +158,27 @@ describe('G2.10 keydown-door guard', () => {
 			const file = byPath.get(relPath);
 			expect(file, `keydown seam file not found: ${relPath}`).toBeDefined();
 			expect(NOTE_KEY_RE.test(file!.code), `no noteKey call in ${relPath}`).toBe(true);
+		}
+	});
+
+	it('the path-name scan sweeps in exactly the files accounted for', () => {
+		const swept = sources
+			.filter((f) => isKeydownFile(f.relPath))
+			.map((f) => f.relPath)
+			.sort();
+		expect(
+			swept,
+			'a keydown-named file joined the tree: add it to KEYDOWN_SEAM_FILES if it dispatches keys, ' +
+				'or to KEYDOWN_PATH_NAMED_FILES saying why it holds no column state'
+		).toEqual(Object.keys(KEYDOWN_PATH_NAMED_FILES).sort());
+	});
+
+	it('every path-named dispatcher is also on the seam list', () => {
+		const dispatchers = Object.entries(KEYDOWN_PATH_NAMED_FILES)
+			.filter(([, role]) => role.startsWith('dispatcher'))
+			.map(([relPath]) => relPath);
+		for (const relPath of dispatchers) {
+			expect(KEYDOWN_SEAM_FILES, `${relPath} is a dispatcher but not a seam`).toContain(relPath);
 		}
 	});
 

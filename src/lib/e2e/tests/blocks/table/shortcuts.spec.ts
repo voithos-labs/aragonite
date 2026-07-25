@@ -7,6 +7,16 @@ const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 const TABLE_3ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
 
+// Every column carries a distinct alignment, so a delete-column that drops the
+// wrong delimiter cell shows up in the source rather than hiding behind `---`.
+//
+// The delete-column tests below settle on whole documents, not substrings,
+// because '| A | B | C | D |'.includes('| B | C | D |') — a substring settle for
+// the post-delete shape is already true before the delete, returns on its first
+// poll, and lets a silently no-op'd column op satisfy the entire test.
+const TABLE_ALIGNED = '| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
+const TABLE_ALIGNED_LESS_A = '| B | C | D |\n| :---: | ---: | --- |\n| 2 | 3 | 4 |\n';
+
 test.describe('table block: keyboard vocabulary', () => {
 	let editor: EditorPage;
 
@@ -134,9 +144,7 @@ test.describe('table block: keyboard vocabulary', () => {
 	});
 
 	test('Delete-column then undo restores live alignments (not just source)', async ({ page }) => {
-		await editor.loadContent(
-			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n'
-		);
+		await editor.loadContent(TABLE_ALIGNED);
 
 		const captureCellAligns = async () =>
 			page.evaluate(() =>
@@ -150,10 +158,10 @@ test.describe('table block: keyboard vocabulary', () => {
 
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.bridge.waitForSourceContains('| B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED_LESS_A);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED);
 
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await captureCellAligns()).toEqual(stylesBefore);
@@ -165,19 +173,17 @@ test.describe('table block: keyboard vocabulary', () => {
 		// Undo deep-clones the tree, swapping every container node's identity.
 		// The state-registry (keyed by node identity) must follow, otherwise
 		// commitMultiScope's per-row scope lookup throws and column ops silently no-op.
-		await editor.loadContent(
-			'| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n'
-		);
+		await editor.loadContent(TABLE_ALIGNED);
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.bridge.waitForSourceContains('| B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED_LESS_A);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED);
 
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.bridge.waitForSourceContains('| B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED_LESS_A);
 
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+ArrowRight');
@@ -192,24 +198,23 @@ test.describe('table block: keyboard vocabulary', () => {
 		// Also catches state_unsafe_mutation regressions: the focusout handler in
 		// TableBlock writes to internalStickyColumn / focusedCell during reconcile.
 		const pageErrors = capturePageErrors(page);
-		const original = '| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
-		await editor.loadContent(original);
+		await editor.loadContent(TABLE_ALIGNED);
 
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.bridge.waitForSourceContains('| B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED_LESS_A);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED);
 
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.bridge.waitForSourceContains('| B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED_LESS_A);
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('| A | B | C | D |');
+		await editor.bridge.waitForSourceEquals(TABLE_ALIGNED);
 
-		expect(await editor.bridge.getSource()).toBe(original);
+		expect(await editor.bridge.getSource()).toBe(TABLE_ALIGNED);
 
 		expect(await getContainerParityMismatches(page)).toEqual([]);
 		expect(pageErrors).toEqual([]);
@@ -261,7 +266,6 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		await expect(page.locator('[role="cell"]').nth(3)).toBeFocused();
 
 		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.bridge.waitForSourceContains('| A |');
 		await editor.bridge.waitForSourceNotContains(' B ');
 		await expect(page.locator('[role="cell"]')).toHaveCount(2);
 

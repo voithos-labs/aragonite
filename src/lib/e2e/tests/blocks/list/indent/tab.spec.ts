@@ -64,7 +64,7 @@ test.describe('list Tab', () => {
 		const b = editor.page.locator('[contenteditable="true"]', { hasText: /\. B$/ });
 		await b.click();
 		await editor.page.keyboard.press('Tab');
-		await editor.bridge.waitForSourceMatches(/^\s+1\. AA$/m);
+		await editor.bridge.waitForSourceMatches(/^\s+3\. B$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^\s+1\. AA$/m);
 		expect(source).toMatch(/^\s+2\. AB$/m);

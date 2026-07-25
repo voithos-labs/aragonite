@@ -193,8 +193,8 @@ test.describe('table block: clipboard cut', () => {
 	test('cross-block Ctrl+X then Ctrl+Z restores the original document in one undo', async ({
 		page
 	}) => {
-		const source = `${TABLE_2BODY}\nfollow paragraph\n`;
-		await editor.loadContent(source);
+		const original = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nfollow paragraph\n';
+		await editor.loadContent(original);
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
 		const from = page.locator('[role="cell"]').nth(2);
@@ -220,6 +220,8 @@ test.describe('table block: clipboard cut', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceContains('follow paragraph');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			original.replace(/\s+$/, '')
+		);
 	});
 });

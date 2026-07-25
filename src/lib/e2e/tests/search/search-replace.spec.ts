@@ -161,7 +161,9 @@ test.describe('search — tables', () => {
 		await replaceInput(page).fill('engineer');
 
 		await page.getByRole('button', { name: 'All', exact: true }).click();
-		await editor.bridge.waitForSourceNotContains('| dev |');
+		// Both cells, not one: settling on a single 'engineer' would race the second
+		// replacement, which is the regression this test exists to catch.
+		await editor.bridge.waitForSourceMatches(/engineer[\s\S]*engineer/);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('| dev |');
 		expect(source).toContain('engineer');

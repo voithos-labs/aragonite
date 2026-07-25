@@ -39,7 +39,14 @@ export default defineConfig({
 	use: {
 		baseURL: 'http://localhost:1420',
 		headless: true,
-		permissions: ['clipboard-read', 'clipboard-write']
+		permissions: ['clipboard-read', 'clipboard-write'],
+		// Pinned, not inherited. Specs across several projects assert absolute or
+		// near-absolute geometry (sticky-column pixel positions, image indents,
+		// toolbar and rect coordinates); on Playwright's implicit default they turn
+		// red the day that default moves or the theme's content column narrows enough
+		// to wrap a fixture paragraph. This is the current default made explicit, so
+		// pinning it changes no measurement. Projects that need another size override.
+		viewport: { width: 1280, height: 720 }
 	},
 	webServer: PROD ? [devServer, prodServer] : devServer,
 	projects: [

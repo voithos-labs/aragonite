@@ -222,6 +222,12 @@ function collectConformanceEntries(): ConformanceSweepEntry[] {
 			}
 		});
 	}
+	// A sweep over zero rows asserts nothing about any kind. Loud beats vacuous.
+	if (entries.length === 0) {
+		throw new Error(
+			'collectConformanceEntries: no registered kind declares a conformanceFixture; the browser sweep would run over an empty set'
+		);
+	}
 	return entries;
 }
 
@@ -232,34 +238,52 @@ type CaretProbeState = { captured: boolean; rect: ProbeRect };
 
 // A start/stop accumulator over an editor-event subscription: `start` disposes any
 // live session, resets the accumulator, and subscribes; `stop` disposes and returns
-// the accumulated value; `peek` reads it without ending the session. Module-level so
-// a session survives the probe surface being reinstalled on an editor remount.
+// the accumulated value; `peek` reads it without ending the session.
+//
+// A session subscribes to ONE editor's events. The accumulator is module-level and
+// so survives a remount, but the subscription does not — it stays attached to the
+// destroyed instance's emitter. Reading it would hand back an empty array, a
+// vacuous green. `invalidate` marks such a session stale so the read throws.
 function createSessionProbe<T>(init: () => T): {
 	start: (subscribe: (accumulator: T) => () => void) => void;
 	stop: () => T;
 	peek: () => T;
+	invalidate: (reason: string) => void;
 } {
 	let value = init();
 	let dispose: (() => void) | undefined;
+	let staleReason: string | undefined;
+	const assertLive = () => {
+		if (staleReason) throw new Error(`test probe session is dead: ${staleReason}`);
+	};
 	return {
 		start(subscribe) {
 			dispose?.();
+			staleReason = undefined;
 			value = init();
 			dispose = subscribe(value);
 		},
 		stop() {
+			assertLive();
 			dispose?.();
 			dispose = undefined;
 			return value;
 		},
 		peek() {
+			assertLive();
 			return value;
+		},
+		invalidate(reason) {
+			if (!dispose) return;
+			dispose();
+			dispose = undefined;
+			staleReason = reason;
 		}
 	};
 }
 
-// Structural edit ops (op !== 'input'); the count probe reads this array's length.
-// Error origins from caught render failures. The first cross-block caretRect.
+// Every edit op, in order; the count probe reads this array's length. Error origins
+// from caught render failures. The first cross-block caretRect.
 const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
@@ -279,9 +303,19 @@ export function installTestProbes({
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
+	// A reinstall means a new editor instance; any session still open belongs to the
+	// old one's emitter and can no longer observe anything.
+	const remounted = 'the editor remounted while the session was open';
+	editOpProbe.invalidate(remounted);
+	errorProbe.invalidate(remounted);
+	caretProbe.invalidate(remounted);
+
+	// Unfiltered: the multi-scope requirement files claim "exactly one edit event per
+	// user gesture" without qualification, so the probe counts what they claim. A
+	// filter here would let a second commit leg landing as `op:'input'` count zero.
 	const subscribeEditOps = (ops: string[]): (() => void) =>
 		editor.getEvents().on('edit', (e: { op: string }) => {
-			if (e.op !== 'input') ops.push(e.op);
+			ops.push(e.op);
 		});
 
 	(window as any).__test = {
@@ -379,9 +413,15 @@ export function installTestProbes({
 			node.kind = kind;
 			doc.children = [...doc.children];
 		},
-		isCrossBlockActive: () => {
-			return document.querySelector('[data-cross-block]') !== null;
-		},
+		// Reads SelectionState, never the `data-cross-block` DOM mirror: that attribute
+		// is written by a deferred $effect, so it lags — and every spec asserting
+		// `false` is asserting the direction a lag turns into a false pass. Same rule
+		// `editor-rects.ts` carries. The mirror is also document-global, so on a
+		// two-editor route it would answer for whichever editor set it last.
+		isCrossBlockActive: (): boolean => editor.__test.isCrossBlockActive(),
+		// Whether the SELECTION spans two paths — narrower than the mode above, which
+		// an intra-table rectangle also turns on while both endpoints keep the table's
+		// own path.
 		isCrossBlockSelection: (): boolean => {
 			const sel = editor?.getSelection();
 			if (!sel) return false;
@@ -558,6 +598,14 @@ export function installTestProbes({
 		 * length from its node.children. Regression guard for the
 		 * cross-block-delete desync bug where nested state was left out of
 		 * sync with the mutated children array.
+		 *
+		 * Throws rather than reporting `[]` when the document holds containers but
+		 * none resolved a state: seven call sites assert `toEqual([])`, so a
+		 * registration regression (the re-register `$effect` stops running, the
+		 * WeakMap keying changes, a walk lands inside the unshare window before
+		 * re-registration flushes) would turn every one of them vacuously green
+		 * while the desync was total. Same loud-on-absent shape as
+		 * `e2e/container-parity.ts`.
 		 */
 		auditBlockListStateConsistency: (): Array<{
 			path: number[];
@@ -574,10 +622,14 @@ export function installTestProbes({
 				idsLen: number;
 				refsLen: number;
 			}> = [];
+			let containers = 0;
+			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {
 				if (!node.children) return;
+				containers++;
 				const state = getStateForNode(node);
 				if (state) {
+					resolved++;
 					const childrenLen = node.children.length;
 					const idsLen = state.innerBlockIds.length;
 					const refsLen = state.innerBlockRefs.length;
@@ -591,6 +643,11 @@ export function installTestProbes({
 			}
 			for (let i = 0; i < doc.children.length; i++) {
 				walk(doc.children[i], [i]);
+			}
+			if (containers > 0 && resolved === 0) {
+				throw new Error(
+					`auditBlockListStateConsistency: ${containers} container(s) in the live tree resolved no BlockListState; the audit visited nothing and must not report vacuous success`
+				);
 			}
 			return violations;
 		}

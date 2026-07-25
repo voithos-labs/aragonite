@@ -84,9 +84,9 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await bq.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceMatches(/^> Hello worl/m);
+		await editor.bridge.waitForSourceMatches(/^> Hello worl$/m);
 		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^> Hello worl/m);
+		expect(source).toMatch(/^> Hello worl$/m);
 		expect(source).not.toMatch(/^Hello/m);
 	});
 });

@@ -73,6 +73,7 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
+	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { convertGithubAlertsInDocument, hasGithubAlert } from '$lib/plugins/admonitions';
 
 	let { data }: { data: PageData } = $props();
@@ -245,6 +246,8 @@
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
 	let editor = $state<ReturnType<typeof Editor>>();
+
+	trackParityDocument(() => editor);
 
 	$effect(() => {
 		if (!editor) return;

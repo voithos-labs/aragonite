@@ -184,10 +184,13 @@ test.describe('table block: paste in', () => {
 		await page.evaluate(() => navigator.clipboard.writeText('hello'));
 		await page.keyboard.press('Control+v');
 
-		// Header row untouched; rectangle cells cleared then "hello" lands in the anchor cell.
-		await editor.bridge.waitForSourceContains('| A | B |');
+		// "hello" in the anchor cell is the only shape the pre-paste document does not
+		// already have, so it is the one predicate that can settle on the paste.
 		await editor.bridge.waitForSourceContains('| hello |  |');
-		await editor.bridge.waitForSourceContains('|  |  |');
+		// Header row untouched, the rest of the rectangle cleared, structure preserved.
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			['| A | B |', '| --- | --- |', '| hello |  |', '|  |  |'].join('\n')
+		);
 	});
 
 	test('whole-table selection (Ctrl+A 2nd) + paste a paragraph replaces the table', async ({

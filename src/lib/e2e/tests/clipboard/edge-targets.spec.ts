@@ -107,12 +107,14 @@ test.describe('clipboard exploration: edge targets', () => {
 	test('paste empty clipboard is no-op', async () => {
 		await editor.loadContent('unchanged\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText(''));
+		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
 		await editor.page.keyboard.press('Control+v');
-		// wait 200ms — empty paste is a no-op for source; verify no spurious change settles in.
-		await editor.bridge.waitForSourceContains('unchanged');
+		await editor.waitForNoSourceMutation();
 
-		expect(await editor.bridge.getSource()).toContain('unchanged');
+		// Byte-exact: a stray newline or a duplicated block would still "contain
+		// unchanged", which is the whole failure mode this test exists to catch.
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

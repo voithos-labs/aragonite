@@ -118,11 +118,68 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 	)
 }));
 
+const lfDoc = fc
+	.array(fc.tuple(blankTrivia, block), { minLength: 1, maxLength: 8 })
+	.map((parts) => parts.map(([trivia, b]) => trivia + b).join(''));
+
 /**
  * Valid-ish GFM source with bounded nesting depth (~3). Emits a source STRING;
  * round-trip tests parse it. Structural validity is not guaranteed — round-trip
  * holds either way — so generation favors breadth over correctness.
+ *
+ * The line ending is a document-level draw. Before it, this was the only lane
+ * reaching tables, fences and nested containers and it was LF-only, while the
+ * lanes that did emit CRLF topped out below the size a structured block needs —
+ * so "a CRLF document containing a structured block" was unreachable by every
+ * lane at once. Two shipped byte-corruption defects lived in exactly that hole
+ * (a table rebuilt with LF endings, a hard break downgrading its block's CRLF).
+ * Mapped at the top because the container arms split on `'\n'` internally;
+ * rewriting after they compose keeps the result byte-exact.
  */
 export const arbGfmDoc = fc
-	.array(fc.tuple(blankTrivia, block), { minLength: 1, maxLength: 8 })
-	.map((parts) => parts.map(([trivia, b]) => trivia + b).join(''));
+	.tuple(lfDoc, fc.boolean())
+	.map(([source, crlf]) => (crlf ? source.replace(/\n/g, '\r\n') : source));
+
+// ── Leading-indent dimension ────────────────────────────────────────────────
+
+/**
+ * Indents that straddle the CommonMark block-indent boundary: up to three
+ * spaces a block marker still opens its block, at four the line is indented
+ * code instead, and a tab counts as four columns. Every block this generator
+ * composed sat at column 0, so the 0-3-versus-4 rule — the boundary that decides
+ * between a blockquote and a code block — was outside the reachable input space.
+ */
+const blockIndent = fc.constantFrom('', ' ', '  ', '   ', '    ', '     ', '\t', ' \t', '   \t');
+
+function indentBlock(source: string, indent: string, firstLineOnly: boolean): string {
+	if (indent === '') return source;
+	return source
+		.split('\n')
+		.map((line, i, all) => {
+			// The trailing empty piece after a final newline is not a line.
+			if (line === '' && i === all.length - 1) return line;
+			if (firstLineOnly && i > 0) return line;
+			return indent + line;
+		})
+		.join('\n');
+}
+
+/**
+ * GFM documents with a leading indent per block. `firstLineOnly` matters
+ * independently: indenting only the opener leaves the continuation lines at
+ * column 0, which is where a container's prefix re-derivation and a lazy
+ * continuation disagree about what the block's indent was.
+ */
+export const arbIndentedGfmDoc = fc
+	.array(fc.tuple(blankTrivia, blockIndent, block, fc.boolean()), {
+		minLength: 1,
+		maxLength: 6
+	})
+	.map((parts) =>
+		parts
+			.map(
+				([trivia, indent, source, firstLineOnly]) =>
+					trivia + indentBlock(source, indent, firstLineOnly)
+			)
+			.join('')
+	);

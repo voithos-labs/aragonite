@@ -11,6 +11,25 @@ import path from 'node:path';
 
 export const EDITOR_SRC = path.resolve('src/lib');
 
+/**
+ * The roots a repo-wide scan must cover. The library is the obvious one; the
+ * other two are the repo's only first-party stand-ins for an external author —
+ * the reference plugins the e2e plugin suite drives, and the freeze-surface
+ * consumer example. A rule that holds for `src/lib` and not for them ships a
+ * reference implementation that models the violation, which is how an external
+ * author learns it. Scanning defaults to all three (G4.x lint N+1 is wide by
+ * construction); a lint whose rule is genuinely library-internal opts out by
+ * passing `EDITOR_SRC` explicitly and saying why.
+ *
+ * `src/routes` cannot be a root: the walk skips any directory named `test`, so
+ * the reference plugins are reachable only by naming their path directly.
+ */
+export const REPO_WIDE_ROOTS = [
+	EDITOR_SRC,
+	path.resolve('src/routes/test/plugins'),
+	path.resolve('examples/consumer/src')
+];
+
 export interface SourceFile {
 	/** Posix-style path relative to repo root, e.g. `src/lib/x.ts`. */
 	relPath: string;
@@ -54,8 +73,11 @@ export function stripComments(text: string): string {
 	return out;
 }
 
-/** Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e, and `.d.ts`. */
-export function collectEditorSources(dir = EDITOR_SRC): SourceFile[] {
+/**
+ * Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e,
+ * and `.d.ts`. With no argument, scans every root in `REPO_WIDE_ROOTS`.
+ */
+export function collectEditorSources(dir?: string): SourceFile[] {
 	const repoRoot = path.resolve('.');
 	const files: SourceFile[] = [];
 
@@ -80,7 +102,7 @@ export function collectEditorSources(dir = EDITOR_SRC): SourceFile[] {
 		}
 	}
 
-	walk(dir);
+	for (const root of dir === undefined ? REPO_WIDE_ROOTS : [dir]) walk(root);
 	return files;
 }
 

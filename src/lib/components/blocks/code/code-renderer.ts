@@ -1,6 +1,6 @@
 /**
  * Code-block renderer. Produces a DocumentFragment with dimmed marker spans
- * for fences and tokenized spans for the body. Invariant:
+ * for fences and tokenized spans for the body. Invariant (G1.28):
  *   fragment.textContent === trimTrailingLineEnding(node.raw)
  */
 
@@ -8,6 +8,8 @@ import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { devWarn } from '../../../dev-warn';
+import { assertInvariant } from '../../../invariants/assert';
+import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
 
@@ -277,6 +279,10 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
 	frag.appendChild(tokenizeBody(bodyText, slice.infoString));
 	frag.appendChild(renderCloserLine(slice, separatorNewline));
+
+	assertInvariant('rendered-text-fidelity', () =>
+		checkRenderedTextFidelity(frag.textContent ?? '', trimTrailingLineEnding(node.raw))
+	);
 
 	return frag;
 }

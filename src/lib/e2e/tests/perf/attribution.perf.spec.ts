@@ -11,7 +11,14 @@ import {
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
-test.skip(!process.env.PERF, 'set PERF=1 to run the perf project');
+// Diagnostic profiling instruments: they break per-keystroke cost down on the
+// largest fixtures and gate nothing, so the gate run (PERF_GATE) skips them —
+// same shape as typing-latency.perf.spec.ts. The rule lives here rather than in a
+// caller's `--grep-invert`, so the local gate and CI's run the same row set.
+test.skip(
+	!process.env.PERF || !!process.env.PERF_GATE,
+	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
+);
 
 test('perf bridge: a keystroke records a block render and an in-page sample', async ({ page }) => {
 	const editor = new EditorPage(page);

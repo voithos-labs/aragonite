@@ -15,7 +15,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import path from 'node:path';
 import { collectEditorSources } from './scan-source';
 
 // A prop annotation `node`/`document`/`doc` (optional) typed as the mutable
@@ -39,13 +38,7 @@ function findMutablePropHits(relPath: string, code: string): PropHit[] {
 }
 
 describe('G4.14 readonly-view prop annotation parity source-scan', () => {
-	// Built-in + bundled-plugin components live under `src/lib`; the demo-harness
-	// plugin fixtures live under `src/routes/test/plugins` (outside scan-source's
-	// default root) — both carry the prop annotations this rule governs.
-	const sources = [
-		...collectEditorSources(),
-		...collectEditorSources(path.resolve('src/routes/test/plugins'))
-	].filter((f) => f.relPath.endsWith('.svelte'));
+	const sources = collectEditorSources().filter((f) => f.relPath.endsWith('.svelte'));
 
 	it('inspected at least one component source file', () => {
 		expect(sources.length).toBeGreaterThan(0);
