@@ -1,6 +1,5 @@
-<img alt="aragonite: a lossless markdown block editor. A coral-orange aragonite cluster, hexagonal prisms radiating from a dense center, on a dark field." src="docs/assets/aragonite-header.png" width="100%">
+# <img width="3840" height="1020" alt="image" src="https://github.com/user-attachments/assets/1981410e-b961-4a8e-bac2-554febf64335" />
 
----
 
 This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, lean, fast, have a graceful ui/ux, and have a hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
