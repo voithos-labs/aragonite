@@ -14,34 +14,6 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20), the **context
-spine** closed most of the extension-surface gap (0.9.21), the **decoration gap** — the
-one plugin class the platform could not express — closed in 0.9.22, the **demo/packaging
-groundwork** landed in 0.9.23 (bundled plugins as `aragonite/plugins/<name>` subpaths; `/` is
-the showcase shell), the **enforcement-hardening program** shipped in 0.9.24 (branded
-coordinate spaces, the closure matrix as a required registration field + executable battery,
-bytes-readonly node views, the parity-lint family — the audit's two dominant bug classes
-climbed from guards and prose to the compiler), **inline observability** shipped in
-0.9.25 (the interaction trace + consumer diagnostics door, transition asserts on the inline
-state machines, the IME composition harness), and **presentation modes** shipped in 0.9.26
-(the full live-preview ladder — reading mode, block-granular, inline-granular — over a mode
-contract every plugin tier can read; caret affinity dissolved to raw offsets under the
-CST-as-truth model, no stored-marks machinery needed), and the **architecture-concern pass**
-shipped in 0.9.27 (all five flagged designs resolved: the SelectionPoint and CstNode
-discriminated unions, per-instance registry views + the dev idempotence valve, context facets —
-the mount harness, and container-raw exonerated by a falsification benchmark — the resolutions
-are recorded in the 0.9.27 changelog entry), and a **repo-wide forge review** audited
-and fixed the whole surface to green in 0.9.28 — its one structural residual closed in
-0.9.29 (the **freeze-surface liveness pass**: every live read on the frozen factory deps
-surfaces is an explicit thunk, value-capture uncompilable, with the trailing-line-ending
-parity lint riding along). The remaining risk is **validation
-depth**: one clean-room run deep, every consumer since in-repo and same-day — sharpened by the
-0.9.28 third-party audit (addressed and retired in 0.9.30; the full report lives in git
-history), whose highest-stakes finding was that every validation artifact to date is
-owner-authored and the stated gap detector (the 1.3 reference plugins) was scheduled after the
-freeze it exists to inform. The items below are ordered by **risk first, validation before
-freeze**.
-
 1. **Limestone internal integration** — the last unchecked box in the validation list above and
    the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
    resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
