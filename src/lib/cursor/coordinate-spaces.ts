@@ -1,7 +1,7 @@
 /**
- * The editor's coordinate spaces as branded numbers. Every offset bug in the
- * 2026-07 audit was arithmetic mixing spaces that were all `number`; the brands
- * make that mixing a type error at the seam instead of a caret bug later.
+ * The editor's coordinate spaces as branded numbers. Every offset bug in this
+ * project's history was arithmetic mixing spaces that were all `number`; the
+ * brands make that mixing a type error at the seam instead of a caret bug later.
  *
  * Rules of the system:
  * - A brand is produced only by its space's home module (the module that

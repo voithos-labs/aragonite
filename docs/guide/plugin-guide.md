@@ -417,7 +417,7 @@ Three rules for that file, each earned the hard way:
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read — `var(--color-ui-muted, #a4a4a4)` — so the block still renders outside `.editor` scope. Match that fallback to the token's **dark base** value; dark is the base. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
-The factory returns a fourth member the walkthrough doesn't destructure: **`updateOwnMetadata`**, the sanctioned commit path for a component that writes its own node's metadata. The [render-primary recipe](#recipe-a-render-primary-block) leans on it.
+The factory returns more than the walkthrough destructures. **`updateOwnMetadata`** is the sanctioned commit path for a component that writes its own node's metadata; the [render-primary recipe](#recipe-a-render-primary-block) leans on it. **`getPresentationMode`** is the container tier's live mode read (see [Presentation modes](#presentation-modes)).
 
 A marker-bearing container (a footnote definition's `[^label]: `, mirroring a list item's `- `) hands the factory a **`getAmbientPrefix`** getter. Its first child then paints that string as a dimmed, read-only prefix before its own bytes, and the caret and offset walk skip it exactly as they do a list marker. Read it live so a marker derived from metadata re-renders after an edit.
 
@@ -614,6 +614,8 @@ registerInlineSyntax('[', recognizeFootnote, {
 ```
 
 The scanner consults the rung ahead of the built-in `[` case, but only when `[^` matches at the cursor, so a plain `[` that opens a link is untouched. Your recognizer claims `[^label]` by returning a node, or declines with `null`. A `[^` that never closes declines and falls back to the built-in link reading byte for byte, so an unterminated reference is never a hang and never a byte change. Rungs on one trigger coexist and dispatch by priority ascending, then longer prefixes first, then lexicographic, independent of registration order (the `OPENER_PRIORITIES` model, one layer down). Reach for a replace decoration (see Decorations below) only to annotate bytes you do **not** own; syntax that is genuinely your kind's belongs in a prefix rung.
+
+**Two reserved triggers reject a prefix rung too: `!` and `]`.** Both sit outside the scanner's fast-bail character set because they only matter inside a `[`-bearing range, so a rung on either would register and then never fire in plain text. Registration throws rather than accept a silent no-op. Syntax that must begin on one of them — an Obsidian-style `![[embed]]`, say — needs the trigger made scan-visible first, which is a core change and not a plugin one.
 
 **Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger — quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar cannot contain, the way the emoji recognizer stops at the first non-shortcode byte; where the grammar has no such character, materialize the predicate once per block behind `createBoundedMemo` and look it up, the way the bundled math and footnote recognizers index their closers.
 

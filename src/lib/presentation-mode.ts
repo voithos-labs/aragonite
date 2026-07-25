@@ -11,7 +11,7 @@
  * Every door — the `data-presentation` root attribute, the block/leaf/widget
  * context getters, and `EditorContext.presentationMode` — reports the EFFECTIVE
  * mode, so a consumer or plugin never renders for a mode the editor is not
- * actually in. All four rungs are built, so the effective mode currently equals
+ * actually in. Every rung is built, so the effective mode currently equals
  * the requested one; the editor's `effectiveMode` derived is the seam a future
  * effective-vs-requested divergence would land in.
  */

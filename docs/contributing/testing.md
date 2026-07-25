@@ -29,7 +29,7 @@ No browser — Node by default, with a file opting into jsdom via a `// @vitest-
 
 `src/lib/test/` mirrors the source tree one-for-one, with the leading `components/` segment elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. When a SUT moves into a subdirectory, its test follows.
 
-Mirror **import depth**, not just the SUT's directory: a test importing `tree-operations/list/m1-contract` directly (rather than the `tree-operations` barrel) lives at `test/tree-operations/list/m1-contract.test.ts`.
+Mirror **import depth**, not just the SUT's directory: a test importing `tree-operations/list/terminator` directly (rather than the `tree-operations` barrel) lives at `test/tree-operations/list/terminator.test.ts`.
 
 Four deliberate exceptions:
 
@@ -119,7 +119,9 @@ The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither
 
 Every spec under `src/lib/e2e/tests/` pairs with a requirement file under `src/lib/e2e/requirements/` — a plain-English list of scenarios, written _before_ the spec. The requirements mirror the spec tree: `tests/plugins/callout-container.spec.ts` pairs with `requirements/plugins/callout-container.md`. When a subdirectory's specs split further, the requirements split with them.
 
-The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it. (Perf specs carry a `.perf.spec.ts` suffix; their requirement files pair by the same stem with the suffix stripped.)
+The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it.
+
+`e2e/tests/perf/` holds two families, and the basename decides which project collects a spec: `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts` directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong family and it silently stops running in the suite you meant; G4.17 catches a basename in neither. Requirement files pair by the stem with the `.perf` suffix stripped.
 
 **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the parent category.
 
@@ -155,7 +157,7 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 **Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** They set the cursor through the Selection API. Native `End`/`Home` work for simple cases but are unreliable across inline-rendered spans.
 
-**Use `getDomBlockCount()` for structural assertions after a split.** The bridge's `getBlockCount()` re-parses the serialized source, which can absorb empty blocks as whitespace. `getDomBlockCount()` counts DOM elements — the editor's true internal state.
+**Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a reparse cannot. `getDomBlockCount()` counts _mounted_ top-level blocks, which under virtual rendering is the window rather than the document — reach for it only when the mount count is the thing under test, and then on a fixture small enough that nothing windows.
 
 **Test structural operations _through_ a container, not just flat paragraphs.** Split, merge, and delete shift block indices, and containers use their `index` prop in the delegation chain when focus exits them. A test that splits a paragraph and then arrows through more paragraphs won't catch a stale-index or stale-ref bug — that delegation chain is one hop deep. Always follow the structural op with navigation through a container. See the focus-traversal-after-insertion pattern under `tests/keyboard-navigation/`.
 

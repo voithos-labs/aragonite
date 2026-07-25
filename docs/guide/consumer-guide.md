@@ -224,40 +224,52 @@ Outside that contract sits the editor's own visual language — the syntax and c
 
 Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
-**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck). The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, and the find chords are wired directly into the search components. Rebinding the table chords is tracked in `docs/issues.md` (folded into their migration onto the declarative keymap); the find chords are not rebindable today.
+**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck).
+
+Scoping by kind is what makes the shared structural chords reachable, because a chord like `Tab` is bound separately on every kind that wants it. `{ kind: 'listItem', chord: 'Tab', command: null }` frees `Tab` inside list items (for focus traversal in a form-embedded editor, say) and leaves `Tab` alone in code blocks and prose.
+
+The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, which runs _before_ the keymap, so inside a cell those chords are claimed before any override is consulted — even the ones that are rebindable everywhere else. The find chords are wired directly into the search components. Rebinding the table chords is tracked in `docs/issues.md` (folded into their migration onto the declarative keymap); the find chords are not rebindable today.
 
 **Plugin-global chords resolve last.** A plugin's global command (see the plugin guide) may claim a chord in the plugin-global tier, which resolves after every `keybindings` override, built-in kind chord, and built-in global chord — so a plugin chord never shadows a built-in binding, and the Find/replace chords `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord **on that kind, not elsewhere** — a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste). Shift+F10 or the Context Menu key opens it from the keyboard.
 
-| Action                      | Chord                                            |
-| --------------------------- | ------------------------------------------------ |
-| **Editing**                 |                                                  |
-| Bold (toggle strong)        | `Mod+B`                                          |
-| Italic (toggle emphasis)    | `Mod+I`                                          |
-| Cycle heading level         | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`) |
-| Undo                        | `Mod+Z`                                          |
-| Redo                        | `Mod+Y` or `Mod+Shift+Z`                         |
-| **Block reorder**           |                                                  |
-| Move block up / down        | `Alt+↑` / `Alt+↓`                                |
-| **Find / replace**          |                                                  |
-| Open find                   | `Mod+F`                                          |
-| Open find + replace         | `Mod+H`                                          |
-| Next / previous match       | `Enter` / `Shift+Enter` (in the find field)      |
-| Close search                | `Esc`                                            |
-| **Tables**                  |                                                  |
-| Move between cells          | `Tab` / `Shift+Tab`, arrow keys                  |
-| Next row (or add one)       | `Enter` (from the last cell, appends a row)      |
-| Insert row below / above    | `Mod+Enter` / `Mod+Shift+Enter`                  |
-| Insert column right / left  | `Alt+Shift+→` / `Alt+Shift+←`                    |
-| Delete row                  | `Mod+Shift+Backspace`                            |
-| Delete column               | `Alt+Shift+Backspace`                            |
-| Move row up / down          | `Alt+↑` / `Alt+↓`                                |
-| Move column left / right    | `Alt+←` / `Alt+→`                                |
-| Cycle column alignment      | `Mod+Shift+A`                                    |
-| **Clipboard**               |                                                  |
-| Copy / cut a focused block  | `Mod+C` / `Mod+X`                                |
-| Copy / cut a selected image | `Mod+C` / `Mod+X`                                |
+| Action                              | Chord                                               |
+| ----------------------------------- | --------------------------------------------------- |
+| **Editing**                         |                                                     |
+| Bold (toggle strong)                | `Mod+B`                                             |
+| Italic (toggle emphasis)            | `Mod+I`                                             |
+| Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)    |
+| Split a block                       | `Enter` (in a code block, inserts a newline)        |
+| Hard line break                     | `Shift+Enter`                                       |
+| Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end) |
+| Indent / outdent a list item        | `Tab` / `Shift+Tab`                                 |
+| Indent / dedent a code line         | `Tab` / `Shift+Tab`                                 |
+| Insert a tab in prose               | `Tab`                                               |
+| Undo                                | `Mod+Z`                                             |
+| Redo                                | `Mod+Y` or `Mod+Shift+Z`                            |
+| **Block reorder**                   |                                                     |
+| Move block up / down                | `Alt+↑` / `Alt+↓`                                   |
+| **Find / replace**                  |                                                     |
+| Open find                           | `Mod+F`                                             |
+| Open find + replace                 | `Mod+H`                                             |
+| Next / previous match               | `Enter` / `Shift+Enter` (in the find field)         |
+| Close search                        | `Esc`                                               |
+| **Tables**                          |                                                     |
+| Move between cells                  | `Tab` / `Shift+Tab`, arrow keys                     |
+| Next row (or add one)               | `Enter` (from the last cell, appends a row)         |
+| Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                     |
+| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                       |
+| Delete row                          | `Mod+Shift+Backspace`                               |
+| Delete column                       | `Alt+Shift+Backspace`                               |
+| Move row up / down                  | `Alt+↑` / `Alt+↓`                                   |
+| Move column left / right            | `Alt+←` / `Alt+→`                                   |
+| Cycle column alignment              | `Mod+Shift+A`                                       |
+| **Clipboard**                       |                                                     |
+| Copy / cut a focused block          | `Mod+C` / `Mod+X`                                   |
+| Copy / cut a selected image         | `Mod+C` / `Mod+X`                                   |
+
+**The Editing rows assume a caret in ordinary block content.** Inside a table cell, `Enter`, `Tab` and `Shift+Tab` mean what the **Tables** rows say instead: the cell's keydown plan claims those three first, so there they neither split a block nor indent a list item, and no `keybindings` override reaches them.
 
 **Whole-block clipboard.** A block focused as a whole — a thematic break or a plugin diagram — has no text selection, so `Mod+C` / `Mod+X` copy or cut the block's own Markdown (cut removes the block); the same chords on a selected inline image act on the image's source. In reading mode copy works and cut degrades to copy.
 

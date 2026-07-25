@@ -1,7 +1,7 @@
 /**
  * View-only annotations layered over the rendered document. Decorations never
  * enter the CST — they are produced per-instance by pure sources and consumed by
- * overlays/islands. Four kinds: an inline `mark` span, a positioned `widget`, a
+ * overlays/islands. The kinds: an inline `mark` span, a positioned `widget`, a
  * range `replace`, and a whole-block `block` treatment.
  */
 

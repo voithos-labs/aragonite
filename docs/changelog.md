@@ -28,6 +28,70 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   round-trip, so an optional cell would have been left undeclared by exactly the containers that
   need it.
 
+- **A pathological regex query can no longer freeze the editor.** Regex find runs off the main
+  thread under a hard deadline; on overrun the worker is terminated and the find bar reports the
+  scan as too slow, the way it already reports a pattern that will not compile. Catastrophic
+  backtracking (`(a+)+$` against a few dozen characters) is unbounded work inside a single
+  `RegExp.exec`, and a main-thread time budget cannot interrupt one exec — the editor froze for a
+  minute per edit and the only recovery was a reload. So the bound had to be a thread that can be
+  killed, not a budget that can be checked. Literal search is untouched and stays synchronous, which
+  keeps the common path at zero new risk; only regex leaves the main thread, and its results are
+  epoch-tagged so a superseded scan cannot repaint over the query that replaced it. The worker ships
+  as source text through a Blob URL rather than a bundler worker import, leaving dist packaging and
+  consumer bundling alone. Where workers or blob URLs are unavailable — SSR, a CSP-restricted
+  embedder — the same seam falls back to a synchronous scan that can only check its deadline between
+  blocks, so one runaway exec is still unbounded there: a documented limit of the fallback, not of
+  the design.
+
+- **A document swap restarts the find bar's navigation instead of carrying its position.** Swapping
+  the `source` prop under an open find bar left the active-match index where the previous document
+  had put it, so navigating to `3 / 3` and then swapping to a five-match document read `3 / 5` on a
+  document the user had never navigated. The edit epoch could not tell the two apart, since a
+  keystroke and a whole-document replacement both bump it; the editor now publishes replacements as
+  their own signal and search restarts on that alone. In-place edits, undo and option toggles keep
+  the user's place deliberately — they leave the user reading the same document.
+
+- **A thematic break takes whole-block focus before it is deleted.** A caret-adjacent Backspace
+  (or Delete from the block above) now focuses the rule, and only a second press removes it — the
+  two-step the mermaid diagram has always had, and which the thematic break's own closure cells had
+  been claiming while the descriptor declared nothing and the block vanished on press one. The
+  descriptor now declares `blockFocus: 'whole-block'`; the component needed nothing, having carried
+  the focus ring, the tab stop and the focused-block key tail since whole-block copy shipped. Ranged
+  and sweep deletes are untouched — this is the caret-adjacent gesture only.
+
+- **Breaking, freeze surface: `parseInline` rejects a call that omits its scan bounds.** Called with
+  the source alone, it used to compare against `undefined` at every step, skip the scan, and hand
+  back a single text node holding the whole string — no throw, no warning, and the inline structure
+  the caller asked for silently absent. It now throws a `TypeError` naming the fix. TypeScript
+  callers were never able to make the call; this closes it for plain JS and `any`-typed sites.
+
+- **A closure cell that claims focus-then-delete must be backed by the declaration that provides
+  it.** The bootstrap coherence family gained two rules: a kind whose `focus` or `mergeBackspace`
+  cell claims the focus-then-delete model has to declare `blockFocus: 'whole-block'`, and a
+  `reservedChrome` container has to say what its clipboard does rather than inherit the default.
+  A closure cell is prose a compiler cannot read, so the honesty of the matrix rested entirely on
+  review — and the thematic break above is what that gap looked like in a shipped built-in.
+
+- **A structural paste mints its blank-line rows at the target document's ending.** Pasting content
+  with an internal blank line into a CRLF document left a lone LF row behind: paste normalizes the
+  clipboard to LF before parsing, so the trivia those rows materialize from cannot tell a CRLF
+  document from an LF one, and the ending has to come from the paste target. The line-ending
+  parameter behind the mint is now required rather than defaulted, which is what turns the next
+  such site into a compile error instead of a silent downgrade.
+
+- **A directive document whose closer lines are all too short to close anything parses in linear
+  time.** The closer index bounded the unclosed-opener flood, but the lookup into it still walked
+  forward from the first later closer until it found a colon run long enough — so a document that
+  contains no such run walked every closer for every opener. The lookup is now a descent over a
+  max-of-counts tree, indifferent to how the run lengths are distributed. Bytes are unchanged;
+  256 KB of the adversarial shape went from roughly 2.4 s to 53 ms.
+
+- **The editable surfaces thread their instance grammar into cross-block join-paste.** The seam
+  field was optional and none of the four production surfaces supplied it, so the join reparse always
+  used the global grammar. It is now required-nullable, matching the dispatch tier it feeds: a
+  surface must answer the question, and `undefined` means the global grammar deliberately.
+  Byte-identical today, since an instance grammar cannot yet diverge.
+
 ### 0.9.35: the navigation API + toc v2
 
 Path-addressed navigation became a public surface, and the two bundled plugins that had been bare
