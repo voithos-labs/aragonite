@@ -277,9 +277,9 @@ function matchBareHttpAutolink(
 	if (schemeLen === 0) return null;
 	let urlEnd = pos + schemeLen;
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-	if (urlEnd === pos + schemeLen) return null;
+	if (urlEnd <= pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	if (urlEnd === pos + schemeLen) return null;
+	if (urlEnd <= pos + schemeLen) return null;
 	return { kind: 'autolink', start: pos, end: urlEnd, url: raw.slice(pos, urlEnd) };
 }
 
@@ -293,9 +293,12 @@ function matchBareWwwAutolink(
 	if (!matchesCI(raw, pos, 'www.')) return null;
 	let urlEnd = pos + 4;
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-	if (urlEnd === pos + 4) return null;
+	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	if (urlEnd === pos + 4) return null;
+	// `.` is trailing punctuation, so the trim can cross the `www.` prefix itself
+	// and leave a bare `www` — a live link to a host the user never wrote. Every
+	// floor check in this family is at-or-below for that reason.
+	if (urlEnd <= pos + 4) return null;
 	// GFM §6.9: a www autolink has no scheme in its bytes; `http` is inserted
 	// automatically. The node's raw span stays verbatim (start..urlEnd) — only
 	// the derived href gains the scheme, exactly like email prepends `mailto:`.
@@ -337,7 +340,7 @@ function matchBareEmailAutolink(
 	if (domainEnd === firstSegEnd) return null; // never got a second segment
 
 	const urlEnd = trimTrailingPunctuation(raw, localStart, domainEnd);
-	if (urlEnd === domainStart) return null; // trim ate everything past @
+	if (urlEnd <= domainStart) return null; // trim ate everything past @
 
 	return {
 		kind: 'autolink',

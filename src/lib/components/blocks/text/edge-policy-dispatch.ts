@@ -47,7 +47,7 @@ import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
-import { caretIsInTextContent, isPlainTypingKey } from './click-snap-guard';
+import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { widgetAtCursor } from './widget-adjacency';
 
 /** The subset of the inline-widget vocabulary the internal island/ambient policies
@@ -83,7 +83,12 @@ export interface EdgePolicyDispatchDeps {
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	blockEdit: BlockEditActions;
-	setPendingCursor: (offset: number | null, source: string) => void;
+	/** Park a caret for the post-render restore, tagged with the gesture for the
+	 *  trace. `writtenText` is the text that offset addresses: a kind whose write
+	 *  sink rewrites bytes (tableCell escapes every free `|`) moves the offset, and
+	 *  only the text it was measured against can map it. Omitted where the arm parks
+	 *  ahead of every byte the write can change, so no mapping exists to get wrong. */
+	setPendingCursor: (offset: number | null, source: string, writtenText?: string) => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's `$…$` source is currently revealed — the CST still reports the
 	 *  widget as atomic, but the DOM is editable text, so the widget branch stands
@@ -129,11 +134,15 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!widgetAt) return false;
 
 		// Caret-entry against a widget edge: ArrowLeft/Backspace from the trailing
-		// edge, ArrowRight/Delete from the leading edge.
+		// edge, ArrowRight/Delete from the leading edge — and only unchorded. A
+		// modifier makes the key a word-scoped platform command; entering here would
+		// swap a word-step for the modal widget-selected state, where the user's next
+		// printable key replaces the construct's bytes instead of typing beside them.
+		const plainEdgeKey = !e.shiftKey && !hasModifier(e);
 		const enterFromRight =
-			!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
+			plainEdgeKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
 		const enterFromLeft =
-			!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
+			plainEdgeKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
 		if (enterFromRight || enterFromLeft) {
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
 			const policy = getInlineWidgetEditing(widgetAt.kind);
@@ -172,7 +181,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			const newRaw = node.raw.slice(0, caretOffset) + typed + node.raw.slice(caretOffset);
 			const postEdit = caretOffset + typed.length;
 			void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, postEdit);
-			deps.setPendingCursor(postEdit, 'widget');
+			deps.setPendingCursor(postEdit, 'widget', newRaw);
 			return true;
 		}
 		return false;
@@ -205,7 +214,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			start,
 			caretAfter
 		);
-		deps.setPendingCursor(caretAfter, 'island');
+		deps.setPendingCursor(caretAfter, 'island', next);
 	}
 
 	function selectIslandWhole(el: HTMLElement): void {
@@ -220,8 +229,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function handleIsland(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		// Modifier chords (Ctrl/Alt/Cmd word-delete and shortcuts) stay native — the
 		// island rules own only the plain edge presses.
-		const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
-		const isDestructive = !hasModifier && (e.key === 'Backspace' || e.key === 'Delete');
+		const isDestructive = !hasModifier(e) && (e.key === 'Backspace' || e.key === 'Delete');
 		const isTyping = isPlainTypingKey(e);
 		if (!isDestructive && !isTyping) return false;
 

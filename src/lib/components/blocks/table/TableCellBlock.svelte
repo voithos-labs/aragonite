@@ -136,7 +136,9 @@
 	// is written to nowhere else. The delimiter escape itself belongs to the kind
 	// (`normalizeRawWrite`) and runs at the write sink, so what remains here is the
 	// caret half a seam cannot do for us: the offset a caller hands back addresses
-	// the text it wrote, and the sink's inserted backslashes move it.
+	// the text it wrote, and the sink's inserted backslashes move it. `parkCursor`
+	// below is the same rule's second door, for the caret writes that never pass
+	// through this one.
 	//
 	// A trailing ending is stripped rather than left to the sink's collapse: the
 	// prose-shaped reveal / caret-edge / selected-widget factories append one, and
@@ -161,6 +163,19 @@
 	// commits once on reveal exit (mirrors TextEditableBlock).
 	let revealing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
+
+	// The door's other half, and the ONLY write of `pendingCursorOffset` besides the
+	// render effect's clear. A pending cursor never passes through `blockEdit`, so
+	// its caller hands over the text the offset addresses and the mapping happens
+	// here. No text means the offset already stands in escaped space or the write
+	// left every byte before it alone.
+	function parkCursor(offset: number | null, writtenText?: string): void {
+		pendingCursorOffset =
+			offset === null || writtenText === undefined
+				? offset
+				: escapedCellOffset(writtenText, offset);
+	}
+
 	let preEditOffset = 0;
 	// Click point captured in pointerdown; Y is load-bearing for the reveal
 	// hit-test — a column-aligned click on another visual line must not reveal.
@@ -194,9 +209,7 @@
 		setPreEditOffset: (offset) => {
 			preEditOffset = offset;
 		},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset) => parkCursor(offset),
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -248,9 +261,7 @@
 		blockEdit,
 		focusActions,
 		setSnapTarget: () => {},
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset, writtenText) => parkCursor(offset, writtenText),
 		readRawText: () => readCellText(),
 		setRevealing: (value) => {
 			revealing = value;
@@ -282,9 +293,7 @@
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		blockEdit,
-		setPendingCursor: (offset) => {
-			pendingCursorOffset = offset;
-		},
+		setPendingCursor: (offset, _source, writtenText) => parkCursor(offset, writtenText),
 		setSnapTarget: () => {},
 		isRevealing: () => widgetInteraction.isRevealing(),
 		// Reveal-capable kinds (math, directive) reveal their source; a non-reveal CST
@@ -670,7 +679,7 @@
 			const newText = text.slice(0, offset) + inserted + text.slice(offset);
 			const caret = offset + inserted.length;
 			void blockEdit.updateBlockContent(index, newText, offset, caret);
-			pendingCursorOffset = escapedCellOffset(newText, caret);
+			parkCursor(caret, newText);
 			return;
 		}
 	}
@@ -796,7 +805,7 @@
 		const display = trimTrailingLineEnding(node.raw);
 		const newDisplay = display.slice(0, start) + display.slice(end);
 		void blockEdit.updateBlockContent(index, newDisplay, start, start);
-		pendingCursorOffset = escapedCellOffset(newDisplay, start);
+		parkCursor(start, newDisplay);
 	}
 
 	async function applyCellPaste(
@@ -812,7 +821,9 @@
 			},
 			{ doc: getDoc(), blockEdit, controller: pasteCoordinator }
 		);
-		if (result.inlineCaretOffset !== undefined) pendingCursorOffset = result.inlineCaretOffset;
+		// Already escaped: the cell's paste surface reports its caret in escaped space
+		// because the sink escapes the whole spliced raw, not just the pasted run.
+		if (result.inlineCaretOffset !== undefined) parkCursor(result.inlineCaretOffset);
 	}
 
 	// ── Right-click menu clipboard (no ClipboardEvent) ──────────────────────
