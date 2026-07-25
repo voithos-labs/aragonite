@@ -4,7 +4,7 @@
  * surviving leaf's raw, and re-parse it so a marker at offset 0 re-derives the
  * kind (parity with the single-block type path). Routed through commitMultiScope
  * so the mutation matches the single-block update path — a kind change mints a
- * fresh node into the slot, ids/refs stay synced, op:'input' is emitted.
+ * fresh node into the slot, ids/refs stay synced, op:'updateContent' is emitted.
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
@@ -51,11 +51,15 @@ export async function handleCrossBlockTypeReplace(
 		return true;
 	}
 
-	// Route the splice through commitMultiScope so the mutation lands inside
-	// the commit primitive: parallel ids/refs reactivity contract honored,
-	// op:'input' event emitted symmetrically with the single-block path
-	// (block-edit.ts updateBlockContent → debounced flush). snapshot: 'skip'
-	// keeps the typed character in the same undo unit as performCrossBlockDelete.
+	// Route the splice through commitMultiScope so the mutation lands inside the
+	// commit primitive: parallel ids/refs reactivity contract honored, and the op
+	// is `updateContent` — symmetric with the single-block path's KIND-CHANGING
+	// branch (block-edit.ts updateBlockContent), the partner for a write that
+	// re-derives the kind. Only that path's kind-stable branch emits the debounced
+	// `input`, and consumers read `input` as "kind held" (components/lrd-map-gate.ts
+	// runs post-commit and cannot recover a destroyed kind any other way).
+	// snapshot: 'skip' keeps the typed character in the same undo unit as
+	// performCrossBlockDelete.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
@@ -111,8 +115,11 @@ export async function handleCrossBlockTypeReplace(
 			return [change];
 		},
 		op: {
-			kind: 'input',
-			detail: { byteLength: typed.length },
+			kind: 'updateContent',
+			// `op` is evaluated ahead of `mutate`, and the splice only inserts, so
+			// the post-commit length is already fixed. Read for the event detail
+			// alone — the mutation still derives its bytes from the owned copy.
+			detail: { length: targetNode.raw.length + typed.length },
 			eventPath: docPathFrom(caret.path)
 		},
 		afterTick: () =>

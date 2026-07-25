@@ -4,6 +4,10 @@ import { waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n- second\n';
 const NESTED_LIST_IMAGE_DOC = '- outer\n  - ![pic|300x200](/test-fixtures/sample.png)\n';
+const WRAPPED_LIST_IMAGE_DOCS = {
+	link: '- [![pic|300x200](/test-fixtures/sample.png)](https://example.com)\n',
+	emphasis: '- *![pic|300x200](/test-fixtures/sample.png)*\n'
+};
 
 test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 	let editor: EditorPage;
@@ -42,6 +46,32 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 
 		expect(itemBox.height).toBeLessThan(imageBox.height + 30);
 	});
+
+	// The renderer nests an image widget one level deeper for every wrapping inline
+	// construct (`em`, `strong`, `s`, and a link's anchor), so a child-combinator
+	// `:has(> …)` misses all of them. The tolerance is looser than the bare case
+	// above because the wrapper's own markers keep a trailing line box, which puts
+	// the paragraph's bottom edge below the image.
+	for (const [shape, doc] of Object.entries(WRAPPED_LIST_IMAGE_DOCS)) {
+		test(`${shape}-wrapped list image keeps the ambient marker pinned`, async ({ page }) => {
+			await editor.loadContent(doc);
+			await waitForFirstImageLoaded(page);
+
+			const marker = page.locator('.md-marker[contenteditable="false"]').first();
+			const markerBox = await marker.boundingBox();
+			const imageBox = await page.locator('[data-image-widget] img').first().boundingBox();
+			if (!markerBox || !imageBox) throw new Error('layout boxes missing');
+
+			// Pinned at all, not merely near: an unpinned marker rides the paragraph's
+			// first line box, which is what renders the bullet above the image. Under
+			// an inline-block anchor the two land close together anyway, so geometry
+			// alone cannot tell the link shape apart.
+			expect(await marker.evaluate((el) => getComputedStyle(el).position)).toBe('absolute');
+			expect(
+				Math.abs(markerBox.y + markerBox.height - (imageBox.y + imageBox.height))
+			).toBeLessThanOrEqual(45);
+		});
+	}
 
 	test('nested list image inherits the parent list indent', async ({ page }) => {
 		await editor.loadContent(NESTED_LIST_IMAGE_DOC);

@@ -11,47 +11,33 @@ import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
+/**
+ * Walk-space offset of a live `(node, offset)` DOM position. A position at or
+ * inside an atomic widget snaps to that widget's own walk boundary — the walk
+ * has no interior positions to report, and browsers do rebind carets into these
+ * contenteditable=false islands. An unreachable position reads as end-of-walk;
+ * callers that must distinguish "not mine" guard containment first.
+ */
 export function domTextOffsetAtNode(
 	container: HTMLElement,
 	node: Node,
 	offset: number
 ): DomTextOffset {
-	let count = 0;
-	let stopped = false;
-
-	function visit(current: Node): boolean {
-		if (stopped) return true;
-		if (current === node) {
-			if (current.nodeType === Node.TEXT_NODE) {
-				count += offset;
-			} else {
-				const cap = Math.min(offset, current.childNodes.length);
-				for (let i = 0; i < cap; i++) {
-					if (visit(current.childNodes[i])) return true;
-				}
-			}
-			stopped = true;
-			return true;
+	// Outside the container there is no landmark to find: document order against a
+	// disconnected tree is implementation-specific, so such a position reads as
+	// end-of-walk rather than as a nondeterministic offset.
+	const boundary = container.contains(node) ? positionBoundary(node, offset) : null;
+	let total = 0;
+	for (const seg of walkSegments(container)) {
+		const segNode = seg.kind === 'text' ? seg.node : seg.el;
+		if (seg.kind === 'widget' && seg.el.contains(node)) {
+			return asDomTextOffset(offset === 0 ? seg.start : seg.start + seg.len);
 		}
-		if (current.nodeType === Node.TEXT_NODE) {
-			count += current.textContent?.length ?? 0;
-			return false;
-		}
-		if (current.nodeType === Node.ELEMENT_NODE) {
-			const el = current as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				count += widgetRawLength(el);
-				return false;
-			}
-			for (const child of current.childNodes) {
-				if (visit(child)) return true;
-			}
-		}
-		return false;
+		if (segNode === node) return asDomTextOffset(seg.start + offset);
+		if (boundary && startsAtOrAfter(segNode, boundary)) return asDomTextOffset(seg.start);
+		total = seg.start + seg.len;
 	}
-
-	visit(container);
-	return asDomTextOffset(count);
+	return asDomTextOffset(total);
 }
 
 export interface DomPosition {
@@ -252,6 +238,28 @@ function* walkSegments(root: ParentNode): Generator<WalkSegment> {
 		}
 	}
 	for (const child of root.childNodes) yield* visit(child);
+}
+
+/**
+ * A DOM position re-expressed as a document-order landmark, so a walk can find
+ * it without a parallel descent. Text positions need none: every text node under
+ * `container` is either a segment of its own or lives inside a widget.
+ */
+type PositionBoundary = { node: Node; side: 'before' | 'afterContents' };
+
+function positionBoundary(node: Node, offset: number): PositionBoundary | null {
+	if (node.nodeType === Node.TEXT_NODE) return null;
+	const child = node.childNodes[offset];
+	return child ? { node: child, side: 'before' } : { node, side: 'afterContents' };
+}
+
+function startsAtOrAfter(segNode: Node, boundary: PositionBoundary): boolean {
+	if (segNode === boundary.node) return boundary.side === 'before';
+	const mask = boundary.node.compareDocumentPosition(segNode);
+	if ((mask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
+	// A descendant follows the landmark's own start but precedes the end of its
+	// contents, so only the 'before' side counts it.
+	return boundary.side === 'before' || (mask & Node.DOCUMENT_POSITION_CONTAINED_BY) === 0;
 }
 
 function widgetRawLength(el: Element): number {

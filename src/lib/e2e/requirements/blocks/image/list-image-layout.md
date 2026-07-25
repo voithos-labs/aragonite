@@ -15,3 +15,6 @@ otherwise leave below a block-level child.
 
 - A paragraph with text before/after an inline image is unaffected: text continues to flow normally rather than being forced into a flex row
 - A top-level image with no surrounding ambient marker keeps default block layout (no flex)
+- List item holding a wrapped image (`- [![pic](x)](url)`, `- *![pic](x)*`, and the strong/strikethrough equivalents): the ambient marker is still pinned out of flow and still sits at the image's bottom edge, even though the widget renders inside the wrapper rather than directly under the paragraph. Unpinned, the marker rides the paragraph's first line box and the bullet renders a full image-height above where it belongs
+- Inline markers (`*`, `[]()`, escape, hard break) inside an image-bearing list-item paragraph stay in normal flow — only the ambient marker is pinned
+- Inline markers in a non-list image paragraph stay in normal flow: a paragraph with no ambient marker gets no pinning treatment at all

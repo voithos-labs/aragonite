@@ -477,14 +477,17 @@
 
 	// Both gestures rewrite whole LINES, so their range clamps out of the fence
 	// lines — the multi-line sibling of codeNewline's clampEnterOffsetToBody.
+	//
+	// The text comes from the node; `el` is still required because currentRange()
+	// reads the DOM selection through it.
 	function indentSelection(): void {
 		if (!el) return;
-		applyIndentResult(indentLines(el.textContent ?? '', clampRangeToBody(node, currentRange())));
+		applyIndentResult(indentLines(getDisplayText(), clampRangeToBody(node, currentRange())));
 	}
 
 	function dedentSelection(): void {
 		if (!el) return;
-		const text = el.textContent ?? '';
+		const text = getDisplayText();
 		const result = dedentLines(text, clampRangeToBody(node, currentRange()));
 		if (result.text === text) return;
 		applyIndentResult(result);

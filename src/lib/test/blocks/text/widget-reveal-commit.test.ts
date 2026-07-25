@@ -9,8 +9,10 @@
 //      commit pushes a dead undo entry);
 //   2. the post-commit caret is the widget's live trailing edge, so an edit to the
 //      surrounding prose shifts it correctly (a length delta off the old end would not);
-//   3. a cross-block selection bails the commit, keeping the source revealed so a
-//      fold can't strand a selection endpoint anchored in the source text node.
+//   3. the cross-block rule sits at the BLUR caller, not inside the commit: blur
+//      keeps the source revealed so its rects measure real text, while the clipboard
+//      fold still commits — the alternative is splicing node.raw bytes the ephemeral
+//      edit never reached.
 import { describe, it, expect } from 'vitest';
 import {
 	createWidgetInteraction,
@@ -45,7 +47,7 @@ function mountMathBlock() {
 	const math = inlineWidgets[0];
 
 	const commits: Commit[] = [];
-	const pendingCursors: (number | null)[] = [];
+	const pendingCursors: { offset: number | null; writtenText?: string }[] = [];
 	let crossBlock = false;
 
 	const trap = () => {
@@ -62,8 +64,8 @@ function mountMathBlock() {
 					}
 				},
 				focusActions: new Proxy({}, { get: trap }),
-				setPendingCursor: (offset: number | null) => {
-					pendingCursors.push(offset);
+				setPendingCursor: (offset: number | null, writtenText?: string) => {
+					pendingCursors.push({ offset, writtenText });
 				},
 				setRevealing: () => {},
 				isCrossBlock: () => crossBlock
@@ -110,8 +112,9 @@ describe('commitReveal — no-edit short-circuit', () => {
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(false);
 		// Folded back to the rendered widget via the focus-guarded pending cursor,
-		// landing at the widget's trailing edge.
-		expect(block.pendingCursors).toEqual([block.math.end]);
+		// landing at the widget's trailing edge. No text rides along: nothing was
+		// written, so the offset already addresses the CST's own bytes.
+		expect(block.pendingCursors).toEqual([{ offset: block.math.end, writtenText: undefined }]);
 	});
 });
 
@@ -145,9 +148,25 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		expect(block.commits[0].raw).toBe('Before $x^2$ afterZ\n');
 		expect(block.commits[0].after).toBe(block.math.end);
 	});
+
+	it('parks the caret together with the text that caret addresses', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+		block.sourceNode().textContent = '$yx^2$';
+
+		await commitViaEnter(block.interaction);
+
+		// The commit caret goes through the block-edit door, which a kind whose write
+		// sink rewrites bytes (tableCell escapes every free `|`) can map. The pending
+		// cursor bypasses that door, so it can only be mapped against the text it
+		// addresses — which therefore has to travel with it. Prose ignores the text.
+		expect(block.pendingCursors).toEqual([
+			{ offset: block.math.end + 1, writtenText: 'Before $yx^2$ after' }
+		]);
+	});
 });
 
-describe('commitReveal — cross-block bail', () => {
+describe('commitReveal — the cross-block rule lives at the blur caller', () => {
 	it('keeps the source revealed on blur while a selection spans blocks', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -159,6 +178,23 @@ describe('commitReveal — cross-block bail', () => {
 		// node an endpoint is anchored in.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(true);
+	});
+
+	it('folds an edited source for the clipboard even mid-cross-block selection', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+		block.sourceNode().textContent = '$yx^2$';
+		block.setCrossBlock(true);
+
+		const caret = block.interaction.commitRevealBeforeClipboard();
+
+		// A null return means "nothing was open", which is what the clipboard seam
+		// tests to decide whether to tick and fold. Refusing here let cut/paste
+		// splice the pre-reveal bytes and drop the edit with no undo entry.
+		expect(caret).not.toBeNull();
+		expect(block.commits).toHaveLength(1);
+		expect(block.commits[0].raw).toBe('Before $yx^2$ after\n');
+		expect(block.interaction.isRevealing()).toBe(false);
 	});
 });
 

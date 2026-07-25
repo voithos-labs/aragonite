@@ -173,10 +173,17 @@
    the marker out of flow with absolute positioning. The `[contenteditable="false"]`
    qualifier matches only the structurally-injected ambient prefix (per
    `buildAmbientSpan`), not inline-rendered `.md-marker` spans (hard-break `\`,
-   emphasis `*`, link `[]()`, escape) which must stay in normal flow. */
+   emphasis `*`, link `[]()`, escape) which must stay in normal flow.
+
+   The widget side of every `:has()` below is a DESCENDANT match: an inline
+   construct that wraps its children (`em`, `strong`, `s`, and a link's
+   `a`/`span.md-link-content`) puts the widget one level deeper, and
+   `- [![badge](x)](url)` is the commonest list-image shape there is. The marker
+   side stays a child combinator — the ambient prefix really is a direct child,
+   and that is what keeps inline-rendered markers out. */
 :where(.editor)
 	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
-		> .md-image-widget
+		.md-image-widget
 	) {
 	position: relative;
 	text-indent: 0 !important;
@@ -184,7 +191,7 @@
 
 :where(.editor)
 	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
-		> .md-image-widget
+		.md-image-widget
 	)
 	> .md-marker[contenteditable='false'] {
 	position: absolute;
@@ -194,8 +201,10 @@
 
 /* Image-only paragraph drops the trailing empty line-box the contenteditable
    would keep after a block-level child — otherwise every image-only item carries
-   ~25px of dead vertical space below the image. */
-:where(.editor) .text-editable-block.paragraph-block:has(> .md-image-widget:last-child) {
+   ~25px of dead vertical space below the image. `:last-child` is evaluated
+   against the widget's own parent, so it reads the same under a wrapper as it
+   does directly under the paragraph. */
+:where(.editor) .text-editable-block.paragraph-block:has(.md-image-widget:last-child) {
 	min-height: 0;
 }
 
@@ -203,8 +212,10 @@
    image widget inside an inline `<a>`. Left as `display: inline`, the anchor
    stretches to the full content width, so its `title` tooltip (from the link's
    LRD title) hovers over the empty space beside the image. Shrink the anchor to
-   hug the widget so the tooltip only covers the clickable image. */
-:where(.editor) a.md-link-content:has(> .md-image-widget) {
+   hug the widget so the tooltip only covers the clickable image. Descendant, so
+   `[*![alt](x)*](url)` hugs too — matching the underline rule below, which
+   already asks "contains an image widget at any depth". */
+:where(.editor) a.md-link-content:has(.md-image-widget) {
 	display: inline-block;
 	width: fit-content;
 }
