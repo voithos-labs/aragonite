@@ -4,19 +4,23 @@ import {
 	type WholeBlockKeyDeps
 } from '$lib/editor-actions/container-block-component';
 import { displayLength } from '$lib/core/lines';
+import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
 
 function makeDeps(isReading = () => false) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
 	const moveFocus = vi.fn();
+	const stickyColumn = createStickyColumnState();
 	const deps: WholeBlockKeyDeps = {
 		getIndex: () => 2,
 		getRaw: () => '---\n',
 		blockEdit: { splitBlock, deleteBlock },
 		focus: { moveFocus },
-		isReading
+		isReading,
+		stickyColumn
 	};
-	return { deps, splitBlock, deleteBlock, moveFocus };
+	return { deps, splitBlock, deleteBlock, moveFocus, stickyColumn };
 }
 
 function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
@@ -28,6 +32,11 @@ function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
 		...mods,
 		preventDefault: vi.fn()
 	} as unknown as KeyboardEvent;
+}
+
+/** Seed the column the way a real vertical run does: through the door, not `capture`. */
+function seedColumn(stickyColumn: StickyColumnState, x: number): void {
+	stickyColumn.noteKey({ key: 'ArrowDown', altKey: false }, () => asEditorX(x));
 }
 
 describe('handleWholeBlockKeys', () => {
@@ -88,6 +97,61 @@ describe('handleWholeBlockKeys', () => {
 		expect(deleteBlock).not.toHaveBeenCalled();
 		expect(moveFocus).not.toHaveBeenCalled();
 		expect(e.preventDefault).not.toHaveBeenCalled();
+	});
+});
+
+// The whole-block surface has no caret to measure, so it routes the key through
+// `noteKey` with no measureX: a vertical run passing through keeps its column,
+// everything else ends the run. Without this the column set before entering the
+// block outlived a horizontal traversal and, because `capture` is idempotent,
+// the next ArrowDown in the landing block reused the stale pixel X.
+describe('handleWholeBlockKeys: sticky column', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it.each(['ArrowLeft', 'ArrowRight'])(
+		'%s clears a column left by an earlier vertical run',
+		(key) => {
+			const { deps, stickyColumn } = makeDeps();
+			seedColumn(stickyColumn, 200);
+			expect(stickyColumn.get()).toBe(200);
+			handleWholeBlockKeys(press(key), deps);
+			expect(stickyColumn.get()).toBeNull();
+		}
+	);
+
+	it.each(['ArrowUp', 'ArrowDown'])(
+		'%s preserves the column so the vertical run continues',
+		(key) => {
+			const { deps, stickyColumn } = makeDeps();
+			seedColumn(stickyColumn, 200);
+			handleWholeBlockKeys(press(key), deps);
+			expect(stickyColumn.get()).toBe(200);
+		}
+	);
+
+	it.each(['Enter', 'Backspace', 'Delete', 'a'])('%s clears the column', (key) => {
+		const { deps, stickyColumn } = makeDeps();
+		seedColumn(stickyColumn, 200);
+		handleWholeBlockKeys(press(key), deps);
+		expect(stickyColumn.get()).toBeNull();
+	});
+
+	it('Mod+X clears the column', () => {
+		vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+		const { deps, stickyColumn } = makeDeps();
+		seedColumn(stickyColumn, 200);
+		handleWholeBlockKeys(press('x', { ctrlKey: true }), deps);
+		expect(stickyColumn.get()).toBeNull();
+	});
+
+	// Belt-and-suspenders on this path: both callers consume the reorder chord
+	// before the shared tail. The door declines it anyway, so a caller that ever
+	// stops consuming it still can't clear a live column.
+	it('Alt+ArrowUp (the reorder chord) neither clears nor recaptures', () => {
+		const { deps, stickyColumn } = makeDeps();
+		seedColumn(stickyColumn, 200);
+		handleWholeBlockKeys(press('ArrowUp', { altKey: true }), deps);
+		expect(stickyColumn.get()).toBe(200);
 	});
 });
 

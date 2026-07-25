@@ -6,7 +6,8 @@ import {
 	previousPath,
 	firstPath,
 	lastPath,
-	findBlockPathForElement
+	findBlockPathForElement,
+	findCellPathForElement
 } from '../../selection/path-lookup';
 import { nodeAt } from '../../tree-operations/node-ops';
 import type { CstNode, Document } from '../../core/nodes';
@@ -158,5 +159,64 @@ describe('findBlockPathForElement', () => {
 
 	it('returns null when given a null element', () => {
 		expect(findBlockPathForElement(null)).toBeNull();
+	});
+});
+
+// The door for any producer that resolves an endpoint path from the DOM: only
+// block hosts carry data-block-path, so the plain walk stops at the table and
+// hands back a path whose offsets are cell indices while the caret's are
+// characters. Every null arm matters — a producer that mistakes "not a cell"
+// for "cell 0" mints the same corrupt endpoint from the other direction.
+describe('findCellPathForElement', () => {
+	function grid(rowCount: number, colCount: number, tablePath = '[3]') {
+		const host = document.createElement('div');
+		host.setAttribute('data-block-path', tablePath);
+		for (let r = 0; r < rowCount; r++) {
+			const rowEl = document.createElement('div');
+			rowEl.setAttribute('data-table-row-idx', String(r));
+			host.appendChild(rowEl);
+			for (let c = 0; c < colCount; c++) {
+				const cellEl = document.createElement('div');
+				cellEl.setAttribute('role', 'cell');
+				rowEl.appendChild(cellEl);
+			}
+		}
+		return host;
+	}
+
+	const cellAt = (host: HTMLElement, row: number, col: number) =>
+		host.querySelectorAll('[data-table-row-idx]')[row].querySelectorAll('[role="cell"]')[
+			col
+		] as HTMLElement;
+
+	it('extends the table’s own path with the cell’s row and column', () => {
+		const host = grid(3, 4);
+		expect(findCellPathForElement(cellAt(host, 2, 3))).toEqual([3, 2, 3]);
+	});
+
+	it('resolves from a descendant of the cell', () => {
+		const host = grid(2, 2);
+		const inner = document.createElement('span');
+		cellAt(host, 1, 0).appendChild(inner);
+		expect(findCellPathForElement(inner)).toEqual([3, 1, 0]);
+	});
+
+	it('returns null outside a cell grid', () => {
+		expect(findCellPathForElement(null)).toBeNull();
+		expect(findCellPathForElement(document.createElement('div'))).toBeNull();
+	});
+
+	it('returns null when the row index is unreadable', () => {
+		const host = grid(1, 1);
+		const rowEl = host.querySelector('[data-table-row-idx]')!;
+		rowEl.setAttribute('data-table-row-idx', 'nope');
+		expect(findCellPathForElement(cellAt(host, 0, 0))).toBeNull();
+	});
+
+	// Unmount strips the host from the tree before its cells are torn down.
+	it('returns null when no ancestor carries a block path', () => {
+		const host = grid(1, 1);
+		host.removeAttribute('data-block-path');
+		expect(findCellPathForElement(cellAt(host, 0, 0))).toBeNull();
 	});
 });

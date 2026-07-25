@@ -24,7 +24,8 @@ import {
 	firstPath,
 	lastPath,
 	firstLeafAtOrAfter,
-	lastLeafAtOrBefore
+	lastLeafAtOrBefore,
+	findCellPathForElement
 } from './path-lookup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths, isStrictAncestorOf } from './path-math';
@@ -286,7 +287,14 @@ export function handleShiftClick(
 	}
 
 	if (!previouslyFocusedBlockEl || !previouslyFocusedBlockPath) return false;
-	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, previouslyFocusedBlockPath);
+	// The anchor path is resolved from the DOM, not from a surface's getMyPath(),
+	// and no path host exists below a table — so a caret parked in a cell would be
+	// labelled with the TABLE's path while its offset is still in characters. The
+	// endpoint seam cannot repair that (a char offset on a table path is
+	// indistinguishable from a cell index), so deepen to the cell here and let the
+	// seam do the char→cell conversion it does for every other producer.
+	const anchorPath = findCellPathForElement(previouslyFocusedBlockEl) ?? previouslyFocusedBlockPath;
+	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, anchorPath);
 	if (!anchor) return false;
 
 	// Same-block — native selection already produced a single-block range.

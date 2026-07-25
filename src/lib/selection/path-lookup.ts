@@ -114,3 +114,35 @@ export function findBlockPathForElement(el: Element | null): number[] | null {
 	}
 	return null;
 }
+
+/**
+ * The deep `[...tablePath, row, col]` path of an element inside a table cell.
+ *
+ * Only block hosts emit `data-block-path`, so {@link findBlockPathForElement}
+ * stops at the table and returns a path whose endpoint offsets are cell indices
+ * while a caret read from the same element is in characters. Any producer that
+ * resolves an endpoint path from the DOM rather than from a surface's own
+ * `getMyPath()` must resolve through here, or it mints a point that is illegal
+ * in both offset spaces.
+ *
+ * Null when `el` is not inside a cell grid. Addresses the grid through its
+ * selector contract (rows carry `data-table-row-idx`, cells carry `role="cell"`)
+ * — the viewport-point twin of this walk lives in the table's own cell-pointer
+ * module, which cannot be imported here without inverting the component/selection
+ * layering.
+ */
+export function findCellPathForElement(el: Element | null): number[] | null {
+	const cellEl = el?.closest('[role="cell"]') ?? null;
+	if (!cellEl) return null;
+	const rowEl = cellEl.closest('[data-table-row-idx]');
+	if (!rowEl) return null;
+	const tablePath = findBlockPathForElement(rowEl);
+	if (!tablePath) return null;
+
+	const rowIdx = Number(rowEl.getAttribute('data-table-row-idx'));
+	if (!Number.isInteger(rowIdx)) return null;
+	const colIdx = Array.from(rowEl.querySelectorAll(':scope > [role="cell"]')).indexOf(cellEl);
+	if (colIdx < 0) return null;
+
+	return [...tablePath, rowIdx, colIdx];
+}

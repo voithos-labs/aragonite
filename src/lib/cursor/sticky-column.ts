@@ -7,12 +7,14 @@
  * focusAtColumn):
  *
  * 1. Capture (source-block responsibility). The block that holds focus when
- *    the user presses ArrowUp/ArrowDown MUST call stickyColumn.capture(x) with
- *    the cursor's editor-relative pixel X, before any cross-block focus
- *    transition. handleSharedKeydown performs this capture in its prelude;
- *    blocks that route their keydown through it participate automatically.
- *    Surfaces that bypass handleSharedKeydown (future plugins with custom
- *    arrow handling) MUST replicate the capture call themselves.
+ *    the user presses ArrowUp/ArrowDown MUST record the cursor's
+ *    editor-relative pixel X before any cross-block focus transition. A keydown
+ *    handler does this through `noteKey`, the door that also owns the reset and
+ *    preserve cases; blocks routing their keydown through handleSharedKeydown
+ *    or the cross-block dispatcher participate automatically. Surfaces with
+ *    custom arrow handling (the table today, future plugins) MUST call
+ *    `noteKey` themselves, or carry both capture and reset explicitly — the
+ *    G2.10 source-scan guards hold them to it.
  *
  * 2. Consumption (caller-reads-and-passes). When a cross-block focus
  *    transition runs through moveFocus({ stickyColumnFrom }), the focus
@@ -41,12 +43,25 @@ export interface StickyColumnState {
 	capture(x: EditorX): void;
 
 	reset(): void;
+
+	/**
+	 * The only door a keydown handler may use: classifies the key and applies
+	 * capture, preserve, or reset. `reset()` stays public for the lifecycle,
+	 * commit, undo and paste callers, whose unconditional clear is correct and
+	 * has no key to classify.
+	 *
+	 * `measureX` is consulted only on the capture branch, and only the caller
+	 * can supply it — the pixel X comes from the live caret. A caller with no
+	 * caret to measure (the cross-block dispatcher holds a range) omits it, and
+	 * a capture key then PRESERVES the column rather than clearing it.
+	 */
+	noteKey(e: Pick<KeyboardEvent, 'key' | 'altKey'>, measureX?: () => EditorX | null): void;
 }
 
 export function createStickyColumnState(): StickyColumnState {
 	let stickyX: EditorX | null = null;
 
-	return {
+	const state: StickyColumnState = {
 		get: () => stickyX,
 		capture: (x: EditorX) => {
 			if (stickyX !== null) return;
@@ -59,8 +74,24 @@ export function createStickyColumnState(): StickyColumnState {
 		reset: () => {
 			if (isInteractionTraceEnabled() && stickyX !== null) traceStickyReset();
 			stickyX = null;
+		},
+		noteKey: (e, measureX) => {
+			// Alt+Arrow is the block-reorder chord, not caret nav — it neither
+			// captures nor resets.
+			if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
+
+			const action = classifyStickyKey(e.key);
+			if (action === 'reset') {
+				state.reset();
+				return;
+			}
+			if (action !== 'capture') return;
+			const x = measureX?.();
+			if (x !== null && x !== undefined) state.capture(x);
 		}
 	};
+
+	return state;
 }
 
 /**
@@ -81,9 +112,8 @@ export const PRESERVE_KEYS_NON_ARROW: readonly string[] = [
 export type StickyKeyAction = 'capture' | 'reset' | 'preserve';
 
 /**
- * The keydown→sticky decision the shared prelude enacts. Pure on the key so it
- * is testable without DOM; `handleSharedKeydown` reads it and supplies the
- * pixel X for the capture branch.
+ * The keydown→sticky decision {@link StickyColumnState.noteKey} enacts. Pure on
+ * the key so the matrix is testable without a DOM or a state instance.
  */
 export function classifyStickyKey(key: string): StickyKeyAction {
 	if (key === 'ArrowUp' || key === 'ArrowDown') return 'capture';

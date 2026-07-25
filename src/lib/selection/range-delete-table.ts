@@ -394,8 +394,13 @@ function deleteAcrossTwoTables(
 // side convention: prefer the end of the nearest surviving block before the
 // deleted range; else the start of the first surviving block after it; else
 // materialize an empty paragraph (the document emptied — mirrors the prose
-// rangeDelete fallback). Adjacent surviving tables get deep cell carets,
-// never a shallow table path.
+// rangeDelete fallback). Both survivor branches descend to a focusable leaf, so
+// a surviving container never yields its own bare path.
+//
+// Survivors are sought in the deleted block's OWN container: a nested start has
+// no relation to `doc.children[startPath[0]]`. Cascade cleanup can take that
+// container too, so the search walks outward until it finds one that still
+// holds children.
 //
 // `lineEnding` is the deleted start table's, captured before the mutation
 // (G4.20): the placeholder IS a line ending, and nothing survives to read one
@@ -406,22 +411,38 @@ function caretNearestSurvivor(
 	sharing: SharingState,
 	lineEnding: string
 ): SelectionPoint {
-	const children = doc.children;
-	const beforeIdx = startPath[0] - 1;
-
-	if (beforeIdx >= 0) {
-		const before = children[beforeIdx];
-		if (before.kind === 'table') return lastCellCaret(before, [beforeIdx]);
-		return survivorEndCaret(before, [beforeIdx]);
+	let containerPath = startPath.slice(0, -1);
+	let childIdx = startPath[startPath.length - 1];
+	let siblings = survivingChildren(doc, containerPath);
+	while (siblings === null && containerPath.length > 0) {
+		childIdx = containerPath[containerPath.length - 1];
+		containerPath = containerPath.slice(0, -1);
+		siblings = survivingChildren(doc, containerPath);
 	}
-	if (children.length > 0) {
-		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
+
+	if (siblings) {
+		const beforeIdx = childIdx - 1;
+		if (beforeIdx >= 0) {
+			const before = siblings[beforeIdx];
+			const beforePath = [...containerPath, beforeIdx];
+			return before.kind === 'table'
+				? lastCellCaret(before, beforePath)
+				: survivorEndCaret(before, beforePath);
+		}
+		return survivorStartCaret(siblings[0], [...containerPath, 0]);
 	}
 
 	const filler = emptyParagraph('', lineEnding);
 	sharing.stamp(filler);
 	doc.children.push(filler);
 	return { path: [0], offset: 0 };
+}
+
+/** A container's children when it survived with any, else null. */
+function survivingChildren(doc: Document, path: number[]): CstNode[] | null {
+	const node = path.length === 0 ? doc : blockNodeAt(doc, path);
+	const children = node?.children;
+	return children && children.length > 0 ? children : null;
 }
 
 // End-of-survivor caret, descending a container to the leaf a caret lands in.
@@ -441,6 +462,18 @@ function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
 		leafPath.push(next);
 	}
 	return { path: leafPath, offset: displayLength(leaf.raw) };
+}
+
+// Start-of-survivor caret — the twin of survivorEndCaret. First child at each
+// level is also the collapse-visible chrome child, so no collapse case is needed.
+function survivorStartCaret(node: CstNode, path: number[]): SelectionPoint {
+	let leaf = node;
+	const leafPath = path.slice();
+	while (leaf.children && leaf.children.length > 0) {
+		leaf = leaf.children[0];
+		leafPath.push(0);
+	}
+	return { path: leafPath, offset: 0 };
 }
 
 function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {

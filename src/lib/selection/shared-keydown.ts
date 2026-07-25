@@ -8,7 +8,6 @@
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { StickyColumnState } from '../cursor/sticky-column';
-import { classifyStickyKey } from '../cursor/sticky-column';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import {
@@ -69,15 +68,7 @@ export async function handleSharedKeydown(
 	const el = ctx.getEl();
 	if (!el) return false;
 
-	// Alt+Arrow is the block-reorder chord, not caret nav — leave the sticky
-	// column untouched and let it fall through to dispatchKeyCommand.
-	const stickyAction = classifyStickyKey(e.key);
-	if (stickyAction === 'capture' && !e.altKey) {
-		const x = getCurrentCursorEditorRelativeX(el);
-		if (x !== null) ctx.stickyColumn.capture(x);
-	} else if (stickyAction === 'reset') {
-		ctx.stickyColumn.reset();
-	}
+	ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
 
 	// The editor owns every editor-global chord — undo/redo and plugin-global
 	// commands alike: native contenteditable history stays suppressed
