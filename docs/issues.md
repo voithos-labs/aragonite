@@ -396,6 +396,43 @@ mount) rather than the sync dispatcher, which changes the paste's commit/afterTi
 focus path is owned by a separate wave. The oracle exists and self-retires, so the defect cannot
 be lost.
 
+### List indent briefly double-registers the item's BlockListState
+
+**Severity:** watch (dev-warning signal only; no observed misbehavior)
+**Files:** `src/lib/reactivity/state-registry.ts` (the warning), `src/lib/editor-actions/list-context.ts`
+(`indentItem`), `src/lib/components/blocks/list/ListItemBlock.svelte`
+
+The 2026-07-25 mount-harness pass observed `[state-registry] double register for listItem with a
+different state` firing on list indent (Tab) only: not on Enter, not on paragraph or blockquote
+edits. It means two components briefly claim the same node during `indentItem`, presumably the
+old and new mounts overlapping across the structural remount. No corruption or stale-state
+symptom was found, and the sibling proxy-equality warning investigated at the same time was
+falsified as benign, but this one is uncharacterized beyond the trigger.
+
+**Fix direction:** characterize first: instrument which two mounts claim the node and whether the
+loser's teardown lands after the winner's registration. If it is the remount overlap, the
+registry can tolerate a same-node handoff within one flush without warning.
+
+**Why deferred:** signal without a symptom; wants characterization, not a patch that quiets the
+warning.
+
+### The bare-email autolink rejects underscores GFM permits in a domain
+
+**Severity:** minor (conformance divergence; literal here, a live link on GitHub)
+**Files:** `src/lib/core/inline/scan/autolinks.ts` (`EMAIL_DOMAIN_CHAR`)
+
+`EMAIL_DOMAIN_CHAR = /[A-Za-z0-9-]/` excludes `_`, but GFM's email autolink permits it in the
+domain, so `a@b_c.com` stays literal in aragonite and links on GitHub. Found while fixing the www
+and url underscore rule (the last-two-labels restriction), which does not apply to the email
+form. cmark-gfm's own `np > 10` underscore-escape quirk was checked and deliberately not
+reproduced (an artifact of its counter pair, not spec text; noted in the code).
+
+**Fix direction:** widen the class to match cmark-gfm's email domain acceptance, with the spec's
+own boundary cases pinned both ways.
+
+**Why deferred:** found at the tail of a batch whose scope was closing, and the fix wants its own
+small conformance pass against cmark test vectors rather than a ride-along character-class edit.
+
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
