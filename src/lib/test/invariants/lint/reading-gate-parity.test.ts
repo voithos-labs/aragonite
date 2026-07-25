@@ -31,7 +31,7 @@ const GATE_OWNER_FILES = new Set([
 // getPresentationMode → the regex the guard must keep present.
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
-	'src/lib/components/Editor.svelte': /=== 'reading'/,
+	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
 	'src/lib/components/blocks/ThematicBreakBlock.svelte': /isReading\s*\(/
 };
 
@@ -47,7 +47,7 @@ const DISPATCH_SITE_FILES = [
 	'src/lib/editor-actions/plugin/container.ts',
 	'src/lib/selection/cross-block/keydown.ts',
 	'src/lib/components/blocks/list/ListItemBlock.svelte',
-	'src/lib/components/Editor.svelte'
+	'src/lib/components/editor-root-keydown.ts'
 ];
 
 /** Balanced-paren argument substring of the call whose opening `(` is at `openIdx`. */
@@ -137,8 +137,8 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 			)
 		).toBe(true);
 		expect(
-			LOCAL_GATE_SITES['src/lib/components/Editor.svelte'].test(
-				"if (effectiveMode === 'reading') return;"
+			LOCAL_GATE_SITES['src/lib/components/editor-root-keydown.ts'].test(
+				"if (deps.mode === 'reading') return;"
 			)
 		).toBe(true);
 		expect(
@@ -147,7 +147,9 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 			)
 		).toBe(true);
 		expect(
-			LOCAL_GATE_SITES['src/lib/components/Editor.svelte'].test('const mode = readingMode;')
+			LOCAL_GATE_SITES['src/lib/components/editor-root-keydown.ts'].test(
+				'const mode = readingMode;'
+			)
 		).toBe(false);
 	});
 });

@@ -286,10 +286,6 @@ const RAW_LITERAL_ALLOWLIST: Record<string, { count: number; why: string }> = {
 		count: 1,
 		why: 'pre-rebuild placeholder, not emitted bytes: the cleared chrome is re-derived by rebuildUnsharedChain immediately after, which re-emits the opener line with the source ending (a CRLF quote-out yields ">\\r\\n"; the branch is covered by the CRLF-mirror oracle)'
 	},
-	'src/lib/tree-operations/list/terminator.ts': {
-		count: 1,
-		why: 'terminates a pasted item that carries NO ending, so trailingLineEnding(node.raw) would return the same LF — the node holds no ending to read. Carrying the document ending here needs a sibling lookup, which is a change of shape, not a spelling'
-	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 2,
 		why: "the published conformance kit authors synthetic marker leaves it then rebuilds from; the bytes are the kit's own fixture, not a re-emission of a consumer document"
