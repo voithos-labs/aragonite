@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Editor, type PresentationMode } from '$lib';
 	import { parse } from '$lib/core/parser';
-	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
 	import {
 		dumpTree,
 		dumpUndoStack,
@@ -22,7 +20,6 @@
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
-	let editorSlot = $state<HTMLElement>();
 
 	// `?dragHandles=false` starts with the hover drag handle disabled (the
 	// reorder-handle e2e covers the off path). The header checkbox flips it live;
@@ -73,10 +70,6 @@
 	// moves the caret but no Svelte signal fires, so the inline/selection
 	// sections never refresh.
 	let panelTick = $state(0);
-
-	onMount(() => {
-		applyTheme(DEFAULT_THEME);
-	});
 
 	$effect(() => {
 		if (typeof window === 'undefined' || !editor) return;
@@ -161,7 +154,7 @@
 		{/each}
 	</header>
 	<div class="demo-body">
-		<div class="editor-slot" bind:this={editorSlot}>
+		<div class="editor-slot">
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
@@ -170,7 +163,7 @@
 					{keybindings}
 					{presentationMode}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
-					theme={$currentThemeType}
+					theme="dark"
 				/>
 			{/key}
 			<SelectionToolbar {editor} />
