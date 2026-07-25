@@ -60,7 +60,7 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 
 ### What is stable, what is not
 
-- **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the idempotence probes. These shapes will not change in a breaking way.
+- **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the idempotence probes. These shapes will not change in a breaking way. (One exception landed pre-freeze: an opener's return became a line count in 0.9.36, see [What an opener returns](#what-an-opener-returns).)
 - **Pre-freeze / unstable.** The plugin unit, the container factory and chrome leaf, the inline surface, the directive surface, the fence grammar, and paste transforms. They are being built and refined against real consumers, and freeze at the public release — until then the shapes may change. Each is labelled in the [API reference](#api-reference).
 
 ## Per-instance context
@@ -559,6 +559,16 @@ A block component gets its own node — but a table-of-contents block needs the 
 
 A block that needs to _navigate_ to what it read — a table-of-contents entry scrolling to its heading — receives the owning instance's rect surface as **`BlockComponentProps.rects`**, the same object `EditorContext.rects` hands your per-instance callback. So `rects.scrollTo(path)` works from inside a block without reaching for an editor context a component does not have, and the navigation shares the editor's one reveal-and-scroll seam rather than a second copy of the rule. Navigating is view-only, so it stays legal in reading mode; the bundled **toc** plugin is this recipe and that call end to end.
 
+## What an opener returns
+
+`tryOpen` returns `null` to decline, or a `BlockOpenerResult`: the node it built plus `consumed`, the number of lines it claimed starting at `ctx.index`. It is a count, not a position. A single-line block returns `consumed: 1`; an opener that scanned forward to a closing line at `closeIdx` returns `closeIdx + 1 - ctx.index`.
+
+`consumed` must be at least 1. Claiming nothing is the one return that could spin the parse loop, so the parser declines it in every build and warns in dev ([misuse outcomes](#misuse-outcomes)).
+
+Scanners hand back positions rather than deltas, because their result is a slice bound: `blockquoteExtent` returns a `nextIndex`, and the opener subtracts once at its own return.
+
+> **Migrating from `nextIndex` (pre-1.0 breaking change).** An opener used to return the absolute index to resume at. Return the delta instead: `{ node, nextIndex: ctx.index + 1 }` becomes `{ node, consumed: 1 }`.
+
 ## Opener priority
 
 An opener's `priority` decides dispatch order — **lower runs first**. `OPENER_PRIORITIES` is the authoritative built-in ladder (a readonly map, the same constant the built-ins register with):
@@ -762,7 +772,7 @@ Why the dev build is where plugin development belongs — what each mistake does
 | ----------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
 | `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                 | Silent until the bytes surface in a round-trip      |
 | A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path | Same containment (the boundary ships in production) |
-| An opener returns a non-advancing index   | Warns, naming the kind, and declines the opener                     | Declines the same way, silently — no hang           |
+| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                     | Declines the same way, silently — no hang           |
 | An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                        | Silent round-trip break                             |
 | An opener throws                          | Propagates uncaught (parse runs at init and on every edit)          | Same — uncaught                                     |
 
@@ -898,11 +908,12 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Parser opener** — placement rules in [Opener priority](#opener-priority)
 
-| Export                       | Role                                                                 |
-| ---------------------------- | -------------------------------------------------------------------- |
-| `registerBlockOpener`        | Teach the parser to recognize a block's own Markdown syntax          |
-| `BlockOpener`, `OpenContext` | The opener contract, and the line cursor it inspects to open a block |
-| `OPENER_PRIORITIES`          | The built-in priority ladder your opener prices against              |
+| Export                       | Role                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `registerBlockOpener`        | Teach the parser to recognize a block's own Markdown syntax                      |
+| `BlockOpener`, `OpenContext` | The opener contract, and the line cursor it inspects to open a block             |
+| `BlockOpenerResult`          | What a claiming `tryOpen` returns: the node, plus the count of lines it consumed |
+| `OPENER_PRIORITIES`          | The built-in priority ladder your opener prices against                          |
 
 **Directive authoring** _(pre-freeze / unstable)_ — full semantics in the [directives guide](directives.md)
 
@@ -985,9 +996,9 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Blockquote grammar** _(pre-freeze / unstable)_
 
-| Export             | Role                                                                                                                                         |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `blockquoteExtent` | Scan a blockquote's extent (CommonMark §5.1 lazy continuation) from a start line, returning its `raw` + `nextIndex` — no child decomposition |
+| Export             | Role                                                                                                                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blockquoteExtent` | Scan a blockquote's extent (CommonMark §5.1 lazy continuation) from a start line, returning its `raw` plus the `nextIndex` past it (a slice bound, not an opener's `consumed` delta) — no child decomposition |
 
 **CST node access and metadata**
 

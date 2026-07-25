@@ -5,10 +5,13 @@
  * block) rather than by tracking full block-parser state.
  */
 
-import type { CstNode } from '../nodes';
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { defaultGrammarView, lineInterruptsParagraph } from '../../schema/block-openers';
+import {
+	defaultGrammarView,
+	lineInterruptsParagraph,
+	type BlockOpenerResult
+} from '../../schema/block-openers';
 
 export function matchBlockquote(text: string): boolean {
 	return /^ {0,3}>/.test(text);
@@ -35,6 +38,10 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
  * byte-exact `raw` plus the index past it — no child decomposition. The narrow
  * shape a blockquote-shaped opener needs when it decomposes its own body
  * (`> [!NOTE]` GitHub alerts strip the marker line before parsing children).
+ *
+ * A scanner yields an index, not an opener's `consumed` delta: both callers slice
+ * with it (`lines.slice(startIndex, nextIndex)`), and a delta would make every
+ * slice re-add the origin. The opener subtracts once, at its return.
  */
 export function blockquoteExtent(
 	lines: ParsedLine[],
@@ -66,7 +73,7 @@ export function parseBlockquote(
 	endIndex: number,
 	leadingTrivia: string,
 	depth: number = 0
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
 
 	// Lazy continuation lines have no `> ` to strip — pass them verbatim so
@@ -90,6 +97,6 @@ export function parseBlockquote(
 			children: inner.children,
 			innerSuffix: inner.suffix
 		},
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }

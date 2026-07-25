@@ -24,6 +24,7 @@ import {
 	registerBlockOpener,
 	serializeChildren,
 	setPluginMetadata,
+	type BlockOpenerResult,
 	type CstNode,
 	type OpenContext
 } from '$lib/plugin';
@@ -70,7 +71,7 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 	return lastContent + 1;
 }
 
-function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null {
+function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const match = OPENER.exec(ctx.line.text);
 	if (!match) return null;
 
@@ -92,7 +93,7 @@ function tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null 
 		innerSuffix: body.suffix
 	};
 	setPluginMetadata<FootnoteDefMetadata>(node, { label: match[1] });
-	return { node, nextIndex: next };
+	return { node, consumed: next - ctx.index };
 }
 
 /**

@@ -5,18 +5,17 @@
  * Footnote labels (`[^...]:`) are excluded — they parse as paragraphs.
  */
 
-import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
-import { lineInterruptsParagraph } from '../../schema/block-openers';
+import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
 
 export function parseLinkReferenceDefinition(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: CstNode; nextIndex: number } | null {
+): BlockOpenerResult | null {
 	const first = lines[startIndex];
 	const opener = matchLabelOpener(first.text);
 	if (!opener) return null;
@@ -51,7 +50,7 @@ export function parseLinkReferenceDefinition(
 				...(title !== undefined ? { title } : {})
 			}
 		},
-		nextIndex: lineCursor + 1
+		consumed: lineCursor + 1 - startIndex
 	};
 }
 
@@ -74,13 +73,13 @@ function resolveDestinationSegment(
 	const sameLine = stripLeadingSpaces(afterColon);
 	if (sameLine.length > 0) return { segment: sameLine, segmentLine: startIndex };
 
-	const nextIndex = startIndex + 1;
-	if (nextIndex >= endIndex) return null;
-	const nextLine = lines[nextIndex];
+	const nextLineIndex = startIndex + 1;
+	if (nextLineIndex >= endIndex) return null;
+	const nextLine = lines[nextLineIndex];
 	if (lineInterruptsParagraph(nextLine.text)) return null;
 	const segment = stripLeadingSpaces(nextLine.text);
 	if (segment.length === 0) return null;
-	return { segment, segmentLine: nextIndex };
+	return { segment, segmentLine: nextLineIndex };
 }
 
 // CommonMark §4.7: brackets inside a label may be backslash-escaped. Walks one

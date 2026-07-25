@@ -53,7 +53,7 @@ export function registerBuiltInOpeners(): void {
 					raw: ctx.line.raw,
 					metadata: { level: heading.level }
 				},
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		},
 		interruptsParagraph: (t) => matchHeading(t) !== null
@@ -73,7 +73,7 @@ export function registerBuiltInOpeners(): void {
 					raw: ctx.line.raw,
 					metadata: { marker }
 				},
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		},
 		// `---` is ambiguous with a setext L2 underline — the setext branch has
