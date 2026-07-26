@@ -11,6 +11,7 @@ target before placing anything — a synchronous focus cannot mount an off-windo
 - Caret into a block that scrolled out of the window: the block mounts, scrolls into view, the caret lands, resolves `true`
 - Caret into a block still mounted but scrolled past the fold (the overscan band): the block is
   scrolled back into view — `true` means in view, not merely mounted
+- Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
 - Intra-table cell rectangle (cell-valued offsets on unflagged endpoints): the same cell selection is restored, resolves `true`
 
