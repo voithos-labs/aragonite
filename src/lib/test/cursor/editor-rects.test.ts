@@ -32,6 +32,7 @@ function makeRects(el: HTMLElement | null) {
 			order.push('reveal');
 		},
 		getEditorRoot: () => null,
+		isHostScroll: () => false,
 		isCrossBlock: () => false,
 		revealAnchor
 	});
