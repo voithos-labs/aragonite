@@ -35,6 +35,7 @@ function makeRects(el: HTMLElement | null) {
 		isHostScroll: () => false,
 		getClipBounds: () => [],
 		isCrossBlock: () => false,
+		isHostChrome: () => false,
 		revealAnchor
 	});
 	return { rects, order, scrollIntoView, anchorSets, clears: () => clears };

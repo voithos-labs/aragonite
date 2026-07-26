@@ -194,6 +194,42 @@ test('a text field in the header keeps its own Find chord', async ({ page }) => 
 	expect(pageErrors).toEqual([]);
 });
 
+test('a caret in the header is not reported as the document caret', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = await gotoWithHeader(page);
+	await editor.loadContent(`${PROSE}\n`);
+	const caretRect = () =>
+		page.evaluate(() => (window as any).__test.rects.caretRect() as DOMRect | null);
+
+	// A block caret reports, so the null below is the slot's doing, not an empty
+	// selection.
+	await editor.focusBlockEnd(0);
+	expect(await caretRect()).not.toBeNull();
+
+	// The host's own field puts a native range inside the root; `caretRect` is
+	// documented as the document's caret, and a consumer polling it would float its
+	// caret-following chrome over the host's title.
+	await page.locator('[data-testid="hero-note"]').click();
+	expect(await caretRect()).toBeNull();
+	expect(pageErrors).toEqual([]);
+});
+
+test('switching to reading mode leaves a focused header field focused', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = await gotoWithHeader(page);
+	await editor.loadContent(`${PROSE}\n`);
+
+	// Reading mode drops the editor's own caret — it has no business dropping the
+	// host's, which a mode toggle would do mid-edit.
+	await page.locator('[data-testid="hero-title"]').click();
+	await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+	await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+	expect(await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))).toBe(
+		'hero-title'
+	);
+	expect(pageErrors).toEqual([]);
+});
+
 test('the find bar overlays the header at the top of the document', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
