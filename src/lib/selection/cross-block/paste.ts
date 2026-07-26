@@ -7,8 +7,8 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import type { Document } from '../../core/nodes';
-import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
+import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
 import { normalizeLineEndings, trailingLineEnding } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
@@ -108,9 +108,7 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	if (!pathsEqual(anchor.path, focus.path)) return false;
 	const node = nodeAt(doc, anchor.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return false;
-	const meta = metadataOf(node, 'table');
-	const rowCount = node.children?.length ?? 0;
-	const cellCount = meta.columnCount * rowCount;
+	const cellCount = tableCellCount(node);
 	if (cellCount === 0) return false;
 	// Same-path intra-table selection: cell offsets are context-established
 	// (same table, unflagged), so read directly.

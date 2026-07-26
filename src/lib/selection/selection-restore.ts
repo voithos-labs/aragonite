@@ -9,11 +9,11 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { BlockElLookup } from '../editor-keys';
 import type { EditorSelection, SelectionPoint } from './primitives';
 import { applySelectionToDom } from './native-bridge';
+import { tableCellCount } from './table-endpoint-snap';
 import type { SelectionState } from './selection-state.svelte';
 
 /**
@@ -28,15 +28,9 @@ export interface SelectionRestoreDeps {
 	getDoc(): DocumentView;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	/**
-	 * Make the park target ready and report whether it is. Injected because the two
-	 * restore contracts need different strengths: the undo swap promises the block
-	 * is MOUNTED, and the mount primitive deliberately short-circuits with no scroll
-	 * for a target that already is — while `setSelection` promises IN VIEW, which
-	 * only the scroll-settling primitive can deliver for a target sitting mounted in
-	 * the overscan band. Which path gets revealed stays this module's rule; how
-	 * strongly it is revealed is the caller's contract.
-	 */
+	/** Make the park target ready and report whether it is. Injected because the two
+	 *  restore contracts promise different strengths — which path gets revealed is
+	 *  this module's rule, how strongly is the caller's. */
 	revealTarget(path: number[]): Promise<boolean>;
 }
 
@@ -86,10 +80,10 @@ export function resolveSelectionPoint(
 	const node = nodeAt(doc, point.path);
 	if (node === null || !isBlockNode(node)) return null;
 
-	const limit =
-		node.kind === 'table'
-			? (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount - 1
-			: node.raw.length;
+	// Through the extent helper, not a local product: the clamp's ceiling and
+	// `cellEndpointDeepPath`'s bounds check must be the same number, or a clamped
+	// index gets rejected by the very check it was clamped to satisfy.
+	const limit = node.kind === 'table' ? tableCellCount(node) - 1 : node.raw.length;
 	const offset = Math.min(Math.max(point.offset, 0), Math.max(limit, 0));
 
 	// Path copied so a restored endpoint never aliases the caller's snapshot.

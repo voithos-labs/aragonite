@@ -21,7 +21,7 @@
  * rectangular sub-cell selection inside one table is intentionally preserved.
  */
 
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
@@ -81,12 +81,24 @@ export function normalizeTableEndpoint(
  * sent `revealPath` after it, which is strictly worse than the caller's null
  * branch (each falls back to the table block itself).
  */
+/**
+ * How many cells a table's index space holds — the exclusive upper bound on any
+ * row-major cell index addressing it. Lives beside the bounds check below so a
+ * caller that CLAMPS to this extent and the check that REJECTS beyond it cannot
+ * drift apart: a clamp computed from a different expression could yield an index
+ * this module then refuses, collapsing the deep-path resolution it was clamped
+ * to satisfy.
+ */
+export function tableCellCount(node: NodeView): number {
+	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+}
+
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
 	const colCount = metadataOf(node, 'table').columnCount;
 	const cellIdx = asCellIndex(point.offset);
-	const cellCount = (node.children?.length ?? 0) * colCount;
+	const cellCount = tableCellCount(node);
 	if (cellIdx < 0 || cellIdx >= cellCount) {
 		devWarn('table-endpoint-snap', 'cell index outside the grid', { point, colCount, cellCount });
 		return null;

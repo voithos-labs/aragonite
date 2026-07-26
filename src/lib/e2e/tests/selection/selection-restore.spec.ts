@@ -121,6 +121,24 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		});
 	});
 
+	// The other first-class selection class beside the caret, and the one restore
+	// route the collapsed and cross-block scenarios never touch: a same-path pair
+	// with distinct offsets goes native, not through the overlay.
+	test('restores a within-block range across the same offsets', async () => {
+		await editor.loadContent(PROSE);
+		await editor.clickBlockAtPath([1], 2);
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+		const snapshot = await editor.bridge.getSelection();
+		expect(snapshot).toEqual({
+			anchor: { path: [1], offset: 2 },
+			focus: { path: [1], offset: 7 }
+		});
+
+		await editor.clickBlockAtPath([2], 0);
+		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);
+		expect(await editor.bridge.getSelection()).toEqual(snapshot);
+	});
+
 	test('restores a cross-block range and repaints the overlay', async ({ page }) => {
 		await editor.loadContent(PROSE);
 		await editor.dragFromTo([0], 2, [2], 4);
