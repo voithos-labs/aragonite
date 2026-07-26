@@ -111,7 +111,8 @@
 		resolveLinkUrl,
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
-		presentationMode: getPresentationMode
+		presentationMode: getPresentationMode,
+		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
@@ -264,6 +265,7 @@
 			return myPath;
 		},
 		cursor,
+		caret: editableSurface.caret,
 		crossBlock,
 		selection,
 		stickyColumn,
@@ -271,6 +273,8 @@
 		pasteCoordinator,
 		getDoc,
 		widgetSelection,
+		events: editorEvents,
+		onPasteImage,
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
 		isReadOnly: () => readOnly,
 		commitRevealBeforeClipboard: () => widgetInteraction.commitRevealBeforeClipboard(),

@@ -3,7 +3,7 @@
  * Editor.svelte annotates its $props() and instance surface against these, and
  * index.ts re-exports them — so neither can drift from the component.
  */
-import type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
@@ -24,6 +24,12 @@ export interface EditorProps {
 	resolveLinkUrl?: ResolveLinkUrl;
 	imageLoadPolicy?: ImageLoadPolicy;
 	onLinkActivate?: (url: string, event: MouseEvent) => void;
+	/** Import hook for image-bearing pastes, set once at mount. Each image file on
+	 *  the clipboard is offered in order; the markdown returned is inserted at the
+	 *  caret the paste fired from, and `null` skips that image. Installing it takes
+	 *  the whole paste — the clipboard's `text/plain` is not pasted as well. Without
+	 *  it, an image-bearing paste behaves as it does with no image support at all. */
+	onPasteImage?: PasteImageHook;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:

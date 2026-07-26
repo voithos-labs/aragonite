@@ -1,4 +1,4 @@
-import type { Editor, PresentationMode } from '$lib';
+import type { Editor, PastedImage, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
@@ -289,6 +289,46 @@ const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 
+// ── Image-paste host hook ──────────────────────────────────────────────────
+//
+// `onPasteImage` is set-once at mount, so the page installs THIS stable function
+// (opted into with `?imagePaste=on`) and a spec swaps what it answers behind it —
+// otherwise every arm of the contract would need its own remount. Responses are
+// consumed one per image in clipboard order; the last one repeats once the list
+// runs out.
+
+interface ImagePasteResponse {
+	/** Markdown to insert; omitted or null exercises the skip-this-image arm. */
+	markdown?: string | null;
+	reject?: boolean;
+	/** Stay pending until `release()`, so a spec can move the caret mid-import. */
+	hold?: boolean;
+}
+
+interface ImagePasteCall {
+	mimeType: string;
+	suggestedName: string | null;
+	bytes: number;
+}
+
+let imagePasteResponses: ImagePasteResponse[] = [];
+const imagePasteCalls: ImagePasteCall[] = [];
+let releaseHeldImport: (() => void) | null = null;
+
+export async function harnessPasteImage(image: PastedImage): Promise<string | null> {
+	const response = imagePasteResponses[
+		Math.min(imagePasteCalls.length, imagePasteResponses.length - 1)
+	] ?? { markdown: null };
+	imagePasteCalls.push({
+		mimeType: image.mimeType,
+		suggestedName: image.suggestedName ?? null,
+		bytes: image.blob.size
+	});
+	if (response.hold) await new Promise<void>((resolve) => (releaseHeldImport = resolve));
+	if (response.reject) throw new Error('harness image import rejected');
+	return response.markdown ?? null;
+}
+
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
 // Handles kept by source name so a spec can dispose/invalidate a source it
 // registered — the returned handle carries functions and can't cross page.evaluate.
@@ -457,6 +497,22 @@ export function installTestProbes({
 		// survive a replace (e.g. skipped container matches), so specs read the
 		// replaced count here.
 		getSearchReplacedCount: (): number | null => editor.getSearch().replacedCount,
+		// ── Image-paste hook knob (the hook itself is installed by the page) ──
+		imagePaste: {
+			setResponses: (responses: ImagePasteResponse[]): void => {
+				imagePasteResponses = responses;
+			},
+			release: (): void => {
+				releaseHeldImport?.();
+				releaseHeldImport = null;
+			},
+			getCalls: (): ImagePasteCall[] => [...imagePasteCalls],
+			reset: (): void => {
+				imagePasteResponses = [];
+				imagePasteCalls.length = 0;
+				releaseHeldImport = null;
+			}
+		},
 		// ── Decoration source probe (register sources without a plugin) ────
 		/**
 		 * Register a decoration source through the public registry so e2e can
