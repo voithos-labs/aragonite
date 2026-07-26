@@ -18,9 +18,10 @@ import type { SelectionState } from './selection-state.svelte';
 
 /**
  * `unresolvable` is decided before anything happens and is the only outcome that
- * leaves the editor untouched; `unplaced` means the target survived resolution
- * but its element was absent from the DOM, so the reveal and — on the custom
- * route — the cross-block state write have already run.
+ * leaves the editor untouched. `unplaced` is everything short of both halves
+ * landing: the element was absent from the DOM, or the reveal could not make the
+ * target ready even though placement itself succeeded. Either way the reveal and
+ * — on the custom route — the cross-block state write have already run.
  */
 export type SelectionRestoreOutcome = 'applied' | 'unresolvable' | 'unplaced';
 
