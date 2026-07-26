@@ -33,6 +33,8 @@ function fakeSearch() {
 
 interface Harness {
 	root: HTMLElement;
+	/** The `header` slot's box — host chrome mounted INSIDE the root. */
+	header: HTMLElement;
 	press(key: string, init?: KeyboardEventInit): KeyboardEvent;
 	search: ReturnType<typeof fakeSearch>;
 	crossBlockKeys: KeyboardEvent[];
@@ -50,6 +52,8 @@ function harness(): Harness {
 	const root = document.createElement('div');
 	root.tabIndex = -1;
 	document.body.append(root);
+	const header = document.createElement('div');
+	root.append(header);
 
 	const search = fakeSearch();
 	const crossBlockKeys: KeyboardEvent[] = [];
@@ -88,6 +92,7 @@ function harness(): Harness {
 				return Promise.resolve(true);
 			}
 		},
+		isHostChrome: (node) => !!node && header.contains(node),
 		saveSearchRange: (range) => savedRanges.push(range),
 		setReplaceExpanded: (expanded) => replaceExpanded.push(expanded)
 	};
@@ -95,6 +100,7 @@ function harness(): Harness {
 	const handler = createEditorRootKeydown(deps);
 	return {
 		root,
+		header,
 		press(key, init) {
 			const event = new KeyboardEvent('keydown', { key, cancelable: true, ...init });
 			handler.handleKeyDown(event, root);
@@ -375,6 +381,41 @@ describe('editor-root keydown — foreign text-entry yields Find', () => {
 
 		h.press('f', MOD_F);
 		expect(h.search.calls.open).toBe(1);
+	});
+});
+
+// ── The header slot ──────────────────────────────────────────────────────────
+// Host chrome mounted inside the root. `root.contains(active)` is true there, so
+// the "focus is in this editor" claims read it as their own content and a host
+// title field lost Find mid-typing. The discriminator is the case above ("a
+// text-entry surface INSIDE this editor is not foreign"): the same field one
+// level up, outside the slot, still claims.
+
+describe('editor-root keydown — host chrome owns its own keystrokes', () => {
+	it('yields a search chord to a text field in the header slot', () => {
+		const h = harness();
+		registerEditor(h.root);
+		const field = document.createElement('input');
+		field.type = 'text';
+		h.header.append(field);
+		field.focus();
+
+		const event = h.press('f', MOD_F);
+		expect(h.search.calls.open).toBe(0);
+		expect(event.defaultPrevented).toBe(false);
+	});
+
+	it('leaves an open bar alone on Escape from the slot', () => {
+		const h = harness();
+		const field = document.createElement('input');
+		field.type = 'text';
+		h.header.append(field);
+		field.focus();
+		h.search.state.isOpen = true;
+
+		const event = h.press('Escape');
+		expect(h.search.calls.close).toBe(0);
+		expect(event.defaultPrevented).toBe(false);
 	});
 });
 
