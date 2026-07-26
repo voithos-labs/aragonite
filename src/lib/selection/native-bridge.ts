@@ -205,30 +205,31 @@ function copySelectionPoint(point: SelectionPoint): SelectionPoint {
  * Restore an EditorSelection to the DOM. Custom-rendered selections
  * (intra-table multi-cell, cross-block) route through SelectionState's
  * overlay; same-path prose ranges use native browser selection.
+ *
+ * Returns whether the placement landed — false means the target block resolved
+ * in the model but is not in the DOM.
  */
 export function applySelectionToDom(
 	selection: EditorSelection,
 	selectionState: SelectionState,
 	getBlockElByPath: (path: number[]) => HTMLElement | null
-): void {
+): boolean {
 	// Classify before mutating state so a single-block restore never emits a
 	// phantom transient cross-block selectionChange (enterCrossBlock → clear).
 	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		focusCollapsedCaret(getBlockElByPath, selection.anchor);
-		return;
+		return focusCollapsedCaret(getBlockElByPath, selection.anchor);
 	}
 
 	if (route === 'single-block') {
 		selectionState.clear();
 		const blockEl = getBlockElByPath(selection.anchor.path);
-		if (blockEl) {
-			applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
-			blockEl.focus();
-		}
-		return;
+		if (!blockEl) return false;
+		applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
+		blockEl.focus();
+		return true;
 	}
 
 	// Custom: cross-block or intra-table cell rect → the overlay paints. Park a
@@ -240,7 +241,9 @@ export function applySelectionToDom(
 	const cellPath = selectionState.cellDeepPath(selection.focus);
 	const parkPath = cellPath ?? selection.focus.path;
 	const parkPoint = cellPath ? { path: parkPath, offset: 0 } : selection.focus;
-	if (!focusCollapsedCaret(getBlockElByPath, parkPoint)) clearNativeSelection();
+	if (focusCollapsedCaret(getBlockElByPath, parkPoint)) return true;
+	clearNativeSelection();
+	return false;
 }
 
 // ── Viewport point → block offset ───────────────────────────────────────────

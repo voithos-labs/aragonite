@@ -1,4 +1,5 @@
 import { type Page } from '@playwright/test';
+import type { EditorSelection } from '../selection/primitives';
 
 export class EditorBridge {
 	constructor(public page: Page) {}
@@ -103,5 +104,16 @@ export class EditorBridge {
 			}
 			return null;
 		});
+	}
+
+	// The snapshot/restore pair, full fidelity — getSelectionPaths above projects
+	// away the endpoint union's `cellCoordinate`, which a restore must carry back.
+
+	async getSelection(): Promise<EditorSelection | null> {
+		return this.page.evaluate(() => (window as any).__test.getSelection());
+	}
+
+	async setSelection(selection: EditorSelection): Promise<boolean> {
+		return this.page.evaluate((sel) => (window as any).__test.setSelection(sel), selection);
 	}
 }
