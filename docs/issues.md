@@ -234,9 +234,12 @@ The unreserved shape's cost is **not** confined to its trigger: unreserved trigg
 `SPECIAL_CHARS`, so registering any one of them flips `needsScan`'s per-character probe on, and
 every ordinary character in a scanned range then pays a map lookup before the fast bail decides. A
 prefix rung on `!` — the one reserved trigger the bail probes on demand rather than always visits
-(0.9.36) — flips the same switch. A document with latex or emoji installed therefore runs a more
-expensive bail loop than the standing ceilings measure, on every keystroke, not merely a denser
-trigger cost.
+(0.9.36) — flips the same switch, and carries a larger term with it: on `!` the probe **succeeds**
+on ordinary prose, so a block holding a single exclamation mark loses the fast bail outright and
+runs the full scan loop. That was already true of `:` and `$`; `!` is simply the most
+prose-frequent trigger the ladder has opened, and the first consumer is about to install it. A
+document with latex or emoji installed therefore runs a more expensive bail loop than the standing
+ceilings measure, on every keystroke, not merely a denser trigger cost.
 
 **Fix direction:** when a perf-harness pass next touches fixtures, install each rung shape and
 measure it: a bracket-dense fixture under footnotes, a colon-dense one under emoji, a dollar-dense

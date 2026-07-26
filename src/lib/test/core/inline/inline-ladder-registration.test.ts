@@ -52,9 +52,11 @@ describe('inline ladder — registration rules', () => {
 		);
 	});
 
-	it('rule 2 — a prefix rung on scan-invisible reserved trigger "]" is rejected', () => {
+	// The throw names both on-demand routes, so an author reading it is not pointed at
+	// the more expensive remedy when the cheaper one would do.
+	it('rule 2 — a prefix rung on rejected reserved trigger "]" is rejected', () => {
 		expect(() => registerInlineSyntax(']', decline, { prefix: ']]', priority: 40 })).toThrow(
-			/scan-visible/
+			/scan-visible or scan-probed/
 		);
 	});
 
