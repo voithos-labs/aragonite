@@ -1224,13 +1224,13 @@
 	/* Embedded flow mode: the root grows to its content and an ancestor on the host's
 	   page owns the scroll, so it drops both its scrollport and the standalone-widget
 	   chrome (frame, padding, min-height) that would box every entry of a journal.
-	   `overflow-anchor` returns to auto BECAUSE the manual correction it was disabled
-	   for is gone here: windowing never activates, and list-windowing's scrollTop
-	   writes land on a non-scrolling element. Native anchoring in the host's scroller
-	   is then the only mechanism holding the line, instead of neither. */
+	   `overflow-anchor: none` is inherited from above deliberately: restoring native
+	   anchoring here would be a behavior change against an incident-backed rule (VR-2)
+	   with no test that observes anchoring, so the host keeps the editor's subtree out
+	   of its anchor candidates — a load-shift artifact the small-document bound makes
+	   minor. */
 	.editor[data-scroll-mode='host'] {
 		overflow-y: visible;
-		overflow-anchor: auto;
 		min-height: 0;
 		flex: none;
 		border: none;
