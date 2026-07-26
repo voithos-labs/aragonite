@@ -69,13 +69,13 @@
 <div class="flow-page aragonite-editor-theme">
 	<div class="flow-scroller" data-testid="scroller">
 		<div class="filler" data-testid="filler-top">Above the journal</div>
-		<div class="entry" data-testid="entry-a">
+		<div class="entry card" data-testid="entry-a">
 			<Editor bind:this={editors.a} source={ENTRY_A} scrollMode="host" />
 		</div>
-		<div class="entry" data-testid="entry-b">
+		<div class="entry card" data-testid="entry-b">
 			<Editor bind:this={editors.b} source={ENTRY_B} scrollMode="host" />
 		</div>
-		<div class="entry" data-testid="entry-nested">
+		<div class="entry card" data-testid="entry-nested">
 			<Editor bind:this={editors.nested} source={NESTED} scrollMode="host" searchBar={false} />
 		</div>
 		<div class="filler" data-testid="filler-bottom">Below the journal</div>
@@ -83,7 +83,9 @@
 	<!-- Outside the scroller, in a box that CLIPS rather than scrolls: nothing can
 	     bring its lower blocks into view, so a reveal there must report false. -->
 	<div class="clipped-pane" data-testid="entry-clipped">
-		<Editor bind:this={editors.clipped} source={CLIPPED} scrollMode="host" searchBar={false} />
+		<div class="card">
+			<Editor bind:this={editors.clipped} source={CLIPPED} scrollMode="host" searchBar={false} />
+		</div>
 	</div>
 </div>
 
@@ -109,6 +111,19 @@
 	}
 	.entry {
 		margin: 1rem;
+	}
+	/* The rounded-card wrapper a journal shell puts around each entry: it matches
+	   the "scrolls or clips" predicate but does NEITHER — auto height, so it never
+	   clips, and no scroll. Every editor here wears one, so a resolver that stops at
+	   the innermost match measures against a box that spans the whole entry and
+	   autoscrolls an element that cannot move.
+	   The padding is load-bearing, not decoration: host mode drops the editor's own
+	   padding, and the hover drag handle sits at left:-0.85rem — a card with no
+	   padding clips it away and no drag can start. */
+	.card {
+		overflow: hidden;
+		border-radius: 8px;
+		padding: 0.75rem 1rem;
 	}
 	.clipped-pane {
 		flex: 0 0 320px;

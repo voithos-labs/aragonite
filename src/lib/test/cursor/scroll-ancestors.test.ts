@@ -2,9 +2,10 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
+	clippingAncestors,
 	firstScrollableDescendant,
 	nearestScrollContainer,
-	nearestScrollHost
+	nearestScrollableAncestor
 } from '../../cursor/scroll-ancestors';
 
 describe('nearestScrollContainer', () => {
@@ -77,7 +78,10 @@ describe('nearestScrollContainer', () => {
 	});
 });
 
-describe('nearestScrollHost', () => {
+// The two host-seam walks. Their divergence is the point: one host shape (a
+// rounded card, `overflow: hidden` at auto height, inside a real scroller) must
+// autoscroll the scroller while bounding visibility by both boxes.
+describe('host-seam walks', () => {
 	let root: HTMLDivElement;
 
 	beforeEach(() => {
@@ -100,35 +104,44 @@ describe('nearestScrollHost', () => {
 		return leaf;
 	}
 
-	it('returns null when the page viewport is what bounds the element', () => {
-		expect(nearestScrollHost(nest([{}, {}]))).toBeNull();
+	const card = { overflowX: 'hidden', overflowY: 'hidden' };
+
+	it('answers nothing when the page viewport is what scrolls and bounds', () => {
+		const leaf = nest([{}, {}]);
+		expect(nearestScrollableAncestor(leaf)).toBeNull();
+		expect(clippingAncestors(leaf)).toEqual([]);
 	});
 
-	it('returns the nearest scrolling ancestor', () => {
-		const leaf = nest([{ overflowY: 'auto' }, {}]);
-		expect(nearestScrollHost(leaf)).toBe(leaf.parentElement);
+	it('autoscroll skips a hidden card and finds the real scroller behind it', () => {
+		const leaf = nest([{ overflowY: 'auto' }, card, {}]);
+		const cardEl = leaf.parentElement!;
+		expect(nearestScrollableAncestor(leaf)).toBe(cardEl.parentElement);
 	});
 
-	// The divergence from `nearestScrollContainer`: a clip box cannot scroll, but it
-	// bounds what is visible, so a reveal past its edge is unreachable and must be
-	// measured against it.
-	it('counts a clipping ancestor, which nearestScrollContainer does not', () => {
+	it('visibility collects the card AND the scroller, innermost first', () => {
+		const leaf = nest([{ overflowY: 'auto' }, card, {}]);
+		const cardEl = leaf.parentElement!;
+		expect(clippingAncestors(leaf)).toEqual([cardEl, cardEl.parentElement]);
+	});
+
+	// A clip box can never be an autoscroll answer — nothing it hid can be scrolled
+	// back — but it is the tightest visual bound.
+	it('a clipping pane bounds visibility and is never an autoscroll target', () => {
 		const leaf = nest([{ overflowX: 'clip', overflowY: 'clip' }, {}]);
 		const pane = leaf.parentElement!;
-		expect(nearestScrollHost(leaf)).toBe(pane);
-		expect(nearestScrollContainer(leaf, root)).toBeNull();
+		expect(clippingAncestors(leaf)).toEqual([pane]);
+		expect(nearestScrollableAncestor(leaf)).toBeNull();
+		expect(nearestScrollContainer(leaf, root)).toBeNull(); // the inner walk ignores clip
 	});
 
-	it('picks the innermost bounding ancestor when several nest', () => {
-		const leaf = nest([{ overflowY: 'auto' }, { overflowX: 'clip', overflowY: 'clip' }, {}]);
-		expect(nearestScrollHost(leaf)).toBe(leaf.parentElement);
-	});
-
-	// `html`/`body` scrolling IS the window viewport, whose rect the null answers for.
-	it('never returns body or the document element', () => {
+	// `html`/`body` scrolling IS the window viewport, which the callers already
+	// intersect — neither box is that rect.
+	it('neither walk returns body or the document element', () => {
 		document.body.style.overflowY = 'auto';
 		try {
-			expect(nearestScrollHost(nest([{}]))).toBeNull();
+			const leaf = nest([{}]);
+			expect(nearestScrollableAncestor(leaf)).toBeNull();
+			expect(clippingAncestors(leaf)).toEqual([]);
 		} finally {
 			document.body.style.overflowY = '';
 		}
