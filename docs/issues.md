@@ -348,6 +348,28 @@ nested residual needs a tall container plus a late decode), and the ownership mo
 real consumer navigating concurrently to shape it; designing per-call ownership against a single
 caller risks the wrong abstraction.
 
+### A cross-block paste with no resolvable caret drops its payload silently
+
+**Severity:** minor (defensive branch off a range that did not resolve; no corruption, and a text
+payload is still on the clipboard)
+**Files:** `src/lib/selection/cross-block/paste.ts` (`handleCrossBlockPaste` — `if (!caret) return
+true`)
+
+When the delete half of a cross-block replacement resolves a null collapsed caret, the paste is
+reported as consumed and its payload lands nowhere. Inherited from the text route, where the cost
+is low — what did not land is still on the clipboard. An **image** paste through `onPasteImage` is
+the shape that makes it matter: the host has already imported the asset by the time the caret is
+asked for, so the drop orphans a file the user cannot recover by pasting again.
+
+**Fix direction:** this route has no error channel — a paste that consumes the event and inserts
+nothing should say so, which is what lets a host release an asset it just imported. Deferring the
+hook call until the caret is known good was costed and rejected: it puts the delete before the
+import, so a failing host would wipe the user's selection with nothing to show for it.
+
+**Why deferred:** it is the text route's inherited contract, so closing it is a change to that
+route rather than to the image arm that surfaced the consequence, and no repro has been
+constructed for the unresolvable-caret branch itself.
+
 ### Typing a `> [!TYPE]` marker never forms a GitHub alert (only an atomic insert does)
 
 **Severity:** important (the documented way to author an alert does not work, and the live tree
@@ -424,6 +446,92 @@ registry can tolerate a same-node handoff within one flush without warning.
 
 **Why deferred:** signal without a symptom; wants characterization, not a patch that quiets the
 warning.
+
+### Reveal scrolls a hidden ancestor that a drag deliberately will not
+
+**Severity:** minor (two seams answer the same geometry question differently, on purpose)
+**Files:** `src/lib/cursor/scroll-ancestors.ts` (`nearestUserScrollableAncestor` excludes `hidden`;
+the clipping walk includes it)
+
+A fixed-height `overflow: hidden` ancestor is script-scrollable: `scrollIntoView` moves it, and
+reveal genuinely brings the block into view there — so `scrollTo` reporting `true` is honest. Drag
+autoscroll declines the same box, by convention rather than capability: a user cannot wheel a
+hidden box back, so a drag that scrolled it would strand content out of reach. The consequence for
+a host whose only bounding box is `hidden` is programmatic navigation without drag autoscroll.
+
+**Fix direction:** none wanted unless a real embedding asks. If it needs closing, the move is to
+let a drag scroll a hidden box only while the pointer is held — the window in which the user can
+still undo the strand — rather than widening the predicate.
+
+**Why deferred:** a deliberate divergence, stated at the seam and in the consumer guide's host-CSS
+contract. Recorded so the next reader of that predicate does not "fix" the asymmetry.
+
+### A window-scrolled host embedding has no drag autoscroll
+
+**Severity:** minor (a drag toward the edge does nothing; reveal and keyboard reorder unaffected)
+**Files:** `src/lib/cursor/scroll-ancestors.ts` (the user-scrollable walk returns null when the
+page's own viewport is what scrolls), `src/lib/components/Editor.svelte` (the memoized resolution
+the three autoscroll consumers share)
+
+With `scrollMode='host'` and nothing scrollable between the editor and the document — the page
+itself scrolls — the autoscroll target list is empty, so dragging a block toward the edge of the
+screen scrolls nothing and cannot reach an off-screen destination. Reveal is unaffected: it falls
+back to the window viewport correctly.
+
+`document.scrollingElement` is the obvious target and the wrong one — its rect is the document
+box, not the viewport, so feeding it to the rect-based edge math misfires.
+
+**Fix direction:** a window-scrolled arm in the edge math that measures against the viewport rect
+and scrolls the window, rather than a target element. It wants a page-scrolled harness variant,
+which also pins the window-viewport term of the reveal intersection — one fixture closes both.
+
+**Why deferred:** strictly narrower than the state it replaced (autoscroll was dead in every host
+embedding before the scroll-host seam landed), and the fixture it needs is a route shape the flow
+harness does not have.
+
+### A host-mode editor has no scroll anchoring
+
+**Severity:** minor (accepted inside the small-document bound host mode is scoped to)
+**Files:** `src/lib/components/Editor.svelte` (`overflow-anchor: none`, the windowing-era opt-out),
+`src/lib/reactivity/list-windowing.svelte.ts` (the manual correction host mode disables)
+
+Self mode disables native scroll anchoring because windowing corrects the scroll by hand (VR-2).
+In host mode that manual correction lands on an element that is not scrolling, so neither
+mechanism holds the line: an image decoding in above the fold shifts the host's scroll under the
+reader.
+
+**Fix direction:** `[data-scroll-mode='host'] { overflow-anchor: auto }` — one declaration. It was
+implemented and reverted before hand-off because the only available pin asserts the computed
+style, i.e. that the declaration parsed, not that the anchoring behaved, and this is a behavior
+change against an incident-backed rule. Ship it with an e2e that observes the shift, or not at all.
+
+**Why deferred:** wants an oracle that watches the viewport move rather than a style assertion,
+and no embedder has reported the shift.
+
+### A header resize landing inside a reveal double-applies its delta
+
+**Severity:** minor (the reveal lands off by the height change; no corruption, and the next scroll
+settles it)
+**Files:** `src/lib/components/Editor.svelte` (the header-slot resize observer — a **relative**
+`scrollTop += delta` write), `src/lib/reactivity/list-windowing.svelte.ts` (the reveal anchor's
+re-assert — an **absolute** `scrollTop` write)
+
+The two writers disagree about what they are correcting. The reveal anchor re-asserts an absolute
+scroll position derived from the list's live offset within the scroll content, a measure that
+already includes the header's current height. The header observer adds a relative delta. A header
+resize firing after a re-assert in the same frame therefore adds the delta on top of a position
+that already accounts for it, and the revealed block lands off by that much.
+
+**Repro:** not constructed. Needs a reveal in flight plus a header height change inside the same
+frame — set a `scrollTo` target, resize the slot in the same tick, assert the target's screen
+position.
+
+**Fix direction:** one writer, or an ordering. The header correction is only meaningful when no
+absolute write is pending, so the anchor's in-flight state is the natural gate; folding the header
+delta into the absolute recomputation the anchor already performs is the other shape.
+
+**Why deferred:** the frame ordering _is_ the defect, so a fix without a repro is a claim. Both
+writes are individually pinned; only their collision is not.
 
 ### The bare-email autolink rejects underscores GFM permits in a domain
 
@@ -528,6 +636,32 @@ Prioritize by bugfix density rather than by component size.
 **Why deferred:** this is a suite-shaping program rather than a fix, and it wants the pre-1.0
 re-audit's unit-suite pass to scope it, since that pass is the one artifact class the 0.9.35 review did
 not cover, so its findings should set the priority order rather than this entry guessing it.
+
+### Nothing enforces the requirement↔spec lockstep the testing doc asks for
+
+**Severity:** minor (coverage-shape risk; every mapping is correct today, by hand)
+**Files:** `src/lib/e2e/requirements/` (the scenario files), `src/lib/e2e/tests/` (the specs),
+`src/lib/e2e/lint/` (the source-scan directory where such a guard would live, holding only the
+settle-predicate vacuity scan)
+
+`docs/contributing/testing.md` asks requirement files and their specs to stay in lockstep, and the
+e2e lint directory is exactly where a parity rule of that shape belongs — but none exists. Every
+N↔N mapping in the suite is hand-verified at review time, which is the protection culture.md says
+to promote: a rule enforced by review fails silently the day someone adds scenario N+1 without its
+test, and nothing goes red.
+
+The gap has teeth rather than being theoretical. A review pass found a documented selection-restore
+route with no discriminating coverage, and a mutation to that route survived the entire unit
+battery — only the one scenario added afterwards stands between the codebase and shipping it green.
+
+**Fix direction:** a source scan that reads each requirement file's scenario bullets and each
+spec's test titles and asserts a mapping. Semantic pairing is the hard part; the cheap version
+asserts counts and named sections instead, which catches dropped bullets and unmapped tests
+without pretending to understand either.
+
+**Why deferred:** the guard's design is the work, not its wiring, and a counts-only version has to
+be shaped so it does not train authors to pad. Wants the pre-1.0 suite pass already scoped to
+re-shape this directory, which should set its form.
 
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
