@@ -507,6 +507,12 @@ async function pasteImages(
 		});
 		return;
 	}
-	deps.caret.focus(anchor);
+	// Re-seat ONLY when the caret actually drifted. Seating collapses the DOM range,
+	// and every surface tail derives its replaced span from that range — so seating
+	// unconditionally would make this the one paste route that doesn't replace the
+	// selection it landed on. `getCursorOffset` reads a range's START and nulls out
+	// once focus leaves the block, so an untouched selection compares equal and a
+	// caret that moved anywhere (this block or another) does not.
+	if (deps.caret.getCursorOffset() !== anchor) deps.caret.focus(anchor);
 	await deps.pasteTail(e, markdown.join(''), foldedCaret);
 }

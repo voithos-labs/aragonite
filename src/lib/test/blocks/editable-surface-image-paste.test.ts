@@ -122,6 +122,15 @@ describe('image paste — where the markdown lands', () => {
 		expect(h.inserted).toEqual(['![[a.png]]']);
 	});
 
+	it('leaves an untouched selection alone, so the surface tail replaces it', async () => {
+		const h = harness({ onPasteImage: async () => '![[a.png]]' });
+		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
+		// Re-seating collapses the DOM range, and every surface tail derives its
+		// replaced span from that range — so a caret that never moved is left alone.
+		expect(h.seated).toEqual([]);
+		expect(h.inserted).toEqual(['![[a.png]]']);
+	});
+
 	it('two images land as one insertion, in clipboard order', async () => {
 		const h = harness({ onPasteImage: async (image) => `![[${image.suggestedName}]]` });
 		await createClipboardHandlers(h.deps).onPaste(

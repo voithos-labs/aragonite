@@ -21,6 +21,11 @@ set-once at mount) and swaps its per-image response through `window.__test.image
 - Two images in one paste: both markdown strings land at the captured caret in
   clipboard order — the second immediately after the first.
 - The hook receives the file's MIME type and its name as `suggestedName`.
+- An image pasted over a selection replaces it, like every other paste route: the
+  selection's text is gone and the markdown stands in its place.
+- The same insertion works on the other editable surfaces — a table cell keeps the
+  markdown inside that cell, a code block takes it as literal source — and the tree
+  stays convergent in both.
 
 ## Edge cases
 
