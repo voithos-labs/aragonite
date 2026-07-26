@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Editor } from '$lib';
+	import { nodeAt } from '$lib/tree-operations/node-ops';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	// Journal shape: two entries in ONE ancestor scroller, plus a clipped pane whose
@@ -15,19 +16,28 @@
 		);
 	}
 
-	// Both entries clear the windowing activation watermark on estimated height, so
+	// Every entry clears the windowing activation watermark on estimated height, so
 	// "no spacers" below is a statement about the mode, not about a small document.
 	const ENTRY_A = entry('Alpha', 200);
 	const ENTRY_B = entry('Beta', 120);
 	const CLIPPED = entry('Clipped', 60);
 
+	// A list (a direct-`{#each}` scope whose items are themselves BlockList-bearing
+	// scopes) and a table (the grid scope), each over the watermark: the nested
+	// windowing scopes a journal entry really contains.
+	const NESTED = [
+		'Nested entry intro.',
+		Array.from({ length: 120 }, (_, i) => `- item ${i}`).join('\n'),
+		['| col a | col b |', '| --- | --- |']
+			.concat(Array.from({ length: 120 }, (_, i) => `| r${i}a | r${i}b |`))
+			.join('\n')
+	].join('\n\n');
+
 	type EditorHandle = ReturnType<typeof Editor>;
 	let editors = $state<Record<string, EditorHandle | undefined>>({});
-	const ids = ['a', 'b', 'clipped'];
+	const ids = ['a', 'b', 'nested', 'clipped'];
 
-	trackParityDocument(() => editors.a);
-	trackParityDocument(() => editors.b);
-	trackParityDocument(() => editors.clipped);
+	for (const id of ids) trackParityDocument(() => editors[id]);
 
 	// One handle per instance, addressed by id — `installTestProbes` binds a single
 	// `window.__test` to one editor, which can't express a multi-instance route.
@@ -36,6 +46,12 @@
 		(window as unknown as { __flow?: unknown }).__flow = {
 			getSource: (id: string) => editors[id]?.getSource() ?? null,
 			blockCount: (id: string) => editors[id]?.__test.getDocument().children.length ?? null,
+			// Children of the node at `path` — the CST-side count a nested scope's
+			// mounted-DOM census is compared against.
+			childCount: (id: string, path: number[]) => {
+				const doc = editors[id]?.__test.getDocument();
+				return doc ? (nodeAt(doc, path)?.children?.length ?? null) : null;
+			},
 			scrollTo: (id: string, path: number[], opts?: { block?: 'nearest' | 'center' }) =>
 				editors[id]?.getRects().scrollTo(path, opts) ?? Promise.resolve(null),
 			blockRect: (id: string, path: number[]) => {
@@ -54,6 +70,9 @@
 		</div>
 		<div class="entry" data-testid="entry-b">
 			<Editor bind:this={editors.b} source={ENTRY_B} scrollMode="host" />
+		</div>
+		<div class="entry" data-testid="entry-nested">
+			<Editor bind:this={editors.nested} source={NESTED} scrollMode="host" searchBar={false} />
 		</div>
 		<div class="filler" data-testid="filler-bottom">Below the journal</div>
 	</div>

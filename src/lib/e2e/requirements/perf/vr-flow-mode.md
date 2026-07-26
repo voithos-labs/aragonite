@@ -17,6 +17,7 @@ and below), plus a pane that CLIPS rather than scrolls, for the honest-reveal ar
 ## Happy paths
 
 - A 200-block entry in host mode mounts every block and renders no `.vr-spacer`. The identical source loaded into a self-mode editor DOES window (spacers present), so the difference is attributable to the mode, not to a small document.
+- An entry whose blocks are nested containers mounts every child of every scope and renders no spacer: a 120-item list (a direct-each scope whose items are themselves BlockList-bearing scopes) and a 120-row table (the grid scope), each over the watermark on its own. Typing inside a nested leaf reaches the source and raises no page error — that edit drives the measure/subtotal path, which in host mode reports into a parent model nothing reads.
 - The editor root is not a scroll container in host mode (computed `overflow-y` is not `auto`/`scroll`, and its scrollHeight does not exceed its clientHeight); the ancestor scroller carries the entry's whole height and scrolling it moves the entry's blocks.
 
 ## User interactions

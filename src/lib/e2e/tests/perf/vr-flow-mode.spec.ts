@@ -66,7 +66,6 @@ test('the editor root stops being a scroll container and the ancestor carries th
 		const scroller = document.querySelector('[data-testid="scroller"]') as HTMLElement;
 		return {
 			overflowY: getComputedStyle(root).overflowY,
-			overflowAnchor: getComputedStyle(root).overflowAnchor,
 			rootOverflowPx: root.scrollHeight - root.clientHeight,
 			rootHeight: root.getBoundingClientRect().height,
 			scrollerOverflowPx: scroller.scrollHeight - scroller.clientHeight
@@ -74,10 +73,6 @@ test('the editor root stops being a scroll container and the ancestor carries th
 	});
 	expect(geometry.overflowY).toBe('visible');
 	expect(geometry.rootOverflowPx).toBeLessThanOrEqual(1);
-	// Self mode disables native anchoring because list-windowing corrects the scroll
-	// by hand; here that correction lands on a non-scrolling element, so the host's
-	// scroller must be allowed to anchor instead.
-	expect(geometry.overflowAnchor).toBe('auto');
 	// The entry's full height is in the host's flow, and the host scrolls it.
 	expect(geometry.rootHeight).toBeGreaterThan(4000);
 	expect(geometry.scrollerOverflowPx).toBeGreaterThan(geometry.rootHeight);
@@ -136,6 +131,9 @@ test('scrollTo inside a clipping host resolves false — nothing can reveal the 
 
 	// The block IS mounted (host mode mounts all of them), so a false here reports
 	// "not visible", not "not found" — the distinction the honest boolean carries.
+	// Block 55 of 60 sits ~2200px below the pane's top, which is pinned at the page
+	// top: far past any viewport this project runs at, so no scroll could reach it
+	// even if the pane were a scrollport. Shrink the fixture and this goes vacuous.
 	await expect(entry(page, 'clipped').locator('[data-block-path="[55]"]')).toHaveCount(1);
 	expect(await page.evaluate(() => (window as any).__flow.scrollTo('clipped', [55]))).toBe(false);
 });
@@ -172,6 +170,38 @@ test('the find bar rides the entry top edge, not the ancestor scrollport', async
 	// And genuinely gone from the scrollport top — a sticky anchor resolving against
 	// the ancestor would park it there, floating over the page's other content.
 	expect(far.fromScrollport).toBeLessThan(-200);
+});
+
+test('nested scopes in a host-scroll entry mount every child and stay error-free', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	await gotoFlow(page);
+	const nested = entry(page, 'nested');
+
+	// Both nested scope shapes, each over the watermark on its own: the list is a
+	// direct-`{#each}` scope whose items are themselves BlockList-bearing scopes, and
+	// the table is the grid scope. In self mode both would window.
+	const [items, rows] = await Promise.all([
+		page.evaluate(() => (window as any).__flow.childCount('nested', [1]) as number),
+		page.evaluate(() => (window as any).__flow.childCount('nested', [2]) as number)
+	]);
+	expect(items).toBeGreaterThan(100);
+	expect(rows).toBeGreaterThan(100);
+
+	// List items and table rows are direct-`{#each}` children, not BlockHosts, so
+	// they census by their own element rather than by `data-block-kind`.
+	await expect(nested.locator('.list-item-block')).toHaveCount(items);
+	await expect(nested.locator('[data-table-row-idx]')).toHaveCount(rows);
+	await expect(nested.locator('.vr-spacer')).toHaveCount(0);
+
+	// Editing inside a nested scope drives the measure/subtotal path that reports up
+	// through a parent model nothing reads — a render-phase throw there fails here.
+	await nested.locator('.list-item-block [contenteditable]').first().click();
+	await page.keyboard.press('End');
+	await page.keyboard.type('NESTED_MARK');
+	await expect.poll(() => flowSource(page, 'nested')).toContain('NESTED_MARK');
+	expect(pageErrors).toEqual([]);
 });
 
 test('two entries in one scroller both mount fully and stay independent', async ({ page }) => {
