@@ -353,6 +353,18 @@
 		return () => removers.forEach((remove) => remove());
 	}
 
+	/**
+	 * The header slot's subtree — the host's own chrome, mounted inside this root.
+	 * Every root-level rule that means "this is the editor's own content" asks here:
+	 * `editorEl.contains(node)` stopped answering that question the moment a host
+	 * could mount a title field inside the root, and each rule carrying its own copy
+	 * is how one of them gets missed. Keyed on the bound element, never on the class
+	 * name, which any host-rendered node could claim by naming itself `.editor-header`.
+	 */
+	function isHostChrome(node: Node | null): boolean {
+		return !!node && !!headerEl && headerEl.contains(node);
+	}
+
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -360,9 +372,9 @@
 			const target = e.target as Element | null;
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			if (!anchor) return;
-			// The header slot is the host's chrome, not document content: its links
-			// follow the page's behaviour, not the editor's plain-click-edits policy.
-			if (anchor.closest('.editor-header')) return;
+			// Host chrome follows the page's link behaviour, not the editor's
+			// plain-click-edits policy.
+			if (isHostChrome(anchor)) return;
 			const href = anchor.getAttribute('href');
 			if (!href) return;
 			// Reading mode has no caret for a plain click to place, so links behave
@@ -825,6 +837,10 @@
 			if (!sel || sel.rangeCount === 0) return;
 			const anchorNode = sel.anchorNode;
 			if (!anchorNode || !root.contains(anchorNode)) return;
+			// A selection in the host's chrome is not a document selection: re-emitting
+			// there would report this editor's own (unchanged) selection on every caret
+			// move in a header field.
+			if (isHostChrome(anchorNode)) return;
 			events.emit('selectionChange', getSelection());
 		};
 		return onRoot(document, 'selectionchange', handler);
@@ -890,6 +906,7 @@
 		pluginEditor: pluginEditorLookup,
 		onCommandError: commandErrorSink,
 		crossBlock: editorCrossBlock,
+		isHostChrome,
 		saveSearchRange: (range) => (savedRange = range),
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
@@ -950,9 +967,11 @@
 		if (hostScroll || !el || !scrollEl) return;
 		let lastHeight = el.getBoundingClientRect().height;
 		const observer = new ResizeObserver((entries) => {
+			// One box convention throughout: the seed above and the fallback here are
+			// both border boxes, so a browser without `borderBoxSize` computes the same
+			// delta rather than one short by the slot's padding and border.
 			const box = entries[0]?.borderBoxSize?.[0];
-			const height = box ? box.blockSize : entries[0]?.contentRect.height;
-			if (height == null) return;
+			const height = box ? box.blockSize : el.getBoundingClientRect().height;
 			const delta = height - lastHeight;
 			lastHeight = height;
 			if (delta !== 0 && scrollEl.scrollTop > 0) scrollEl.scrollTop += delta;
