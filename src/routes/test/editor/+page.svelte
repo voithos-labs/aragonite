@@ -12,7 +12,12 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import SelectionToolbar from './SelectionToolbar.svelte';
-	import { installTestProbes, liveSelectionText, dumpFocusedInlineTree } from './test-probes';
+	import {
+		harnessPasteImage,
+		installTestProbes,
+		liveSelectionText,
+		dumpFocusedInlineTree
+	} from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
@@ -34,6 +39,16 @@
 		if (editor) source = editor.getSource();
 		dragHandlesOn = !dragHandlesOn;
 	}
+
+	// `?imagePaste=on` installs the harness image-import hook. The prop is set-once
+	// at mount, so the opt-in is a URL param (like `dragHandles`) and the per-image
+	// response is swapped behind the stable function via `__test.imagePaste`. Off by
+	// default, which is also the no-hook arm of the contract.
+	const onPasteImage =
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('imagePaste') === 'on'
+			? harnessPasteImage
+			: undefined;
 
 	// `?presentationMode=reading|preview-block|preview-inline` starts in that mode;
 	// the header toggles flip it live (the prop reads live — no remount, unlike
@@ -163,6 +178,7 @@
 					{keybindings}
 					{presentationMode}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
+					{onPasteImage}
 					theme="dark"
 				/>
 			{/key}

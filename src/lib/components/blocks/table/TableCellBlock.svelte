@@ -115,7 +115,8 @@
 	const {
 		keybindingOverrides,
 		presentationMode: getPresentationMode,
-		resolveLinkUrl
+		resolveLinkUrl,
+		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
@@ -752,6 +753,9 @@
 		getDoc,
 		crossBlock,
 		isReadOnly: () => readOnly,
+		caret: editableSurface.caret,
+		events: editorEvents,
+		onPasteImage,
 		foldReveal: () => widgetInteraction.commitRevealBeforeClipboard(),
 		copyPreHook: (e) => {
 			const rectPayload = intraTableRectPayload({ selection, getDoc });

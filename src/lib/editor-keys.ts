@@ -39,6 +39,18 @@ export type ReorderAnnounce = (message: string) => void;
 export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
 export type ResolveImageUrl = (rawUrl: string) => string;
 export type ResolveLinkUrl = (rawUrl: string) => string;
+
+/** One image file lifted off an image-bearing paste, handed to the host's import
+ *  hook. `suggestedName` is the clipboard's filename when it carried one. */
+export interface PastedImage {
+	blob: Blob;
+	mimeType: string;
+	suggestedName?: string;
+}
+
+/** Host import hook for pasted images: resolves to the markdown to insert, or null
+ *  to skip that image. Called once per image file, in clipboard order. */
+export type PasteImageHook = (image: PastedImage) => Promise<string | null>;
 export type PresentationModeGetter = () => PresentationMode;
 export type PluginEditorLookup = (pluginName: string) => EditorContext;
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
@@ -150,6 +162,10 @@ export interface EditorPolicies {
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
 	keybindingOverrides: KeybindingOverridesGetter;
+	/** Set-once host import hook for image-bearing pastes. Required-nullable: a
+	 *  mount must answer, and `undefined` leaves such a paste on the text/plain
+	 *  path deliberately. */
+	onPasteImage: PasteImageHook | undefined;
 	/** Per-editor cache of resolved image URLs that failed to load this session —
 	 *  one Set per instance so a failed load never suppresses another editor's
 	 *  broken-state recompute (`components/image/widget-dom.ts`). */
