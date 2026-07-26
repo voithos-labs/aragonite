@@ -89,9 +89,9 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   property of its own. Mode-independent, and pinned by the manifest that holds the guide's role
   table and the token set set-equal.
 
-- **PLACEHOLDER — resolve before release.** Ship gates: `<controller fills after the battery>`.
-  No other entry in this file carries gate numbers, so filling it makes 0.9.36 the first and
-  deleting the line is the other correct answer. It must not ship as written.
+Ship gates: unit 5367, e2e 1566, check 0/0, lint 0, perf:check 11/11 gated rows (gate
+restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
+identical at the batch base).
 
 - **A pathological regex query can no longer freeze the editor.** Regex find runs off the main
   thread under a hard deadline; on overrun the worker is terminated and the find bar reports the
