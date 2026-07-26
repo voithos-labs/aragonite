@@ -64,14 +64,25 @@ export interface InlineRung {
 const BUILTIN_TRIGGERS = new Set(['\\', '`', '&', '\n', '*', '_', '~', '[', ']', '!', '<']);
 
 /**
- * Reserved triggers `needsScan` (scan/index.ts) never visits in otherwise-plain
- * text: they sit outside `SPECIAL_CHARS` because they only matter inside `[`-bearing
- * ranges. A prefix rung on one would be accepted here yet never consulted — a silent
- * no-op, the failure this registration seam exists to make impossible — so it is
- * rejected. A future construct needing `!`/`]` must first make them scan-visible.
- * Pinned against a SPECIAL_CHARS edit by the inline-trigger-parity lint (G4.18).
+ * Reserved triggers outside `SPECIAL_CHARS` that a registration makes visible to
+ * `needsScan` (scan/index.ts) instead: the fast bail probes them per character, but
+ * only while a rung is registered, so an unregistered `!` costs prose exactly what it
+ * cost before this set existed. `!` is here rather than in `SPECIAL_CHARS` because
+ * making it unconditionally special would drag every `"Hello!"` through the full scan
+ * loop for a syntax almost no document uses.
  */
-const SCAN_INVISIBLE_RESERVED = new Set(['!', ']']);
+const SCAN_PROBED_RESERVED = new Set(['!']);
+
+/**
+ * Reserved triggers `needsScan` (scan/index.ts) never visits in otherwise-plain
+ * text and does not probe for: they sit outside `SPECIAL_CHARS` because they only
+ * matter inside `[`-bearing ranges. A prefix rung on one would be accepted here yet
+ * never consulted — a silent no-op, the failure this registration seam exists to make
+ * impossible — so it is rejected. A future construct needing `]` must first make it
+ * scan-visible or scan-probed. Pinned against a SPECIAL_CHARS edit by the
+ * inline-trigger-parity lint (G4.18).
+ */
+const SCAN_INVISIBLE_RESERVED = new Set([']']);
 
 const NO_RUNGS: readonly InlineRung[] = [];
 
@@ -80,6 +91,13 @@ const NO_RUNGS: readonly InlineRung[] = [];
 // map and the empty-path gates stay a single `size` check.
 const reservedRegistry = new Map<string, InlineRung[]>();
 const unreservedRegistry = new Map<string, InlineRung[]>();
+
+// Triggers the fast bail (`needsScan`, scan/index.ts) must visit while a rung lives
+// on them: every unreserved trigger, plus the scan-probed reserved ones. Maintained
+// at registration so the bail's per-character probe is one set lookup, and so a
+// registration on a trigger `SPECIAL_CHARS` already visits — footnotes' `[` — leaves
+// the bail loop untouched rather than switching a probe on for nothing.
+const scanProbeTriggers = new Set<string>();
 
 // ── Registration ───────────────────────────────────────────────────────────────
 
@@ -134,7 +152,12 @@ export function registerInlineSyntax(
 		existing?.some((r) => r.prefix === effectivePrefix && r.priority === priority) ?? false;
 	registerOnce(
 		isDuplicate,
-		() => upsertRung(registry, trigger, { recognizer, prefix: effectivePrefix, priority }),
+		() => {
+			upsertRung(registry, trigger, { recognizer, prefix: effectivePrefix, priority });
+			// A rung on a trigger the fast bail would otherwise skip has to make the scan
+			// visit it, or the recognizer is the silent no-op this seam refuses to accept.
+			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);
+		},
 		`registerInlineSyntax: ${JSON.stringify(trigger)} already registered at prefix ` +
 			`${JSON.stringify(effectivePrefix)}, priority ${priority}`
 	);
@@ -187,6 +210,20 @@ export function hasInlineSyntax(): boolean {
 	return unreservedRegistry.size > 0;
 }
 
+/**
+ * Gate for `needsScan`'s per-character probe: is any rung registered on a trigger the
+ * fast bail does not already visit? Read once per scan, so an empty set leaves the
+ * bail loop byte-identical to the pre-plugin path in behavior and in cost.
+ */
+export function hasScanProbeRungs(): boolean {
+	return scanProbeTriggers.size > 0;
+}
+
+/** `needsScan`'s per-character probe: does a registered rung need `char` visited? */
+export function isScanProbeTrigger(char: string): boolean {
+	return scanProbeTriggers.has(char);
+}
+
 /** Gate for the pre-switch consultation — false costs the scan loop nothing. */
 export function hasPrefixRungs(): boolean {
 	return reservedRegistry.size > 0;
@@ -195,4 +232,5 @@ export function hasPrefixRungs(): boolean {
 export function __resetInlineSyntaxForTests(): void {
 	reservedRegistry.clear();
 	unreservedRegistry.clear();
+	scanProbeTriggers.clear();
 }

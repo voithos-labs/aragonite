@@ -23,12 +23,17 @@ import {
 	getUnreservedRungs,
 	hasInlineSyntax,
 	hasPrefixRungs,
+	hasScanProbeRungs,
+	isScanProbeTrigger,
 	type InlineRung
 } from './plugin-syntax';
 
 // Every character that can start a construct or anchor a lookback: the
 // dispatch cases below plus `@` (GFM email lookback). `!` and `]` are
 // deliberately absent — they only matter in ranges that also contain `[`.
+// A plugin rung can make `!` visible per registration (SCAN_PROBED_RESERVED in
+// plugin-syntax.ts) rather than by joining this set, which would drag every
+// prose `"Hello!"` through the scan loop for a syntax most documents never use.
 const SPECIAL_CHARS = '\\`&\n<[*_~@';
 
 // GFM bare http/www autolinks contain no character from the set above, so
@@ -50,22 +55,25 @@ SPECIAL[0x77] = PROBE_WWW; // w
 function needsScan(raw: string, start: number, end: number): boolean {
 	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them
 	// only when something is registered — the empty registry stays byte-identical.
-	const probePlugins = hasInlineSyntax();
+	// The registry answers for both rung shapes through one hoisted flag and one
+	// lookup, so an unregistered scan pays exactly the single always-false test per
+	// character it paid before reserved `!` could be registered at all.
+	const probePlugins = hasScanProbeRungs();
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
 		if (code >= 128) {
-			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true;
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true;
 			continue;
 		}
 		const cls = SPECIAL[code];
 		if (cls === 0) {
-			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true;
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true; // registered '!' lands here
 			continue;
 		}
 		if (cls === 1) return true;
 		if (cls === PROBE_SCHEME) {
 			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true; // ://
-			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true; // registered ':'
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true; // registered ':'
 		} else {
 			if (
 				(raw.charCodeAt(i + 1) | 0x20) === 0x77 &&
@@ -74,7 +82,7 @@ function needsScan(raw: string, start: number, end: number): boolean {
 			) {
 				return true; // www.
 			}
-			if (probePlugins && getUnreservedRungs(raw[i]) !== undefined) return true; // registered 'w'/'W'
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true; // registered 'w'/'W'
 		}
 	}
 	return false;
@@ -116,7 +124,15 @@ export function scanInline(
 
 	const ctx = createScanContext(raw, start, end, resolver);
 	// Reserved-trigger prefix rungs are consulted before the switch so they can
-	// outrank a built-in case. Hoisted so an empty registry adds no per-char cost.
+	// outrank a built-in case — the only order that can work, because a handler
+	// consumes its trigger and advances (`handleBang` eats `![` as one unit), so the
+	// scan never returns to a position the switch has already read. Pricing a rung
+	// below `builtin` is therefore an explicit claim to outrank the case wherever its
+	// prefix matches, not a claim that the grammars are disjoint: `![[a]](u)` is a
+	// built-in image whose alt text is `[a]` *and* a `![[` prefix match. Declining the
+	// overlap is the recognizer's job, and a decline leaves `ctx` untouched so the
+	// built-in case reads byte-identical bytes.
+	// Hoisted so an empty registry adds no per-char cost.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {
