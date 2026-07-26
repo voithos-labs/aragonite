@@ -25,12 +25,15 @@ export interface SelectionRestoreDeps {
 }
 
 /**
- * Restore a snapshot. Resolves `false` — never throws — when either endpoint's
- * path no longer addresses a block; that branch reveals nothing, focuses
- * nothing and stores nothing, so a stale snapshot cannot move the viewport.
+ * Restore a snapshot. `true` means resolve, reveal and placement all succeeded;
+ * the focus block is in view by construction of the reveal, so no rect is
+ * measured to confirm it.
  *
- * `true` means resolve, reveal and placement all succeeded. The focus block is
- * in view by construction of the reveal, so no rect is measured to confirm it.
+ * The two `false`s differ in their effect. An endpoint whose path no longer
+ * addresses a block is rejected up front — nothing is revealed, focused or
+ * stored, so a stale snapshot cannot move the viewport. A resolvable path whose
+ * element is missing from the DOM fails later, in the applier, after the custom
+ * route has already entered cross-block state.
  */
 export async function restoreSelection(
 	selection: EditorSelection,
@@ -58,6 +61,11 @@ export async function restoreSelection(
  * {@link SelectionPoint}) yet still carries a row-major cell index, so a
  * flag-gated clamp would measure it against the table's markdown length. Same
  * discriminant `cellEndpointDeepPath` uses, for the same reason.
+ *
+ * The char-space bound is `raw`, which on a marker-bearing kind (heading, list
+ * item) runs past the editable content end. That is deliberate: this clamp only
+ * has to keep the offset finite and in the block, and the DOM walk lands a
+ * past-the-content offset on the content end anyway.
  */
 export function resolveSelectionPoint(
 	doc: DocumentView,
