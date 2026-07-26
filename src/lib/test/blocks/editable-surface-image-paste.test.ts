@@ -34,15 +34,25 @@ function pasteEvent(files: File[], text = '') {
 }
 
 interface SurfaceState {
-	caret: number;
+	caret: number | null;
 	el: HTMLElement | null;
 }
 
 const liveSurface = (): SurfaceState => ({ caret: 5, el: document.createElement('div') });
 
+/** A cross-block route that claims the paste, recording the text it was offered. */
+const claimingCrossBlock = (log: string[]) =>
+	({
+		handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
+			log.push(`crossblock-claimed:${replacement ?? ''}`);
+			return true;
+		}
+	}) as never;
+
 function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()) {
 	const log: string[] = [];
 	const inserted: string[] = [];
+	const folds: (number | null)[] = [];
 	const seated: number[] = [];
 	const errors: unknown[] = [];
 	const deps: ClipboardSurfaceDeps = {
@@ -50,8 +60,8 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 		selection: { isCrossBlock: false } as never,
 		getDoc: () => null as never,
 		crossBlock: {
-			handlePaste: async () => {
-				log.push('crossblock');
+			handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
+				log.push(`crossblock:${replacement ?? ''}`);
 				return false;
 			}
 		} as never,
@@ -66,10 +76,13 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 		} as never,
 		onPasteImage: undefined,
 		cutTail: () => {},
-		pasteTail: (_e, text) => void inserted.push(text),
+		pasteTail: (_e, text, foldedCaret) => {
+			inserted.push(text);
+			folds.push(foldedCaret);
+		},
 		...over
 	};
-	return { deps, log, inserted, seated, errors };
+	return { deps, log, inserted, folds, seated, errors };
 }
 
 describe('image paste — the hook contract', () => {
@@ -96,11 +109,35 @@ describe('image paste — the hook contract', () => {
 		expect(h.inserted).toEqual([]);
 	});
 
-	it('consumes the paste: no cross-block handling, no text/plain fallback', async () => {
+	it('consumes the paste: the cross-block route is offered the markdown, never the clipboard text', async () => {
 		const h = harness({ onPasteImage: async () => '![[a.png]]' });
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')], 'FALLBACK').e);
-		expect(h.log).toEqual([]);
+		expect(h.log).toEqual(['crossblock:![[a.png]]']);
 		expect(h.inserted).toEqual(['![[a.png]]']);
+	});
+});
+
+describe('image paste — replacing a cross-block selection', () => {
+	it('hands the markdown to the cross-block route and skips the surface tail', async () => {
+		const log: string[] = [];
+		const h = harness({
+			crossBlock: claimingCrossBlock(log),
+			onPasteImage: async () => '![[a.png]]'
+		});
+		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
+		// The route deletes the range and inserts by PATH, so the originating
+		// surface's tail (and its caret) must stay out of it entirely.
+		expect(log).toEqual(['crossblock-claimed:![[a.png]]']);
+		expect(h.inserted).toEqual([]);
+		expect(h.seated).toEqual([]);
+	});
+
+	it('the hook decides first — a null result destroys nothing', async () => {
+		const log: string[] = [];
+		const h = harness({ crossBlock: claimingCrossBlock(log), onPasteImage: async () => null });
+		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
+		expect(log).toEqual([]);
+		expect(h.inserted).toEqual([]);
 	});
 });
 
@@ -137,6 +174,27 @@ describe('image paste — where the markdown lands', () => {
 			pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
 		);
 		expect(h.inserted).toEqual(['![[a.png]]![[b.png]]']);
+	});
+
+	it('a null result for one of two images lands only the other', async () => {
+		const h = harness({
+			onPasteImage: async (image) => (image.suggestedName === 'a.png' ? null : '![[b.png]]')
+		});
+		await createClipboardHandlers(h.deps).onPaste(
+			pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
+		);
+		expect(h.inserted).toEqual(['![[b.png]]']);
+		expect(h.errors).toEqual([]);
+	});
+
+	// The fold is the one path where the surface reads a null caret — it lands on the
+	// widget's element-level edge — so the committed caret has to carry the anchor.
+	it('after a reveal fold, the committed caret anchors the insertion', async () => {
+		const state: SurfaceState = { caret: null, el: document.createElement('div') };
+		const h = harness({ foldReveal: () => 3, onPasteImage: async () => '![[a.png]]' }, state);
+		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
+		expect(h.seated).toEqual([3]);
+		expect(h.folds).toEqual([3]);
 	});
 
 	it('declines and reports when the surface is gone before a slow hook resolves', async () => {

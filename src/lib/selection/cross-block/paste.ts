@@ -26,14 +26,15 @@ import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
-	e: ClipboardEvent
+	e: ClipboardEvent,
+	replacement?: string
 ): Promise<boolean> {
 	if (!ctx.selection.isCrossBlock) return false;
 
 	ctx.stickyColumn.reset();
 	ctx.selection.resetSelectAllCount();
 	e.preventDefault();
-	const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+	const pasted = replacement ?? normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
 	const doc = ctx.getDoc();
