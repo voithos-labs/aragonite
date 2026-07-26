@@ -132,6 +132,22 @@ describe('image paste — replacing a cross-block selection', () => {
 		expect(h.seated).toEqual([]);
 	});
 
+	// The branch reads the selection LIVE, so a cross-block selection the user
+	// collapsed while the host uploaded leaves nothing for the seam to claim — and the
+	// paste falls back to the anchor captured when it fired.
+	it('a selection collapsed before the import lands falls through to the caret', async () => {
+		let stillCrossBlock = true;
+		const h = harness({
+			crossBlock: { handlePaste: async () => stillCrossBlock } as never,
+			onPasteImage: async () => {
+				stillCrossBlock = false;
+				return '![[a.png]]';
+			}
+		});
+		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
+		expect(h.inserted).toEqual(['![[a.png]]']);
+	});
+
 	it('the hook decides first — a null result destroys nothing', async () => {
 		const log: string[] = [];
 		const h = harness({ crossBlock: claimingCrossBlock(log), onPasteImage: async () => null });
