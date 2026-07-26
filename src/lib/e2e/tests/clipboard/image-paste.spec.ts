@@ -103,6 +103,21 @@ test.describe('image paste: host hook installed', () => {
 		expect(await editor.bridge.getSource()).not.toContain('two.png');
 	});
 
+	// Every other paste route replaces the selection; this one is entry path N+1 and
+	// owes the same rule.
+	test('an image pasted over a selection replaces it', async ({ page }) => {
+		await editor.loadContent(PARAGRAPH);
+		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
+		await editor.getBlock(0).click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+End');
+		await pasteFiles(page, [PNG]);
+
+		await editor.bridge.waitForSourceContains('![[shot.png]]');
+		const source = await editor.bridge.getSource();
+		expect(source.trim()).toBe('![[shot.png]]');
+	});
+
 	test('a caret moved while the import is pending does not redirect the insertion', async ({
 		page
 	}) => {
@@ -164,6 +179,32 @@ test.describe('image paste: host hook installed', () => {
 
 		await editor.bridge.waitForSourceContains('APLAINB');
 		expect(await getCalls(page)).toEqual([]);
+	});
+
+	// Surface parity: the arm is one seam, but each surface's insertion tail is its
+	// own (raw walker + escaping for the cell, `currentRange()` for code). A paragraph
+	// pass proves neither.
+	test('an image pasted into a table cell lands in that cell', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		await setResponses(page, [{ markdown: '![[cell.png]]' }]);
+		// nth(2): [role="cell"] covers the header row too, so the body cells start at 2.
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('End');
+		await pasteFiles(page, [PNG]);
+
+		await editor.bridge.waitForSourceContains('1![[cell.png]]');
+		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+	});
+
+	test('an image pasted into a code block lands as literal source', async ({ page }) => {
+		await editor.loadContent('```\ncode\n```\n');
+		await setResponses(page, [{ markdown: '![[fenced.png]]' }]);
+		await editor.getBlock(0).click();
+		await page.keyboard.press('End');
+		await pasteFiles(page, [PNG]);
+
+		await editor.bridge.waitForSourceContains('code![[fenced.png]]');
+		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 	});
 
 	// The arm sits before cross-block paste handling, so an image pasted over a
