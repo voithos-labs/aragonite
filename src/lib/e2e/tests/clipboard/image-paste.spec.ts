@@ -2,59 +2,20 @@ import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
+import {
+	PARAGRAPH,
+	PNG,
+	getCalls,
+	gotoWithHook,
+	parseConverged,
+	pasteFiles,
+	releaseImport,
+	setResponses
+} from './image-paste-harness';
 
-// The `onPasteImage` host hook end to end: a real image cannot be written to the
-// system clipboard from a spec, so these dispatch a synthetic `paste` carrying a
-// DataTransfer with real `File`s — the same `onPaste` entry a user's Ctrl+V reaches.
-// Caret placement, undo, and typing stay real user actions. See
-// requirements/clipboard/image-paste.md.
-
-const PARAGRAPH = 'AB\n';
-const PNG = { name: 'shot.png', type: 'image/png' };
-
-interface ImagePasteResponse {
-	markdown?: string | null;
-	reject?: boolean;
-	hold?: boolean;
-}
-
-const setResponses = (page: Page, responses: ImagePasteResponse[]) =>
-	page.evaluate((r) => (window as any).__test.imagePaste.setResponses(r), responses);
-
-const getCalls = (page: Page) =>
-	page.evaluate(
-		() =>
-			(window as any).__test.imagePaste.getCalls() as {
-				mimeType: string;
-				suggestedName: string | null;
-				bytes: number;
-			}[]
-	);
-
-/** Dispatch a paste carrying `files` (plus optional text) at whatever holds focus. */
-async function pasteFiles(
-	page: Page,
-	files: { name: string; type: string }[],
-	text = ''
-): Promise<void> {
-	await page.evaluate(
-		({ files, text }) => {
-			const target = document.activeElement as HTMLElement | null;
-			if (!target) throw new Error('image paste: nothing focused to paste into');
-			const data = new DataTransfer();
-			for (const file of files) {
-				data.items.add(
-					new File([new Uint8Array([137, 80, 78, 71])], file.name, { type: file.type })
-				);
-			}
-			if (text) data.setData('text/plain', text);
-			target.dispatchEvent(
-				new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
-			);
-		},
-		{ files, text }
-	);
-}
+// The `onPasteImage` host hook where the paste lands inside one block: placement,
+// undo, the decline arms, and per-surface parity. Cross-block replacement lives in
+// image-paste-cross-block.spec.ts. See requirements/clipboard/image-paste.md.
 
 /** Caret between `A` and `B` of the first paragraph, placed by click + keys. */
 async function caretMidParagraph(editor: EditorPage, page: Page): Promise<void> {
@@ -67,9 +28,7 @@ test.describe('image paste: host hook installed', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto('?imagePaste=on');
-		await page.evaluate(() => (window as any).__test.imagePaste.reset());
+		editor = await gotoWithHook(page);
 	});
 
 	test('the returned markdown lands at the caret and undoes in one step', async ({ page }) => {
@@ -114,8 +73,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('![[shot.png]]');
-		const source = await editor.bridge.getSource();
-		expect(source.trim()).toBe('![[shot.png]]');
+		expect((await editor.bridge.getSource()).trim()).toBe('![[shot.png]]');
 	});
 
 	test('a caret moved while the import is pending does not redirect the insertion', async ({
@@ -130,7 +88,7 @@ test.describe('image paste: host hook installed', () => {
 		await expect.poll(async () => (await getCalls(page)).length).toBe(1);
 		await editor.getBlock(1).click();
 		await page.keyboard.press('End');
-		await page.evaluate(() => (window as any).__test.imagePaste.release());
+		await releaseImport(page);
 
 		await editor.bridge.waitForSourceContains('A![[held.png]]B');
 		expect(await editor.bridge.getSource()).not.toContain('second![[held.png]]');
@@ -193,7 +151,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('1![[cell.png]]');
-		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+		expect(await parseConverged(page)).toBe(true);
 	});
 
 	test('an image pasted into a code block lands as literal source', async ({ page }) => {
@@ -204,105 +162,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('code![[fenced.png]]');
-		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
-	});
-
-	// An image paste replaces a multi-block selection like every other paste route.
-	// The cross-block seam owns the delete + insert as one undo entry and addresses
-	// by path, so the surface that received the event is irrelevant to where it lands.
-	test('an image pasted over a cross-block selection replaces it, and the next gesture is sound', async ({
-		page
-	}) => {
-		await editor.loadContent(`${PARAGRAPH}\nsecond\n\nthird\n`);
-		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('Shift+ArrowDown');
-		await page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await pasteFiles(page, [PNG]);
-
-		await editor.bridge.waitForSourceContains('shot.png');
-		const source = await editor.bridge.getSource();
-		expect(source).not.toContain('second');
-		expect(source.trim()).toBe('AB![[shot.png]]third');
-		await editor.bridge.waitForBlockCount(1);
-
-		// The delete has to have collapsed the selection: otherwise the next gesture
-		// acts on a range whose offsets shifted by the inserted length.
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('![[shot.png]]Xthird');
-		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
-	});
-
-	test('the whole cross-block replacement is one undo entry', async ({ page }) => {
-		await editor.loadContent(`${PARAGRAPH}\nsecond\n\nthird\n`);
-		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('Shift+ArrowDown');
-		await page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await pasteFiles(page, [PNG]);
-		await editor.bridge.waitForSourceContains('shot.png');
-
-		// Establish that the replacement actually happened before undoing it — without
-		// this, a build that inserted without deleting would satisfy every assertion
-		// below and the undo claim would be vacuous.
-		expect((await editor.bridge.getSource()).trim()).toBe('AB![[shot.png]]third');
-		await editor.bridge.waitForBlockCount(1);
-
-		// ONE press has to undo the delete AND the insertion together — otherwise the
-		// user is left staring at a document whose selection is gone and whose image
-		// never arrived.
-		await page.keyboard.press(`${primaryModifier}+z`);
-		await editor.bridge.waitForSourceNotContains('shot.png');
-		const restored = await editor.bridge.getSource();
-		expect(restored).toContain('second');
-		expect(restored).toContain('third');
-		await editor.bridge.waitForBlockCount(3);
-	});
-
-	// The cross-block delete has a table-specific branch (cell-index endpoints, the
-	// whole-row snap), so a selection anchored in a cell is its own shape. Asserted
-	// against the SAME string pasted as text over the SAME selection: the arm has to
-	// inherit the cross-block route, not place anything itself.
-	test('a cross-block selection anchored in a table cell is replaced, exactly as a text paste would', async ({
-		page
-	}) => {
-		const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntrailing\n';
-		const MARKDOWN = '![[shot.png]]';
-		const selectOutOfCell = async () => {
-			await page.locator('[role="cell"]').nth(2).click();
-			await page.keyboard.press('End');
-			await page.keyboard.press('Shift+ArrowDown');
-			await editor.waitForCrossBlock(true);
-		};
-
-		await editor.loadContent(TABLE);
-		await setResponses(page, [{ markdown: MARKDOWN }]);
-		await selectOutOfCell();
-		await pasteFiles(page, [PNG]);
-		await editor.bridge.waitForSourceContains('shot.png');
-
-		const viaHook = await editor.bridge.getSource();
-		// The covered body row is gone; the range really was deleted.
-		expect(viaHook).not.toContain('| 1 | 2 |');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
-
-		// Same document, same selection, same string — pasted as text. No image files on
-		// the clipboard, so the arm declines and the ordinary route runs. A fresh
-		// navigation, not a second loadContent: the harness drives `source` as a prop, so
-		// re-assigning the string it already holds is a no-op and would leave the mutated
-		// document in place.
-		await editor.goto('?imagePaste=on');
-		await editor.loadContent(TABLE);
-		await selectOutOfCell();
-		await page.evaluate((md) => navigator.clipboard.writeText(md), MARKDOWN);
-		await page.keyboard.press(`${primaryModifier}+v`);
-		await editor.bridge.waitForSourceContains('shot.png');
-
-		expect(await editor.bridge.getSource()).toBe(viaHook);
+		expect(await parseConverged(page)).toBe(true);
 	});
 });
 

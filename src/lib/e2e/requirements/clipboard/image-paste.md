@@ -6,6 +6,9 @@ hook in clipboard order and inserts the markdown the hook returns at the caret t
 paste started from. Without the hook, an image-bearing paste behaves exactly as it
 did before: native default prevented, the clipboard's `text/plain` (if any) pasted.
 
+Replacing a **multi-block** selection is its own concern —
+`image-paste-cross-block.md`.
+
 **Playwright exception:** a real image cannot be written to the system clipboard from
 a spec — `navigator.clipboard.write` with an image blob is not scriptable under the
 test runner. These specs construct a `DataTransfer` carrying a `File` and dispatch a
@@ -35,6 +38,11 @@ set-once at mount) and swaps its per-image response through `window.__test.image
   Pinned by `test/blocks/editable-surface-image-paste.test.ts`.
 - Caret moved elsewhere while a slow hook is still resolving: the markdown lands at
   the caret held when the paste fired, not where the caret now sits.
+- Pasted while an inline-source reveal is open: the reveal folds first, and the caret
+  that fold committed anchors the insertion — the surface reads no caret of its own on
+  a widget's element-level edge. Pinned by
+  `test/blocks/editable-surface-image-paste.test.ts`; opening a reveal and holding an
+  import across it is not reachable as one user gesture at e2e level.
 - Clipboard carries a non-image file (a `.txt` attachment) plus text: the image arm
   declines and the ordinary `text/plain` paste runs.
 - The block holding the captured caret is gone by the time a slow hook resolves
@@ -42,17 +50,6 @@ set-once at mount) and swaps its per-image response through `window.__test.image
   event is emitted. The insertion is declined rather than landing at a guessed offset.
   Pinned by `test/blocks/editable-surface-image-paste.test.ts` — unmounting a block
   mid-import is not reachable through a user gesture at e2e level.
-- Cross-block selection active when an image is pasted: the selection is replaced,
-  like every other paste route. The range is deleted and the markdown inserted at the
-  collapsed caret, the cross-block mode is cleared so the next gesture acts on fresh
-  offsets, and the tree stays convergent.
-- One Ctrl+Z after a cross-block image paste restores the whole selection AND removes
-  the markdown: the delete and the insertion are one undo entry.
-- A cross-block selection anchored in a table cell is replaced too (its covered body
-  row goes), and the resulting document is byte-identical to pasting the same string
-  as text over the same selection — the image path uses the same route.
-- The hook still decides first: an import that returns `null` or rejects for every
-  image destroys nothing — the selection is only replaced once there is markdown.
 
 ## User interactions
 

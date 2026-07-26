@@ -2,9 +2,10 @@
  * Shared editable-surface plumbing for the core contenteditable blocks
  * (TextEditableBlock, CodeBlock, table/TableCellBlock) and the `editable-leaf`
  * seam plugin leaves build on. Owns the cross-block handler wiring, the
- * SharedKeydownContext, the BlockComponent surface methods, and the
- * input/composition skeleton. Each consumer constructs a CursorBackend for its
- * own coordinate system (ambient-aware, content-offset, or cell raw walker) and
+ * SharedKeydownContext, the BlockComponent surface methods, the input/composition
+ * skeleton, and — below the divider — the copy/cut/paste skeleton and its host
+ * image-import arm. Each consumer constructs a CursorBackend for its own
+ * coordinate system (ambient-aware, content-offset, or cell raw walker) and
  * supplies the per-surface input commit; the rest is identical.
  *
  * The component keeps its markup, render `$effect`, the F2 focus-park `$effect`,
@@ -156,10 +157,9 @@ export interface EditableSurface {
 }
 
 /**
- * The caret door the clipboard seam's image arm borrows from its surface: `getEl`
- * is the liveness test (a host import hook can outlive the block that started the
- * paste), `getCursorOffset` captures the insertion anchor, `focus` re-seats it.
- * Minted by `createEditableSurface` so each surface threads one value, not three.
+ * The caret door the clipboard seam borrows from its surface. `getEl` is here as a
+ * liveness test, because a host import hook can outlive the block that started the
+ * paste. Minted by `createEditableSurface` so each surface threads one value.
  */
 export interface ClipboardCaretIO {
 	getEl: () => HTMLElement | null;
@@ -342,7 +342,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
  * Every READ and write goes through the event's synchronous `clipboardData` —
  * `navigator.clipboard.writeText` is async/permission-gated and unreliable in
  * Tauri's wry webview, and the event's own accessor is not dependably live once
- * the handler has awaited, so paste materializes its image files before the fold.
+ * the handler has awaited.
  */
 export interface ClipboardSurfaceDeps {
 	stickyColumn: StickyColumnState;
@@ -354,9 +354,10 @@ export interface ClipboardSurfaceDeps {
 	/** The surface's caret door, borrowed by the image arm to anchor its insertion. */
 	caret: ClipboardCaretIO;
 	/** The instance event surface — the image arm's only channel for a host hook
-	 *  that rejects. Required-nullable (like the dispatch tier's plugin thread): a
-	 *  surface that could omit it would swallow every failed import silently. */
-	events: EditorEvents | undefined;
+	 *  that rejects. Non-nullable so a surface cannot silently swallow every failed
+	 *  import; every surface sources it from `EditorServices.events`, which is itself
+	 *  non-optional, so there is nothing to widen for. */
+	events: EditorEvents;
 	/** Host image-import hook from the policies context. Undefined leaves an
 	 *  image-bearing paste on the text/plain path, exactly as before the hook. */
 	onPasteImage: PasteImageHook | undefined;
@@ -432,13 +433,11 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	async function onPaste(e: ClipboardEvent): Promise<void> {
 		e.preventDefault();
 		if (deps.isReadOnly()) return;
-		// Materialized here rather than at the image arm below: the reveal fold awaits
-		// a tick first, and `clipboardData` is only dependably readable inside the
-		// event's synchronous window.
-		const images = imageFilesOf(e.clipboardData);
+		// Both reads stay above the fold's tick — see the discipline above.
+		const importImage = deps.onPasteImage;
+		const images = importImage ? imageFilesOf(e.clipboardData) : [];
 		const foldedCaret = deps.foldReveal?.() ?? null;
 		if (foldedCaret !== null) await tick();
-		const importImage = deps.onPasteImage;
 		if (importImage && images.length > 0) {
 			deps.stickyColumn.reset();
 			await pasteImages(deps, importImage, e, images, foldedCaret);
@@ -463,14 +462,21 @@ function imageFilesOf(data: DataTransfer | null): File[] {
 }
 
 /**
- * Offer each pasted image to the host hook in clipboard order and insert what comes
- * back at the caret captured before the first await — an import that takes seconds
- * must not follow a caret the user moved meanwhile.
+ * Offer each pasted image to the host hook in clipboard order, then insert what comes
+ * back — as ONE insertion, not one per image: a hook may return multi-line markdown,
+ * whose structural paste can split the block out from under a second insertion
+ * addressed at anchor + length, and one paste gesture owes the user one undo entry.
  *
- * ONE insertion, not one per image: a hook may return multi-line markdown, whose
- * structural paste can split the block out from under a second insertion addressed
- * at anchor + length, and one paste gesture owes the user one undo entry however
- * many images it carried.
+ * The two branches place that insertion differently, and only one of them is frozen at
+ * paste time. Intra-block honours the anchor captured before the first await, so an
+ * import that takes seconds cannot follow a caret the user moved meanwhile. The
+ * cross-block branch instead reads `isCrossBlock` LIVE, because the seam it delegates
+ * to resolves endpoints by path at call time — so a multi-block selection made WHILE
+ * the import was in flight is the one that gets replaced, and a cross-block selection
+ * collapsed before the import landed falls through to the intra-block anchor. Both are
+ * documented in the requirement file; snapshotting the mode at paste time would fight
+ * the by-path seam, which is what makes the landing independent of which surface
+ * caught the event.
  */
 async function pasteImages(
 	deps: ClipboardSurfaceDeps,
@@ -479,8 +485,6 @@ async function pasteImages(
 	images: File[],
 	foldedCaret: number | null
 ): Promise<void> {
-	// After a reveal fold the caret sits on the widget's element-level edge, where the
-	// surface reads null — the committed caret is the landing offset there.
 	const anchor = deps.caret.getCursorOffset() ?? foldedCaret ?? 0;
 	const markdown: string[] = [];
 	for (const image of images) {
@@ -490,10 +494,12 @@ async function pasteImages(
 				mimeType: image.type,
 				suggestedName: image.name || undefined
 			});
+			// Empty markdown skips like null: there is nothing to insert either way, and
+			// it keeps `text` below non-empty for the cross-block seam.
 			if (inserted) markdown.push(inserted);
 		} catch (error) {
 			// One failed import skips its image; the rest of the paste still lands.
-			deps.events?.emit('error', { origin: 'command', error });
+			deps.events.emit('error', { origin: 'command', error });
 		}
 	}
 	if (markdown.length === 0) return;
@@ -509,7 +515,7 @@ async function pasteImages(
 	// surface tails would fall back to offset 0 — markdown at a position the user
 	// never pointed at. Decline, loudly.
 	if (!deps.caret.getEl()) {
-		deps.events?.emit('error', {
+		deps.events.emit('error', {
 			origin: 'command',
 			error: new Error('onPasteImage resolved after its block was gone; insertion declined')
 		});
@@ -518,9 +524,7 @@ async function pasteImages(
 	// Re-seat ONLY when the caret actually drifted. Seating collapses the DOM range,
 	// and every surface tail derives its replaced span from that range — so seating
 	// unconditionally would make this the one paste route that doesn't replace the
-	// selection it landed on. `getCursorOffset` reads a range's START and nulls out
-	// once focus leaves the block, so an untouched selection compares equal and a
-	// caret that moved anywhere (this block or another) does not.
+	// selection it landed on.
 	if (deps.caret.getCursorOffset() !== anchor) deps.caret.focus(anchor);
 	await deps.pasteTail(e, text, foldedCaret);
 }

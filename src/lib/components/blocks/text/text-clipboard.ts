@@ -32,10 +32,13 @@ export interface TextClipboardDeps {
 	get node(): NodeView;
 	get index(): number;
 	get myPath(): number[];
+	/** This file's own caret reads (raw offsets, raw selection) go through `cursor`.
+	 *  `caret` is the narrower door the shared clipboard seam anchors an image
+	 *  insertion with — a pure passthrough here, never read locally. */
 	cursor: AmbientCursorIO;
 	caret: ClipboardCaretIO;
 	crossBlock: CrossBlockHandlers;
-	events: EditorEvents | undefined;
+	events: EditorEvents;
 	onPasteImage: PasteImageHook | undefined;
 	selection: SelectionState;
 	stickyColumn: StickyColumnState;

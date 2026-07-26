@@ -676,10 +676,11 @@
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
 		keybindingOverrides: () => overridesMap,
-		// An accessor, not a captured value: the prop read has to happen inside a
-		// closure. Consumers destructure the facet at mount, so the hook is still
-		// set-once from their side — a paste in flight can't have its importer
-		// swapped underneath it.
+		// An accessor, not the `onPasteImage,` shorthand: the shorthand captures the prop
+		// in the object literal, which svelte-check reports as `state_referenced_locally`,
+		// and `svelte/no-unused-svelte-ignore` rejects suppressing it — so a tidy back to
+		// shorthand re-breaks `npm run check` at 0/0. Consumers destructure the facet at
+		// mount, so the hook stays set-once from their side either way.
 		get onPasteImage() {
 			return onPasteImage;
 		},

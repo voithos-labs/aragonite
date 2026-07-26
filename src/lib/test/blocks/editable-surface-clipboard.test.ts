@@ -58,7 +58,7 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 		} as never,
 		isReadOnly: () => false,
 		caret: { getEl: () => null, getCursorOffset: () => null, focus: () => {} },
-		events: undefined,
+		events: { on: () => () => {}, emit: () => {} },
 		onPasteImage: undefined,
 		cutTail: (e) => {
 			log.push('cutTail');
