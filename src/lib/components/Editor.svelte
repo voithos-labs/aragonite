@@ -998,13 +998,18 @@
 	 * with the undo swap — resolve + clamp, reveal, place — so a consumer's
 	 * restore and a Ctrl+Z restore cannot diverge.
 	 */
-	export function setSelection(selection: EditorSelection): Promise<boolean> {
-		return restoreSelection(selection, {
+	export async function setSelection(selection: EditorSelection): Promise<boolean> {
+		const outcome = await restoreSelection(selection, {
 			getDoc,
 			selectionState,
 			getBlockElByPath,
-			revealPath
+			// The published contract is that a `true` focus block is IN VIEW, so the
+			// restore settles through the scrolling primitive. The mount primitive is
+			// not enough: it returns without scrolling for a target that is already
+			// mounted, and top-level overscan keeps blocks mounted well past the fold.
+			revealTarget: (path) => rects.scrollTo(path, { block: 'nearest' })
 		});
+		return outcome === 'applied';
 	}
 
 	export function getEvents(): EditorEvents {

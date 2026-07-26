@@ -31,12 +31,23 @@ export function createHistoryActions(
 		// The tick belongs to the doc swap above, not to the restore: the new tree
 		// must render before the shared seam can reveal or address anything in it.
 		await tick();
-		await restoreSelection(entry.selection, {
+		const outcome = await restoreSelection(entry.selection, {
 			getDoc: () => deps.doc,
 			selectionState: deps.selectionState,
 			getBlockElByPath: deps.getBlockElByPath,
-			revealPath: deps.revealPath
+			// Mount, not scroll into view: a history swap must not move the viewport for
+			// a target that is already on screen. The consumer restore door promises the
+			// stronger guarantee and passes the stronger primitive.
+			revealTarget: async (path) => (await deps.revealPath(path)) !== null
 		});
+		// An entry can name a slot that never existed in its own snapshot — the
+		// append-past-end op declares the one-past-the-end coordinate as its restore
+		// fallback (editor-actions/focus/focus.ts) — and the swap would otherwise leave
+		// the pre-swap selection painted over a document that changed underneath it.
+		// The seam declines such a snapshot without side effects, which is right for the
+		// consumer door (it must never disturb a live selection) and leaves this policy
+		// here, where "the doc was replaced" is known.
+		if (outcome === 'unresolvable') deps.selectionState.clear();
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 

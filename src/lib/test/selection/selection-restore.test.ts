@@ -3,12 +3,12 @@ import { describe, it, expect } from 'vitest';
 import { resolveSelectionPoint, restoreSelection } from '../../selection/selection-restore';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
-import type { BlockComponent } from '../../block-component';
 
 const PROSE = 'Alpha one\n\nBravo two\n';
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-function restoreHarness(source: string) {
+/** `mounted: false` makes every element lookup miss, the unplaced-outcome shape. */
+function restoreHarness(source: string, { mounted = true } = {}) {
 	const doc = parse(source);
 	const revealed: number[][] = [];
 	const selectionState = createSelectionState({ getDoc: () => doc });
@@ -19,10 +19,10 @@ function restoreHarness(source: string) {
 		deps: {
 			getDoc: () => doc,
 			selectionState,
-			getBlockElByPath: () => document.createElement('div'),
-			revealPath: async (path: number[]): Promise<BlockComponent | null> => {
+			getBlockElByPath: () => (mounted ? document.createElement('div') : null),
+			revealTarget: async (path: number[]): Promise<boolean> => {
 				revealed.push(path);
-				return null;
+				return mounted;
 			}
 		}
 	};
@@ -76,31 +76,46 @@ describe('resolveSelectionPoint — clamping per coordinate space', () => {
 });
 
 describe('restoreSelection', () => {
-	it('resolves false and reveals nothing when a path no longer resolves', async () => {
+	it('declines a path that no longer resolves, revealing nothing', async () => {
 		const h = restoreHarness(PROSE);
 
-		const applied = await restoreSelection(
+		const outcome = await restoreSelection(
 			{ anchor: { path: [9], offset: 0 }, focus: { path: [9], offset: 0 } },
 			h.deps
 		);
 
 		// The reveal scrolls; running it before the resolve check would move the
 		// viewport on the way to reporting failure.
-		expect(applied).toBe(false);
+		expect(outcome).toBe('unresolvable');
 		expect(h.revealed).toEqual([]);
 		expect(h.selectionState.isCrossBlock).toBe(false);
 	});
 
-	it('resolves false when only the anchor is stale', async () => {
+	it('declines when only the anchor is stale', async () => {
 		const h = restoreHarness(PROSE);
 
-		const applied = await restoreSelection(
+		const outcome = await restoreSelection(
 			{ anchor: { path: [9], offset: 0 }, focus: { path: [0], offset: 0 } },
 			h.deps
 		);
 
-		expect(applied).toBe(false);
+		expect(outcome).toBe('unresolvable');
 		expect(h.revealed).toEqual([]);
+	});
+
+	// The undo swap clears on `unresolvable` and must NOT clear on `unplaced`,
+	// where the custom route has already stored the correct endpoints.
+	it('reports unplaced — not unresolvable — when a resolvable target is unmounted', async () => {
+		const h = restoreHarness(PROSE, { mounted: false });
+
+		const outcome = await restoreSelection(
+			{ anchor: { path: [0], offset: 1 }, focus: { path: [1], offset: 2 } },
+			h.deps
+		);
+
+		expect(outcome).toBe('unplaced');
+		expect(h.revealed).toEqual([[1]]);
+		expect(h.selectionState.isCrossBlock).toBe(true);
 	});
 
 	it('reveals the focus block for a prose caret', async () => {
@@ -111,7 +126,7 @@ describe('restoreSelection', () => {
 				{ anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } },
 				h.deps
 			)
-		).toBe(true);
+		).toBe('applied');
 		expect(h.revealed).toEqual([[1]]);
 	});
 
