@@ -126,13 +126,8 @@ export function scanInline(
 	// Reserved-trigger prefix rungs are consulted before the switch so they can
 	// outrank a built-in case — the only order that can work, because a handler
 	// consumes its trigger and advances (`handleBang` eats `![` as one unit), so the
-	// scan never returns to a position the switch has already read. Pricing a rung
-	// below `builtin` is therefore an explicit claim to outrank the case wherever its
-	// prefix matches, not a claim that the grammars are disjoint: `![[a]](u)` is a
-	// built-in image whose alt text is `[a]` *and* a `![[` prefix match. Declining the
-	// overlap is the recognizer's job, and a decline leaves `ctx` untouched so the
-	// built-in case reads byte-identical bytes.
-	// Hoisted so an empty registry adds no per-char cost.
+	// scan never returns to a position the switch has already read. Hoisted so an
+	// empty registry adds no per-char cost.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {
