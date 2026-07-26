@@ -52,20 +52,31 @@ describe('inline ladder — registration rules', () => {
 		);
 	});
 
-	it.each([
-		['!', '!!'],
-		[']', ']]']
-	])(
-		'rule 2 — a prefix rung on scan-invisible reserved trigger %s is rejected',
-		(trigger, prefix) => {
-			expect(() => registerInlineSyntax(trigger, decline, { prefix, priority: 40 })).toThrow(
-				/scan-visible/
-			);
-		}
-	);
+	it('rule 2 — a prefix rung on scan-invisible reserved trigger "]" is rejected', () => {
+		expect(() => registerInlineSyntax(']', decline, { prefix: ']]', priority: 40 })).toThrow(
+			/scan-visible/
+		);
+	});
 
 	it('rule 2 — a prefix rung on a scan-visible reserved trigger is accepted', () => {
 		expect(() => registerInlineSyntax('[', decline, { prefix: '[^', priority: 40 })).not.toThrow();
+	});
+
+	// `!` is scan-probed rather than scan-visible: absent from SPECIAL_CHARS, made
+	// visible to the fast bail by the registration itself. It registers like any
+	// other reserved trigger — prefix required, priority below the built-in anchor.
+	it('rule 2 — a prefix rung on the scan-probed reserved trigger "!" is accepted', () => {
+		expect(() => registerInlineSyntax('!', decline, { prefix: '![[', priority: 40 })).not.toThrow();
+		expect(getInlineRungs('!')).toHaveLength(1);
+	});
+
+	it.each([
+		['bare', undefined, /claimed by the built-in scanner/],
+		['at the built-in priority', INLINE_PRIORITIES.builtin, /priority below the built-in boundary/]
+	])('rule 2 — a %s registration on "!" is still rejected', (_name, priority, message) => {
+		const options = priority === undefined ? undefined : { prefix: '![[', priority };
+		expect(() => registerInlineSyntax('!', decline, options)).toThrow(message);
+		expect(getInlineRungs('!')).toHaveLength(0);
 	});
 
 	it('rule 3 — an unreserved trigger takes any priority; bare defaults to the plugin rung', () => {

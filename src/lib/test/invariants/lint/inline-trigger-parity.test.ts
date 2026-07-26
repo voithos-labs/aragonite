@@ -7,11 +7,16 @@
  * bare recognizer the switch then silently shadows, the exact failure the reserved
  * check exists to prevent.
  *
- * (2) Every reserved trigger is either scan-visible (in `SPECIAL_CHARS`, so
- * `needsScan` reaches it) or named in `SCAN_INVISIBLE_RESERVED` (so registration
- * rejects a prefix rung on it). A SPECIAL_CHARS edit that orphans a reserved trigger
- * — leaving a prefix rung there a silent no-op the scan never visits — fails here
- * instead of shipping.
+ * (2) Every reserved trigger is reachable by exactly one of three routes:
+ * scan-visible (in `SPECIAL_CHARS`, so `needsScan` always reaches it), scan-probed
+ * (in `SCAN_PROBED_RESERVED`, so `needsScan` reaches it while a rung is registered),
+ * or rejected (in `SCAN_INVISIBLE_RESERVED`, so registration refuses a prefix rung).
+ * A SPECIAL_CHARS edit that orphans a reserved trigger — leaving a prefix rung there a
+ * silent no-op the scan never visits — fails here instead of shipping, and so does a
+ * trigger claimed by two routes at once, which would make its reachability depend on
+ * which check ran first. The probed route's actual wiring is pinned behaviorally, by
+ * the `!` cases in `test/core/needs-scan-plugin-trigger.test.ts`: a source-level count
+ * of probe call sites would pass on a probe that no longer probes.
  *
  * (3) The pre-switch prefix consultation — the seam a reserved trigger's prefix rung
  * outranks its built-in case through — has exactly one home, ahead of the switch.
@@ -30,21 +35,13 @@ function singleQuotedLiterals(src: string): string[] {
 	return [...src.matchAll(/'((?:\\.|[^'\\])*)'/g)].map((m) => m[1]);
 }
 
-/** The `BUILTIN_TRIGGERS = new Set([...])` members from plugin-syntax.ts. */
-function builtinTriggers(): Set<string> {
+/** The members of a `<name> = new Set([...])` trigger literal in plugin-syntax.ts. */
+function triggerSet(name: string): Set<string> {
 	const { code } = readEditorFile('core/inline/scan/plugin-syntax.ts');
 	// `[\s\S]*?` (not `[^\]]*`) so the `']'` trigger's own `]` doesn't truncate the
 	// capture; the only `])` that closes it is the real end of the Set literal.
-	const match = code.match(/BUILTIN_TRIGGERS\s*=\s*new Set\(\[([\s\S]*?)\]\)/);
-	if (!match) throw new Error('inline-trigger-parity: BUILTIN_TRIGGERS literal not found');
-	return new Set(singleQuotedLiterals(match[1]));
-}
-
-/** The `SCAN_INVISIBLE_RESERVED = new Set([...])` members from plugin-syntax.ts. */
-function scanInvisibleReserved(): Set<string> {
-	const { code } = readEditorFile('core/inline/scan/plugin-syntax.ts');
-	const match = code.match(/SCAN_INVISIBLE_RESERVED\s*=\s*new Set\(\[([\s\S]*?)\]\)/);
-	if (!match) throw new Error('inline-trigger-parity: SCAN_INVISIBLE_RESERVED literal not found');
+	const match = code.match(new RegExp(`${name}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\)`));
+	if (!match) throw new Error(`inline-trigger-parity: ${name} literal not found`);
 	return new Set(singleQuotedLiterals(match[1]));
 }
 
@@ -84,7 +81,7 @@ function callOffsets(marker: string): number[] {
 }
 
 describe('G4.18 inline-trigger parity', () => {
-	const triggers = builtinTriggers();
+	const triggers = triggerSet('BUILTIN_TRIGGERS');
 	const cases = switchCaseTriggers();
 
 	it('BUILTIN_TRIGGERS equals the scanInline switch case labels', () => {
@@ -106,23 +103,31 @@ describe('G4.18 inline-trigger parity', () => {
 	});
 
 	// A reserved trigger the `needsScan` fast bail never visits (absent from
-	// SPECIAL_CHARS) must be named in SCAN_INVISIBLE_RESERVED, or a prefix rung on it
-	// registers yet silently never fires. `overReach` catches the reverse rot: a
-	// rejected trigger that became scan-visible (or was never reserved) would wrongly
-	// block a now-valid registration with nothing to notice.
-	it('every reserved trigger is scan-visible or rejected as a scan-invisible no-op', () => {
+	// SPECIAL_CHARS) must be named by one of the two on-demand routes, or a prefix rung
+	// on it registers yet silently never fires. `overReach` catches the reverse rot: a
+	// route naming a trigger that became scan-visible (or was never reserved) would
+	// either block a now-valid registration or probe for nothing, with nothing to
+	// notice. `doubleClaimed` catches the third shape — one trigger on two routes, so
+	// which one governs depends on which check runs first.
+	it('every reserved trigger takes exactly one route: visible, probed, or rejected', () => {
 		const special = specialChars();
-		const rejected = scanInvisibleReserved();
+		const probed = triggerSet('SCAN_PROBED_RESERVED');
+		const rejected = triggerSet('SCAN_INVISIBLE_RESERVED');
 		expect(special.has('['), 'SPECIAL_CHARS extractor found nothing').toBe(true);
-		expect(rejected.has('!'), 'SCAN_INVISIBLE_RESERVED extractor found nothing').toBe(true);
+		expect(probed.has('!'), 'SCAN_PROBED_RESERVED extractor found nothing').toBe(true);
+		expect(rejected.has(']'), 'SCAN_INVISIBLE_RESERVED extractor found nothing').toBe(true);
 
-		const orphaned = [...triggers].filter((t) => !special.has(t) && !rejected.has(t)).sort();
-		const overReach = [...rejected].filter((t) => special.has(t) || !triggers.has(t)).sort();
+		const onDemand = [...probed, ...rejected];
+		const orphaned = [...triggers]
+			.filter((t) => !special.has(t) && !probed.has(t) && !rejected.has(t))
+			.sort();
+		const overReach = onDemand.filter((t) => special.has(t) || !triggers.has(t)).sort();
+		const doubleClaimed = [...probed].filter((t) => rejected.has(t)).sort();
 		expect(
-			{ orphaned, overReach },
-			'a reserved trigger sits outside SPECIAL_CHARS without a matching rejection, or the ' +
-				'rejected set names a scan-visible / non-reserved trigger'
-		).toEqual({ orphaned: [], overReach: [] });
+			{ orphaned, overReach, doubleClaimed },
+			'a reserved trigger sits outside SPECIAL_CHARS with no route, or a route names a ' +
+				'scan-visible / non-reserved trigger, or one trigger takes two routes'
+		).toEqual({ orphaned: [], overReach: [], doubleClaimed: [] });
 	});
 });
 
