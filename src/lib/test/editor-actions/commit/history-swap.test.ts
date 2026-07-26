@@ -28,6 +28,35 @@ describe('history swap — no-op guard', () => {
 	});
 });
 
+// An entry's selection can name a slot absent from its own snapshot: the
+// append-past-end op declares the one-past-the-end coordinate as its restore
+// fallback, so an undo of it restores a path that resolves nowhere. The shared
+// restore seam declines such a snapshot without touching the editor — right for
+// the consumer `setSelection` door, which must never disturb a live selection —
+// which leaves the swap to drop the now-meaningless selection itself. Without
+// that, a cross-block overlay stays painted over a document that just changed
+// underneath it.
+describe('history swap — a snapshot whose selection no longer resolves', () => {
+	it('clears the standing selection instead of leaving its overlay painted', async () => {
+		const { deps, history } = makeSetup();
+		const pastEnd = deps.doc.children.length;
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: {
+				anchor: { path: [pastEnd], offset: 0 },
+				focus: { path: [pastEnd], offset: 0 }
+			}
+		});
+		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
+		expect(deps.selectionState.isCrossBlock).toBe(true);
+
+		await history.requestUndo();
+
+		expect(deps.selectionState.isCrossBlock).toBe(false);
+	});
+});
+
 // The swap must FLUSH the armed keystroke batch, not discard it: interrupt emits
 // the batch's pending `input` event (so edit-channel observers keep their
 // keystroke count — discarding dropped those bytes) AND clears the debounce
