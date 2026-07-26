@@ -80,14 +80,16 @@ export interface EditorInstance {
 	 * An out-of-range offset clamps to the end of its block, in that endpoint's own
 	 * coordinate space: character offsets clamp to the block's source length, but an
 	 * endpoint addressing a TABLE block carries a row-major cell index and clamps to
-	 * the last cell (see {@link SelectionPoint}) — a large offset there becomes the
-	 * bottom-right cell, not a character position.
+	 * the last cell (the `cellCoordinate` endpoints of {@link EditorSelection}) — a
+	 * large offset there becomes the bottom-right cell, not a character position.
 	 *
-	 * Never throws. Resolves false in two cases, which differ in their effect: a
+	 * Never throws. Resolves false in three cases, which differ in their effect: a
 	 * path that no longer addresses a block is declined before anything happens
-	 * (no scroll, no focus, no state write), while a path that resolves in the
-	 * tree but whose element is absent from the DOM has already scrolled and
-	 * re-established cross-block state by the time placement fails.
+	 * (no scroll, no focus, no state write); a path that resolves in the tree but
+	 * whose element is absent from the DOM has already scrolled and re-established
+	 * cross-block state by the time placement fails; and a placement that lands
+	 * while the scroll cannot settle the target into view reports false too,
+	 * because the boolean promises in-view rather than merely placed.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	getEvents(): EditorEvents;
