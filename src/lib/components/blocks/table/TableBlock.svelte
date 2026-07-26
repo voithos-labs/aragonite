@@ -76,6 +76,7 @@
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
+		scrollHost: getScrollHost,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -446,10 +447,10 @@
 			fromRowIdx: rowIdx,
 			getRowCount: () => rowCount,
 			getGeometry: rowReorderGeometry,
-			// Row windowing scrolls the editor root (its getScrollEl); autoscroll must move
-			// that exact element so off-window rows mount. Not nearestScrollContainer, which
-			// counts overflow:hidden — a no-op autoscroll target (scroll-ancestors.ts header).
-			getScrollContainer: getEditorRoot,
+			// Row windowing scrolls whatever scrolls this editor (list-windowing's
+			// getScrollEl); autoscroll must move that exact element so off-window rows
+			// mount — the root in self mode, the host's scroller in host mode.
+			getScrollContainer: getScrollHost,
 			setLine: (line) => (dragLine = line),
 			onDragRecognized: () => (suppressRowGripClick = true),
 			commit: (from, to) => void mutations.reorderRowTo(from, to),

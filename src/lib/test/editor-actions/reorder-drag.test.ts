@@ -33,6 +33,7 @@ describe('installReorderDrag — root listener lifecycle', () => {
 	function makeCtx(signal?: AbortSignal) {
 		return {
 			editorRoot,
+			getScrollHost: () => editorRoot,
 			moveReorderUnit: async () => {},
 			overlay: { setGhost: () => {}, setLine: () => {} },
 			lifetimeSignal: signal

@@ -107,6 +107,9 @@ export interface EditableSurfaceDeps {
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
 	getEditorRoot: () => HTMLElement | null;
+	/** What scrolls this editor — the root in self mode, the host's scroller in host
+	 *  mode; threaded to the cross-block drag-select autoscroll. */
+	getScrollHost: () => HTMLElement | null;
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
 	blockEdit: BlockEditActions;
@@ -187,6 +190,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getBlockElByPath: deps.getBlockElByPath,
 		revealPath: deps.focusActions.revealPath,
 		getEditorRoot: deps.getEditorRoot,
+		getScrollHost: deps.getScrollHost,
 		getEditorLifetime: deps.getEditorLifetime,
 		stickyColumn: deps.stickyColumn,
 		blockEdit: deps.blockEdit,

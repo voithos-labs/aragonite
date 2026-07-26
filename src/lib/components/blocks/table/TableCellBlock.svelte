@@ -122,6 +122,7 @@
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
 		editorRoot: getEditorRoot,
+		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
 		pluginEditor,
 		linkRef
@@ -218,6 +219,7 @@
 		getBlockElByPath,
 		focusActions,
 		getEditorRoot,
+		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
 		blockEdit,
