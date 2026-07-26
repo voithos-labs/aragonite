@@ -43,6 +43,9 @@ export interface CrossBlockDispatchContext {
 	getBlockElByPath: BlockElLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
+	/** What autoscrolls a drag-select that reaches an edge — the root in self mode,
+	 *  the host's scroller in host mode. See `cursor/scroll-ancestors`. */
+	getScrollHost: () => HTMLElement | null;
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;

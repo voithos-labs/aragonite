@@ -109,6 +109,7 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 			blockChrome: HEIGHT_ESTIMATES.blockChrome,
 			imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 		}),
+		scrollHost: () => null,
 		windowingEnabled: () => true,
 		widthVersion: () => 0
 	};

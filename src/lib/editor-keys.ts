@@ -186,6 +186,10 @@ export interface EditorDoc {
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;
 	editorRoot: () => HTMLElement | null;
+	/** What scrolls (and bounds) this editor: the root in self mode, the nearest
+	 *  scrolling-or-clipping ancestor in host mode, null when the page's own
+	 *  viewport does. One resolution per instance — see `cursor/scroll-ancestors`. */
+	scrollHost: () => HTMLElement | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; drives per-level VR pins. */
 	focusedPath: FocusedPathGetter;

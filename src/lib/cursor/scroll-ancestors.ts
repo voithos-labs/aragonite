@@ -1,7 +1,9 @@
 /**
- * Source of truth for "what scrolls" for the selection-overlay re-measure. Two
- * directions for two questions: `nearestScrollContainer` walks up ("what scrolls
- * around me"), `firstScrollableDescendant` walks down ("what scrolls inside me").
+ * Source of truth for "what scrolls". Three questions:
+ * `nearestScrollContainer` walks up within the editor ("what scrolls around me"),
+ * `firstScrollableDescendant` walks down ("what scrolls inside me"), and
+ * `nearestScrollHost` walks up OUT of the editor ("what scrolls the editor
+ * itself") — the host-scroll seam.
  *
  * Qualified: drag autoscroll (`selection/drag-pointer.ts`) walks its own
  * ancestors and counts only `auto`/`scroll`, not `hidden`. So a `hidden`-overflow
@@ -10,6 +12,11 @@
  */
 
 const SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);
+// `clip` joins them for the host walk alone: it cannot scroll, but it bounds what
+// is visible, and the one caller that asks "is this block in view" must not
+// disagree with the one that asks "what do I scroll" about which ancestor owns
+// the box. A clip host answers both honestly — nothing is reachable past its edge.
+const VIEW_BOUNDING_VALUES = new Set([...SCROLLABLE_VALUES, 'clip']);
 
 function isScrollable(el: HTMLElement): boolean {
 	const cs = getComputedStyle(el);
@@ -20,6 +27,26 @@ export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HT
 	let cur: HTMLElement | null = el.parentElement;
 	while (cur && cur !== stopAt) {
 		if (isScrollable(cur)) return cur;
+		cur = cur.parentElement;
+	}
+	return null;
+}
+
+/**
+ * The ancestor that scrolls or clips `el` from OUTSIDE it, or null when the page's
+ * own viewport is what bounds it. `html`/`body` are not candidates: when they are
+ * the scrollport, the window viewport is the rect to measure against, which the
+ * null answers for. Used in host-scroll mode, where the editor root itself no
+ * longer scrolls and every "what scrolls / what bounds this editor" question has
+ * to resolve outward.
+ */
+export function nearestScrollHost(el: HTMLElement): HTMLElement | null {
+	let cur: HTMLElement | null = el.parentElement;
+	while (cur && cur !== document.body && cur !== document.documentElement) {
+		const cs = getComputedStyle(cur);
+		if (VIEW_BOUNDING_VALUES.has(cs.overflowX) || VIEW_BOUNDING_VALUES.has(cs.overflowY)) {
+			return cur;
+		}
 		cur = cur.parentElement;
 	}
 	return null;

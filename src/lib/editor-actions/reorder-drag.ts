@@ -20,6 +20,10 @@ export interface ReorderDragOverlay {
 
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
+	/** What autoscrolls when the drag reaches an edge: the root in self mode, the
+	 *  host's scroller in host mode (where the root doesn't scroll), null when
+	 *  nothing does. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
+	getScrollHost: () => HTMLElement | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
 	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
@@ -139,7 +143,12 @@ function startSession(
 					ctx.overlay.setGhost(null);
 					ctx.overlay.setLine(null);
 				},
-				autoScroll: { getTargets: () => [ctx.editorRoot] },
+				autoScroll: {
+					getTargets: () => {
+						const host = ctx.getScrollHost();
+						return host ? [host] : [];
+					}
+				},
 				escape: true,
 				disableUserSelect: true,
 				lifetimeSignal: ctx.lifetimeSignal

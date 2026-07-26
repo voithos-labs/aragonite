@@ -55,7 +55,7 @@ export interface EditorRects {
 	 * Host-scroll mode drops the anchor half entirely — windowing never activates, so
 	 * there is nothing to hold against and no scrollport of our own to hold it in. The
 	 * settle's `scrollIntoView` (which walks up to the host's scroller) is the whole
-	 * mechanism, and visibility is judged against the window viewport.
+	 * mechanism, and visibility is judged against the host's scroll box.
 	 */
 	scrollTo(path: readonly number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean>;
 }
@@ -71,18 +71,21 @@ export function createEditorRects(deps: {
 	getBlockComponentByPath: (path: number[]) => BlockComponent | null;
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
-	/** True when an ancestor owns the scroll (`scrollMode="host"`). The root then
-	 *  spans the WHOLE document, so intersecting a block with it answers "is it in
-	 *  the document" — always true, including for a block nothing can reveal. */
-	isHostScroll: () => boolean;
+	/** What bounds the editor's visible box: the root in self mode, the nearest
+	 *  scrolling-or-clipping ancestor in host mode, null when the page's own
+	 *  viewport does. Measuring against the ROOT in host mode would answer "is the
+	 *  block in the document" — always true, including for a block clipped out by
+	 *  an ancestor that no scroll can reveal. */
+	getScrollHost: () => HTMLElement | null;
 	isCrossBlock: () => boolean;
 	revealAnchor: RevealAnchorState;
 }): EditorRects {
-	function isInView(el: HTMLElement, root: HTMLElement): boolean {
+	function isInView(el: HTMLElement): boolean {
 		const br = el.getBoundingClientRect();
-		if (deps.isHostScroll()) return br.top < window.innerHeight && br.bottom > 0;
-		const er = root.getBoundingClientRect();
-		return br.top < er.bottom && br.bottom > er.top;
+		const host = deps.getScrollHost();
+		if (!host) return br.top < window.innerHeight && br.bottom > 0;
+		const hr = host.getBoundingClientRect();
+		return br.top < hr.bottom && br.bottom > hr.top;
 	}
 
 	// Settle the reveal into its final placement, then report whether it landed in view.
@@ -114,7 +117,7 @@ export function createEditorRects(deps: {
 			placedTop = el.getBoundingClientRect().top;
 		}
 		const el = deps.getBlockElByPath(path);
-		return el != null && isInView(el, root);
+		return el != null && isInView(el);
 	}
 
 	return {

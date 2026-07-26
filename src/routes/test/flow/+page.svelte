@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor, type EditorSelection } from '$lib';
 	import { nodeAt } from '$lib/tree-operations/node-ops';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
@@ -54,6 +54,10 @@
 			},
 			scrollTo: (id: string, path: number[], opts?: { block?: 'nearest' | 'center' }) =>
 				editors[id]?.getRects().scrollTo(path, opts) ?? Promise.resolve(null),
+			// Task 1's door, whose "a true focus block is IN VIEW" contract routes
+			// through the same mode-dependent in-view read as scrollTo.
+			setSelection: (id: string, selection: EditorSelection) =>
+				editors[id]?.setSelection(selection) ?? Promise.resolve(null),
 			blockRect: (id: string, path: number[]) => {
 				const r = editors[id]?.getRects().blockRect(path);
 				return r ? { top: r.top, bottom: r.bottom } : null;

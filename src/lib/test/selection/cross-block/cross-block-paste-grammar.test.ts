@@ -74,6 +74,7 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		getBlockElByPath: () => null,
 		revealPath: env.deps.revealPath,
 		getEditorRoot: () => null,
+		getScrollHost: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,
 		blockEdit: env.blockEdit,

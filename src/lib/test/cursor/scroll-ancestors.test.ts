@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { firstScrollableDescendant, nearestScrollContainer } from '../../cursor/scroll-ancestors';
+import {
+	firstScrollableDescendant,
+	nearestScrollContainer,
+	nearestScrollHost
+} from '../../cursor/scroll-ancestors';
 
 describe('nearestScrollContainer', () => {
 	let root: HTMLDivElement;
@@ -70,6 +74,64 @@ describe('nearestScrollContainer', () => {
 
 	it('returns null when el has no parents up to root', () => {
 		expect(nearestScrollContainer(root, root)).toBeNull();
+	});
+});
+
+describe('nearestScrollHost', () => {
+	let root: HTMLDivElement;
+
+	beforeEach(() => {
+		root = document.createElement('div');
+		document.body.appendChild(root);
+	});
+
+	afterEach(() => {
+		root.remove();
+	});
+
+	function nest(styles: Array<Partial<CSSStyleDeclaration>>): HTMLElement {
+		let leaf: HTMLElement = root;
+		for (const style of styles) {
+			const el = document.createElement('div');
+			Object.assign(el.style, style);
+			leaf.appendChild(el);
+			leaf = el;
+		}
+		return leaf;
+	}
+
+	it('returns null when the page viewport is what bounds the element', () => {
+		expect(nearestScrollHost(nest([{}, {}]))).toBeNull();
+	});
+
+	it('returns the nearest scrolling ancestor', () => {
+		const leaf = nest([{ overflowY: 'auto' }, {}]);
+		expect(nearestScrollHost(leaf)).toBe(leaf.parentElement);
+	});
+
+	// The divergence from `nearestScrollContainer`: a clip box cannot scroll, but it
+	// bounds what is visible, so a reveal past its edge is unreachable and must be
+	// measured against it.
+	it('counts a clipping ancestor, which nearestScrollContainer does not', () => {
+		const leaf = nest([{ overflowX: 'clip', overflowY: 'clip' }, {}]);
+		const pane = leaf.parentElement!;
+		expect(nearestScrollHost(leaf)).toBe(pane);
+		expect(nearestScrollContainer(leaf, root)).toBeNull();
+	});
+
+	it('picks the innermost bounding ancestor when several nest', () => {
+		const leaf = nest([{ overflowY: 'auto' }, { overflowX: 'clip', overflowY: 'clip' }, {}]);
+		expect(nearestScrollHost(leaf)).toBe(leaf.parentElement);
+	});
+
+	// `html`/`body` scrolling IS the window viewport, whose rect the null answers for.
+	it('never returns body or the document element', () => {
+		document.body.style.overflowY = 'auto';
+		try {
+			expect(nearestScrollHost(nest([{}]))).toBeNull();
+		} finally {
+			document.body.style.overflowY = '';
+		}
 	});
 });
 
