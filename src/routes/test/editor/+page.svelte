@@ -50,6 +50,17 @@
 			? harnessPasteImage
 			: undefined;
 
+	// `?header=on` mounts a host header inside the editor's scroll container (the
+	// DocumentHero shape). Off by default: a preamble shifts every block's geometry,
+	// which specs across the suite measure. Its height toggles between two values so
+	// the anchor compensation has something to compensate for; the toggle control
+	// lives in the page header, OUTSIDE the editor's scroll container, because
+	// clicking a control inside it would scroll the very position under test.
+	const headerOn =
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('header') === 'on';
+	let headerTall = $state(false);
+
 	// `?presentationMode=reading|preview-block|preview-inline` starts in that mode;
 	// the header toggles flip it live (the prop reads live — no remount, unlike
 	// blockDragHandles).
@@ -142,6 +153,16 @@
 	});
 </script>
 
+<!-- The host chrome a consumer mounts in the header slot: a title, a link (host
+     chrome follows the page's link behaviour, not the editor's modifier-click
+     policy), and a filler whose height the page-header button toggles. -->
+{#snippet documentHero()}
+	<div class="demo-hero" data-testid="harness-header" style:height={headerTall ? '240px' : '80px'}>
+		<span class="demo-hero-title">Untitled document</span>
+		<a href="#hero-link" data-testid="hero-link">#tag</a>
+	</div>
+{/snippet}
+
 <div class="test-harness aragonite-editor-theme">
 	<header class="demo-header">
 		<div class="demo-heading">
@@ -155,6 +176,16 @@
 			<input type="checkbox" checked={dragHandlesOn} onchange={toggleDragHandles} />
 			Drag handles
 		</label>
+		{#if headerOn}
+			<button
+				type="button"
+				class="demo-btn"
+				data-testid="header-height-toggle"
+				onclick={() => (headerTall = !headerTall)}
+			>
+				Header: {headerTall ? 'tall' : 'short'}
+			</button>
+		{/if}
 		{#each PRESENTATION_TOGGLES as toggle (toggle.mode)}
 			<label class="demo-toggle">
 				<input
@@ -179,6 +210,7 @@
 					{presentationMode}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
 					{onPasteImage}
+					header={headerOn ? documentHero : undefined}
 					theme="dark"
 				/>
 			{/key}
@@ -255,6 +287,32 @@
 	.demo-toggle input {
 		cursor: pointer;
 		margin: 0;
+	}
+	.demo-btn {
+		flex: 0 0 auto;
+		font-size: 0.85rem;
+		font-family: var(--font-editor, ui-monospace, monospace);
+		color: var(--color-text-secondary, #888);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-radius: 4px;
+		padding: 0.25rem 0.6rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.demo-hero {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.35rem;
+		overflow: hidden;
+		box-sizing: border-box;
+		padding: 0.5rem 0;
+		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+	}
+	.demo-hero-title {
+		font-size: 1.6rem;
+		font-weight: 600;
 	}
 	.demo-title {
 		margin: 0;
