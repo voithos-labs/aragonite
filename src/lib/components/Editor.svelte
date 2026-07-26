@@ -26,7 +26,7 @@
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
-	import { clippingAncestors, nearestScrollableAncestor } from '../cursor/scroll-ancestors';
+	import { clippingAncestors, nearestUserScrollableAncestor } from '../cursor/scroll-ancestors';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -131,7 +131,7 @@
 	let hostResolved = false;
 	function resolveHost(): void {
 		if (hostResolved || !editorEl) return;
-		resolvedScrollHost = nearestScrollableAncestor(editorEl);
+		resolvedScrollHost = nearestUserScrollableAncestor(editorEl);
 		resolvedClipBounds = clippingAncestors(editorEl);
 		hostResolved = true;
 	}
