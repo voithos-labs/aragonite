@@ -32,6 +32,7 @@ set-once at mount) and swaps its per-image response through `window.__test.image
 - Hook returns `null`: nothing is inserted, no error is emitted, the document is
   unchanged — and the paste is still consumed (no `text/plain` fallback).
 - Hook returns `null` for one of two images: only the other image's markdown lands.
+  Pinned by `test/blocks/editable-surface-image-paste.test.ts`.
 - Caret moved elsewhere while a slow hook is still resolving: the markdown lands at
   the caret held when the paste fired, not where the caret now sits.
 - Clipboard carries a non-image file (a `.txt` attachment) plus text: the image arm
@@ -41,10 +42,14 @@ set-once at mount) and swaps its per-image response through `window.__test.image
   event is emitted. The insertion is declined rather than landing at a guessed offset.
   Pinned by `test/blocks/editable-surface-image-paste.test.ts` — unmounting a block
   mid-import is not reachable through a user gesture at e2e level.
-- Cross-block selection active when an image is pasted: the arm runs before
-  cross-block paste handling, so the selection is NOT deleted — the markdown is
-  inserted and the selected blocks stay. The tree stays convergent either way; this
-  is pinned so a future change to the arm's position is a decision, not a surprise.
+- Cross-block selection active when an image is pasted: the selection is replaced,
+  like every other paste route. The range is deleted and the markdown inserted at the
+  collapsed caret as one undo entry, the cross-block mode is cleared so the next
+  gesture acts on fresh offsets, and the tree stays convergent. A selection anchored
+  in a table cell takes the same route (its covered row goes), and the landing is
+  byte-identical to pasting the same string as text over the same selection.
+- The hook still decides first: an import that returns `null` or rejects for every
+  image destroys nothing — the selection is only replaced once there is markdown.
 
 ## User interactions
 

@@ -497,6 +497,14 @@ async function pasteImages(
 		}
 	}
 	if (markdown.length === 0) return;
+	const text = markdown.join('');
+	// A multi-block selection is REPLACED, like every other paste route. Offered only
+	// once the hook has answered, so a declined or failed import destroys nothing —
+	// and offered to the cross-block seam rather than the surface tail because the
+	// delete collapses start-wins: the block that received this event may be the one
+	// merged away, while the seam addresses the survivor by path and lands the whole
+	// delete + insert in one undo entry.
+	if (await deps.crossBlock.handlePaste(e, text)) return;
 	// A hook slow enough to outlive its block leaves nothing to insert into, and the
 	// surface tails would fall back to offset 0 — markdown at a position the user
 	// never pointed at. Decline, loudly.
@@ -514,5 +522,5 @@ async function pasteImages(
 	// once focus leaves the block, so an untouched selection compares equal and a
 	// caret that moved anywhere (this block or another) does not.
 	if (deps.caret.getCursorOffset() !== anchor) deps.caret.focus(anchor);
-	await deps.pasteTail(e, markdown.join(''), foldedCaret);
+	await deps.pasteTail(e, text, foldedCaret);
 }

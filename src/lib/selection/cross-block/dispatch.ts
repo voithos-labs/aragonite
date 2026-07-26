@@ -75,7 +75,10 @@ export interface CrossBlockHandlers {
 	/** Returns true if the event was fully handled (caller should return). */
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent): boolean;
-	handlePaste(e: ClipboardEvent): Promise<boolean>;
+	/** `replacement` stands in for the clipboard's own text, for a caller that has
+	 *  already turned the payload into markdown (the image-import arm) and must not
+	 *  re-read the event past its awaits. */
+	handlePaste(e: ClipboardEvent, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/**
@@ -110,12 +113,12 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
 		handlePointerDown: pointer.handlePointerDown,
-		handlePaste: async (e) => {
+		handlePaste: async (e, replacement) => {
 			if (reading()) {
 				e.preventDefault();
 				return true;
 			}
-			return handleCrossBlockPaste(ctx, mutationCtx, e);
+			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
 		},
 		handleBeforeInput: async (e) => {
 			if (reading()) {

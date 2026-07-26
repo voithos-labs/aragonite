@@ -49,13 +49,15 @@ const RULE = `every clipboard→parse route must run applyPasteTransforms; the t
 // ── Read-site enumeration ────────────────────────────────────────────────────
 
 /**
- * Pulling text out of a clipboard or a drop payload — the routes this rule
- * governs. The accessor arm tolerates `?.` and `!.` between the carrier and the
- * read: a non-null assertion is the shape a new route is most likely to be
- * written with, and matching only `.`/`?.` let a planted probe through.
+ * Pulling a payload off a clipboard or a drop — the routes this rule governs. The
+ * accessor arms tolerate `?.` and `!.` between the carrier and the read: a non-null
+ * assertion is the shape a new route is most likely to be written with, and matching
+ * only `.`/`?.` let a planted probe through. `.files` is a read shape too — the
+ * image-import arm turns a File into markdown that must still reach the transforms,
+ * so a future route pulling `dataTransfer.files` in a new file has to declare itself.
  */
 const CLIPBOARD_READ_RE =
-	/(?:clipboardData|dataTransfer)\s*[!?]?\s*\.\s*getData\s*\(|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/;
+	/(?:clipboardData|dataTransfer)\s*[!?]?\s*\.\s*(?:getData|files)\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/;
 
 /** Each site that reads external text → the sanctioned route it hands the text to. */
 const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {

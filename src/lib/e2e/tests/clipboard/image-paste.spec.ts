@@ -207,21 +207,51 @@ test.describe('image paste: host hook installed', () => {
 		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 	});
 
-	// The arm sits before cross-block paste handling, so an image pasted over a
-	// multi-block selection does NOT delete it. Pinned so the day that changes is a
-	// decision, not a surprise: the tree must stay convergent either way.
-	test('a cross-block selection survives an image paste and the tree stays convergent', async ({
+	// An image paste replaces a multi-block selection like every other paste route.
+	// The cross-block seam owns the delete + insert as one undo entry and addresses
+	// by path, so the surface that received the event is irrelevant to where it lands.
+	test('an image pasted over a cross-block selection replaces it, and the next gesture is sound', async ({
 		page
 	}) => {
-		await editor.loadContent(`${PARAGRAPH}\nsecond\n`);
+		await editor.loadContent(`${PARAGRAPH}\nsecond\n\nthird\n`);
 		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
 		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('shot.png');
-		expect(await editor.bridge.getSource()).toContain('second');
+		const source = await editor.bridge.getSource();
+		expect(source).not.toContain('second');
+		expect(source.trim()).toBe('AB![[shot.png]]third');
+		await editor.bridge.waitForBlockCount(1);
+
+		// The delete has to have collapsed the selection: otherwise the next gesture
+		// acts on a range whose offsets shifted by the inserted length.
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		await page.keyboard.type('X');
+		await editor.bridge.waitForSourceContains('![[shot.png]]Xthird');
+		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+	});
+
+	// The cross-block delete has a table-specific branch (cell-index endpoints, the
+	// whole-row snap), so a selection anchored in a cell is its own shape. The landing
+	// is byte-identical to pasting the same string as text over the same selection —
+	// the arm inherits the cross-block route rather than placing anything itself.
+	test('a cross-block selection anchored in a table cell is replaced', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntrailing\n');
+		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForCrossBlock(true);
+		await pasteFiles(page, [PNG]);
+
+		await editor.bridge.waitForSourceContains('shot.png');
+		// The covered body row is gone; the range really was deleted.
+		expect(await editor.bridge.getSource()).not.toContain('| 1 | 2 |');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 	});
 });
