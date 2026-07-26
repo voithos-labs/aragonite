@@ -44,10 +44,13 @@ set-once at mount) and swaps its per-image response through `window.__test.image
   mid-import is not reachable through a user gesture at e2e level.
 - Cross-block selection active when an image is pasted: the selection is replaced,
   like every other paste route. The range is deleted and the markdown inserted at the
-  collapsed caret as one undo entry, the cross-block mode is cleared so the next
-  gesture acts on fresh offsets, and the tree stays convergent. A selection anchored
-  in a table cell takes the same route (its covered row goes), and the landing is
-  byte-identical to pasting the same string as text over the same selection.
+  collapsed caret, the cross-block mode is cleared so the next gesture acts on fresh
+  offsets, and the tree stays convergent.
+- One Ctrl+Z after a cross-block image paste restores the whole selection AND removes
+  the markdown: the delete and the insertion are one undo entry.
+- A cross-block selection anchored in a table cell is replaced too (its covered body
+  row goes), and the resulting document is byte-identical to pasting the same string
+  as text over the same selection — the image path uses the same route.
 - The hook still decides first: an import that returns `null` or rejects for every
   image destroys nothing — the selection is only replaced once there is markdown.
 
