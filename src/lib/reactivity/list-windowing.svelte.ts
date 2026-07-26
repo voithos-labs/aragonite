@@ -40,6 +40,9 @@ export interface ListWindowingDeps {
 	getOwnEl?: () => HTMLElement | null;
 	/** Report this scope's own box height to the parent scope's setChildSubtotal (undefined at top level). */
 	reportSelfHeight?: (height: number) => void;
+	/** False in host-scroll mode: this scope never activates, so every child mounts and
+	 *  no spacer renders. Static — the flag is set once at mount. */
+	windowingEnabled: () => boolean;
 	/** Collapse clamp: while true this scope mounts ONLY its chrome row (child 0) —
 	 *  the returned window is a fixed [0,1) with zero spacers. The window math is
 	 *  bypassed, not fed (collapse is height removal; a clamped slice through
@@ -305,6 +308,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		getLocalScrollTop: localScrollTop,
 		getViewportHeight: viewportHeight,
 		getPinnedIndex: pinnedIndex,
+		windowingEnabled: deps.windowingEnabled,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,

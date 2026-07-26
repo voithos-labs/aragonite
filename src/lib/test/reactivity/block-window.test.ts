@@ -10,6 +10,7 @@ const base = {
 	overscan: 2,
 	pinnedIndex: null as number | null,
 	pinExtensionCap: 100,
+	windowingEnabled: true,
 	active: true,
 	activateAbovePx: 1000, // hysteresis watermarks
 	deactivateBelowPx: 800
@@ -83,6 +84,21 @@ describe('computeWindow', () => {
 		const mid = new HeightModel(new Array(18).fill(50)); // 900px: between 800 and 1000
 		expect(computeWindow(mid, { ...base, active: false }).active).toBe(false);
 		expect(computeWindow(mid, { ...base, active: true }).active).toBe(true);
+	});
+
+	// Host-scroll mode: no scrollport, so no viewport to window against. The gate
+	// outranks the watermark AND the hysteresis latch, and the result is the same
+	// mount-everything shape a document under the watermark produces.
+	it('never activates while windowing is disabled', () => {
+		const tall = model(); // 5000px total, far above the high watermark
+		for (const active of [false, true]) {
+			const w = computeWindow(tall, { ...base, active, windowingEnabled: false });
+			expect(w.active).toBe(false);
+			expect(w.start).toBe(0);
+			expect(w.end).toBe(tall.size);
+			expect(w.topSpacerPx).toBe(0);
+			expect(w.bottomSpacerPx).toBe(0);
+		}
 	});
 
 	// Guards the under-mount direction of the half-open boundary: a block whose

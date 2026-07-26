@@ -74,6 +74,7 @@ describe('list-windowing reveal anchor', () => {
 				getFocusPath: () => null,
 				getRevealAnchorTarget: () => revealTarget,
 				getWidthVersion: () => 0,
+				windowingEnabled: () => true,
 				getParentPath: () => [],
 				overscan: 2,
 				pinExtensionCap: 100,

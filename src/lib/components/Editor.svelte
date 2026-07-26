@@ -108,9 +108,16 @@
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
+		scrollMode = 'self',
 		plugins,
 		__registryEnablement
 	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
+
+	// Snapshotted, not read live: set-once by contract, and the windowing scopes read
+	// it from inside their window derived — a live prop read there would register
+	// `scrollMode` as a dependency of the hottest path in the editor.
+	// svelte-ignore state_referenced_locally
+	const hostScroll = scrollMode === 'host';
 
 	// Install before initDocument parses `source`, so plugin openers/directives are
 	// live for the seed grammar. Set-once by contract — a later prop change is ignored.
@@ -527,6 +534,7 @@
 		getBlockComponentByPath: getBlockComponent,
 		revealPath,
 		getEditorRoot: () => editorEl ?? null,
+		isHostScroll: () => hostScroll,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		revealAnchor
 	});
@@ -969,6 +977,7 @@
 		blockElLookup: getBlockElByPath,
 		focusedPath: () => focusedPath,
 		heightOracle,
+		windowingEnabled: () => !hostScroll,
 		widthVersion: () => widthVersion
 	} satisfies EditorDoc);
 
@@ -1135,6 +1144,7 @@
 <div
 	class="editor"
 	data-editor-theme={theme}
+	data-scroll-mode={hostScroll ? 'host' : undefined}
 	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
 	bind:this={editorEl}
 	tabindex="-1"
@@ -1211,6 +1221,22 @@
 		position: relative;
 	}
 
+	/* Embedded flow mode: the root grows to its content and an ancestor on the host's
+	   page owns the scroll, so it drops both its scrollport and the standalone-widget
+	   chrome (frame, padding, min-height) that would box every entry of a journal.
+	   `overflow-anchor` returns to auto BECAUSE the manual correction it was disabled
+	   for is gone here: windowing never activates, and list-windowing's scrollTop
+	   writes land on a non-scrolling element. Native anchoring in the host's scroller
+	   is then the only mechanism holding the line, instead of neither. */
+	.editor[data-scroll-mode='host'] {
+		overflow-y: visible;
+		overflow-anchor: auto;
+		min-height: 0;
+		flex: none;
+		border: none;
+		padding: 0;
+	}
+
 	/* Sticks to the scrollport top (height:0 reserves no space); the search bar
 	   positions absolutely against it, so it stays put as the editor scrolls. */
 	.search-anchor {
@@ -1218,6 +1244,17 @@
 		top: 0;
 		height: 0;
 		z-index: 5;
+	}
+
+	/* Sticky resolves against the nearest SCROLLPORT, which in flow mode is the
+	   host's — the bar would leave its own editor and float over unrelated page
+	   content. Absolute re-homes it to the editor root (position: relative), so it
+	   rides the entry it belongs to. */
+	.editor[data-scroll-mode='host'] .search-anchor {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
 	}
 
 	.editor::-webkit-scrollbar {

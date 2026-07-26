@@ -51,6 +51,11 @@ export interface EditorRects {
 	 * visibility, matching the search reveal band. The boolean resolves only after the
 	 * position settles, so a resolved `true` means the target is genuinely in view; a
 	 * target that never mounts resolves `false` and leaves no dangling anchor.
+	 *
+	 * Host-scroll mode drops the anchor half entirely — windowing never activates, so
+	 * there is nothing to hold against and no scrollport of our own to hold it in. The
+	 * settle's `scrollIntoView` (which walks up to the host's scroller) is the whole
+	 * mechanism, and visibility is judged against the window viewport.
 	 */
 	scrollTo(path: readonly number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean>;
 }
@@ -66,12 +71,17 @@ export function createEditorRects(deps: {
 	getBlockComponentByPath: (path: number[]) => BlockComponent | null;
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
+	/** True when an ancestor owns the scroll (`scrollMode="host"`). The root then
+	 *  spans the WHOLE document, so intersecting a block with it answers "is it in
+	 *  the document" — always true, including for a block nothing can reveal. */
+	isHostScroll: () => boolean;
 	isCrossBlock: () => boolean;
 	revealAnchor: RevealAnchorState;
 }): EditorRects {
 	function isInView(el: HTMLElement, root: HTMLElement): boolean {
-		const er = root.getBoundingClientRect();
 		const br = el.getBoundingClientRect();
+		if (deps.isHostScroll()) return br.top < window.innerHeight && br.bottom > 0;
+		const er = root.getBoundingClientRect();
 		return br.top < er.bottom && br.bottom > er.top;
 	}
 

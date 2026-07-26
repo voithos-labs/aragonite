@@ -32,6 +32,12 @@ export interface EditorProps {
 	onPasteImage?: PasteImageHook;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
+	/** Who owns the scroll, set once at mount. `'self'` (default) makes the editor
+	 *  root its own scrollport and virtual rendering keeps the mounted set O(viewport).
+	 *  `'host'` is embedded flow mode: the root grows to its content and an ancestor
+	 *  scrolls it, so windowing never activates and EVERY block stays mounted — for
+	 *  small embedded documents (a journal entry), never a whole file. */
+	scrollMode?: 'self' | 'host';
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */

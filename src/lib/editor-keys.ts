@@ -191,6 +191,11 @@ export interface EditorDoc {
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
 	heightOracle: HeightOracle;
+	/** False in host-scroll mode, where the root is not a scrollport and there is no
+	 *  viewport to window against: every scope stays inactive and mounts all its
+	 *  children. Set once at mount — a windowing scope reads it inside its window
+	 *  derived, so a live prop read here would make it a keystroke-path dependency. */
+	windowingEnabled: () => boolean;
 	/** Monotonic width-change counter the root bumps on an editor width resize, so
 	 *  every windowing scope rebuilds its model and re-measures at the new width. */
 	widthVersion: WidthVersionGetter;
