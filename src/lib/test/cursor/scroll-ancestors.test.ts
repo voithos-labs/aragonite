@@ -5,7 +5,7 @@ import {
 	clippingAncestors,
 	firstScrollableDescendant,
 	nearestScrollContainer,
-	nearestScrollableAncestor
+	nearestUserScrollableAncestor
 } from '../../cursor/scroll-ancestors';
 
 describe('nearestScrollContainer', () => {
@@ -108,14 +108,14 @@ describe('host-seam walks', () => {
 
 	it('answers nothing when the page viewport is what scrolls and bounds', () => {
 		const leaf = nest([{}, {}]);
-		expect(nearestScrollableAncestor(leaf)).toBeNull();
+		expect(nearestUserScrollableAncestor(leaf)).toBeNull();
 		expect(clippingAncestors(leaf)).toEqual([]);
 	});
 
 	it('autoscroll skips a hidden card and finds the real scroller behind it', () => {
 		const leaf = nest([{ overflowY: 'auto' }, card, {}]);
 		const cardEl = leaf.parentElement!;
-		expect(nearestScrollableAncestor(leaf)).toBe(cardEl.parentElement);
+		expect(nearestUserScrollableAncestor(leaf)).toBe(cardEl.parentElement);
 	});
 
 	it('visibility collects the card AND the scroller, innermost first', () => {
@@ -130,7 +130,7 @@ describe('host-seam walks', () => {
 		const leaf = nest([{ overflowX: 'clip', overflowY: 'clip' }, {}]);
 		const pane = leaf.parentElement!;
 		expect(clippingAncestors(leaf)).toEqual([pane]);
-		expect(nearestScrollableAncestor(leaf)).toBeNull();
+		expect(nearestUserScrollableAncestor(leaf)).toBeNull();
 		expect(nearestScrollContainer(leaf, root)).toBeNull(); // the inner walk ignores clip
 	});
 
@@ -140,7 +140,7 @@ describe('host-seam walks', () => {
 		document.body.style.overflowY = 'auto';
 		try {
 			const leaf = nest([{}]);
-			expect(nearestScrollableAncestor(leaf)).toBeNull();
+			expect(nearestUserScrollableAncestor(leaf)).toBeNull();
 			expect(clippingAncestors(leaf)).toEqual([]);
 		} finally {
 			document.body.style.overflowY = '';
