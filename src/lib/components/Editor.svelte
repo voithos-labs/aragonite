@@ -1273,7 +1273,9 @@
 		flex: 1;
 		padding: 1rem;
 		font-family: var(--font-editor, ui-monospace, monospace);
-		font-size: 1rem;
+		/* The type-scale root: every construct sizes in `em` off this, so a host
+		   scales the whole surface with one declaration. */
+		font-size: var(--editor-font-size, 1rem);
 		line-height: 1.6;
 		color: var(--color-text-primary, #ffffff);
 		min-height: 200px;
