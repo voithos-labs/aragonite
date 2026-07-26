@@ -261,7 +261,7 @@ Every token is editor-owned and declared in `editor-theme.css`. The role table b
 
 | Role            | Token(s)                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
-| **Font**        | `--font-editor` _(mode-independent — one value)_                                  |
+| **Font**        | `--font-editor`, `--editor-font-size` _(mode-independent — one value each)_       |
 | **Text**        | `--color-text`, `--color-text-primary`                                            |
 | **Muted**       | `--color-text-muted`, `--color-ui-muted`, `--color-ui-dulled`, `--color-ui-faint` |
 | **Accent**      | `--color-accent`                                                                  |
@@ -269,7 +269,9 @@ Every token is editor-owned and declared in `editor-theme.css`. The role table b
 | **Backgrounds** | `--color-bg`, `--color-bg-secondary`, `--color-bg-elevated`, `--color-bg-muted`   |
 | **Danger**      | `--color-danger`                                                                  |
 
-**Both-themes guarantee.** Each `--color-*` token carries a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. `--font-editor` is the one exception: mode-independent, declared once.
+**Both-themes guarantee.** Each `--color-*` token carries a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The two font tokens are the exceptions: mode-independent, declared once.
+
+**`--editor-font-size` is the type-scale root.** Headings, code, markers and chrome are all `em`-relative, so overriding this one token scales the whole surface. Set it at `.editor` — **not on a wrapper**. The token is declared on the editor's own root, so a value inherited from an ancestor is shadowed by that declaration and does nothing. To drive it from a host value that changes (a zoom control, a user text-size setting), bridge it through a property of your own: `.editor { --editor-font-size: var(--my-zoom, 1rem); }`.
 
 Outside that contract sits the editor's own visual language — the syntax and code-token palettes, the Markdown-marker colors, the selection and search overlays, and the reorder/windowing surfaces. Those are dark-based or mode-independent. Read `editor-theme.css` if you mean to retheme them.
 

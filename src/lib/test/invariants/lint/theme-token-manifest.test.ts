@@ -7,8 +7,8 @@
  *
  * The both-themes guarantee is the contract: a themed token carries a light AND a
  * dark value, so it must appear in the base block and the `[data-editor-theme=
- * 'light']` override block. `--font-editor` is mode-independent — declared once in
- * the base, inherited by light — so it is checked in the base only.
+ * 'light']` override block. The font tokens are mode-independent — declared once in
+ * the base, inherited by light — so they are checked in the base only.
  *
  * THEMED_TOKENS / MODE_INDEPENDENT_TOKENS are the pinned manifest. They are not a
  * hand-kept mirror: the set-equality test below derives the published set from the
@@ -36,7 +36,7 @@ const THEMED_TOKENS = [
 	'--color-danger'
 ];
 
-const MODE_INDEPENDENT_TOKENS = ['--font-editor'];
+const MODE_INDEPENDENT_TOKENS = ['--font-editor', '--editor-font-size'];
 
 const LIGHT_SELECTOR = "[data-editor-theme='light']";
 
