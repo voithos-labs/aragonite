@@ -55,7 +55,8 @@ export interface EditorRects {
 	 * Host-scroll mode drops the anchor half entirely — windowing never activates, so
 	 * there is nothing to hold against and no scrollport of our own to hold it in. The
 	 * settle's `scrollIntoView` (which walks up to the host's scroller) is the whole
-	 * mechanism, and visibility is judged against the host's scroll box.
+	 * mechanism, and visibility is judged against the window viewport intersected
+	 * with every ancestor that clips the editor.
 	 */
 	scrollTo(path: readonly number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean>;
 }
@@ -71,21 +72,31 @@ export function createEditorRects(deps: {
 	getBlockComponentByPath: (path: number[]) => BlockComponent | null;
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
-	/** What bounds the editor's visible box: the root in self mode, the nearest
-	 *  scrolling-or-clipping ancestor in host mode, null when the page's own
-	 *  viewport does. Measuring against the ROOT in host mode would answer "is the
-	 *  block in the document" — always true, including for a block clipped out by
-	 *  an ancestor that no scroll can reveal. */
-	getScrollHost: () => HTMLElement | null;
+	/** True when an ancestor owns the scroll (`scrollMode="host"`), so the root is
+	 *  no scrollport: it spans the WHOLE document, and intersecting a block with it
+	 *  answers "is this in the document" — true even for a block nothing can reveal. */
+	isHostScroll: () => boolean;
+	/** Host mode's ancestors that bound what can be seen. Intersected WITH the window
+	 *  viewport, never instead of it: the innermost bound may be a card that clips
+	 *  nothing, and it would swallow the fold the window enforces. */
+	getClipBounds: () => HTMLElement[];
 	isCrossBlock: () => boolean;
 	revealAnchor: RevealAnchorState;
 }): EditorRects {
-	function isInView(el: HTMLElement): boolean {
+	function isInView(el: HTMLElement, root: HTMLElement): boolean {
 		const br = el.getBoundingClientRect();
-		const host = deps.getScrollHost();
-		if (!host) return br.top < window.innerHeight && br.bottom > 0;
-		const hr = host.getBoundingClientRect();
-		return br.top < hr.bottom && br.bottom > hr.top;
+		// Self mode: the root IS the scrollport, and what lies outside it is the host
+		// page's business, not the editor's.
+		if (!deps.isHostScroll()) {
+			const er = root.getBoundingClientRect();
+			return br.top < er.bottom && br.bottom > er.top;
+		}
+		if (br.top >= window.innerHeight || br.bottom <= 0) return false;
+		for (const bound of deps.getClipBounds()) {
+			const cr = bound.getBoundingClientRect();
+			if (br.top >= cr.bottom || br.bottom <= cr.top) return false;
+		}
+		return true;
 	}
 
 	// Settle the reveal into its final placement, then report whether it landed in view.
@@ -117,7 +128,7 @@ export function createEditorRects(deps: {
 			placedTop = el.getBoundingClientRect().top;
 		}
 		const el = deps.getBlockElByPath(path);
-		return el != null && isInView(el);
+		return el != null && isInView(el, root);
 	}
 
 	return {

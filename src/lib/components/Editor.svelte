@@ -26,7 +26,7 @@
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
-	import { nearestScrollHost } from '../cursor/scroll-ancestors';
+	import { clippingAncestors, nearestScrollableAncestor } from '../cursor/scroll-ancestors';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -120,22 +120,34 @@
 	// svelte-ignore state_referenced_locally
 	const hostScroll = scrollMode === 'host';
 
-	// The one answer to "what scrolls this editor, and what bounds what it can
-	// show" — the root in self mode, the nearest scrolling-or-clipping ancestor in
-	// host mode (null when the page's own viewport bounds it). Every consumer that
-	// used to assume the root reads it: reveal honesty, drag-reorder autoscroll,
-	// table-row reorder autoscroll, drag-select autoscroll. Resolved on first read
-	// and memoized — drag autoscroll asks per pointer frame, and the ancestor chain
-	// is a property of the host's layout at mount.
+	// Host mode answers two DIFFERENT questions about the environment, and one walk
+	// cannot serve both (`cursor/scroll-ancestors` header): what a drag autoscrolls,
+	// and what bounds the visible region. In self mode both are the root. Resolved on
+	// first read and memoized — drag autoscroll asks per pointer frame, and the
+	// ancestor chain is a property of the host's layout at mount, so a host that
+	// swaps the scroller after mounting must remount the editor.
 	let resolvedScrollHost: HTMLElement | null = null;
-	let scrollHostResolved = false;
+	let resolvedClipBounds: HTMLElement[] = [];
+	let hostResolved = false;
+	function resolveHost(): void {
+		if (hostResolved || !editorEl) return;
+		resolvedScrollHost = nearestScrollableAncestor(editorEl);
+		resolvedClipBounds = clippingAncestors(editorEl);
+		hostResolved = true;
+	}
+	/** What a drag autoscrolls: the root in self mode, the nearest genuinely
+	 *  scrollable ancestor in host mode, null when the page's viewport scrolls. */
 	function getScrollHost(): HTMLElement | null {
 		if (!hostScroll) return editorEl ?? null;
-		if (!scrollHostResolved && editorEl) {
-			resolvedScrollHost = nearestScrollHost(editorEl);
-			scrollHostResolved = true;
-		}
+		resolveHost();
 		return resolvedScrollHost;
+	}
+	/** What bounds the visible region in host mode — every clipping ancestor, whose
+	 *  intersection with the window viewport is what a reveal must land inside. */
+	function getClipBounds(): HTMLElement[] {
+		if (!hostScroll) return [];
+		resolveHost();
+		return resolvedClipBounds;
 	}
 
 	// Install before initDocument parses `source`, so plugin openers/directives are
@@ -553,7 +565,8 @@
 		getBlockComponentByPath: getBlockComponent,
 		revealPath,
 		getEditorRoot: () => editorEl ?? null,
-		getScrollHost,
+		isHostScroll: () => hostScroll,
+		getClipBounds,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		revealAnchor
 	});
