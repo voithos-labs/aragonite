@@ -41,6 +41,10 @@ export interface EditorRootKeydownDeps {
 	pluginEditor: PluginEditorLookup;
 	onCommandError: CommandErrorSink;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown'>;
+	/** True for nodes in the host's `header` slot. The root's chord claims read
+	 *  "focus is inside this editor" off `root.contains`, which the slot made
+	 *  ambiguous — a host's title field is inside the root and is not ours. */
+	isHostChrome(node: Node | null): boolean;
 	/** Snapshot the pre-search caret; the bar's close handler restores it. */
 	saveSearchRange(range: Range | null): void;
 	setReplaceExpanded(expanded: boolean): void;
@@ -120,6 +124,13 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			// Shift), matching every other chord-dispatch site.
 			const chord = eventToChord(event);
 			const active = root.ownerDocument.activeElement;
+
+			// Host chrome owns its own keystrokes, whole. `isForeignTextEntry` cannot
+			// answer this — it reports "outside every mounted editor", and the slot is
+			// inside one — so the yield lives at the dispatch entry rather than being
+			// carried by each arm below (the search arm's `root.contains` claim is the
+			// one that hijacked a host title field's Find).
+			if (deps.isHostChrome(active)) return;
 
 			if (handleSearchChords(event, root, chord, active)) return;
 			if (!ownsWindowedOutCaret(root, active)) return;

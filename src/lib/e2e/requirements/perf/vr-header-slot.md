@@ -31,9 +31,10 @@ cannot scroll), and the `entry-header` entry on `/test/flow` for host mode.
 
 ## User interactions
 
-- Toggling the header between 80px and 240px while scrolled deep leaves the first visible block at the same viewport position (±1px) and keeps it the same block — growing AND shrinking.
+- Toggling the header between 80px and 240px while scrolled deep leaves the first visible block at the same viewport position (±1px) and keeps it the same block — growing AND shrinking. "Deep" is load-bearing on the shrink side: the correction is a `scrollTop` write, so it is bounded by the scroll available above (at `scrollTop 20` a −160px correction clamps at 0 and the content slides the remaining 140px — physically unpreservable, not a defect). The contract holds for `scrollTop ≥ |delta|`.
 - The same toggle at the top of the document (scrollTop 0) shifts content down by the full height delta, and scrollTop stays 0: no compensation where the header is visible.
 - A plain click on a link inside the header follows the link. Host chrome is not document content, so the editor's modifier-click link policy (plain click edits, Ctrl/Cmd-click activates) does not reach inside the slot.
+- A text field in the header keeps its own Find chord: focus inside the slot yields the editor's reserved chords (Mod+F, Mod+H, Escape) to the host, exactly as a field mounted outside the editor does. "Focus is inside the root" stopped meaning "focus is in this editor's content" the moment the slot existed, and a title field losing Find mid-typing is this feature's own use case breaking.
 - With the find bar open at scrollTop 0 the bar overlays the header's top strip. Accepted: the bar rides the editor's top edge in both scroll modes, and at the top of the document that edge is where the header is.
 
 ## Host mode (`scrollMode="host"`)
@@ -41,6 +42,10 @@ cannot scroll), and the `entry-header` entry on `/test/flow` for host mode.
 - The header renders above the first block in host mode too.
 - A header height change leaves the ancestor scroller's `scrollTop` untouched. The editor never writes an ancestor's scroll position: the host page owns that scroll, the mounted set is complete (windowing is off), and a growing entry reflows the page like any other content change. The compensation observer is inert in this mode.
 - The find bar sits at the editor root's top edge, over the header — persistently, since the root never scrolls in host mode. Accepted for the same reason as the self-mode overlay: one placement rule, not two mount paths gated on the mode.
+
+## Accepted degradation
+
+- A header TALLER than the scrollport degrades benignly rather than being supported: at scrollTop 0 the list's intersection with the viewport is zero, so the window correctly collapses to its floor (nothing of the list is on screen there), and it recovers a normal mounted set as soon as the reader scrolls. Spacers stay non-negative and finite and no page error fires. Measured on a 1200px header over a 19,593-block fixture in a 633px scrollport: mounted 20 at the top, 35 once scrolled, 7 back at the top; spacer heights sane throughout.
 
 ## Error cases
 

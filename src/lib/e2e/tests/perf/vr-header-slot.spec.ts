@@ -169,7 +169,33 @@ test('a plain click on a link in the header follows it', async ({ page }) => {
 	expect(pageErrors).toEqual([]);
 });
 
+test('a text field in the header keeps its own Find chord', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = await gotoWithHeader(page);
+	await editor.loadContent(`${PROSE}\n`);
+	const focusedTestId = () =>
+		page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
+
+	// The slot is the host's chrome, and its text entry owns the reserved chords —
+	// a title field that loses Mod+F mid-typing is the feature's own use case
+	// breaking. "Focus is inside the root" stopped meaning "focus is in this
+	// editor's content" the moment the slot existed.
+	await page.locator('[data-testid="hero-title"]').click();
+	await page.keyboard.press(`${primaryModifier}+f`);
+	await expect(page.locator('.search-bar')).toHaveCount(0);
+	expect(await focusedTestId()).toBe('hero-title');
+
+	// Control: the identical field mounted OUTSIDE the root already behaves this
+	// way, so the assertion above is about the slot, not about fields at large.
+	await page.locator('[data-testid="outside-title"]').click();
+	await page.keyboard.press(`${primaryModifier}+f`);
+	await expect(page.locator('.search-bar')).toHaveCount(0);
+	expect(await focusedTestId()).toBe('outside-title');
+	expect(pageErrors).toEqual([]);
+});
+
 test('the find bar overlays the header at the top of the document', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
 	await editor.loadContent(`${PROSE}\n`);
 	await editor.focusBlockEnd(0);
@@ -182,6 +208,7 @@ test('the find bar overlays the header at the top of the document', async ({ pag
 	const header = (await headerEl(page).boundingBox())!;
 	expect(bar.y).toBeLessThan(header.y + header.height);
 	expect(bar.y + bar.height).toBeGreaterThan(header.y);
+	expect(pageErrors).toEqual([]);
 });
 
 // ── Host mode ───────────────────────────────────────────────────────────

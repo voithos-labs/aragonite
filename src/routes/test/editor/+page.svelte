@@ -158,7 +158,12 @@
      policy), and a filler whose height the page-header button toggles. -->
 {#snippet documentHero()}
 	<div class="demo-hero" data-testid="harness-header" style:height={headerTall ? '240px' : '80px'}>
-		<span class="demo-hero-title">Untitled document</span>
+		<input
+			class="demo-hero-title"
+			data-testid="hero-title"
+			aria-label="Document title"
+			value="Untitled document"
+		/>
 		<a href="#hero-link" data-testid="hero-link">#tag</a>
 	</div>
 {/snippet}
@@ -185,6 +190,14 @@
 			>
 				Header: {headerTall ? 'tall' : 'short'}
 			</button>
+			<!-- The same field mounted OUTSIDE the editor root: the control that says
+			     whether a chord result is about the slot or about text fields at large. -->
+			<input
+				class="demo-btn"
+				data-testid="outside-title"
+				aria-label="Outside title"
+				value="Outside the editor"
+			/>
 		{/if}
 		{#each PRESENTATION_TOGGLES as toggle (toggle.mode)}
 			<label class="demo-toggle">
