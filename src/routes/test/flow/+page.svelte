@@ -1,0 +1,95 @@
+<script lang="ts">
+	import { Editor } from '$lib';
+	import { trackParityDocument } from '../../parity-documents.svelte';
+
+	// Journal shape: two entries in ONE ancestor scroller, plus a clipped pane whose
+	// content no scroll can reveal (the honest-reveal arm). Every editor here runs
+	// `scrollMode="host"`, so the page — not the editor — owns the scroll.
+
+	function entry(label: string, count: number): string {
+		return (
+			Array.from(
+				{ length: count },
+				(_, i) => `${label} paragraph ${i} — lorem ipsum dolor sit amet, consectetur.`
+			).join('\n\n') + '\n'
+		);
+	}
+
+	// Both entries clear the windowing activation watermark on estimated height, so
+	// "no spacers" below is a statement about the mode, not about a small document.
+	const ENTRY_A = entry('Alpha', 200);
+	const ENTRY_B = entry('Beta', 120);
+	const CLIPPED = entry('Clipped', 60);
+
+	type EditorHandle = ReturnType<typeof Editor>;
+	let editors = $state<Record<string, EditorHandle | undefined>>({});
+	const ids = ['a', 'b', 'clipped'];
+
+	trackParityDocument(() => editors.a);
+	trackParityDocument(() => editors.b);
+	trackParityDocument(() => editors.clipped);
+
+	// One handle per instance, addressed by id — `installTestProbes` binds a single
+	// `window.__test` to one editor, which can't express a multi-instance route.
+	$effect(() => {
+		if (!ids.every((id) => editors[id])) return;
+		(window as unknown as { __flow?: unknown }).__flow = {
+			getSource: (id: string) => editors[id]?.getSource() ?? null,
+			blockCount: (id: string) => editors[id]?.__test.getDocument().children.length ?? null,
+			scrollTo: (id: string, path: number[], opts?: { block?: 'nearest' | 'center' }) =>
+				editors[id]?.getRects().scrollTo(path, opts) ?? Promise.resolve(null),
+			blockRect: (id: string, path: number[]) => {
+				const r = editors[id]?.getRects().blockRect(path);
+				return r ? { top: r.top, bottom: r.bottom } : null;
+			}
+		};
+	});
+</script>
+
+<div class="flow-page aragonite-editor-theme">
+	<div class="flow-scroller" data-testid="scroller">
+		<div class="filler" data-testid="filler-top">Above the journal</div>
+		<div class="entry" data-testid="entry-a">
+			<Editor bind:this={editors.a} source={ENTRY_A} scrollMode="host" />
+		</div>
+		<div class="entry" data-testid="entry-b">
+			<Editor bind:this={editors.b} source={ENTRY_B} scrollMode="host" />
+		</div>
+		<div class="filler" data-testid="filler-bottom">Below the journal</div>
+	</div>
+	<!-- Outside the scroller, in a box that CLIPS rather than scrolls: nothing can
+	     bring its lower blocks into view, so a reveal there must report false. -->
+	<div class="clipped-pane" data-testid="entry-clipped">
+		<Editor bind:this={editors.clipped} source={CLIPPED} scrollMode="host" searchBar={false} />
+	</div>
+</div>
+
+<style>
+	/* Fixed to the viewport so the PAGE never scrolls: the only scrollport is
+	   .flow-scroller, which the clipped pane is deliberately outside of. */
+	.flow-page {
+		display: flex;
+		align-items: flex-start;
+		height: 100vh;
+		overflow: hidden;
+	}
+	.flow-scroller {
+		flex: 1;
+		height: 100vh;
+		overflow-y: auto;
+		min-width: 0;
+	}
+	.filler {
+		height: 1000px;
+		padding: 1rem;
+		color: var(--color-text-secondary, #888);
+	}
+	.entry {
+		margin: 1rem;
+	}
+	.clipped-pane {
+		flex: 0 0 320px;
+		height: 240px;
+		overflow: clip;
+	}
+</style>
