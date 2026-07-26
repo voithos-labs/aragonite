@@ -28,6 +28,71 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   round-trip, so an optional cell would have been left undeclared by exactly the containers that
   need it.
 
+- **`setSelection` puts a `getSelection()` snapshot back, and its boolean means in view.** The
+  instance surface gained the write half of the save-and-restore pair a host needs to persist a
+  per-document caret. It is async because the target may be a block the virtual window has
+  unmounted, so the restore reveals it and settles the scroll before placing the caret — and it
+  resolves through the same `scrollTo` semantics, so `true` means genuinely in view rather than
+  merely mounted. Restore is now **one seam** rather than two: undo/redo already carried the
+  recipe inline, and adding a second copy beside it would have been the sibling-path-parity shape
+  that produced most of the 2026-07 audit's corruption findings — so the rule moved into the seam
+  and both entry paths funnel through it. That relocation fixed a live undo defect on the way: the
+  reveal now targets what the applier actually parks at, which for a table endpoint is the deep
+  cell, not the table block whose rows window independently. Declining is never a throw: an
+  unresolvable path is refused before anything happens — no scroll, no focus steal, no state write
+  — while the two ways a resolvable target can still fail to land are reported as `false` with
+  their side effects already run.
+
+- **`onPasteImage` is the import hook for an image-bearing paste.** Each image on the clipboard is
+  offered to the host in order; the Markdown returned is inserted, `null` skips, and a rejection
+  surfaces on the `error` channel while the remaining images still land. Installing the hook takes
+  the whole paste — the clipboard's `text/plain` does not also arrive — and N images are one
+  insertion, because one paste gesture is one undo entry everywhere else in this editor and
+  per-image insertion would make one Ctrl+V need N Ctrl+Z. The arm lives in the clipboard seam the
+  four editable surfaces already share, so each surface threads three inert values and no logic;
+  the alternative was a rule carried at four call sites. Two behaviors were pinned rather than
+  left to discovery: an image paste **replaces** the selection it lands on, cross-block included
+  and by inheriting that route rather than placing anything itself (proven byte-identical to
+  pasting the same string as text), and the selection is offered to the delete only after the hook
+  has answered, so a declined or failed import destroys nothing.
+
+- **`scrollMode='host'` lets an ancestor own the scroll.** The editor root stops being a scrollport
+  and grows to its content, for a shell that stacks several documents in one scroller. The trade is
+  stated rather than hidden: windowing is gated off above the watermark, so every block stays
+  mounted and the mode forfeits O(viewport) — it is for small embedded documents, never a whole
+  file. Reveal stays honest there by measuring what actually bounds the editor's visible box, which
+  turned out to be two different questions that one walk cannot serve: what a drag may autoscroll
+  is the nearest ancestor a **user** can scroll, while what bounds visibility is the whole chain of
+  clipping ancestors intersected with the window — the merged predicate was wrong exactly where
+  each other's case applied, and a rounded card with `overflow: hidden` and automatic height
+  matched it while being neither. Splitting them also surfaced three autoscroll sites that had
+  assumed the root and were dead in any host embedding; they now share one resolver, and making it
+  a required dependency is what enumerated the fourth.
+
+- **A `header` slot renders host chrome inside the scroll container.** A title, a properties panel
+  or a tag row mounts above the first block and scrolls away with the document — which is what lets
+  an embedder have both its own chrome and the editor's scrollport, where chrome mounted outside
+  would need an outer scroller and forfeit windowing. The slice math needed nothing: a scope
+  already measures its list's live offset, so a preamble shrinks the window rather than displacing
+  it. What it needed was the anchor correction — the slot's height is outside the height model, so
+  a slot that grows while the reader is scrolled down routes its delta through the same
+  compensation a measured-in block does, and the document does not slide under them. Inert in host
+  mode, where the shift belongs to the page. The slot also invalidated a premise three keystroke
+  paths shared — "inside the editor root" had meant "the editor's own content" — so a host title
+  field was losing `Mod+F` mid-typing; the fix is one predicate at the dispatch entry, above every
+  arm, so arm N+1 inherits it instead of having to remember.
+
+- **`--editor-font-size` is a published theme token.** The editor's type scale is `em`-relative
+  throughout, so one override scales headings, code, markers and chrome together. It is declared at
+  `.editor` like every other token, which means it **shadows** a value inherited from a host
+  wrapper: a host overrides at `.editor` scope, and bridges a dynamic ancestor value through a
+  property of its own. Mode-independent, and pinned by the manifest that holds the guide's role
+  table and the token set set-equal.
+
+- **PLACEHOLDER — resolve before release.** Ship gates: `<controller fills after the battery>`.
+  No other entry in this file carries gate numbers, so filling it makes 0.9.36 the first and
+  deleting the line is the other correct answer. It must not ship as written.
+
 - **A pathological regex query can no longer freeze the editor.** Regex find runs off the main
   thread under a hard deadline; on overrun the worker is terminated and the find bar reports the
   scan as too slow, the way it already reports a pattern that will not compile. Catastrophic
