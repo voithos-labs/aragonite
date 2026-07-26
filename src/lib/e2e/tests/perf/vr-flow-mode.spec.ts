@@ -221,6 +221,7 @@ test('a drag at the scrollport edge autoscrolls the host, not the non-scrolling 
 });
 
 test('the find bar rides the entry top edge, not the ancestor scrollport', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
 	// The entry starts below the fold; scroll it into reach before focusing a block.
@@ -252,6 +253,7 @@ test('the find bar rides the entry top edge, not the ancestor scrollport', async
 	// And genuinely gone from the scrollport top — a sticky anchor resolving against
 	// the ancestor would park it there, floating over the page's other content.
 	expect(far.fromScrollport).toBeLessThan(-200);
+	expect(pageErrors).toEqual([]);
 });
 
 test('nested scopes in a host-scroll entry mount every child and stay error-free', async ({
