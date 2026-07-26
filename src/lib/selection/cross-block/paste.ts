@@ -34,7 +34,13 @@ export async function handleCrossBlockPaste(
 	ctx.stickyColumn.reset();
 	ctx.selection.resetSelectAllCount();
 	e.preventDefault();
-	const pasted = replacement ?? normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+	// `!== undefined`, not `??`: a caller that supplied its own payload must never
+	// reach the clipboard read, whatever that payload is. With `??` the guarantee
+	// would depend on callers never passing '', which is not a property of this seam.
+	const pasted =
+		replacement !== undefined
+			? replacement
+			: normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
 	const doc = ctx.getDoc();
