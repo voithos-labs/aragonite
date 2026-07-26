@@ -28,14 +28,7 @@ describe('history swap — no-op guard', () => {
 	});
 });
 
-// An entry's selection can name a slot absent from its own snapshot: the
-// append-past-end op declares the one-past-the-end coordinate as its restore
-// fallback, so an undo of it restores a path that resolves nowhere. The shared
-// restore seam declines such a snapshot without touching the editor — right for
-// the consumer `setSelection` door, which must never disturb a live selection —
-// which leaves the swap to drop the now-meaningless selection itself. Without
-// that, a cross-block overlay stays painted over a document that just changed
-// underneath it.
+// Pins the swap-side clear — see `history.ts` for why the seam declines instead.
 describe('history swap — a snapshot whose selection no longer resolves', () => {
 	it('clears the standing selection instead of leaving its overlay painted', async () => {
 		const { deps, history } = makeSetup();

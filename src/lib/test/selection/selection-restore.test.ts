@@ -45,16 +45,17 @@ describe('resolveSelectionPoint — clamping per coordinate space', () => {
 		});
 	});
 
-	it('clamps a table offset to the last cell index, not the markdown length', () => {
-		// 2 rows × 2 columns → cell indices 0..3. The table's raw is far longer, so
-		// a raw-length clamp would leave the index outside the grid.
+	it('clamps an UNFLAGGED intra-table endpoint in cell space, not against the markdown', () => {
+		// The case the kind-based discriminant exists for: no flag, yet the offset is
+		// a cell index. 2 rows × 2 columns → indices 0..3, while the table's raw is
+		// far longer, so a raw-length clamp would leave the index outside the grid.
 		expect(resolveSelectionPoint(parse(TABLE_2x2), { path: [0], offset: 99 })).toEqual({
 			path: [0],
 			offset: 3
 		});
 	});
 
-	it('clamps an unflagged intra-table endpoint in cell space too', () => {
+	it('preserves the cellCoordinate flag through the clamp', () => {
 		expect(
 			resolveSelectionPoint(parse(TABLE_2x2), { path: [0], offset: 99, cellCoordinate: true })
 		).toEqual({ path: [0], offset: 3, cellCoordinate: true });
