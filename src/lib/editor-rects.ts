@@ -81,6 +81,9 @@ export function createEditorRects(deps: {
 	 *  nothing, and it would swallow the fold the window enforces. */
 	getClipBounds: () => HTMLElement[];
 	isCrossBlock: () => boolean;
+	/** True for nodes in the host's `header` slot — inside the root, but not this
+	 *  editor's content. */
+	isHostChrome: (node: Node | null) => boolean;
 	revealAnchor: RevealAnchorState;
 }): EditorRects {
 	function isInView(el: HTMLElement, root: HTMLElement): boolean {
@@ -151,6 +154,10 @@ export function createEditorRects(deps: {
 			if (!selection || selection.rangeCount === 0) return null;
 			const range = selection.getRangeAt(0);
 			if (!root.contains(range.commonAncestorContainer)) return null;
+			// A caret in the host's header slot is inside the root but is not a
+			// document caret: reporting it would float a consumer's caret-following
+			// chrome over the host's own title field.
+			if (deps.isHostChrome(range.commonAncestorContainer)) return null;
 			return range.getBoundingClientRect();
 		},
 		async reveal(path) {

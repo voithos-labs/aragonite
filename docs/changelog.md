@@ -80,18 +80,26 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   mode, where the shift belongs to the page. The slot also invalidated a premise three keystroke
   paths shared — "inside the editor root" had meant "the editor's own content" — so a host title
   field was losing `Mod+F` mid-typing; the fix is one predicate at the dispatch entry, above every
-  arm, so arm N+1 inherits it instead of having to remember.
+  arm, so arm N+1 inherits it instead of having to remember. The same predicate answers the two
+  other places that asked the root: `caretRect()` no longer reports a caret in the host's chrome as
+  the document's (a consumer polling it would float caret-following chrome over the host's own
+  title field), and a switch into reading mode no longer blurs a focused header field. The rules
+  that ask "did focus leave the whole widget" keep using containment — for them the slot IS the
+  editor.
 
 - **`--editor-font-size` is a published theme token.** The editor's type scale is `em`-relative
   throughout, so one override scales headings, code, markers and chrome together. It is declared at
   `.editor` like every other token, which means it **shadows** a value inherited from a host
   wrapper: a host overrides at `.editor` scope, and bridges a dynamic ancestor value through a
   property of its own. Mode-independent, and pinned by the manifest that holds the guide's role
-  table and the token set set-equal.
-
-Ship gates: unit 5367, e2e 1566, check 0/0, lint 0, perf:check 11/11 gated rows (gate
-restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
-identical at the batch base).
+  table and the token set set-equal. Virtual rendering follows the scale: the height oracle's
+  estimates are calibrated at one font size and the type scale is font-relative, so a host that
+  doubled the text made every estimate several-fold short — and since the activation decision reads
+  the estimated total, a document whose rendered height cleared the watermark could fail to window
+  and mount whole. The estimates now read the root's live computed font size, and a change runs the
+  width-invalidation path, so a zoom control is a supported use of the token rather than a
+  mount-time-only one. A font-size change resizes no other box in the root, hence the one-`em`
+  probe: nothing else reports it.
 
 - **A pathological regex query can no longer freeze the editor.** Regex find runs off the main
   thread under a hard deadline; on overrun the worker is terminated and the find bar reports the
@@ -210,6 +218,10 @@ identical at the batch base).
   waiving whole files. Two live defects the new oracles surfaced are ledgered with executing
   repros rather than fixed: typing a `> [!TYPE]` marker per keystroke never forms an alert, and a
   long paste into a windowed list loses the caret (VR-12).
+
+Ship gates: unit 5367, e2e 1566, check 0/0, lint 0, perf:check 11/11 gated rows (gate
+restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
+identical at the batch base).
 
 ### 0.9.35: the navigation API + toc v2
 

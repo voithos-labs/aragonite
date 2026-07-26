@@ -4,12 +4,20 @@
  * (`height-oracle.ts`, configured from `Editor.svelte`) and the visual-line
  * detector's fallback (`visual-lines.ts`).
  *
- * These are empirical pixel estimates of the editor font's rendered line box.
- * The editor styles text with `line-height: normal` (no explicit rule in
- * `styles/editor.css`), so the true line height isn't a CSS number these can be
- * derived from — they mirror the rendered typography by hand. One home, so a
- * font-metric change updates them together instead of drifting across files.
+ * These are empirical pixel estimates of the editor font's rendered line box,
+ * measured at {@link ESTIMATE_BASE_FONT_SIZE}. Character width has no CSS number
+ * to derive it from, so the whole set is mirrored by hand at one scale. One home,
+ * so a font-metric change updates them together instead of drifting across files.
+ *
+ * The editor's type scale is font-relative (`line-height` is unitless), so a host
+ * that overrides `--editor-font-size` moves every one of the font-relative terms
+ * below. Consumers scale them by the root's live computed font size rather than
+ * reading them raw — `Editor.svelte` does this for the oracle, since an estimate
+ * calibrated for one scale can miss the windowing activation watermark entirely.
  */
+
+/** The computed root font size the estimates below were measured at. */
+export const ESTIMATE_BASE_FONT_SIZE = 16;
 
 export const HEIGHT_ESTIMATES = {
 	proseLineHeight: 24, // px per wrapped prose line
