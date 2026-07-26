@@ -64,6 +64,20 @@ export function normalizeTableEndpoint(
 }
 
 /**
+ * How many cells a table's index space holds — the exclusive upper bound on any
+ * row-major cell index addressing it. `node` must be a table block; the metadata
+ * read is an unchecked cast, so any other kind yields `NaN`.
+ *
+ * Lives beside the bounds check below so a caller that CLAMPS to this extent and
+ * the check that REJECTS beyond it cannot drift apart: a clamp computed from a
+ * different expression could yield an index this module then refuses, collapsing
+ * the deep-path resolution it was clamped to satisfy.
+ */
+export function tableCellCount(node: NodeView): number {
+	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+}
+
+/**
  * Inverse of {@link normalizeTableEndpoint}: expand an endpoint addressing a
  * table block back to its deep `[tableIdx, row, col]` leaf path so reveal/caret
  * placement can reach the off-window cell. Null when there is no deep path to
@@ -81,18 +95,6 @@ export function normalizeTableEndpoint(
  * sent `revealPath` after it, which is strictly worse than the caller's null
  * branch (each falls back to the table block itself).
  */
-/**
- * How many cells a table's index space holds — the exclusive upper bound on any
- * row-major cell index addressing it. Lives beside the bounds check below so a
- * caller that CLAMPS to this extent and the check that REJECTS beyond it cannot
- * drift apart: a clamp computed from a different expression could yield an index
- * this module then refuses, collapsing the deep-path resolution it was clamped
- * to satisfy.
- */
-export function tableCellCount(node: NodeView): number {
-	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
-}
-
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	const node = nodeAt(doc, point.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return null;
