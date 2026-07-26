@@ -69,8 +69,11 @@
 		registryView,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, presentationMode: getPresentationMode } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		keybindingOverrides,
+		presentationMode: getPresentationMode,
+		onPasteImage
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
@@ -513,6 +516,9 @@
 		getDoc,
 		crossBlock,
 		isReadOnly: () => readOnly,
+		caret: editableSurface.caret,
+		events: editorEvents,
+		onPasteImage,
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;

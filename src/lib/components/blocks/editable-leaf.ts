@@ -235,8 +235,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		registryView,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, presentationMode: getPresentationModeCtx } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		keybindingOverrides,
+		presentationMode: getPresentationModeCtx,
+		onPasteImage
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
@@ -468,6 +471,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getDoc,
 		crossBlock,
 		isReadOnly: isReading,
+		caret: editableSurface.caret,
+		events: editorEvents,
+		onPasteImage,
 		cutTail: (e) => {
 			const el = deps.getEl();
 			if (!el) return;

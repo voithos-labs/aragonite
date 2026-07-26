@@ -19,9 +19,11 @@ import type { StickyColumnDirection } from '../../block-component';
 import type {
 	BlockElLookup,
 	DocumentGetter,
+	PasteImageHook,
 	PluginEditorLookup,
 	PresentationModeGetter
 } from '../../editor-keys';
+import type { EditorEvents } from '../../editor-events';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
@@ -147,9 +149,22 @@ export interface EditableSurface {
 	crossBlock: CrossBlockHandlers;
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
+	caret: ClipboardCaretIO;
 	onInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
+}
+
+/**
+ * The caret door the clipboard seam's image arm borrows from its surface: `getEl`
+ * is the liveness test (a host import hook can outlive the block that started the
+ * paste), `getCursorOffset` captures the insertion anchor, `focus` re-seats it.
+ * Minted by `createEditableSurface` so each surface threads one value, not three.
+ */
+export interface ClipboardCaretIO {
+	getEl: () => HTMLElement | null;
+	getCursorOffset: () => number | null;
+	focus: (offset: number) => void;
 }
 
 /** The BlockComponent methods shared verbatim across every editable surface. */
@@ -300,7 +315,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onInput();
 	}
 
-	return { crossBlock, sharedCtx, surface, onInput, onCompositionStart, onCompositionEnd };
+	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };
+
+	return { crossBlock, sharedCtx, surface, caret, onInput, onCompositionStart, onCompositionEnd };
 }
 
 // ── Clipboard skeleton ──────────────────────────────────────────────────────
@@ -309,10 +326,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
  * The ordered copy / cut / paste skeleton shared by the four editable surfaces
  * (text, code, table cell, and the `editable-leaf` plugin seam). It owns the arms
  * that must stay in lockstep — the reading-mode gate, the cross-block copy/cut
- * write, the reveal fold, and the paste's preventDefault-before-any-await — so a
- * new surface can neither skip a step nor resequence one. Each surface supplies
- * only its genuinely-different arms: the intra-block payload tails, and the
- * optional pre-cross-block arms (a selected-widget copy, an intra-table rect).
+ * write, the reveal fold, the host image-import arm, and the paste's
+ * preventDefault-before-any-await — so a new surface can neither skip a step nor
+ * resequence one. Each surface supplies only its genuinely-different arms: the
+ * intra-block payload tails, and the optional pre-cross-block arms (a
+ * selected-widget copy, an intra-table rect).
  *
  * The preventDefault discipline, stated once here so no call site re-derives it:
  *  - Paste prevents before the first await, or the browser's native paste fires
@@ -321,9 +339,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
  *  - Cut prevents up front — every cut arm writes.
  *  - Copy prevents as it writes: a cell with no selection writes nothing and lets
  *    native copy through, so the copy arms (not the seam) own their prevent.
- * Every write goes through the event's synchronous `clipboardData`;
+ * Every READ and write goes through the event's synchronous `clipboardData` —
  * `navigator.clipboard.writeText` is async/permission-gated and unreliable in
- * Tauri's wry webview.
+ * Tauri's wry webview, and the event's own accessor is not dependably live once
+ * the handler has awaited, so paste materializes its image files before the fold.
  */
 export interface ClipboardSurfaceDeps {
 	stickyColumn: StickyColumnState;
@@ -332,6 +351,15 @@ export interface ClipboardSurfaceDeps {
 	crossBlock: CrossBlockHandlers;
 	/** Reading mode: copy/cut write the visible selection string, paste is inert. */
 	isReadOnly: () => boolean;
+	/** The surface's caret door, borrowed by the image arm to anchor its insertion. */
+	caret: ClipboardCaretIO;
+	/** The instance event surface — the image arm's only channel for a host hook
+	 *  that rejects. Required-nullable (like the dispatch tier's plugin thread): a
+	 *  surface that could omit it would swallow every failed import silently. */
+	events: EditorEvents | undefined;
+	/** Host image-import hook from the policies context. Undefined leaves an
+	 *  image-bearing paste on the text/plain path, exactly as before the hook. */
+	onPasteImage: PasteImageHook | undefined;
 	/** Fold a live inline-source reveal before a cut/paste mutates, so the mutation
 	 *  runs against a CST consistent with the swapped DOM; returns the committed
 	 *  caret, or null when nothing was revealed. Omit on a surface with no reveal. */
@@ -404,8 +432,18 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	async function onPaste(e: ClipboardEvent): Promise<void> {
 		e.preventDefault();
 		if (deps.isReadOnly()) return;
+		// Materialized here rather than at the image arm below: the reveal fold awaits
+		// a tick first, and `clipboardData` is only dependably readable inside the
+		// event's synchronous window.
+		const images = imageFilesOf(e.clipboardData);
 		const foldedCaret = deps.foldReveal?.() ?? null;
 		if (foldedCaret !== null) await tick();
+		const importImage = deps.onPasteImage;
+		if (importImage && images.length > 0) {
+			deps.stickyColumn.reset();
+			await pasteImages(deps, importImage, e, images, foldedCaret);
+			return;
+		}
 		if (await deps.crossBlock.handlePaste(e)) return;
 		deps.stickyColumn.reset();
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
@@ -414,4 +452,61 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	}
 
 	return { onCopy, onCut, onPaste };
+}
+
+// ── Image-paste arm ─────────────────────────────────────────────────────────
+
+/** A paste can carry a plain attachment alongside its text; only image files
+ *  belong to the host hook, the rest stays on the text/plain path. */
+function imageFilesOf(data: DataTransfer | null): File[] {
+	return Array.from(data?.files ?? []).filter((file) => file.type.startsWith('image/'));
+}
+
+/**
+ * Offer each pasted image to the host hook in clipboard order and insert what comes
+ * back at the caret captured before the first await — an import that takes seconds
+ * must not follow a caret the user moved meanwhile.
+ *
+ * ONE insertion, not one per image: a hook may return multi-line markdown, whose
+ * structural paste can split the block out from under a second insertion addressed
+ * at anchor + length, and one paste gesture owes the user one undo entry however
+ * many images it carried.
+ */
+async function pasteImages(
+	deps: ClipboardSurfaceDeps,
+	importImage: PasteImageHook,
+	e: ClipboardEvent,
+	images: File[],
+	foldedCaret: number | null
+): Promise<void> {
+	// After a reveal fold the caret sits on the widget's element-level edge, where the
+	// surface reads null — the committed caret is the landing offset there.
+	const anchor = deps.caret.getCursorOffset() ?? foldedCaret ?? 0;
+	const markdown: string[] = [];
+	for (const image of images) {
+		try {
+			const inserted = await importImage({
+				blob: image,
+				mimeType: image.type,
+				suggestedName: image.name || undefined
+			});
+			if (inserted) markdown.push(inserted);
+		} catch (error) {
+			// One failed import skips its image; the rest of the paste still lands.
+			deps.events?.emit('error', { origin: 'command', error });
+		}
+	}
+	if (markdown.length === 0) return;
+	// A hook slow enough to outlive its block leaves nothing to insert into, and the
+	// surface tails would fall back to offset 0 — markdown at a position the user
+	// never pointed at. Decline, loudly.
+	if (!deps.caret.getEl()) {
+		deps.events?.emit('error', {
+			origin: 'command',
+			error: new Error('onPasteImage resolved after its block was gone; insertion declined')
+		});
+		return;
+	}
+	deps.caret.focus(anchor);
+	await deps.pasteTail(e, markdown.join(''), foldedCaret);
 }

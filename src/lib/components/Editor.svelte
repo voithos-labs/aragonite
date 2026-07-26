@@ -102,6 +102,7 @@
 		resolveLinkUrl,
 		imageLoadPolicy = 'auto',
 		onLinkActivate,
+		onPasteImage,
 		blockDragHandles = true,
 		searchBar = true,
 		keybindings,
@@ -675,6 +676,13 @@
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
 		keybindingOverrides: () => overridesMap,
+		// An accessor, not a captured value: the prop read has to happen inside a
+		// closure. Consumers destructure the facet at mount, so the hook is still
+		// set-once from their side — a paste in flight can't have its importer
+		// swapped underneath it.
+		get onPasteImage() {
+			return onPasteImage;
+		},
 		brokenImageUrls
 	} satisfies EditorPolicies);
 

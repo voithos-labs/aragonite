@@ -6,7 +6,12 @@
 
 import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
-import type { DocumentGetter, LinkReferenceResolverRef } from '../../../editor-keys';
+import type {
+	DocumentGetter,
+	LinkReferenceResolverRef,
+	PasteImageHook
+} from '../../../editor-keys';
+import type { EditorEvents } from '../../../editor-events';
 import type { WidgetSelectionState } from '../../image/widget-selection-state.svelte';
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
@@ -16,7 +21,11 @@ import type { StickyColumnState } from '../../../cursor/sticky-column';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
-import { createClipboardHandlers, type ClipboardHandlers } from '../editable-surface';
+import {
+	createClipboardHandlers,
+	type ClipboardCaretIO,
+	type ClipboardHandlers
+} from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
 export interface TextClipboardDeps {
@@ -24,7 +33,10 @@ export interface TextClipboardDeps {
 	get index(): number;
 	get myPath(): number[];
 	cursor: AmbientCursorIO;
+	caret: ClipboardCaretIO;
 	crossBlock: CrossBlockHandlers;
+	events: EditorEvents | undefined;
+	onPasteImage: PasteImageHook | undefined;
 	selection: SelectionState;
 	stickyColumn: StickyColumnState;
 	blockEdit: BlockEditActions;
@@ -78,6 +90,9 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 		getDoc: deps.getDoc,
 		crossBlock: deps.crossBlock,
 		isReadOnly: deps.isReadOnly,
+		caret: deps.caret,
+		events: deps.events,
+		onPasteImage: deps.onPasteImage,
 		foldReveal: deps.commitRevealBeforeClipboard,
 
 		// A selected widget copies its own source slice; copy never mutates, so the

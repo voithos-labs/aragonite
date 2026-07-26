@@ -57,6 +57,9 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 			performCrossBlockDeleteFromEvent: async () => void log.push('cross-delete')
 		} as never,
 		isReadOnly: () => false,
+		caret: { getEl: () => null, getCursorOffset: () => null, focus: () => {} },
+		events: undefined,
+		onPasteImage: undefined,
 		cutTail: (e) => {
 			log.push('cutTail');
 			e.clipboardData?.setData('text/plain', 'CUT');
