@@ -276,6 +276,34 @@ guards exist because an unguarded version once let one Ctrl+Z revert two editors
 patch, and the workaround is the click a user makes anyway. Belongs with the anchor-ownership pass
 below, which is the other half of "who owns a navigation in flight".
 
+### A selection restore emits a transient stale `selectionChange` before the correct one
+
+**Severity:** minor (transient; the last emission of the pair is always correct)
+**Files:** `src/lib/selection/native-bridge.ts` (`applySelectionToDom` — the collapsed route clears
+SelectionState, and so emits, before the caret is placed),
+`src/lib/selection/selection-state.svelte.ts` (every mutator fires `#onChange`; there is no
+batched or silent update)
+
+Restoring a collapsed caret emits `selectionChange` twice: first from `clear()`, while the caret
+is still at its old location, so the payload is the PRE-restore selection; then again once the
+native `selectionchange` bridge sees the placed range. The cross-block route emits the correct
+value twice instead — `enterCrossBlock` writes state before the park, so nothing stale escapes.
+
+The pair lands within the call, so a last-write-wins subscriber converges on the right value and
+`await setSelection(...)` followed by `getSelection()` always reads correctly. A subscriber that
+treats the first event of a burst as authoritative (a persist-on-change host saving per tab) will
+write the stale one first.
+
+Pre-existing on the undo/redo restore path; reaches the public API with `setSelection`.
+
+**Fix direction:** a batched/silent update seam on SelectionState so one restore is one emission,
+rather than reordering the clear — swapping the two lines only moves which stale value escapes,
+because the native bridge reads through whatever SelectionState still holds.
+
+**Why deferred:** the emission seam is shared by every selection entry path (click, drag, keyboard
+extend, undo, restore), so changing its cardinality is a cross-cutting behavior change needing its
+own red-first pins, not a rider on an additive API commit during the pre-freeze batch.
+
 ### Reveal anchor is a single process-global slot with no per-claimant ownership
 
 **Severity:** watch (rare cross-claimant residual; no corruption, no strand within a block)
