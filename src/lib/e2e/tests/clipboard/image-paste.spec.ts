@@ -235,24 +235,74 @@ test.describe('image paste: host hook installed', () => {
 		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
 	});
 
-	// The cross-block delete has a table-specific branch (cell-index endpoints, the
-	// whole-row snap), so a selection anchored in a cell is its own shape. The landing
-	// is byte-identical to pasting the same string as text over the same selection —
-	// the arm inherits the cross-block route rather than placing anything itself.
-	test('a cross-block selection anchored in a table cell is replaced', async ({ page }) => {
-		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntrailing\n');
+	test('the whole cross-block replacement is one undo entry', async ({ page }) => {
+		await editor.loadContent(`${PARAGRAPH}\nsecond\n\nthird\n`);
 		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
-		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('End');
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await pasteFiles(page, [PNG]);
-
 		await editor.bridge.waitForSourceContains('shot.png');
+
+		// Establish that the replacement actually happened before undoing it — without
+		// this, a build that inserted without deleting would satisfy every assertion
+		// below and the undo claim would be vacuous.
+		expect((await editor.bridge.getSource()).trim()).toBe('AB![[shot.png]]third');
+		await editor.bridge.waitForBlockCount(1);
+
+		// ONE press has to undo the delete AND the insertion together — otherwise the
+		// user is left staring at a document whose selection is gone and whose image
+		// never arrived.
+		await page.keyboard.press(`${primaryModifier}+z`);
+		await editor.bridge.waitForSourceNotContains('shot.png');
+		const restored = await editor.bridge.getSource();
+		expect(restored).toContain('second');
+		expect(restored).toContain('third');
+		await editor.bridge.waitForBlockCount(3);
+	});
+
+	// The cross-block delete has a table-specific branch (cell-index endpoints, the
+	// whole-row snap), so a selection anchored in a cell is its own shape. Asserted
+	// against the SAME string pasted as text over the SAME selection: the arm has to
+	// inherit the cross-block route, not place anything itself.
+	test('a cross-block selection anchored in a table cell is replaced, exactly as a text paste would', async ({
+		page
+	}) => {
+		const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntrailing\n';
+		const MARKDOWN = '![[shot.png]]';
+		const selectOutOfCell = async () => {
+			await page.locator('[role="cell"]').nth(2).click();
+			await page.keyboard.press('End');
+			await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForCrossBlock(true);
+		};
+
+		await editor.loadContent(TABLE);
+		await setResponses(page, [{ markdown: MARKDOWN }]);
+		await selectOutOfCell();
+		await pasteFiles(page, [PNG]);
+		await editor.bridge.waitForSourceContains('shot.png');
+
+		const viaHook = await editor.bridge.getSource();
 		// The covered body row is gone; the range really was deleted.
-		expect(await editor.bridge.getSource()).not.toContain('| 1 | 2 |');
+		expect(viaHook).not.toContain('| 1 | 2 |');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+
+		// Same document, same selection, same string — pasted as text. No image files on
+		// the clipboard, so the arm declines and the ordinary route runs. A fresh
+		// navigation, not a second loadContent: the harness drives `source` as a prop, so
+		// re-assigning the string it already holds is a no-op and would leave the mutated
+		// document in place.
+		await editor.goto('?imagePaste=on');
+		await editor.loadContent(TABLE);
+		await selectOutOfCell();
+		await page.evaluate((md) => navigator.clipboard.writeText(md), MARKDOWN);
+		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.bridge.waitForSourceContains('shot.png');
+
+		expect(await editor.bridge.getSource()).toBe(viaHook);
 	});
 });
 
