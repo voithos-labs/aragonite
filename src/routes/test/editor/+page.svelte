@@ -164,6 +164,18 @@
 			aria-label="Document title"
 			value="Untitled document"
 		/>
+		<!-- A contenteditable title is the likelier hero shape, and the one that puts a
+		     native caret inside the editor root. -->
+		<div
+			class="demo-hero-note"
+			data-testid="hero-note"
+			contenteditable="true"
+			role="textbox"
+			aria-label="Document note"
+			tabindex="0"
+		>
+			A note in the host's chrome
+		</div>
 		<a href="#hero-link" data-testid="hero-link">#tag</a>
 	</div>
 {/snippet}

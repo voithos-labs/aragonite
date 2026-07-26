@@ -471,7 +471,7 @@ contract. Recorded so the next reader of that predicate does not "fix" the asymm
 **Severity:** minor (a drag toward the edge does nothing; reveal and keyboard reorder unaffected)
 **Files:** `src/lib/cursor/scroll-ancestors.ts` (the user-scrollable walk returns null when the
 page's own viewport is what scrolls), `src/lib/components/Editor.svelte` (the memoized resolution
-the three autoscroll consumers share)
+the four autoscroll consumers share)
 
 With `scrollMode='host'` and nothing scrollable between the editor and the document — the page
 itself scrolls — the autoscroll target list is empty, so dragging a block toward the edge of the

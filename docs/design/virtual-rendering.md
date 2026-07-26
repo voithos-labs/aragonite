@@ -65,6 +65,8 @@ The residual artifact of estimate error is scrollbar-thumb drift — cosmetic, c
 
 Narrowing the content column re-wraps prose, so cached heights computed at the old width are stale. On a width change the scope clears the measured cache, falls back to width-parameterized estimates, re-measures currently-mounted blocks immediately, and rebuilds the model — all inside an anchor correction so the viewport holds through the reflow. Height-only resizes are ignored (prose re-wraps on width, not height).
 
+**Type scale is the same invalidation, on a different axis.** The estimate constants are calibrated at one font size, and the editor's type scale is font-relative, so a host that scales the text (`--editor-font-size`, or anything else moving the root's computed font size) moves every line box and the characters that fit on a line. Left unscaled, the error is systematic rather than per-block noise, and it reaches the activation decision: a document whose rendered height clears the watermark could be estimated under it and never window. So the estimates are read against the root's live computed font size, and a change runs the width path — drop the measured cache, rebuild, re-measure. A font-size change resizes no other box in the root, so it is observed on a one-`em` probe rather than the root's own resize.
+
 ## Recursive Windowing
 
 Windowing composes through nesting because every scope windows its own children against the one editor scroll container:

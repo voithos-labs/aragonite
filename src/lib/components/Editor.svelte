@@ -25,7 +25,7 @@
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
-	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
+	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { clippingAncestors, nearestUserScrollableAncestor } from '../cursor/scroll-ancestors';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -213,6 +213,7 @@
 	let blockRefs: (BlockComponent | undefined)[] = [];
 	let editorEl: HTMLDivElement | undefined = $state();
 	let headerEl: HTMLDivElement | undefined = $state();
+	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
@@ -355,11 +356,14 @@
 
 	/**
 	 * The header slot's subtree — the host's own chrome, mounted inside this root.
-	 * Every root-level rule that means "this is the editor's own content" asks here:
+	 * Every root-level rule that means "this is the editor's own CONTENT" asks here:
 	 * `editorEl.contains(node)` stopped answering that question the moment a host
 	 * could mount a title field inside the root, and each rule carrying its own copy
 	 * is how one of them gets missed. Keyed on the bound element, never on the class
 	 * name, which any host-rendered node could claim by naming itself `.editor-header`.
+	 *
+	 * The rules that ask "did focus leave the whole widget" (the focusout guards)
+	 * correctly keep using `contains`: for them the slot IS part of the editor.
 	 */
 	function isHostChrome(node: Node | null): boolean {
 		return !!node && !!headerEl && headerEl.contains(node);
@@ -585,6 +589,7 @@
 		isHostScroll: () => hostScroll,
 		getClipBounds,
 		isCrossBlock: () => selectionState.isCrossBlock,
+		isHostChrome,
 		revealAnchor
 	});
 
@@ -758,8 +763,11 @@
 		if (mode === lastEffectiveMode) return;
 		lastEffectiveMode = mode;
 		if (mode === 'reading') {
+			// Reading mode drops the editor's own caret; the host's header chrome keeps
+			// its focus, or a mode toggle would blur a title field mid-edit.
 			const active = document.activeElement;
-			if (active instanceof HTMLElement && editorEl?.contains(active)) active.blur();
+			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active))
+				active.blur();
 		}
 		events.emit('presentationModeChange', mode);
 	});
@@ -921,10 +929,28 @@
 
 	// ── Virtual rendering (top-level windowing) ──────────────────────────
 
+	// How far the host has scaled the type off the size HEIGHT_ESTIMATES were
+	// calibrated at (`--editor-font-size`, or anything else that moves the root's
+	// computed font size). Plain `let`, not `$state`: the oracle reads it inside
+	// `estimate()` — the hottest path in the feature — and the rebuild signal is
+	// `widthVersion`, which every scope already tracks.
+	let typeScale = 1;
+
+	// Only the font-relative terms scale. Block chrome is absolute padding and an
+	// image's rendered height is its own; scaling either would trade one systematic
+	// error for another. Getters, so a scale change lands without rebuilding the
+	// oracle (and without dropping its measured heights, which `applyTypeScale`
+	// owns).
 	const heightOracle = createHeightOracle({
-		lineHeight: HEIGHT_ESTIMATES.proseLineHeight,
-		codeLineHeight: HEIGHT_ESTIMATES.codeLineHeight,
-		avgCharWidth: HEIGHT_ESTIMATES.avgCharWidth,
+		get lineHeight() {
+			return HEIGHT_ESTIMATES.proseLineHeight * typeScale;
+		},
+		get codeLineHeight() {
+			return HEIGHT_ESTIMATES.codeLineHeight * typeScale;
+		},
+		get avgCharWidth() {
+			return HEIGHT_ESTIMATES.avgCharWidth * typeScale;
+		},
 		blockChrome: HEIGHT_ESTIMATES.blockChrome,
 		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 	});
@@ -947,6 +973,39 @@
 			lastWidth = width;
 			heightOracle.invalidateWidth();
 			widthVersion++;
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
+
+	// A TYPE-SCALE change is the width change's sibling: `--editor-font-size` moves
+	// every line box and halves or doubles the characters per line, so estimates
+	// calibrated at the base size are off several-fold — and since `computeWindow`
+	// compares the estimated total against the activation watermark, a document
+	// whose true height clears it can fail to window at all and mount whole. Mounted
+	// blocks heal through their own resize path; the off-window set only heals if
+	// the ESTIMATE moves, which is what this does.
+	//
+	// A font-size change resizes no other box in the root, so the width observer
+	// above cannot see it — hence the `1em`-tall probe, whose box IS the computed
+	// font size (and which catches every cause: the token, a `:root` font-size
+	// change, a host stylesheet). Handled like a width change: drop the heights
+	// measured at the old scale, bump the version every scope rebuilds on.
+	function applyTypeScale(fontSizePx: number): void {
+		const next = fontSizePx / ESTIMATE_BASE_FONT_SIZE;
+		// Sub-percent moves are sub-pixel on a line box — not worth a full rebuild.
+		if (!(next > 0) || Math.abs(next - typeScale) < 0.01) return;
+		typeScale = next;
+		heightOracle.invalidateWidth();
+		widthVersion++;
+	}
+	$effect(() => {
+		const el = typeScaleProbeEl;
+		if (!el) return;
+		applyTypeScale(el.getBoundingClientRect().height);
+		const observer = new ResizeObserver((entries) => {
+			const box = entries[0]?.borderBoxSize?.[0];
+			applyTypeScale(box ? box.blockSize : el.getBoundingClientRect().height);
 		});
 		observer.observe(el);
 		return () => observer.disconnect();
@@ -1246,6 +1305,11 @@
 			/>
 		</div>
 	{/if}
+	<!-- One `em` tall and out of flow: its box IS the root's computed font size, which
+	     no other box in the editor reports. The height oracle's estimates are
+	     calibrated at one type scale and windowing's activation decision reads them,
+	     so the scale has to be observable. -->
+	<div class="type-scale-probe" bind:this={typeScaleProbeEl} aria-hidden="true"></div>
 	{#if header}
 		<!-- A SIBLING of the block list, never a wrapper: the windowing scope resolves
 		     its list as a direct child of this root and measures that list's live
@@ -1328,6 +1392,18 @@
 		flex: none;
 		border: none;
 		padding: 0;
+	}
+
+	/* Absolute (never `display: none`, which stops a ResizeObserver reporting) and
+	   zero-width, so it measures the type scale without taking part in layout. */
+	.type-scale-probe {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 0;
+		height: 1em;
+		visibility: hidden;
+		pointer-events: none;
 	}
 
 	/* Sticks to the scrollport top (height:0 reserves no space); the search bar
