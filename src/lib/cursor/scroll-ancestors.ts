@@ -1,5 +1,5 @@
 /**
- * Source of truth for "what scrolls" and "what clips" — two questions that must
+ * The overflow walks for "what scrolls" and "what clips" — two questions that must
  * NOT be answered by one walk. `overflow: hidden` on an auto-height box (the
  * rounded card a shell wraps content in) matches a clipping predicate while
  * neither clipping nor scrolling: measuring against it re-answers "is this in the
@@ -10,26 +10,33 @@
  *
  * Within the editor: `nearestScrollContainer` walks up ("what scrolls around
  * me"), `firstScrollableDescendant` walks down ("what scrolls inside me"). Both
- * count `hidden`, which drag autoscroll deliberately does not — an overlay must
- * re-measure inside a clipping box that a drag cannot scroll.
+ * take the SCRIPT-scrollable predicate — an overlay must re-measure inside a
+ * clipping box a user cannot wheel.
  *
- * Out of the editor (the host-scroll seam): `nearestScrollableAncestor` answers
- * autoscroll, `clippingAncestors` answers visibility.
+ * Out of the editor (the host-scroll seam): `nearestUserScrollableAncestor`
+ * answers autoscroll, `clippingAncestors` answers visibility.
+ *
+ * Not every walk in the codebase lives here yet: `selection/drag-pointer.ts` keeps
+ * its own inner walk over the user-scrollable predicate. Sharing that predicate is
+ * a known follow-up, so a change to the sets below is not automatically a change
+ * to what a drag-select does inside a table.
  */
 
-const SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);
-// What a drag can actually move — `hidden` excluded, matching drag-pointer's own
-// inner walk. A fixed-height `hidden` box is scrollable in script, but content it
-// has clipped away cannot be brought into view by scrolling anything.
-const AUTOSCROLLABLE_VALUES = new Set(['auto', 'scroll']);
+// Scrollable through script — `element.scrollTop = n` moves it. `hidden` qualifies.
+const SCRIPT_SCROLLABLE_VALUES = new Set(['auto', 'scroll', 'hidden']);
+// Scrollable by the USER, which is what a drag may autoscroll. A `hidden` box IS
+// script-scrollable, and the reveal path does scroll it; it is excluded here by
+// convention, not by capability — a user cannot wheel-scroll it back, so a drag
+// that autoscrolled it would strand content out of the user's reach.
+const USER_SCROLLABLE_VALUES = new Set(['auto', 'scroll']);
 // What can bound the visible region. `clip` joins them here and only here: it
 // never scrolls, so it is not an autoscroll answer, but a block past its edge is
 // unreachable.
-const VIEW_BOUNDING_VALUES = new Set([...SCROLLABLE_VALUES, 'clip']);
+const VIEW_BOUNDING_VALUES = new Set([...SCRIPT_SCROLLABLE_VALUES, 'clip']);
 
-function isScrollable(el: HTMLElement): boolean {
+function isScriptScrollable(el: HTMLElement): boolean {
 	const cs = getComputedStyle(el);
-	return SCROLLABLE_VALUES.has(cs.overflowX) || SCROLLABLE_VALUES.has(cs.overflowY);
+	return SCRIPT_SCROLLABLE_VALUES.has(cs.overflowX) || SCRIPT_SCROLLABLE_VALUES.has(cs.overflowY);
 }
 
 // `html`/`body` are never candidates in either walk: when THEY are the scrollport,
@@ -42,7 +49,7 @@ function isPageBox(el: HTMLElement): boolean {
 export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HTMLElement | null {
 	let cur: HTMLElement | null = el.parentElement;
 	while (cur && cur !== stopAt) {
-		if (isScrollable(cur)) return cur;
+		if (isScriptScrollable(cur)) return cur;
 		cur = cur.parentElement;
 	}
 	return null;
@@ -53,11 +60,11 @@ export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HT
  * when the page's own viewport is the scrollport. Used in host-scroll mode, where
  * the editor root no longer scrolls itself.
  */
-export function nearestScrollableAncestor(el: HTMLElement): HTMLElement | null {
+export function nearestUserScrollableAncestor(el: HTMLElement): HTMLElement | null {
 	let cur: HTMLElement | null = el.parentElement;
 	while (cur && !isPageBox(cur)) {
 		const cs = getComputedStyle(cur);
-		if (AUTOSCROLLABLE_VALUES.has(cs.overflowX) || AUTOSCROLLABLE_VALUES.has(cs.overflowY)) {
+		if (USER_SCROLLABLE_VALUES.has(cs.overflowX) || USER_SCROLLABLE_VALUES.has(cs.overflowY)) {
 			return cur;
 		}
 		cur = cur.parentElement;
@@ -99,7 +106,7 @@ export function firstScrollableDescendant(el: HTMLElement): HTMLElement | null {
 	}
 	while (stack.length > 0) {
 		const cur = stack.shift()!;
-		if (isScrollable(cur)) return cur;
+		if (isScriptScrollable(cur)) return cur;
 		for (const child of cur.children) {
 			if (child instanceof HTMLElement) stack.push(child);
 		}
