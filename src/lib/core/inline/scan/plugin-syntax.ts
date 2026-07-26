@@ -40,7 +40,10 @@ export interface InlineSyntaxOptions {
 	/**
 	 * Multi-char prefix beginning with the trigger. Required to register a reserved
 	 * trigger; the recognizer is consulted only when the prefix matches at the scan
-	 * position.
+	 * position — ahead of the built-in case, so a prefix that also opens a built-in
+	 * construct outranks it and the recognizer must decline the overlap itself. Getting
+	 * that wrong is silent and byte-preserving; see the plugin guide's reserved-trigger
+	 * section before choosing one.
 	 */
 	prefix?: string;
 	/** Rung; lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
@@ -74,15 +77,15 @@ const BUILTIN_TRIGGERS = new Set(['\\', '`', '&', '\n', '*', '_', '~', '[', ']',
 const SCAN_PROBED_RESERVED = new Set(['!']);
 
 /**
- * Reserved triggers `needsScan` (scan/index.ts) never visits in otherwise-plain
- * text and does not probe for: they sit outside `SPECIAL_CHARS` because they only
- * matter inside `[`-bearing ranges. A prefix rung on one would be accepted here yet
- * never consulted — a silent no-op, the failure this registration seam exists to make
- * impossible — so it is rejected. A future construct needing `]` must first make it
- * scan-visible or scan-probed. Pinned against a SPECIAL_CHARS edit by the
- * inline-trigger-parity lint (G4.18).
+ * Reserved triggers with no route to the scan at all: outside `SPECIAL_CHARS`, so
+ * `needsScan` never visits them in otherwise-plain text, and outside
+ * `SCAN_PROBED_RESERVED`, so no registration can teach it to. A prefix rung on one
+ * would be accepted here yet never consulted — a silent no-op, the failure this
+ * registration seam exists to make impossible — so it is rejected. A future construct
+ * needing `]` gives it one of the other two routes first. Pinned against a
+ * SPECIAL_CHARS edit by the inline-trigger-parity lint (G4.18).
  */
-const SCAN_INVISIBLE_RESERVED = new Set([']']);
+const REJECTED_RESERVED = new Set([']']);
 
 const NO_RUNGS: readonly InlineRung[] = [];
 
@@ -128,12 +131,12 @@ export function registerInlineSyntax(
 					`which dispatches it before the plugin registry — the recognizer would never fire`
 			);
 		}
-		if (SCAN_INVISIBLE_RESERVED.has(trigger)) {
+		if (REJECTED_RESERVED.has(trigger)) {
 			throw new Error(
 				`registerInlineSyntax: reserved trigger ${JSON.stringify(trigger)} is skipped by the ` +
 					`scanner's fast bail (absent from SPECIAL_CHARS in scan/index.ts; it matters only ` +
 					`inside "["-bearing ranges), so a prefix rung on it would never fire in plain text — ` +
-					`make the trigger scan-visible before registering`
+					`make the trigger scan-visible or scan-probed before registering`
 			);
 		}
 		if (priority >= INLINE_PRIORITIES.builtin) {
@@ -205,7 +208,7 @@ export function getPrefixRungs(char: string): InlineRung[] | undefined {
 	return reservedRegistry.get(char);
 }
 
-/** Empty-registry fast check that keeps the per-keystroke scan free of registry probes. */
+/** Gate for the `default` arm's unreserved-rung consultation. */
 export function hasInlineSyntax(): boolean {
 	return unreservedRegistry.size > 0;
 }

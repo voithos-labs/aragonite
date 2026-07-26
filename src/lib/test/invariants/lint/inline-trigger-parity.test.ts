@@ -10,7 +10,7 @@
  * (2) Every reserved trigger is reachable by exactly one of three routes:
  * scan-visible (in `SPECIAL_CHARS`, so `needsScan` always reaches it), scan-probed
  * (in `SCAN_PROBED_RESERVED`, so `needsScan` reaches it while a rung is registered),
- * or rejected (in `SCAN_INVISIBLE_RESERVED`, so registration refuses a prefix rung).
+ * or rejected (in `REJECTED_RESERVED`, so registration refuses a prefix rung).
  * A SPECIAL_CHARS edit that orphans a reserved trigger — leaving a prefix rung there a
  * silent no-op the scan never visits — fails here instead of shipping, and so does a
  * trigger claimed by two routes at once, which would make its reachability depend on
@@ -112,10 +112,10 @@ describe('G4.18 inline-trigger parity', () => {
 	it('every reserved trigger takes exactly one route: visible, probed, or rejected', () => {
 		const special = specialChars();
 		const probed = triggerSet('SCAN_PROBED_RESERVED');
-		const rejected = triggerSet('SCAN_INVISIBLE_RESERVED');
+		const rejected = triggerSet('REJECTED_RESERVED');
 		expect(special.has('['), 'SPECIAL_CHARS extractor found nothing').toBe(true);
 		expect(probed.has('!'), 'SCAN_PROBED_RESERVED extractor found nothing').toBe(true);
-		expect(rejected.has(']'), 'SCAN_INVISIBLE_RESERVED extractor found nothing').toBe(true);
+		expect(rejected.has(']'), 'REJECTED_RESERVED extractor found nothing').toBe(true);
 
 		const onDemand = [...probed, ...rejected];
 		const orphaned = [...triggers]
