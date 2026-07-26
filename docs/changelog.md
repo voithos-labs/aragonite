@@ -28,6 +28,25 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   round-trip, so an optional cell would have been left undeclared by exactly the containers that
   need it.
 
+- **Plugin surface: `!` takes an inline prefix rung.** A registration on `!` carrying a `![[` prefix
+  and a priority below `INLINE_PRIORITIES.builtin` now registers instead of throwing, so an
+  Obsidian-style `![[embed]]` can be a real inline kind — recognized, rendered, caret-addressable —
+  rather than a view-only decoration painted over bytes the tree never sees. `!` was rejected
+  because it sits outside the scanner's fast-bail character set (it only matters inside a
+  `[`-bearing range), which would have left the rung a silent no-op in plain prose. The fix is a
+  third route rather than a fourth special character: `!` is now **scan-probed**, and a registration
+  turns the bail's per-character probe on for it — the same probe the unreserved triggers have
+  always used. Making `!` unconditionally special would have been a shorter diff and a permanent tax
+  on prose, dragging every `"Hello!"` through the full scan loop for a syntax most documents never
+  contain; with nothing registered the bail is unchanged down to the single always-false test per
+  character it already paid. Dispatch order is untouched and was the deciding constraint: a prefix
+  rung is consulted before the switch, the only position that can work, since `handleBang` consumes
+  `![` as one unit and advances past it. So a rung on `!` is an explicit claim to outrank the image
+  case wherever its prefix matches, not a claim that the grammars are disjoint — `![[a]](u)` is an
+  image whose alt text is `[a]`. Declining that overlap is the recognizer's job, and a decline
+  leaves the built-in image reading byte-identical bytes. `]` stays rejected: no construct has asked
+  for it, and an unused route is a route that rots.
+
 - **`setSelection` puts a `getSelection()` snapshot back, and its boolean means in view.** The
   instance surface gained the write half of the save-and-restore pair a host needs to persist a
   per-document caret. It is async because the target may be a block the virtual window has
