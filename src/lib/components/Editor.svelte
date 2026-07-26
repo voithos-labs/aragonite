@@ -26,6 +26,7 @@
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
+	import { nearestScrollHost } from '../cursor/scroll-ancestors';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -118,6 +119,24 @@
 	// `scrollMode` as a dependency of the hottest path in the editor.
 	// svelte-ignore state_referenced_locally
 	const hostScroll = scrollMode === 'host';
+
+	// The one answer to "what scrolls this editor, and what bounds what it can
+	// show" — the root in self mode, the nearest scrolling-or-clipping ancestor in
+	// host mode (null when the page's own viewport bounds it). Every consumer that
+	// used to assume the root reads it: reveal honesty, drag-reorder autoscroll,
+	// table-row reorder autoscroll, drag-select autoscroll. Resolved on first read
+	// and memoized — drag autoscroll asks per pointer frame, and the ancestor chain
+	// is a property of the host's layout at mount.
+	let resolvedScrollHost: HTMLElement | null = null;
+	let scrollHostResolved = false;
+	function getScrollHost(): HTMLElement | null {
+		if (!hostScroll) return editorEl ?? null;
+		if (!scrollHostResolved && editorEl) {
+			resolvedScrollHost = nearestScrollHost(editorEl);
+			scrollHostResolved = true;
+		}
+		return resolvedScrollHost;
+	}
 
 	// Install before initDocument parses `source`, so plugin openers/directives are
 	// live for the seed grammar. Set-once by contract — a later prop change is ignored.
@@ -534,7 +553,7 @@
 		getBlockComponentByPath: getBlockComponent,
 		revealPath,
 		getEditorRoot: () => editorEl ?? null,
-		isHostScroll: () => hostScroll,
+		getScrollHost,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		revealAnchor
 	});
@@ -764,6 +783,7 @@
 		if (!editorEl) return;
 		const handle = installReorderDrag({
 			editorRoot: editorEl,
+			getScrollHost,
 			moveReorderUnit: reorder.moveReorderUnit,
 			overlay: {
 				setGhost: (g) => (reorderGhost = g),
@@ -808,6 +828,7 @@
 		getBlockElByPath,
 		revealPath,
 		getEditorRoot: () => editorEl ?? null,
+		getScrollHost,
 		getEditorLifetime: () => lifetimeController.signal,
 		stickyColumn,
 		blockEdit,
@@ -974,6 +995,7 @@
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
+		scrollHost: getScrollHost,
 		blockElLookup: getBlockElByPath,
 		focusedPath: () => focusedPath,
 		heightOracle,

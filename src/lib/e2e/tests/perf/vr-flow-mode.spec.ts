@@ -5,11 +5,12 @@ import { primaryModifier } from '../../platform';
 import { spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Host-scroll (flow) mode on /test/flow: two journal entries in one ancestor
+// Host-scroll (flow) mode on /test/flow: three journal entries in one ancestor
 // scroller plus a pane that clips rather than scrolls. Windowing never activates,
-// reveal stays honest against the WINDOW viewport (the root spans the whole
-// document, so measuring against it would call an unreachable block visible), and
-// the find bar rides the entry's own top edge.
+// reveal and autoscroll resolve against whatever scrolls the editor (the root
+// spans the whole document, so measuring or scrolling IT would call an unreachable
+// block visible and leave a drag stranded), and the find bar rides the entry's own
+// top edge.
 
 async function gotoFlow(page: Page): Promise<void> {
 	await page.goto('/test/flow');
@@ -59,6 +60,7 @@ test('a host-scroll entry mounts every block and renders no spacers', async ({ p
 test('the editor root stops being a scroll container and the ancestor carries the entry', async ({
 	page
 }) => {
+	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
 	const geometry = await page.evaluate(() => {
@@ -87,6 +89,7 @@ test('the editor root stops being a scroll container and the ancestor carries th
 	const before = await topOf();
 	await scrollHostTo(page, 1500);
 	expect(before - (await topOf())).toBeGreaterThan(1400);
+	expect(pageErrors).toEqual([]);
 });
 
 test('typing and undo in a host-scroll entry behave as in self mode', async ({ page }) => {
@@ -104,38 +107,117 @@ test('typing and undo in a host-scroll entry behave as in self mode', async ({ p
 	expect(pageErrors).toEqual([]);
 });
 
-test('scrollTo on a far block resolves true and lands it in the window viewport', async ({
+test('scrollTo on a far block resolves true and lands it in the ancestor scrollport', async ({
 	page
 }) => {
+	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
 	expect(await page.evaluate(() => (window as any).__flow.scrollTo('a', [180]))).toBe(true);
 
 	const seen = await page.evaluate(() => {
 		const rect = (window as any).__flow.blockRect('a', [180]) as { top: number; bottom: number };
-		return { ...rect, viewport: window.innerHeight };
+		const port = document.querySelector('[data-testid="scroller"]')!.getBoundingClientRect();
+		return { ...rect, portTop: port.top, portBottom: port.bottom };
 	});
-	expect(seen.top).toBeLessThan(seen.viewport);
-	expect(seen.bottom).toBeGreaterThan(0);
+	expect(seen.top).toBeLessThan(seen.portBottom);
+	expect(seen.bottom).toBeGreaterThan(seen.portTop);
+	expect(pageErrors).toEqual([]);
+});
+
+test('setSelection in a host-scroll entry reports true only once the block is in view', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	await gotoFlow(page);
+	const at = (id: string, index: number) =>
+		page.evaluate(
+			({ id, index }) =>
+				(window as any).__flow.setSelection(id, {
+					anchor: { path: [index], offset: 0 },
+					focus: { path: [index], offset: 0 }
+				}),
+			{ id, index }
+		);
+
+	// Task 1's contract crosses the mode: the restore scrolls the ANCESTOR and the
+	// boolean means the block got there.
+	expect(await at('a', 180)).toBe(true);
+	const seen = await page.evaluate(() => {
+		const rect = (window as any).__flow.blockRect('a', [180]) as { top: number; bottom: number };
+		const port = document.querySelector('[data-testid="scroller"]')!.getBoundingClientRect();
+		return { ...rect, portTop: port.top, portBottom: port.bottom };
+	});
+	expect(seen.top).toBeLessThan(seen.portBottom);
+	expect(seen.bottom).toBeGreaterThan(seen.portTop);
+
+	// And it inherits the clip bound rather than reporting a placement it can't make.
+	expect(await at('clipped', 5)).toBe(false);
+	expect(pageErrors).toEqual([]);
 });
 
 test('scrollTo on a path that addresses no block resolves false', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 	expect(await page.evaluate(() => (window as any).__flow.scrollTo('a', [9999]))).toBe(false);
+	expect(pageErrors).toEqual([]);
 });
 
-test('scrollTo inside a clipping host resolves false — nothing can reveal the block', async ({
+test('scrollTo past a clipping host edge resolves false — nothing can reveal the block', async ({
 	page
 }) => {
+	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
-	// The block IS mounted (host mode mounts all of them), so a false here reports
-	// "not visible", not "not found" — the distinction the honest boolean carries.
-	// Block 55 of 60 sits ~2200px below the pane's top, which is pinned at the page
-	// top: far past any viewport this project runs at, so no scroll could reach it
-	// even if the pane were a scrollport. Shrink the fixture and this goes vacuous.
-	await expect(entry(page, 'clipped').locator('[data-block-path="[55]"]')).toHaveCount(1);
-	expect(await page.evaluate(() => (window as any).__flow.scrollTo('clipped', [55]))).toBe(false);
+	// The CLIP boundary is the case, not distance: block [5] sits just past the
+	// 240px-tall pane's bottom edge while still well inside the window viewport, so
+	// a window-bounded measure calls it visible. It is mounted (host mode mounts all
+	// of them), so `false` reports "not visible", not "not found" — the distinction
+	// the honest boolean carries. Its neighbour above the edge must still be `true`,
+	// or "always false in a clipping pane" would pass for the wrong reason.
+	const geometry = await page.evaluate(() => {
+		const pane = document.querySelector('[data-testid="entry-clipped"]')!.getBoundingClientRect();
+		const below = (window as any).__flow.blockRect('clipped', [5]) as { top: number };
+		return { paneBottom: pane.bottom, blockTop: below.top, viewport: window.innerHeight };
+	});
+	expect(geometry.blockTop).toBeGreaterThan(geometry.paneBottom);
+	expect(geometry.blockTop).toBeLessThan(geometry.viewport); // inside the window: the crux
+
+	expect(await page.evaluate(() => (window as any).__flow.scrollTo('clipped', [0]))).toBe(true);
+	expect(await page.evaluate(() => (window as any).__flow.scrollTo('clipped', [5]))).toBe(false);
+	expect(pageErrors).toEqual([]);
+});
+
+test('a drag at the scrollport edge autoscrolls the host, not the non-scrolling root', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	await gotoFlow(page);
+	await scrollHostTo(page, 1100);
+
+	const scrollTop = () =>
+		page.evaluate(
+			() => (document.querySelector('[data-testid="scroller"]') as HTMLElement).scrollTop
+		);
+	const before = await scrollTop();
+
+	// The handle only mounts on hover. Grab it, then hold the pointer in the
+	// scrollport's bottom edge band: the rAF autoscroll loop must move the ancestor.
+	const source = entry(page, 'a').locator('.block-host').nth(2);
+	await source.hover();
+	const handle = await source.locator('.block-drag-handle').first().boundingBox();
+	expect(handle).not.toBeNull();
+	const port = (await page.locator('[data-testid="scroller"]').boundingBox())!;
+
+	await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(port.x + port.width / 2, port.y + port.height - 5, { steps: 12 });
+	await expect.poll(scrollTop).toBeGreaterThan(before + 50);
+
+	// Escape cancels the drop, so the assertion above is about scrolling only.
+	await page.keyboard.press('Escape');
+	await page.mouse.up();
+	expect(pageErrors).toEqual([]);
 });
 
 test('the find bar rides the entry top edge, not the ancestor scrollport', async ({ page }) => {

@@ -244,6 +244,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
 		editorRoot: getEditorRoot,
+		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
 		pluginEditor
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -287,6 +288,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getBlockElByPath,
 		focusActions,
 		getEditorRoot,
+		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
 		blockEdit,
