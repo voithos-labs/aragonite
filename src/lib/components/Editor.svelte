@@ -104,6 +104,7 @@
 		imageLoadPolicy = 'auto',
 		onLinkActivate,
 		onPasteImage,
+		header,
 		blockDragHandles = true,
 		searchBar = true,
 		keybindings,
@@ -211,6 +212,7 @@
 	// publish that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
 	let editorEl: HTMLDivElement | undefined = $state();
+	let headerEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
@@ -358,6 +360,9 @@
 			const target = e.target as Element | null;
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			if (!anchor) return;
+			// The header slot is the host's chrome, not document content: its links
+			// follow the page's behaviour, not the editor's plain-click-edits policy.
+			if (anchor.closest('.editor-header')) return;
 			const href = anchor.getAttribute('href');
 			if (!href) return;
 			// Reading mode has no caret for a plain click to place, so links behave
@@ -930,6 +935,32 @@
 		return () => observer.disconnect();
 	});
 
+	// The header slot's height lives outside the height model, and native
+	// `overflow-anchor` is off (VR-2), so a header that grows while the reader is
+	// scrolled down would slide the document under them. Compensate from the SLOT's
+	// own resize — never from a scroll or a model change — so this composes with
+	// `correctAnchor` (which corrects model deltas) instead of double-correcting it.
+	// At scrollTop 0 the header is on screen and growth pushing content down is the
+	// expected reading, so nothing compensates there. Inert in host mode: that scroll
+	// belongs to the host's page, where a growing entry reflows like any other content
+	// change and the editor has no business writing an ancestor's scroll position.
+	$effect(() => {
+		const el = headerEl;
+		const scrollEl = editorEl;
+		if (hostScroll || !el || !scrollEl) return;
+		let lastHeight = el.getBoundingClientRect().height;
+		const observer = new ResizeObserver((entries) => {
+			const box = entries[0]?.borderBoxSize?.[0];
+			const height = box ? box.blockSize : entries[0]?.contentRect.height;
+			if (height == null) return;
+			const delta = height - lastHeight;
+			lastHeight = height;
+			if (delta !== 0 && scrollEl.scrollTop > 0) scrollEl.scrollTop += delta;
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
+
 	// The focused block's full path drives each windowing scope's per-level pin, so
 	// a scroll that pushes the caret off-screen never tears down native focus/IME.
 	//
@@ -1195,6 +1226,12 @@
 				onToggleReplace={() => (replaceExpanded = canReplace && !replaceExpanded)}
 			/>
 		</div>
+	{/if}
+	{#if header}
+		<!-- A SIBLING of the block list, never a wrapper: the windowing scope resolves
+		     its list as a direct child of this root and measures that list's live
+		     offset, so a preamble costs the slice math nothing. -->
+		<div class="editor-header" bind:this={headerEl}>{@render header()}</div>
 	{/if}
 	<BlockList
 		children={doc.children}

@@ -33,9 +33,18 @@
 			.join('\n')
 	].join('\n\n');
 
+	// The header-slot entry: host chrome inside an editor that does not own its
+	// scroll. Short — its subject is the slot, not the mode's mounting bound.
+	const HEADER_ENTRY = entry('Header', 40);
+
 	type EditorHandle = ReturnType<typeof Editor>;
 	let editors = $state<Record<string, EditorHandle | undefined>>({});
-	const ids = ['a', 'b', 'nested', 'clipped'];
+	const ids = ['a', 'b', 'nested', 'clipped', 'header'];
+
+	// Toggled from a control fixed to the page, outside the scroller: a button in
+	// the flow would be scrolled into view by the click that toggles it, moving the
+	// very scrollTop the compensation contract is about.
+	let headerTall = $state(false);
 
 	for (const id of ids) trackParityDocument(() => editors[id]);
 
@@ -66,6 +75,12 @@
 	});
 </script>
 
+{#snippet entryHero()}
+	<div class="entry-hero" data-testid="flow-header" style:height={headerTall ? '240px' : '80px'}>
+		Entry chrome
+	</div>
+{/snippet}
+
 <div class="flow-page aragonite-editor-theme">
 	<div class="flow-scroller" data-testid="scroller">
 		<div class="filler" data-testid="filler-top">Above the journal</div>
@@ -78,8 +93,27 @@
 		<div class="entry card" data-testid="entry-nested">
 			<Editor bind:this={editors.nested} source={NESTED} scrollMode="host" searchBar={false} />
 		</div>
+		<!-- Last, so the entries above keep the offsets the other specs scroll to. -->
+		<div class="entry card" data-testid="entry-header">
+			<Editor
+				bind:this={editors.header}
+				source={HEADER_ENTRY}
+				scrollMode="host"
+				header={entryHero}
+			/>
+		</div>
 		<div class="filler" data-testid="filler-bottom">Below the journal</div>
 	</div>
+	<!-- Fixed, so adding it takes no width from the scroller (whose measurements the
+	     other specs pin) and the click cannot scroll the journal. -->
+	<button
+		type="button"
+		class="header-toggle"
+		data-testid="flow-header-toggle"
+		onclick={() => (headerTall = !headerTall)}
+	>
+		Entry header: {headerTall ? 'tall' : 'short'}
+	</button>
 	<!-- Outside the scroller, in a box that CLIPS rather than scrolls: nothing can
 	     bring its lower blocks into view, so a reveal there must report false. -->
 	<div class="clipped-pane" data-testid="entry-clipped">
@@ -129,5 +163,17 @@
 		flex: 0 0 320px;
 		height: 240px;
 		overflow: clip;
+	}
+	.entry-hero {
+		display: flex;
+		align-items: center;
+		box-sizing: border-box;
+		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+	}
+	.header-toggle {
+		position: fixed;
+		right: 8px;
+		bottom: 8px;
+		z-index: 10;
 	}
 </style>

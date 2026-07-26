@@ -3,6 +3,7 @@
  * Editor.svelte annotates its $props() and instance surface against these, and
  * index.ts re-exports them — so neither can drift from the component.
  */
+import type { Snippet } from 'svelte';
 import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
@@ -30,6 +31,16 @@ export interface EditorProps {
 	 *  the whole paste — the clipboard's `text/plain` is not pasted as well. Without
 	 *  it, an image-bearing paste behaves as it does with no image support at all. */
 	onPasteImage?: PasteImageHook;
+	/** Host chrome rendered INSIDE the editor's scroll container, above the first
+	 *  block: a document title, properties panel, tag row. It scrolls away with the
+	 *  document instead of pinning above it, which is what lets the editor keep its
+	 *  own scrollport (and virtual rendering) — an outer host scroller would forfeit
+	 *  both. A slot that changes height while the reader is scrolled down does not
+	 *  slide the document under them; at the top of the document growth pushes
+	 *  content down, which is what a reader looking at the header expects. With
+	 *  `scrollMode='host'` the shift is left to the host page — the editor never
+	 *  writes an ancestor's scroll position. */
+	header?: Snippet;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** Who owns the scroll, set once at mount. `'self'` (default) makes the editor
