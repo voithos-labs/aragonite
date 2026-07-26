@@ -13,7 +13,7 @@ import type { HistoryActions } from '../../action-contracts';
 import type { UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../invariants/assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { applySelectionToDom } from '../../selection/native-bridge';
+import { restoreSelection } from '../../selection/selection-restore';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
 export function createHistoryActions(
@@ -28,11 +28,15 @@ export function createHistoryActions(
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.setBlockIds(entry.blockIds);
+		// The tick belongs to the doc swap above, not to the restore: the new tree
+		// must render before the shared seam can reveal or address anything in it.
 		await tick();
-		// Mount the focus block if it scrolled out of the window; applySelectionToDom
-		// still does the placement via getBlockElByPath, which now resolves.
-		await deps.revealPath(entry.selection.focus.path);
-		applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
+		await restoreSelection(entry.selection, {
+			getDoc: () => deps.doc,
+			selectionState: deps.selectionState,
+			getBlockElByPath: deps.getBlockElByPath,
+			revealPath: deps.revealPath
+		});
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 

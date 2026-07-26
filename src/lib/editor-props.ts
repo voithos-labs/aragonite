@@ -50,6 +50,11 @@ export interface EditorProps {
 export interface EditorInstance {
 	getSource(): string;
 	getSelection(): EditorSelection | null;
+	/** Restore a `getSelection()` snapshot. Async because a synchronous focus
+	 *  cannot mount an off-window block — the target is revealed first. Resolves
+	 *  true once applied; false (never throws, and without side effects) when
+	 *  either path no longer addresses a block. Offsets clamp to the block end. */
+	setSelection(selection: EditorSelection): Promise<boolean>;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;

@@ -66,6 +66,7 @@
 		interactionTraceSnapshot
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
+	import { restoreSelection } from '../selection/selection-restore';
 	import { readBlockPath } from '../selection/path-lookup';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { isPreviewMode } from '../presentation-mode';
@@ -992,6 +993,20 @@
 		return readCurrentSelection(selectionState, blockRefs);
 	}
 
+	/**
+	 * Restore a snapshot from {@link getSelection}. Shares the whole restore road
+	 * with the undo swap — resolve + clamp, reveal, place — so a consumer's
+	 * restore and a Ctrl+Z restore cannot diverge.
+	 */
+	export function setSelection(selection: EditorSelection): Promise<boolean> {
+		return restoreSelection(selection, {
+			getDoc,
+			selectionState,
+			getBlockElByPath,
+			revealPath
+		});
+	}
+
 	export function getEvents(): EditorEvents {
 		return events;
 	}
@@ -1042,6 +1057,7 @@
 	void ({
 		getSource,
 		getSelection,
+		setSelection,
 		getEvents,
 		getSearch,
 		getDecorations,

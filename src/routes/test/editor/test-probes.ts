@@ -8,6 +8,7 @@ import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
+import type { EditorSelection } from '$lib/selection/primitives';
 import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import {
@@ -435,6 +436,11 @@ export function installTestProbes({
 				focus: { path: sel.focus.path, offset: sel.focus.offset }
 			};
 		},
+		// Faithful mirrors of the snapshot/restore doors, unlike getSelectionPaths
+		// above: a round-trip spec must hand back the endpoint UNION variant it got,
+		// and the path-only projection drops `cellCoordinate`.
+		getSelection: (): EditorSelection | null => editor.getSelection(),
+		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
