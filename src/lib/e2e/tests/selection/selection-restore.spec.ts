@@ -80,6 +80,35 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		expect(await editor.bridge.getSelection()).toEqual(snapshot);
 	});
 
+	test('scrolls a still-mounted block back into view', async ({ page }) => {
+		await editor.loadContent(windowedDoc(201));
+		await editor.waitForRenderFlush();
+		const target = wrapperFor(page, [80]);
+
+		await revealAndClick(editor, page, [80], 3);
+		const snapshot = await editor.bridge.getSelection();
+		expect(snapshot?.focus.path).toEqual([80]);
+
+		// Push the target past the fold but keep it inside the overscan band, where
+		// the mount primitive short-circuits with no scroll. This is where a host
+		// lands after an ordinary user scroll — the state every other in-view
+		// scenario skips by windowing the target out completely.
+		const scrolled = await page.evaluate(() => {
+			const el = document.querySelector('.editor') as HTMLElement;
+			el.scrollTop += 400;
+			return el.scrollTop;
+		});
+		await editor.waitForRenderFlush();
+		await expect(target).toBeAttached();
+		await expect(target).not.toBeInViewport();
+
+		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);
+		await expect(target).toBeInViewport();
+		expect(
+			await page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop)
+		).not.toBe(scrolled);
+	});
+
 	test('an offset past the end clamps to the block end', async () => {
 		await editor.loadContent(PROSE);
 		await editor.clickBlockAtPath([0], 0);

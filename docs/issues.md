@@ -296,6 +296,10 @@ write the stale one first.
 
 Pre-existing on the undo/redo restore path; reaches the public API with `setSelection`.
 
+**Workaround:** read the selection back after the restore — `await setSelection(...)` then
+`getSelection()` — rather than reacting to the emission burst; or debounce the `selectionChange`
+handler so only the settled value is persisted.
+
 **Fix direction:** a batched/silent update seam on SelectionState so one restore is one emission,
 rather than reordering the clear — swapping the two lines only moves which stale value escapes,
 because the native bridge reads through whatever SelectionState still holds.

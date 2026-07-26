@@ -51,15 +51,20 @@ export interface EditorInstance {
 	getSource(): string;
 	getSelection(): EditorSelection | null;
 	/**
-	 * Restore a `getSelection()` snapshot. Async because a synchronous focus cannot
-	 * mount an off-window block — the target is revealed first. Offsets past the
-	 * end of their block clamp to it.
+	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into
+	 * view first, and a true result means it got there — not merely that it mounted.
+	 *
+	 * An out-of-range offset clamps to the end of its block, in that endpoint's own
+	 * coordinate space: character offsets clamp to the block's source length, but an
+	 * endpoint addressing a TABLE block carries a row-major cell index and clamps to
+	 * the last cell (see {@link SelectionPoint}) — a large offset there becomes the
+	 * bottom-right cell, not a character position.
 	 *
 	 * Never throws. Resolves false in two cases, which differ in their effect: a
-	 * path that no longer addresses a block is rejected before anything happens
-	 * (no reveal, no focus, no state write), while a path that resolves in the
-	 * tree but whose element is absent from the DOM has already re-established
-	 * cross-block state by the time placement fails.
+	 * path that no longer addresses a block is declined before anything happens
+	 * (no scroll, no focus, no state write), while a path that resolves in the
+	 * tree but whose element is absent from the DOM has already scrolled and
+	 * re-established cross-block state by the time placement fails.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	getEvents(): EditorEvents;

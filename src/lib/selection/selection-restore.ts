@@ -11,44 +11,56 @@
 import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
-import type { BlockComponent } from '../block-component';
 import type { BlockElLookup } from '../editor-keys';
 import type { EditorSelection, SelectionPoint } from './primitives';
 import { applySelectionToDom } from './native-bridge';
 import type { SelectionState } from './selection-state.svelte';
 
+/**
+ * `unresolvable` is decided before anything happens and is the only outcome that
+ * leaves the editor untouched; `unplaced` means the target survived resolution
+ * but its element was absent from the DOM, so the reveal and — on the custom
+ * route — the cross-block state write have already run.
+ */
+export type SelectionRestoreOutcome = 'applied' | 'unresolvable' | 'unplaced';
+
 export interface SelectionRestoreDeps {
 	getDoc(): DocumentView;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
-	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/**
+	 * Make the park target ready and report whether it is. Injected because the two
+	 * restore contracts need different strengths: the undo swap promises the block
+	 * is MOUNTED, and the mount primitive deliberately short-circuits with no scroll
+	 * for a target that already is — while `setSelection` promises IN VIEW, which
+	 * only the scroll-settling primitive can deliver for a target sitting mounted in
+	 * the overscan band. Which path gets revealed stays this module's rule; how
+	 * strongly it is revealed is the caller's contract.
+	 */
+	revealTarget(path: number[]): Promise<boolean>;
 }
 
 /**
- * Restore a snapshot. `true` means resolve, reveal and placement all succeeded;
- * the focus block is in view by construction of the reveal, so no rect is
- * measured to confirm it.
- *
- * The two `false`s differ in their effect. An endpoint whose path no longer
- * addresses a block is rejected up front — nothing is revealed, focused or
- * stored, so a stale snapshot cannot move the viewport. A resolvable path whose
- * element is missing from the DOM fails later, in the applier, after the custom
- * route has already entered cross-block state.
+ * Restore a snapshot. Never throws; an endpoint whose path no longer addresses a
+ * block is declined up front, before the reveal, so a dead snapshot cannot move
+ * the viewport or disturb a live selection. What a decline should then do about
+ * the selection already on screen is the caller's policy, not this module's.
  */
 export async function restoreSelection(
 	selection: EditorSelection,
 	deps: SelectionRestoreDeps
-): Promise<boolean> {
+): Promise<SelectionRestoreOutcome> {
 	const doc = deps.getDoc();
 	const anchor = resolveSelectionPoint(doc, selection.anchor);
 	const focus = resolveSelectionPoint(doc, selection.focus);
-	if (!anchor || !focus) return false;
+	if (!anchor || !focus) return 'unresolvable';
 
 	// Reveal exactly what the applier parks the caret at. A cell-coordinate focus
 	// parks in its deep [table, row, col] cell, and table rows window too — so
 	// revealing the table block alone would leave an off-window row unmounted.
-	await deps.revealPath(deps.selectionState.cellDeepPath(focus) ?? focus.path);
-	return applySelectionToDom({ anchor, focus }, deps.selectionState, deps.getBlockElByPath);
+	const revealed = await deps.revealTarget(deps.selectionState.cellDeepPath(focus) ?? focus.path);
+	const placed = applySelectionToDom({ anchor, focus }, deps.selectionState, deps.getBlockElByPath);
+	return revealed && placed ? 'applied' : 'unplaced';
 }
 
 /**
