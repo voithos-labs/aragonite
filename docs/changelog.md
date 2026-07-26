@@ -219,7 +219,7 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   repros rather than fixed: typing a `> [!TYPE]` marker per keystroke never forms an alert, and a
   long paste into a windowed list loses the caret (VR-12).
 
-Ship gates: unit 5367, e2e 1566, check 0/0, lint 0, perf:check 11/11 gated rows (gate
+Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).
 
