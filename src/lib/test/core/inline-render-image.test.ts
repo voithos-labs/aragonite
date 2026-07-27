@@ -4,6 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
+import type { InlineNode } from '$lib/core/nodes';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
 
 // The component layer injects buildImageWidget; core owns no image-widget code
@@ -183,5 +184,58 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		const img = frag.querySelector('img');
 		expect(img?.getAttribute('src')).toBeNull();
 		expect(frag.querySelector('.md-image-placeholder')).not.toBeNull();
+	});
+});
+
+// The fallback a kind with `renderImagesAsWidgets: false` (table cells) renders
+// through — and any block whose consumer injects no widget builder.
+describe('inline-render image — alt-only fallback', () => {
+	const renderFallback = (nodes: InlineNode[], raw: string) =>
+		renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false });
+
+	// The shape an inline-syntax rung mints for an Obsidian-style embed: an `image`
+	// node whose alt names the target, over markers three characters wide.
+	const embedNode = (raw: string, target: string): InlineNode => ({
+		kind: 'image',
+		start: 0,
+		end: raw.length,
+		children: [],
+		alt: target,
+		url: target
+	});
+
+	it('prints an image whose alt is not a slice of its source as its own bytes', () => {
+		const raw = '![[cat.png]]';
+		expect(renderFallback([embedNode(raw, 'cat.png')], raw).textContent).toBe(raw);
+	});
+
+	it('leaves such an image unmarked, so no presentation mode can hide its bytes', () => {
+		const raw = '![[cat.png]]';
+		// Markers collapse in reading/preview modes. Claiming bytes as markers when
+		// the node can't say which they are would blank the construct outright.
+		expect(
+			renderFallback([embedNode(raw, 'cat.png')], raw).querySelectorAll('.md-marker')
+		).toHaveLength(0);
+	});
+
+	it('keeps a GFM image split into markers around its alt text', () => {
+		const raw = '![cat|400](https://example.com/cat.png)';
+		const frag = renderFallback(parseInline(raw, 0, raw.length), raw);
+		expect([...frag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'|400](https://example.com/cat.png)'
+		]);
+		expect(frag.textContent).toBe(raw);
+	});
+
+	it('keeps the split for a reference-form image, whose alt is read off the label', () => {
+		const raw = '![cat][ref]';
+		const nodes = parseInline(raw, 0, raw.length, () => ({ url: 'https://example.com/cat.png' }));
+		const frag = renderFallback(nodes, raw);
+		expect([...frag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'][ref]'
+		]);
+		expect(frag.textContent).toBe(raw);
 	});
 });

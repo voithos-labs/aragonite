@@ -247,6 +247,37 @@ function openLink(
 	};
 }
 
+// ── Images ───────────────────────────────────────────────────────────────────
+
+/**
+ * The widget-free image path — a kind whose descriptor declines image widgets
+ * (table cells), or a consumer that injects no builder. Renders source bytes with
+ * the alt text left undimmed, so a reading-mode marker collapse leaves the alt.
+ */
+function appendImageSource(
+	node: InlineNode,
+	raw: string,
+	opts: RenderInlineOptions,
+	container: Node
+): void {
+	const altText = node.alt ?? '';
+	const altStart = node.start + 2;
+	const altEnd = altStart + altText.length;
+	// `alt` locates the marker split and never supplies text — every string emitted
+	// here is a slice of `raw`, since a parsed field can differ from the bytes. And it
+	// locates it only where it IS those bytes: a plugin-minted image's markers need
+	// not be the two a GFM image's are, and `![[cat.png]]` split against `![` printed
+	// `![cat.pngg]]`. Unlocatable → unmarked source, which every presentation mode
+	// keeps; claiming the bytes as markers would collapse the construct to nothing.
+	if (altEnd > node.end || !raw.startsWith(altText, altStart)) {
+		container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
+		return;
+	}
+	container.appendChild(tagConstruct(markerSpan(raw.slice(node.start, altStart)), node, opts));
+	container.appendChild(document.createTextNode(raw.slice(altStart, altEnd)));
+	container.appendChild(tagConstruct(markerSpan(raw.slice(altEnd, node.end)), node, opts));
+}
+
 // ── Main renderer ────────────────────────────────────────────────────────────
 
 /**
@@ -304,14 +335,7 @@ function renderNode(
 					})
 				);
 			} else {
-				const altText = node.alt ?? '';
-				const altStart = node.start + 2;
-				const altEnd = altStart + altText.length;
-				container.appendChild(
-					tagConstruct(markerSpan(raw.slice(node.start, altStart)), node, opts)
-				);
-				container.appendChild(document.createTextNode(altText));
-				container.appendChild(tagConstruct(markerSpan(raw.slice(altEnd, node.end)), node, opts));
+				appendImageSource(node, raw, opts, container);
 			}
 			return null;
 		}
