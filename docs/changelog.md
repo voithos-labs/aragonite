@@ -320,6 +320,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   reproduction), and it claims only the root and the body, so the find bar's input and a host's
   header field keep their own clipboard.
 
+- **Mod+B / Mod+I do something at a collapsed caret.** They used to read the live selection,
+  find null, and return — while still claiming the key, so the chord was a dead press with no
+  feedback of any kind. The contract is now the mainstream one, stated here because it is a
+  choice and not a bug fix: at a collapsed caret the toggle inserts the empty marker pair and
+  lands the caret between its halves, so the next character typed is formatted. Two arms come
+  before the insert. If the caret already sits inside a span of that format the span is
+  unwrapped — a caret in `**bold**` turns bold off, which is what the press means there and
+  what Obsidian's toggle-the-whole-word rule exists to deliver; this reaches it through the
+  inline parser instead, and the editor grows no word-boundary rule it would then have to be
+  consistent with elsewhere. If the caret sits between the halves of an empty pair, that pair
+  is removed, so a second press is an undo of the first. One Ctrl+Z also removes the pair: the
+  toggle commits as one content edit, unbatched from the typing that follows. Table cells carry
+  the same contract off the same pure core, and their toggle now claims the chord even when
+  there is no caret to act on — declining would leave the browser's own contenteditable bold to
+  run in a surface the CST owns.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

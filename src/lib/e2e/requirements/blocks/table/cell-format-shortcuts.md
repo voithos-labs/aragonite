@@ -13,3 +13,4 @@ the cell had no binding and the chord fell through to a native no-op.
 ## Edge cases
 
 - Ctrl+B over already-bold cell content strips the markers (toggle off)
+- Ctrl+B at a collapsed caret inserts the empty pair, the same contract prose carries
