@@ -13,7 +13,7 @@
  * the built-in grammar. See `scan/index.ts` for the dispatch.
  */
 
-import type { InlineNode } from '../../nodes';
+import type { ImageSyntaxRewriter, InlineNode, InlineSyntaxClaim } from '../../nodes';
 import { registerOnce } from '../../../schema/register-once';
 
 /**
@@ -48,12 +48,19 @@ export interface InlineSyntaxOptions {
 	prefix?: string;
 	/** Rung; lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
 	priority?: number;
+	/**
+	 * Re-serializer for the built-in `image` nodes this recognizer mints. A rung may
+	 * claim any bytes it likes — `![[cat.png|300]]` — and mint an `image` so the whole
+	 * editor treats it as one; the resize and properties gestures then need a way back
+	 * to the rung's syntax. Without this hook those edits are declined rather than
+	 * written back as GFM, which would destroy the claimed bytes. See the plugin
+	 * guide's inline section.
+	 */
+	rewriteImage?: ImageSyntaxRewriter;
 }
 
-export interface InlineRung {
+export interface InlineRung extends InlineSyntaxClaim {
 	recognizer: InlineSyntaxRecognizer;
-	/** The bare trigger for a bare registration; the multi-char prefix otherwise. */
-	prefix: string;
 	priority: number;
 }
 
@@ -112,7 +119,7 @@ export function registerInlineSyntax(
 	if (trigger.length !== 1) {
 		throw new Error('registerInlineSyntax: trigger must be a single character');
 	}
-	const { prefix, priority = INLINE_PRIORITIES.plugin } = options ?? {};
+	const { prefix, priority = INLINE_PRIORITIES.plugin, rewriteImage } = options ?? {};
 	if (prefix !== undefined && (prefix.length < 2 || !prefix.startsWith(trigger))) {
 		throw new Error(
 			`registerInlineSyntax: prefix ${JSON.stringify(prefix)} must begin with the trigger ` +
@@ -156,7 +163,12 @@ export function registerInlineSyntax(
 	registerOnce(
 		isDuplicate,
 		() => {
-			upsertRung(registry, trigger, { recognizer, prefix: effectivePrefix, priority });
+			upsertRung(registry, trigger, {
+				recognizer,
+				prefix: effectivePrefix,
+				priority,
+				rewriteImage
+			});
 			// A rung on a trigger the fast bail would otherwise skip has to make the scan
 			// visit it, or the recognizer is the silent no-op this seam refuses to accept.
 			if (!reserved || SCAN_PROBED_RESERVED.has(trigger)) scanProbeTriggers.add(trigger);

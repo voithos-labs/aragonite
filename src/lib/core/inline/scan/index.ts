@@ -4,7 +4,7 @@
  * InlineNode[] with absolute offsets into raw, total coverage of [start, end).
  */
 
-import type { InlineNode } from '../../nodes';
+import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
@@ -106,9 +106,24 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 		if (node.end <= pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
 		}
+		stampClaim(node, rung);
 		return node;
 	}
 	return null;
+}
+
+// The claim is knowable only here, and a built-in write path needs it: a rung that
+// mints a BUILT-IN kind borrows the editor's model for bytes of its own, and the
+// editor's inverse for that kind emits the built-in grammar — so an image minted
+// over `![[cat.png]]` would resize into GFM and take the author's syntax with it. A
+// rung's own kind needs no stamp and gets none: the editor has no grammar for it,
+// so nothing outside the plugin can ever re-serialize one. Descendants are stamped
+// on the same rule — they sit inside the claimed range, so a built-in child of a
+// plugin node rewrites into the middle of the rung's bytes. Assigned, never merged:
+// a recognizer handing back a stamp of its own does not get to name its claimer.
+function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
+	if (isBuiltinInlineKind(node.kind)) node.syntaxClaim = claim;
+	if (node.children) for (const child of node.children) stampClaim(child, claim);
 }
 
 export function scanInline(

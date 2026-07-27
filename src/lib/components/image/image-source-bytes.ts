@@ -1,26 +1,45 @@
 // Inverse of the image scanner: rebuild source bytes when fields change
 // (popover edits, drag-resize). Title quoting canonicalizes to double-quotes.
 
-import type { InlineNode } from '../../core/nodes';
+import type { ImageFields, InlineNode } from '../../core/nodes';
+import { devWarn } from '../../dev-warn';
 
-export interface ImageFields {
-	alt: string;
-	url: string;
-	title?: string;
-	width?: number;
-	height?: number;
-	/**
-	 * Reference label, present only for reference-style images (`![alt][label]`).
-	 * When set, `buildImageSourceBytes` emits the reference form and writes no
-	 * url/title — those live in the LRD, so re-inlining them on a resize/alt edit
-	 * would orphan the definition.
-	 */
-	label?: string;
+// ── The write seam ──────────────────────────────────────────────────────────
+
+/**
+ * Bytes to splice over `image`'s range for `fields`, or `null` when the edit must
+ * be declined. **Every image write path goes through here** (G4.21): the built-in
+ * GFM serializer below is one branch of it, reached only for bytes the built-in
+ * scanner read. An inline rung may mint an `image` over syntax of its own, and
+ * re-emitting that node's fields as GFM would replace the author's bytes wholesale
+ * — so a claimed node re-serializes through its rung's `rewriteImage` hook, and a
+ * rung that declares none (or whose hook declines this edit) yields `null`. The
+ * caller drops the commit; nothing else in the editor may write those bytes.
+ */
+export function buildImageEditBytes(
+	image: InlineNode,
+	blockRaw: string,
+	fields: ImageFields
+): string | null {
+	const claim = image.syntaxClaim;
+	if (!claim) return buildImageSourceBytes(fields);
+
+	const bytes = claim.rewriteImage?.(blockRaw.slice(image.start, image.end), fields) ?? null;
+	if (bytes === null) {
+		devWarn(
+			'image-edit',
+			`declined: the "${claim.prefix}" inline rung owns these bytes and ` +
+				`${claim.rewriteImage ? 'its rewriteImage hook cannot represent this edit' : 'registered no rewriteImage hook'}`,
+			fields
+		);
+	}
+	return bytes;
 }
 
-/** Canonical fields-as-persisted shape for an image inline node: omits
- *  optional keys the node doesn't carry so round-tripping through
- *  `buildImageSourceBytes` reproduces the original bytes. */
+/** Canonical fields-as-persisted shape for an image inline node: omits optional
+ *  keys the node doesn't carry, so a GFM-minted node round-trips through
+ *  `buildImageSourceBytes` byte for byte. A node an inline rung claimed does not
+ *  — its bytes are the rung's, and only `rewriteImage` reproduces them. */
 export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	return {
 		alt: image.alt ?? '',
@@ -32,6 +51,10 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	};
 }
 
+// ── The GFM serializer ──────────────────────────────────────────────────────
+
+/** The built-in grammar's inverse. Reach it through `buildImageEditBytes`, which
+ *  is the only caller entitled to decide these bytes are GFM's to write. */
 export function buildImageSourceBytes(fields: ImageFields): string {
 	const dimSuffix = buildDimSuffix(fields.width, fields.height);
 	const altSegment = escapeAlt(fields.alt) + dimSuffix;

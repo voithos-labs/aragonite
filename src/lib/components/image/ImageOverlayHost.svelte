@@ -98,6 +98,7 @@
 				<ImageProperties
 					target={sel}
 					fields={imageFieldsFromInline(ctx.image)}
+					buildBytes={imageEdit.buildEditBytes}
 					onCommit={imageEdit.commitImageEdit}
 					onDismiss={imageEdit.dismissImagePopover}
 				/>
