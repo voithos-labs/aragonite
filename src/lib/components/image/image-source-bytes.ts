@@ -37,9 +37,12 @@ export function buildImageEditBytes(
 }
 
 /** Canonical fields-as-persisted shape for an image inline node: omits optional
- *  keys the node doesn't carry, so a GFM-minted node round-trips through
- *  `buildImageSourceBytes` byte for byte. A node an inline rung claimed does not
- *  — its bytes are the rung's, and only `rewriteImage` reproduces them. */
+ *  keys the node doesn't carry, so a rebuild writes back only what the source held
+ *  rather than materializing an empty title or a zero width. Byte-exactness is not
+ *  the claim — the GFM serializer canonicalizes (title quoting, destination
+ *  encoding), and for a node an inline rung claimed the bytes are the rung's, which
+ *  only its `rewriteImage` reproduces. What IS pinned is idempotence on the alt:
+ *  a rebuilt span rebuilds to itself, so repeated resizes never grow the escapes. */
 export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	return {
 		alt: image.alt ?? '',
