@@ -73,7 +73,7 @@ function harness(source: string, sourceStart: number) {
 		widgetSelection,
 		setPendingCursor: () => {},
 		isReadOnly: () => false,
-		commitRevealBeforeClipboard: () => null,
+		foldRevealBeforeMutation: () => null,
 		get linkRef() {
 			return undefined;
 		}

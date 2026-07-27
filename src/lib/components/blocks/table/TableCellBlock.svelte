@@ -758,7 +758,7 @@
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
-		foldReveal: () => widgetInteraction.commitRevealBeforeClipboard(),
+		foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 		copyPreHook: (e) => {
 			const rectPayload = intraTableRectPayload({ selection, getDoc });
 			if (rectPayload === null) return false;
