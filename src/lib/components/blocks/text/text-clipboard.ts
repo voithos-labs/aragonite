@@ -53,7 +53,7 @@ export interface TextClipboardDeps {
 	/** Fold a live source-reveal before a clipboard mutation, so cut/paste run against
 	 *  a CST consistent with the swapped DOM. Returns the committed caret, or null when
 	 *  no reveal was open. */
-	commitRevealBeforeClipboard: () => number | null;
+	foldRevealBeforeMutation: () => number | null;
 	/** True while an inline-widget source reveal is active on this block. */
 	isRevealing: () => boolean;
 	/** The block's live DOM read as raw text (widget-aware) — the reveal-aware copy
@@ -96,7 +96,7 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 		caret: deps.caret,
 		events: deps.events,
 		onPasteImage: deps.onPasteImage,
-		foldReveal: deps.commitRevealBeforeClipboard,
+		foldReveal: deps.foldRevealBeforeMutation,
 
 		// A selected widget copies its own source slice; copy never mutates, so the
 		// widget stays selected.
