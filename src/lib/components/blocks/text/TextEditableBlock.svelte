@@ -448,9 +448,9 @@
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'format.toggleStrong':
-				return always(() => toggleFormat('strong', selected));
+				return always(() => toggleFormat('strong', selected ?? { start: offset, end: offset }));
 			case 'format.toggleEmphasis':
-				return always(() => toggleFormat('emphasis', selected));
+				return always(() => toggleFormat('emphasis', selected ?? { start: offset, end: offset }));
 			case 'heading.cycle':
 				return always(() => {
 					// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
@@ -756,20 +756,21 @@
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
 
-	// `offsets` is the range the COMMAND read before it ran. A fold on the way in
-	// commits the revealed source and parks a caret, which collapses the live
-	// selection — so re-reading it here would find nothing to toggle and the user's
-	// chord would vanish. The pre-fold range still addresses the committed text,
-	// which is the DOM text it was measured against.
+	// `range` is what the COMMAND read before it ran. A fold on the way in commits
+	// the revealed source and parks a caret, which collapses the live selection — so
+	// re-reading it here would find nothing to toggle and the user's chord would
+	// vanish. The pre-fold range still addresses the committed text, which is the DOM
+	// text it was measured against. A collapsed range is the caret contract, not a
+	// bail: see `toggleInlineFormat`.
 	function toggleFormat(
 		format: 'strong' | 'emphasis',
-		offsets: { start: number; end: number } | null
+		range: { start: number; end: number }
 	): void {
-		if (!el || !offsets) return;
+		if (!el) return;
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
 			getDisplayText(),
-			offsets,
+			range,
 			format
 		);
 

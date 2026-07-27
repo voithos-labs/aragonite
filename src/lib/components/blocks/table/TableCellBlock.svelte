@@ -329,10 +329,15 @@
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 
+	// Claims the chord even with no caret to act on: declining leaves Mod+B to the
+	// browser's own contenteditable bold, an edit this surface never authored.
 	function toggleFormat(format: 'strong' | 'emphasis'): boolean {
-		if (!el) return false;
-		const offsets = cursor.getRawSelection();
-		if (!offsets) return false;
+		if (!el) return true;
+		const caret = cursor.getRaw();
+		// A collapsed caret is the empty-pair contract, not a bail — see toggleInlineFormat.
+		const offsets =
+			cursor.getRawSelection() ?? (caret === null ? null : { start: caret, end: caret });
+		if (!offsets) return true;
 		const result = toggleInlineFormat(readCellText(), offsets, format);
 		// Anchor undo at the live post-toggle caret, not preEditOffset: cross-block
 		// dispatch reaches toggleFormat via runCommand with no preceding onKeyDown to
