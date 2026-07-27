@@ -95,8 +95,11 @@ function mountMathBlock() {
 	};
 }
 
-async function commitViaEnter(interaction: ReturnType<typeof mountMathBlock>['interaction']) {
-	await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+// The fold seam every commit gesture funnels through — blur, a clipboard splice, a
+// block command. Driving it directly keeps these cases about the commit contract
+// rather than about whichever key happens to reach it.
+function commitViaFold(interaction: ReturnType<typeof mountMathBlock>['interaction']) {
+	interaction.foldRevealBeforeMutation();
 }
 
 describe('commitReveal — no-edit short-circuit', () => {
@@ -105,7 +108,7 @@ describe('commitReveal — no-edit short-circuit', () => {
 		await block.reveal();
 		expect(block.interaction.isRevealing()).toBe(true);
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		// The dead-undo-entry finding: a zero-diff updateBlockContent still pushes a
 		// snapshot, so the user's next Ctrl+Z reverts nothing.
@@ -118,13 +121,42 @@ describe('commitReveal — no-edit short-circuit', () => {
 	});
 });
 
+describe('handleRevealingKeydown — the keys a reveal claims', () => {
+	it('leaves Enter to the block, which splits after folding', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+
+		const consumed = await block.interaction.handleRevealingKeydown(
+			new KeyboardEvent('keydown', { key: 'Enter' })
+		);
+
+		// Declining is the whole contract: a claimed Enter cost the user the split,
+		// and nothing here may fold on its own — the command seam owns that order.
+		expect(consumed).toBe(false);
+		expect(block.interaction.isRevealing()).toBe(true);
+		expect(block.commits).toEqual([]);
+	});
+
+	it('still claims Escape', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+
+		const consumed = await block.interaction.handleRevealingKeydown(
+			new KeyboardEvent('keydown', { key: 'Escape' })
+		);
+
+		expect(consumed).toBe(true);
+		expect(block.interaction.isRevealing()).toBe(false);
+	});
+});
+
 describe('commitReveal — edit persistence and caret precision', () => {
 	it('commits an in-source edit once, caret at the widget trailing edge', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
 		block.sourceNode().textContent = '$yx^2$';
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		expect(block.commits).toHaveLength(1);
 		expect(block.commits[0]).toMatchObject({
@@ -142,7 +174,7 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		// `widgetEnd + totalDelta` caret would land one char too far.
 		block.trailingTextNode().textContent = ' afterZ';
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		expect(block.commits).toHaveLength(1);
 		expect(block.commits[0].raw).toBe('Before $x^2$ afterZ\n');
@@ -154,7 +186,7 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		await block.reveal();
 		block.sourceNode().textContent = '$yx^2$';
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		// The commit caret goes through the block-edit door, which a kind whose write
 		// sink rewrites bytes (tableCell escapes every free `|`) can map. The pending
