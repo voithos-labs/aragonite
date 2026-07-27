@@ -18,6 +18,7 @@
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
 	import { simMarkPlugin } from './sim-mark/sim-mark-plugin';
 	import { simIslandPlugin } from './sim-island/sim-island-plugin';
+	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
@@ -51,6 +52,9 @@
 		// Emoji rides the bare `:` trigger process-wide once installed; scoped to its own
 		// seed so its rung never perturbs a sibling battery's `:`-bearing prose.
 		emoji: [emojiPlugin()],
+		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
+		// sibling seed's prose once installed; scoped to its own.
+		'wiki-embed': [wikiEmbedPlugin],
 		hloccur: [highlightOccurrencesPlugin()],
 		// The memoization battery installs the observability wrapper (same shipped
 		// createOccurrenceSource) so it can read the index-rebuild count off window.
@@ -147,6 +151,9 @@
 	// the emoji e2e drives seed render, live typing, caret step-over, atomic delete, and
 	// a range copy that must yield the source bytes.
 	const EMOJI_SEED = 'Mood :smile: today\n\nType here\n';
+	// An `![[…]]` embed the rung mints as a built-in image, sized so one resize step
+	// is visible in the bytes, with prose either side as blur and caret targets.
+	const WIKI_EMBED_SEED = 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n';
 	// Several directive admonition kinds (untitled important, titled tip/caution), one
 	// native GitHub-alert blockquote (renders styled with its bytes untouched), and a
 	// `> [!NOTE]` inside a fence that the convert affordance must leave literal — the
@@ -237,7 +244,8 @@
 		badge: BADGE_SEED,
 		footnotes: FOOTNOTES_SEED,
 		'footnotes-ref': FOOTNOTES_REF_SEED,
-		emoji: EMOJI_SEED
+		emoji: EMOJI_SEED,
+		'wiki-embed': WIKI_EMBED_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
