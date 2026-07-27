@@ -108,9 +108,11 @@ export interface WidgetInteraction {
 	handleRevealingKeydown(e: KeyboardEvent): Promise<boolean>;
 	/** Commit the revealed source when focus leaves the block. */
 	commitRevealOnBlur(): void;
-	/** Fold an active reveal before a clipboard mutation so cut/paste run against a
-	 *  consistent CST. Returns the committed caret offset, or null if none was open. */
-	commitRevealBeforeClipboard(): number | null;
+	/** Fold an active reveal before ANY mutation of the block — a clipboard splice, a
+	 *  block command — so the mutation runs against a CST that matches the swapped
+	 *  DOM. Returns the committed caret offset, or null if none was open. `caretAfter`
+	 *  overrides the default trailing-edge landing for a caller that owns the caret. */
+	foldRevealBeforeMutation(caretAfter?: number): number | null;
 	/** While source is revealed, fold when the caret/selection escapes it but
 	 *  stays inside the block (blur owns the focus-leaving fold). */
 	foldRevealIfSelectionEscaped(): void;
@@ -275,12 +277,18 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// for serialize/undo. The caret lands on the math's new trailing edge, read from
 	// the revealed source node's live position so an edit to the surrounding prose
 	// shifts it correctly (a length delta off the widget's old end would not).
+	// `caretOverride` is for a caller that owns the caret itself: a block command
+	// folds mid-gesture and then acts at the offset the user was actually on, which
+	// the trailing-edge landing would have moved out from under it.
 	//
 	// This ALWAYS folds, so a null return means only that nothing was open. A caller
 	// that wants to withhold the fold pre-guards; a refusal reported as null would be
-	// read by the clipboard seam as "nothing to wait for", and it would then splice
+	// read by the mutation seams as "nothing to wait for", and they would then splice
 	// node.raw bytes the ephemeral edit never reached.
-	function commitReveal(reason: RevealFoldReason = 'commit'): number | null {
+	function commitReveal(
+		reason: RevealFoldReason = 'commit',
+		caretOverride?: number
+	): number | null {
 		assertFoldTargetsActiveReveal('commitReveal');
 		if (!revealState) return null;
 		// Alias the record before any call: TS drops the null-narrowing of a
@@ -291,12 +299,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const sourceNode = activeSourceNode;
 		const editedDisplay = deps.readRawText();
 		const caretAfter =
-			el && sourceNode
+			caretOverride ??
+			(el && sourceNode
 				? toClampedRawOffset(
 						domTextOffsetAtNode(el, sourceNode, sourceNode.length),
 						deps.getAmbientLength()
 					)
-				: active.widgetEnd;
+				: active.widgetEnd);
 		const { caretBefore, originalDisplay } = active;
 		// The reactive re-render rebuilds the island, so drop the swap handles without
 		// a DOM restore, then run the canonical teardown.
@@ -512,14 +521,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (revealState && !deps.isCrossBlock()) commitReveal('blur');
 	}
 
-	// A clipboard mutation (cut/paste) runs the full CST pipeline against node.raw,
-	// but a live reveal has the island swapped for edited DOM the CST hasn't seen —
-	// splicing there corrupts. Fold first (as keydown/IME already gate the commit),
-	// returning the committed caret so the caller can land the paste past the widget
-	// instead of at offset 0 when the folded caret sits on an element-level edge.
-	function commitRevealBeforeClipboard(): number | null {
+	// Any mutation of the block — a clipboard splice, a block command — runs the full
+	// CST pipeline against node.raw, but a live reveal has the island swapped for
+	// edited DOM the CST hasn't seen, so mutating there corrupts. Fold first (as
+	// keydown/IME already gate the commit), returning the committed caret so the
+	// caller can land the paste past the widget instead of at offset 0 when the
+	// folded caret sits on an element-level edge.
+	function foldRevealBeforeMutation(caretAfter?: number): number | null {
 		if (!revealState) return null;
-		return commitReveal('commit');
+		return commitReveal('commit', caretAfter);
 	}
 
 	function isVerticallyTransparent(): boolean {
@@ -785,7 +795,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		isRevealing,
 		handleRevealingKeydown,
 		commitRevealOnBlur,
-		commitRevealBeforeClipboard,
+		foldRevealBeforeMutation,
 		foldRevealIfSelectionEscaped,
 		isPointOnRevealWidget
 	};

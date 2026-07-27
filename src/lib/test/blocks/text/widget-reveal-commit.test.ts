@@ -186,7 +186,7 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 		block.sourceNode().textContent = '$yx^2$';
 		block.setCrossBlock(true);
 
-		const caret = block.interaction.commitRevealBeforeClipboard();
+		const caret = block.interaction.foldRevealBeforeMutation();
 
 		// A null return means "nothing was open", which is what the clipboard seam
 		// tests to decide whether to tick and fold. Refusing here let cut/paste

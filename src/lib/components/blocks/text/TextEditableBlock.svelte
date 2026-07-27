@@ -33,6 +33,7 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { createConstructReveal } from './construct-reveal';
+	import { assertInvariant } from '../../../invariants/assert';
 	import { widgetElByStart } from './widget-adjacency';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
@@ -279,7 +280,7 @@
 		onPasteImage,
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'clipboard'),
 		isReadOnly: () => readOnly,
-		commitRevealBeforeClipboard: () => widgetInteraction.commitRevealBeforeClipboard(),
+		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		isRevealing: () => widgetInteraction.isRevealing(),
 		readRevealedText: () => readRawText(),
 		get linkRef() {
@@ -393,66 +394,112 @@
 		return widgetInteraction.enterEdgeWidget(side);
 	}
 
+	/** The display length the CARET walks, which a live reveal moves away from
+	 *  `node.raw`: while revealed the block's bytes are the DOM's. */
+	function liveDisplayLength(): number {
+		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
+	}
+
+	/**
+	 * One arm per command this block owns, split into the applicability probe and the
+	 * mutation. The split is what lets the reveal fold sit between them: `applies`
+	 * reads only the DOM (caret, selection, list context), so it is valid before and
+	 * after a fold, while every `perform` reads `node.raw` and is valid only after.
+	 * Returns null for a command this block does not own.
+	 */
+	function blockCommand(
+		id: CommandId,
+		arg: unknown,
+		offset: number
+	): { applies: () => boolean; perform: () => void } | null {
+		const always = (perform: () => void) => ({ applies: () => true, perform });
+		switch (id) {
+			case 'block.split':
+				return always(() => blockEdit.splitBlock(index, offset));
+			case 'chrome.descendToBody':
+				return always(() => blockEdit.descendToBody(index));
+			case 'block.hardBreak':
+				return always(() => {
+					const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
+					blockEdit.updateBlockContent(index, newRaw, offset);
+					setPendingCursorOffset(caretOffset, 'hard-break');
+				});
+			case 'block.insertTab':
+				return {
+					// Inside a list item Tab is the list's indent — decline so it bubbles.
+					applies: () => !listContext,
+					// A literal tab, because the browser default moves focus out of the editor.
+					perform: () => {
+						const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
+						blockEdit.updateBlockContent(index, newRaw, offset);
+						setPendingCursorOffset(caretOffset, 'insert-tab');
+					}
+				};
+			case 'block.mergePrev':
+				return {
+					applies: () => offset === 0 && !hasSelectionHelper(),
+					perform: () => void blockEdit.mergeWithPrevious(index)
+				};
+			case 'block.mergeNext':
+				return {
+					applies: () => offset === liveDisplayLength() && !hasSelectionHelper(),
+					perform: () => void blockEdit.mergeWithNext(index)
+				};
+			case 'format.toggleStrong':
+				return always(() => toggleFormat('strong'));
+			case 'format.toggleEmphasis':
+				return always(() => toggleFormat('emphasis'));
+			case 'heading.cycle':
+				return always(() => {
+					// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
+					// accept only an in-range level (0 strips to paragraph, 1–6 sets an ATX
+					// level). A non-number or out-of-range value would coerce wrong or throw a
+					// RangeError inside `#`.repeat, so fall back to the strip behavior.
+					const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
+					const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
+					blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
+					setPendingCursorOffset(caretOffset, 'heading-cycle');
+				});
+			case 'block.moveUp':
+				return always(() => reorder.nudgeReorderUnit(myPath, -1));
+			case 'block.moveDown':
+				return always(() => reorder.nudgeReorderUnit(myPath, 1));
+			default:
+				return null;
+		}
+	}
+
 	export function runCommand(id: CommandId, arg?: unknown): boolean {
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so it would be stale here.
 		const offset = cursor.getRaw() ?? 0;
-		switch (id) {
-			case 'block.split':
-				blockEdit.splitBlock(index, offset);
-				return true;
-			case 'chrome.descendToBody':
-				blockEdit.descendToBody(index);
-				return true;
-			case 'block.hardBreak': {
-				const { newRaw, caretOffset } = insertHardBreak(node.raw, offset);
-				blockEdit.updateBlockContent(index, newRaw, offset);
-				setPendingCursorOffset(caretOffset, 'hard-break');
-				return true;
-			}
-			case 'block.insertTab': {
-				// Inside a list item Tab is the list's indent — decline so it bubbles.
-				if (listContext) return false;
-				// A literal tab, because the browser default moves focus out of the editor.
-				const { newRaw, caretOffset } = insertLiteralTab(node.raw, offset);
-				blockEdit.updateBlockContent(index, newRaw, offset);
-				setPendingCursorOffset(caretOffset, 'insert-tab');
-				return true;
-			}
-			case 'block.mergePrev':
-				if (offset !== 0 || hasSelectionHelper()) return false;
-				blockEdit.mergeWithPrevious(index);
-				return true;
-			case 'block.mergeNext':
-				if (offset !== getDisplayText().length || hasSelectionHelper()) return false;
-				blockEdit.mergeWithNext(index);
-				return true;
-			case 'format.toggleStrong':
-				toggleFormat('strong');
-				return true;
-			case 'format.toggleEmphasis':
-				toggleFormat('emphasis');
-				return true;
-			case 'heading.cycle': {
-				// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
-				// accept only an in-range level (0 strips to paragraph, 1–6 sets an ATX
-				// level). A non-number or out-of-range value would coerce wrong or throw a
-				// RangeError inside `#`.repeat, so fall back to the strip behavior.
-				const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
-				const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
-				blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
-				setPendingCursorOffset(caretOffset, 'heading-cycle');
-				return true;
-			}
-			case 'block.moveUp':
-				reorder.nudgeReorderUnit(myPath, -1);
-				return true;
-			case 'block.moveDown':
-				reorder.nudgeReorderUnit(myPath, 1);
-				return true;
-			default:
-				return false;
+		const command = blockCommand(id, arg, offset);
+		if (!command || !command.applies()) return false;
+		if (!widgetInteraction.isRevealing()) {
+			performBlockCommand(id, command.perform);
+			return true;
 		}
+		// A live reveal holds this block's bytes in ephemeral DOM the CST has never
+		// seen, so every `perform` above would splice the pre-reveal source. Fold, let
+		// the write settle, then act — the clipboard seam's discipline. The fold keeps
+		// the caret where the user left it (not its usual trailing-edge landing): the
+		// committed text IS the DOM text the offset was measured against, so it carries
+		// over unchanged and the command acts where the user actually pressed.
+		widgetInteraction.foldRevealBeforeMutation(offset);
+		void tick().then(() => performBlockCommand(id, command.perform));
+		return true;
+	}
+
+	// The seam's guard: no block command may mutate while a reveal is open. A fire
+	// here means a new command entry path skipped the fold (the sibling-path parity
+	// class) — the bytes it is about to splice are the pre-reveal ones.
+	function performBlockCommand(id: CommandId, perform: () => void): void {
+		assertInvariant('reveal-transition', () =>
+			widgetInteraction.isRevealing()
+				? { code: 'command-during-reveal', message: `${id} mutated the block with a reveal open` }
+				: null
+		);
+		perform();
 	}
 
 	void ({
