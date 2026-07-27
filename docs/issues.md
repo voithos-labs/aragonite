@@ -341,6 +341,15 @@ decoding below it on a later measure pass would have the anchor re-assert the co
 push the already-resolved nested target back out of view. Same fix (per-call ownership carrying the
 full target path, not a narrowed index), so it is folded here rather than filed apart.
 
+**One claimant has left, for a reason worth keeping:** `setSelection` no longer holds its pin past
+resolving (`Editor.svelte`, guarded by `selection-restore.spec.ts`'s hand-back scenario). A host
+restores a caret and then its own remembered scroll and then waits, so it never takes the
+user-intent turn that clears the slot — a kept pin sat armed until the next measure pass and threw
+the host's scroll away. Its release checks that the slot still holds the path it revealed, so it
+cannot nuke a fresher claimant; the terminal clears on the `'center'` and `!landed` arms still do
+not, and remain part of the shape above. Search keeps its durable band: a searching reader's next
+keystroke lands in the bar — inside the root — and releases it.
+
 **Coverage gap (partly closed):** `details-reveal-expand.spec.ts` now drives a nested `scrollTo`
 target for real — a toc click to a heading inside a collapsed `details` in a windowed document,
 asserting the nested block lands in view past the settle. What that spec does NOT reach is the
