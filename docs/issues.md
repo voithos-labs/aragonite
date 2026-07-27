@@ -412,6 +412,33 @@ insert with an inline comment naming this entry, and both requirement files now 
 per-keystroke formation is uncovered _because_ of this defect rather than by choice — so restoring
 the per-keystroke gesture is part of the fix.
 
+### A reveal fold whose commit changes the block's kind may not have settled when the mutation runs
+
+**Severity:** minor (unproven in practice; the window is one tick wide and needs a kind flip typed
+outside the revealed span while the reveal is open)
+**Files:** `src/lib/components/blocks/text/TextEditableBlock.svelte` (`runCommand` — the
+`void tick().then(...)` between the fold and the mutation),
+`src/lib/components/blocks/editable-surface.ts` (`onCut` / `onPaste` — the identical discipline),
+`src/lib/editor-actions/block-edit.ts` (`updateBlockContent`'s two paths)
+
+Both mutation seams that fold a live inline reveal — the clipboard splice and the block command
+dispatch — wait exactly one `tick()` before touching the CST. That is sound for the routine path:
+when the committed text keeps the block's kind, `updateBlockContent` mutates synchronously before
+it returns, so the tick only flushes the render. When the commit CHANGES the kind it takes the
+`scope.commit` structural path, which is genuinely async, and one tick is not a guarantee that it
+has landed. Reachable in principle because a reveal only swaps the widget's own span: the rest of
+the block stays natively editable, so a `# ` typed at the block start while math is revealed
+elsewhere in the same block makes the fold's commit a paragraph→heading flip.
+
+**Repro:** not constructed. Needs the kind-flipping edit and the command in one gesture stream.
+
+**Why deferred:** this is a property of the fold-then-mutate discipline, not of the command seam
+that adopted it — the clipboard seam has shipped the same one-tick wait since inline reveal landed,
+with its own pins. Tightening it means threading the commit's promise out through
+`foldRevealBeforeMutation` and awaiting it at both seams; doing that at one seam only would leave
+the two disagreeing about what "settled" means, which is worse than the shared limit. Fix both
+together, or neither.
+
 ## Virtual rendering
 
 ### Pasting a long list into a windowed list loses the caret (VR-12, reachable)
@@ -628,6 +655,29 @@ command reaches the mounted component through `ctx.hooks`, threaded by the conta
 reader, so the fix is cosmetic until a consumer needs a non-editable container surface.
 
 ## Test coverage
+
+### The reveal fold is funnelled at the command dispatch, not at every mutation entry path
+
+**Severity:** minor (no known reachable caller; the guard covers the arms most likely to grow)
+**Files:** `src/lib/components/blocks/text/TextEditableBlock.svelte` (`runCommand` folds and
+`performBlockCommand` asserts), `src/lib/components/blocks/editable-surface.ts` (the clipboard seam's
+own fold), `src/lib/editor-actions/block-edit.ts` (the door a bypassing caller would reach)
+
+A live inline reveal holds the block's bytes in ephemeral DOM, so any mutation must fold first. Two
+seams do: the clipboard handlers and the block command dispatch, whose `command-during-reveal`
+assertion (G1.26) fires on a `runCommand` branch that skips the fold. Neither reaches a caller that
+goes straight to `blockEdit.splitBlock` / `updateBlockContent` on a revealed block — such a caller
+sees no fold and no guard. That is the sibling-path-parity shape culture.md warns about, and the
+prescribed rung where the funnel cannot be built is a source-scan lint under
+`src/lib/test/invariants/lint/`.
+
+**Why deferred:** the scan has no low-noise formulation yet. The block-edit door has many legitimate
+direct callers that can never hold a reveal — container overrides, editable leaves, cross-block
+dispatch, paste — so "every call routes through `runCommand`" is false by design, and a rule that
+enumerates the exceptions decays into the list it was meant to replace. The likely growth case is
+covered by construction instead: a new arm added to `blockCommand`'s switch inherits both the fold
+and the guard without its author doing anything. Re-open if a mutation entry path is ever added to
+a reveal-bearing surface outside that switch.
 
 ### The block-component mount harness exists but covers a minority of block components
 

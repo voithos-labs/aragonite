@@ -12,6 +12,14 @@
 // source DOM, Enter) and reading the caret the cell actually restored, so the two
 // halves of the door are asserted against each other rather than against a
 // hand-computed number.
+//
+// Scope: the COMMIT half only. Enter in a cell commits and stays put — the
+// deliberate carve-out from the prose block, where Enter splits — and these cases
+// cannot see the "stays put" half: `focusCell` is a stub here, so a row hop is
+// inert and the caret they read is identical either way. That half is guarded by
+// `e2e/tests/blocks/table/cell-inline-reveal.spec.ts`, on exact source bytes that
+// catch the hop's inserted empty row. Do not thin those e2e cases expecting this
+// pair to cover them.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
 import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';

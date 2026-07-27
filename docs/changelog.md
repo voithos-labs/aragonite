@@ -169,6 +169,19 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   their own signal and search restarts on that alone. In-place edits, undo and option toggles keep
   the user's place deliberately — they leave the user reading the same document.
 
+- **Enter inside a revealed inline source splits the block instead of only committing it.** The
+  reveal used to claim Enter as a commit gesture, so the press never reached the split: at a
+  source's leading edge it moved the caret past the widget instead of pushing content down, and on
+  a source already backspaced into plain text it did nothing a user could see, leaving the split to
+  a second press. Enter now commits the edit **and** splits at the caret, so the press is strictly
+  more productive than the one it replaces. Escape stays the reveal's only claimed key; the fold
+  triggers it already had — blur, a caret leaving the source, a clipboard splice — are unchanged,
+  and any block command now folds before it mutates, which is what makes the split land on
+  committed bytes. This reaches all three reveal-capable inline kinds (math, directive text,
+  footnote references). One deliberate exception: inside a table cell Enter is a row hop rather
+  than a split, and hopping would carry the ephemeral edit out of the surface that owns it, so a
+  cell's Enter still commits and stays put.
+
 - **A thematic break takes whole-block focus before it is deleted.** A caret-adjacent Backspace
   (or Delete from the block above) now focuses the rule, and only a second press removes it — the
   two-step the mermaid diagram has always had, and which the thematic break's own closure cells had
