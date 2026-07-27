@@ -412,12 +412,15 @@
 	 * mutation. The split is what lets the reveal fold sit between them: `applies`
 	 * reads only the DOM (caret, selection, list context), so it is valid before and
 	 * after a fold, while every `perform` reads `node.raw` and is valid only after.
-	 * Returns null for a command this block does not own.
+	 * Returns null for a command this block does not own. Both the caret `offset` and
+	 * the `selected` range are read once, before any fold, and closed over — a fold
+	 * parks its own caret, which would move them out from under the mutation.
 	 */
 	function blockCommand(
 		id: CommandId,
 		arg: unknown,
-		offset: number
+		offset: number,
+		selected: { start: number; end: number } | null
 	): { applies: () => boolean; perform: () => void } | null {
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
@@ -453,9 +456,9 @@
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'format.toggleStrong':
-				return always(() => toggleFormat('strong'));
+				return always(() => toggleFormat('strong', selected));
 			case 'format.toggleEmphasis':
-				return always(() => toggleFormat('emphasis'));
+				return always(() => toggleFormat('emphasis', selected));
 			case 'heading.cycle':
 				return always(() => {
 					// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
@@ -480,7 +483,7 @@
 		// Read the caret live: cross-block dispatch calls runCommand without an
 		// onKeyDown to refresh preEditOffset, so it would be stale here.
 		const offset = cursor.getRaw() ?? 0;
-		const command = blockCommand(id, arg, offset);
+		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
 		if (!command || !command.applies()) return false;
 		if (!widgetInteraction.isRevealing()) {
 			performBlockCommand(id, command.perform);
@@ -757,10 +760,16 @@
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
 
-	function toggleFormat(format: 'strong' | 'emphasis'): void {
-		if (!el) return;
-		const offsets = cursor.getRawSelection();
-		if (!offsets) return;
+	// `offsets` is the range the COMMAND read before it ran. A fold on the way in
+	// commits the revealed source and parks a caret, which collapses the live
+	// selection — so re-reading it here would find nothing to toggle and the user's
+	// chord would vanish. The pre-fold range still addresses the committed text,
+	// which is the DOM text it was measured against.
+	function toggleFormat(
+		format: 'strong' | 'emphasis',
+		offsets: { start: number; end: number } | null
+	): void {
+		if (!el || !offsets) return;
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
 			getDisplayText(),
