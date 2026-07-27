@@ -47,6 +47,28 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   leaves the built-in image reading byte-identical bytes. `]` stays rejected: no construct has asked
   for it, and an unused route is a route that rots.
 
+- **Plugin surface: a rung that mints a built-in `image` re-serializes its own bytes.**
+  `InlineSyntaxOptions` gained `rewriteImage`, a hook the image edit paths hand the node's current
+  source and the fields the edit produces; it returns the replacement in the rung's grammar, or
+  `null` when the edit has no form there. Without it a resize turned `![[cat.png|300]]` into
+  `![cat.png|320](cat.png)` — the consumer's syntax destroyed by a drag, and invisible to a
+  round-trip check because the document round-trips perfectly, just as something else. The write
+  paths could not have known: a node carried no record of who claimed its bytes, so the scan now
+  stamps the claim on any **built-in** kind a rung mints, which is exactly the borrowing case. A
+  rung's own kind is left unstamped on purpose — the editor has no grammar for one, so nothing
+  outside the plugin could ever re-serialize it, and the stamp would have no reader. The safe
+  default is a decline, not a rewrite: a rung with no hook, or a hook that returns `null`, gets no
+  commit at all, so the affordance visibly no-ops and a dev build names the rung. Suppressing the
+  handles instead was the tempting UX and the wrong rung of the ladder — it covers only the no-hook
+  half (a hook may decline one edit and accept the next), leaves the properties popover with no
+  handle to hide, and would put the rule at three render surfaces rather than at the one seam every
+  write already crosses. That seam is now the funnel: the GFM serializer is reachable only through
+  `buildImageEditBytes`, pinned by a lint (G4.21), because the three write sites that carried it
+  independently — commit, keyboard resize, popover dirty check — all emitted GFM, which is the
+  sibling-path shape. Images the built-in scanner read are unaffected, including the overlap a rung
+  declines. Taken pre-freeze because the alternative is a 1.x break: the hook is the difference
+  between an inline rung being able to mint built-in kinds and only pretending to.
+
 - **`setSelection` puts a `getSelection()` snapshot back, and its boolean means in view.** The
   instance surface gained the write half of the save-and-restore pair a host needs to persist a
   per-document caret. It is async because the target may be a block the virtual window has

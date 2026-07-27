@@ -5,7 +5,8 @@
  */
 
 import type { InlineWidgetEditingContext } from '../../core/inline/inline-widgets';
-import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
+import type { ImageFields } from '../../core/nodes';
+import { buildImageEditBytes } from './image-source-bytes';
 import { keyboardResizeWidth } from './image-resize';
 
 const KEYBOARD_STEP = 20;
@@ -38,7 +39,11 @@ export function imageWidgetOnSelectedKey(
 			: {}),
 		...(inline.label !== undefined ? { label: inline.label } : {})
 	};
-	const newBytes = buildImageSourceBytes(newFields);
+	const newBytes = buildImageEditBytes(inline, node.raw, newFields);
+	// The rung owning these bytes cannot express the resize. Consume the key anyway:
+	// it was the widget's gesture, and handing a Shift+Arrow on would extend the
+	// selection out of the image the user is still trying to resize.
+	if (newBytes === null) return true;
 	const newRaw = node.raw.slice(0, ctx.widgetStart) + newBytes + node.raw.slice(ctx.widgetEnd);
 	ctx.updateContent(newRaw, ctx.preSelectOffset, ctx.widgetStart + newBytes.length);
 	return true;

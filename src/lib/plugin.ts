@@ -45,7 +45,7 @@ export {
 	declaredPluginInlineKind,
 	isInlineKindDeclared
 } from './schema/plugin-kind';
-export type { PluginInlineKind, InlineNode } from './core/nodes';
+export type { PluginInlineKind, InlineNode, ImageFields, ImageSyntaxRewriter } from './core/nodes';
 export { registerInlineSyntax, INLINE_PRIORITIES } from './core/inline/scan/plugin-syntax';
 export type { InlineSyntaxRecognizer, InlineSyntaxOptions } from './core/inline/scan/plugin-syntax';
 export { registerInlineWidgetKind, mintWidgetShell } from './core/inline/inline-widgets';

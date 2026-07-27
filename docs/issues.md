@@ -403,33 +403,6 @@ insert with an inline comment naming this entry, and both requirement files now 
 per-keystroke formation is uncovered _because_ of this defect rather than by choice — so restoring
 the per-keystroke gesture is part of the fix.
 
-### Editing a plugin-minted image rewrites it as GFM, destroying the author's bytes
-
-**Severity:** important (byte corruption on a user gesture; the document loses syntax the
-consumer's plugin owns)
-**Files:** `src/lib/components/image/image-source-bytes.ts` (`buildImageSourceBytes` emits
-`![alt](url)` / `![alt][label]` unconditionally — there is no branch that could re-emit another
-syntax), `src/lib/components/image/image-edit-commit.ts` (the commit splices those bytes over
-`[image.start, image.end)`; the resize path feeds it `alt: ctx.image.alt ?? ''`)
-
-An inline-syntax rung may mint a built-in `image` node over any bytes it likes — an
-Obsidian-style `![[cat.png|300]]`, say. Every read path treats it as an image, which is the
-point. The **write** path then re-serializes it from the node's fields in GFM shape, so a resize
-or a properties edit replaces the author's syntax with `![cat.png|320](cat.png)`. The node
-carries no record of the syntax it came from, so the commit cannot know it is rewriting rather
-than updating. Same root cause as the render-side garble fixed in 0.9.36: an image node's fields
-are assumed to have come from GFM markers.
-
-**Repro:** with a rung registered on `![[`, click the widget for `![[cat.png|300]]` and press
-Shift+ArrowRight (resize by one step). The bytes become `![cat.png|320](cat.png)`.
-
-**Why deferred:** the fix is contract surface, not a patch — either a minted kind owns
-re-serialization of its own nodes (a plugin editing-override seam), or the image kind declines
-edits whose raw is not GFM-shaped. Both are additive after 1.0, and choosing between them is a
-freeze-scope decision rather than a bug fix. `image-source-bytes.ts`'s header claim that
-round-tripping through it reproduces the original bytes holds only for GFM-minted nodes and
-should be narrowed when this lands.
-
 ## Virtual rendering
 
 ### Pasting a long list into a windowed list loses the caret (VR-12, reachable)
