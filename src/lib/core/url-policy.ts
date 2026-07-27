@@ -6,7 +6,14 @@
  */
 
 const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
-const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data']);
+// `asset:` is the webview asset protocol a desktop shell hands back for a local
+// file (Tauri's `convertFileSrc`), and only off Windows — Windows serves the same
+// protocol as `http://asset.localhost/…`, which the `http` entry already admits.
+// Without it the allowlist is platform-dependent: every image in a shell-hosted
+// editor loads on the developer's Windows box and blocks on macOS and Linux. It
+// carries no script capability — no browser resolves it, and a webview that does
+// serves bytes off disk. Not admitted for hrefs: an asset URL is a src.
+const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data', 'asset']);
 
 // Match the WHATWG URL parser's pre-scheme normalization: it strips ASCII
 // tab/newline anywhere and leading C0-control-or-space before resolving the
@@ -27,7 +34,7 @@ export function isAllowedHrefScheme(url: string): boolean {
 	return scheme === null || ALLOWED_HREF_SCHEMES.has(scheme);
 }
 
-/** Like href, but `data:` is allowed for images (data:image is common) and `mailto:`/`tel:` are not. */
+/** Like href, but `data:`/`asset:` are allowed for images and `mailto:`/`tel:` are not. */
 export function isAllowedImageSrcScheme(url: string): boolean {
 	const scheme = schemeOf(url);
 	return scheme === null || ALLOWED_IMG_SCHEMES.has(scheme);
