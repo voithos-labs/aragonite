@@ -218,6 +218,30 @@ describe('inline-render image — alt-only fallback', () => {
 		).toHaveLength(0);
 	});
 
+	// The predicate's empty boundary, both shapes: with no alt there is nothing to
+	// leave behind when markers collapse, so the whole construct is markers — never a
+	// split placed over bytes nothing can name.
+	it('renders an alt-less image as markers alone', () => {
+		const gfm = '![](u)';
+		const gfmFrag = renderFallback(parseInline(gfm, 0, gfm.length), gfm);
+		expect(gfmFrag.textContent).toBe(gfm);
+		expect([...gfmFrag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'](u)'
+		]);
+
+		const minted = '![[x]]';
+		const frag = renderFallback(
+			[{ kind: 'image', start: 0, end: minted.length, children: [], url: 'x' }],
+			minted
+		);
+		expect(frag.textContent).toBe(minted);
+		expect([...frag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'[x]]'
+		]);
+	});
+
 	it('keeps a GFM image split into markers around its alt text', () => {
 		const raw = '![cat|400](https://example.com/cat.png)';
 		const frag = renderFallback(parseInline(raw, 0, raw.length), raw);
