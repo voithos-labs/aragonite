@@ -302,6 +302,24 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   it outright. Offsets were never affected — the arithmetic always spanned the node — so bytes,
   selection and serialization are untouched and only the glyphs change.
 
+- **A cross-block copy whose event lands on nothing now writes anyway.** Select the whole document
+  and press Ctrl+C: if the selection's focus endpoint was a block with no text position in it — an
+  image-only paragraph, a thematic break — the system clipboard was left completely untouched, so a
+  paste into another application produced nothing. The endpoint is where the trail starts: a
+  cross-block selection is painted by overlays, and the collapsed caret the seam parks at the focus
+  endpoint is best-effort, so a caret-less endpoint leaves the native selection empty. Chromium then
+  dispatches `copy` at `document.body` rather than at the focused block, and every clipboard handler
+  in the editor was bound to a block surface. Nothing above them listened, so the gesture died in
+  silence — no throw, no empty write, just an untouched clipboard. The editor root now carries the
+  fallback, the exact sibling of the root keydown routing that already covers a windowed-out caret's
+  chords: an event that landed on the root or on the body, with a cross-block selection live and no
+  block having claimed it, routes into the same cross-block clipboard seam the blocks call. Cut and
+  paste were fixed with it rather than after it — they escape through the identical hole, and cut
+  was the member that silently dropped the gesture entirely. The gate stays narrow on purpose: it
+  reads the event's own target, not the focused element (a block still held focus in every
+  reproduction), and it claims only the root and the body, so the find bar's input and a host's
+  header field keep their own clipboard.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).
