@@ -629,12 +629,25 @@ The bundled **footnotes** plugin (`aragonite/plugins/footnotes`) is this recipe 
 registerInlineSyntax('!', recognizeEmbed, {
 	prefix: '![[',
 	priority: INLINE_PRIORITIES.prefixOverride,
-	rewriteImage: (source, fields) =>
-		fields.title === undefined ? `![[${fields.url}|${fields.width}]]` : null
+	rewriteImage: (source, fields) => {
+		if (!source.startsWith('![[')) return null; // bytes this rung did not shape
+		// `![[target|width]]` holds a target and an optional width and nothing else.
+		// An embed names one file, so alt and url are the same string — an alt the
+		// user edited apart from the url has no form here either.
+		if (fields.title !== undefined || fields.label !== undefined) return null;
+		if (fields.alt !== fields.url) return null;
+		return `![[${fields.url}${fields.width !== undefined ? `|${fields.width}` : ''}]]`;
+	}
 });
 ```
 
 `source` is the node's current bytes; return their replacement in your grammar. Return **`null` when the edit has no form in your syntax** — an embed has nowhere to put a title — and the editor declines the edit rather than writing something you did not author. **A rung with no hook declines every such edit**, which is the safe default: the affordance is live and visibly does nothing, and a dev build logs which rung declined and why. Nothing is silently rewritten either way, and images the built-in scanner read are untouched — bytes your rung _declines_, including the overlap above where the alt text merely begins with `[`, stay the editor's to resize as always.
+
+Three edges the snippet above is shaped by, and each one bites if you drop it:
+
+- **Read every field, or decline it.** A hook that ignores a field the user edited returns byte-identical bytes, and byte-identical bytes are dropped by the commit's equality guard — **silently, with no dev warn**, because your hook returned bytes rather than `null`. The properties popover's Alt row then simply does nothing, with no diagnostic anywhere. Declining is what makes the limit visible; ignoring is what makes it a mystery.
+- **Guard every optional field you interpolate.** `fields.width` is absent on an embed that never carried one, and an unguarded template writes the literal `|undefined` into the document.
+- **Bound the hook to bytes you shaped.** The claim reaches _descendants_ of the node your recognizer returned, so a rung that mints its own kind wrapping a built-in `image` gets called with the **inner** node's slice, not the whole construct. Checking `source` before rewriting is what keeps that from nesting your syntax inside itself.
 
 **Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught — the widget falls back to its raw source and an `error` event fires — but the component mounts as its own effect root, so nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows an inline message). A render engine's stylesheet is likewise yours: import it in the module that owns the renderer so no route can forget it.
 
