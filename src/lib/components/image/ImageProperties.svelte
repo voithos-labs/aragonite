@@ -1,16 +1,20 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
+	import type { ImageFields } from '../../core/nodes';
 	import type { WidgetTarget } from './widget-selection-state.svelte';
 
 	let {
 		target,
 		fields,
+		buildBytes,
 		onCommit,
 		onDismiss
 	}: {
 		target: WidgetTarget;
 		fields: ImageFields;
+		/** The bytes a commit of these fields would write — the popover's dirty check
+		 *  is a byte comparison, and the bytes are the write seam's to decide. */
+		buildBytes: (target: WidgetTarget, fields: ImageFields) => string | null;
 		onCommit: (target: WidgetTarget, newFields: ImageFields) => void;
 		onDismiss: () => void;
 	} = $props();
@@ -21,7 +25,7 @@
 	let titleTouched = $state(false);
 	let popoverEl: HTMLDivElement | undefined = $state();
 
-	const initialBytes = untrack(() => buildImageSourceBytes(fields));
+	const initialBytes = untrack(() => buildBytes(target, fields));
 
 	// Outside-click dismisses; the actual commit runs in $effect cleanup so
 	// the dismiss path (this), the image-switch path (key change), and the
@@ -60,7 +64,7 @@
 			...(fields.width !== undefined ? { width: fields.width } : {}),
 			...(fields.height !== undefined ? { height: fields.height } : {})
 		};
-		const newBytes = buildImageSourceBytes(next);
+		const newBytes = buildBytes(target, next);
 		if (newBytes === initialBytes) return;
 		onCommit(target, next);
 	}

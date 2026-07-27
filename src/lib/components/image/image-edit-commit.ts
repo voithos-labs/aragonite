@@ -1,6 +1,6 @@
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
-import type { CstNode, Document, InlineNode } from '../../core/nodes';
+import type { CstNode, Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { isBlockNode } from '../../tree-operations/node-ops';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
@@ -10,7 +10,7 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
-import { buildImageSourceBytes, type ImageFields } from './image-source-bytes';
+import { buildImageEditBytes } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -40,6 +40,10 @@ export interface ImageEditCommitter {
 	 * new selection would cross-pollinate the two images.
 	 */
 	commitImageEdit(target: WidgetTarget, newFields: ImageFields): void;
+	/** The bytes `commitImageEdit` would write, or `null` if it would decline. The
+	 *  popover's dirty check reads it so it compares like for like on a node whose
+	 *  syntax an inline rung owns. */
+	buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null;
 	commitImageResize(newWidth: number, newHeight: number | undefined): void;
 	dismissImagePopover(): void;
 	getEditorContentWidth(): number;
@@ -154,11 +158,14 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		});
 	}
 
-	function commitImageEdit(target: WidgetTarget, newFields: ImageFields): void {
+	function resolveEdit(
+		target: WidgetTarget,
+		newFields: ImageFields
+	): { paragraph: NodeView; image: InlineNode; bytes: string } | null {
 		const resolved = resolvePathToParagraph(target.paragraphPath);
-		if (!resolved) return;
+		if (!resolved) return null;
 		const image = findImageInParagraph(resolved.paragraph, target.sourceStart);
-		if (!image) return;
+		if (!image) return null;
 		// Preserve the reference form on a resize/dimension/alt edit: the url and
 		// title live in the LRD, so leaving them untouched means re-emit `[label]`
 		// rather than inlining the resolved url (which would orphan the LRD).
@@ -167,11 +174,21 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			image.label !== undefined && newFields.url === image.url && newFields.title === image.title
 				? { ...newFields, label: image.label }
 				: newFields;
-		const newSourceBytes = buildImageSourceBytes(fields);
+		const bytes = buildImageEditBytes(image, resolved.paragraph.raw, fields);
+		return bytes === null ? null : { paragraph: resolved.paragraph, image, bytes };
+	}
+
+	function buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null {
+		return resolveEdit(target, newFields)?.bytes ?? null;
+	}
+
+	function commitImageEdit(target: WidgetTarget, newFields: ImageFields): void {
+		const edit = resolveEdit(target, newFields);
+		if (!edit) return;
 		const newRaw =
-			resolved.paragraph.raw.slice(0, image.start) +
-			newSourceBytes +
-			resolved.paragraph.raw.slice(image.end);
+			edit.paragraph.raw.slice(0, edit.image.start) +
+			edit.bytes +
+			edit.paragraph.raw.slice(edit.image.end);
 		void commitParagraphRaw(target.paragraphPath, newRaw);
 	}
 
@@ -268,6 +285,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	return {
 		getSelectedImageFields,
 		commitImageEdit,
+		buildEditBytes,
 		commitImageResize,
 		dismissImagePopover,
 		getEditorContentWidth,
