@@ -28,11 +28,15 @@ export function recognizeWikiImage(raw: string, pos: number, end: number): Inlin
 	};
 }
 
-/** `![[…]]` carries a target and an optional width and nothing else, so a title
- *  or a reference label has no form in this grammar and the hook declines. */
+/** `![[…]]` carries a target and an optional width and nothing else, so a title, a
+ *  reference label, or an alt edited away from the one target this recognizer fills
+ *  both fields from has no form in this grammar and the hook declines. Declining is
+ *  the whole point: re-emitting without the edited field would be byte-identical and
+ *  the commit's equality guard would drop it with nothing to read anywhere. */
 export function rewriteWikiImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;
+	if (fields.alt !== fields.url) return null;
 	return `![[${fields.url}${fields.width !== undefined ? `|${fields.width}` : ''}]]`;
 }
 
