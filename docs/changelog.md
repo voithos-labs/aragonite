@@ -62,10 +62,14 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   handles instead was the tempting UX and the wrong rung of the ladder — it covers only the no-hook
   half (a hook may decline one edit and accept the next), leaves the properties popover with no
   handle to hide, and would put the rule at three render surfaces rather than at the one seam every
-  write already crosses. That seam is now the funnel: the GFM serializer is reachable only through
-  `buildImageEditBytes`, pinned by a lint (G4.21), because the three write sites that carried it
-  independently — commit, keyboard resize, popover dirty check — all emitted GFM, which is the
-  sibling-path shape. Images the built-in scanner read are unaffected, including the overlap a rung
+  write already crosses. That seam is now the funnel: the GFM serializer sits under
+  `buildImageEditBytes`, because the three write sites that reached for it independently — commit,
+  keyboard resize, popover dirty check — all emitted GFM, which is the sibling-path shape. The
+  funnel is held by a name scan (G4.21) rather than by the type system: the serializer carries its
+  own unit suite, so it cannot be unexported, and what the lint pins is that no module outside the
+  seam names it and no undocumented site names the seam. A write path that hand-rolls the GFM
+  bytes would still slip past — the honest limit of a scan, stated so the next author does not
+  read it as a proof. Images the built-in scanner read are unaffected, including the overlap a rung
   declines. Taken pre-freeze because the alternative is a 1.x break: the hook is the difference
   between an inline rung being able to mint built-in kinds and only pretending to.
 
