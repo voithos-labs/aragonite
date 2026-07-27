@@ -147,6 +147,24 @@ test.describe('block commands against a revealed inline source', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('a caret snapped past a trailing math widget paints exactly one caret', async ({ page }) => {
+		await editor.loadContent('$x^2$\n');
+		const box = await editor.mathWidget.boundingBox();
+		if (!box) throw new Error('math widget has no bounding box');
+
+		// Click to the right of the widget with no trailing text to anchor in: the
+		// caret lands at an element-level offset, where the editor paints a synthetic
+		// caret because Chromium's own is unreliable there. When Chromium DOES paint,
+		// the user sees two — so the native one is suppressed for as long as the
+		// synthetic is up.
+		await page.mouse.click(box.x + box.width + 25, box.y + box.height / 2);
+		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(1);
+		const caretColor = await page.evaluate(
+			() => getComputedStyle(document.querySelector('.text-editable-block')!).caretColor
+		);
+		expect(caretColor).toBe('rgba(0, 0, 0, 0)');
+	});
+
 	test('Escape still cancels the reveal and discards the ephemeral edit', async ({ page }) => {
 		await editor.loadContent('above\n\n$x^2$\n');
 		await editor.revealFromTrailingEdge(1);

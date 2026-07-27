@@ -605,6 +605,12 @@
 		for (const w of el.querySelectorAll('.md-snap-after, .md-snap-before')) {
 			w.classList.remove('md-snap-after', 'md-snap-before');
 		}
+		// The synthetic caret stands in for a native one Chromium renders unreliably
+		// beside a contenteditable=false island — but "unreliably" cuts both ways, and
+		// when it does render the user sees two carets at one position. The block's own
+		// caret goes dark for as long as the synthetic is up; there is no way to ask the
+		// browser whether it painted, so mutual exclusion is the only guarantee available.
+		el.classList.remove('md-snap-caret-active');
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
 		for (const inline of resolvedInlineContent(node, linkRef)) {
@@ -613,6 +619,7 @@
 			const widget = widgetElByStart(el, inline.start);
 			if (widget) {
 				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
+				el.classList.add('md-snap-caret-active');
 			}
 			return;
 		}
