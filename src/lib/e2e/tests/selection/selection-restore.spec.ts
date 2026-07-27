@@ -18,6 +18,52 @@ function windowedDoc(blockCount: number): string {
 const wrapperFor = (page: Page, path: number[]) =>
 	page.locator(`[data-block-path='${JSON.stringify(path)}']`);
 
+// What a host restores into a document it has never scrolled: the very first block.
+const DOCUMENT_START = {
+	anchor: { path: [0], offset: 0 },
+	focus: { path: [0], offset: 0 }
+};
+
+const scrollTopOf = (page: Page) =>
+	page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
+
+// A trailing image with no dimension hint: it reserves the placeholder floor until it
+// decodes, then grows. Short enough overall to keep windowing inactive (every block
+// mounted, so the trailing image's ResizeObserver fires at all) while still scrolling.
+const LATE_IMAGE_URL = 'https://e2e-deferred.test/late-growth.svg';
+const LATE_IMAGE_SVG =
+	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
+	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
+
+function lateGrowthDoc(): string {
+	const blocks = Array.from(
+		{ length: 55 },
+		(_, i) => `paragraph ${i} with enough text to fill a line.`
+	);
+	blocks.push(`![late](${LATE_IMAGE_URL})`);
+	return blocks.join('\n\n') + '\n';
+}
+
+/** Hold the image response until the returned release is called, so its growth lands
+ *  after the restore instead of racing it. */
+async function deferImage(page: Page): Promise<() => void> {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await page.route('https://e2e-deferred.test/**', async (route) => {
+		await gate;
+		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LATE_IMAGE_SVG });
+	});
+	return release;
+}
+
+const imageHostHeight = (page: Page) =>
+	page.evaluate(() => {
+		const host = document.querySelector('[data-image-widget]')?.closest('.block-host');
+		return host ? (host as HTMLElement).getBoundingClientRect().height : 0;
+	});
+
 /**
  * Bring an off-window block into view, then land a real caret in it. Setting
  * `scrollTop` to the maximum is NOT equivalent: the windowed scroll height is an
@@ -225,6 +271,44 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 			}))
 		).toEqual({ scrollTop: before, sameActive: true });
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(pageErrors).toEqual([]);
+	});
+
+	// A host that restores a caret AND a remembered scroll position does both in that
+	// order — the scroll is the outer state, the caret the inner one. Until the reveal
+	// anchor was released on resolve, `setSelection` kept a durable top-pin on the
+	// restored block: any later measure pass (a diagram, display math or an image
+	// settling in after mount) re-asserted it and threw the host's scroll away.
+	test('hands the scroll position back once it resolves', async ({ page }) => {
+		const pageErrors = capturePageErrors(page);
+		// After the harness is up (beforeEach) but before any content asks for the image.
+		const releaseImage = await deferImage(page);
+
+		await editor.loadContent(lateGrowthDoc());
+		await editor.waitForRenderFlush();
+		await editor.waitForResizeObserverFlush();
+
+		// The host's own restore order: place the remembered caret, then the remembered
+		// scroll. Block 0 is the caret target, so the pin the bug held is the document top.
+		expect(await editor.bridge.setSelection(DOCUMENT_START)).toBe(true);
+		await editor.scrollEditorTo(400);
+
+		// Read the baseline back rather than asserting the number asked for: measuring
+		// the blocks that mount on the way down legitimately nudges the top-of-viewport
+		// correction, and that is the honest landing. Far from the document top is the
+		// precondition — while the pin was held, this read was already back at block 0.
+		const hostTop = await scrollTopOf(page);
+		expect(hostTop).toBeGreaterThan(200);
+		const collapsedHeight = await imageHostHeight(page);
+
+		// The image grows BELOW the fold, so the honest top-of-viewport correction is a
+		// no-op — nothing above the anchor block moved, so its offset is unchanged and
+		// the delta is exactly zero. Any movement at all is the pin re-asserting.
+		releaseImage();
+		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 50);
+		await editor.waitForResizeObserverFlush();
+
+		expect(await scrollTopOf(page)).toBe(hostTop);
 		expect(pageErrors).toEqual([]);
 	});
 });

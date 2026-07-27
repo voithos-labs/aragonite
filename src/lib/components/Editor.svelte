@@ -1159,8 +1159,21 @@
 	 * Restore a snapshot from {@link getSelection}. Shares the whole restore road
 	 * with the undo swap — resolve + clamp, reveal, place — so a consumer's
 	 * restore and a Ctrl+Z restore cannot diverge.
+	 *
+	 * Resolving hands the viewport back. `scrollTo`'s `'nearest'` keeps its reveal
+	 * anchor on purpose — a durable band is what search wants, and a searching
+	 * reader's next keystroke lands in the bar (inside the root) and releases it.
+	 * A restoring HOST never takes that turn: it restores a caret, then its own
+	 * remembered scroll, and then waits for the reader — so a kept pin sits armed
+	 * and the first post-mount measure pass (a diagram, display math or an image
+	 * settling in) re-asserts the caret block's top over the scroll the host just
+	 * wrote. Nothing public could release it, since only a user-intent gesture in
+	 * the document clears the slot. So this door releases on the way out.
 	 */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
+		// The path the reveal was actually asked for — `restoreSelection` reveals the
+		// cell's deep path for a table endpoint, not `selection.focus.path`.
+		let revealed: number[] | null = null;
 		const outcome = await restoreSelection(selection, {
 			getDoc,
 			selectionState,
@@ -1169,9 +1182,20 @@
 			// restore settles through the scrolling primitive. The mount primitive is
 			// not enough: it returns without scrolling for a target that is already
 			// mounted, and top-level overscan keeps blocks mounted well past the fold.
-			revealTarget: (path) => rects.scrollTo(path, { block: 'nearest' })
+			revealTarget: (path) => {
+				revealed = path;
+				return rects.scrollTo(path, { block: 'nearest' });
+			}
 		});
+		// Only OUR pin. The slot holds one target with no per-claimant ownership
+		// (docs/issues.md), so a blind clear would let this restore nuke a reveal
+		// armed after it — a search jump that landed while the settle was running.
+		if (samePath(revealAnchor.get()?.path, revealed)) revealAnchor.clear();
 		return outcome === 'applied';
+	}
+
+	function samePath(a: readonly number[] | undefined, b: readonly number[] | null): boolean {
+		return !!a && !!b && a.length === b.length && a.every((n, i) => n === b[i]);
 	}
 
 	export function getEvents(): EditorEvents {
