@@ -11,6 +11,8 @@ The rule lives at the block's command seam, so it holds for every reveal-capable
 - Enter at the leading edge of a revealed source splits the block there: the content moves down and the caret stays BEFORE it
 - Enter after the revealed source has been broken into plain text splits on the FIRST press
 - Enter mid-source commits the ephemeral edit as it splits — the edit is not discarded by the structural op
+- Mod+1 cycles the heading on the committed bytes, keeping an edit the CST had not been told about
+- Mod+B toggles the range the user selected: the fold parks a caret that collapses the live selection, so the command must act on the range it read before folding, not re-read one after
 - A footnote reference (a second reveal-capable kind) obeys the same merge rule, proving the seam is core and not latex-local
 
 ## Edge cases
