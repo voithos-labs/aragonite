@@ -15,6 +15,7 @@ The rule lives at the block's command seam, so it holds for every reveal-capable
 
 ## Edge cases
 
+- ArrowRight leaves a block whose EDITED reveal sits at its end (and commits on the way): the live bytes are shorter than `node.raw`, and a boundary test against the stale raw traps the caret in the block forever
 - Backspace with the caret mid-source still edits the revealed source natively — the merge command declines at a non-zero offset, so reveal editing is untouched
 - A caret snapped past a trailing math widget paints exactly one caret: the synthetic indicator is up and the block's native caret is suppressed (the shared rule lives in `blocks/image/caret-synthetic-indicator.md`)
 - Escape still cancels the reveal and discards the ephemeral edit
