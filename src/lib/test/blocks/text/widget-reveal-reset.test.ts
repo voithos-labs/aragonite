@@ -64,7 +64,7 @@ type Block = ReturnType<typeof mountMathBlock>;
 
 describe('canonical reset — every exit lands in the same idle state', () => {
 	const exits: [string, (b: Block) => Promise<void>][] = [
-		['Enter-commit', async (b) => void (await b.interaction.handleRevealingKeydown(key('Enter')))],
+		['fold-commit', async (b) => void b.interaction.foldRevealBeforeMutation()],
 		[
 			'Escape-cancel',
 			async (b) => void (await b.interaction.handleRevealingKeydown(key('Escape')))

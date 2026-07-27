@@ -521,11 +521,21 @@
 		if (selection.isCrossBlock && (await crossBlock.handleKeyDown(e))) return;
 
 		// Inline-widget reveal/selection intercepts before the cell plan claims the
-		// key: while source is revealed Enter/Escape commit/cancel and every other key
-		// edits the source natively (onInput suppressed); a selected widget and a
-		// Shift+Arrow into a widget own their keys too. cellKeydownPlan would otherwise
-		// treat Enter as a row hop and ArrowUp/Down as cell nav mid-reveal.
+		// key: while source is revealed Escape cancels and every other key edits the
+		// source natively (onInput suppressed); a selected widget and a Shift+Arrow
+		// into a widget own their keys too. cellKeydownPlan would otherwise treat
+		// ArrowUp/Down as cell nav mid-reveal.
 		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+		// Enter is the exception a cell carries rather than inherits. In a prose block
+		// Enter splits, so it routes through the command seam, which folds the reveal
+		// and then splits. A cell has no split: Enter there is a row hop, and hopping
+		// would carry the ephemeral edit out of the surface that owns it. So a cell's
+		// Enter commits the reveal and stays put.
+		if (widgetInteraction.isRevealing() && e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+			e.preventDefault();
+			widgetInteraction.foldRevealBeforeMutation();
+			return;
+		}
 		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 

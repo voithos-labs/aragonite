@@ -161,14 +161,16 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(revealed).not.toContain('$x^2$Z');
 	});
 
-	test('editing the source and pressing Enter re-renders KaTeX and persists the edit', async ({
+	test('editing the source and walking the caret out re-renders KaTeX and persists the edit', async ({
 		page
 	}) => {
 		await editor.revealByClick();
 		// Move into the source (past the opening `$`) and type inside the formula.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
-		await page.keyboard.press('Enter');
+		// End carries the caret out of the source, which is what folds an edited reveal.
+		// Enter no longer commits — it is the block's split key (latex-inline-reveal-commands).
+		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
@@ -189,10 +191,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(revealed).toContain('z$x^2$');
 		expect(revealed).not.toContain('zBefore');
 
-		await page.keyboard.press('Enter');
+		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
 		// Commit landed the caret at the math's trailing edge: the next char lands
-		// immediately after the re-rendered widget.
+		// immediately after the re-rendered widget — the escape's own End position
+		// does not survive the fold, the widget's trailing edge does.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('$x^2$!');
 		expect(await editor.bridge.getSource()).toContain('Before z$x^2$! after');
@@ -245,7 +248,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		// Reveal the math and commit with NO edit. A zero-diff commit would push a dead
 		// undo entry, so this Ctrl+Z would revert the no-op instead of the ABC edit.
 		await editor.revealByClick();
-		await page.keyboard.press('Enter');
+		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
 
 		await editor.undo();
