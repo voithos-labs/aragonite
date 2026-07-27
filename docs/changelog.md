@@ -252,6 +252,17 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   answer is a contract surface to settle at the freeze, while this is the one name the platform
   publishes.
 
+- **The widget-free image path prints its own bytes.** A table cell renders an image as source
+  rather than as a widget, and it rebuilt that source from the parsed `alt` assumed to sit two
+  characters into the node — true of a GFM image, false of one a plugin mints, so an
+  Obsidian-style `![[cat.png]]` in a cell displayed as `![cat.pngg]]`. The parsed field now only
+  _locates_ the marker split, and only where it is literally those bytes; every string the path
+  emits is a slice of `raw`, which is the rule the link path beside it already carried and stated.
+  An image whose alt cannot be located renders as unmarked source rather than as markers, because
+  a marker collapses in reading mode and collapsing a construct nobody can decompose would blank
+  it outright. Offsets were never affected — the arithmetic always spanned the node — so bytes,
+  selection and serialization are untouched and only the glyphs change.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).
