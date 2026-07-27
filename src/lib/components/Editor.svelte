@@ -73,6 +73,7 @@
 	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
+	import { createEditorRootClipboard } from './editor-root-clipboard';
 	import {
 		registerEditor,
 		unregisterEditor,
@@ -924,6 +925,30 @@
 		const root = editorEl;
 		return onRoot(root.ownerDocument, 'keydown', (e: KeyboardEvent) =>
 			rootKeydown.handleKeyDown(e, root)
+		);
+	});
+
+	// ── Editor-root clipboard routing ────────────────────────────────────
+	//
+	// The keydown sibling's counterpart for the clipboard: a cross-block Ctrl+C/X/V
+	// whose event Chromium retargeted to <body> because the parked caret found no
+	// text position at the focus endpoint. Same containment — the listener sees
+	// every editor on the page, so the arms claim only events that landed on THIS
+	// root or on the body with this instance holding the body-chord claim.
+	const rootClipboard = createEditorRootClipboard({
+		selection: selectionState,
+		getDoc,
+		crossBlock: editorCrossBlock
+	});
+
+	$effect(() => {
+		if (!editorEl) return;
+		const root = editorEl;
+		const doc = root.ownerDocument;
+		return removeAll(
+			onRoot(doc, 'copy', (e: ClipboardEvent) => rootClipboard.handleCopy(e, root)),
+			onRoot(doc, 'cut', (e: ClipboardEvent) => rootClipboard.handleCut(e, root)),
+			onRoot(doc, 'paste', (e: ClipboardEvent) => rootClipboard.handlePaste(e, root))
 		);
 	});
 
