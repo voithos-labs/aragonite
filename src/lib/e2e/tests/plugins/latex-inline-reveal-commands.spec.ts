@@ -182,6 +182,48 @@ test.describe('block commands against a revealed inline source', () => {
 		expect(caretColor).toBe('rgba(0, 0, 0, 0)');
 	});
 
+	test('Mod+B over a selection touching a revealed source toggles the committed bytes', async ({
+		page
+	}) => {
+		await editor.loadContent('$x^2$ tail\n');
+		await editor.focusBlockStart(0);
+		await page.keyboard.press('ArrowRight'); // reveal at the leading edge
+		await expect(editor.mathWidget).toHaveCount(0);
+		for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('q');
+		await expect(editor.getBlock(0)).toHaveText('$x^q2$ tail');
+
+		// A selection inside the revealed source does not read as an escape, so the
+		// reveal is still open when the chord fires. The format toggles, `heading.cycle`
+		// and `hardBreak` all read node.raw the way the merge did; this is also the arm
+		// where the fold's own caret write could move the range out from under it.
+		await page.keyboard.press('Shift+ArrowLeft');
+		await page.keyboard.press('Shift+ArrowLeft');
+		await page.keyboard.press('Control+b');
+
+		await editor.bridge.waitForSourceContains('**');
+		expect(await editor.bridge.getSource()).toBe('$x**^q**2$ tail\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Mod+1 over a revealed block cycles the heading on the committed bytes', async ({
+		page
+	}) => {
+		await editor.loadContent('$x^2$ tail\n');
+		await editor.focusBlockStart(0);
+		await page.keyboard.press('ArrowRight'); // reveal at the leading edge
+		await expect(editor.mathWidget).toHaveCount(0);
+		for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('q');
+
+		// The `always`-applicable arms must see the edit too: a heading prefix written
+		// onto node.raw would drop the `q` the CST has not been told about.
+		await page.keyboard.press('Control+1');
+		await editor.bridge.waitForSourceContains('# ');
+		expect(await editor.bridge.getSource()).toBe('# $x^q2$ tail\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('Escape still cancels the reveal and discards the ephemeral edit', async ({ page }) => {
 		await editor.loadContent('above\n\n$x^2$\n');
 		await editor.revealFromTrailingEdge(1);
