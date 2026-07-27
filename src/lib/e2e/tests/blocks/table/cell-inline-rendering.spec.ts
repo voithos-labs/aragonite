@@ -72,9 +72,27 @@ test.describe('table cell: inline rendering', () => {
 	test('image in a cell stays alt-text, no widget', async ({ page }) => {
 		await editor.loadContent(`${HEADER}| ![alt](u) |\n`);
 		const cell = page.locator('[role="cell"]').nth(1);
-		await expect(cell).toContainText('alt');
+		await expect(cell).toHaveText('![alt](u)');
 		await expect(cell.locator('img')).toHaveCount(0);
 		await expect(cell.locator('[data-inline-widget]')).toHaveCount(0);
+	});
+
+	// What the fallback's marker split is FOR, and the only layer that can see it:
+	// the collapse is CSS, so no unit test reaches it. A single unsplit span — either
+	// arm — leaves the whole source painted here, or nothing at all.
+	test('image in a cell paints its alt alone in reading mode', async ({ page }) => {
+		await editor.loadContent(`${HEADER}| ![alt](u) |\n`);
+		const cell = page.locator('[role="cell"]').nth(1);
+		const markers = cell.locator('.md-marker');
+		await expect(markers).toHaveCount(2);
+		await expect(markers.first()).toBeVisible();
+
+		await page.getByTestId('presentation-toggle').click();
+		await expect(markers.first()).toBeHidden();
+		await expect(markers.last()).toBeHidden();
+		expect(await cell.innerText()).toBe('alt');
+		// Hidden, never omitted — the cell's bytes stay behind the collapse.
+		await expect(cell).toHaveText('![alt](u)');
 	});
 
 	test('empty cell renders without leftover markup and stays focusable', async ({ page }) => {
