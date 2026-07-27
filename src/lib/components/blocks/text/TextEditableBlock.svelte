@@ -394,28 +394,20 @@
 		return widgetInteraction.enterEdgeWidget(side);
 	}
 
-	/**
-	 * The display length the CARET walks, which a live reveal moves away from
-	 * `node.raw`: while revealed the block's bytes are the DOM's. Every boundary test
-	 * on the caret's position reads this — the merge-next edge and the arrow/vertical
-	 * boundaries alike. Against `node.raw` an edited reveal at the block's end traps
-	 * the caret: the live end sits short of the stale length, so no press ever reads
-	 * as "at the boundary" and the caret cannot leave the block rightward. The table
-	 * cell's sibling context already reads its live DOM length for the same reason.
-	 */
+	/** The display length the CARET walks — the DOM's while a reveal is open, since
+	 *  the CST has not seen that edit. Measured against `node.raw` instead, an edited
+	 *  reveal at the block's end traps the caret: the live end sits short of the stale
+	 *  length, so no press reads as "at the boundary". Every caret-boundary test here
+	 *  reads this, as the table cell's sibling context already does. */
 	function liveDisplayLength(): number {
 		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
 	}
 
-	/**
-	 * One arm per command this block owns, split into the applicability probe and the
-	 * mutation. The split is what lets the reveal fold sit between them: `applies`
-	 * reads only the DOM (caret, selection, list context), so it is valid before and
-	 * after a fold, while every `perform` reads `node.raw` and is valid only after.
-	 * Returns null for a command this block does not own. Both the caret `offset` and
-	 * the `selected` range are read once, before any fold, and closed over — a fold
-	 * parks its own caret, which would move them out from under the mutation.
-	 */
+	/** One arm per command this block owns, split so the reveal fold can sit between
+	 *  the halves: `applies` reads only the DOM and stays valid across a fold, every
+	 *  `perform` reads `node.raw` and is valid only after one. `offset` and `selected`
+	 *  are read once before any fold and closed over — the fold parks its own caret,
+	 *  which would move them out from under the mutation. Null = not this block's. */
 	function blockCommand(
 		id: CommandId,
 		arg: unknown,
@@ -500,9 +492,13 @@
 		return true;
 	}
 
-	// The seam's guard: no block command may mutate while a reveal is open. A fire
-	// here means a new command entry path skipped the fold (the sibling-path parity
-	// class) — the bytes it is about to splice are the pre-reveal ones.
+	// The seam's guard: no arm reached through here mutates while a reveal is open —
+	// a fire means a `runCommand` branch that skipped the fold, and the bytes it is
+	// about to splice are the pre-reveal ones. It guards the arms, NOT every entry
+	// path: a caller that reaches `blockEdit` directly, bypassing runCommand, sees
+	// neither the fold nor this. Adding an arm to `blockCommand`'s switch inherits
+	// both by construction, which is the case worth making safe; the wider funnel is
+	// ledgered in docs/issues.md.
 	function performBlockCommand(id: CommandId, perform: () => void): void {
 		assertInvariant('reveal-transition', () =>
 			widgetInteraction.isRevealing()
