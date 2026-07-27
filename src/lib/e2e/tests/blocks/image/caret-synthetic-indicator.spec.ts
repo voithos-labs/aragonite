@@ -1,8 +1,16 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { clickPastImageRightEdge, waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
+
+const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
+	page.evaluate(() => {
+		const block = document.querySelector('[data-image-widget]')?.closest('[contenteditable]');
+		if (!block) throw new Error('no contenteditable holding the widget');
+		return getComputedStyle(block).caretColor;
+	});
 
 // Synthetic indicator is a fallback for "native caret can't render" — it
 // appears only when the cursor is at a widget boundary AT ELEMENT-LEVEL
@@ -39,6 +47,32 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(overlay!.position).toBe('absolute');
 		// width is set to 1.5px; Chromium reports rounded — accept the line being thin.
 		expect(parseFloat(overlay!.width)).toBeLessThan(4);
+	});
+
+	test('the native caret goes dark while the synthetic one is painted', async ({ page }) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+		await clickPastImageRightEdge(page);
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+
+		// The other half of "the two indicators don't compete". Where the caret sits in
+		// a text node the editor can see the native caret and withholds the synthetic;
+		// at an element-level offset it cannot, and Chromium paints there often enough
+		// to double up. Suppressing the native one is the only mutual exclusion left —
+		// there is no way to ask the browser whether it painted.
+		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+	});
+
+	test('the native caret comes back when the synthetic clears', async ({ page }) => {
+		await editor.loadContent(LIST_IMAGE_DOC);
+		await waitForFirstImageLoaded(page);
+		await clickPastImageRightEdge(page);
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+
+		await page.keyboard.press('a');
+		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+		// Non-vacuity: the suppression is scoped to the snap, not a permanent state.
+		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
 	});
 
 	test('arrow-left into a widget boundary in trailing text does not show synthetic', async ({

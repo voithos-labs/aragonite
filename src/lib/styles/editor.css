@@ -285,6 +285,14 @@
 	}
 }
 
+/* The synthetic caret REPLACES the native one, so the native must go dark while it
+   is up: Chromium does sometimes render a caret at the element-level offset beside
+   a contenteditable=false island, and two painting at one position reads as two
+   carets. Same shape as the cross-block suppression above. */
+:where(.editor) .md-snap-caret-active {
+	caret-color: transparent;
+}
+
 /* Top, left, width, height set inline by syncOverlayToWidget. */
 :where(.editor) .md-image-overlay {
 	position: absolute;
