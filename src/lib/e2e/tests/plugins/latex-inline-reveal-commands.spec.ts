@@ -95,6 +95,58 @@ test.describe('block commands against a revealed inline source', () => {
 		expect(await editor.bridge.getSource()).toBe('above\n\n$x^2$\n');
 	});
 
+	test('Enter at the revealed leading edge splits the block and keeps the caret before it', async ({
+		page
+	}) => {
+		await editor.loadContent('$x^2$ tail\n');
+		// ArrowRight from offset 0 enters the widget's leading edge, revealing there.
+		await editor.focusBlockStart(0);
+		await page.keyboard.press('ArrowRight');
+		await expect(editor.mathWidget).toHaveCount(0);
+
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForBlockCount(2);
+		expect(await editor.bridge.getSource()).toBe('\n$x^2$ tail\n');
+
+		// Assert the caret by typing: it must land BEFORE the math, not past it.
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('Z$x^2$ tail');
+		expect(await editor.bridge.getSource()).not.toContain('$x^2$Z');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Enter splits on the FIRST press after the revealed source is broken', async ({ page }) => {
+		await editor.loadContent('$x^2$\n');
+		await editor.revealFromTrailingEdge(0);
+		// Eat the closing delimiter: the bytes are plain text now, not a construct.
+		await editor.backspaceRevealed(0, ['$x^2']);
+
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForBlockCount(2);
+		expect(await editor.bridge.getSource()).toBe('$x^2\n\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Enter mid-source commits the edit as it splits', async ({ page }) => {
+		await editor.loadContent('$x^2$ tail\n');
+		await editor.focusBlockStart(0);
+		await page.keyboard.press('ArrowRight');
+		await expect(editor.mathWidget).toHaveCount(0);
+		// Walk to `$x^|2$` and type inside the formula.
+		for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('q');
+		await expect(editor.getBlock(0)).toHaveText('$x^q2$ tail');
+
+		// The split lands where the caret is, and the ephemeral edit reaches the CST
+		// rather than being discarded by the structural op. Two paragraphs with a
+		// single separating newline is the editor's ordinary mid-paragraph split shape
+		// (a plain `abcdef` split at 3 serializes the same way), not a reveal artifact.
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForBlockCount(2);
+		expect(await editor.bridge.getSource()).toBe('$x^q\n2$ tail\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('Escape still cancels the reveal and discards the ephemeral edit', async ({ page }) => {
 		await editor.loadContent('above\n\n$x^2$\n');
 		await editor.revealFromTrailingEdge(1);

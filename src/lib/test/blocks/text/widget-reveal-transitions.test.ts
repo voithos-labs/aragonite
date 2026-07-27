@@ -65,13 +65,13 @@ describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 		expect(revealFires()[0][2]).toBe('start-during-settle');
 	});
 
-	it('a full reveal → Enter-commit cycle stays silent', async () => {
+	it('a full reveal → fold-commit cycle stays silent', async () => {
 		const { interaction } = mountEdgeMathBlock();
 		interaction.enterEdgeWidget('start');
 		await settle();
 		expect(interaction.isRevealing()).toBe(true);
 
-		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+		interaction.foldRevealBeforeMutation();
 
 		expect(interaction.isRevealing()).toBe(false);
 		expect(devWarn).not.toHaveBeenCalled();

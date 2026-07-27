@@ -649,8 +649,9 @@
 		// bytes. Never consumes the key.
 		constructReveal.prepareForKeydown(e);
 
-		// Revealed `$…$` source: Escape cancels back to rendered, Enter commits +
-		// re-renders. Every other key edits the source natively (onInput suppressed).
+		// Revealed `$…$` source: Escape cancels back to rendered. Every other key edits
+		// the source natively (onInput suppressed) or reaches the command seam below,
+		// which folds the reveal before it mutates — Enter still splits the block.
 		if (await widgetInteraction.handleRevealingKeydown(e)) return;
 
 		// Widget-selected keys run before handleSharedKeydown: select() cleared the

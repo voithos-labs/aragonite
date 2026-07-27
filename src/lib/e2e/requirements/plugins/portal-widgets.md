@@ -21,7 +21,7 @@ for the cell render surface.
 
 ## Edge cases
 
-- reveal the widget, edit the formula, commit (Enter): the widget renders a NEW
+- reveal the widget, edit the formula, commit (walk the caret out): the widget renders a NEW
   `data-mount-id` (source changed → remount) and shows the edited formula
 - reveal the widget, press Escape: the rendered widget returns (the cancel swap
   re-inserts the exact element it detached), KaTeX present, source unchanged
@@ -35,7 +35,7 @@ for the cell render surface.
 
 ## User interactions
 
-- real keyboard typing and real mouse click / Enter / Escape — no programmatic
+- real keyboard typing and real mouse click / End / Escape — no programmatic
   selection, caret placement, or value setting
 
 ## Error cases

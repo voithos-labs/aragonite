@@ -104,7 +104,8 @@ export interface WidgetInteraction {
 	snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
 	isRevealing(): boolean;
-	/** Escape (cancel to rendered) / Enter (commit + re-render) while source is shown. */
+	/** Escape (cancel to rendered) while source is shown. Enter is deliberately NOT
+	 *  claimed: it is the block's split command, and the command seam folds first. */
 	handleRevealingKeydown(e: KeyboardEvent): Promise<boolean>;
 	/** Commit the revealed source when focus leaves the block. */
 	commitRevealOnBlur(): void;
@@ -495,16 +496,17 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return revealState !== null;
 	}
 
+	// Escape is the only key the reveal claims. Enter is NOT one of them: it is the
+	// block's split command everywhere else in the editor, and claiming it here cost
+	// the user their keystroke — at a source edge the press moved the caret past the
+	// widget instead of splitting, and on a source already broken into plain text the
+	// press was invisible, so the split needed a second one. The block's command seam
+	// folds the reveal before it mutates, so Enter both commits the edit and splits.
 	async function handleRevealingKeydown(e: KeyboardEvent): Promise<boolean> {
 		if (!revealState) return false;
 		if (e.key === 'Escape') {
 			e.preventDefault();
 			await cancelReveal();
-			return true;
-		}
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			commitReveal();
 			return true;
 		}
 		return false;

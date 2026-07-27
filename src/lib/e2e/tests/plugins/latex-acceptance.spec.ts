@@ -147,7 +147,8 @@ test.describe('latex acceptance axes', () => {
 		await clickWidgetCenter(editor.inlineWidget);
 		await expect(editor.inlineWidget).toHaveCount(0);
 		await page.keyboard.type('z');
-		await page.keyboard.press('Enter');
+		// A caret escape is the commit gesture; Enter splits the block instead.
+		await page.keyboard.press('End');
 		await expect(editor.inlineWidget).toHaveCount(1);
 
 		// Commit landed the caret at the widget's trailing edge — the next char lands
