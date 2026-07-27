@@ -2,7 +2,7 @@
 
 When a click-snap places the cursor at a `contenteditable=false`-adjacent position, Chromium often can't render a native caret. The editor paints a blinking synthetic caret on the matching widget edge (`md-snap-after` / `md-snap-before` class) so the user has visual confirmation of where typing will land.
 
-Exactly one caret paints for one caret position. Where the cursor lands in a text node the editor can see the native caret and withholds the synthetic; at an element-level offset it cannot see it, and Chromium renders one there often enough to double up — so the block's own caret is suppressed for as long as the synthetic is up.
+Exactly one caret paints for one caret position. Where the cursor lands in a text node the editor can see the native caret and withholds the synthetic; at an element-level offset it cannot see it, and Chromium renders one there often enough to double up — so the block's own caret is suppressed for as long as the synthetic is up. The rule and its mechanism are kind-agnostic; the inline-math twin (on a route with plugins installed) is `plugins/latex-inline-caret-paint.md`.
 
 ## Happy paths
 
