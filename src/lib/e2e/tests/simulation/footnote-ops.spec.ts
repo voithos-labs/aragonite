@@ -92,13 +92,13 @@ test.describe('footnote-ops simulation', () => {
 		await checkOracles('reference-revealed');
 
 		// Edit [^z]'s label (doc-order index 0) to [^qz] through the reveal→commit cycle.
-		await g.editFootnoteLabel(0, 'q');
+		await g.editFootnoteLabel(0, 'q', 1);
 		expect(await editor.bridge.getSource()).toContain('[^qz]');
 		await checkOracles('reference-edited');
 
 		// Degrade [^qz] (doc-order index 0) to literal text: reveal, delete the opening `[`,
 		// commit. The reference is gone; its remaining bytes stay.
-		await g.deleteFootnoteReference(0);
+		await g.deleteFootnoteReference(0, 1);
 		await expect(page.locator('.footnote-ref')).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('^qz]');
 		expect(await editor.bridge.getSource()).not.toContain('[^qz]');

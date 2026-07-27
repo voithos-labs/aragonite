@@ -190,15 +190,16 @@ export async function revealFootnoteReference(
 
 /**
  * Reveal the reference widget at `refIndex`, insert `text` at the start of its label (just
- * past `[^`), and commit with Enter — the reveal→edit→commit UX the widget shares with inline
- * math. The edit is suppressed from the CST until commit, so the source delta appears only
- * after Enter; settling on it before would race the ephemeral reveal DOM. Resyncs around the
- * committed bytes.
+ * past `[^`), and commit by blurring onto `blurBlockIndex` — the reveal→edit→commit UX the
+ * widget shares with inline math. The edit is suppressed from the CST until commit, so the
+ * source delta appears only at the blur; settling on it before would race the ephemeral
+ * reveal DOM. Resyncs around the committed bytes.
  */
 export async function editFootnoteLabel(
 	ctx: SimContext,
 	refIndex: number,
-	text: string
+	text: string,
+	blurBlockIndex: number
 ): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();
@@ -209,9 +210,8 @@ export async function editFootnoteLabel(
 	await page.keyboard.press('ArrowRight'); // past `[`
 	await page.keyboard.press('ArrowRight'); // past `^` — now at the label start
 	await page.keyboard.type(text);
-	await page.keyboard.press('Enter');
+	await blurToCommit(ctx, blurBlockIndex, before);
 
-	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
 }
@@ -219,25 +219,47 @@ export async function editFootnoteLabel(
 /**
  * Degrade the reference widget at `refIndex` to literal text. A destructive key adjacent to
  * a folded reference reveals it rather than deleting it whole (the reveal policy), so the
- * first Delete only reveals; the second deletes the opening `[`, and Enter commits the now
- * `^label]` run as ordinary text — the reference is gone but its remaining bytes stay. The
- * caller nets it to identity with a trailing undo. Settles on the widget count dropping.
+ * first Delete only reveals; the second deletes the opening `[`, and blurring onto
+ * `blurBlockIndex` commits the now `^label]` run as ordinary text — the reference is gone
+ * but its remaining bytes stay. The caller nets it to identity with a trailing undo. Settles
+ * on the widget count dropping.
  */
-export async function deleteFootnoteReference(ctx: SimContext, refIndex: number): Promise<void> {
+export async function deleteFootnoteReference(
+	ctx: SimContext,
+	refIndex: number,
+	blurBlockIndex: number
+): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const refsBefore = await page.locator(REF).count();
+	const before = await editor.bridge.getSource();
 
 	const island = await nthRefIsland(page, refIndex);
 	await editor.focusBlockAtPath(island.blockPath, island.start);
 	await page.keyboard.press('Delete'); // reveal, no byte deleted
 	await page.keyboard.press('Delete'); // remove the opening `[`
-	await page.keyboard.press('Enter'); // commit → literal text
+	await blurToCommit(ctx, blurBlockIndex, before); // commit → literal text
 	await waitForNodeCount(ctx, REF, refsBefore - 1);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+/**
+ * Commit a revealed source by blurring onto `blurBlockIndex`. Enter is the block's
+ * split key, not a commit gesture (`latex-inline-reveal-commands`), and a reference
+ * sitting at a block edge has no adjacent position for a caret escape to land in —
+ * blur is the commit that holds wherever the widget sits. The caret-escape commit is
+ * covered by the inline-math gestures, whose widget is mid-prose.
+ */
+async function blurToCommit(
+	ctx: SimContext,
+	blurBlockIndex: number,
+	before: string
+): Promise<void> {
+	await ctx.editor.clickBlock(blurBlockIndex);
+	await ctx.editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
+}
 
 /** Block path + `data-source-start` offset of the Nth rendered reference widget island. */
 async function nthRefIsland(
