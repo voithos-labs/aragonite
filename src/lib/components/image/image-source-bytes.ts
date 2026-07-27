@@ -1,5 +1,7 @@
-// Inverse of the image scanner: rebuild source bytes when fields change
-// (popover edits, drag-resize). Title quoting canonicalizes to double-quotes.
+// Where an image edit becomes bytes: the claim dispatcher every write path calls,
+// and under it the GFM branch — the inverse of the image scanner, whose title
+// quoting canonicalizes to double-quotes. The two live together because G4.21
+// requires the serializer to be named in one module, which has to be this one.
 
 import type { ImageFields, InlineNode } from '../../core/nodes';
 import { devWarn } from '../../dev-warn';
@@ -8,13 +10,12 @@ import { devWarn } from '../../dev-warn';
 
 /**
  * Bytes to splice over `image`'s range for `fields`, or `null` when the edit must
- * be declined. **Every image write path goes through here** (G4.21): the built-in
- * GFM serializer below is one branch of it, reached only for bytes the built-in
- * scanner read. An inline rung may mint an `image` over syntax of its own, and
- * re-emitting that node's fields as GFM would replace the author's bytes wholesale
- * — so a claimed node re-serializes through its rung's `rewriteImage` hook, and a
- * rung that declares none (or whose hook declines this edit) yields `null`. The
- * caller drops the commit; nothing else in the editor may write those bytes.
+ * be declined. **Every image write path goes through here** (G4.21). A node an
+ * inline rung claimed re-serializes through that rung's `rewriteImage` hook, since
+ * emitting the built-in grammar over another syntax's bytes destroys them; a rung
+ * that declares no hook, or whose hook declines, yields `null` and the caller drops
+ * the commit. Rationale and the plugin-side contract: docs/design/plugin-contract.md
+ * § Inline authoring.
  */
 export function buildImageEditBytes(
 	image: InlineNode,
