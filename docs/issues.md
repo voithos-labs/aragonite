@@ -346,7 +346,7 @@ resolving (`Editor.svelte`, guarded by `selection-restore.spec.ts`'s hand-back s
 restores a caret and then its own remembered scroll and then waits, so it never takes the
 user-intent turn that clears the slot — a kept pin sat armed until the next measure pass and threw
 the host's scroll away. Its release checks that the slot still holds the path it revealed, so it
-cannot nuke a fresher claimant; the terminal clears on the `'center'` and `!landed` arms still do
+cannot clear a claimant on a DIFFERENT path; a same-path claimant that lands between scrollTo's synchronous arm and the post-await release can still lose its band (claimant identity and block mode are not compared); the terminal clears on the `'center'` and `!landed` arms still do
 not, and remain part of the shape above. Search keeps its durable band: a searching reader's next
 keystroke lands in the bar — inside the root — and releases it.
 
@@ -846,3 +846,24 @@ listItem in the same pass, since both inherit the same prefix-forward machinery.
 **Why deferred:** byte round-trip holds throughout, and both edges need a constructed input the common
 footnote shape never produces; the Enter-at-end fix is the same deferred splitNode design pass its
 top-level sibling entry already owns.
+
+### Mermaid diagrams have no theme seam
+
+**Severity:** minor (visual; light-palette diagrams in dark themes)
+**Files:** `src/lib/plugins/mermaid/renderer.ts` (`loadMermaid()` memoizes `initialize` process-once), `src/lib/plugins/mermaid/MermaidBlock.svelte` (render memo keyed on code text only; the `$effect` reads only `code`)
+
+A consumer cannot recolor diagrams for its theme: a renderer config option alone would not help, because already-drawn diagrams never re-render on a theme change — the memo key carries no theme term and the effect subscribes to none. The seam is a theme term in the memo key plus a re-initialize path (or per-render config). Found by limestone's visual pass; its interim state is light diagrams in dark themes, accepted and recorded consumer-side.
+
+### A broken image widget is never redecorated when its load fails
+
+**Severity:** minor (visual; a failed image shows 0×0 until the next block render)
+**Files:** the image widget build path (`src/lib/components/image/`)
+
+The broken-image placeholder appears one render BEHIND the failure: the widget's error state does not trigger a redecoration, so a failed load shows nothing until something else re-renders the block (a mode round-trip suffices and the placeholder then persists). Measured consumer-side at 0×0 after 2s in live preview, 229×60 after a mode round-trip.
+
+### `--color-ui-faint` is the one chrome token that does not flip with mode
+
+**Severity:** nit (token hygiene)
+**Files:** `src/lib/styles/editor-theme.css:48,132`
+
+Declared with the identical value in the dark base and the light override — the only host-contract chrome token with no mode response, and it is blue where every sibling default is neutral or the accent. Either give it a light-mode value or record the both-modes value as intended. Limestone bridges it to an app token consumer-side.
