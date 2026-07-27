@@ -486,12 +486,12 @@ export class Gestures {
 		return revealFootnoteReference(this.ctx, refIndex, blurBlockIndex);
 	}
 
-	editFootnoteLabel(refIndex: number, text: string): Promise<void> {
-		return editFootnoteLabel(this.ctx, refIndex, text);
+	editFootnoteLabel(refIndex: number, text: string, blurBlockIndex: number): Promise<void> {
+		return editFootnoteLabel(this.ctx, refIndex, text, blurBlockIndex);
 	}
 
-	deleteFootnoteReference(refIndex: number): Promise<void> {
-		return deleteFootnoteReference(this.ctx, refIndex);
+	deleteFootnoteReference(refIndex: number, blurBlockIndex: number): Promise<void> {
+		return deleteFootnoteReference(this.ctx, refIndex, blurBlockIndex);
 	}
 
 	// ── Cross-block selection + destruction ──────────────────────────────────────

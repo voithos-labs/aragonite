@@ -209,7 +209,7 @@
 			const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
 			return toClampedRawOffset(content, ambientLength);
 		},
-		getTextLen: () => getDisplayText().length,
+		getTextLen: () => liveDisplayLength(),
 		readText: () => readRawText(),
 		commitInput: (text, preEdit, saved) => {
 			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit, saved);
@@ -394,8 +394,15 @@
 		return widgetInteraction.enterEdgeWidget(side);
 	}
 
-	/** The display length the CARET walks, which a live reveal moves away from
-	 *  `node.raw`: while revealed the block's bytes are the DOM's. */
+	/**
+	 * The display length the CARET walks, which a live reveal moves away from
+	 * `node.raw`: while revealed the block's bytes are the DOM's. Every boundary test
+	 * on the caret's position reads this — the merge-next edge and the arrow/vertical
+	 * boundaries alike. Against `node.raw` an edited reveal at the block's end traps
+	 * the caret: the live end sits short of the stale length, so no press ever reads
+	 * as "at the boundary" and the caret cannot leave the block rightward. The table
+	 * cell's sibling context already reads its live DOM length for the same reason.
+	 */
 	function liveDisplayLength(): number {
 		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
 	}

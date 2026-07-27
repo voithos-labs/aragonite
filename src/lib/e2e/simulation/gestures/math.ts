@@ -21,6 +21,20 @@ async function waitForWidgetCount(page: Page, expected: number, timeout = 2000):
 	);
 }
 
+/**
+ * Walk the caret out of a revealed source, which is what commits it. Enter is the
+ * block's split key, not a commit gesture (see `latex-inline-reveal-commands`), so
+ * every reveal→edit gesture here escapes instead. Bounded by one press per byte the
+ * caret could still be short of the trailing edge; the committed source is the settle.
+ */
+async function escapeRevealToCommit(ctx: SimContext, before: string): Promise<void> {
+	for (let i = 0; i < 40; i++) {
+		await ctx.page.keyboard.press('ArrowRight');
+		if ((await ctx.editor.bridge.getSource()) !== before) return;
+	}
+	throw new Error(`[${ctx.label}] the revealed source never committed on a caret escape`);
+}
+
 async function blockRaw(ctx: SimContext, index: number): Promise<string> {
 	return ctx.page.evaluate(
 		(i) => ((window as any).__test.getDocument().children[i]?.raw ?? '') as string,
@@ -84,8 +98,8 @@ export async function insertBlockMath(
 
 /**
  * Click the first inline widget to reveal its `$…$` source, step past the opening
- * `$`, insert `text`, and commit with Enter — the select→reveal→commit UX. Gates
- * on the widget folding back to a render after commit.
+ * `$`, insert `text`, and commit by walking the caret out — the click→reveal→commit
+ * UX. Gates on the widget folding back to a render after commit.
  */
 export async function editInlineMath(ctx: SimContext, text: string): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -97,7 +111,7 @@ export async function editInlineMath(ctx: SimContext, text: string): Promise<voi
 	await editor.waitForRenderFlush();
 	await page.keyboard.press('ArrowRight');
 	await page.keyboard.type(text);
-	await page.keyboard.press('Enter');
+	await escapeRevealToCommit(ctx, before);
 
 	await waitForWidgetCount(page, widgetCount); // commit re-rendered the island
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);

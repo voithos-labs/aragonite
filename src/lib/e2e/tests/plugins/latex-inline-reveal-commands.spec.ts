@@ -147,6 +147,23 @@ test.describe('block commands against a revealed inline source', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('ArrowRight leaves a block whose edited reveal sits at its end', async ({ page }) => {
+		await editor.loadContent('$x^2$\n\nbelow\n');
+		await editor.revealFromTrailingEdge(0);
+		// Eat the closing `$`: the live bytes are now SHORTER than node.raw, so every
+		// boundary test measured against the stale raw reads the caret as mid-block and
+		// the caret can never leave rightward — a trap, and the reveal never folds.
+		await editor.backspaceRevealed(0, ['$x^2']);
+
+		await page.keyboard.press('ArrowRight');
+		await editor.bridge.waitForSourceContains('$x^2\n');
+
+		// Focus is in the block below, asserted by typing rather than by the source.
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('Zbelow');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('a caret snapped past a trailing math widget paints exactly one caret', async ({ page }) => {
 		await editor.loadContent('$x^2$\n');
 		const box = await editor.mathWidget.boundingBox();
