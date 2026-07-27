@@ -1,4 +1,5 @@
 import fc from 'fast-check';
+import type { InlineNode } from '../../../core/nodes';
 
 // Inline content fragments: emphasis/strong/strike runs, code spans, links,
 // autolinks, escapes, hard breaks, plain words, and the `&` scanner's decline
@@ -12,7 +13,8 @@ import fc from 'fast-check';
 // are flanking-neutral literal text, so they exercise the `&` scanner without
 // perturbing any shared property. Accepting-reference tiling is covered by the
 // conformance corpus (G2.11) and `test/core/inline/character-refs.test.ts`; the
-// entity-widget spine delta lives in the spine test's widget-delta case.
+// entity-widget spine delta lives in the spine test's widget-delta case. Images
+// re-enter the spine as `arbAltOnlyImage` below, where they are not widgets.
 
 // Non-ASCII words (CJK, combining mark, emoji, ZWJ cluster) arm the properties
 // against surrogate/cluster slicing: no node boundary may land mid-pair.
@@ -96,3 +98,48 @@ const fragment = fc.oneof(
 export const arbInlineSource = fc
 	.array(fragment, { minLength: 1, maxLength: 12 })
 	.map((parts) => parts.join(''));
+
+// ── Minted images (the alt-only render path) ─────────────────────────────────
+
+/**
+ * An `image` node paired with the bytes it spans, minted the way an inline-syntax
+ * rung mints one: `alt` is whatever the rung derived, and need not be a slice of the
+ * node — or of the document — at all. No source arbitrary can reach this, because a
+ * parsed alt is always read off its own label; that blind spot is what let an image
+ * rendered through the alt-only path print bytes its span did not have.
+ */
+export const arbAltOnlyImage = fc
+	.record({
+		lead: fc.constantFrom('', 'see ', '## '),
+		open: fc.constantFrom('![', '![[', '!'),
+		target: fc.constantFrom('cat.png', 'a', 'x y', '汉字.png', ''),
+		close: fc.constantFrom('](u)', ']]', '|300]]', ']', ''),
+		trail: fc.constantFrom('', ' tail'),
+		// Pulls the node's end inside its own construct, so an alt read off the bytes
+		// can outrun the span that owns it — the shape a fixture never thinks to build.
+		shrink: fc.nat({ max: 3 }),
+		altKind: fc.constantFrom('target', 'sourceRun', 'span', 'foreign', 'none')
+	})
+	.map(({ lead, open, target, close, trail, shrink, altKind }) => {
+		const raw = lead + open + target + close + trail;
+		const start = lead.length;
+		const end = Math.max(start + 1, start + open.length + target.length + close.length - shrink);
+		const alt = {
+			target,
+			// The bytes a GFM-shaped read calls the alt: matches `raw` at the assumed
+			// opener and runs past the node.
+			sourceRun: raw.slice(start + 2),
+			span: raw.slice(start, end),
+			foreign: 'elsewhere',
+			none: undefined
+		}[altKind];
+		const node: InlineNode = {
+			kind: 'image',
+			start,
+			end,
+			children: [],
+			url: target,
+			...(alt !== undefined ? { alt } : {})
+		};
+		return { raw, node };
+	});
