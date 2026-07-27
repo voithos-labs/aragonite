@@ -49,12 +49,12 @@ export interface InlineSyntaxOptions {
 	/** Rung; lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
 	priority?: number;
 	/**
-	 * Re-serializer for the built-in `image` nodes this recognizer mints. A rung may
-	 * claim any bytes it likes — `![[cat.png|300]]` — and mint an `image` so the whole
-	 * editor treats it as one; the resize and properties gestures then need a way back
-	 * to the rung's syntax. Without this hook those edits are declined rather than
-	 * written back as GFM, which would destroy the claimed bytes. See the plugin
-	 * guide's inline section.
+	 * Re-serializer for the built-in `image` nodes this recognizer mints, without which
+	 * the editor declines those edits rather than writing GFM over the claimed bytes.
+	 * Return `null` for anything your grammar cannot hold — including a field the user
+	 * edited that you would otherwise ignore, since bytes identical to the source are
+	 * dropped by the commit's equality guard silently, with no dev warn. See the plugin
+	 * guide's inline section for the shape and its edges.
 	 */
 	rewriteImage?: ImageSyntaxRewriter;
 }
