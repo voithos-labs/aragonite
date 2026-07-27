@@ -238,6 +238,20 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   repros rather than fixed: typing a `> [!TYPE]` marker per keystroke never forms an alert, and a
   long paste into a windowed list loses the caret (VR-12).
 
+- **A desktop shell's asset URLs pass the image-src allowlist.** `asset:` joins `http`, `https`
+  and `data` as an allowed image scheme, so an editor embedded in a webview shell renders a local
+  file the host resolved for it. The defect this closes is platform-shaped, which is the reason it
+  is worth a scheme rather than a workaround: Tauri's `convertFileSrc` returns
+  `http://asset.localhost/…` on Windows and `asset://localhost/…` on macOS and Linux, so a host
+  whose images all rendered on the developer's machine had every one of them blocked — GFM and
+  plugin-minted alike — on two thirds of its platforms, with nothing a Windows CI could see. The
+  scheme carries no script capability: no browser resolves it, and a webview that does serves
+  bytes off disk. Hrefs are unchanged — an asset URL is a src, and nothing has asked to navigate
+  to one. A consumer-extensible allowlist is the obvious generalization and is deliberately not
+  taken here: a host may name its own protocol (`convertFileSrc(path, 'myasset')`), so the general
+  answer is a contract surface to settle at the freeze, while this is the one name the platform
+  publishes.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

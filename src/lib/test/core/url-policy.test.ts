@@ -18,7 +18,10 @@ describe('url-policy — href allowlist', () => {
 		['javascript:alert(1)', false],
 		['vbscript:msgbox(1)', false],
 		['file:///etc/passwd', false],
-		['data:text/html,<script>', false]
+		['data:text/html,<script>', false],
+		// Deliberately image-only: a webview asset URL is a src, and nothing has asked
+		// for it as a navigation target.
+		['asset://localhost/a.png', false]
 	])('isAllowedHrefScheme(%s) === %s', (url, expected) => {
 		expect(isAllowedHrefScheme(url)).toBe(expected);
 	});
@@ -62,6 +65,10 @@ describe('url-policy — image src allowlist', () => {
 		['http://example.com/a.png', true],
 		['data:image/png;base64,AAAA', true],
 		['/local/a.png', true],
+		// Tauri's asset protocol: `http://asset.localhost/…` on Windows, `asset://…`
+		// everywhere else, so admitting only the first blocks every image off Windows.
+		['asset://localhost/a.png', true],
+		['http://asset.localhost/a.png', true],
 		['javascript:alert(1)', false],
 		['vbscript:msgbox(1)', false],
 		['file:///a.png', false]

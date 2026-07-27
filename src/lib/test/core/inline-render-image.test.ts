@@ -160,6 +160,22 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		expect(frag.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
 	});
 
+	// Tauri hands a webview an `asset://` URL for a local file everywhere except
+	// Windows, where the same protocol arrives as `http://asset.localhost/…`.
+	it('allows an asset: src a resolver hands back', () => {
+		const raw = '![x](assets/a.png)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(
+			inline,
+			raw,
+			withWidget({ resolveImageUrl: (u) => `asset://localhost/vault/${u}` })
+		);
+		expect(frag.querySelector('img')?.getAttribute('src')).toBe(
+			'asset://localhost/vault/assets/a.png'
+		);
+		expect(frag.querySelector('.md-image-blocked')).toBeNull();
+	});
+
 	it('imageLoadPolicy "placeholder" defers loading (no src, placeholder class)', () => {
 		const raw = '![x](https://example.com/a.png)';
 		const inline = parseInline(raw, 0, raw.length);
