@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
+import {
+	INLINE_PRIORITIES,
+	registerInlineSyntax,
+	__resetInlineSyntaxForTests
+} from '../../../core/inline/scan/plugin-syntax';
 import type { CstNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
@@ -23,6 +28,20 @@ const replaceIsland = (start: number, end: number, buildDom?: () => HTMLElement)
 		widget: buildDom ? { buildDom } : undefined
 	}
 });
+
+function registerEmbedRung(): void {
+	registerInlineSyntax(
+		'!',
+		(raw, pos, end) => {
+			if (!raw.startsWith('![[', pos)) return null;
+			const close = raw.indexOf(']]', pos + 3);
+			if (close < 0 || close + 2 > end) return null;
+			const target = raw.slice(pos + 3, close);
+			return { kind: 'image', start: pos, end: close + 2, children: [], alt: target, url: target };
+		},
+		{ prefix: '![[', priority: INLINE_PRIORITIES.prefixOverride }
+	);
+}
 
 function mount(
 	raw: string,
@@ -59,6 +78,8 @@ function mount(
 		}
 	};
 }
+
+afterEach(() => __resetInlineSyntaxForTests());
 
 describe('createCellRender', () => {
 	it('renders emphasis as a styled <em> with dimmed markers', () => {
@@ -98,7 +119,21 @@ describe('createCellRender', () => {
 		render.render();
 		expect(el.querySelector('img')).toBeNull();
 		expect(el.querySelector('[data-inline-widget]')).toBeNull();
-		expect(el.textContent).toContain('alt');
+		expect(el.textContent).toBe('![alt](u)');
+		// The split is what a reading-mode collapse leaves behind: markers go, alt stays.
+		expect([...el.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'](u)'
+		]);
+	});
+
+	// A plugin's `![[…]]` rung mints a built-in image whose alt names the target, so
+	// the cell's alt-only path meets a node whose markers aren't the GFM two.
+	it('renders a plugin-minted image as its own source bytes', () => {
+		registerEmbedRung();
+		const { el, render } = mount('![[cat.png]]');
+		render.render();
+		expect(el.textContent).toBe('![[cat.png]]');
 	});
 
 	it('memoizes: a second render with unchanged raw does not rebuild', () => {
