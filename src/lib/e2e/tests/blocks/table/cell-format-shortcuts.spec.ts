@@ -36,6 +36,18 @@ test.describe('table cell: inline-format shortcuts', () => {
 		expect(await editor.bridge.getSource()).toContain('| *hello* | world |');
 	});
 
+	// The cell's caret contract is prose's — the two toggles share one pure core,
+	// and the cell's own escape door runs over its result.
+	test('Ctrl+B at a collapsed caret inserts the empty pair', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | world |\n');
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Control+b');
+		await editor.bridge.waitForSourceContains('hello****');
+
+		expect(await editor.bridge.getSource()).toContain('| hello**** | world |');
+	});
+
 	test('Ctrl+B over already-bold cell content toggles it off', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| **hello** | world |\n');
 		await selectCellWord(page, 2, '**hello**'.length);
