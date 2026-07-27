@@ -263,12 +263,10 @@ function appendImageSource(
 	const altText = node.alt ?? '';
 	const altStart = node.start + 2;
 	const altEnd = altStart + altText.length;
-	// `alt` locates the marker split and never supplies text — every string emitted
-	// here is a slice of `raw`, since a parsed field can differ from the bytes. And it
-	// locates it only where it IS those bytes: a plugin-minted image's markers need
-	// not be the two a GFM image's are, and `![[cat.png]]` split against `![` printed
-	// `![cat.pngg]]`. Unlocatable → unmarked source, which every presentation mode
-	// keeps; claiming the bytes as markers would collapse the construct to nothing.
+	// `alt` locates the split and never supplies text (openLink's rule), and only where
+	// it is literally those bytes: a minted image's markers need not be the two a GFM
+	// image's are. Unlocatable → unmarked source, since markers collapse in reading mode
+	// and a construct nobody can decompose would collapse whole.
 	if (altEnd > node.end || !raw.startsWith(altText, altStart)) {
 		container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
 		return;
@@ -326,11 +324,10 @@ function renderNode(
 
 		case 'image': {
 			const renderWidgets = opts.renderImagesAsWidgets ?? true;
-			const resolveUrl = opts.resolveImageUrl ?? ((u) => u);
 			if (renderWidgets && opts.buildImageWidget) {
 				container.appendChild(
 					opts.buildImageWidget(node, raw, {
-						resolveImageUrl: resolveUrl,
+						resolveImageUrl: opts.resolveImageUrl ?? ((u) => u),
 						imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
 					})
 				);
