@@ -143,6 +143,20 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 	});
 
+	// The decline a consumer meets first. An embed names one file, so the popover's
+	// Alt row edits a field the grammar cannot store apart from the target; a hook
+	// that ignored it would return byte-identical bytes and the commit's equality
+	// guard would drop them, leaving the row inert with no diagnostic anywhere.
+	it('declines an alt edited away from the target', async () => {
+		registerWikiRung(rewriteWikiImage);
+		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');
+		const renamed = { alt: 'A cat', url: 'cat.png', width: 300 };
+		expect(committer.buildEditBytes(target, renamed)).toBeNull();
+		committer.commitImageEdit(target, renamed);
+		await Promise.resolve();
+		expect(controller.commitStructural).not.toHaveBeenCalled();
+	});
+
 	// A hook may model only part of its own grammar's edits — the embed syntax has
 	// nowhere to put a title — and a decline there is a decline, not a fallback.
 	it('declines an edit the hook cannot represent', async () => {

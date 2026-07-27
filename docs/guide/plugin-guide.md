@@ -631,9 +631,11 @@ registerInlineSyntax('!', recognizeEmbed, {
 	priority: INLINE_PRIORITIES.prefixOverride,
 	rewriteImage: (source, fields) => {
 		if (!source.startsWith('![[')) return null; // bytes this rung did not shape
-		// `![[target|width]]` holds a target and an optional width and nothing else.
-		// An embed names one file, so alt and url are the same string — an alt the
-		// user edited apart from the url has no form here either.
+		// Decline what this grammar cannot store rather than dropping it silently: it
+		// holds a target and an optional width and nothing else. The alt line is THIS
+		// recognizer's version of that rule — it fills alt and url from the one target,
+		// so an alt that no longer matches is an edit with no form here. Write yours
+		// against however your own recognizer fills the node.
 		if (fields.title !== undefined || fields.label !== undefined) return null;
 		if (fields.alt !== fields.url) return null;
 		return `![[${fields.url}${fields.width !== undefined ? `|${fields.width}` : ''}]]`;

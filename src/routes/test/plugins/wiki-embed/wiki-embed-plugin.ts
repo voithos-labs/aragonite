@@ -40,10 +40,14 @@ function recognizeEmbed(raw: string, pos: number, end: number): InlineNode | nul
 	};
 }
 
-// An embed names a target and an optional width. A title or a reference label has
-// no form here, so those edits decline rather than escape into GFM.
+// An embed names a target and an optional width, so a title, a reference label, or
+// an alt edited away from the target has no form here and declines rather than
+// escaping into GFM. The alt case earns its line: ignoring it instead would return
+// byte-identical bytes, which the commit's equality guard drops silently — the
+// quiet failure this dogfood must not model for a reader.
 function rewriteImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;
+	if (fields.alt !== fields.url) return null;
 	return `![[${fields.url}${fields.width !== undefined ? `|${fields.width}` : ''}]]`;
 }
