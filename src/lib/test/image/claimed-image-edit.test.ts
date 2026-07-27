@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 /**
- * Editing an image whose bytes a plugin inline rung claimed. The editor's image
- * write paths re-serialize a node from its fields, and for a node minted over
- * `![[cat.png|300]]` that once meant emitting GFM over syntax the editor does not
- * own. The rung's `rewriteImage` hook is the only thing that may write those bytes;
- * without it the edit is declined, never rewritten.
+ * Editing an image whose bytes a plugin inline rung claimed: the hook writes them,
+ * or nothing does. Both entry points are driven, because each carried the GFM
+ * serializer independently before the seam existed. Contract:
+ * docs/design/plugin-contract.md § Inline authoring.
  */
 
 import { afterEach, describe, it, expect, vi } from 'vitest';

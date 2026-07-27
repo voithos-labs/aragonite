@@ -21,6 +21,6 @@ Seed `wiki-embed`: block 0 `Before`, block 1 the embed at width 400, block 2 `Af
 
 ## Error cases
 
-- The declined overlap is a unit concern (`inline-ladder-bang.test.ts`): the rung
-  declines `![[a]](u)`, which is a built-in image the editor still owns. The e2e
-  asserts no console errors are captured across every gesture.
+- The declined overlap is a unit concern (`inline-ladder-claim.test.ts`): the rung
+  declines `![[a]](u)`, which is a built-in image the editor still owns. Both resize
+  gestures assert no console errors were captured.
