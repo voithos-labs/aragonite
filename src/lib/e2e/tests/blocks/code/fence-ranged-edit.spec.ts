@@ -37,6 +37,16 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
+	test('undo restores the whole block after a clamped delete', async () => {
+		await selectFrom(editor, BODY_MID, INTO_CLOSER);
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('const \n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('const x = 1');
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+	});
+
 	test('Delete over a body-into-closer selection deletes only the body part', async () => {
 		await selectFrom(editor, BODY_MID, INTO_CLOSER);
 		await editor.page.keyboard.press('Delete');
