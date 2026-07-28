@@ -29,9 +29,9 @@ import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { GrammarView } from '../schema/block-openers';
-import { perfEnabled, recordContainerKindReparse, recordRebuildDepth } from '../perf/instruments';
+import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
-import { reclassifyContainer } from './node-ops';
+import { lineOpensAs, reclassifyContainer } from './node-ops';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
 	// The door: the copy is freshly owned; its children still alias shared
@@ -208,10 +208,14 @@ export interface ContainerReclassification {
  * outermost level's parent, and a replaced node's slot is found by identity.
  * One chain rebuild = one rebuild-depth histogram sample.
  *
- * The kind re-derivation is gated on the container's FIRST line changing across
- * its rebuild: an opener claims from line 1, so a body-line edit cannot change
- * what the container opens as, and the common keystroke pays a string compare
- * instead of a reparse.
+ * The kind re-derivation costs a parse of the container's WHOLE raw, so it is
+ * gated twice. An opener claims from line 1, so a body-line edit cannot change
+ * what the container opens as — that is a string compare. And an edit that DOES
+ * rewrite line 1 still only matters when it moved the line's opener verdict
+ * (`lineOpensAs`, a one-line parse): typing into a list's first item or a callout
+ * title rewrites the opener line on every keystroke and moves nothing. Without the
+ * second gate the parse is linear in container bytes on a gesture that is not,
+ * which is a keystroke cost on the container-size axis.
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
@@ -224,12 +228,13 @@ export function rebuildUnsharedChain(
 		const node = chain[i];
 		const openerLineBefore = firstLine(node.raw);
 		rebuildOwnedContainer(node, sharing);
-		if (firstLine(node.raw) === openerLineBefore) continue;
+		const openerLineAfter = firstLine(node.raw);
+		if (openerLineAfter === openerLineBefore) continue;
+		if (lineOpensAs(openerLineAfter, grammar) === lineOpensAs(openerLineBefore, grammar)) continue;
 
 		const siblings = (i === 0 ? root : chain[i - 1]).children;
 		const index = siblings?.indexOf(node) ?? -1;
 		if (!siblings || index < 0) continue;
-		if (perfEnabled()) recordContainerKindReparse();
 		const replacement = reclassifyContainer({ children: siblings }, index, grammar);
 		if (replacement) {
 			sharing.stamp(replacement);
