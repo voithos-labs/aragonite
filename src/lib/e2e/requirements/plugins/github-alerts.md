@@ -13,12 +13,11 @@ dogfood, so a typed-from-scratch alert uses `tip`.
 - loaded alert renders styled: the seed's `> [!CAUTION]` mounts as a
   `.admonition[data-alert-source='github'][data-kind='caution']` box whose badge
   reads "Caution", and the source still contains the verbatim `> [!CAUTION]` bytes
-- typing an alert from scratch: the `> [!TIP]` marker arrives as one input event, which
-  forms an empty alert with the caret in its body, so typing the body straight on (no
-  second Enter, which exits the quote) lands a `githubAlert` root child whose body
-  carries the typed text, bytes reading `> [!TIP]\n> …`. Per-keystroke marker formation
-  is NOT covered: it leaves the block a `blockquote` that never reclassifies and drives
-  `parseConverged()` false — a live defect, not a coverage choice
+- typing an alert from scratch, per keystroke: `>` promotes the block to a blockquote and
+  completing `[!TIP]` reclassifies it to an empty alert with the caret in its body, so
+  typing the body straight on (no second Enter, which exits the quote) lands a
+  `githubAlert` root child whose body carries the typed text, bytes reading
+  `> [!TIP]\n> …`
 
 ## User interactions
 
