@@ -150,6 +150,18 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n```');
 	});
 
+	// Enter never reaches beforeinput — the keymap claims it at keydown — so its
+	// splice carries the same span rule rather than inheriting the guard.
+	it('Enter over a fence-crossing selection replaces only the body part', async () => {
+		select(12, 20);
+		mounted.el.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+		);
+		await settle();
+
+		expect(committedText()).toBe('```js\nconst \n\n```');
+	});
+
 	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach
 	// an IME; the selection has to be shrunk before the composition owns the surface.
 	it('compositionstart re-seats a fence-crossing selection onto the body', () => {

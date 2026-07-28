@@ -394,6 +394,19 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   now empties the body and leaves a code block, where the unguarded native delete of the whole
   display left a paragraph.
 
+- **Enter inside a closing fence no longer breaks it, and Enter over a selection replaces it.**
+  The Enter splice was clamped out of the opener line and not the closer, so a caret placed in the
+  closing ` ``` ` spliced a newline through it and left an unclosed fence — the collapsed-caret
+  sibling of the ranged-edit bug above, found while enumerating that family. `clampEnterOffsetToBody`
+  is symmetric now: a caret strictly inside either fence line's text lands on the nearest body edge,
+  while each line's inner edge (after the info string, before the closer's backticks) stays put,
+  since splicing there is already safe and its caret behavior is pinned. Both Enter members — the
+  `code.newline` command and the soft break — now take their span from one helper, which is also
+  what makes Enter replace a selection instead of inserting at its start and leaving the selected
+  text behind. That silent no-delete had one more edge: the soft break clamped its two endpoints
+  independently, so a selection inside the info string produced an inverted span and duplicated
+  text. A span cannot invert.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

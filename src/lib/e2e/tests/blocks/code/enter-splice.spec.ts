@@ -1,9 +1,10 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Enter with the caret on the opening fence line clamps to the body start —
-// the opener must stay byte-intact. A splice before/inside the opener made
-// sliceFencedCode render a phantom fence. Requirements: enter-on-opener-fence.md.
+// Where Enter splices its newline inside a fenced code block: clamped out of
+// both fence lines (a splice inside the opener made sliceFencedCode render a
+// phantom fence; one inside the closer broke the fence outright), and applied to
+// the selection's body span when there is a selection. Requirements: enter-splice.md.
 
 test.describe('code block — Enter on the opener fence line', () => {
 	let editor: EditorPage;
@@ -65,5 +66,57 @@ test.describe('code block — Enter on the opener fence line', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.typeSlowly('z');
 		await editor.bridge.waitForSourceEquals('```js\nz\nconst x = 1;\n```\n');
+	});
+});
+
+test.describe('code block — Enter on the closer fence line', () => {
+	let editor: EditorPage;
+
+	// display "```js\nconst x = 1\n```": body ends at 17, closer text runs [18,21).
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('```js\nconst x = 1\n```\n');
+	});
+
+	test('Enter inside the closer text clamps to the body end — fence intact', async () => {
+		await editor.focusBlock(0, 19);
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n\n```\n');
+
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+	});
+
+	test('Enter at the start of the closer line keeps its blank-line behavior', async () => {
+		await editor.focusBlock(0, 18);
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n\n```\n');
+	});
+});
+
+test.describe('code block — Enter over a selection', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('```js\nconst x = 1\n```\n');
+	});
+
+	test('Enter replaces the selected text with the newline', async () => {
+		await editor.focusBlock(0, 12);
+		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('```js\nconst \n\n```\n');
+	});
+
+	test('Enter over a selection reaching into the closer keeps the fence', async () => {
+		await editor.focusBlock(0, 12);
+		for (let i = 0; i < 8; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('```js\nconst \n\n```\n');
+
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 });

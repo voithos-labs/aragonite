@@ -237,15 +237,9 @@
 			e.preventDefault();
 			// Mobile/IME paths skip onKeyDown so preEditOffset may be stale; capture fresh.
 			const branchPreEditOffset = backend.getRaw() ?? 0;
-			// Sibling of codeNewline's opener guard: a soft break splices the same
-			// `\n`, so its selection clamps out of the opener line too.
-			const range = currentRange();
 			const result = computeCodeEnter({
 				display: getDisplayText(),
-				selection: {
-					start: clampEnterOffsetToBody(node, range.start),
-					end: clampEnterOffsetToBody(node, range.end)
-				},
+				selection: enterSpliceSpan(currentRange()),
 				mode: 'soft',
 				ending: trailingLineEnding(node.raw)
 			});
@@ -292,6 +286,17 @@
 	}
 
 	// ── Fence-crossing edits ──────────────────────────────────────────────────
+
+	/**
+	 * Where an Enter-family splice lands, for both members (the `code.newline`
+	 * command and the soft break). A caret clamps out of the two fence lines; a
+	 * selection is replaced on its body span, like every other ranged edit here.
+	 */
+	function enterSpliceSpan(range: CodeRange): CodeRange {
+		if (range.start !== range.end) return fenceEditSpan(node, range);
+		const at = clampEnterOffsetToBody(node, range.start);
+		return { start: at, end: at };
+	}
 
 	/**
 	 * The one guard for every native edit that rewrites a range on this surface.
@@ -476,26 +481,27 @@
 			return true;
 		}
 
-		// Opener-side mirror of the closer guards above: a `\n` spliced into the
-		// opener line corrupts the fence, so the splice clamps to the body start.
-		// The undo anchor stays on the true pre-edit caret (`offset`).
-		const splice = clampEnterOffsetToBody(node, offset);
+		// The undo anchor stays on the true pre-edit caret (`offset`); the splice
+		// itself lands wherever the fence lines allow.
+		const span = enterSpliceSpan(currentRange());
 
 		// Electric indent: between an empty bracket pair, expand into three lines
-		// with an extra indent on the middle line. Quote pairs stay inline.
+		// with an extra indent on the middle line. Quote pairs stay inline. A
+		// selection has no pair to sit between — it is replaced, not expanded.
 		const ending = trailingLineEnding(node.raw);
-		if (isBetweenEmptyBracketPair(text, splice)) {
-			const indent = getLineLeadingWhitespace(text, splice);
+		if (span.start === span.end && isBetweenEmptyBracketPair(text, span.start)) {
+			const at = span.start;
+			const indent = getLineLeadingWhitespace(text, at);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
-			const newText = text.slice(0, splice) + ending + inner + ending + indent + text.slice(splice);
+			const newText = text.slice(0, at) + ending + inner + ending + indent + text.slice(at);
 			blockEdit.updateBlockContent(index, newText + ending, offset);
-			pendingCursorOffset = splice + ending.length + inner.length;
+			pendingCursorOffset = at + ending.length + inner.length;
 			return true;
 		}
 
 		const enter = computeCodeEnter({
 			display: text,
-			selection: { start: splice, end: splice },
+			selection: span,
 			mode: 'normal',
 			ending
 		});

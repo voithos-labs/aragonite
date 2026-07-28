@@ -70,17 +70,19 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
 }
 
 /**
- * Clamp an Enter-splice offset out of the opener line. A `\n` spliced before
- * or inside the opener text re-shapes the fence (`sliceFencedCode` renders a
- * phantom fence from a leading `\n`), so those carets clamp to the body start
- * — Enter there behaves exactly like Enter at body-line-1 start. The end of
- * the opener text is left alone: splicing after the full fence+info string is
- * already safe and keeps its caret-on-the-new-line behavior.
+ * Clamp an Enter-splice offset out of both fence lines. A `\n` spliced before or
+ * inside the opener text re-shapes the fence (`sliceFencedCode` renders a phantom
+ * fence from a leading `\n`); one spliced inside the closer text breaks the closer
+ * apart, leaving an unclosed fence. Both clamp onto the nearest body edge — Enter
+ * there behaves exactly like Enter at that edge. Each fence line's inner edge is
+ * left alone: splicing after the full fence+info string, or at the start of the
+ * closer line, is already safe and keeps its caret-on-the-new-line behavior.
  */
 export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
-	const openerLine = sliceFencedCode(node).openerLine;
-	const openerTextEnd = openerLine.endsWith('\n') ? openerLine.length - 1 : openerLine.length;
-	return offset < openerTextEnd ? openerLine.length : offset;
+	const { openerTextEnd, body, closerTextStart } = fenceRegions(node);
+	if (offset < openerTextEnd) return body.start;
+	if (offset > closerTextStart) return body.end;
+	return offset;
 }
 
 /**
