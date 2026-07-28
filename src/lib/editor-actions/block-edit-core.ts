@@ -26,7 +26,7 @@ import {
 } from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { UndoEntryMode } from '../action-contracts';
+import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
 import type { CommitScope } from './block-edit-scope';
 import { mergedElseFocusPrevious } from './merge-fallback';
 
@@ -39,7 +39,7 @@ export interface BlockEditCore {
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
+		options?: { undoEntry?: UndoEntryMode; afterTick?: CommitAfterTick }
 	): Promise<void>;
 	replaceBlock(
 		i: number,

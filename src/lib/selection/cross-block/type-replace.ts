@@ -37,7 +37,7 @@ export async function handleCrossBlockTypeReplace(
 	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
 	if (!caret) return true;
 	// All caret placements below target caret.path's top-level block; mount it
-	// once here so each (including the non-awaited afterTick) finds a live element.
+	// once here so each (the post-tick landing included) finds a live element.
 	await ctx.revealPath(caret.path);
 	if (!typed) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);

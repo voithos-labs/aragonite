@@ -581,6 +581,32 @@ non-editable case is not deferred at all: declining is the answer.
 
 ## Virtual rendering
 
+### Undo issued inside a paste's in-flight reveal lands the caret on restored content
+
+**Severity:** watch (misplaced caret; never corruption)
+**Files:** `src/lib/editor-actions/paste-coordinator.ts` (`landCaret`),
+`src/lib/editor-actions/commit/history.ts` (undo's own `revealTarget`)
+
+A structural paste's caret landing reveals its target after the commit resolves the tree, so
+between those two moments a Ctrl+Z can restore the pre-paste snapshot while the reveal is still
+scrolling. The reveal then focuses a path whose content is no longer what it was aimed at. Nothing
+serializes the two: `beginCommit`/`endCommit` is a DEV bracket that closes before the tick, and
+undo's restore issues an independent `revealPath`. Both writers also touch the scroller's
+`scrollTop`.
+
+The window is one tick plus a scroll, and no gate reproduces it — a Playwright key round-trip is
+slower than the window, so there is no constructed repro to pin. The tree is never at risk: undo
+restores from a snapshot captured synchronously before the mutation, so the document is correct
+either way and only the caret's resting place is wrong.
+
+**Fix direction:** if a repro ever appears, the move is to let the landing check that its commit is
+still the newest entry before placing the caret — not to serialize commit resolution, which is a
+far larger change than the symptom warrants.
+
+**Why deferred:** introduced knowingly with the VR-12 fix (the alternative was keeping a caret that
+is lost on every large paste), bounded to a caret position, and not constructible in a gate today.
+Recorded so the next reader of `landCaret` knows the window is known rather than unnoticed.
+
 ### Reveal scrolls a hidden ancestor that a drag deliberately will not
 
 **Severity:** minor (two seams answer the same geometry question differently, on purpose)

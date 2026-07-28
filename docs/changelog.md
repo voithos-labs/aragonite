@@ -203,9 +203,10 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   A closure cell is prose a compiler cannot read, so the honesty of the matrix rested entirely on
   review — and the thematic break above is what that gap looked like in a shipped built-in.
 
-- **The state registry stops calling a remount handoff a double claim.** `[state-registry] double
-register` fired on every list indent, because indenting splices the item's NODE into a new parent
-  and Svelte creates the destination mount before tearing the source one down — so at registration
+- **The state registry stops calling a remount handoff a double claim.** The
+  `[state-registry] double register` warning fired on every list indent, because indenting splices
+  the item's NODE into a new parent and Svelte creates the destination mount before tearing the
+  source one down — so at registration
   time two states legitimately claim one node. Nothing in that instant distinguishes the handoff
   from the corruption the warning is for, so it now re-asks once the flush settles: the loser that
   gave up its child refs was torn down, and the one still holding them is a second live component

@@ -19,6 +19,7 @@ import type { ComponentProps } from 'svelte';
 import type BlockList from '../../components/BlockList.svelte';
 import type {
 	BlockEditActions,
+	CommitAfterTick,
 	ContainerEditActions,
 	FocusActions,
 	MoveFocusOptions
@@ -181,7 +182,10 @@ export interface ContainerBlock {
 	 * once the commit's DOM has settled — a collapse toggle moves the orphaned
 	 * body caret to the chrome row here (the clamp kills the window pin).
 	 */
-	updateOwnMetadata(patch: Record<string, unknown>, afterTick?: () => void): void | Promise<void>;
+	updateOwnMetadata(
+		patch: Record<string, unknown>,
+		afterTick?: CommitAfterTick
+	): void | Promise<void>;
 	/**
 	 * Attach to the container's chrome box. A chord that bubbles from an inner
 	 * leaf (declined there without `preventDefault`) resolves against this kind's
