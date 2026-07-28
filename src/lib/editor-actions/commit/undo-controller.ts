@@ -20,7 +20,8 @@ import { nodeAt } from '../../tree-operations/node-ops';
 import {
 	attachedChainPrefix,
 	ensureUnsharedPath,
-	rebuildUnsharedChain
+	rebuildUnsharedChain,
+	type ContainerReclassification
 } from '../../tree-operations/unshare';
 import { createTextBatch } from './text-batch';
 import type {
@@ -597,9 +598,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	): Promise<void> {
 		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop } = args;
 		const prepared: PreparedScope[] = [];
-		// Containers the chain rebuild re-kinded. Their old nodes are detached, so the
-		// DEV probes below would skip them entirely without the replacements named here.
-		const reclassified: CstNode[] = [];
+		// Container slots the chain rebuild re-kinded. Two registers ride on this: the
+		// replacements are what the DEV probes check (the swapped-out nodes are detached,
+		// so `touchedNodes` would skip them), and the slot puts the old node back on an
+		// unwind, which no other rollback register reaches.
+		const reclassified: ContainerReclassification[] = [];
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -653,9 +656,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					...prepared
 						.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
 						.map((p) => p.owned),
-					...reclassified
+					...reclassified.map((r) => r.replacement)
 				].filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
 			rollback: () => {
+				// Innermost-last: the swaps landed outermost-first per chain, so putting
+				// them back in reverse leaves no replacement holding a slot.
+				for (let i = reclassified.length - 1; i >= 0; i--) {
+					const { siblings, index, previous } = reclassified[i];
+					siblings[index] = previous;
+				}
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
