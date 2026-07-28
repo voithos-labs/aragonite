@@ -513,8 +513,9 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   because the parser folds them into trivia — but it decided "empty" with `String.trim()`, so once a
   whitespace-only-but-not-blank paragraph became a real node it was dropped from the LIVE side alone
   and a tree one node too long reported convergence. The tolerance now asks `isBlankLine`, the same
-  rule that defines what the parser folds. No signature changed; a downstream profile can newly see
-  a divergence it was previously blind to, which is the point.
+  rule that defines what the parser folds. No signature changed, but a downstream profile can newly
+  report a divergence it was blind to, including on a tree that previously passed — that is the
+  point of the fix, and the compat note.
 
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
