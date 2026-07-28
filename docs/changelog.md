@@ -492,6 +492,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   module still keeps it against cmark-gfm: the §6.9 leading-boundary rule stays applied to the email
   form, which cmark-gfm exempts, and the www/url `np > 10` underscore escape stays unreproduced.
 
+- **Both GitHub-alert converters take their extent from one authority.** The `source → source`
+  stream converter scanned for its own alert extent with a line regex, and a line test cannot
+  reproduce CommonMark §5.1 lazy continuation, which absorbs a line only while a paragraph is open.
+  It now runs the parser's own `blockquoteExtent` over its line window, so the two shapes that
+  forked agree: a plain lazy line stays inside the alert, and an over-indented `>` line following a
+  body line that closed the paragraph stays outside it. The parity test's `known fork` block is
+  gone — its two fixtures moved into the agreeing table, where they are now regression guards.
+  `splitLines` joins the plugin barrel with it: `blockquoteExtent` and `ParsedLine` were already
+  public, so the seam was unreachable from a plain string.
+
+- **A CRLF document's GitHub alerts convert.** Both converters re-split their input on `\n`, which
+  left a `\r` on every line and made the `> [!TYPE]` marker fail its end-of-line anchor, so a
+  CRLF-authored alert converted to nothing at all — even though the same marker rule, asked through
+  the parser's line model, opens a `githubAlert` for it. Both now read that line model, and the
+  emitted opener, body and synthesized closer each carry the ending of the source line they replace.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

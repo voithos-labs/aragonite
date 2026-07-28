@@ -802,27 +802,6 @@ opaque-write / kind-aware replace work needs. Decide the byte policy there, not 
 pass shared with the post-1.0 opaque-write work, and the floor is honest (loud in dev, byte
 round-trip intact).
 
-### The alert stream converter cannot be parser-exact: blockquote extent is stateful
-
-**Severity:** minor (legacy source-to-source path only; the divergent cases are pinned byte-exact)
-**Files:** `src/lib/plugins/admonitions/gh-alert.ts` (`convertGithubAlerts`, `QUOTED_BODY_LINE`),
-`src/lib/core/parsers/blockquote.ts` (`blockquoteExtent`, the stateful authority),
-`src/lib/test/plugins/admonitions/converter-parity.test.ts` (the differential + `known fork` pins)
-
-The parser's blockquote extent tracks paragraph state: a lazy or over-indented `>` line is
-absorbed only while a paragraph is open. A line regex has no such state, so the stream converter
-must over- or under-claim on some input. The 2026-07-25 fix chose the favorable side: a
-tab-indented `> ` continuation (ordinary authoring) stays inside the alert, at the cost of one
-over-claim shape (a body line that closes the paragraph, followed by an over-indented `>` line,
-is claimed where the parser would end the quote). Both divergent cases are asserted byte-exact
-in the `known fork` block of the parity test, which a future consolidation deletes.
-
-**Fix direction:** consolidate the stream path onto one extent authority (run `blockquoteExtent`
-over the stream window instead of a line regex), then delete the `known fork` block.
-
-**Why deferred:** the stream converter is a legacy convenience export; the in-editor paste path
-converts through the parser and has no fork. The differential test makes the residual loud.
-
 ### Search replace skips matches inside childless opaque containers
 
 **Severity:** minor (replace parity; find/highlight/navigate work today)

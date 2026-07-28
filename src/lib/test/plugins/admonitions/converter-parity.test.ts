@@ -15,11 +15,12 @@ function convertedAlertRegion(source: string): string {
 	return convertAlertBlockquoteRaw(alert.raw)!;
 }
 
-// The indent cap landed on the stream scanner's body-scan gate as well as on the
-// strip, but a cap means the opposite thing at each: the strip declines and keeps
-// the line, the scan STOPS and ejects the rest of the alert. `> [!NOTE]\n\t> body\n`
-// converted to `":::note\n:::\n\t> body\n"` — an empty callout — where the other two
-// converters produced `":::note\n\t> body\n:::\n"`.
+// Both converters take their extent from `blockquoteExtent` — one handed the
+// extent the parser decided, one running that same scanner over a line window —
+// so CommonMark §5.1 lazy continuation lands identically on both. The last two
+// rows are the shapes that forked while the stream scanner used a line regex:
+// only a stateful extent absorbs a lazy line while a paragraph is open, and only
+// a stateful extent stops claiming once a body line has closed it.
 const AGREEING_SOURCES: [string, string][] = [
 	['plain quoted body', '> [!NOTE]\n> a\n> b\n'],
 	['tab-indented continuation line', '> [!NOTE]\n\t> body\n'],
@@ -28,7 +29,10 @@ const AGREEING_SOURCES: [string, string][] = [
 	['blank line ending the quote', '> [!NOTE]\n> a\n\nafter\n'],
 	['body line reproducing the emitted fence', '> [!NOTE]\n> :::\n> more\n'],
 	['no trailing newline', '> [!NOTE]\n> a'],
-	['two alerts in one document', '> [!NOTE]\n> a\n\n> [!TIP]\n> b\n']
+	['two alerts in one document', '> [!NOTE]\n> a\n\n> [!TIP]\n> b\n'],
+	['CRLF endings', '> [!NOTE]\r\n> a\r\n'],
+	['plain lazy line inside the alert', '> [!NOTE]\n> a\nlazy\n'],
+	['over-indented quote line after the paragraph closed', '> [!NOTE]\n> - item\n    > b\n']
 ];
 
 describe('every alert converter agrees on the same source', () => {
@@ -39,21 +43,19 @@ describe('every alert converter agrees on the same source', () => {
 	});
 });
 
-// The stream scanner decides its extent one line at a time; the parser's is
-// stateful — CommonMark §5.1 absorbs a lazy line only while a paragraph is open —
-// so no line test can make them equal. These two inputs fork by construction and
-// are pinned so the fork stays visible. Consolidating both converters onto one
-// extent authority is what deletes this block.
-describe('the stream scanner does not model lazy continuation (known fork)', () => {
-	it('ejects a plain lazy line the parser keeps inside the alert', () => {
-		const source = '> [!NOTE]\n> a\nlazy\n';
-		expect(convertGithubAlerts(source).converted).toBe(':::note\na\n:::\nlazy\n');
-		expect(convertGithubAlertsInDocument(source).converted).toBe(':::note\na\nlazy\n:::\n');
+describe('the alert extent is the parser’s, byte for byte', () => {
+	it('keeps a lazy line inside the alert', () => {
+		const converted = convertGithubAlerts('> [!NOTE]\n> a\nlazy\n').converted;
+		expect(converted).toBe(':::note\na\nlazy\n:::\n');
 	});
 
-	it('claims an over-indented quote line after a body line that closed the paragraph', () => {
-		const source = '> [!NOTE]\n> - item\n    > b\n';
-		expect(convertGithubAlerts(source).converted).toBe(':::note\n- item\n    > b\n:::\n');
-		expect(convertGithubAlertsInDocument(source).converted).toBe(':::note\n- item\n:::\n    > b\n');
+	it('leaves an over-indented quote line outside once the paragraph has closed', () => {
+		const converted = convertGithubAlerts('> [!NOTE]\n> - item\n    > b\n').converted;
+		expect(converted).toBe(':::note\n- item\n:::\n    > b\n');
+	});
+
+	it('emits CRLF endings on the opener, body and synthesized closer', () => {
+		expect(convertGithubAlerts('> [!NOTE]\r\n> a\r\n').converted).toBe(':::note\r\na\r\n:::\r\n');
+		expect(convertAlertBlockquoteRaw('> [!NOTE]\r\n> a\r\n')).toBe(':::note\r\na\r\n:::\r\n');
 	});
 });
