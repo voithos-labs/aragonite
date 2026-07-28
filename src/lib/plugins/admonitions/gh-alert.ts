@@ -11,18 +11,16 @@
  * `githubAlert` opener (github-alert-kind.ts) reuses, so the marker rule lives in
  * exactly one place.
  *
- * Two converters, one grammar, and a fork worth knowing about.
- * `convertAlertBlockquoteRaw` is handed an extent the parser already decided;
- * `convertGithubAlerts` scans for its own, one line at a time. No line test can
- * reproduce the parser there — CommonMark lazy continuation is stateful, absorbing
- * a line only while a paragraph is open — so the two disagree on an over-indented
- * `>` line following a body line that closed the paragraph, and on a plain lazy
- * line. `test/plugins/admonitions/converter-parity.test.ts` pins both where they
- * agree and where they fork. Reach for the parse-scoped wrapper in
+ * Two converters, one extent authority. `convertAlertBlockquoteRaw` is handed the
+ * extent the parser already decided; `convertGithubAlerts` runs the parser's own
+ * `blockquoteExtent` over its line window, so CommonMark §5.1 lazy continuation —
+ * stateful, absorbing a line only while a paragraph is open — lands identically on
+ * both. `test/plugins/admonitions/converter-parity.test.ts` is the differential
+ * that keeps it that way. Reach for the parse-scoped wrapper in
  * `convert-document.ts` on a whole document; the stream scanner is the fallback for
- * callers holding nothing but a string.
+ * callers holding nothing but a string, and unlike the wrapper it is not fence-safe.
  */
-import { escalatedColonCount } from '$lib/plugin';
+import { blockquoteExtent, escalatedColonCount, splitLines, type ParsedLine } from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
 
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
@@ -58,17 +56,6 @@ const MARKER = /^ {0,3}>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
 const QUOTE_OPEN = /^ {0,3}>/;
 
 /**
- * A line the stream converter's body scan still claims. Uncapped where the other
- * two gates are capped, because the cap means the opposite thing here: at the strip
- * it declines and leaves the bytes alone, but at a scan it STOPS, and a stop ejects
- * the rest of the alert. A tab-indented continuation emitted a body-less
- * `:::note` / `:::` pair with the body outside it, where both other converters kept
- * it in. Claiming the line and letting `stripQuoteMarker` decline reproduces the
- * parser's own handling of it.
- */
-const QUOTED_BODY_LINE = /^[ \t]*>/;
-
-/**
  * The alert type as it was typed (`NOTE`, `Note`, `warning`) when `line` is
  * exactly a `> [!TYPE]` marker for a known type, else null. Callers that need the
  * canonical name lowercase the result; the opener stores it verbatim so the source
@@ -96,19 +83,36 @@ export interface AlertConversion {
 }
 
 /**
+ * Emit one alert's `:::name` block from the quote lines it spans. Every emitted
+ * line keeps the ending of the source line it replaces, and the synthesized
+ * closer inherits the last one — so a source ending without a newline emits none,
+ * and a CRLF document stays CRLF. The closer is one line longer than the source,
+ * which is what the fallback covers.
+ */
+function emitDirective(name: string, source: ParsedLine[]): string {
+	const body = source.slice(1).map((line) => stripQuoteMarker(line.text));
+	const wrapped = wrapAsDirective(name, body);
+	const fallback = source.find((line) => line.lineEnding !== '')?.lineEnding ?? '\n';
+	const closerEnding = source[source.length - 1].lineEnding;
+	let out = '';
+	for (let i = 0; i < wrapped.length; i++) {
+		const isCloser = i === wrapped.length - 1;
+		out += wrapped[i] + (isCloser ? closerEnding : source[i].lineEnding || fallback);
+	}
+	return out;
+}
+
+/**
  * Convert one blockquote's exact raw bytes into `:::name` source, or null when
  * it is not a GitHub alert. GitHub only honors the `[!TYPE]` marker on the
  * blockquote's FIRST line; everything after — including lazy-continuation lines
  * and later literal `[!TYPE]` markers — is body, quote markers stripped.
  */
 export function convertAlertBlockquoteRaw(raw: string): string | null {
-	const trailingNewline = raw.endsWith('\n');
-	const lines = (trailingNewline ? raw.slice(0, -1) : raw).split('\n');
-	const typed = matchAlertMarker(lines[0]);
-	if (!typed) return null;
-	const body = lines.slice(1).map(stripQuoteMarker);
-	const out = wrapAsDirective(typed.toLowerCase(), body).join('\n');
-	return trailingNewline ? `${out}\n` : out;
+	const lines = splitLines(raw);
+	if (lines.length === 0) return null;
+	const typed = matchAlertMarker(lines[0].text);
+	return typed ? emitDirective(typed.toLowerCase(), lines) : null;
 }
 
 /**
@@ -118,40 +122,36 @@ export function convertAlertBlockquoteRaw(raw: string): string | null {
  * verbatim, so mixed content and plain blockquotes are preserved.
  */
 export function convertGithubAlerts(text: string): AlertConversion {
-	const lines = text.split('\n');
-	const out: string[] = [];
+	const lines = splitLines(text);
+	let converted = '';
 	let changed = false;
 	let i = 0;
 
 	while (i < lines.length) {
-		const typed = matchAlertMarker(lines[i]);
-
+		const typed = matchAlertMarker(lines[i].text);
 		if (typed && startsBlockquote(lines, i)) {
-			const body: string[] = [];
-			let j = i + 1;
-			while (j < lines.length && QUOTED_BODY_LINE.test(lines[j])) {
-				body.push(stripQuoteMarker(lines[j]));
-				j++;
-			}
-			out.push(...wrapAsDirective(typed.toLowerCase(), body));
+			const { nextIndex } = blockquoteExtent(lines, i, lines.length);
+			converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex));
 			changed = true;
-			i = j;
+			i = nextIndex;
 		} else {
-			out.push(lines[i]);
+			converted += lines[i].raw;
 			i++;
 		}
 	}
 
-	return { converted: out.join('\n'), changed };
+	return { converted, changed };
 }
 
 /** Whether `text` contains at least one convertible GitHub alert. */
 export function hasGithubAlert(text: string): boolean {
-	const lines = text.split('\n');
-	return lines.some((line, i) => matchAlertMarker(line) !== null && startsBlockquote(lines, i));
+	const lines = splitLines(text);
+	return lines.some(
+		(line, i) => matchAlertMarker(line.text) !== null && startsBlockquote(lines, i)
+	);
 }
 
 /** Whether the line at `index` opens its blockquote rather than continuing one. */
-function startsBlockquote(lines: string[], index: number): boolean {
-	return index === 0 || !QUOTE_OPEN.test(lines[index - 1]);
+function startsBlockquote(lines: ParsedLine[], index: number): boolean {
+	return index === 0 || !QUOTE_OPEN.test(lines[index - 1].text);
 }

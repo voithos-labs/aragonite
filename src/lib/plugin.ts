@@ -122,6 +122,10 @@ export { parse } from './core/parser';
 export type { Document } from './core/nodes';
 export { concatChildren as serializeChildren } from './core/serializer';
 export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
+// Split source into the `ParsedLine[]` every line-scoped seam here consumes — the
+// `blockquoteExtent` scanner below included, which a `source → source` transform
+// holding nothing but a string could otherwise not reach.
+export { splitLines } from './core/lines';
 export type { ParsedLine } from './core/lines';
 // GFM §2.1's blank line (spaces and tabs only). An opener that ends its block on
 // a blank line asks this rather than `String.trim()`, which would admit the whole

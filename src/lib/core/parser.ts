@@ -185,9 +185,6 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
  * Deliberately not `String.trim()`, which admits the whole Unicode whitespace
  * set — a non-breaking space, the commonest artifact of a paste out of a word
  * processor, is content, and a line holding one continues its block.
- *
- * Tested against `/[^ \t]/` rather than `/^[ \t]*$/` because `$` also matches
- * before a trailing `\n`, which would make a blank test of unsplit text lie.
  */
 const NON_BLANK_CHAR = /[^ \t]/;
 
