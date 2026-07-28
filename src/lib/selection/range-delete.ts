@@ -88,7 +88,7 @@ export function rangeDelete(
 		// still routes through the unshare seam, never a raw capture.
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		owned.raw = mergedRaw;
-		rebuildUnsharedChain(chain, sharing);
+		rebuildUnsharedChain(doc, chain, sharing);
 		return {
 			newDoc: doc,
 			collapsedCaret: { path: start.path.slice(), offset: startOffset }

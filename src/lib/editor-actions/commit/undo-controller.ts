@@ -597,6 +597,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	): Promise<void> {
 		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop } = args;
 		const prepared: PreparedScope[] = [];
+		// Containers the chain rebuild re-kinded. Their old nodes are detached, so the
+		// DEV probes below would skip them entirely without the replacements named here.
+		const reclassified: CstNode[] = [];
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -624,7 +627,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				// list, consumed endpoint) must not have its raw rebuilt from its
 				// emptied children — its live ancestors still get theirs.
 				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
-					rebuildUnsharedChain(attachedChainPrefix(deps.doc, p.chain), deps.sharing);
+					reclassified.push(
+						...rebuildUnsharedChain(
+							deps.doc,
+							attachedChainPrefix(deps.doc, p.chain),
+							deps.sharing,
+							deps.grammar
+						)
+					);
 				}
 				return changeList.some((c) => c.op !== 'noop');
 			},
@@ -639,10 +649,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// would fire stale-raw on a node the document no longer contains. The
 			// doc scope's node has no block descriptor — excluded by the kind filter.
 			touchedNodes: () =>
-				prepared
-					.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
-					.map((p) => p.owned)
-					.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
+				[
+					...prepared
+						.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
+						.map((p) => p.owned),
+					...reclassified
+				].filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
 			rollback: () => {
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;

@@ -7,6 +7,7 @@
  * (first/middle-child backspace strategies), and `updateBlockContent`.
  */
 
+import { tick } from 'svelte';
 import type { BlockEditActions } from '../../action-contracts';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
@@ -159,7 +160,7 @@ export function createNestedBlockEdit(
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
-			parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
+			const reclassified = parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
 				assertInvariant('unshared-spine-depth', () =>
 					chain.length === leafPath.length
 						? null
@@ -179,6 +180,14 @@ export function createNestedBlockEdit(
 				}
 			});
 			parent.containerEdit.nudgeReactivity();
+			// The rebuild re-kinded a container on this spine (the typed `> [!TIP]`
+			// marker moved out of the leaf and into the container's own bytes), so the
+			// edited leaf no longer exists. Re-enter the container at its start; its
+			// focus walk lands in the body, where the marker line never was.
+			if (reclassified) {
+				await tick();
+				await parent.focus.moveFocus(deps.index, 'start');
+			}
 		}
 	};
 

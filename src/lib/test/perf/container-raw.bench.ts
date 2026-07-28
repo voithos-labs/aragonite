@@ -34,7 +34,13 @@ function benchAncestryRebuild(
 ): void {
 	const chain = deepestChain(root);
 	const sharing = createSharingState();
-	bench(label, () => rebuildUnsharedChain(chain, sharing), { warmupIterations: 1, ...opts });
+	bench(
+		label,
+		() => {
+			rebuildUnsharedChain(root, chain, sharing);
+		},
+		{ warmupIterations: 1, ...opts }
+	);
 }
 
 function singleFlatList(targetBytes: number): string {

@@ -27,10 +27,11 @@ export function createContainerEditActions(
 			deps.doc.children = [...deps.doc.children];
 		},
 
-		withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): void {
+		withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean {
 			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
 			write(chain);
-			rebuildUnsharedChain(chain, deps.sharing);
+			const replacements = rebuildUnsharedChain(deps.doc, chain, deps.sharing, deps.grammar);
+			return replacements.length > 0;
 		},
 
 		commitContainer(args): Promise<void> {

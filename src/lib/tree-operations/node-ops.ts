@@ -25,12 +25,17 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
-import type { GrammarView } from '../schema/block-openers';
+import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
+import { assignChildIdsDeep } from '../block-id';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
-import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
+import {
+	getBlockKindDescriptor,
+	tryGetBlockKindDescriptor,
+	type BlockKindDescriptor
+} from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
@@ -378,6 +383,57 @@ export function updateNodeContent(
 	if (firstBackfilled) reconcileBackfilledRaw(replacement);
 	parent.children.splice(blockIndex, 1, replacement);
 	return replacePreservingFirst(blockIndex, 1, 1);
+}
+
+// ── Container kind re-derivation ──
+
+/**
+ * Re-derive the kind of the container at `index` from its own (already rebuilt)
+ * raw, replacing it in the slot when the raw now opens as a different kind.
+ * Returns the replacement, or null when nothing changed.
+ *
+ * The container twin of `updateNodeContent`'s kind-change arm: an edit inside a
+ * container can change what the container's own bytes parse to (typing the rest
+ * of a `> [!TIP]` marker turns a blockquote into a GitHub alert), and no leaf
+ * reparse can see that. Identity rides the parent's parallel id array, so the
+ * slot swap carries the container's ID across for free (§ 8).
+ *
+ * Eligibility is the opener registry, not a kind list: a kind with no standalone
+ * recognizer does NOT reproduce itself from its own raw — a listItem's `- x`
+ * parses to a list, a tableRow's to a paragraph, chrome and tableCell to
+ * paragraphs — so re-deriving those would destroy them. Registering an opener is
+ * exactly the claim that `parse(raw)` reproduces the kind, so a new container
+ * kind opts in by being parseable at all.
+ */
+export function reclassifyContainer(
+	parent: NodeParent,
+	index: number,
+	grammar?: GrammarView
+): CstNode | null {
+	const node = parent.children[index];
+	if (!node) return null;
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
+
+	const parsed = parse(node.raw, { grammar }).children;
+	// A container's raw is one block by construction; a multi-block reparse means
+	// the rebuild produced bytes this seam has no single slot for — leave it to the
+	// gesture that owns the mutation rather than guessing a split here.
+	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
+
+	const replacement = parsed[0];
+	const backfilled = isEmptyEditableContainer(replacement);
+	ensureEditableContainers(replacement);
+	replacement.leadingTrivia = node.leadingTrivia;
+	if (backfilled) reconcileBackfilledRaw(replacement);
+	// A freshly-parsed node carries no childIds, and this swap publishes under the
+	// slot's reused component instance — the same reason stampStructuralChange
+	// backfills them for every other new-node op (undefined keys otherwise reach
+	// the nested keyed `{#each}`).
+	assignChildIdsDeep(replacement);
+	parent.children[index] = replacement;
+	// Write-then-re-read (tree-operations/unshare.ts header).
+	return parent.children[index];
 }
 
 /**

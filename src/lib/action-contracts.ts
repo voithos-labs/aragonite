@@ -240,8 +240,12 @@ export interface ContainerEditActions {
 	 * unshares the spine doc-root → `absPath`, invokes `write` with the owned
 	 * chain (outermost first), then rebuilds the chain's container raws
 	 * innermost-first. Caller still pushes its own checkpoint and nudges.
+	 *
+	 * Returns true when the rebuild re-derived a different kind for a container on
+	 * the spine (typing the rest of a `> [!TIP]` marker): that container's
+	 * component remounts, so the caller owns placing the caret again.
 	 */
-	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): void;
+	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean;
 	/**
 	 * Preferred entry for structural container mutations. Routes through the
 	 * unified commit primitive: spine unshare + snapshot + publish + edit

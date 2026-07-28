@@ -49,6 +49,7 @@ function typeInto(node: CstNode, chainDepth: number): void {
 		(_path: number[], run: (chain: CstNode[]) => void) => {
 			const chain = Array.from({ length: chainDepth }, () => node);
 			run(chain);
+			return false;
 		}
 	);
 	const deps = {
