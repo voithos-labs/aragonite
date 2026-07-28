@@ -10,7 +10,11 @@ import { mount, unmount, flushSync } from 'svelte';
 import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
 import { parse } from '$lib/core/parser';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeFromOffsets, getSelectionOffsets } from '$lib/cursor/content-offsets';
+import {
+	createRangeFromOffsets,
+	getRangeOffsets,
+	getSelectionOffsets
+} from '$lib/cursor/content-offsets';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 
@@ -234,6 +238,24 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		await settle();
 
 		expect(committedText()).toBe('```js\nconst \n\n```');
+	});
+
+	// A landing door seats a caret, and on this surface it must seat one that can type:
+	// the cross-container merge fallback moves focus to this block's END, which is the
+	// closer run, where every keystroke is refused.
+	it.each([
+		['past the display end', 999, 17],
+		['at offset 0', 0, 6]
+	])('focus %s seats the caret in the body, where typing lands', async (_label, asked, seated) => {
+		(mounted.instance as unknown as { focus(offset: number): void }).focus(asked);
+
+		const range = window.getSelection()!.getRangeAt(0);
+		expect(getRangeOffsets(mounted.el, range)).toEqual({ start: seated, end: seated });
+
+		// The guard declines here, which is what "typable" means on this surface.
+		const e = beforeInput('insertText', 'X');
+		await settle();
+		expect(e.defaultPrevented).toBe(false);
 	});
 
 	// beforeinput's insertCompositionText is not cancelable, so the guard cannot reach

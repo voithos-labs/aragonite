@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
-	import { type BlockComponent } from '../../../block-component';
+	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import { emitCommandError } from '../../../editor-events';
 	import {
@@ -15,7 +15,7 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import { asDomTextOffset } from '../../../cursor/coordinate-spaces';
+	import { asDomTextOffset, asRawOffset } from '../../../cursor/coordinate-spaces';
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
@@ -43,6 +43,7 @@
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
+		clampCaretToBody,
 		clampEnterOffsetToBody,
 		clampRangeToBody,
 		computeFenceRangedEdit,
@@ -153,8 +154,25 @@
 	export const editable = true;
 	export const focusable = true;
 
-	export const focus = editableSurface.surface.focus;
-	export const focusAtColumn = editableSurface.surface.focusAtColumn;
+	// The two caret-landing doors clamp onto editable content; every other surface
+	// method is the shared implementation verbatim. A landing is not a selection: it
+	// seats a single caret, and seating one on a fence line hands the user a position
+	// whose keystrokes the fence guard refuses — the merge fallback that moves focus
+	// to this block's END lands exactly there.
+	export function focus(offset: number): void {
+		editableSurface.surface.focus(clampCaretToBody(node, offset));
+	}
+
+	// The column walk resolves against pixels, so it can only be corrected after the
+	// fact: re-seat when it lands on a fence line, leave it alone when it doesn't.
+	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
+		editableSurface.surface.focusAtColumn(x, from);
+		const landed = backend.getRaw();
+		if (landed === null) return;
+		const seated = clampCaretToBody(node, landed);
+		if (seated !== landed) backend.setRaw(asRawOffset(seated));
+	}
+
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;

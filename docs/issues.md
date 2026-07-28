@@ -44,23 +44,33 @@ complete and independently enforced; bolting a character rule onto its predicate
 rules into one guard. The body half is the same family as the container terminator-collision
 work, which has its own conformance cell.
 
-### A caret parks on a code block's fence lines, where every keystroke is inert
+### Caret navigation still stops on a code block's non-editable fence lines
 
 **Severity:** minor (no corruption; silent no-op with no feedback)
-**Files:** `src/lib/components/blocks/code/CodeBlock.svelte` (the fence guard refuses the edit
-but nothing keeps the caret out), `src/lib/cursor/visual-lines.ts` (the arrow-boundary tier
-counts fence lines as visual lines like any other)
+**Files:** `src/lib/cursor/visual-lines.ts` (the arrow-boundary tier counts a fence line as a
+visual line like any other), `src/lib/selection/shared-keydown.ts` (the ArrowUp/ArrowDown
+boundary test that reads it), `src/lib/components/blocks/code/CodeBlock.svelte` (`onPointerDown`
+— a click seats the caret natively, with no seam to clamp)
 
-The fence marker runs are structure now: typing, deleting or pasting inside one is refused. The
-caret still parks there — a click on the closer line, ArrowDown from the last body line, End on
-the opener — and every keystroke does nothing, with no cue that the position is read-only. Two
-independently written e2e tests had encoded the opposite assumption (that ArrowDown from the
-last body line leaves the block), which is how the state was found.
+The fence marker runs are structure: typing, deleting and pasting inside one are refused. The
+class is what happens to a caret that ends up on one anyway, and it has two halves.
 
-**Why deferred:** the fix is a navigation change, not an editing one — clicks, Home/End, the
-visual-line math and the sticky column all have to agree on a caret that skips two lines, and
-the same question applies to any block whose rendering has non-editable structural lines. It is
-worth deciding once for that whole class rather than for code alone.
+**Fixed:** caret _landings_. Every programmatic door on the code surface (`focus`,
+`focusAtColumn`) clamps onto editable content, so a landing can always type. That half was found
+by the cross-container merge fallback, which moves focus to the block's END — the closer run —
+and whose e2e proved the landing typable by typing a character that then went nowhere.
+
+**Still open:** caret _navigation and clicks_. ArrowDown from the last body line stops on the
+closer line, ArrowUp from below stops on it too, and a click lands wherever it is aimed; at all
+three the caret sits where every keystroke is silently inert. Three independently written e2e
+specs had encoded the opposite assumption (two ArrowDown, one paste at `focusBlockEnd`), which
+is how the class surfaced.
+
+**Why deferred:** the remaining half is a navigation change, not an editing one — the
+visual-line math, the sticky column, Home/End, and a pointerup re-seat that must not collapse a
+drag-selection all have to agree on a caret that skips two lines. The same question applies to
+any block whose rendering has non-editable structural lines, so it is worth deciding once for
+that class rather than for code alone.
 
 ### Interactive reading mode (live task checkboxes) — deferred product question
 
