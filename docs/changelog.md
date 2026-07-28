@@ -387,12 +387,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   selection is shrunk onto its body span at `compositionstart` instead. The contract: mutations
   clamp to the intersection of their range with the body, so a fence-only selection is inert,
   while copy stays verbatim with the literal bytes — cut is a verbatim copy plus a clamped delete,
-  by design and stated where the requirement defines it. The clamp fires only on a range that
-  CROSSES a fence line, never on one confined to the opener's text, the body, or the closer's
-  text: those round-trip through the parser, and clamping them would have made retyping an info
-  string impossible. One consequence beyond the bug: select-all then delete inside a code block
-  now empties the body and leaves a code block, where the unguarded native delete of the whole
-  display left a paragraph.
+  by design and stated where the requirement defines it. What the clamp spares is the block's
+  editable **content** — its body and the opener's info string — and nothing else, because the
+  parser draws that line and not a tidier one: one deleted closer backtick leaves a fence that
+  never closes, one deleted opener backtick demotes the block and promotes its closer to an
+  absorbing opener, one character typed into the closer run does the same, and a fourth leading
+  space on the opener demotes it to an indented code block. So both marker runs are structure,
+  and typing or deleting inside either is inert — including the auto-pair delete, which reads a
+  caret between two backticks as a pair and now declines when that pair is a fence. The one
+  exception is an UNCLOSED fence: with no closer to orphan, its markers stay editable, because
+  demoting the block is how a just-typed ` ``` ` is un-typed and nothing can be absorbed. Two
+  consequences beyond the bug: select-all then delete inside a code block now empties the body
+  and leaves a code block (the unguarded native delete of the whole display left a paragraph),
+  and un-fencing a CLOSED block by editing its markers is no longer a gesture — the exits are
+  emptying it or deleting the block whole. What an edit _writes_ into a content region is a
+  separate rule that stays unpoliced and is now tracked in the defect ledger: a backtick typed
+  into a backtick fence's info string still breaks the opener.
 
 - **Enter inside a closing fence no longer breaks it, and Enter over a selection replaces it.**
   The Enter splice was clamped out of the opener line and not the closer, so a caret placed in the
@@ -406,6 +416,17 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   text behind. That silent no-delete had one more edge: the soft break clamped its two endpoints
   independently, so a selection inside the info string produced an inverted span and duplicated
   text. A span cannot invert.
+
+- **The code surface reads no clipboard payload of its own.** The fence guard briefly pulled an
+  `insertReplacementText` payload off its `dataTransfer` so an autocorrect over a fence-crossing
+  selection could be re-sited onto the body. That is a clipboard/drop read, and G4.11 exists to
+  make every one of them declare which sanctioned paste route carries its text through the plugin
+  paste transforms — a read that reaches `parse()` without one drops every registered transform on
+  that route. Rather than declare the file (an allowlist entry blesses the whole file, so the next
+  read added there would pass the scan unseen), the guard now refuses any input type whose payload
+  rides an external carrier: a drop, a paste, a replacement. It re-sites only text it can read off
+  the event itself or mint itself. The refusal costs a rare mobile autocorrect landing a correction
+  across a fence line, which the surface's `spellcheck="false"` already suppresses on desktop.
 
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified

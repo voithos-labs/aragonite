@@ -125,4 +125,51 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
+
+	// A closed fence's marker runs are structure: one character typed or deleted in
+	// either leaves an unclosed fence that swallows the rest of the document.
+	test('typing inside the closer fence is inert', async () => {
+		await editor.focusBlock(0, 19);
+		await editor.typeText('x');
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+	});
+
+	test('Backspace inside the closer fence is inert', async () => {
+		await editor.focusBlock(0, 20);
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+	});
+
+	test('deleting a selected opener marker run is inert', async () => {
+		await selectFrom(editor, 0, 3);
+		await editor.page.keyboard.press('Backspace');
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+	});
+
+	test('cut of a closer-only selection copies it but deletes nothing', async () => {
+		await selectFrom(editor, 18, 3);
+		await editor.page.keyboard.press('Control+x');
+		await editor.waitForClipboardWrite();
+
+		expect(await editor.page.evaluate(() => navigator.clipboard.readText())).toBe('```');
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+	});
+
+	// An unclosed fence has no closer to orphan, so its markers stay editable —
+	// otherwise a just-typed ``` could not be un-typed.
+	test('an unclosed fence keeps its markers editable', async () => {
+		await editor.loadContent('```js\nconst x\n');
+		await editor.getBlock(0).click();
+		await selectFrom(editor, 0, 3);
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('js\nconst x');
+
+		expect(await editor.bridge.getSource()).toBe('js\nconst x\n');
+	});
 });
