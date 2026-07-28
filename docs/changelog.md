@@ -203,6 +203,18 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   A closure cell is prose a compiler cannot read, so the honesty of the matrix rested entirely on
   review — and the thematic break above is what that gap looked like in a shipped built-in.
 
+- **The state registry stops calling a remount handoff a double claim.** `[state-registry] double
+register` fired on every list indent, because indenting splices the item's NODE into a new parent
+  and Svelte creates the destination mount before tearing the source one down — so at registration
+  time two states legitimately claim one node. Nothing in that instant distinguishes the handoff
+  from the corruption the warning is for, so it now re-asks once the flush settles: the loser that
+  gave up its child refs was torn down, and the one still holding them is a second live component
+  writing into a state nothing can resolve. Characterized before it was touched, and the winner was
+  always the live mount — no stale entry, no symptom, which is why this is a signal fix and not a
+  behavior one. The message names the real failure now instead of guessing at two causes, and the
+  handoff's other direction (the registry landing on the dying mount) is pinned through a real
+  indent gesture, which nothing covered before.
+
 - **A big paste into a long list no longer loses the caret (VR-12).** Every structural paste lands
   the caret at the END of the pasted run, so its target index is offset by the CLIPBOARD's block
   count — unrelated to where the caret was. All five routes reached that target through a
