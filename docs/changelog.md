@@ -551,6 +551,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   report a divergence it was blind to, including on a tree that previously passed — that is the
   point of the fix, and the compat note.
 
+- **A selection restore no longer emits the selection it is leaving.** Restoring a collapsed caret
+  cleared the cross-block state before placing the caret, and the clear notified — so the first
+  `selectionChange` of the restore carried the PRE-restore selection, and a persist-on-change host
+  that treats the first event of a burst as authoritative saved the wrong one. The same-block range
+  route had it too. Reordering the clear was rejected in the issue and stays rejected: it only moves
+  which stale value escapes, because the notification reads through whatever state and DOM exist at
+  the moment it fires. What changed instead is when the channel is allowed to speak. `SelectionState`
+  grew a batch seam that holds notification for the duration of a body and fires it once at the end
+  if anything mutated, and the restore road wraps BOTH of its halves — the state write and the caret
+  landing — in one. Every mutator notifies exactly as before; the batch decides only when, so no
+  entry path's emission count moved. Subscribers read the editor back on notify, which is the whole
+  reason the seam has to span the DOM half and not just the state one. Consumers can stop reading
+  the selection back after `await setSelection(…)`: the guidance still works, it is simply no longer
+  load-bearing. The browser's own `selectionchange` may still deliver a trailing duplicate of the
+  settled value; what is gone is the stale one.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).
