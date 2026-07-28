@@ -336,6 +336,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   there is no caret to act on — declining would leave the browser's own contenteditable bold to
   run in a surface the CST owns.
 
+- **A click in the editor's dead space places a caret.** Clicking below the last block, or in
+  the root's own padding beside a line, used to move focus to the root and place no caret at
+  all — a click that did nothing a user could see, on the two regions a user most often clicks
+  when reaching for "put the cursor at the end". Below the last block now lands at the end of
+  its content; beside a line lands at the end of THAT line, which is what makes the gesture
+  worth having on a wrapped paragraph. The rule carries no kind knowledge: the point is clamped
+  into the nearest block's box and handed to the hit test the drag path already uses, so a
+  container is descended into for free and the end-of-document gesture is just the same clamp
+  aimed at a trailing corner. Clicks that land on anything the editor renders — a block, a
+  handle, an overlay, the host's header slot — are untouched, because the claim is on the
+  event's target being the root itself. Two families decline rather than guess: a table, whose
+  offset is a cell index and so has no "end of that line", and a non-editable leaf like a
+  thematic break, which would otherwise take the whole-block focus a click ON it means and arm
+  the next Backspace against a block the user only clicked near. Both are in `docs/issues.md`.
+  A drag-select that ends in the margin keeps its selection.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).
