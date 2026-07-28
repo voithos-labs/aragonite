@@ -16,6 +16,7 @@
 
 import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
+import type { GrammarView } from '../../schema/block-openers';
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
@@ -40,6 +41,11 @@ export interface CrossBlockMutationContext {
 	controller: CommitController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
+	/** The instance's block grammar, forwarded to the delete's ancestry rebuild so a
+	 *  disabled kind's opener stays skipped when a range delete leaves marker syntax on
+	 *  a container's opener line. Required-nullable like the dispatch context's twin, so
+	 *  a new construction site can't silently skip the thread; `undefined` = global. */
+	grammar: GrammarView | undefined;
 }
 
 /**
@@ -194,7 +200,7 @@ async function commitPureTopLevelDelete(
 				suffix: ''
 			};
 			const beforeLen = topLevelChildren.length;
-			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing);
+			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing, ctx.grammar);
 			collapsedCaret = result.collapsedCaret;
 			const afterLen = topLevelChildren.length;
 			ctx.selection.collapse();
@@ -265,7 +271,7 @@ async function commitCrossContainerDelete(
 			// own spine unsharing reuses the already-owned scope nodes.
 			const beforeLens = scopeViews.map((v) => v.children.length);
 
-			const result = rangeDelete(doc, start, end, sharing);
+			const result = rangeDelete(doc, start, end, sharing, ctx.grammar);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 

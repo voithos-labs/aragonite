@@ -28,7 +28,7 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState());
+	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -86,7 +86,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing);
+		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, undefined);
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
@@ -118,7 +118,7 @@ describe('chrome wall × table branch — table endpoint outside the container',
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		const { newDoc } = rangeDelete(doc, point([0], 2), point([1, 0], 3), sharing);
+		const { newDoc } = rangeDelete(doc, point([0], 2), point([1, 0], 3), sharing, undefined);
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
 		expect(snapshotTitle.raw).toBe('Title\n');
@@ -149,7 +149,13 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 	it('prose end at the container last byte: one splice, children intact', () => {
 		const doc = parse(TBL_ABOVE_FIXTURE);
 		const note = doc.children[1];
-		const result = rangeDelete(doc, point([0], 2), point([1, 1], 4), createSharingState());
+		const result = rangeDelete(
+			doc,
+			point([0], 2),
+			point([1, 1], 4),
+			createSharingState(),
+			undefined
+		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		// One splice, not an empty-then-cascade: the detached node keeps its
 		// children so a commit scope holding it stays invariant-clean.
@@ -161,7 +167,13 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 		const doc = parse(TBL_BOTH_FIXTURE);
 		const note = doc.children[1];
 		// end.offset 3 = inclusive last cell of the inner table → tableEmpty.
-		const result = rangeDelete(doc, point([0], 2), point([1, 1], 3), createSharingState());
+		const result = rangeDelete(
+			doc,
+			point([0], 2),
+			point([1, 1], 3),
+			createSharingState(),
+			undefined
+		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(note.children?.length).toBe(2);
 		expect(result.collapsedCaret).toEqual({ path: [0, 0, 1], offset: 1 });

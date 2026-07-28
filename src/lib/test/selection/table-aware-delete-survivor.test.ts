@@ -38,7 +38,8 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 		doc,
 		cell([firstTableIndex], 0),
 		cell([firstTableIndex + 1], 3),
-		createSharingState()
+		createSharingState(),
+		undefined
 	);
 }
 

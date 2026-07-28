@@ -221,7 +221,7 @@ export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
 	chain: CstNode[],
 	sharing: SharingState,
-	grammar?: GrammarView
+	grammar: GrammarView | undefined
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
 	for (let i = chain.length - 1; i >= 0; i--) {
@@ -262,7 +262,7 @@ export function rebuildUnsharedAncestry(
 	root: NodeParent,
 	path: number[],
 	sharing: SharingState,
-	grammar?: GrammarView
+	grammar: GrammarView | undefined
 ): ContainerReclassification[] {
 	return rebuildUnsharedChain(root, walkUnsharing(root, path, sharing, false), sharing, grammar);
 }

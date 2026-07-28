@@ -30,7 +30,7 @@ function typeInto(source: string, leafPath: number[], count: number): void {
 		text += 'x';
 		const chain = ensureUnsharedPath(doc, leafPath, sharing);
 		chain[chain.length - 1].raw = `${text}\n`;
-		rebuildUnsharedChain(doc, chain, sharing);
+		rebuildUnsharedChain(doc, chain, sharing, undefined);
 	}
 }
 
@@ -81,7 +81,7 @@ describe('container kind re-derivation gate', () => {
 			text += char;
 			const chain = ensureUnsharedPath(doc, [0, 0], sharing);
 			chain[chain.length - 1].raw = `${text}\n`;
-			rebuildUnsharedChain(doc, chain, sharing);
+			rebuildUnsharedChain(doc, chain, sharing, undefined);
 		}
 
 		expect(doc.children[0].kind).toBe('githubAlert');

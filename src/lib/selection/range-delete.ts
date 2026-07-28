@@ -6,6 +6,7 @@
  * `docs/design/editor.md` § Cross-block selection.
  */
 
+import type { GrammarView } from '../schema/block-openers';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
@@ -59,7 +60,8 @@ export function rangeDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);
@@ -68,10 +70,10 @@ export function rangeDelete(
 	}
 
 	if (involvesTable(startBlock, endBlock)) {
-		return tableAwareRangeDelete(doc, start, end, sharing);
+		return tableAwareRangeDelete(doc, start, end, sharing, grammar);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
-		return chromeAwareRangeDelete(doc, start, end, sharing);
+		return chromeAwareRangeDelete(doc, start, end, sharing, grammar);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
@@ -88,7 +90,7 @@ export function rangeDelete(
 		// still routes through the unshare seam, never a raw capture.
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		owned.raw = mergedRaw;
-		rebuildUnsharedChain(doc, chain, sharing);
+		rebuildUnsharedChain(doc, chain, sharing, grammar);
 		return {
 			newDoc: doc,
 			collapsedCaret: { path: start.path.slice(), offset: startOffset }
@@ -124,9 +126,9 @@ export function rangeDelete(
 
 	replaceAtPath(doc, start.path, replacement);
 
-	rebuildUnsharedAncestry(doc, start.path, sharing);
+	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
 	for (const path of deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
+		rebuildUnsharedAncestry(doc, path, sharing, grammar);
 	}
 
 	// The re-parse is allowed to change kind, including leaf → CONTAINER (a list

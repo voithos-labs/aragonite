@@ -14,7 +14,7 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import type { SelectionPoint } from '../../selection/primitives';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
-	return serialize(rangeDelete(parse(source), start, end, createSharingState()).newDoc);
+	return serialize(rangeDelete(parse(source), start, end, createSharingState(), undefined).newDoc);
 }
 
 describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => {

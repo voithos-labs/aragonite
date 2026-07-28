@@ -335,9 +335,9 @@ A container's `rebuildRaw` re-emits its `raw` from its children and metadata aft
 
 Each rebuilt container then **re-derives its own kind** from the raw it just produced — the container half of § 8's kind change, and the one place that notices a container's opener line was rewritten from the inside. Three rules bound it:
 
-- **Eligibility is the opener registry.** Registering an opener is the claim that `parse(raw)` reproduces the kind, so kinds without one — `listItem` (whose `- x` parses to a _list_), `tableRow`, reserved chrome, `tableCell` — are excluded by construction rather than by name.
-- **The re-parse resolves through the instance grammar**, so a kind an instance disabled stays unreachable.
-- **Cost is gated on the container's first line changing** across its rebuild, since an opener claims from line 1. Body-line typing pays a string compare; only an edit that rewrites the opener line pays the re-parse.
+- **Eligibility is the opener registry.** Registering an opener is the claim that `parse(raw)` reproduces the kind, so kinds without one are excluded by construction rather than by name: `listItem` (whose `- x` parses to a _list_), `tableRow`, reserved chrome, `tableCell`, and `table` itself, which emerges from the paragraph continuation scan rather than an opener.
+- **The re-parse resolves through the instance grammar**, so a kind an instance disabled stays unreachable. The grammar is a required-nullable parameter of the rebuild, threaded from every caller — routine typing, the commit ceremony, the metadata seam, paste, cross-block type-replace, and the range-delete family — and a source-scan lint refuses a call that answers `undefined` instead of threading.
+- **Cost is gated twice.** An opener claims from line 1, so a body-line edit skips on a string compare. An edit that DOES rewrite line 1 still only re-parses when that line's opener verdict moved — asked of the registry itself, one line at a time — because typing into a list's first item or a callout title rewrites the opener line on every keystroke and moves nothing. Without the second gate the re-parse is linear in container bytes on a gesture that is not (`performance.md`).
 
 ### Addressing
 

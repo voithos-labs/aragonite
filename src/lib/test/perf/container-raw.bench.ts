@@ -37,7 +37,7 @@ function benchAncestryRebuild(
 	bench(
 		label,
 		() => {
-			rebuildUnsharedChain(root, chain, sharing);
+			rebuildUnsharedChain(root, chain, sharing, undefined);
 		},
 		{ warmupIterations: 1, ...opts }
 	);

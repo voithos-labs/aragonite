@@ -45,7 +45,7 @@ function assertDeleteConverged(doc: Document): void {
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
-	return rangeDelete(doc, s.start!, s.end!, createSharingState());
+	return rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined);
 }
 
 describe('table endpoints normalize at the selection-state choke point', () => {

@@ -26,7 +26,8 @@ describe('rangeDelete — survivor caret when both endpoint tables are consumed'
 			parse(FLAT),
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -40,7 +41,8 @@ describe('rangeDelete — survivor caret when both endpoint tables are consumed'
 			parse(NESTED),
 			{ path: [1, 1], offset: 0 },
 			{ path: [1, 2], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		// The blockquote keeps "para B"; the caret belongs at its end, not at the

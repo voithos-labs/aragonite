@@ -16,7 +16,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(2);
@@ -36,7 +37,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -54,7 +56,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -72,7 +75,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(2);
@@ -92,7 +96,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -113,7 +118,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -135,7 +141,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -155,7 +162,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -174,7 +182,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [2], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -191,7 +200,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);

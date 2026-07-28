@@ -7,6 +7,7 @@
  * detached node stays invariant-clean.
  */
 
+import type { GrammarView } from '../schema/block-openers';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
@@ -193,10 +194,11 @@ export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath:
 export function rebuildSharedAncestries(
 	doc: Document,
 	plan: DeletionPlan,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): void {
 	for (const path of plan.deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
+		rebuildUnsharedAncestry(doc, path, sharing, grammar);
 	}
-	if (plan.chromeClearChain) rebuildUnsharedChain(doc, plan.chromeClearChain, sharing);
+	if (plan.chromeClearChain) rebuildUnsharedChain(doc, plan.chromeClearChain, sharing, grammar);
 }

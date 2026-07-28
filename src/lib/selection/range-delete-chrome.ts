@@ -7,6 +7,7 @@
  * the detached node stays invariant-clean.
  */
 
+import type { GrammarView } from '../schema/block-openers';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
@@ -60,7 +61,8 @@ export function chromeAwareRangeDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	const startOffset = charOffsetOf(start, 'chromeAwareRangeDelete:start');
 	const endOffset = charOffsetOf(end, 'chromeAwareRangeDelete:end');
@@ -128,8 +130,8 @@ export function chromeAwareRangeDelete(
 
 	// Chain-based rebuilds: node references survive the splices above where
 	// paths may not — every touched container re-emits raw (G1.12).
-	rebuildUnsharedChain(doc, startChain, sharing);
-	rebuildUnsharedChain(doc, endChain, sharing);
+	rebuildUnsharedChain(doc, startChain, sharing, grammar);
+	rebuildUnsharedChain(doc, endChain, sharing, grammar);
 
 	return {
 		newDoc: doc,

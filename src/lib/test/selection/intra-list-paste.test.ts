@@ -26,7 +26,8 @@ describe('intra-list cross-item paste pipeline', () => {
 			doc,
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 		expect(serialize(doc)).toBe('1. \n');
 		expect(collapsedCaret).toEqual({ path: [0, 0, 0], offset: 0 });
@@ -38,7 +39,8 @@ describe('intra-list cross-item paste pipeline', () => {
 			doc,
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 		const pasted = 'HELLO';
 		const targetNode = nodeAt(doc, collapsedCaret.path) as CstNode;
