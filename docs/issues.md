@@ -581,26 +581,6 @@ non-editable case is not deferred at all: declining is the answer.
 
 ## Virtual rendering
 
-### List indent briefly double-registers the item's BlockListState
-
-**Severity:** watch (dev-warning signal only; no observed misbehavior)
-**Files:** `src/lib/reactivity/state-registry.ts` (the warning), `src/lib/editor-actions/list-context.ts`
-(`indentItem`), `src/lib/components/blocks/list/ListItemBlock.svelte`
-
-The 2026-07-25 mount-harness pass observed `[state-registry] double register for listItem with a
-different state` firing on list indent (Tab) only: not on Enter, not on paragraph or blockquote
-edits. It means two components briefly claim the same node during `indentItem`, presumably the
-old and new mounts overlapping across the structural remount. No corruption or stale-state
-symptom was found, and the sibling proxy-equality warning investigated at the same time was
-falsified as benign, but this one is uncharacterized beyond the trigger.
-
-**Fix direction:** characterize first: instrument which two mounts claim the node and whether the
-loser's teardown lands after the winner's registration. If it is the remount overlap, the
-registry can tolerate a same-node handoff within one flush without warning.
-
-**Why deferred:** signal without a symptom; wants characterization, not a patch that quiets the
-warning.
-
 ### Reveal scrolls a hidden ancestor that a drag deliberately will not
 
 **Severity:** minor (two seams answer the same geometry question differently, on purpose)
