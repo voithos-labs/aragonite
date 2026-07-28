@@ -71,7 +71,7 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       # issue_comment runs on the default branch; check out the PR head so the agent
