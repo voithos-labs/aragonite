@@ -22,13 +22,14 @@
  * `commitContainerStructural` for a single scope).
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
+import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import {
@@ -388,6 +389,22 @@ export function updateNodeContent(
 // ── Container kind re-derivation ──
 
 /**
+ * What the grammar opens `line` as, read in isolation — an opener dispatch bounded
+ * by one line instead of the container that line heads.
+ *
+ * This is the opener-significance test {@link reclassifyContainer}'s callers gate on,
+ * asked of the opener registry itself rather than of a hand-written prefix rule, so a
+ * kind registered later is covered the day it registers. Ordinary typing on a
+ * container's opener line (`- one` → `- onex`, a callout title, a blockquote's first
+ * paragraph) leaves the verdict where it was; the marker keystroke that turns
+ * `> [!TI` into `> [!TIP]` moves it. Only the second can change the container's kind,
+ * and only it is worth a parse of the whole container.
+ */
+export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
+	return parse(`${line}\n`, { grammar }).children[0]?.kind ?? 'paragraph';
+}
+
+/**
  * Re-derive the kind of the container at `index` from its own (already rebuilt)
  * raw, replacing it in the slot when the raw now opens as a different kind.
  * Returns the replacement, or null when nothing changed.
@@ -415,6 +432,7 @@ export function reclassifyContainer(
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
 
+	if (perfEnabled()) recordContainerKindReparse();
 	const parsed = parse(node.raw, { grammar }).children;
 	// A container's raw is one block by construction; a multi-block reparse means
 	// the rebuild produced bytes this seam has no single slot for — leave it to the
