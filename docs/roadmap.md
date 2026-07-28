@@ -14,21 +14,14 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-1. **Limestone internal integration** — the last unchecked box in the validation list above and
-   the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
-   resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
-   also exercises the 0.9.25 field-report workflow (the diagnostics door: reproduce →
-   `serializeDiagnostics()` → attach) end to end, as the first consumer that will actually
-   file one. The
-   integration code lives in limestone; what belongs here is running it before the freeze and
-   landing its findings while they are still cheap. The integration doubles as the
-   **discipline stress-test**: the first consumer that never read the scar tissue, so every
-   misuse of the API it produces (a value passed where liveness matters, a node held across
-   a commit, a call at the wrong lifecycle moment) is logged as a finding and routed to
-   encode-or-document — never just corrected at the call site. Additive API needs it surfaces ship as
-   pre-freeze refinements. The first-party plugin distribution question is settled
-   (0.9.23): the integration consumes the bundled plugins as `aragonite/plugins/<name>` subpath
-   exports directly — the copy-source sync pattern never enters the picture.
+1. **Limestone internal integration — remaining scope.** The integration ran (2026-07) and paid
+   as predicted: the editor is the app's editor, the findings landed as 0.9.36 refinements, and
+   the consumer-lens directions below are its architectural residue. What has NOT yet run, and
+   stays here as forward work: the 0.9.25 **field-report workflow** end to end (the diagnostics
+   door: reproduce → `serializeDiagnostics()` → attach — no real report has been filed yet); the
+   **overridable-history-seam joint design** (§ Downstream boundary — the integration is named as
+   the design table, and the table has not convened); and landing whatever the consumer's
+   remaining manual passes (journal surface, real-webview gestures) surface before the freeze.
 2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
@@ -80,6 +73,15 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      parts of the frozen contract are not yet frozen, so `grep -c pre-freeze src/lib/plugin.ts`
      returning nonzero after the cut means the API is lying about its own stability; pending
      owner decisions land:
+     **the `BlockComponent.focus` verb split** (one verb carries two meanings — park-without-clearing
+     for the extend paths, place-and-end-range for user gestures; seating the clear in one verb was
+     measured impossible, two whole-document data losses were the cost of the ambiguity, and the fix
+     is breaking on a frozen export, so it is decided AT the cut, not after — `docs/issues.md`
+     carries the entry and G2.12 holds the line meanwhile),
+     **reveal-anchor claimant identity** (the single slot compares paths, never claimants or block
+     modes — a same-path claimant can lose its band mid-settle and the terminal clears are
+     path-blind; decide claimant tokens vs per-instance slots together with the mount-waiter keying
+     beside it),
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
      the claim), grouping `BlockComponent`'s optional capability probes into named facets, an
@@ -138,6 +140,42 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      required status contexts mirror ci.yml's job names (a job rename updates the script).
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
+
+### The consumer lens — architecture directions from the first integration
+
+What the limestone run taught that no in-repo battery could, recorded as direction so the next
+milestone that touches each area inherits it rather than rediscovering it:
+
+- **Inline-widget _editing_ wants to become one surface.** The integration's defect density
+  concentrated overwhelmingly in one region: what happens when a caret, a keystroke, or a command
+  meets an inline widget (the reveal-fold seam, caret mutual exclusion, collapsed-caret formatting,
+  the syntax-of-origin family and its `rewriteImage` hook). Each fix was right, but the editing
+  capabilities a rung can carry have accreted as separate options across registrations — recognizer
+  options, widget descriptors, editing policies, the rewrite hook. Direction for 1.2: gather them
+  into one named per-rung editing facet, and ship the **inline-kind conformance kit** the block
+  kinds already have (`runKindConformance` is block-only; the overlap-decline rule is
+  documented-not-guarded today, and a kit would enroll a rung in the behavioral battery the way the
+  closure matrix does for blocks). Validator: the bundled rungs enroll; the kit reds a rung that
+  swallows the grammar overlap.
+- **The webview host boundary is where consumer bugs live, and the in-repo harness cannot see it.**
+  Three integration finds were invisible to any Chromium-driven battery: clipboard events
+  retargeting to `document.body` off a caret-less endpoint, the host webview's built-in
+  accelerator keys consuming chords before the page, and the image-src scheme policy meeting
+  a real host protocol. Direction: the consumer guide grows a **webview-host section** (what the
+  page never sees, which chords a browser may claim, the scheme policy's shape), and post-1.0 a
+  minimal **Tauri example consumer** joins `examples/` so this class is exercised by a gate rather
+  than discovered by a user. Validator: each webview find of the next integration lands as a row
+  in that example's checklist, not a surprise.
+- **Singletons earn their keep only until the second claimant arrives.** The process-global
+  reveal anchor produced two consumer-visible defects and still carries a claimant-identity gap;
+  the interaction trace interleaves instances by design. The freeze-cut list now carries the
+  anchor decision. Standing direction for anything new: a process-global slot is a deliberate
+  choice with a written second-claimant story, not a default.
+- **Every gesture that places a caret is a data-loss candidate until proven otherwise.** The
+  precondition no suite had ever built — a live cross-block range before a caret-placing
+  gesture — hid two whole-document losses. G2.12 now fails new pointer gestures at birth, but its
+  perimeter is pointer-only by design; the simulation habit (§ Standing posture) should treat
+  select-all → gesture → keystroke as a first-class corruption probe alongside the byte oracles.
 
 ### The two plugin systems
 
@@ -268,6 +306,12 @@ Settles what only an integrated surface can settle:
   backgrounds at full opacity, so it fails contrast wherever it lands (link text, the code-fence
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
+- **Token-role audit** — the first integration found two token-hygiene classes worth one deliberate
+  pass: a token serving two visual roles at once (`--syntax-separator` tinted marker glyphs AND
+  painted the full-width thematic-break rule, so a consumer's palette choice for one was the wrong
+  loudness for the other), and a chrome token with no mode response (`--color-ui-faint`,
+  identical in both palettes and hue-odd among its siblings). The audit asks of every token: one
+  role, both modes answered, and a stated reason for any exception.
 
 _(Presentation modes shipped pre-1.0 in 0.9.26.)_
 
@@ -280,6 +324,7 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent. The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
 - **Trigger-character suggest seam** — a `/` menu, `@`-mentions, `[[`-completion. Table stakes for a notes app, and the class Obsidian carries with `registerEditorSuggest`. Deferred deliberately: the pre-1.0 rect API makes a suggest popup _consumer_-buildable (caret geometry plus `getSelection()`), so the question 1.2 answers is whether it deserves a first-class editor seam or stays a consumer pattern. Decide against a real consumer, not on paper.
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
+- **Plugin renderers get a theme seam** — injected renderers (mermaid is the live case) have no way to learn or follow the editor's theme: initialization is memoized process-once and the render memo carries no theme term, so a consumer's dark editor draws light diagrams and a theme flip recolors nothing. The mode contract solved this for components and widgets; renderers are the unfinished third leg. Direction: a theme term in the renderer contract plus a re-render path on theme change; the ledger carries the mechanism notes.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
