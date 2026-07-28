@@ -165,7 +165,7 @@ export async function applyListAbsorb(
 			// residue item — the shared structural-paste landing rule.
 			const lastPastedIdx =
 				plan.itemIndex + focusIndexBeforeResidue(replacement.length, trailingItem !== null);
-			outerState.innerBlockRefs[lastPastedIdx]?.focus(CURSOR_END);
+			return ctx.controller.landCaret([...plan.listPath, lastPastedIdx], CURSOR_END);
 		}
 	});
 }

@@ -22,7 +22,7 @@ function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = [
 		async commit(args) {
 			commits.push(args);
 			args.mutate({ children, sharing, unshareChild: (i) => children[i] });
-			args.afterTick?.();
+			await args.afterTick?.();
 		}
 	};
 	return { scope, commits, children };

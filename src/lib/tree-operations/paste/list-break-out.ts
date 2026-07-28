@@ -127,7 +127,7 @@ export async function applyListBreakOut(
 			// residue list — never the residue itself.
 			const lastPastedIdx =
 				spliceIndex + focusIndexBeforeResidue(replacement.length, hasTrailingResidue);
-			parentScope.state.innerBlockRefs[lastPastedIdx]?.focus(CURSOR_END);
+			return ctx.controller.landCaret([...parentScope.path, lastPastedIdx], CURSOR_END);
 		}
 	});
 }

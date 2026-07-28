@@ -32,6 +32,7 @@ import type {
 	UndoController
 } from '../deps';
 import type {
+	CommitAfterTick,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
 	MultiScopeTarget
@@ -198,7 +199,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				mutate: (children: CstNode[]) => StructuralChange;
 				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 				op?: ScopedOpDescriptor;
-				afterTick?: () => void;
+				afterTick?: CommitAfterTick;
 				/**
 				 * Nodes for the dev invariant check when the StructuralChange doesn't
 				 * name them. Split/insert/replace are derived from the change; an
@@ -222,7 +223,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				/** Post-mutation reactivity nudge (e.g. doc.children = [...doc.children]). */
 				publish: () => void;
 				op?: ScopedOpDescriptor;
-				afterTick?: () => void;
+				afterTick?: CommitAfterTick;
 				/**
 				 * Directly-mutated containers (innermost scopes) for the dev invariant
 				 * check. Thunk: the owned nodes only exist after `mutate` unshares.
@@ -391,7 +392,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (!committed) return;
 		await tick();
 		try {
-			args.afterTick?.();
+			// Awaited (CommitAfterTick): a landing that must reveal an off-window
+			// target is async, and the commit's own promise is what every caller —
+			// tests included — treats as "the caret has settled".
+			await args.afterTick?.();
 		} catch (err) {
 			// No rollback: the commit succeeded and the tree is correct — a post-tick
 			// view callback failing is not a reason to unwind it. Contained

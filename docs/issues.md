@@ -581,33 +581,6 @@ non-editable case is not deferred at all: declining is the answer.
 
 ## Virtual rendering
 
-### Pasting a long list into a windowed list loses the caret (VR-12, reachable)
-
-**Severity:** important (the user pastes, types, and nothing happens)
-**Files:** `src/lib/tree-operations/paste/container-match.ts` (the `afterTick` focus landing),
-`src/lib/editor-actions/focus/focus-dispatch.ts` (`dispatchFocusByPath`, the adjacent-only contract)
-
-The container-matching paste lands the caret with
-`focusByPath(outerState.innerBlockRefs, [spliceIndex + remainingItems.length, 0], …)`. That index
-scales with the CLIPBOARD's item count, unrelated to where the caret was, so it is not adjacent to
-a mounted block the way `dispatchFocusByPath`'s docstring assumes of its callers. Once the pasted
-run clears the container window's overscan (6) the target ref is unmounted, the dispatcher returns
-silently, and the caret is lost. This is the third caller of that function and the only one whose
-landing is not one step from the caret — the sibling-path-parity shape, with the docstring's
-caller enumeration (audited at two callers) as the instrument that hid it. `dispatchFocusByPath`'s
-own comment calls VR-12 "latent and not currently reachable"; that clause is false and should go
-with the fix.
-
-**Repro:** pinned and executing as `src/lib/e2e/tests/perf/vr-paste-focus.spec.ts` as an
-INVERTED assertion (it asserts the caret is lost), so the file turns red the day it is fixed. Load ~600 list items so container windowing
-activates, put a 40-item list on the clipboard, click into item 2, paste, then type — the typed
-characters reach the document nowhere at all.
-
-**Why deferred:** the fix is to route this landing through the async `revealByPath` (scroll +
-mount) rather than the sync dispatcher, which changes the paste's commit/afterTick shape; the
-focus path is owned by a separate wave. The oracle exists and self-retires, so the defect cannot
-be lost.
-
 ### List indent briefly double-registers the item's BlockListState
 
 **Severity:** watch (dev-warning signal only; no observed misbehavior)

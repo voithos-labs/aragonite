@@ -123,8 +123,8 @@ async function runCrossBlockDelete(
 
 	// The collapse is start-wins: the merged block lands at start.path[0], which
 	// the delete leaves in place (blocks above it don't move). Mount it now, while
-	// caretRestore (running in the commit's non-awaited afterTick) still needs a
-	// live element. Gated on caretRestore so the IME path (skipCaretRestore) never
+	// caretRestore (a sync post-tick landing) still needs a live element. Gated on
+	// caretRestore so the IME path (skipCaretRestore) never
 	// yields before its synchronous commit — see performCrossBlockDeleteSync.
 	if (caretRestore) {
 		await ctx.revealPath(start.path);

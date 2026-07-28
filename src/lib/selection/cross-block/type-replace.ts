@@ -122,11 +122,12 @@ export async function handleCrossBlockTypeReplace(
 			detail: { length: targetNode.raw.length + typed.length },
 			eventPath: docPathFrom(caret.path)
 		},
-		afterTick: () =>
+		afterTick: () => {
 			focusCollapsedCaret(ctx.getBlockElByPath, {
 				path: caret.path,
 				offset: caret.offset + typed.length
-			})
+			});
+		}
 	});
 	return true;
 }

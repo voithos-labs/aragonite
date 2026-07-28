@@ -86,7 +86,7 @@ function makeHandlers(
 		getPresentationMode: () => 'source' as const,
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
-		pasteCoordinator: createPasteCoordinator(env.controller),
+		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		grammar: undefined,
 		getCursorOffset,
 		afterReactivity: async () => {}

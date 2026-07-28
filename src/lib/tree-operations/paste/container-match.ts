@@ -183,7 +183,7 @@ export async function applyContainerMatchingPaste(
 		},
 		afterTick: () => {
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
-			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+			return ctx.controller.landCaret([...unwrap.outerPath, lastInsertedIdx], CURSOR_END);
 		}
 	});
 }
@@ -240,18 +240,12 @@ async function applyContainerMatchingMerge(
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
 				eventPath: docPathFrom(unwrap.outerPath)
 			},
-			afterTick: () => {
+			afterTick: () =>
 				// End of the pasted content, before the reattached residue (displayAfter).
 				// The residue lives INSIDE the merged leaf, so this is a char offset in
-				// that leaf, not a block index — the container ref's focus(number) clamps
-				// a non-sentinel offset to the last child's end, so descend by path.
-				const subPath = merge.targetLeafPath.slice(unwrap.outerPath.length);
-				ctx.controller.focusByPath(
-					outerState.innerBlockRefs,
-					subPath,
-					displayBefore.length + firstItemText.length
-				);
-			}
+				// that leaf, not a block index — a container's focus(number) clamps a
+				// non-sentinel offset to its last child's end, so land on the leaf itself.
+				ctx.controller.landCaret(merge.targetLeafPath, displayBefore.length + firstItemText.length)
 		});
 		return;
 	}
@@ -308,11 +302,10 @@ async function applyContainerMatchingMerge(
 		afterTick: () => {
 			// End of the pasted content: the last spliced item's paragraph, at the
 			// join before the reattached residue (displayAfter) — a char offset in
-			// that leaf, so descend by path rather than CURSOR_END on the item ref.
+			// that leaf, so land on the paragraph rather than CURSOR_END on the item.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			ctx.controller.focusByPath(
-				outerState.innerBlockRefs,
-				[lastInsertedIdx, 0],
+			return ctx.controller.landCaret(
+				[...unwrap.outerPath, lastInsertedIdx, 0],
 				lastDisplay.length
 			);
 		}
