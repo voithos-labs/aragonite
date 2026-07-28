@@ -466,6 +466,21 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   the marker from metadata, so line 1 always re-opens as an alert — a metadata write is the only
   route, and it is pinned as one.
 
+- **A blank line is spaces and tabs, per GFM §2.1 — not everything `String.trim()` strips.** The
+  parser's blank-line predicate asked `trim()`, which strips the whole Unicode whitespace set, so a
+  line holding one non-breaking space (the commonest artifact of a paste out of a word processor)
+  ended its block: a three-line paragraph became two, and an NBSP-only document parsed to zero
+  children. The predicate now tests for a character other than space or tab, matching the spec and
+  cmark-gfm's own `is_blank`. That moves block structure on four axes at once — where a paragraph or
+  blockquote ends, whether a list continues, how far an indented-code run reaches, when an HTML block
+  terminates — so each is pinned against commonmark.js's block outline rather than against itself,
+  with byte round-trip asserted per fixture. The vertical tab and form feed ride the same route. The
+  footnotes plugin carried a private duplicate of the predicate; it is gone, and `isBlankLine` is
+  now on the plugin barrel, so the rule has one home. One consequence inside a footnote definition
+  is worth knowing: an unindented NBSP line now closes the definition, where cmark-gfm would lazily
+  continue its open paragraph — the definition scan models no lazy continuation, which is now a
+  ledger entry rather than an accident.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

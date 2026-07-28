@@ -177,31 +177,29 @@ med-high conformance-fidelity risk against a faithful port, for a shape the perf
 already brackets. Re-open only if a real workload holds emphasis-dense multi-KB single
 blocks.
 
-### Blank-line detection admits Unicode whitespace, where GFM means space and tab
+### The footnote definition scan models no lazy continuation
 
-**Severity:** minor (block structure diverges from GFM on a common paste artifact; byte round-trip
-holds either way)
-**Files:** `src/lib/core/parser.ts` (`isBlankLine`, exported and consumed by the blockquote, HTML
-block, indented-code, list, paragraph and table parsers),
-`src/lib/plugins/footnotes/footnote-definition.ts` (a private duplicate with the same body)
+**Severity:** minor (conformance divergence on an unindented non-blank line inside a definition;
+byte round-trip holds)
+**Files:** `src/lib/plugins/footnotes/footnote-definition.ts` (`scanDefinitionEnd`)
 
-Both predicates ask `String.trim()`, which strips the whole Unicode whitespace set. GFM's blank line
-is spaces and tabs only. So a line holding nothing but a non-breaking space, the commonest artifact
-of a paste out of a word processor or a web page, reads as blank and splits one paragraph into two,
-and a document whose only content is an NBSP parses to zero children. The ASCII vertical tab and
-form feed are admitted on the same route.
+The scan continues a definition on a blank line or a four-space/tab-indented line and stops on
+anything else. cmark-gfm stops the container on the same rule but then applies CommonMark's lazy
+paragraph continuation, so an unindented non-blank line joins the definition's still-open
+paragraph instead of starting a sibling block. `blockquoteExtent` and the list parser both model
+that state; this scan does not.
 
-**Repro:** paste a three-line paragraph whose middle line holds one U+00A0 and nothing else; the
-editor shows two paragraphs where GitHub renders one. Parsing that line on its own yields a
-document with no children.
+**Repro:** `[^a]: one\n \n    two\n` parses to a one-line definition plus a sibling paragraph;
+GitHub renders one definition holding `one`, the NBSP line, and `two`. Any unindented non-blank
+line reproduces it — the NBSP is only what makes the shape reachable by paste.
 
-**Why deferred:** narrowing to a space-and-tab test is byte-safe (the line stops terminating its
-block and becomes a paragraph continuation, so its bytes stay inside one node's `raw`), but it
-changes block structure on four axes at once: where a blockquote or paragraph ends, whether a list
-is loose or tight, how far an indented-code run reaches, and when an HTML block terminates. That is
-its own change with the parser owner and its own conformance pass, not a ride-along. The private
-duplicate must move with it, which is the second half of the reason: the rule has two homes and
-should have one, reachable from `$lib/plugin`.
+**Fix direction:** track paragraph-open state across the scan, the way `blockquoteExtent` does. The
+three copies of `wouldKeepParagraphOpen` (blockquote, list, and this one once it grows) are the
+argument for lifting the predicate to one home first.
+
+**Why deferred:** found while narrowing the blank-line predicate (0.9.36), which made the shape
+reachable but did not create it; the fix is a state model in a plugin opener, not a ride-along on a
+core predicate change.
 
 ### Footnote reference numbering is O(widgets × leaves) per reactive flush
 

@@ -180,8 +180,19 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
 
 // ── Shared utilities ────────────────────────────────────────────────────
 
+/**
+ * GFM §2.1: a blank line holds nothing but spaces (U+0020) and tabs (U+0009).
+ * Deliberately not `String.trim()`, which admits the whole Unicode whitespace
+ * set — a non-breaking space, the commonest artifact of a paste out of a word
+ * processor, is content, and a line holding one continues its block.
+ *
+ * Tested against `/[^ \t]/` rather than `/^[ \t]*$/` because `$` also matches
+ * before a trailing `\n`, which would make a blank test of unsplit text lie.
+ */
+const NON_BLANK_CHAR = /[^ \t]/;
+
 export function isBlankLine(text: string): boolean {
-	return text.trim().length === 0;
+	return !NON_BLANK_CHAR.test(text);
 }
 
 export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {

@@ -123,6 +123,10 @@ export type { Document } from './core/nodes';
 export { concatChildren as serializeChildren } from './core/serializer';
 export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
 export type { ParsedLine } from './core/lines';
+// GFM §2.1's blank line (spaces and tabs only). An opener that ends its block on
+// a blank line asks this rather than `String.trim()`, which would admit the whole
+// Unicode whitespace set and split a block on a pasted non-breaking space.
+export { isBlankLine } from './core/parser';
 
 // ── Fence grammar (pre-freeze: refined against the fence-claiming reference plugins) ──
 // The built-in CommonMark fence recognizers, so a plugin claiming a fence
