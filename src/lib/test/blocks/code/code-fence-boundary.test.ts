@@ -170,6 +170,24 @@ describe('clampEnterOffsetToBody', () => {
 		expect(clampEnterOffsetToBody(closed, 10)).toBe(10);
 	});
 
+	// The closer-side mirror. Splicing at 19 broke the closer apart —
+	// "```js\nconst x = 1\n`\n``" — leaving an unclosed fence.
+	it('clamps a caret inside the closer text back to the body end', () => {
+		expect(clampEnterOffsetToBody(closed, 19)).toBe(17);
+		expect(clampEnterOffsetToBody(closed, 20)).toBe(17);
+	});
+
+	it('leaves the start of the closer line alone, as it leaves the opener text end', () => {
+		expect(clampEnterOffsetToBody(closed, 18)).toBe(18);
+	});
+
+	it('CRLF: the closer clamp lands on the body end, not inside the line ending', () => {
+		// "```\r\ncode\r\n```\r\n": body [5,9] · closer text [11,14).
+		const crlf = fencedCode('```\r\ncode\r\n```\r\n');
+		expect(clampEnterOffsetToBody(crlf, 12)).toBe(9);
+		expect(clampEnterOffsetToBody(crlf, 11)).toBe(11);
+	});
+
 	it('opener-only fence clamps interior offsets to the opener end', () => {
 		const fresh = fencedCode('```', '', false);
 		expect(clampEnterOffsetToBody(fresh, 1)).toBe(3);
