@@ -140,6 +140,21 @@ export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
+ * Where a caret LANDING may sit. Every door that seats a caret on this surface goes
+ * through here, because a caret parked on a fence line takes keystrokes the guard
+ * refuses: the landing looks successful and the next character disappears. A caret
+ * already on editable content stays exactly where it was asked to go — the info
+ * string of an open fence is content, and the kind change that mints a fence from a
+ * typed ` ``` ` lands the caret mid-opener — and anything else collapses onto the
+ * nearest body edge.
+ */
+export function clampCaretToBody(node: NodeView, offset: number): number {
+	const caret = { start: offset, end: offset };
+	if (!crossesFenceBoundary(node, caret)) return offset;
+	return clampRangeToBody(node, caret).start;
+}
+
+/**
  * The refusal rule, shared by every mutating gesture on this surface: a range that
  * reached structure and kept no body after the clamp has nothing to rewrite. Text
  * aimed there is declined rather than re-sited to the body edge, where the user

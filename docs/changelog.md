@@ -397,8 +397,12 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   including the auto-pair delete, which reads a caret between two backticks as a pair and now
   declines when that pair is a fence. One predicate answers for all of them, because the paste
   route splices through the tree-op rather than through the surface's own edit, and a rule that
-  each entry path carried a copy of is a rule one of them would eventually not carry. The one
-  exception is an UNCLOSED fence: with no closer to orphan, its markers stay editable, because
+  each entry path carried a copy of is a rule one of them would eventually not carry. Caret
+  LANDINGS clamp with it: `focus` and `focusAtColumn` seat the caret on editable content, so a
+  door that aims at a fence line — the cross-container merge fallback moves focus to a block's
+  END, which is the closer run — no longer hands the user a position whose next keystroke
+  disappears. Arrow navigation and clicks can still park there; that half is in the ledger. The
+  one exception is an UNCLOSED fence: with no closer to orphan, its markers stay editable, because
   demoting the block is how a just-typed ` ``` ` is un-typed and nothing can be absorbed. Two
   consequences beyond the bug: select-all then delete inside a code block now empties the body
   and leaves a code block (the unguarded native delete of the whole display left a paragraph),
