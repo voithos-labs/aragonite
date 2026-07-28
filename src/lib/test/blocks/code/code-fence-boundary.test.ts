@@ -303,6 +303,20 @@ describe('crossesFenceBoundary', () => {
 		expect(crossesFenceBoundary(indented, { start: 4, end: 6 })).toBe(false); // info string
 	});
 
+	// GFM's indentation limit is the scan's limit: three spaces still open a fence, so
+	// the info string past them is content. A line whose markers sit past the limit is
+	// not an opener the grammar recognizes, and nothing on it is editable.
+	it('reads the info string at the 3-space limit and nothing past it', () => {
+		const legal = fencedCode('   ```js\nconst x = 1\n   ```\n', 'js');
+		expect(crossesFenceBoundary(legal, { start: 6, end: 8 })).toBe(false); // "js"
+		expect(crossesFenceBoundary(legal, { start: 2, end: 5 })).toBe(true);
+
+		// Defensive, not parser-producible: a raw the grammar would read as indented
+		// code. Nothing on that opener line is content, info-string-looking or not.
+		const overIndented = fencedCode('    ```js\nconst x = 1\n```\n', 'js');
+		expect(crossesFenceBoundary(overIndented, { start: 7, end: 9 })).toBe(true);
+	});
+
 	// The collapsed-caret gestures the browser ranges for us: a Backspace at the body
 	// start or at the closer line's start targets a structural line ending.
 	it('is true for a lone structural line ending', () => {
