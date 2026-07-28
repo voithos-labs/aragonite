@@ -131,13 +131,19 @@ export function convertGithubAlerts(text: string): AlertConversion {
 		const typed = matchAlertMarker(lines[i].text);
 		if (typed && startsBlockquote(lines, i)) {
 			const { nextIndex } = blockquoteExtent(lines, i, lines.length);
-			converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex));
-			changed = true;
-			i = nextIndex;
-		} else {
-			converted += lines[i].raw;
-			i++;
+			// A marker line always opens a quote — `MARKER` caps its indent at three
+			// spaces, which is `matchBlockquote`'s cap too — so the extent claims at
+			// least this line. Floored anyway, because the consolidation changed what
+			// loosening that cap would cost: a wrong conversion before, a hung loop now.
+			if (nextIndex > i) {
+				converted += emitDirective(typed.toLowerCase(), lines.slice(i, nextIndex));
+				changed = true;
+				i = nextIndex;
+				continue;
+			}
 		}
+		converted += lines[i].raw;
+		i++;
 	}
 
 	return { converted, changed };
