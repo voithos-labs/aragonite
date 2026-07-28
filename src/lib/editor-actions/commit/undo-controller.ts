@@ -659,8 +659,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					...reclassified.map((r) => r.replacement)
 				].filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
 			rollback: () => {
-				// Innermost-last: the swaps landed outermost-first per chain, so putting
-				// them back in reverse leaves no replacement holding a slot.
+				// Reverse of the order they landed in (the chain rebuild walks
+				// innermost-first), so a slot is never restored under a node the next
+				// restore is about to replace.
 				for (let i = reclassified.length - 1; i >= 0; i--) {
 					const { siblings, index, previous } = reclassified[i];
 					siblings[index] = previous;

@@ -442,6 +442,11 @@ export function reclassifyContainer(
 	const replacement = parsed[0];
 	const backfilled = isEmptyEditableContainer(replacement);
 	ensureEditableContainers(replacement);
+	// Restore the bytes before overwriting the trivia, exactly as the leaf twin does:
+	// the slot's trivia is authoritative, so any the parse split off the front would
+	// otherwise vanish with it. A container's raw begins with its opener line, so no
+	// parse assigns one today — the symmetry is what keeps that true by construction.
+	replacement.raw = node.raw;
 	replacement.leadingTrivia = node.leadingTrivia;
 	if (backfilled) reconcileBackfilledRaw(replacement);
 	// A freshly-parsed node carries no childIds, and this swap publishes under the

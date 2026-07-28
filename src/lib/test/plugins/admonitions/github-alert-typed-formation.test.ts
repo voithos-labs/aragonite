@@ -4,6 +4,7 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { describeConvergence, parseConverges } from '$lib/testing/parse-convergence';
+import { nodeAt } from '$lib/tree-operations';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { containerAt, typeSlowly } from './formation-harness';
 
@@ -48,14 +49,31 @@ describe('github alert — per-keystroke marker formation', () => {
 		expect(parseConverges(h.deps.doc)).toBe(true);
 	});
 
-	it('forms at depth, leaving the enclosing blockquote a blockquote', async () => {
-		const h = containerAt('> > [!TI\n', [0, 0]);
+	// Two distinct spine shapes: a blockquote's strip rebuild re-prefixes its lines,
+	// a list item's re-indents them.
+	it.each([
+		['an enclosing blockquote', '> > [!TI\n', [0, 0], [0], 'blockquote'],
+		['an enclosing list item', '- > [!TI\n', [0, 0, 0], [0, 0], 'listItem']
+	])('forms at depth inside %s', async (_label, source, alertPath, hostPath, hostKind) => {
+		const h = containerAt(source, alertPath);
 
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
 
-		expect(h.deps.doc.children[0].kind).toBe('blockquote');
-		expect(h.deps.doc.children[0].children?.[0].kind).toBe('githubAlert');
+		expect(nodeAt(h.deps.doc, hostPath)?.kind).toBe(hostKind);
+		expect(nodeAt(h.deps.doc, alertPath)?.kind).toBe('githubAlert');
 		expect(parseConverges(h.deps.doc)).toBe(true);
+	});
+
+	// The identity rule the swap relies on: block ids live in the PARENT's parallel
+	// array, never on the node, so replacing the slot carries the id for free.
+	it('keeps the container id at its slot across the swap', async () => {
+		const h = containerAt('> [!TI\n', [0]);
+		const idBefore = h.getBlockIds()[0];
+
+		await typeSlowly(h.bundle, 0, '[!TI', 'P]');
+
+		expect(h.getNode().kind).toBe('githubAlert');
+		expect(h.getBlockIds()).toEqual([idBefore]);
 	});
 
 	// The list item's own raw (`- [!TIP]`) parses to a LIST, so a re-derivation that
@@ -88,6 +106,9 @@ describe('github alert — per-keystroke marker formation', () => {
 		);
 	});
 
+	// A post-fix guard, not a red-first pin: with no reclassification the snapshot is
+	// trivially a blockquote, so this passes on pre-fix code too. It earns its place by
+	// failing if a future swap corrupts the shared snapshot.
 	it('restores the pre-formation blockquote on undo', async () => {
 		const h = containerAt('> [!TI\n', [0]);
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');

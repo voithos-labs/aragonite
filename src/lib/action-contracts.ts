@@ -242,8 +242,10 @@ export interface ContainerEditActions {
 	 * innermost-first. Caller still pushes its own checkpoint and nudges.
 	 *
 	 * Returns true when the rebuild re-derived a different kind for a container on
-	 * the spine (typing the rest of a `> [!TIP]` marker): that container's
-	 * component remounts, so the caller owns placing the caret again.
+	 * the spine (typing the rest of a `> [!TIP]` marker). The slot keeps its id, so
+	 * the keyed wrapper survives — but BlockHost dispatches a different inner
+	 * component for the new kind, and the edited leaf goes with the old one, so the
+	 * caller owns placing the caret again.
 	 */
 	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean;
 	/**
