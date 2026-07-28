@@ -1010,6 +1010,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `serializeChildren`      | Join child nodes back into their exact source bytes                 |
 | `trimTrailingLineEnding` | Read a child's display text without dropping a trailing line ending |
 | `normalizeLineEndings`   | Normalize external text (a plugin-owned input surface) to LF        |
+| `isBlankLine`            | GFM §2.1's blank-line test — spaces and tabs only, never `trim()`   |
 | `Document`, `ParsedLine` | The parsed-document shape, and a single parsed source line          |
 
 **Renderer utilities**

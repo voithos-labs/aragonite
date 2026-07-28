@@ -18,6 +18,7 @@ import {
 	declaredPluginKind,
 	defineBlockComponent,
 	getPluginMetadata,
+	isBlankLine,
 	parse,
 	registerBlockComponent,
 	registerBlockKind,
@@ -41,10 +42,6 @@ const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
 /** A continuation line's four-space (or one-tab) indent, stripped to dedent the body. */
 const CONTINUATION_INDENT = /^(\t| {4})/;
 const CONTINUATION_MARKER = '    ';
-
-function isBlankLine(text: string): boolean {
-	return text.trim() === '';
-}
 
 /**
  * The definition spans line 1 plus every following indented line, with blank lines
