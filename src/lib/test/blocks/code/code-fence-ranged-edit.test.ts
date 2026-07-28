@@ -57,6 +57,18 @@ function beforeInput(inputType: string, data?: string): InputEvent {
 	return e;
 }
 
+function replacement(transferred: string, data: string | null): InputEvent {
+	const e = new InputEvent('beforeinput', {
+		inputType: 'insertReplacementText',
+		...(data === null ? {} : { data }),
+		bubbles: true,
+		cancelable: true
+	});
+	Object.defineProperty(e, 'dataTransfer', { value: { getData: () => transferred } });
+	mounted.el.dispatchEvent(e);
+	return e;
+}
+
 /** The committed display text, without the trailing line ending the surface reattaches. */
 function committedText(): string {
 	const calls = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
@@ -89,6 +101,27 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(committedText()).toBe('```js\nconst Z\n```');
+	});
+
+	// The one claimed type whose payload is not on `e.data`: an autocorrect replacement
+	// carries it on the dataTransfer.
+	it('claims a replacement and writes its dataTransfer payload', async () => {
+		select(12, 20);
+		const e = replacement('Q', null);
+		await settle();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```js\nconst Q\n```');
+	});
+
+	// getData answers a missing type with '' rather than null, so a nullish fallback
+	// would take the empty string and silently turn the replacement into a delete.
+	it('falls back to the event data when the dataTransfer carries no text', async () => {
+		select(12, 20);
+		replacement('', 'Q');
+		await settle();
+
+		expect(committedText()).toBe('```js\nconst Q\n```');
 	});
 
 	it('claims a soft break and splices it inside the body', async () => {

@@ -30,6 +30,8 @@ The contract, in three parts:
   clamped, not just the native delete)
 - Backspace over a selection running from the opener into the body keeps the opener line,
   info string included
+- undo after a clamped delete restores the block byte-for-byte (one entry, anchored at the
+  clamped span's start)
 
 ## Edge cases
 

@@ -355,8 +355,11 @@
 			case 'insertText':
 				return e.data ?? '';
 			// Autocorrect and IME replacements carry their payload on the dataTransfer.
+			// `getData` answers a missing type with '' rather than null, so the fallback
+			// to `data` has to test emptiness — `??` would take the empty string and
+			// turn the replacement into a delete.
 			case 'insertReplacementText':
-				return e.dataTransfer?.getData('text/plain') ?? e.data ?? '';
+				return e.dataTransfer?.getData('text/plain') || e.data || '';
 			case 'insertLineBreak':
 			case 'insertParagraph':
 				return trailingLineEnding(node.raw);
