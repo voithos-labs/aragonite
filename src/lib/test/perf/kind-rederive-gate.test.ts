@@ -56,15 +56,25 @@ describe('container kind re-derivation gate', () => {
 
 	// First gate passes, second holds. Each of these rewrites the container's opener
 	// line on every keystroke — a blockquote's first paragraph shares it, a list item's
-	// text rides its marker line, a reserved-chrome title lives IN it — and none can
-	// move what that line opens as. These are the rows that put the cost on the
-	// container-size axis when only the first gate exists.
+	// text rides its marker line — and the rewritten line still opens as the kind the
+	// node already is. These are the rows that put the cost on the container-size axis
+	// when only the first gate exists.
 	it.each([
 		['blockquote first paragraph', '> head\n>\n> body\n', [0, 0]],
-		['list first item', '- one\n- two\n- three\n', [0, 0, 0]],
-		['reserved-chrome title', ':::note Title\n\nbody\n\n:::\n', [0, 0]]
+		['list first item', '- one\n- two\n- three\n', [0, 0, 0]]
 	])('reparses nothing while typing into the %s', (_label, source, leafPath) => {
 		typeInto(source, leafPath, KEYSTROKES);
+
+		expect(reparses()).toBe(0);
+	});
+
+	// The conservative half costs nothing by typing. A directive container's opener
+	// declines a one-line probe (it wants its `:::` closer), so the second gate can
+	// never confirm it and every edit to ITS opener line would fall through to the
+	// full parse — but that line carries only the directive name, which typing never
+	// reaches. The first gate is what holds here, and this row is where that shows.
+	it('reparses nothing while typing into a directive container body', () => {
+		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
 
 		expect(reparses()).toBe(0);
 	});
