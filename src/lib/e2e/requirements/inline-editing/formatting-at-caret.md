@@ -17,5 +17,8 @@ left, else insert the pair and put the caret between its halves.
 - Ctrl+B at a caret in the middle of a plain word inserts the pair there — it does not
   toggle the whole word (no word-boundary rule exists in this editor).
 - One Ctrl+Z after the insert removes the pair and restores the caret's text.
+- Text typed inside the pair joins the same undo entry: one Ctrl+Z removes the pair AND the
+  typing. The toggle joins the typing checkpoint it opened, the ordinary batching rule for a
+  content edit at a caret.
 - In a table cell, Ctrl+B at a collapsed caret inserts the pair through the CST and
   never lets the browser's own bold command inject a `<b>` element.

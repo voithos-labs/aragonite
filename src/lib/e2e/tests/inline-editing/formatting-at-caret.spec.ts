@@ -57,6 +57,24 @@ test.describe('inline formatting at a collapsed caret', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('Hello world');
 	});
 
+	// The toggle joins the typing checkpoint it opened rather than standing alone —
+	// the ordinary batching rule for a content edit at a caret, pinned so a change to
+	// the checkpoint machinery cannot move it silently.
+	test('text typed inside the pair shares the toggle undo entry', async ({ page }) => {
+		await editor.loadContent('Hello \n');
+		await editor.focusBlockEnd(0);
+		await editor.page.keyboard.press('Control+b');
+		await editor.bridge.waitForSourceContains('****');
+		await editor.typeSlowly('bold');
+		await editor.bridge.waitForSourceContains('**bold**');
+		// Past the typing checkpoint's debounce, so the undo below is not racing it.
+		await page.waitForTimeout(700);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('*');
+		expect((await editor.bridge.getSource()).trim()).toBe('Hello');
+	});
+
 	test('Ctrl+B with the caret inside bold text removes the bold', async () => {
 		await editor.loadContent('a **bold** b\n');
 		await editor.focusBlock(0, 6);
