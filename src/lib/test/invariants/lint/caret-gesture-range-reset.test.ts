@@ -1,5 +1,5 @@
 /**
- * G2.11 — every pointer gesture that places a caret must end a live cross-block range.
+ * G2.12 — every pointer gesture that places a caret must end a live cross-block range.
  *
  * The rule cannot be seated in a funnel. `BlockComponent.focus(offset)` looks like
  * the choke point every caret placement crosses, and it is not one: the cross-block
@@ -99,7 +99,7 @@ function missingDoors(code: string, door: Door): string[] {
 	return missing;
 }
 
-describe('G2.11 caret-placing gesture ends a live cross-block range', () => {
+describe('G2.12 caret-placing gesture ends a live cross-block range', () => {
 	const sources = collectEditorSources();
 	const byPath = new Map(sources.map((f) => [f.relPath, f]));
 

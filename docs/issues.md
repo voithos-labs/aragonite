@@ -962,3 +962,17 @@ The broken-image placeholder appears one render BEHIND the failure: the widget's
 **Files:** `src/lib/styles/editor-theme.css:48,132`
 
 Declared with the identical value in the dark base and the light override — the only host-contract chrome token with no mode response, and it is blue where every sibling default is neutral or the accent. Either give it a light-mode value or record the both-modes value as intended. Limestone bridges it to an app token consumer-side.
+
+### `BlockComponent.focus(offset)` parks a caret without ending a live cross-block range
+
+**Severity:** important (public-contract footgun; the fix is breaking) · **Target: the 1.0 freeze decision**
+**Files:** `src/lib/block-component.ts` (the public export), `src/lib/components/blocks/editable-surface.ts` (the park primitive)
+
+`focus(offset)` is one verb with two meanings: the extend paths need park-without-clearing (seating a
+clear there reds three real behaviors — measured, not assumed), while every user-facing caret
+placement must end a live range or the next keystroke type-replaces the document (two such data
+losses were found and fixed in 0.9.36's manual wave). The door is documented as a park primitive
+naming `setSelection` as the range-ending door, both halves pinned (`public-caret-doors.spec.ts`),
+and G2.12 fails new pointer gestures at birth. The proper fix — splitting `focus` into two verbs —
+is a breaking change on the frozen public contract and must be on the table at the 1.0 freeze,
+not after it.
