@@ -415,34 +415,6 @@ import, so a failing host would wipe the user's selection with nothing to show f
 route rather than to the image arm that surfaced the consequence, and no repro has been
 constructed for the unresolvable-caret branch itself.
 
-### Typing a `> [!TYPE]` marker never forms a GitHub alert (only an atomic insert does)
-
-**Severity:** important (the documented way to author an alert does not work, and the live tree
-diverges from its own bytes)
-**Files:** `src/lib/plugins/admonitions/` (the `githubAlert` reclassification), the blockquote
-kind-transition path
-
-Typing `>` promotes the paragraph to a blockquote and auto-completes the marker to `> `. Typing the
-rest of `[!TIP]` one key at a time leaves the block a **`blockquote` forever** — it never
-reclassifies to `githubAlert`, not on marker completion, not on the following Enter, not after a
-body is typed. `parseConverged()` goes **false**: the live CST holds `blockquote` while a reparse of
-its own serialization yields `githubAlert`. The body then concatenates onto the marker line
-(`> [!TIP]Fresh alert body`) instead of landing in the container.
-
-Inserting the whole marker as ONE input event reparses the block and classifies it correctly, which
-is why every driver in the repo used to pass: both the simulation gesture and the e2e spec formed
-the alert with a single `insertText`. That atomic path is the only reason this was invisible.
-
-**Repro:** on `/test/plugins?seed=admonitions`, put the caret at the end of a paragraph, press
-Enter, then `typeSlowly('>')` followed by `typeSlowly('[!TIP]')`. `getBlockKind` reports
-`blockquote` and `parseConverged()` is `false`.
-
-**Why deferred:** the fix is in the kind-reclassification path, not the test layer; the 2026-07-24
-theme-K pass that found it owns oracles, not the parser. The two drivers are back on the atomic
-insert with an inline comment naming this entry, and both requirement files now state that
-per-keystroke formation is uncovered _because_ of this defect rather than by choice — so restoring
-the per-keystroke gesture is part of the fix.
-
 ### A reveal fold whose commit changes the block's kind may not have settled when the mutation runs
 
 **Severity:** minor (unproven in practice; the window is one tick wide and needs a kind flip typed

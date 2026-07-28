@@ -23,9 +23,9 @@ import { type SimContext, assertStructuralIntegrity } from '../invariants';
  * The marker is typed PER KEYSTROKE, so the editor sees the blockquote promotion at `>`,
  * the inline recognizer's `[` rung, and the alert reclassification at `]` as three
  * separate input events rather than one finished string; a regression confined to those
- * intermediate states is invisible to an atomic insert. The body then waits on the marker
- * reaching the source, because the promotion has to land the caret in the body before the
- * first body character is typed.
+ * intermediate states is invisible to an atomic insert. The body then waits on the alert
+ * kind materializing, because the reclassification has to land the caret in the body
+ * before the first body character is typed.
  */
 export async function typeGithubAlert(
 	ctx: SimContext,
@@ -38,15 +38,10 @@ export async function typeGithubAlert(
 
 	await editor.focusBlockEnd(targetIndex);
 	await page.keyboard.press('Enter');
-	// Atomic on purpose, and NOT what a user does. Per-keystroke formation is blocked
-	// by a live defect: typing `>` then `[!TYPE]` leaves the block a `blockquote`
-	// forever — it never reclassifies to `githubAlert`, `parseConverged()` goes false
-	// (the live tree diverges from a reparse of its own bytes), and the body then
-	// concatenates onto the marker line. One `insertText` reparses the block and
-	// classifies correctly, which is why this gesture has never seen it. Restore the
-	// per-keystroke form when the reclassification path is fixed.
-	await editor.typeText(`> [!${alertType}]`);
-	await editor.bridge.waitForSourceContains(`> [!${alertType}]`);
+	await editor.typeSlowly('>');
+	await waitForKindAt(ctx, alertIndex, 'blockquote');
+	await editor.typeSlowly(`[!${alertType}]`);
+	await waitForKindAt(ctx, alertIndex, 'githubAlert');
 	await editor.waitForRenderFlush();
 	await editor.typeSlowly(body);
 

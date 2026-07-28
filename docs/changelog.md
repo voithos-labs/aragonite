@@ -431,6 +431,30 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   the event itself or mint itself. The refusal costs a rare mobile autocorrect landing a correction
   across a fence line, which the surface's `spellcheck="false"` already suppresses on desktop.
 
+- **A container re-derives its kind from its own rebuilt bytes.** Typing `> [!TIP]` one key at a
+  time left the block a blockquote forever: the promotion at `>` landed, and then every later
+  keystroke was an edit to the container's inner leaf, whose reparse can only ever decide the
+  LEAF's kind. Nothing asked whether the blockquote's rebuilt raw still opened as a blockquote, so
+  the live tree said blockquote while a reparse of its own serialization said `githubAlert` —
+  `parseConverged()` false — and the body then concatenated onto the marker line. An atomic
+  whole-marker insert classified correctly, because that route reaches `updateNodeContent`'s
+  kind-change arm; both drivers in the repo used it, which is why nothing failed. The fix is that
+  arm's container twin, run at the ancestry rebuild every out-of-ceremony write, commit scope,
+  paste and range-delete already funnels through, so the class closes for containers rather than
+  for one marker: a container whose rebuilt raw parses to a different kind is replaced by the
+  correctly-kinded node in its slot, keeping its ID (identity rides the parent's parallel id
+  array, so the swap carries it for free) and backfilling a caret target. Eligibility is the
+  opener registry rather than a kind list — registering an opener IS the claim that `parse(raw)`
+  reproduces the kind, so a listItem (`- x` parses to a _list_), a tableRow, chrome and tableCell
+  are excluded by construction, and a future container kind opts in by being parseable at all. The
+  reparse resolves through the instance grammar, so a disabled kind stays unreachable. Cost is
+  gated on the container's FIRST line changing across its rebuild, since an opener claims from
+  line 1: measured 0 reparses across 20 body-line keystrokes and 20 across 20 opener-line ones, on
+  top of a rebuild that already walks the subtree. The mirror direction is structural (the pass
+  compares kinds, not names) but unreachable for `githubAlert` by editing: its rebuild re-emits
+  the marker from metadata, so line 1 always re-opens as an alert — a metadata write is the only
+  route, and it is pinned as one.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

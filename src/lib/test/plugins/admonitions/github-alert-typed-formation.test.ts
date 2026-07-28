@@ -3,20 +3,9 @@ import { installPlugins, parse, serialize } from '$lib';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import {
-	createStandardNestedActions,
-	type NestedActionsBundle
-} from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { describeConvergence, parseConverges } from '$lib/testing/parse-convergence';
-import {
-	makeEditorActionsDeps,
-	makeNestedActionsDeps,
-	makeStubBlockEdit,
-	makeStubFocus
-} from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { containerAt, typeSlowly } from './formation-harness';
 
 // Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time
 // only ever writes the container's inner leaf, so nothing in the leaf's own reparse
@@ -27,46 +16,6 @@ import type { CstNode } from '$lib/core/nodes';
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
-
-/**
- * A container bundle over the node at `path`, sharing the document's undo controller
- * and container-edit (both take doc-absolute coordinates, so any depth works).
- */
-function containerAt(source: string, path: number[]) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createUndoController(harness.deps);
-	const containerEdit = createContainerEditActions(harness.deps, controller);
-	const getNode = () =>
-		path.reduce<CstNode>(
-			(node, index) => (node.children ?? harness.deps.doc.children)[index],
-			harness.deps.doc as unknown as CstNode
-		);
-	const focus = makeStubFocus();
-	const bundle = createStandardNestedActions(
-		createBlockListState(getNode),
-		makeNestedActionsDeps({
-			index: path[path.length - 1],
-			getNode,
-			path,
-			parent: { blockEdit: makeStubBlockEdit(), focus, containerEdit }
-		})
-	);
-	return { ...harness, controller, bundle, getNode, parentFocus: focus };
-}
-
-/** Type `suffix` one character at a time into the container's leaf at `innerIndex`. */
-async function typeSlowly(
-	bundle: NestedActionsBundle,
-	innerIndex: number,
-	prefix: string,
-	suffix: string
-): Promise<void> {
-	let text = prefix;
-	for (const char of suffix) {
-		text += char;
-		await bundle.blockEdit.updateBlockContent(innerIndex, `${text}\n`, text.length - 1);
-	}
-}
 
 describe('github alert — per-keystroke marker formation', () => {
 	it('reclassifies the blockquote once the marker completes', async () => {
