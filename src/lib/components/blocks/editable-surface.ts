@@ -130,6 +130,9 @@ export interface EditableSurfaceDeps {
 	 *  feeds: a surface must answer the question, and `undefined` means the global
 	 *  grammar deliberately. */
 	grammar: GrammarView | undefined;
+	/** The instance event surface, forwarded to the cross-block tier's clipboard
+	 *  error channel — the same `EditorServices.events` the clipboard seam takes. */
+	events: EditorEvents;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
 	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
@@ -202,6 +205,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
 		grammar: deps.grammar,
+		events: deps.events,
 		getCursorOffset: () => deps.backend.getRaw(),
 		afterReactivity: () => tick()
 	});

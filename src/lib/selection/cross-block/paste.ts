@@ -54,6 +54,10 @@ export async function handleCrossBlockPaste(
 		return true;
 	}
 
+	// Read before the delete collapses the selection — the only coordinate an
+	// error report on the declined branch below could still name.
+	const rangeStartPath = ctx.selection.start?.path.slice() ?? [];
+
 	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave
 	// an intermediate "selection-deleted but blocks-not-inserted" state.
 	mutCtx.pushUndoSnapshot();
@@ -62,7 +66,20 @@ export async function handleCrossBlockPaste(
 		undoEntry: 'join',
 		skipCaretRestore: true
 	});
-	if (!caret) return true;
+	// The gesture was consumed (preventDefault above) and there is nowhere to put
+	// the payload — the delete found no range left to collapse, which happens when
+	// another cross-block mutation was in flight and collapsed the selection while
+	// this paste waited it out. Text survives on the clipboard, but an image the
+	// host already imported for `onPasteImage` does not: report so it can release
+	// the asset rather than orphan it.
+	if (!caret) {
+		reportDeclinedPaste(
+			ctx,
+			rangeStartPath,
+			'cross-block paste resolved no caret; nothing inserted'
+		);
+		return true;
+	}
 
 	const result = await pasteDispatch(
 		{
@@ -81,6 +98,23 @@ export async function handleCrossBlockPaste(
 
 	await landCaretAfterPaste(ctx, caret.path, result.inlineCaretOffset);
 	return true;
+}
+
+/**
+ * Announce a paste that consumed its gesture and inserted nothing. The one place
+ * this route can say so; a host that imported an asset for `onPasteImage` reads it
+ * to release what would otherwise be orphaned.
+ */
+export function reportDeclinedPaste(
+	ctx: Pick<CrossBlockDispatchContext, 'events'>,
+	path: number[],
+	message: string
+): void {
+	ctx.events.emit('error', {
+		origin: 'clipboard',
+		error: new Error(message),
+		context: { path }
+	});
 }
 
 /**

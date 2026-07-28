@@ -202,6 +202,7 @@
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		grammar: registryView.grammar,
+		events: editorEvents,
 		getFocusOffset: () => {
 			if (!el) return null;
 			const sel = window.getSelection();

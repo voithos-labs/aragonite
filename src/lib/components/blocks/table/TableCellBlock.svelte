@@ -231,6 +231,7 @@
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		grammar: registryView.grammar,
+		events: editorEvents,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),

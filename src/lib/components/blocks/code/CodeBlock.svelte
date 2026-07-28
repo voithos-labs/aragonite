@@ -136,6 +136,7 @@
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		grammar: registryView.grammar,
+		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
 		readText,
