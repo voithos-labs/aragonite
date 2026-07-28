@@ -410,37 +410,30 @@ guards exist because an unguarded version once let one Ctrl+Z revert two editors
 patch, and the workaround is the click a user makes anyway. Belongs with the anchor-ownership pass
 below, which is the other half of "who owns a navigation in flight".
 
-### A selection restore emits a transient stale `selectionChange` before the correct one
+### `selectionChange` fires on gestures that change no selection
 
-**Severity:** minor (transient; the last emission of the pair is always correct)
-**Files:** `src/lib/selection/native-bridge.ts` (`applySelectionToDom` — the collapsed route clears
-SelectionState, and so emits, before the caret is placed),
-`src/lib/selection/selection-state.svelte.ts` (every mutator fires `#onChange`; there is no
-batched or silent update)
+**Severity:** watch (noise on the highest-traffic path; every payload is correct)
+**Files:** `src/lib/selection/selection-state.svelte.ts` (`resetSelectAllCount` / `collapse` /
+`clear` notify unconditionally), `src/lib/selection/shared-keydown.ts` (the per-keystroke reset),
+`src/lib/selection/cross-block/pointer.ts` (`resetForPointerDown`)
 
-Restoring a collapsed caret emits `selectionChange` twice: first from `clear()`, while the caret
-is still at its old location, so the payload is the PRE-restore selection; then again once the
-native `selectionchange` bridge sees the placed range. The cross-block route emits the correct
-value twice instead — `enterCrossBlock` writes state before the park, so nothing stale escapes.
+Every mutator notifies whether or not it changed anything, and two of the highest-traffic entry
+paths call one on every gesture: `handleSharedKeydown` resets the select-all counter on each
+non-Ctrl+A keystroke, and `resetForPointerDown` does the same on each pointerdown. With the counter
+already 0 — the common case — that is a `selectionChange` per keystroke reporting the selection the
+subscriber already has. A collapse or clear on an already-collapsed selection does the same. The
+native `selectionchange` bridge then re-emits the real caret move, so the settled value is never
+wrong; a subscriber doing real work per event (a toolbar re-measuring rects, a host persisting)
+pays for the duplicates.
 
-The pair lands within the call, so a last-write-wins subscriber converges on the right value and
-`await setSelection(...)` followed by `getSelection()` always reads correctly. A subscriber that
-treats the first event of a burst as authoritative (a persist-on-change host saving per tab) will
-write the stale one first.
+**Fix direction:** notify only on an actual state transition (compare before/after in each mutator),
+and/or drop a payload equal to the last emitted one at the `Editor.svelte` emission seam. Both are
+cardinality changes on paths whose counts nothing currently pins.
 
-Pre-existing on the undo/redo restore path; reaches the public API with `setSelection`.
-
-**Workaround:** read the selection back after the restore — `await setSelection(...)` then
-`getSelection()` — rather than reacting to the emission burst; or debounce the `selectionChange`
-handler so only the settled value is persisted.
-
-**Fix direction:** a batched/silent update seam on SelectionState so one restore is one emission,
-rather than reordering the clear — swapping the two lines only moves which stale value escapes,
-because the native bridge reads through whatever SelectionState still holds.
-
-**Why deferred:** the emission seam is shared by every selection entry path (click, drag, keyboard
-extend, undo, restore), so changing its cardinality is a cross-cutting behavior change needing its
-own red-first pins, not a rider on an additive API commit during the pre-freeze batch.
+**Why deferred:** found while building the batch seam that fixed the stale-restore emission, and
+deliberately not bundled with it — no-op suppression takes a plain click with no prior cross-block
+selection from one state-channel emission to zero, which is a behavior change on the busiest path
+in the editor and wants its own red-first pins per entry path rather than a rider on a payload fix.
 
 ### Reveal anchor is a single process-global slot with no per-claimant ownership
 

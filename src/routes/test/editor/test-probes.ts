@@ -284,10 +284,18 @@ function createSessionProbe<T>(init: () => T): {
 }
 
 // Every edit op, in order; the count probe reads this array's length. Error origins
-// from caught render failures. The first cross-block caretRect.
+// from caught render failures. The first cross-block caretRect. Every selectionChange
+// payload, in order.
 const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
+const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
+
+/** One `selectionChange` payload, flattened so it survives `page.evaluate`. */
+interface SelectionChangeRecord {
+	anchor: { path: number[]; offset: number } | null;
+	focus: { path: number[]; offset: number } | null;
+}
 
 // ── Image-paste host hook ──────────────────────────────────────────────────
 //
@@ -350,6 +358,7 @@ export function installTestProbes({
 	editOpProbe.invalidate(remounted);
 	errorProbe.invalidate(remounted);
 	caretProbe.invalidate(remounted);
+	selectionProbe.invalidate(remounted);
 
 	// Unfiltered: the multi-scope requirement files claim "exactly one edit event per
 	// user gesture" without qualification, so the probe counts what they claim. A
@@ -560,6 +569,19 @@ export function installTestProbes({
 				})
 			),
 		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => caretProbe.stop(),
+		// ── selectionChange emission capture ──────────────────────────────
+		// Every payload in order, so a spec can assert what a subscriber READS BACK
+		// mid-gesture — the burst's shape, not only its settled last value.
+		startSelectionChangeCapture: (): void =>
+			selectionProbe.start((records) =>
+				editor.getEvents().on('selectionChange', (sel) => {
+					records.push({
+						anchor: sel && { path: sel.anchor.path, offset: sel.anchor.offset },
+						focus: sel && { path: sel.focus.path, offset: sel.focus.offset }
+					});
+				})
+			),
+		stopSelectionChangeCapture: (): SelectionChangeRecord[] => selectionProbe.stop(),
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,

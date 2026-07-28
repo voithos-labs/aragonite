@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { capturePageErrors } from '../../page-probes';
+import type { EditorSelection } from '../../../selection/primitives';
 import { dragBetweenCells } from '../blocks/table/helpers';
 
 const PROSE = 'Alpha one\n\nBravo two\n\nCharlie three\n';
@@ -154,6 +155,31 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 			await page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop)
 		).not.toBe(scrolled);
 	});
+
+	// A subscriber reads the editor back on `selectionChange`, so what a restore owes
+	// it is not only the settled value but every payload of the burst — a
+	// persist-on-change host writes the FIRST one. The collapsed route's `clear()`
+	// used to notify while the caret still sat where it was leaving.
+	const RESTORE_ROUTES: Array<[string, EditorSelection]> = [
+		['collapsed caret', { anchor: { path: [0], offset: 3 }, focus: { path: [0], offset: 3 } }],
+		['within-block range', { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 6 } }]
+	];
+	for (const [name, restored] of RESTORE_ROUTES) {
+		test(`a ${name} restore never emits the pre-restore selection`, async ({ page }) => {
+			await editor.loadContent(PROSE);
+			await editor.clickBlockAtPath([2], 4);
+
+			await page.evaluate(() => (window as any).__test.startSelectionChangeCapture());
+			expect(await editor.bridge.setSelection(restored)).toBe(true);
+			await editor.waitForRenderFlush();
+			const emissions = await page.evaluate(() =>
+				(window as any).__test.stopSelectionChangeCapture()
+			);
+
+			expect(emissions.length).toBeGreaterThan(0);
+			for (const emission of emissions) expect(emission).toEqual(restored);
+		});
+	}
 
 	test('an offset past the end clamps to the block end', async () => {
 		await editor.loadContent(PROSE);

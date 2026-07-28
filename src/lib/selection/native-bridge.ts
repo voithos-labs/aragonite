@@ -206,6 +206,12 @@ function copySelectionPoint(point: SelectionPoint): SelectionPoint {
  * (intra-table multi-cell, cross-block) route through SelectionState's
  * overlay; same-path prose ranges use native browser selection.
  *
+ * Both halves — the state write and the caret landing — run inside one
+ * SelectionState batch, so the single change notification this restore produces
+ * carries the settled selection. Without it the collapsed route's `clear()`
+ * notified while the caret still sat at its old location, and a subscriber
+ * reading the editor back saw the PRE-restore selection.
+ *
  * Returns whether the placement landed — false means the target block resolved
  * in the model but is not in the DOM.
  */
@@ -214,8 +220,20 @@ export function applySelectionToDom(
 	selectionState: SelectionState,
 	getBlockElByPath: (path: number[]) => HTMLElement | null
 ): boolean {
-	// Classify before mutating state so a single-block restore never emits a
-	// phantom transient cross-block selectionChange (enterCrossBlock → clear).
+	let placed = false;
+	selectionState.batch(() => {
+		placed = placeRestoredSelection(selection, selectionState, getBlockElByPath);
+	});
+	return placed;
+}
+
+function placeRestoredSelection(
+	selection: EditorSelection,
+	selectionState: SelectionState,
+	getBlockElByPath: (path: number[]) => HTMLElement | null
+): boolean {
+	// Classify before mutating state so a single-block restore never mints a
+	// phantom transient cross-block state (enterCrossBlock → clear).
 	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
 	if (route === 'collapsed') {

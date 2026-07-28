@@ -22,9 +22,11 @@ import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endp
 
 export interface SelectionStateOptions {
 	/**
-	 * Fired after any state mutation. No payload — subscribers call
-	 * `editor.getSelection()` to read the new value. Bridged onto the
-	 * `selectionChange` event (reached via `getEvents()`) by Editor.svelte.
+	 * Fired after any state mutation, or once at the end of a {@link
+	 * SelectionState.batch} that contained one. No payload — subscribers call
+	 * `editor.getSelection()` to read the new value, which is why the batch seam
+	 * exists. Bridged onto the `selectionChange` event (reached via `getEvents()`)
+	 * by Editor.svelte.
 	 */
 	onChange?: () => void;
 	/**
@@ -66,6 +68,19 @@ export interface SelectionState {
 	resetSelectAllCount(): void;
 
 	/**
+	 * Hold change notification until `mutate` returns, then fire it once if
+	 * anything inside mutated. Every mutator notifies exactly as before — the
+	 * batch only decides WHEN, never whether.
+	 *
+	 * Subscribers read the editor back on notify, so an entry path that writes
+	 * state and then lands a caret must wrap BOTH: a notify between the two
+	 * reports the caret the DOM half is about to move. The restore road is that
+	 * shape, and its collapsed route once emitted the pre-restore selection.
+	 * Nests; flushes even when the body throws.
+	 */
+	batch(mutate: () => void): void;
+
+	/**
 	 * Route an anchor/focus pair for DOM restore WITHOUT mutating state, so the
 	 * caller classifies before it decides — no phantom cross-block onChange. A
 	 * same-path prose range is 'single-block' (native browser highlight); a
@@ -88,10 +103,33 @@ class SelectionStateImpl implements SelectionState {
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
 	#getDoc?: () => DocumentView;
+	#batchDepth = 0;
+	#notifyPending = false;
 
 	constructor(options?: SelectionStateOptions) {
 		this.#onChange = options?.onChange;
 		this.#getDoc = options?.getDoc;
+	}
+
+	batch(mutate: () => void): void {
+		this.#batchDepth += 1;
+		try {
+			mutate();
+		} finally {
+			this.#batchDepth -= 1;
+			if (this.#batchDepth === 0 && this.#notifyPending) {
+				this.#notifyPending = false;
+				this.#onChange?.();
+			}
+		}
+	}
+
+	#notify(): void {
+		if (this.#batchDepth > 0) {
+			this.#notifyPending = true;
+			return;
+		}
+		this.#onChange?.();
 	}
 
 	get anchor(): SelectionPoint | null {
@@ -161,7 +199,7 @@ class SelectionStateImpl implements SelectionState {
 			this.#anchor = a;
 			this.#focus = f;
 		}
-		this.#onChange?.();
+		this.#notify();
 	}
 
 	extendFocus(point: SelectionPoint): void {
@@ -185,7 +223,7 @@ class SelectionStateImpl implements SelectionState {
 			this.#assertEndpointCoordinates(this.#anchor, f);
 			this.#focus = f;
 		}
-		this.#onChange?.();
+		this.#notify();
 	}
 
 	// G1.29 at the storing seam: #normalizePoint is meant to make this unfireable,
@@ -224,14 +262,14 @@ class SelectionStateImpl implements SelectionState {
 	collapse(): void {
 		this.#anchor = null;
 		this.#focus = null;
-		this.#onChange?.();
+		this.#notify();
 	}
 
 	clear(): void {
 		this.#anchor = null;
 		this.#focus = null;
 		this.#selectAllCount = 0;
-		this.#onChange?.();
+		this.#notify();
 	}
 
 	restoreRoute(
@@ -265,11 +303,11 @@ class SelectionStateImpl implements SelectionState {
 
 	incrementSelectAllCount(): void {
 		this.#selectAllCount += 1;
-		this.#onChange?.();
+		this.#notify();
 	}
 
 	resetSelectAllCount(): void {
 		this.#selectAllCount = 0;
-		this.#onChange?.();
+		this.#notify();
 	}
 }

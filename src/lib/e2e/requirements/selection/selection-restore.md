@@ -19,6 +19,9 @@ the scroll the host wrote last.
 - Within-block range (same path, distinct offsets): the native range is re-established across the same offsets, resolves `true`
 - Cross-block range: the selection re-enters cross-block state and the overlay paints, resolves `true`
 - Intra-table cell rectangle (cell-valued offsets on unflagged endpoints): the same cell selection is restored, resolves `true`
+- Collapsed-caret restore with a `selectionChange` subscriber attached: every emission the restore
+  produces reports the restored selection — never the one being left
+- Within-block range restore with the same subscriber: same, on the native-range route
 
 ## Edge cases
 
@@ -48,6 +51,13 @@ of the window **entirely**, which forces a real mount-and-scroll. That hid the c
 actually lands in after a normal user scroll: a target still mounted a few blocks past the
 fold, for which the mount primitive short-circuits and never scrolls. "In view" needs a
 scenario where the block is already mounted, or it only ever tests "mounted".
+
+The stale-emission scenarios assert every payload of the burst, not the settled one. Reading the
+selection back after the await passed throughout the bug's life — the last emission was always
+correct — so only a subscriber's view of the intermediate events discriminates. The pure-harness
+counterpart (`src/lib/test/selection/selection-emission.test.ts`) pins the same property where the
+browser's own `selectionchange` cannot mask it, and pins the batch seam's nesting and throw
+behavior, which no gesture can reach.
 
 The hand-back scenario needs a block that grows **after** the restore resolved, and it has
 to grow **below the fold**. Growth above the anchor legitimately moves `scrollTop` (the
