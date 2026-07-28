@@ -383,6 +383,8 @@ The state is lazy: its fields are null in single-block mode and become non-null 
 
 **Exiting it:** a click or an unshifted arrow collapses back to native single-block selection. Typing, Backspace, Delete, Cut, and Paste all delete the selected range first, then perform their normal action at the collapsed cursor — and IME composition follows the same delete-then-compose path.
 
+**Restoring it:** one road serves both the undo swap and the consumer's `setSelection` — resolve and clamp both endpoints, reveal what the caret will park at, then write the state and place the caret. Both writes happen inside one change-notification batch, because what a subscriber sees is the editor it reads back: a notification landing between the state write and the caret landing reports a selection the restore is about to move.
+
 **Across containers**, "start wins": the start endpoint's container context determines merge/cleanup behavior after a destructive operation.
 
 #### `measurePartialRects` — offset semantics by surface
@@ -487,7 +489,7 @@ That redundancy is the price of the round-trip guarantee, and what it buys is a 
 The editor exposes an observer surface via `getEvents()`. Four channels, and `on(name, cb)` returns a disposer. Events fire synchronously from their emission sites; handlers must not mutate the document (reentrant edits are not supported).
 
 - **`edit`** — after every commit. The payload is a discriminated union keyed by `op`: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`. **`path` is doc-absolute for every op** — including `input` (the edited leaf) and every nested container op — and resolves from the document root to the operated node, or to the one-past-end slot an append creates. Column-shaped table ops target the table and carry the column index in `detail`.
-- **`selectionChange`** — the selection snapshot, or `null`.
+- **`selectionChange`** — the selection snapshot, or `null`. Two emitters feed it: the cross-block state's own change notification, and a bridge off the browser's `selectionchange` for caret motion inside one block. Subscribers read the editor back rather than taking a payload, so a gesture that writes state and then moves the caret must not notify between the two — the state seam takes a batch for exactly that, and the restore road spans both halves with one (see § 10).
 - **`presentationModeChange`** — the effective presentation mode after a `presentationMode` prop change (never fired at mount).
 - **`error`** — a failure the editor _contained_ rather than propagated, discriminated by `origin`: a `subscriber` throw (one observer's throw never starves the others, and is never silently swallowed), a `render` throw (caught by the per-`BlockHost` boundary, which degrades that block to a readable fallback while its siblings survive), a `commit` throw (the ceremony rolls the undo/redo stacks back to their pre-commit state before reporting), a `command` throw (a plugin's block-command handler — the gesture no-ops and the error is attributed to its kind, command id, and owning plugin), a `decoration` throw (a decoration source's `provide` — its prior decorations are retained rather than blanked, attributed to the source), or a `clipboard` decline (a paste that consumed the gesture and inserted nothing, so a host can release an asset it imported for the hook). One seam for surfacing or logging every contained failure.
 

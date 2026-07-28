@@ -119,7 +119,7 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		// collapsed while the import was in flight leaves the root with an imported asset
 		// and no caret to put it at — the one landing this seam cannot supply.
 		emitClipboardDecline(deps.events, {
-			path: [],
+			path: deps.selection.start?.path.slice() ?? [],
 			message: 'imported image had no insertion point at the editor root; nothing inserted'
 		});
 	}
