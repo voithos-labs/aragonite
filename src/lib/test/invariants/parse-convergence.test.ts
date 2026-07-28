@@ -53,6 +53,16 @@ describe('parseConverges tolerates the documented empty-paragraph placeholders',
 		]);
 		expect(parseConverges(doc)).toBe(true);
 	});
+
+	it('a placeholder padded with spaces and tabs, which the parser also folds', () => {
+		// Guards the tolerance against being narrowed to exact-empty: the parser
+		// calls this line blank, so the oracle must keep tolerating it.
+		const doc = docOf([
+			{ kind: 'paragraph', leadingTrivia: '', raw: ' \t \n' },
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'content\n' }
+		]);
+		expect(parseConverges(doc)).toBe(true);
+	});
 });
 
 // ── Caught divergence classes (the three bugs the tautology admitted) ─────────
@@ -84,6 +94,19 @@ describe('parseConverges catches live-tree-vs-raw divergence', () => {
 		// desync the serializer is blind to. Cells are never filtered, so it fires.
 		doc.children[0].children![1].children!.push({ kind: 'tableCell', leadingTrivia: '', raw: 'X' });
 		expect(parseConverges(doc)).toBe(false);
+	});
+
+	it('a split that produced two paragraphs where the bytes reparse as one', () => {
+		// The tolerance is "the parser folds this line into trivia", so it has to ask
+		// the parser's own blank rule. A `String.trim()` test called this non-breaking
+		// space blank, dropped the second paragraph from the LIVE side only, and
+		// reported convergence for a live tree that is genuinely one node too long.
+		const doc = docOf([
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' },
+			{ kind: 'paragraph', leadingTrivia: '', raw: `${String.fromCharCode(0xa0)}\n` }
+		]);
+		expect(parseConverges(doc)).toBe(false);
+		expect(describeConvergence(doc)).toMatch(/live has 2 comparable children, reparsed has 1/);
 	});
 
 	it('a stale table metadata columnCount fires on the parse-derived field', () => {

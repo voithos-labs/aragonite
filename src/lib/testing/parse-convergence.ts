@@ -16,7 +16,10 @@
  * half) that the parser folds into trivia. Both trees drop empty-paragraph
  * placeholders before comparison — the same tolerance `stale-raw.test.ts` and
  * `structural-id-ref-alignment.test.ts` document, expressed structurally rather
- * than through a byte concat.
+ * than through a byte concat. The tolerance is defined by what the parser folds,
+ * so it asks the parser's own blank-line rule (GFM §2.1) rather than a whitespace
+ * test of its own: a wider one drops a paragraph the parser would keep, from the
+ * live side only, and reports convergence for a tree that diverges.
  *
  * The reparse runs through the ambient parser's registered grammar. Run it only
  * over a doc whose kinds are registered (built-ins always are; a plugin kind
@@ -25,7 +28,8 @@
  */
 
 import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';
-import { parse } from '../core/parser';
+import { splitLines } from '../core/lines';
+import { isBlankLine, parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { show } from './conformance-core';
 
@@ -51,7 +55,8 @@ const METADATA_FIELDS: {
 
 /** An empty-paragraph placeholder the parser folds into trivia — a tolerated transient. */
 function isEmptyParagraphPlaceholder(node: CstNode): boolean {
-	return node.kind === 'paragraph' && !node.children && node.raw.trim() === '';
+	if (node.kind !== 'paragraph' || node.children) return false;
+	return splitLines(node.raw).every((line) => isBlankLine(line.text));
 }
 
 /** Children with the tolerated empty-paragraph placeholders dropped, both sides symmetrically. */
