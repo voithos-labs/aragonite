@@ -354,6 +354,24 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   the next Backspace against a block the user only clicked near. Both are in `docs/issues.md`.
   A drag-select that ends in the margin keeps its selection.
 
+- **A reveal click on a rendered block no longer leaves the whole document armed for
+  deletion.** Clicking the rendered view of a render-primary leaf — block math, the table of
+  contents, a footnote definition — reveals its source and lands a caret in it, which makes it a
+  caret-placing gesture. It was the one such gesture that skipped the shared pointerdown
+  preamble, so a live cross-block selection stayed painted over a caret that had just moved out
+  of it, and the next Backspace deleted the range rather than a character: select all, click the
+  math, press Backspace, and the document was gone. It runs the preamble now. It still does not
+  route through the cross-block dispatcher the source surfaces use, because that hit-tests the
+  pointer against source text a rendered view does not have. Found by writing out the entry set
+  for the new guard below rather than by a report, which is the entry set's whole point: the rule
+  that a caret-placing gesture ends a live range is carried by each gesture, and
+  `invariants/lint/caret-gesture-range-reset` now makes a gesture that joins the set declare
+  which door it uses — or say what it does instead of placing a caret. The rule cannot be seated
+  in a funnel, and that is measured rather than assumed: `BlockComponent.focus` is the obvious
+  candidate and is the same call the cross-block dispatcher parks its own caret with mid-extend,
+  so a clear seated there reds three extend specs. `focus` is therefore documented as a park
+  primitive; the consumer door that ends a range is `setSelection`, and both halves are pinned.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

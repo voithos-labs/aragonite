@@ -9,6 +9,12 @@
  * the last block's trailing corner, and `blockAtPoint` descends into containers by
  * itself. Surfaces that address something other than characters (a table, whose
  * offset is a cell index) decline rather than guess; see `docs/issues.md`.
+ *
+ * "Below the last block" means below the last MOUNTED one: the bands come from the
+ * live DOM, which under virtual rendering is the window, not the document. Harmless
+ * as the gesture stands — the dead space below the document is only visible when you
+ * are scrolled to the bottom, where the last block is mounted — but anything built on
+ * these bands must not assume the whole document is in them.
  */
 
 import type { BlockComponent } from '../block-component';
