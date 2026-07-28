@@ -147,6 +147,64 @@ export async function measureTypingLatency(
 }
 
 /**
+ * The container-interior companion to {@link measureTypingLatency}: type into the
+ * FIRST child of a giant single container, addressed by path, instead of a
+ * prepended paragraph. Every keystroke then rewrites the container's own opener
+ * line — the gesture the container kind re-derivation gate must elide, and the one
+ * axis no prose-target row can see, since their caret never sits inside a
+ * container. Settles on block 0's length like its prose twin: block 0 IS the
+ * container here, and its raw grows by one per keystroke.
+ */
+export async function measureContainerHeadTyping(
+	page: Page,
+	editor: EditorPage,
+	shape: FixtureShape,
+	headLeafPath: number[],
+	bytes: number,
+	keystrokes: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const fixture = generateFixture(shape, bytes);
+
+	const loadStart = performance.now();
+	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
+	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
+	await editor.waitForRenderFlush();
+	const loadMs = performance.now() - loadStart;
+
+	const pathAttr = JSON.stringify(headLeafPath);
+	const mounted = await page.evaluate(
+		(attr) => !!document.querySelector(`[data-block-path='${attr}']`),
+		pathAttr
+	);
+	if (!mounted)
+		throw new Error(`container head ${pathAttr} is not mounted — windowing left it off-window`);
+
+	// Overshooting the leaf's own length lands in focusBlockAtPath's clamp-to-end
+	// fallback, so the caret sits at the head leaf's end whatever its content is.
+	await editor.focusBlockAtPath(headLeafPath, Number.MAX_SAFE_INTEGER);
+	const base0 = await page.evaluate(() => {
+		const c = (window as any).__test.getDocument().children[0];
+		return c.leadingTrivia.length + c.raw.length;
+	});
+
+	const samples: number[] = [];
+	for (let i = 1; i <= keystrokes; i++) {
+		const keyStart = performance.now();
+		await editor.typeSlowly('x');
+		await waitForBlock0Len(page, base0 + i, KEYSTROKE_TIMEOUT_MS);
+		samples.push(performance.now() - keyStart);
+	}
+
+	return {
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	};
+}
+
+/**
  * The at-depth companion to {@link measureTypingLatency}: type into the DEEPEST
  * leaf of a `generateDeepNested` document, so each keystroke pays the full
  * ancestry raw rebuild the top-level path skips. The concern-4 corroboration —

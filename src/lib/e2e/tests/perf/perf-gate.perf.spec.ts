@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { readFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
-import { measureTypingLatency } from './latency-harness';
+import { measureContainerHeadTyping, measureTypingLatency } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -86,6 +86,45 @@ test.describe('perf gate — keystroke p50 within budget', () => {
 			expect(m.p50Ms, `${shape}-${size} p50 regressed past baseline+budget`).toBeLessThanOrEqual(
 				ceiling
 			);
+		});
+	}
+});
+
+// Typing inside a container, not ahead of one. Every row above prepends a plain
+// paragraph and types into block 0, so no gated row's caret ever sits inside a
+// container — and the container kind re-derivation's cost lands precisely there:
+// a keystroke into the head child rewrites the container's opener line, and an
+// ungated re-derivation would parse the whole container for it. The row exists so
+// that regression is O(container bytes)-visible instead of invisible.
+const CONTAINER_HEAD_ROWS: Array<[shape: FixtureShape, headLeafPath: number[], size: string]> = [
+	['giant-single-list', [0, 0, 0], '1MB'],
+	['giant-single-blockquote', [0, 0], '1MB']
+];
+
+test.describe('perf gate — keystroke p50 typing into a container head', () => {
+	for (const [shape, headLeafPath, size] of CONTAINER_HEAD_ROWS) {
+		test(`${shape} head ${size}`, async ({ page }) => {
+			const row = baseline.e2e[`${shape}-head-${size}`];
+			const ceiling = (row.keystrokeP50Ms * TOLERANCE + FLOOR_MS) * RUNNER_SCALE;
+
+			const editor = new EditorPage(page);
+			const m = await measureContainerHeadTyping(
+				page,
+				editor,
+				shape,
+				headLeafPath,
+				SIZE_BYTES[size],
+				SIZE_KEYSTROKES[size]
+			);
+
+			console.log(
+				`PERF-GATE ${shape}-head-${size} p50=${m.p50Ms.toFixed(1)}ms ` +
+					`ceiling=${ceiling.toFixed(1)}ms (baseline ${row.keystrokeP50Ms}ms) p95=${m.p95Ms.toFixed(1)}ms`
+			);
+			expect(
+				m.p50Ms,
+				`${shape}-head-${size} p50 regressed past baseline+budget`
+			).toBeLessThanOrEqual(ceiling);
 		});
 	}
 });
