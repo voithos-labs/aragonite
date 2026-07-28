@@ -583,6 +583,21 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   and now has a unit repro. Its residual is filed rather than fixed: the paste's undo snapshot is
   pushed before the delete, so a declined paste leaves one entry that undoes nothing.
 
+- **An image pasted over a selection the block surfaces never see is imported.** When a
+  cross-block selection's focus endpoint hosts no caret — its last block is an image-only
+  paragraph, a thematic break — the park is a no-op and the browser dispatches the paste at the
+  body, where the editor-root fallback runs. That fallback went straight to the cross-block arm,
+  which has only `text/plain` to work with, so a pure-image paste was discarded without the host
+  hook ever being offered the files. The arm now lives in one seam both entry paths construct,
+  rather than the second divergent copy the issue was deferred to avoid: the shared half is
+  reading the files, offering each to the hook, and handing the markdown to the cross-block route;
+  what stays per-caller is only what needs a caret, which the root does not have. The root's own
+  decline — a selection collapsed while the import was in flight, leaving imported markdown with
+  nowhere to land — reports on the same `clipboard` error origin, which is the second consumer
+  that justified minting it. The root arm prevents before it awaits the hook, the same discipline
+  the surface skeleton states, so the browser's native paste cannot fire during an import and
+  inject DOM the CST never sees.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

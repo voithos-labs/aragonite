@@ -22,6 +22,7 @@ import { pathsEqual } from '../path-math';
 import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
+import { emitClipboardDecline } from '../../editor-events';
 
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
@@ -73,11 +74,10 @@ export async function handleCrossBlockPaste(
 	// host already imported for `onPasteImage` does not: report so it can release
 	// the asset rather than orphan it.
 	if (!caret) {
-		reportDeclinedPaste(
-			ctx,
-			rangeStartPath,
-			'cross-block paste resolved no caret; nothing inserted'
-		);
+		emitClipboardDecline(ctx.events, {
+			path: rangeStartPath,
+			message: 'cross-block paste resolved no caret; nothing inserted'
+		});
 		return true;
 	}
 
@@ -98,23 +98,6 @@ export async function handleCrossBlockPaste(
 
 	await landCaretAfterPaste(ctx, caret.path, result.inlineCaretOffset);
 	return true;
-}
-
-/**
- * Announce a paste that consumed its gesture and inserted nothing. The one place
- * this route can say so; a host that imported an asset for `onPasteImage` reads it
- * to release what would otherwise be orphaned.
- */
-export function reportDeclinedPaste(
-	ctx: Pick<CrossBlockDispatchContext, 'events'>,
-	path: number[],
-	message: string
-): void {
-	ctx.events.emit('error', {
-		origin: 'clipboard',
-		error: new Error(message),
-		context: { path }
-	});
 }
 
 /**
