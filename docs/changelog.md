@@ -372,6 +372,28 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   so a clear seated there reds three extend specs. `focus` is therefore documented as a park
   primitive; the consumer door that ends a range is `setSelection`, and both halves are pinned.
 
+- **A ranged edit spanning a fence line stops corrupting the fence.** Select from a fenced code
+  block's last body line through its closer, press Backspace, and the committed block was an
+  unclosed fence that absorbed every following block at the next parse. The block's own gestures
+  each declined on sight of a range — `codeBackspace`/`codeDelete` bail when the selection is not
+  collapsed, and `onBeforeInput` claimed only `insertText`/`insertLineBreak` — so the native edit
+  landed in the contenteditable and the surface committed whatever text was left. The fix is one
+  seam rather than a clamp per gesture: every native edit that rewrites a range now passes a
+  beforeinput guard that reads the pending edit's own target range and re-sites it onto the body,
+  and cut and paste's pre-delete share the same splice. Reading `getTargetRanges()` rather than
+  the selection is what makes a word delete and a Backspace at the closer line's start members of
+  the same case — both are ranges the browser derived, and both fused a fence line before. An IME
+  cannot be guarded there (`insertCompositionText` is not cancelable), so a fence-crossing
+  selection is shrunk onto its body span at `compositionstart` instead. The contract: mutations
+  clamp to the intersection of their range with the body, so a fence-only selection is inert,
+  while copy stays verbatim with the literal bytes — cut is a verbatim copy plus a clamped delete,
+  by design and stated where the requirement defines it. The clamp fires only on a range that
+  CROSSES a fence line, never on one confined to the opener's text, the body, or the closer's
+  text: those round-trip through the parser, and clamping them would have made retyping an info
+  string impossible. One consequence beyond the bug: select-all then delete inside a code block
+  now empties the body and leaves a code block, where the unguarded native delete of the whole
+  display left a paragraph.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

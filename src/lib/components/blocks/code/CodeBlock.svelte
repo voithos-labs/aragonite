@@ -19,6 +19,7 @@
 	import {
 		createRangeFromOffsets,
 		setCursorOffset as setCursorOffsetHelper,
+		getRangeOffsets as getRangeOffsetsHelper,
 		getSelectionOffsets as getSelectionOffsetsHelper,
 		hasSelection as hasSelectionHelper
 	} from '../../../cursor/content-offsets';
@@ -43,7 +44,11 @@
 	import {
 		classifyFenceBoundary,
 		clampEnterOffsetToBody,
-		clampRangeToBody
+		clampRangeToBody,
+		computeFenceRangedEdit,
+		crossesFenceBoundary,
+		fenceEditSpan,
+		type CodeRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -207,11 +212,23 @@
 	// ── Event handlers ────────────────────────────────────────────────────────
 
 	const onInput = editableSurface.onInput;
-	const onCompositionStart = editableSurface.onCompositionStart;
 	const onCompositionEnd = editableSurface.onCompositionEnd;
+
+	// An IME deletes the selection as it starts composing, and beforeinput's
+	// insertCompositionText is not cancelable — so a fence-crossing selection shrinks
+	// onto its body span here, before the composition owns the surface.
+	function onCompositionStart(): void {
+		const sel = el ? getSelectionOffsetsHelper(el) : null;
+		if (sel && crossesFenceBoundary(node, sel)) {
+			const span = fenceEditSpan(node, sel);
+			setSelection(span.start, span.end);
+		}
+		editableSurface.onCompositionStart();
+	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		if (guardFenceRangedEdit(e)) return;
 		// Soft break path: Shift+Enter on desktop and mobile/IME insertLineBreak
 		// without a preceding keydown. Gated on !composing like the insertText arm
 		// below: an IME emitting insertLineBreak mid-composition must not sync
@@ -271,6 +288,75 @@
 			pendingSelection = result.selection;
 		} else {
 			pendingCursorOffset = result.caretOffset;
+		}
+	}
+
+	// ── Fence-crossing edits ──────────────────────────────────────────────────
+
+	/**
+	 * The one guard for every native edit that rewrites a range on this surface.
+	 * The block's own gestures (`codeBackspace`, `codeDelete`, Tab) each cover a
+	 * collapsed caret or a whole line; a delete, forward-delete, type-over, word
+	 * delete or drag arrives here instead, and one that crosses a fence line is
+	 * re-sited onto the body rather than left to splice the fence away. Claims the
+	 * event when it acted.
+	 */
+	function guardFenceRangedEdit(e: InputEvent): boolean {
+		if (composing || !el) return false;
+		const range = pendingEditRange(e, el);
+		if (!range || !crossesFenceBoundary(node, range)) return false;
+
+		e.preventDefault();
+		const insert = rangedEditInsertion(e);
+		if (insert === null) return true;
+		const edit = computeFenceRangedEdit(node, range, insert);
+		if (!edit) return true;
+		// Mobile/IME beforeinput arrives without a preceding keydown, so the undo
+		// anchor reads fresh rather than trusting preEditOffset (see the soft-break arm).
+		blockEdit.updateBlockContent(
+			index,
+			edit.newText + trailingLineEnding(node.raw),
+			backend.getRaw() ?? 0
+		);
+		pendingCursorOffset = edit.newCursor;
+		return true;
+	}
+
+	/**
+	 * What the pending edit will rewrite. `getTargetRanges()` is the authority — a
+	 * word delete at a collapsed caret reports the word, not the caret — and it is
+	 * feature-detected because jsdom does not implement it; the live selection is
+	 * the fallback every path can answer.
+	 */
+	function pendingEditRange(e: InputEvent, surface: HTMLElement): CodeRange | null {
+		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
+		if (targets.length > 0) return getRangeOffsetsHelper(surface, targets[0]);
+		const selected = getSelectionOffsetsHelper(surface);
+		if (selected) return selected;
+		const caret = backend.getRaw();
+		return caret === null ? null : { start: caret, end: caret };
+	}
+
+	/**
+	 * The text each claimed input type writes over its range — the grep target for
+	 * "which gestures does the fence guard re-site". The delete family writes
+	 * nothing; the insert family writes its own payload. Null REFUSES the gesture
+	 * instead: a drop is paired with a `deleteByDrag` on the source range, and
+	 * re-siting one half of that pair would duplicate or lose the dragged text.
+	 */
+	function rangedEditInsertion(e: InputEvent): string | null {
+		if (e.inputType.startsWith('delete')) return '';
+		switch (e.inputType) {
+			case 'insertText':
+				return e.data ?? '';
+			// Autocorrect and IME replacements carry their payload on the dataTransfer.
+			case 'insertReplacementText':
+				return e.dataTransfer?.getData('text/plain') ?? e.data ?? '';
+			case 'insertLineBreak':
+			case 'insertParagraph':
+				return trailingLineEnding(node.raw);
+			default:
+				return null;
 		}
 	}
 
@@ -521,24 +607,26 @@
 		caret: editableSurface.caret,
 		events: editorEvents,
 		onPasteImage,
+		// Copy is verbatim while the delete clamps: the clipboard keeps the literal
+		// bytes the user selected, fence characters included, and only the body half
+		// of that selection is removed.
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;
 			const selOffsets = getSelectionOffsetsHelper(el);
-			if (selOffsets) {
-				const display = getDisplayText();
-				const newDisplay = display.slice(0, selOffsets.start) + display.slice(selOffsets.end);
-				blockEdit.updateBlockContent(
-					index,
-					newDisplay + trailingLineEnding(node.raw),
-					selOffsets.start
-				);
-				pendingCursorOffset = selOffsets.start;
-			}
+			if (!selOffsets) return;
+			const edit = computeFenceRangedEdit(node, selOffsets, '');
+			if (!edit) return;
+			blockEdit.updateBlockContent(
+				index,
+				edit.newText + trailingLineEnding(node.raw),
+				edit.newCursor
+			);
+			pendingCursorOffset = edit.newCursor;
 		},
 		pasteTail: async (e, pastedText) => {
 			if (!el) return;
-			const sel = currentRange();
+			const sel = fenceEditSpan(node, currentRange());
 			const result = await pasteDispatch(
 				{
 					pastedText,
