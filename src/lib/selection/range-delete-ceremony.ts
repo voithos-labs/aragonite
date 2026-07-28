@@ -198,5 +198,5 @@ export function rebuildSharedAncestries(
 	for (const path of plan.deletionPaths) {
 		rebuildUnsharedAncestry(doc, path, sharing);
 	}
-	if (plan.chromeClearChain) rebuildUnsharedChain(plan.chromeClearChain, sharing);
+	if (plan.chromeClearChain) rebuildUnsharedChain(doc, plan.chromeClearChain, sharing);
 }

@@ -14,6 +14,8 @@ export interface PerfSnapshot {
 	snapshotCount: number;
 	snapshotCloneBytes: number;
 	rebuildDepths: Record<number, number>;
+	/** Container reparses the kind re-derivation gate let through (see rebuildUnsharedChain). */
+	containerKindReparses: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
@@ -39,6 +41,7 @@ function emptySnapshot(): PerfSnapshot {
 		snapshotCount: 0,
 		snapshotCloneBytes: 0,
 		rebuildDepths: {},
+		containerKindReparses: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
@@ -97,6 +100,11 @@ export function recordSnapshotClone(bytes: number): void {
 export function recordRebuildDepth(depth: number): void {
 	if (!enabled) return;
 	counters.rebuildDepths[depth] = (counters.rebuildDepths[depth] ?? 0) + 1;
+}
+
+export function recordContainerKindReparse(): void {
+	if (!enabled) return;
+	counters.containerKindReparses++;
 }
 
 export function recordParse(ms: number, blockCount: number): void {

@@ -93,7 +93,7 @@ export async function handleCrossBlockTypeReplace(
 				const chain = ensureUnsharedPath(doc, caret.path, sharing);
 				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
 				owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
-				rebuildUnsharedChain(chain, sharing);
+				rebuildUnsharedChain(doc, chain, sharing);
 				return [{ op: 'noop' }];
 			}
 

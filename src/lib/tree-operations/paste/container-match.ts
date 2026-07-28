@@ -232,7 +232,7 @@ async function applyContainerMatchingMerge(
 				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 				const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
 				ownedLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
-				rebuildUnsharedChain(chain, sharing);
+				rebuildUnsharedChain(ctx.doc, chain, sharing);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -280,7 +280,7 @@ async function applyContainerMatchingMerge(
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
 			// Rebuild target's ancestry so the enclosing listItem reflects the
 			// merged paragraph before siblings splice in.
-			rebuildUnsharedChain(chain, sharing);
+			rebuildUnsharedChain(ctx.doc, chain, sharing);
 			// Last remaining item's enclosing listItem raw still reflects the
 			// pre-mutation paragraph; rebuild before splicing so the published
 			// children carry correct raws in one reactive flush.

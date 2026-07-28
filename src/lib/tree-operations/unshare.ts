@@ -28,8 +28,10 @@ import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
+import type { GrammarView } from '../schema/block-openers';
+import { perfEnabled, recordContainerKindReparse, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
+import { reclassifyContainer } from './node-ops';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
 	// The door: the copy is freshly owned; its children still alias shared
@@ -186,15 +188,50 @@ export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode
 
 /**
  * Rebuild raws along an owned spine chain (as returned by ensureUnsharedPath),
- * innermost-first. Chain-based rather than path-based so it stays correct after
- * mutations shifted sibling indices — node references survive splices. One
- * chain rebuild = one rebuild-depth histogram sample.
+ * innermost-first, re-deriving each container's kind from its fresh raw.
+ * Returns the replacements a re-derivation minted (empty on the routine path).
+ *
+ * Chain-based rather than path-based so it stays correct after mutations shifted
+ * sibling indices — node references survive splices; `root` supplies the
+ * outermost level's parent, and a replaced node's slot is found by identity.
+ * One chain rebuild = one rebuild-depth histogram sample.
+ *
+ * The kind re-derivation is gated on the container's FIRST line changing across
+ * its rebuild: an opener claims from line 1, so a body-line edit cannot change
+ * what the container opens as, and the common keystroke pays a string compare
+ * instead of a reparse.
  */
-export function rebuildUnsharedChain(chain: CstNode[], sharing: SharingState): void {
+export function rebuildUnsharedChain(
+	root: NodeParent | CstNode,
+	chain: CstNode[],
+	sharing: SharingState,
+	grammar?: GrammarView
+): CstNode[] {
+	const replacements: CstNode[] = [];
 	for (let i = chain.length - 1; i >= 0; i--) {
-		rebuildOwnedContainer(chain[i], sharing);
+		const node = chain[i];
+		const openerLineBefore = firstLine(node.raw);
+		rebuildOwnedContainer(node, sharing);
+		if (firstLine(node.raw) === openerLineBefore) continue;
+
+		const siblings = (i === 0 ? root : chain[i - 1]).children;
+		const index = siblings?.indexOf(node) ?? -1;
+		if (!siblings || index < 0) continue;
+		if (perfEnabled()) recordContainerKindReparse();
+		const replacement = reclassifyContainer({ children: siblings }, index, grammar);
+		if (replacement) {
+			sharing.stamp(replacement);
+			replacements.push(replacement);
+		}
 	}
 	if (perfEnabled()) recordRebuildDepth(chain.length);
+	return replacements;
+}
+
+/** The container's opener line — everything before its first line ending. */
+function firstLine(raw: string): string {
+	const nl = raw.indexOf('\n');
+	return nl < 0 ? raw : raw.slice(0, nl);
 }
 
 /**
@@ -207,7 +244,8 @@ export function rebuildUnsharedChain(chain: CstNode[], sharing: SharingState): v
 export function rebuildUnsharedAncestry(
 	root: NodeParent,
 	path: number[],
-	sharing: SharingState
-): void {
-	rebuildUnsharedChain(walkUnsharing(root, path, sharing, false), sharing);
+	sharing: SharingState,
+	grammar?: GrammarView
+): CstNode[] {
+	return rebuildUnsharedChain(root, walkUnsharing(root, path, sharing, false), sharing, grammar);
 }
