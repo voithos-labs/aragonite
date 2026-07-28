@@ -2,7 +2,11 @@ import { test, expect } from '../../fixtures';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_SHAPES, type FixtureShape } from '../../../test/perf/fixtures/generate';
-import { measureTypingLatency, measureDeepNestedTyping } from './latency-harness';
+import {
+	measureContainerHeadTyping,
+	measureDeepNestedTyping,
+	measureTypingLatency
+} from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -67,6 +71,38 @@ test.describe('typing latency', () => {
 				expect(m.samples).toHaveLength(keystrokes);
 			});
 		}
+	}
+});
+
+// ── Container-head typing (report companion to the gated rows) ──────────────
+
+// The caret INSIDE a giant container rather than in a paragraph ahead of it, so
+// every keystroke rewrites the container's own opener line. The prose-target rows
+// above cannot reach this: they prepend a paragraph precisely so the caret has a
+// top-level home. Gated twins live in perf-gate; these rows carry the loadMs and
+// p95 a re-bless sweep needs.
+const CONTAINER_HEAD_SHAPES: Array<[shape: FixtureShape, headLeafPath: number[]]> = [
+	['giant-single-list', [0, 0, 0]],
+	['giant-single-blockquote', [0, 0]]
+];
+
+test.describe('typing latency — container head', () => {
+	for (const [shape, headLeafPath] of CONTAINER_HEAD_SHAPES) {
+		test(`${shape} head 1MB`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			const m = await measureContainerHeadTyping(page, editor, shape, headLeafPath, 1_000_000, 30);
+			writeResult(`${shape}-head`, '1MB', {
+				shape,
+				headLeafPath,
+				bytes: 1_000_000,
+				loadMs: round(m.loadMs),
+				keystrokes: 30,
+				keystrokeP50Ms: round(m.p50Ms),
+				keystrokeP95Ms: round(m.p95Ms),
+				note: DEV_CAVEAT
+			});
+			expect(m.samples).toHaveLength(30);
+		});
 	}
 });
 
