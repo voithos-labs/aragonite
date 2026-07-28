@@ -123,7 +123,23 @@ export function getSelectionOffsets(
 ): { start: DomTextOffset; end: DomTextOffset } | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
-	const range = sel.getRangeAt(0);
+	return getRangeOffsets(container, sel.getRangeAt(0));
+}
+
+/**
+ * Offsets for an arbitrary range inside `container` — the pending-edit range an
+ * InputEvent reports through `getTargetRanges()`, which is not the live selection
+ * (a word delete at a collapsed caret reports the whole word). Null when either
+ * endpoint sits outside the container, so a surface never measures a range that
+ * isn't its own.
+ */
+export function getRangeOffsets(
+	container: HTMLElement,
+	range: AbstractRange
+): { start: DomTextOffset; end: DomTextOffset } | null {
+	if (!container.contains(range.startContainer) || !container.contains(range.endContainer)) {
+		return null;
+	}
 	return {
 		start: nodeOffsetToContent(container, range.startContainer, range.startOffset),
 		end: nodeOffsetToContent(container, range.endContainer, range.endOffset)

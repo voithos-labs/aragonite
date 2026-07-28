@@ -6,31 +6,6 @@ or a **Why deferred** rationale (if not). Remove entries when shipped.
 
 ## Core editing
 
-### A ranged edit spanning a fence line corrupts the fence
-
-**Severity:** important (byte corruption; the block absorbs the rest of the document on reload)
-**Files:** `src/lib/components/blocks/code/CodeBlock.svelte` (`codeBackspace` / `codeDelete` bail on
-a non-collapsed selection; `onBeforeInput` intercepts only `insertText` and `insertLineBreak`;
-`cutTail` writes the spliced display text directly),
-`src/lib/components/blocks/code/code-fence-boundary.ts` (`classifyFenceBoundary` takes one offset,
-not a range)
-
-The fence lines are structure, not content, and every gesture that rewrites whole lines is now
-clamped to the body window. The gestures that rewrite a **range** are not. Select across a fence
-line and press Backspace, Delete, or any printable key: the block's own guards decline on sight of a
-selection, `onBeforeInput` does not claim the input type, so the native ranged edit lands in the
-contenteditable and the surface commits whatever text remains. The committed block is an unclosed
-fence, which absorbs every following block on the next parse. `cutTail` is the same family's
-explicit-write member: it splices the display text itself with no clamp.
-
-**Repro:** in a fenced code block, select from the last body line through the closer fence and press
-Backspace; save and reload.
-
-**Why deferred:** closing this needs a beforeinput-level ranged-edit guard covering delete, cut and
-type-over together, not a clamp per gesture: the block-level guards run below the point where the
-selection is still known to be a range. Fixing one member is 1-of-N and would additionally make cut
-and copy disagree about what a fence-crossing selection means, which is its own decision.
-
 ### Interactive reading mode (live task checkboxes) — deferred product question
 
 **Severity:** minor (product decision, not a defect)
