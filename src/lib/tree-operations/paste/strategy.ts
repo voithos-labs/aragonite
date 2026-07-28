@@ -4,6 +4,7 @@
 
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteStrategy } from './dispatch';
+import { emptyParagraph } from '../node-ops';
 
 export function pickPasteStrategy(parsed: Document): PasteStrategy {
 	if (parsed.children.length === 1 && parsed.children[0].kind === 'paragraph') {
@@ -18,8 +19,12 @@ export function pickPasteStrategy(parsed: Document): PasteStrategy {
  * source produces. The parser collapses blank lines into leadingTrivia,
  * which serializes the same but doesn't render as a row. Top-level only —
  * list items don't carry blank-line semantics in their own trivia.
+ *
+ * `lineEnding` is the TARGET document's, never the payload's: paste entry points
+ * normalize the clipboard to LF, so the trivia these rows materialize from cannot
+ * tell a CRLF document apart from an LF one (G4.20).
  */
-export function materializeBlankLines(blocks: CstNode[]): CstNode[] {
+export function materializeBlankLines(blocks: CstNode[], lineEnding: string): CstNode[] {
 	if (blocks.length <= 1) return blocks;
 	const out: CstNode[] = [blocks[0]];
 	for (let i = 1; i < blocks.length; i++) {
@@ -28,7 +33,7 @@ export function materializeBlankLines(blocks: CstNode[]): CstNode[] {
 		const newlineCount = (trivia.match(/\n/g) ?? []).length;
 		if (newlineCount >= 1) {
 			for (let j = 0; j < newlineCount; j++) {
-				out.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+				out.push(emptyParagraph('', lineEnding));
 			}
 			out.push({ ...block, leadingTrivia: '' });
 		} else {

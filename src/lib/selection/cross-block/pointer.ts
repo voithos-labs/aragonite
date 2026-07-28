@@ -95,12 +95,15 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		installDragListener(
 			{
 				editorRoot: root,
-				scrollContainer: root,
+				// The root is the hit-test boundary; what SCROLLS may be an ancestor
+				// (host-scroll mode), so the two are resolved separately.
+				scrollContainer: ctx.getScrollHost() ?? root,
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,
 				lifetimeSignal
 			},
-			anchorPoint
+			anchorPoint,
+			e
 		);
 	}
 

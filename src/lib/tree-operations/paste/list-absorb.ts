@@ -18,11 +18,12 @@ import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { containerPasteFor } from './container-paste';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { renumberOrderedList, normalizeItemMarkerToList } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
+import { containerScopeState } from './parent-scope';
 import {
 	buildListItemWithContent,
 	orderedBaseOf,
@@ -30,6 +31,8 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
+import { focusIndexBeforeResidue } from './focus-target';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { PasteDispatchContext } from './dispatch';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -58,7 +61,7 @@ export function findListAbsorb(
 ): ListAbsorb | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
-	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste?.siblingAbsorb) return null;
 
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
@@ -86,7 +89,7 @@ export async function applyListAbsorb(
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!outer?.children) return;
-	const outerState = ctx.controller.expectState(outer);
+	const outerState = containerScopeState(ctx.controller, outer);
 
 	const item = outer.children[plan.itemIndex];
 	if (!item?.children) return;
@@ -105,7 +108,6 @@ export async function applyListAbsorb(
 	for (const node of replacement) ensureEditableContainers(node);
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
-	const pastedStart = plan.itemIndex + (leadingItem ? 1 : 0);
 
 	// Pre-compute final markers on the replacement items BEFORE splice. Svelte 5's
 	// $state proxies wrap entries lazily on access, and mutations to newly-spliced
@@ -131,7 +133,7 @@ export async function applyListAbsorb(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...plan.listPath], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			spliceTerminatedItems(scopeView.children, plan.itemIndex, 1, replacement);
@@ -156,10 +158,13 @@ export async function applyListAbsorb(
 		op: {
 			kind: 'paste',
 			detail: { source: 'list-absorb', listPath: plan.listPath },
-			eventPath: plan.listPath
+			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
-			const lastPastedIdx = pastedStart + pastedItems.length - 1;
+			// End of the pasted content: the last pasted item, before the trailing
+			// residue item — the shared structural-paste landing rule.
+			const lastPastedIdx =
+				plan.itemIndex + focusIndexBeforeResidue(replacement.length, trailingItem !== null);
 			outerState.innerBlockRefs[lastPastedIdx]?.focus(CURSOR_END);
 		}
 	});

@@ -186,6 +186,19 @@ export function getPluginMetadata<T>(node: NodeView): T | undefined {
 	return node.metadata as unknown as T | undefined;
 }
 
+/**
+ * The level of an ATX or setext heading, or null for any other node. The one
+ * heading-metadata read the authoring barrel exposes: `metadata.level` narrows
+ * only past `isBuiltinBlockNode` (kept off the barrel), so an outline plugin has
+ * no other typed path to a heading's depth. Sibling to `getContentRange` in the
+ * marker-reading family.
+ */
+export function headingLevel(node: NodeView): number | null {
+	if (node.kind === 'heading') return metadataOf(node, 'heading').level;
+	if (node.kind === 'setextHeading') return metadataOf(node, 'setextHeading').level;
+	return null;
+}
+
 // ── Node Types ──────────────────────────────────────────────────────────────
 
 /**
@@ -440,4 +453,45 @@ export interface InlineNode {
 	height?: number;
 	/** Discriminator for `unresolvedReference` nodes: which form they would have been. */
 	refKind?: 'link' | 'image';
+	/**
+	 * Stamped by the scan when a plugin inline rung claimed these bytes. Derived per
+	 * scan, never persisted — the write paths read it to re-serialize in the claiming
+	 * syntax rather than in the built-in grammar of the node's kind.
+	 */
+	syntaxClaim?: InlineSyntaxClaim;
+}
+
+/**
+ * An image node's fields as they persist into source bytes. Optional keys are
+ * omitted rather than set to `undefined`, so a serializer can tell "no title" from
+ * "empty title" and reproduce a node that never carried one.
+ */
+export interface ImageFields {
+	alt: string;
+	url: string;
+	title?: string;
+	width?: number;
+	height?: number;
+	/**
+	 * Reference label, present only for reference-style images (`![alt][label]`).
+	 * When set, the built-in serializer emits the reference form and writes no
+	 * url/title — those live in the LRD, so re-inlining them on a resize/alt edit
+	 * would orphan the definition.
+	 */
+	label?: string;
+}
+
+/**
+ * Re-serializes an image node an inline rung minted over its own bytes. `source` is
+ * the node's current source slice; the return is its replacement in the rung's
+ * syntax, or `null` when the edit has no form in that grammar — which declines the
+ * edit rather than rewriting the bytes as GFM.
+ */
+export type ImageSyntaxRewriter = (source: string, fields: ImageFields) => string | null;
+
+/** What the scan records on a node an inline rung claimed. */
+export interface InlineSyntaxClaim {
+	/** The claiming rung's prefix: its bare trigger, or its multi-char prefix. */
+	prefix: string;
+	rewriteImage?: ImageSyntaxRewriter;
 }

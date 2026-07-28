@@ -29,6 +29,16 @@ function mountCode(source: string) {
 	return { instance, el, blockEdit };
 }
 
+/** Collapse the DOM selection at the end of the block's display text. */
+function selectEnd(el: HTMLElement): void {
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	range.collapse(false);
+	const selection = window.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
+
 let mounted: ReturnType<typeof mountCode>;
 afterEach(async () => {
 	if (mounted) await unmount(mounted.instance);
@@ -59,6 +69,25 @@ describe('CodeBlock keystroke commit preserves the trailing line ending', () => 
 	});
 });
 
+describe('CodeBlock fence auto-close mints a CRLF paragraph below', () => {
+	// Enter on the trailing blank line of an UNCLOSED fence mints the closer AND
+	// the paragraph below in one replaceBlock. That paragraph is a blank separator
+	// line plus its own line — pure line ending both, so both take the fence's
+	// (G4.20); a defaulted `\n` pair strands two lone LFs in a CRLF file.
+	it('the minted paragraph carries the fence’s line ending, not a literal LF', () => {
+		mounted = mountCode('```js\r\ncode\r\n\r\n');
+		const { instance, el } = mounted;
+		el.focus();
+		selectEnd(el);
+		instance.runCommand('code.newline');
+
+		const [, replacement] = vi.mocked(mounted.blockEdit.replaceBlock).mock.calls[0];
+		expect(replacement[0].raw).toBe('```js\r\ncode\r\n```\r\n');
+		expect(replacement[1].leadingTrivia).toBe('\r\n');
+		expect(replacement[1].raw).toBe('\r\n');
+	});
+});
+
 describe('CodeBlock code.newline commit preserves the trailing line ending', () => {
 	// The command site reads getDisplayText() (a trimTrailingLineEnding view of
 	// node.raw), so the committed tail is the reconstructed ending alone — a `\n`
@@ -74,5 +103,28 @@ describe('CodeBlock code.newline commit preserves the trailing line ending', () 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledTimes(1);
 		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(newRaw.endsWith('\r\n')).toBe(true);
+	});
+
+	// The reattached trailing ending was never the whole rule: the newline Enter
+	// SPLICES INTO THE BODY has to match it too, or one keystroke leaves a lone LF
+	// inside a CRLF block. Stripping every CRLF pair leaves any lone LF exposed.
+	it('the spliced newline is CRLF too, not a bare LF in the body', () => {
+		mounted = mountCode('```\r\ncode\r\n```\r\n');
+		const { instance, el, blockEdit } = mounted;
+		el.focus();
+		instance.runCommand('code.newline');
+
+		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		expect(newRaw.replace(/\r\n/g, '')).not.toContain('\n');
+	});
+
+	it('an LF block still splices a bare LF', () => {
+		mounted = mountCode('```\ncode\n```\n');
+		const { instance, el, blockEdit } = mounted;
+		el.focus();
+		instance.runCommand('code.newline');
+
+		const [, newRaw] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
+		expect(newRaw).not.toContain('\r');
 	});
 });

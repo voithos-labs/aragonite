@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	registerPasteTransform,
 	applyPasteTransforms,
@@ -10,9 +10,26 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '../../../schema/plugin-install';
+import { configureEditorEnv, resetEditorEnv } from '../../../env';
 
 function appending(name: string, suffix: string): PasteTransform {
 	return { name, transform: (text) => text + suffix };
+}
+
+/** Appends `!` until its `throwFromCall`-th invocation, which throws. */
+function throwingOnCall(
+	name: string,
+	throwFromCall: number
+): { transform: PasteTransform; callCount: () => number } {
+	let calls = 0;
+	const transform: PasteTransform = {
+		name,
+		transform: (text) => {
+			if (++calls >= throwFromCall) throw new Error('plugin bug');
+			return `${text}!`;
+		}
+	};
+	return { transform, callCount: () => calls };
 }
 
 describe('paste-transforms registry', () => {
@@ -64,5 +81,67 @@ describe('paste-transforms registry', () => {
 		registerPasteTransform(appending('gone', '-x'));
 		__resetPasteTransformsForTests();
 		expect(applyPasteTransforms('seed')).toBe('seed');
+	});
+});
+
+describe('paste-transforms containment', () => {
+	let warnSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		__resetPasteTransformsForTests();
+		__resetInstalledPluginsForTests();
+		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		// Dev-but-not-test so the idempotence probe runs and devWarn reaches console.
+		configureEditorEnv({ isDev: true, isTest: false });
+	});
+	afterEach(() => {
+		warnSpy.mockRestore();
+		resetEditorEnv();
+	});
+
+	it('treats a throwing transform as a decline, leaving the text untouched', () => {
+		registerPasteTransform(throwingOnCall('thrower', 1).transform);
+		expect(applyPasteTransforms('seed')).toBe('seed');
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("transform 'thrower' threw in the paste pipeline"),
+			expect.anything()
+		);
+	});
+
+	it('runs a later transform on the untouched text after an earlier one throws', () => {
+		registerPasteTransform(throwingOnCall('thrower', 1).transform);
+		registerPasteTransform({ name: 'bang', transform: (text) => `${text}?` });
+		// 'seed?' proves the pipeline both survived the throw and fed the bang
+		// transform the pre-throw running text.
+		expect(applyPasteTransforms('seed')).toBe('seed?');
+	});
+
+	it('keeps the paste when the dev idempotence probe throws on the re-run', () => {
+		const probe = throwingOnCall('probe-thrower', 2);
+		registerPasteTransform(probe.transform);
+		expect(applyPasteTransforms('seed')).toBe('seed!');
+		expect(probe.callCount()).toBe(2); // the probe really ran — the pin is not vacuous
+	});
+
+	it('reports a probe-time throw as a probe throw, never as a non-idempotent rewrite', () => {
+		registerPasteTransform(throwingOnCall('probe-thrower', 2).transform);
+		applyPasteTransforms('seed');
+		// Names the probe, not a decline: the paste kept its first result, and a
+		// "declining" message here would send the author debugging a working paste.
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("transform 'probe-thrower' threw in the dev idempotence probe"),
+			expect.anything()
+		);
+		// The non-idempotent warning takes no details, so a single-argument match
+		// is the whole shape of the message this must not be confused with.
+		expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('not idempotent'));
+	});
+
+	// Keeps the negative assertion above honest: the non-idempotent message is
+	// live, so its absence on the probe-throw path is a real distinction.
+	it('still reports a genuinely non-idempotent rewrite under its own message', () => {
+		registerPasteTransform(appending('grows', '!'));
+		applyPasteTransforms('seed');
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("'grows' is not idempotent"));
 	});
 });

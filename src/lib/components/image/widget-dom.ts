@@ -6,6 +6,7 @@ import type { InlineNode } from '../../core/nodes';
 import type { ImageLoadPolicy } from '../../core/inline-render';
 import { isAllowedImageSrcScheme } from '../../core/url-policy';
 import { findBlockPathForElement } from '../../selection/path-lookup';
+import { devWarn } from '../../dev-warn';
 
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
@@ -114,16 +115,12 @@ function safeResolve(resolver: (u: string) => string, url: string): string {
 	try {
 		const out = resolver(url);
 		if (typeof out !== 'string') {
-			if (import.meta.env.DEV) {
-				console.warn('[image-widget] resolveImageUrl returned non-string; falling back to raw URL');
-			}
+			devWarn('image-widget', 'resolveImageUrl returned non-string; falling back to raw URL');
 			return url;
 		}
 		return out;
 	} catch (e) {
-		if (import.meta.env.DEV) {
-			console.warn('[image-widget] resolveImageUrl threw:', e);
-		}
+		devWarn('image-widget', 'resolveImageUrl threw', e);
 		return url;
 	}
 }

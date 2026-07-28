@@ -3,7 +3,8 @@
  * Editor.svelte annotates its $props() and instance surface against these, and
  * index.ts re-exports them — so neither can drift from the component.
  */
-import type { ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+import type { Snippet } from 'svelte';
+import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
@@ -24,8 +25,30 @@ export interface EditorProps {
 	resolveLinkUrl?: ResolveLinkUrl;
 	imageLoadPolicy?: ImageLoadPolicy;
 	onLinkActivate?: (url: string, event: MouseEvent) => void;
+	/** Import hook for image-bearing pastes, set once at mount. Each image file on
+	 *  the clipboard is offered in order; the markdown returned is inserted at the
+	 *  caret the paste fired from, and `null` skips that image. Installing it takes
+	 *  the whole paste — the clipboard's `text/plain` is not pasted as well. Without
+	 *  it, an image-bearing paste behaves as it does with no image support at all. */
+	onPasteImage?: PasteImageHook;
+	/** Host chrome rendered INSIDE the editor's scroll container, above the first
+	 *  block: a document title, properties panel, tag row. It scrolls away with the
+	 *  document instead of pinning above it, which is what lets the editor keep its
+	 *  own scrollport (and virtual rendering) — an outer host scroller would forfeit
+	 *  both. A slot that changes height while the reader is scrolled down does not
+	 *  slide the document under them; at the top of the document growth pushes
+	 *  content down, which is what a reader looking at the header expects. With
+	 *  `scrollMode='host'` the shift is left to the host page — the editor never
+	 *  writes an ancestor's scroll position. */
+	header?: Snippet;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
+	/** Who owns the scroll, set once at mount. `'self'` (default) makes the editor
+	 *  root its own scrollport and virtual rendering keeps the mounted set O(viewport).
+	 *  `'host'` is embedded flow mode: the root grows to its content and an ancestor
+	 *  scrolls it, so windowing never activates and EVERY block stays mounted — for
+	 *  small embedded documents (a journal entry), never a whole file. */
+	scrollMode?: 'self' | 'host';
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */
@@ -50,6 +73,25 @@ export interface EditorProps {
 export interface EditorInstance {
 	getSource(): string;
 	getSelection(): EditorSelection | null;
+	/**
+	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into
+	 * view first, and a true result means it got there — not merely that it mounted.
+	 *
+	 * An out-of-range offset clamps to the end of its block, in that endpoint's own
+	 * coordinate space: character offsets clamp to the block's source length, but an
+	 * endpoint addressing a TABLE block carries a row-major cell index and clamps to
+	 * the last cell (the `cellCoordinate` endpoints of {@link EditorSelection}) — a
+	 * large offset there becomes the bottom-right cell, not a character position.
+	 *
+	 * Never throws. Resolves false in three cases, which differ in their effect: a
+	 * path that no longer addresses a block is declined before anything happens
+	 * (no scroll, no focus, no state write); a path that resolves in the tree but
+	 * whose element is absent from the DOM has already scrolled and re-established
+	 * cross-block state by the time placement fails; and a placement that lands
+	 * while the scroll cannot settle the target into view reports false too,
+	 * because the boolean promises in-view rather than merely placed.
+	 */
+	setSelection(selection: EditorSelection): Promise<boolean>;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;

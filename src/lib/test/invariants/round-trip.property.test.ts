@@ -7,8 +7,11 @@ import {
 	arbCrlfString,
 	arbDeepNesting,
 	arbGfmDoc,
+	arbIndentedGfmDoc,
+	arbLargeDoc,
 	freshOrFixedSeed
 } from './arbitraries';
+import { describeRoundTrips } from '$lib/test/support/round-trip';
 
 // G2.1 marquee invariant: serialize(parse(s)) === s for ALL inputs. The parser
 // is total (never throws; unknown syntax becomes paragraph/unrecognized) and the
@@ -38,27 +41,37 @@ describe('G2.1 round-trip + totality', () => {
 	it('preserves deeply nested container prefixes', () => {
 		fc.assert(fc.property(arbDeepNesting, roundTrips), PARAMS);
 	});
+
+	it('serialize(parse(s)) === s across the block-indent boundary', () => {
+		fc.assert(fc.property(arbIndentedGfmDoc, roundTrips), PARAMS);
+	});
 });
 
 // G2.2: the parser absorbs unterminated blocks to EOF rather than recovering.
 // Round-trip must still hold for these deliberately-truncated states.
-describe('G2.2 EOF edge states', () => {
-	const cases: { name: string; source: string }[] = [
-		{ name: 'unclosed fenced code (backticks)', source: '```js\ncode\nmore' },
-		{ name: 'unclosed fenced code, trailing newline', source: '```\ncode\n' },
-		{ name: 'unclosed fenced code, info only', source: '~~~rust' },
-		{ name: 'unterminated HTML block', source: '<div>\ncontent\nno close' },
-		{ name: 'unterminated script block', source: '<script>\nfoo()' },
-		{ name: 'unterminated HTML comment', source: '<!-- comment never closes' },
-		{ name: 'unterminated multi-line comment', source: '<!--\nline\nmore' },
-		{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
-	];
+describeRoundTrips('G2.2 EOF edge states', [
+	{ name: 'unclosed fenced code (backticks)', source: '```js\ncode\nmore' },
+	{ name: 'unclosed fenced code, trailing newline', source: '```\ncode\n' },
+	{ name: 'unclosed fenced code, info only', source: '~~~rust' },
+	{ name: 'unterminated HTML block', source: '<div>\ncontent\nno close' },
+	{ name: 'unterminated script block', source: '<script>\nfoo()' },
+	{ name: 'unterminated HTML comment', source: '<!-- comment never closes' },
+	{ name: 'unterminated multi-line comment', source: '<!--\nline\nmore' },
+	{ name: 'unterminated CDATA', source: '<![CDATA[\ndata' }
+]);
 
-	for (const { name, source } of cases) {
-		it(`round-trips: ${name}`, () => {
-			expect(serialize(parse(source))).toBe(source);
+// The size tier. Low run count because each case is ~100KB: the point is
+// reaching the scale every complexity defect lives at, not sampling it densely.
+// Shrinking is disabled — a 100KB counterexample shrinks for minutes and the
+// raw case is already the diagnostic, since the shapes are chosen, not searched.
+describe('G2.1 round-trip at scale', () => {
+	it('serialize(parse(s)) === s over ~100KB floods, runs and unclosed containers', () => {
+		fc.assert(fc.property(arbLargeDoc, roundTrips), {
+			numRuns: 20,
+			seed: freshOrFixedSeed(424242),
+			endOnFailure: true
 		});
-	}
+	}, 60_000);
 });
 
 // Adversarial fixed cases the generators cannot reach at useful sizes — their

@@ -1,0 +1,147 @@
+import { test, expect } from '../../fixtures';
+import {
+	PluginsPage,
+	readContainer,
+	readDoc,
+	roundTripStable,
+	waitForContainer,
+	waitForDoc
+} from './helpers';
+
+/**
+ * Native GitHub alerts: a `> [!TYPE]` blockquote renders as a styled alert box with
+ * its bytes untouched, editable in the body, kind-stable across edits. On
+ * `/test/plugins?seed=admonitions` the seed's native alert is a `caution` (block 5);
+ * the callout dogfood owns `note`/`warning`, so a typed alert uses `tip`. Gates read
+ * the CST/source by path via `window.__test`; input is real keyboard/mouse.
+ */
+
+test.describe('plugin github alerts', () => {
+	let editor: PluginsPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('admonitions');
+	});
+
+	test('the loaded alert renders styled with its GitHub bytes untouched', async ({ page }) => {
+		const box = page.locator(".admonition[data-alert-source='github'][data-kind='caution']");
+		await expect(box).toHaveCount(1);
+		await expect(box).toHaveAttribute('data-title-empty', 'true');
+
+		// The badge stands in for the marker: a CSS ::after, not editable title bytes.
+		const badge = await box
+			.locator('.admonition-title')
+			.evaluate((el) => getComputedStyle(el, '::after').content);
+		expect(badge).toContain('Caution');
+
+		// The alert block keeps its verbatim GitHub bytes — never rewritten to `:::caution`.
+		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
+		expect((await readContainer(page, 5)).raw).toBe('> [!CAUTION]\n> Still a blockquote alert.\n');
+	});
+
+	test('editing the body rebuilds through the marker and keeps the githubAlert kind', async ({
+		page
+	}) => {
+		await editor.focusBlockAtPath([5, 0], 'Still a blockquote alert.'.length);
+		await editor.typeText(' EDITED');
+
+		await editor.bridge.waitForSourceContains('Still a blockquote alert. EDITED');
+		const source = await editor.bridge.getSource();
+		// The marker survived the rebuild verbatim; the kind is stable.
+		expect(source).toContain('> [!CAUTION]\n> Still a blockquote alert. EDITED');
+		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
+		expect(await roundTripStable(page)).toBe(true);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('> [!CAUTION]\n> Still a blockquote alert.\n');
+		await editor.bridge.waitForSourceNotContains('EDITED');
+	});
+
+	test('Backspace at the body start unwraps the alert, dropping the marker', async ({ page }) => {
+		await editor.loadContent('> [!TIP]\n> hello there\n');
+		const inner = page.locator('.admonition [contenteditable="true"]').first();
+		await inner.click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Backspace');
+
+		// The body block lifts out and the marker drops: no alert remains, the content is
+		// a plain block, and the bytes are never rewritten to `:::`.
+		await waitForDoc(page, (s) => !s.kinds.includes('githubAlert'));
+		const doc = await readDoc(page);
+		expect(doc.kinds).not.toContain('githubAlert');
+		expect(doc.texts).toContain('hello there');
+		expect(await editor.bridge.getSource()).not.toContain('[!TIP]');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('Backspace at a middle body block merges within the alert, never escaping it', async ({
+		page
+	}) => {
+		await editor.loadContent('> [!TIP]\n> first\n>\n> second\n');
+		await waitForContainer(page, 0, (s) => s.childCount === 2);
+
+		await editor.focusBlockAtPath([0, 1], 0); // start of the second body paragraph
+		await page.keyboard.press('Backspace');
+
+		// The middle child folds into the previous body block (default-merge). The
+		// alert stays one githubAlert root with its marker intact — the merge is
+		// contained, never lifting the block out or dropping the marker.
+		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
+		expect(alert.rootCount).toBe(1);
+		expect(alert.kind).toBe('githubAlert');
+		expect(alert.childTexts[0]).toContain('first');
+		expect(alert.childTexts[0]).toContain('second');
+		expect(alert.raw).toContain('[!TIP]');
+		expect(await editor.bridge.getSource()).toContain('> [!TIP]');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
+	test('Alt+Arrow reorders a body block within the alert, no whole-container teleport', async ({
+		page
+	}) => {
+		await editor.loadContent('TOP\n\n> [!TIP]\n> first\n>\n> second\n\nTAIL\n'); // [1] = alert
+		await waitForContainer(page, 1, (s) => s.childCount === 2);
+
+		await editor.focusBlockAtPath([1, 0], 0); // caret in "first"
+		await page.keyboard.press('Alt+ArrowDown'); // move "first" below "second"
+
+		await editor.bridge.waitForSourceMatches(/> second[\s\S]*> first/);
+		const alert = await readContainer(page, 1);
+		expect(alert.kind).toBe('githubAlert');
+		expect(alert.childCount).toBe(2);
+		expect(alert.childTexts[0]).toContain('second');
+		expect(alert.childTexts[1]).toContain('first');
+		expect(alert.raw).toContain('[!TIP]'); // the marker survived the rebuild
+		// No teleport: the surrounding document siblings keep their positions.
+		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'githubAlert', 'paragraph']);
+		expect(await roundTripStable(page)).toBe(true);
+
+		await editor.undo(); // one entry restores the order
+		await editor.bridge.waitForSourceMatches(/> first[\s\S]*> second/);
+	});
+
+	test('typing a marker line then a body from scratch lands a native alert', async ({ page }) => {
+		await editor.loadContent('Start here.\n');
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Enter');
+		// Per keystroke, so the editor crosses the blockquote promotion at `>`, the inline
+		// recognizer's `[` rung, and the alert reclassification at `]` as distinct input
+		// events. Completing the marker forms an empty alert with the caret in its body, so
+		// the body is typed straight on — no second Enter (which would exit the quote).
+		// Atomic on purpose, and NOT what a user does. Per-keystroke formation is
+		// blocked by a live defect: typing `>` then `[!TIP]` leaves the block a
+		// `blockquote` forever — it never reclassifies, `parseConverged()` goes false,
+		// and the body concatenates onto the marker line. One `insertText` reparses the
+		// block and classifies correctly. Restore per-keystroke once that is fixed.
+		await editor.typeText('> [!TIP]');
+		await editor.bridge.waitForSourceContains('> [!TIP]');
+		await editor.typeSlowly('Fresh alert body');
+
+		const doc = await waitForDoc(page, (s) => s.kinds.includes('githubAlert'));
+		const alertIndex = doc.kinds.indexOf('githubAlert');
+		expect((await readContainer(page, alertIndex)).childTexts).toContain('Fresh alert body');
+		expect(await editor.bridge.getSource()).toContain('> [!TIP]\n> Fresh alert body');
+		expect(await roundTripStable(page)).toBe(true);
+	});
+});

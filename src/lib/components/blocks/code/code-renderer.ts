@@ -1,11 +1,15 @@
 /**
  * Code-block renderer. Produces a DocumentFragment with dimmed marker spans
- * for fences and tokenized spans for the body. Invariant:
+ * for fences and tokenized spans for the body. Invariant (G1.28):
  *   fragment.textContent === trimTrailingLineEnding(node.raw)
  */
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
+import { trimTrailingLineEnding } from '../../../core/lines';
+import { devWarn } from '../../../dev-warn';
+import { assertInvariant } from '../../../invariants/assert';
+import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
 
@@ -133,14 +137,58 @@ export function tokenizeBody(body: string, infoString: string): DocumentFragment
 		registeredWithHljs.add(grammar.name);
 	}
 
-	const result = hljs.highlight(body, {
+	// The HTML parser behind `template.innerHTML` normalizes every `\r\n`/`\r` to
+	// `\n`, which would strip a CRLF body's interior carriage returns. Highlight a
+	// pure-LF copy so nothing is left to normalize away, then restore each line's
+	// original ending positionally. An LF body reuses `body` by reference and skips
+	// the restore — the common path adds one `includes` scan, no allocation.
+	const hasCarriageReturn = body.includes('\r');
+	const highlightSource = hasCarriageReturn ? body.replace(/\r\n|\r/g, '\n') : body;
+
+	const result = hljs.highlight(highlightSource, {
 		language: grammar.name,
 		ignoreIllegals: true
 	});
 	const template = document.createElement('template');
 	template.innerHTML = result.value;
 	walkHljsNodes(template.content, frag);
+
+	if (hasCarriageReturn) restoreLineEndings(frag, body);
 	return frag;
+}
+
+// hljs emits code newlines as literal `\n`, both between tokens (bare text) and
+// inside multi-line token spans (template strings, block comments) — all survive
+// the HTML-parse round-trip as `\n`. A single in-order text-node walk rewrites the
+// k-th `\n` back to the k-th original ending. The counts match by construction:
+// every `\r` was stripped before highlighting, so neither hljs nor the parser adds
+// or drops a newline, and each `\r\n`/`\r`/`\n` unit maps to exactly one fragment `\n`.
+function restoreLineEndings(root: Node, originalBody: string): void {
+	const endings = originalBody.match(/\r\n|\r|\n/g);
+	if (!endings) return;
+	let next = 0;
+	const restore = (node: Node): void => {
+		for (const child of node.childNodes) {
+			if (child.nodeType === Node.TEXT_NODE) {
+				const text = child.textContent ?? '';
+				if (text.includes('\n')) {
+					child.textContent = text.replace(/\n/g, () => endings[next++]);
+				}
+			} else {
+				restore(child);
+			}
+		}
+	};
+	restore(root);
+	// The bijection above is load-bearing: a count mismatch would silently write
+	// `undefined` into a user's committed bytes downstream. Make a future
+	// hljs-faithfulness regression loud at this seam instead.
+	if (next !== endings.length) {
+		devWarn(
+			'code-renderer',
+			`restoreLineEndings count mismatch: ${next} fragment newlines vs ${endings.length} source endings`
+		);
+	}
 }
 
 // ── Fence marker rendering ────────────────────────────────────────────────
@@ -150,6 +198,17 @@ function makeMarkerSpan(text: string, extraClass?: string): HTMLSpanElement {
 	span.className = extraClass ? `md-marker ${extraClass}` : 'md-marker';
 	span.textContent = text;
 	return span;
+}
+
+// A fence line's newline is a bare text node CSS cannot reach on its own; wrapping
+// the whole line lets reading/preview modes collapse it with `display: none` (the
+// `.directive-marker` block-level-span precedent). Layout-neutral in source mode —
+// an inline span under `white-space: pre` still breaks on its inner `\n`.
+function makeFenceLine(parts: Node[]): HTMLSpanElement {
+	const line = document.createElement('span');
+	line.className = 'md-fence-line';
+	for (const part of parts) line.appendChild(part);
+	return line;
 }
 
 function renderOpenerLine(
@@ -169,78 +228,77 @@ function renderOpenerLine(
 	// (whole line in one span) — so textContent keeps every opener byte.
 	const indent = openerWithoutNewline.match(/^ {0,3}/)![0];
 
-	frag.appendChild(makeMarkerSpan(indent + fenceChars, 'md-fence'));
+	const parts: Node[] = [makeMarkerSpan(indent + fenceChars, 'md-fence')];
 
 	const afterFence = openerWithoutNewline.slice(indent.length + fenceChars.length);
 	if (afterFence.length > 0) {
-		frag.appendChild(makeMarkerSpan(afterFence, 'md-lang'));
+		parts.push(makeMarkerSpan(afterFence, 'md-lang'));
 	}
-
-	// Trailing opener newline lives as a bare text node, not inside a span:
-	// Chromium with `white-space: pre` mis-routes `insertText` when the caret
-	// sits at the end of a `\n` nested inside a styled span — the typed char
-	// lands BEFORE the \n. Top-level keeps the caret in a position the browser
-	// can extend correctly.
 	if (hasTrailingNewline) {
-		frag.appendChild(document.createTextNode('\n'));
+		parts.push(document.createTextNode('\n'));
 	}
 
+	frag.appendChild(makeFenceLine(parts));
 	return frag;
 }
 
-function renderCloserLine(slice: FencedCodeSlice): DocumentFragment {
+function renderCloserLine(slice: FencedCodeSlice, leadingNewline: boolean): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	if (slice.closerLine.length === 0) return frag;
-	frag.appendChild(makeMarkerSpan(slice.closerLine, 'md-fence'));
+
+	const parts: Node[] = [];
+	// The line break before the closer belongs to the closer's fence line, not the
+	// body's last code line; owning it here lets the wrapper hide both together.
+	if (leadingNewline) parts.push(document.createTextNode('\n'));
+	parts.push(makeMarkerSpan(slice.closerLine, 'md-fence'));
+
+	frag.appendChild(makeFenceLine(parts));
 	return frag;
 }
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
 export function renderCodeBlock(node: NodeView): DocumentFragment {
-	const slice = sliceFencedCode(node);
+	const slice = trimSliceTail(sliceFencedCode(node));
 	const meta = metadataOf(node, 'fencedCode');
 	const frag = document.createDocumentFragment();
 
-	const openerFrag = renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength);
-	const bodyFrag = tokenizeBody(slice.body, slice.infoString);
-	const closerFrag = renderCloserLine(slice);
+	// The newline separating the body's last line from the closer belongs to the
+	// closer's fence line — hand it to the closer wrapper so reading/preview collapse
+	// the bottom blank line with the closer. Byte order is unchanged: the same `\n`,
+	// only re-homed. An all-blank body is the exception: it has no content line above
+	// that blank, so stealing its terminating `\n` would drop a visible line — keep
+	// the separator in the body there so N blank lines render as N.
+	const hasCloser = slice.closerLine.length > 0;
+	// `/\S/` deliberately conflates a whitespace-only body (spaces/tabs, no content
+	// line) with a truly-blank one: both keep their separator and render like blanks.
+	const bodyHasContentLine = /\S/.test(slice.body);
+	const separatorNewline = hasCloser && slice.body.endsWith('\n') && bodyHasContentLine;
+	const bodyText = separatorNewline ? slice.body.slice(0, -1) : slice.body;
 
-	// Preserve textContent === trimTrailingLineEnding(raw): strip one trailing
-	// \n from whichever fragment carries the tail — closer first, then body,
-	// then opener (covers the fresh-unclosed case `"```\n"`).
-	if (node.raw.endsWith('\n')) {
-		stripTrailingNewline(closerFrag) ||
-			stripTrailingNewline(bodyFrag) ||
-			stripTrailingNewline(openerFrag);
-	}
+	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
+	frag.appendChild(tokenizeBody(bodyText, slice.infoString));
+	frag.appendChild(renderCloserLine(slice, separatorNewline));
 
-	frag.appendChild(openerFrag);
-	frag.appendChild(bodyFrag);
-	frag.appendChild(closerFrag);
+	assertInvariant('rendered-text-fidelity', () =>
+		checkRenderedTextFidelity(frag.textContent ?? '', trimTrailingLineEnding(node.raw))
+	);
 
 	return frag;
 }
 
-/**
- * Strip one trailing `\n` from the last text-bearing child. Returns true on
- * success so callers can chain priorities. Also removes the now-empty text
- * node so the cursor walker doesn't land in a zero-length node Chromium
- * treats as a non-target.
- */
-function stripTrailingNewline(frag: DocumentFragment): boolean {
-	const last = frag.lastChild;
-	if (last == null || !last.textContent?.endsWith('\n')) return false;
-	const trimmed = last.textContent.slice(0, -1);
-	if (trimmed.length === 0 && last.nodeType === Node.TEXT_NODE) {
-		frag.removeChild(last);
-	} else {
-		last.textContent = trimmed;
-	}
-	return true;
-}
-
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+// The block's trailing line ending never enters the fragments: strip it from
+// whichever slice piece carries the tail (closer, else body, else fresh-unclosed
+// opener). textContent === trimTrailingLineEnding(raw) then holds by construction —
+// CRLF included, where a post-build single-`\n` strip stranded the `\r`.
+function trimSliceTail(slice: FencedCodeSlice): FencedCodeSlice {
+	if (slice.closerLine.length > 0)
+		return { ...slice, closerLine: trimTrailingLineEnding(slice.closerLine) };
+	if (slice.body.length > 0) return { ...slice, body: trimTrailingLineEnding(slice.body) };
+	return { ...slice, openerLine: trimTrailingLineEnding(slice.openerLine) };
+}
 
 function findClosingFenceStart(
 	raw: string,

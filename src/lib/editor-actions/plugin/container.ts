@@ -1,6 +1,6 @@
 /**
  * The container-authoring seam a plugin block component builds on. Collapses the
- * built-in container wiring — block-list state, nested actions + the five ancestor
+ * built-in container wiring — block-list state, nested actions + the ancestor
  * contexts, container-exit override, nested windowing, and the `BlockComponent`
  * shim — into one factory, so a plugin never touches an editor context key or the
  * internal helpers. Mirrors `BlockquoteBlock`'s wiring exactly; the plugin supplies
@@ -12,6 +12,10 @@
 
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
+// Type-only, erased at build: there is no runtime edge to `components/` here. It
+// buys the two-way conformance check below, which is what makes an internal
+// BlockList prop edit fail `npm run check` instead of silently rewriting the
+// public container contract. Inverting it to a registration would delete that.
 import type BlockList from '../../components/BlockList.svelte';
 import type {
 	BlockEditActions,
@@ -20,11 +24,11 @@ import type {
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { BlockComponent } from '../../block-component';
-import { isCollapsedContainer } from '../../schema/reserved-chrome';
+import type { AmbientPrefix, BlockComponent } from '../../block-component';
+import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
-import { isReadingMode } from '../../presentation-mode';
+import { isReadingMode, type PresentationMode } from '../../presentation-mode';
 import { devWarn } from '../../dev-warn';
 import {
 	BLOCK_EDIT_KEY,
@@ -54,7 +58,8 @@ import {
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
-	type NestedActionsOverrideFactory
+	type NestedActionsOverrideFactory,
+	type NodeScope
 } from '../nested/nested-actions';
 
 /**
@@ -104,6 +109,15 @@ export interface ContainerBlockDeps {
 	 * `unknown`; the plugin casts it to its own type.
 	 */
 	commandHooks?: () => unknown;
+	/**
+	 * The read-only ambient prefix this container contributes to its FIRST child's
+	 * rendered content — a dimmed marker the child paints before its own bytes, the
+	 * listItem `- ` model (a footnote definition's `[^label]: `). The offset walk and
+	 * marker DOM are the child leaf's existing ambient-prefix machinery; the factory
+	 * only forwards the string. Read live so a marker derived from label metadata
+	 * re-renders after an edit or its undo. Absent = no prefix (blockquote/details).
+	 */
+	getAmbientPrefix?: () => AmbientPrefix;
 }
 
 /**
@@ -121,6 +135,7 @@ export interface ContainerBlockListProps {
 	parentPath?: number[];
 	window?: WindowResult;
 	reorderable?: boolean;
+	ambientPrefixForFirst?: AmbientPrefix;
 }
 
 // BlockList must accept everything the contract promises (contract ⊆ component)…
@@ -149,6 +164,15 @@ export type { ContainerBlockComponent };
 export interface ContainerBlock {
 	/** Spread onto `<BlockList {...blockListProps} />` inside the chrome box. */
 	blockListProps: ContainerBlockListProps;
+	/**
+	 * The live EFFECTIVE presentation mode — the container tier's mode read,
+	 * mirroring `createEditableLeaf`'s getter. A component gates its own edit
+	 * affordances on it (a disclosure toggle, an edit button go inert in reading
+	 * mode). The documented DOM-tier probe (`el.closest('[data-presentation]')`)
+	 * stays valid for a component holding only a DOM handle; this is the preferred
+	 * path when the factory is already in hand.
+	 */
+	getPresentationMode(): PresentationMode;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -195,6 +219,30 @@ export function composeCollapseProbe(
 }
 
 /**
+ * The expand door a reveal opens before descending into a collapsed body. Reads the
+ * SAME declaration the window clamp reads — `reservedChrome.expandPatch`, beside the
+ * collapse probe — and commits it through this container's own metadata path, so an
+ * expansion is a real undoable document edit, not a view-only divergence from the CST.
+ * Declines (leaving the reveal to degrade exactly as it did before the door existed)
+ * when the container is already open, its kind declares no patch, or the mode is
+ * reading, which commits nothing.
+ */
+export function composeExpandDoor(deps: {
+	getNode: () => NodeView;
+	isCollapsed: () => boolean;
+	getPresentationMode: () => PresentationMode;
+	commit: (patch: Record<string, unknown>) => void | Promise<void>;
+}): () => Promise<boolean> {
+	return async () => {
+		if (!deps.isCollapsed() || isReadingMode(deps.getPresentationMode)) return false;
+		const patch = expandContainerPatch(deps.getNode());
+		if (!patch) return false;
+		await deps.commit(patch);
+		return true;
+	};
+}
+
+/**
  * M3 collapse gate for a chrome leaf's Enter → `descendToBody`. While the
  * container is collapsed its body children are unmounted, so descending would
  * mint an invisible body paragraph (the existing-body branch already no-ops on
@@ -233,6 +281,28 @@ export function gateMoveFocusOnCollapse(
 			return;
 		}
 		await moveWithin(innerIndex, position, options);
+	};
+}
+
+export type NestedActionsOverrides = ReturnType<NestedActionsOverrideFactory>;
+
+/**
+ * Layer the two collapse gates onto a base override map. Each surface spreads its
+ * base first: a gate ADDS one member, it never replaces what the base declared
+ * there. Extracted from the factory so the rule is checkable without mounting a
+ * container — the two lines are otherwise free to drift, and one of them had.
+ */
+export function composeCollapseGates(
+	base: NestedActionsOverrides,
+	gates: {
+		descendToBody: NonNullable<BlockEditActions['descendToBody']>;
+		moveFocus: FocusActions['moveFocus'];
+	}
+): NestedActionsOverrides {
+	return {
+		...base,
+		blockEdit: { ...base.blockEdit, descendToBody: gates.descendToBody },
+		focus: { ...base.focus, moveFocus: gates.moveFocus }
 	};
 }
 
@@ -288,9 +358,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const listState = createBlockListState(deps.getNode);
 
-	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
-
-	const blockquoteOverrides = createBlockquoteOverrides({
+	// One live scope over the frozen thunks, shared by every factory this seam
+	// wires. Bridges the public thunk deps to the getter shape the factories read;
+	// passed by reference, never spread.
+	const scope: NodeScope = {
 		get index() {
 			return deps.getIndex();
 		},
@@ -299,7 +370,13 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		},
 		get path() {
 			return deps.getPath();
-		},
+		}
+	};
+
+	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
+
+	const blockquoteOverrides = createBlockquoteOverrides({
+		scope,
 		state: listState,
 		parentBlockEdit,
 		parentFocus,
@@ -311,37 +388,21 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	// chrome ArrowDown/ArrowRight must exit past the unmounted body (I-1). All
 	// override the same `defaults`, so the blockquote's `splitBlock` and the two
 	// gates coexist. For a non-collapsing container the gates are inert.
-	const overrideFactory: NestedActionsOverrideFactory = (defaults) => {
-		const base = blockquoteOverrides(defaults);
-		return {
-			...base,
-			blockEdit: {
-				...base.blockEdit,
-				descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody)
-			},
-			focus: {
-				moveFocus: gateMoveFocusOnCollapse(
-					collapsed,
-					defaults.focus.moveFocus,
-					parentFocus,
-					deps.getIndex
-				)
-			}
-		};
-	};
+	const overrideFactory: NestedActionsOverrideFactory = (defaults) =>
+		composeCollapseGates(blockquoteOverrides(defaults), {
+			descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
+			moveFocus: gateMoveFocusOnCollapse(
+				collapsed,
+				defaults.focus.moveFocus,
+				parentFocus,
+				deps.getIndex
+			)
+		});
 
 	const bundle = createStandardNestedActions(
 		listState,
 		{
-			get index() {
-				return deps.getIndex();
-			},
-			get node() {
-				return deps.getNode();
-			},
-			get path() {
-				return deps.getPath();
-			},
+			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
 			parent: {
@@ -376,6 +437,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			)
 		: undefined;
 
+	// The commit is reached through a closure, not the `updateOwnMetadata` value:
+	// that const is declared below and only ever read at reveal time.
+	const expandCollapsed = composeExpandDoor({
+		getNode: deps.getNode,
+		isCollapsed: collapsed,
+		getPresentationMode,
+		commit: (patch) => updateOwnMetadata(patch)
+	});
+
 	const containerApi = createContainerBlockComponent({
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
@@ -389,6 +459,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow,
 		isCollapsed: collapsed,
+		expandCollapsed,
 		getFocusEl: wholeBlockSurface,
 		getBoxEl: () => deps.getBoxEl()
 	});
@@ -411,7 +482,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// Opaque containers are a reorder boundary (resolveReorderUnit declines inside
 		// them), so a handle on a chrome or body row would be a dead affordance. The
 		// container itself stays reorderable through its parent's BlockList.
-		reorderable: false
+		reorderable: false,
+		get ambientPrefixForFirst() {
+			return deps.getAmbientPrefix?.() ?? '';
+		}
 	};
 
 	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
@@ -479,9 +553,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			getRaw: () => deps.getNode().raw,
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
-			isReading: () => reading
+			isReading: () => reading,
+			stickyColumn
 		});
 	}
 
-	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown };
+	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown, getPresentationMode };
 }

@@ -1,34 +1,29 @@
 /**
- * Pure predicates over CST paths and selection points, plus the `DocPath`
- * brand home. No DOM, no document lookups — strictly arithmetic on indices.
+ * Pure predicates over CST paths, plus the `DocPath` brand home. No DOM, no
+ * document lookups — strictly arithmetic on indices.
  *
  * The predicates take `readonly number[]`: they order and compare any
  * path-shaped array regardless of what space it addresses, so brand-typing
  * them to `DocPath` would force a cast at every call site for zero gain.
  */
 
-import type { SelectionPoint } from './primitives';
-
 // ── Doc-absolute path brand ──────────────────────────────────────────────────
 
 declare const docPathBrand: unique symbol;
 /**
  * A path whose every prefix resolves from the document root — the dialect the
- * commit seam requires and G1.16 checks. Minted by the block-edit scope
- * factories (the single documented mint home) and re-minted at the commit-seam
- * guard's entry; the shared commit-arg path fields stay plain `number[]`, so a
- * minted value decays into them and the runtime G1.16 guard covers the callers
- * the brand doesn't reach.
+ * commit seam requires and G1.16 checks. The two commit-arg dialect fields
+ * (`op.eventPath`, `snapshot.path`) carry this brand. `asDocPath` is the base
+ * mint (the commit scope factories); the op families compose their paths
+ * through the `extendDocPath`/`docPathFrom` helpers in
+ * `cursor/coordinate-spaces.ts` — the neutral coordinate leaf every composer,
+ * `tree-operations` included, reaches without a directory cycle. G1.16 stays
+ * the runtime belt for JS callers the types don't bind.
  */
 export type DocPath = number[] & { readonly [docPathBrand]: true };
 
 export function asDocPath(indices: number[]): DocPath {
 	return indices as DocPath;
-}
-
-/** Append a child index to a parent path, yielding a doc-absolute path. */
-export function extendDocPath(parent: readonly number[], index: number): DocPath {
-	return asDocPath([...parent, index]);
 }
 
 // ── Path predicates ────────────────────────────────────────────────────────
@@ -97,17 +92,7 @@ export function lowestCommonAncestor(a: readonly number[], b: readonly number[])
 	return result;
 }
 
-// ── Point predicates ───────────────────────────────────────────────────────
-
-/** Value equality on path + offset. */
-export function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
-	if (a.offset !== b.offset) return false;
-	if (a.path.length !== b.path.length) return false;
-	for (let i = 0; i < a.path.length; i++) {
-		if (a.path[i] !== b.path[i]) return false;
-	}
-	return true;
-}
+// ── Range predicates ───────────────────────────────────────────────────────
 
 /**
  * True if `path` is strictly between `start` and `end` in document order

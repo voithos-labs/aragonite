@@ -9,11 +9,16 @@
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
 	import { tocPlugin } from '$lib/plugins/toc';
+	import { footnotesPlugin } from '$lib/plugins/footnotes';
+	import { emojiPlugin } from '$lib/plugins/emoji';
 	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
+	import { hloccurScanProbePlugin } from './hloccur-scan/hloccur-scan-plugin';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
 	import { blockBadgePlugin } from './block-badge/block-badge-plugin';
 	import { simMarkPlugin } from './sim-mark/sim-mark-plugin';
+	import { simIslandPlugin } from './sim-island/sim-island-plugin';
+	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import type { EditorPlugin } from '$lib/plugin';
 
 	// Module scope so the factories run once per process, not once per (SSR) render:
@@ -40,15 +45,30 @@
 	// occurrence of a word), so each installs only under its own seed — leaked
 	// into sibling seeds their decorations would perturb those batteries.
 	const seedPlugins: Record<string, EditorPlugin[]> = {
-		hloccur: [highlightOccurrencesPlugin],
+		// The footnote definition is a block kind; scoped to its own seed so the `[^…]:`
+		// opener only claims lines under the footnotes battery, leaving sibling seeds' parses untouched.
+		footnotes: [footnotesPlugin()],
+		'footnotes-ref': [footnotesPlugin()],
+		// Emoji rides the bare `:` trigger process-wide once installed; scoped to its own
+		// seed so its rung never perturbs a sibling battery's `:`-bearing prose.
+		emoji: [emojiPlugin()],
+		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
+		// sibling seed's prose once installed; scoped to its own.
+		'wiki-embed': [wikiEmbedPlugin],
+		hloccur: [highlightOccurrencesPlugin()],
+		// The memoization battery installs the observability wrapper (same shipped
+		// createOccurrenceSource) so it can read the index-rebuild count off window.
+		'hloccur-memo': [hloccurScanProbePlugin],
 		ghost: [ghostTextPlugin],
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],
 		badge: [blockBadgePlugin],
-		// The loaded-ops simulations navigate with `?seed=sim` to put a standing
-		// decoration source under the corruption oracle; they loadContent their own
-		// document over the (absent) seed document.
-		sim: [simMarkPlugin]
+		// The loaded-ops simulations navigate with `?seed=sim` to put standing
+		// decoration sources under the corruption oracle; they loadContent their own
+		// document over the (absent) seed document. The mark source watches the engine
+		// on every edit; the island source is content-keyed on sentinels only the
+		// decoration-ops document carries, so it is inert in the other sim sessions.
+		sim: [simMarkPlugin, simIslandPlugin]
 	};
 </script>
 
@@ -57,6 +77,7 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
+	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { convertGithubAlertsInDocument, hasGithubAlert } from '$lib/plugins/admonitions';
 
 	let { data }: { data: PageData } = $props();
@@ -75,6 +96,10 @@
 	// A block `$$…$$` leaf between two paragraphs, so the block-math e2e can drive
 	// focus/click reveal, blur re-render, and arrow nav in and out of the block.
 	const MATH_BLOCK_SEED = 'Before\n\n$$x^2$$\n\nAfter\n';
+	// GitHub's third math form: a ```math fence between two paragraphs, so the
+	// math-fence e2e can prove the distinct `mathFence` kind renders through the
+	// shared BlockMath component and survives a reveal→edit→commit round trip.
+	const MATH_FENCE_SEED = 'Before\n\n```math\nx^2\n```\n\nAfter\n';
 	// Inline math inside a table cell, so the portal-widget e2e can prove the cell
 	// render surface pools component widgets (mount id stable while typing in the cell).
 	const MATH_TABLE_SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
@@ -99,6 +124,11 @@
 	// 'cat' twice in block 0 and once in block 1; 'catalog' pins the whole-word scan.
 	const HLOCCUR_SEED =
 		'the cat sat on a mat and a cat ran\n\na cat sleeps\n\nthe catalog is here.\n';
+	// The memoization + capability-skip seed: 'alpha' twice in the paragraph, once in a
+	// table body cell (highlights), and once inside a fenced code block (skipped — a
+	// non-prose leaf). Block [0] paragraph, [1] table, [2] fenced code.
+	const HLOCCUR_MEMO_SEED =
+		'alpha beta alpha\n\n| head | note |\n| --- | --- |\n| alpha | ok |\n\n```\nalpha in code\n```\n';
 	// Two plain paragraphs: the ghost island follows focus between them, and an
 	// Enter split provides the empty-paragraph caret-anchor case.
 	const GHOST_SEED = 'Hello world\n\nSecond paragraph\n';
@@ -108,11 +138,28 @@
 	const FOLD_TABLE_SEED = '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n';
 	// Two headings among paragraphs for the badge predicate's positive and negative.
 	const BADGE_SEED = '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n';
-	// Several admonition kinds (untitled important, titled tip/caution), one GitHub-alert
-	// blockquote still to migrate, and a `> [!NOTE]` inside a fence that must survive the
-	// convert affordance untouched — the conversion route's positive and negative. `note`
-	// and `warning` are deliberately absent: the co-registered callout dogfood claims those
-	// two directive names first, so an admonition seed must use kinds callout does not own.
+	// A prose paragraph carrying a reference literal, then a footnote definition whose
+	// body is one editable paragraph — the container's edit/backspace/undo surface, with
+	// a blank starting line above for typing a fresh definition.
+	const FOOTNOTES_SEED = 'A note reference [^a] in prose.\n\n[^a]: The note body.\n';
+	// The reference-widget seed: the references sit in block 1 (not block 0), so typing
+	// an EARLIER reference into block 0 renumbers block 1's widgets while block 1 itself
+	// is never edited — the reactive-getter renumber the pool key cannot deliver.
+	const FOOTNOTES_REF_SEED =
+		'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n';
+	// A `:smile:` reference mid-prose (block 0) plus a plain typing target (block 1):
+	// the emoji e2e drives seed render, live typing, caret step-over, atomic delete, and
+	// a range copy that must yield the source bytes.
+	const EMOJI_SEED = 'Mood :smile: today\n\nType here\n';
+	// An `![[…]]` embed the rung mints as a built-in image, sized so one resize step
+	// is visible in the bytes, with prose either side as blur and caret targets.
+	const WIKI_EMBED_SEED = 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n';
+	// Several directive admonition kinds (untitled important, titled tip/caution), one
+	// native GitHub-alert blockquote (renders styled with its bytes untouched), and a
+	// `> [!NOTE]` inside a fence that the convert affordance must leave literal — the
+	// conversion route's positive and negative. `note` and `warning` are deliberately
+	// absent: the co-registered callout dogfood claims those two directive names first,
+	// so an admonition seed must use kinds callout does not own.
 	const ADMONITIONS_SEED = [
 		'# Admonitions',
 		'',
@@ -181,6 +228,7 @@
 		'math-two': MATH_TWO_SEED,
 		'math-multiline': MATH_MULTILINE_SEED,
 		mathblock: MATH_BLOCK_SEED,
+		mathfence: MATH_FENCE_SEED,
 		'mathblock-multiline': MATH_BLOCK_MULTILINE_SEED,
 		mathtable: MATH_TABLE_SEED,
 		mermaid: MERMAID_SEED,
@@ -189,10 +237,15 @@
 		toc: TOC_SEED,
 		'toc-nested': TOC_NESTED_SEED,
 		hloccur: HLOCCUR_SEED,
+		'hloccur-memo': HLOCCUR_MEMO_SEED,
 		ghost: GHOST_SEED,
 		fold: FOLD_SEED,
 		'fold-table': FOLD_TABLE_SEED,
-		badge: BADGE_SEED
+		badge: BADGE_SEED,
+		footnotes: FOOTNOTES_SEED,
+		'footnotes-ref': FOOTNOTES_REF_SEED,
+		emoji: EMOJI_SEED,
+		'wiki-embed': WIKI_EMBED_SEED
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
@@ -201,6 +254,8 @@
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
 	let editor = $state<ReturnType<typeof Editor>>();
+
+	trackParityDocument(() => editor);
 
 	$effect(() => {
 		if (!editor) return;
@@ -295,5 +350,28 @@
 
 	.plugins-harness :global(.decoration-overlay.sim-standing-mark) {
 		background: rgba(96, 165, 250, 0.3);
+	}
+
+	/* Generated content only — the islands stay byte-empty so the raw-offset walk
+	   reads the block back exactly (::after and background paint nothing into
+	   textContent). */
+	.plugins-harness :global(.decoration-island.sim-replace-island)::after {
+		content: '…';
+		color: #9ca3af;
+	}
+
+	.plugins-harness :global(.decoration-island .sim-widget-island-content) {
+		display: inline-block;
+		width: 2px;
+		background: rgba(52, 211, 153, 0.6);
+	}
+
+	.plugins-harness :global(.decoration-badge .sim-badge) {
+		display: inline-block;
+		margin-right: 0.3rem;
+		padding: 0 0.25rem;
+		border-radius: 3px;
+		background: rgba(251, 191, 36, 0.35);
+		font-size: 0.7em;
 	}
 </style>

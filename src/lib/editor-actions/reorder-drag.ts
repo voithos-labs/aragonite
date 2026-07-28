@@ -1,10 +1,8 @@
 /**
  * Pointer drag-to-reorder. One delegated capture-phase pointerdown on the editor
- * root starts a drag from any `.block-drag-handle`; document-level listeners then
- * track the pointer, paint a ghost + a single insertion line (no tree mutation,
- * no reflow), and commit ONE move on drop. Mirrors selection/drag-pointer.ts's
- * lifecycle (document listeners, rAF coalescing, autoscroll, lifetime teardown,
- * pointercancel for Tauri WebView2).
+ * root starts a drag from any `.block-drag-handle`; a shared
+ * `createPointerDragSession` then tracks the pointer, paints a ghost + a single
+ * insertion line (no tree mutation, no reflow), and commits ONE move on drop.
  *
  * Baseline targeting only: the drop index is resolved against currently-mounted
  * siblings; autoscroll brings off-viewport siblings into the window. Precise
@@ -12,7 +10,8 @@
  */
 
 import type { ReorderAction } from './reorder-action';
-import { createAutoScroll } from '../selection/autoscroll';
+import { createPointerDragSession } from '../selection/pointer-session';
+import { readBlockPath } from '../selection/path-lookup';
 
 export interface ReorderDragOverlay {
 	setGhost(g: { clientX: number; clientY: number; label: string } | null): void;
@@ -21,6 +20,10 @@ export interface ReorderDragOverlay {
 
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
+	/** What autoscrolls when the drag reaches an edge: the root in self mode, the
+	 *  host's scroller in host mode (where the root doesn't scroll), null when
+	 *  nothing does. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
+	getScrollHost: () => HTMLElement | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
 	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
@@ -83,8 +86,6 @@ function startSession(
 	// reorder reads as "reorder within this list/quote" rather than broken.
 	const scopeEl = dragHost.closest('.list-block, .blockquote-block') as HTMLElement | null;
 
-	let pending: { clientX: number; clientY: number } | null = null;
-	let rafId: number | null = null;
 	let dropTo: number | null = null;
 
 	function siblings(): { index: number; rect: DOMRect }[] {
@@ -125,75 +126,36 @@ function startSession(
 		if (line) ctx.overlay.setLine(line);
 	}
 
-	const autoScroll = createAutoScroll({
-		getPointer: () => pending,
-		getTargets: () => [ctx.editorRoot],
-		onScrolled: () => {
-			if (pending) process(pending.clientX, pending.clientY);
-		}
-	});
-
-	function onMove(e: PointerEvent): void {
-		pending = { clientX: e.clientX, clientY: e.clientY };
-		if (rafId !== null) return;
-		rafId = requestAnimationFrame(() => {
-			rafId = null;
-			if (!pending) return;
-			process(pending.clientX, pending.clientY);
-			autoScroll.maybeStart();
-		});
-	}
-
-	let done = false;
-	function teardown(): void {
-		if (done) return;
-		done = true;
-		document.removeEventListener('pointermove', onMove);
-		document.removeEventListener('pointerup', onUp);
-		document.removeEventListener('pointercancel', onCancel);
-		document.removeEventListener('keydown', onKey, true);
-		ctx.lifetimeSignal?.removeEventListener('abort', onCancel);
-		if (rafId !== null) cancelAnimationFrame(rafId);
-		autoScroll.dispose();
-		document.body.style.userSelect = '';
-		scopeEl?.classList.remove('reorder-scope');
-		ctx.overlay.setGhost(null);
-		ctx.overlay.setLine(null);
-		pending = null;
-	}
-
-	// A release landing before the coalescing rAF runs would otherwise commit a
-	// stale dropTo (or none) — e.g. a fast drag whose final move is still pending.
-	function flushPendingMove(): void {
-		if (rafId !== null && pending) process(pending.clientX, pending.clientY);
-	}
-
-	function commitDrop(): void {
-		flushPendingMove();
-		const to = dropTo;
-		teardown();
-		if (to !== null && to !== fromIndex) void ctx.moveReorderUnit(fromPath!, to);
-	}
-	function onUp(): void {
-		commitDrop();
-	}
-	function onCancel(): void {
-		teardown();
-	}
-	function onKey(e: KeyboardEvent): void {
-		if (e.key === 'Escape') teardown();
-	}
-
 	return {
-		begin(e: PointerEvent) {
-			document.body.style.userSelect = 'none';
+		begin(down: PointerEvent) {
 			scopeEl?.classList.add('reorder-scope');
-			document.addEventListener('pointermove', onMove);
-			document.addEventListener('pointerup', onUp);
-			document.addEventListener('pointercancel', onCancel);
-			document.addEventListener('keydown', onKey, true);
-			ctx.lifetimeSignal?.addEventListener('abort', onCancel, { once: true });
-			process(e.clientX, e.clientY);
+			createPointerDragSession(down, {
+				onMove: (p) => process(p.clientX, p.clientY),
+				// A drop commits only on release (never cancel/Escape/unmount); dropTo
+				// is the flushed value the session's final onMove settled.
+				onEnd: (reason) => {
+					if (reason === 'up' && dropTo !== null && dropTo !== fromIndex) {
+						void ctx.moveReorderUnit(fromPath!, dropTo);
+					}
+				},
+				onTeardown: () => {
+					scopeEl?.classList.remove('reorder-scope');
+					ctx.overlay.setGhost(null);
+					ctx.overlay.setLine(null);
+				},
+				autoScroll: {
+					getTargets: () => {
+						const host = ctx.getScrollHost();
+						return host ? [host] : [];
+					}
+				},
+				escape: true,
+				disableUserSelect: true,
+				lifetimeSignal: ctx.lifetimeSignal
+			});
+			// Paint the initial line from the press point before any move; a no-move
+			// release then commits this drop just like a dragged one.
+			process(down.clientX, down.clientY);
 		}
 	};
 }
@@ -204,34 +166,15 @@ function startSession(
 // not, so we borrow a descendant block-host's path — the action's
 // resolveReorderUnit climbs from it to the list item either way.
 function pathFor(host: HTMLElement): number[] | null {
-	const own = host.getAttribute('data-block-path');
-	const raw = own ?? host.querySelector('[data-block-path]')?.getAttribute('data-block-path');
-	if (!raw) return null;
-	try {
-		return JSON.parse(raw) as number[];
-	} catch {
-		return null;
-	}
+	if (host.getAttribute('data-block-path')) return readBlockPath(host);
+	return readBlockPath(host.querySelector('[data-block-path]'));
 }
 
 // The unit's index among its siblings: a block-host's own path tail; a list
 // item's inner content path's second-to-last entry (the item index).
 function indexOf(host: HTMLElement): number | null {
-	const own = host.getAttribute('data-block-path');
-	if (own) {
-		try {
-			return (JSON.parse(own) as number[]).at(-1) ?? null;
-		} catch {
-			return null;
-		}
-	}
-	const innerRaw = host.querySelector('[data-block-path]')?.getAttribute('data-block-path');
-	if (!innerRaw) return null;
-	try {
-		return (JSON.parse(innerRaw) as number[]).at(-2) ?? null;
-	} catch {
-		return null;
-	}
+	if (host.getAttribute('data-block-path')) return readBlockPath(host)?.at(-1) ?? null;
+	return readBlockPath(host.querySelector('[data-block-path]'))?.at(-2) ?? null;
 }
 
 function ghostLabel(host: HTMLElement): string {

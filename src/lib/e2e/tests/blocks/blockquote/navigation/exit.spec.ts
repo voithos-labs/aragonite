@@ -24,7 +24,11 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(4);
 		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceMatches(/^[^>]/m);
+		// The exit is a top-level structural change, not a textual one: the empty
+		// paragraph leaves the quote, so the document gains a second root block.
+		// A source predicate can't see it — the whole fixture was typed, so every
+		// shape it could name is already present before the exiting Enter.
+		await editor.bridge.waitForBlockCount(2);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> first');

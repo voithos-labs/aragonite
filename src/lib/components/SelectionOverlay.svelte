@@ -35,8 +35,13 @@
 		hasChildHosts?: boolean;
 	} = $props();
 
-	const { selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { editorRoot: getEditorRoot, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	// Optional, like every context BlockHost itself reads: a bare mount (unit
+	// harness, conformance kit) provides no shell, and every use below is already
+	// written for absence. Destructuring these threw before those reads ran.
+	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
+	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
+	const getEditorRoot = editorDoc?.editorRoot;
+	const getDoc = editorDoc?.doc;
 
 	// Containers that supply their own measurePartialRects (table) paint cell
 	// rects from this overlay; their children don't render BlockHost wrappers.
@@ -52,6 +57,15 @@
 			focus: selection.focus
 		});
 	});
+
+	// This block paints endpoint rects (its own partial selection). The measuring
+	// effect and the template read the one predicate, so a rendered rect is always
+	// one the effect measured — the reverse renders a stale box.
+	const paintsEndpoints = $derived(
+		classification === 'start' ||
+			classification === 'end' ||
+			(classification === 'single-block' && containerPaintsRects)
+	);
 
 	interface LocalRect {
 		left: number;
@@ -87,11 +101,7 @@
 	let endpointRects: LocalRect[] = $state([]);
 
 	$effect(() => {
-		const usesPartialRects =
-			classification === 'start' ||
-			classification === 'end' ||
-			(classification === 'single-block' && containerPaintsRects);
-		if (!usesPartialRects) {
+		if (!paintsEndpoints) {
 			endpointRects = [];
 			return;
 		}
@@ -139,14 +149,14 @@
 			);
 		}
 
-		const editorRoot = getEditorRoot?.();
+		const editorRoot = getEditorRoot?.() ?? null;
 		return wireOverlayRemeasure({ el, editorRoot, blockRef: ref, measure });
 	});
 </script>
 
 {#if classification === 'middle'}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
-{:else if classification === 'start' || classification === 'end' || (classification === 'single-block' && containerPaintsRects)}
+{:else if paintsEndpoints}
 	{#each endpointRects as rect, i (i)}
 		<div
 			class="selection-overlay selection-overlay-endpoint"

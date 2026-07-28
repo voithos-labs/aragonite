@@ -52,3 +52,20 @@ export function getInlineContent(
 	cache.set(node, { plain: entry?.plain, resolved: { raw: node.raw, signature: sig, content } });
 	return content;
 }
+
+/**
+ * Resolver-aware inline read for the non-render text-surface consumers (widget
+ * interaction, edge dispatch, construct reveal, clipboard): the one spelling of
+ * `getInlineContent(node, ref.current, ref.signature)` so a call site can't drop
+ * the signature and silently desync widget detection from what render drew.
+ *
+ * The `linkRef` shape matches editor-keys' `LinkReferenceResolverRef`, but is kept
+ * structural: naming it would pull `core/inline` onto `editor-keys`, which already
+ * imports back into this layer.
+ */
+export function resolvedInlineContent(
+	node: NodeView,
+	linkRef?: { current?: LinkReferenceResolver; signature?: string }
+): InlineNode[] {
+	return getInlineContent(node, linkRef?.current, linkRef?.signature ?? '');
+}

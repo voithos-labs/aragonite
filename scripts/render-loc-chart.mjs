@@ -10,10 +10,26 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { THEMES as BASE_THEMES, esc, textBuilder } from './chart-common.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── Count ────────────────────────────────────────────────────────────────────
+
+const files = execSync('git ls-files src/lib', { cwd: root, encoding: 'utf8' })
+	.split('\n')
+	.filter((f) => /\.(ts|svelte)$/.test(f) && !/\/(test|e2e)\//.test(f));
+
+// One directory under src/lib/plugins is one bundled plugin package. Counted from
+// the same file list the bars are measured from: a number written into a label
+// beside a live count can only ever drift out of step with it.
+const bundledPluginCount = new Set(
+	files
+		.filter((f) => f.startsWith('src/lib/plugins/'))
+		.map((f) => f.slice('src/lib/plugins/'.length))
+		.filter((rest) => rest.includes('/'))
+		.map((rest) => rest.slice(0, rest.indexOf('/')))
+).size;
 
 // Functional buckets, each a set of src/lib module dirs. A label says what the
 // bucket *does* — the point of the chart is the feature surface, not the dirs.
@@ -24,15 +40,11 @@ const BUCKETS = [
 	{ label: 'Selection, caret, markers', dirs: ['selection', 'cursor', 'ambient'] },
 	{ label: 'Public API & wiring', dirs: ['.'] },
 	{ label: 'Schema & plugin registry', dirs: ['schema'] },
-	{ label: '6 bundled plugins', dirs: ['plugins'] },
+	{ label: `${bundledPluginCount} bundled plugins`, dirs: ['plugins'] },
 	{ label: 'Invariants & debug tooling', dirs: ['invariants', 'testing', 'debug', 'perf'] },
 	{ label: 'Windowing & reactivity', dirs: ['reactivity'] },
 	{ label: 'Decorations & search', dirs: ['decorations', 'search'] }
 ];
-
-const files = execSync('git ls-files src/lib', { cwd: root, encoding: 'utf8' })
-	.split('\n')
-	.filter((f) => /\.(ts|svelte)$/.test(f) && !/\/(test|e2e)\//.test(f));
 
 const linesOf = (f) => {
 	const body = readFileSync(join(root, f), 'utf8');
@@ -64,26 +76,12 @@ for (const d of data) console.log(`  ${String(d.loc).padStart(6)}  ${d.label}`);
 
 // ── Render ───────────────────────────────────────────────────────────────────
 
+// Base palette + this chart's bar color.
 const THEMES = {
-	light: {
-		surface: '#fcfcfb',
-		inkPrimary: '#0b0b0b',
-		inkSecondary: '#52514e',
-		muted: '#898781',
-		grid: '#e1e0d9',
-		bar: '#2a78d6'
-	},
-	dark: {
-		surface: '#1a1a19',
-		inkPrimary: '#ffffff',
-		inkSecondary: '#c3c2b7',
-		muted: '#898781',
-		grid: '#2c2c2a',
-		bar: '#3987e5'
-	}
+	light: { ...BASE_THEMES.light, bar: '#2a78d6' },
+	dark: { ...BASE_THEMES.dark, bar: '#3987e5' }
 };
 
-const FONT = 'system-ui, sans-serif';
 const W = 880;
 const LABEL_W = 236;
 const BAR_X = LABEL_W + 12;
@@ -93,18 +91,12 @@ const TOP = 84;
 const H = TOP + data.length * ROW_H + 16;
 const maxLoc = Math.max(...data.map((d) => d.loc));
 
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const kloc = (v) => `${(v / 1000).toFixed(1)}k`;
 
 function chart(theme) {
 	const t = THEMES[theme];
 	const p = [];
-	const text = (x, y, s, o = {}) => {
-		const { size = 12.5, fill = t.inkSecondary, weight = 400, anchor = 'start', extra = '' } = o;
-		p.push(
-			`<text x="${x}" y="${y}" font-family="${FONT}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}"${extra}>${esc(s)}</text>`
-		);
-	};
+	const text = textBuilder(t, p);
 
 	p.push(
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`Library source by area: ${data.map((d) => `${d.label} ${kloc(d.loc)}`).join(', ')}. About ${kloc(total)} lines total.`)}">`

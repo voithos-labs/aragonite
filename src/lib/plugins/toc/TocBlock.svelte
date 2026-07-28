@@ -1,36 +1,38 @@
 <script lang="ts">
-	// Render-primary table of contents: the folded view is a `<nav>` list of the
-	// document's headings, read straight off `props.document`; a click reveals the
-	// raw `[[toc]]` source in a contenteditable, and blur folds back. All editing
+	// Render-primary table of contents: the folded view is a `<nav>` outline of the
+	// document's headings — indented by level, labels projected to clean text, each
+	// entry a click-to-navigate target. A click on the block's non-entry area reveals
+	// the raw `[[toc]]` source in a contenteditable; blur folds back. All editing
 	// behavior (caret, IME, undo, cross-block selection, commit) lives in
-	// `createEditableLeaf`; this component owns only the list↔source swap visuals.
-	//
-	// The heading list is the whole point of the dogfood: it exercises the
-	// `BlockComponentProps.document` delivery, deep-reactive so a heading edit above
-	// updates the list, and reaching a nested block through editor context.
+	// `createEditableLeaf`; this component owns the list↔source swap and navigation.
 	import {
 		createEditableLeaf,
-		getContentRange,
 		type BlockComponent,
 		type DocumentView,
+		type EditorRects,
 		type NodeView
 	} from '$lib/plugin';
+	import { collectHeadings } from './heading-outline';
+	import { createNavigationQueue } from './navigation-queue';
 
 	let {
 		node,
 		index,
 		myPath = [],
-		document
+		document,
+		rects,
+		maxDepth = 6
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
 		document?: DocumentView;
+		rects?: EditorRects;
+		maxDepth?: number;
 	} = $props();
 
 	let sourceEl: HTMLDivElement | undefined = $state();
 	let revealed = $state(false);
-	let sourcePopulated = false;
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
@@ -44,46 +46,23 @@
 		}
 	});
 
-	interface TocEntry {
-		id: string;
-		text: string;
+	// Live-derived from the document prop: the walk reads each heading's bytes through
+	// the prop, subscribing to the CST's $state proxy, so an edit above re-runs it. The
+	// projection is synchronous and uncached, so the derived stays reactive-safe.
+	const headings = $derived(collectHeadings(document, maxDepth));
+
+	// Serialize navigation per block (see `navigation-queue.ts` for why). No rect
+	// surface (a bare harness) → `scrollTo` resolves immediately, so entries are inert.
+	const navigation = createNavigationQueue({
+		scrollTo: (path) => rects?.scrollTo(path) ?? Promise.resolve()
+	});
+
+	// Suppress the leaf's reveal-on-pointerdown so an entry activation navigates instead
+	// of folding the block open; a `<button>` entry then navigates on click AND on
+	// Enter/Space (native activation). View-only in every mode, so it works in reading.
+	function onEntryPointerDown(e: PointerEvent): void {
+		e.stopPropagation();
 	}
-
-	// Live-derived from the document prop: reading each heading's `raw` through the
-	// prop subscribes to the CST's $state proxy, so an edit to a heading above
-	// re-runs this and updates the list. `getContentRange` drops the markers
-	// (`#` prefix for ATX, the underline line for setext).
-	const headings = $derived.by<TocEntry[]>(() => {
-		const entries: TocEntry[] = [];
-		const children = document?.children ?? [];
-		for (let i = 0; i < children.length; i++) {
-			const child = children[i];
-			if (child.kind !== 'heading' && child.kind !== 'setextHeading') continue;
-			const range = getContentRange(child);
-			entries.push({ id: `${i}:${child.raw}`, text: child.raw.slice(range.start, range.end) });
-		}
-		return entries;
-	});
-
-	// Source view: populate the contenteditable ONCE per reveal as a single text
-	// node, so `textContent === source` and the offset walk stays exact. Ephemeral
-	// edits then own the DOM until blur.
-	$effect(() => {
-		if (!revealed) {
-			sourcePopulated = false;
-			return;
-		}
-		if (!sourceEl || sourcePopulated) return;
-		sourceEl.textContent = leaf.sourceText;
-		sourcePopulated = true;
-	});
-
-	// Windowed out while the source is focused: hand focus to the editor root so the
-	// next keystroke routes through its document listener instead of <body>.
-	$effect(() => {
-		const el = sourceEl;
-		return () => leaf.parkFocus(el ?? null);
-	});
 
 	// ── BlockComponent interface ────────────────────────────────────────────────
 
@@ -114,27 +93,14 @@
 {#if revealed}
 	<div
 		bind:this={sourceEl}
-		tabindex="0"
+		{...leaf.surfaceProps}
 		class="toc-block-source"
-		contenteditable="true"
-		role="textbox"
 		aria-label="TOC source"
-		spellcheck="false"
-		oninput={leaf.onInput}
-		onkeydown={leaf.handleKeydown}
-		oncopy={leaf.onCopy}
-		oncut={leaf.onCut}
-		onpaste={leaf.onPaste}
-		onpointerdown={leaf.onPointerDown}
-		onfocusout={leaf.onFocusOut}
-		oncompositionstart={leaf.onCompositionStart}
-		oncompositionend={leaf.onCompositionEnd}
 	></div>
 {:else}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="toc-block-render"
-		role="button"
-		tabindex="-1"
 		aria-label="Table of contents (click to edit)"
 		onpointerdown={leaf.onRenderPointerDown}
 	>
@@ -144,7 +110,20 @@
 			{:else}
 				<ol>
 					{#each headings as heading (heading.id)}
-						<li class="toc-block-item">{heading.text}</li>
+						<!-- A real `<button>`, not a role-tagged `<li>`: native focus, tab order,
+						     and Enter/Space activation, valid now the container carries no
+						     `role="button"`. Its pointerdown is suppressed so the click
+						     navigates instead of revealing the block's raw source. -->
+						<li>
+							<button
+								type="button"
+								class="toc-block-item toc-block-level-{heading.level}"
+								onpointerdown={onEntryPointerDown}
+								onclick={() => navigation.navigateTo(heading.path)}
+							>
+								{heading.label}
+							</button>
+						</li>
 					{/each}
 				</ol>
 			{/if}
@@ -186,11 +165,55 @@
 	.toc-block-nav ol {
 		margin: 0;
 		padding-left: 1.4em;
+		list-style: none;
 	}
 
+	/* Reset the native button chrome to a plain, full-row text entry — the accent
+	   hover and focus ring are the only affordances. */
 	.toc-block-item {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: 0;
+		border: none;
+		background: none;
+		font-family: inherit;
 		font-size: 0.9em;
 		line-height: 1.6;
+		color: inherit;
+		cursor: pointer;
+		border-radius: 3px;
+	}
+
+	.toc-block-item:hover {
+		color: var(--color-accent, #567b67);
+		text-decoration: underline;
+	}
+
+	.toc-block-item:focus-visible {
+		outline: 2px solid var(--color-accent, #567b67);
+		outline-offset: 1px;
+	}
+
+	/* Indent by heading level — a flat `<ol>` keeps list semantics while the padding
+	   makes the hierarchy visible. */
+	.toc-block-level-1 {
+		padding-left: 0;
+	}
+	.toc-block-level-2 {
+		padding-left: 1.1em;
+	}
+	.toc-block-level-3 {
+		padding-left: 2.2em;
+	}
+	.toc-block-level-4 {
+		padding-left: 3.3em;
+	}
+	.toc-block-level-5 {
+		padding-left: 4.4em;
+	}
+	.toc-block-level-6 {
+		padding-left: 5.5em;
 	}
 
 	.toc-block-empty {

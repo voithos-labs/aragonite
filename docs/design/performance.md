@@ -15,7 +15,7 @@ Qualitative shape; the exact numbers live in `src/lib/test/perf/baseline.json`.
 
 One keystroke axis is deliberately **not** viewport-bounded, and is recorded as a reference rather than gated:
 
-- **Intra-block long-paragraph editing.** A single block's span rebuild scales with paragraph length — windowing windows blocks, not the interior of one block. It is transient: any Enter splits the paragraph into viewport-bounded blocks, so it only surfaces from pasting a multi-MB blob into one block. The lever, if a real workload ever needs it, is intra-block DOM reconciliation of the rebuilt span run.
+- **Intra-block long-paragraph editing.** A single block's span rebuild scales with paragraph length — windowing windows blocks, not the interior of one block. It is transient: any Enter splits the paragraph into viewport-bounded blocks, so it only surfaces from pasting a multi-MB blob into one block. The lever, if a real workload ever needs it, is intra-block DOM reconciliation of the rebuilt span run. One shape inside this axis is superlinear, measured and ledgered rather than fixed: an emphasis-dense single block scans quadratically (`docs/issues.md`, emphasis-flood watch entry).
 
 A flat high-block-count keystroke cost was once recorded here as an O(top-level-count) axis. Measurement showed it was a **harness artifact** — the latency harness summed the whole `$state`-proxy children array on every settle poll — not editor work. Flat-document keystrokes are O(viewport) like every other shape.
 

@@ -11,10 +11,10 @@ import {
 	toEditorX,
 	toViewportX,
 	type DomTextOffset,
-	type EditorX,
-	type ViewportX
+	type EditorX
 } from './coordinate-spaces';
 import { containerDomTextLength, findDomTextOffsetTarget } from './widget-offset';
+import { firstUsefulRect } from './visual-lines';
 
 // A candidate counts as "on the probe line" when its rect overlaps the line band
 // padded by half a line height on each side — wide enough to catch ascender/
@@ -26,18 +26,8 @@ export function getCurrentCursorEditorRelativeX(el: HTMLElement): EditorX | null
 	if (!sel || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
 
-	let viewportX: ViewportX | null = null;
-	const rects = range.getClientRects();
-	if (rects.length > 0 && rects[0].height > 0) {
-		viewportX = asViewportX(rects[0].left);
-	}
-	if (viewportX === null) {
-		const br = range.getBoundingClientRect();
-		if (br.height > 0 || br.width > 0) viewportX = asViewportX(br.left);
-	}
-	if (viewportX === null) {
-		viewportX = asViewportX(el.getBoundingClientRect().left);
-	}
+	const rect = firstUsefulRect(range);
+	const viewportX = asViewportX(rect ? rect.left : el.getBoundingClientRect().left);
 
 	const editor = el.closest('.editor') as HTMLElement | null;
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
@@ -54,11 +44,7 @@ export function getOffsetRect(container: HTMLElement, offset: DomTextOffset): DO
 		return null;
 	}
 	range.collapse(true);
-	const rects = range.getClientRects();
-	if (rects.length > 0 && rects[0].height > 0) return rects[0] as DOMRect;
-	const br = range.getBoundingClientRect();
-	if (br.height > 0 || br.width > 0) return br;
-	return null;
+	return firstUsefulRect(range);
 }
 
 /**

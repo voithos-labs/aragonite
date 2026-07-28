@@ -1,22 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import {
-	resolveEffectivePresentationMode,
-	isReadingMode,
-	type PresentationMode
-} from '$lib/presentation-mode';
+import { isReadingMode, type PresentationMode } from '$lib/presentation-mode';
 import { dispatchKeyCommand, dispatchKindCommand } from '$lib/schema/block-commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 
 const modeGetter = (mode: PresentationMode) => () => mode;
-
-describe('resolveEffectivePresentationMode', () => {
-	it('all four rungs are built — every mode passes through uncollapsed', () => {
-		const modes: PresentationMode[] = ['source', 'reading', 'preview-block', 'preview-inline'];
-		for (const mode of modes) {
-			expect(resolveEffectivePresentationMode(mode)).toBe(mode);
-		}
-	});
-});
 
 describe('isReadingMode', () => {
 	it('reads the mode through the getter; absent getter means not reading', () => {

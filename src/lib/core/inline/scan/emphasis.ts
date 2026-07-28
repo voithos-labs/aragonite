@@ -87,9 +87,10 @@ export function handleDelimiter(ctx: ScanContext): void {
 	while (runEnd < end && raw[runEnd] === char) runEnd++;
 	const length = runEnd - pos;
 
-	// GFM strikethrough delimits only in runs of exactly 2; runs that can
-	// neither open nor close never participate. Both stay pending text.
-	if (char === '~' && length !== 2) {
+	// cmark-gfm delimits strikethrough in tilde runs of length 1 or 2; a run of
+	// 3+ never participates and stays literal (the mixed-length non-pairing rule
+	// lives at the match, in processEmphasis).
+	if (char === '~' && length > 2) {
 		ctx.pos = runEnd;
 		return;
 	}
@@ -150,7 +151,12 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 		let oi = prev[ci];
 		while (oi > bottom && oi !== stopAt) {
 			const candidate = delimiters[oi];
-			if (candidate.char === closer.char && candidate.canOpen && !isOddMatch(candidate, closer)) {
+			if (
+				candidate.char === closer.char &&
+				candidate.canOpen &&
+				!isOddMatch(candidate, closer) &&
+				tildeLengthsAgree(candidate, closer)
+			) {
 				opener = candidate;
 				break;
 			}
@@ -195,6 +201,16 @@ function isOddMatch(opener: Delimiter, closer: Delimiter): boolean {
 		closer.origLength % 3 !== 0 &&
 		(opener.origLength + closer.origLength) % 3 === 0
 	);
+}
+
+/**
+ * cmark-gfm pairs a strikethrough opener and closer only when their runs share a
+ * length: a one-tilde run never closes a two-tilde run. (The multiple-of-3 rule
+ * misses the flanking-pure `~a~~` / `~~a~` shapes, so this is a distinct gate;
+ * `*`/`_` carry no such rule.)
+ */
+function tildeLengthsAgree(opener: Delimiter, closer: Delimiter): boolean {
+	return closer.char !== '~' || opener.origLength === closer.origLength;
 }
 
 /**

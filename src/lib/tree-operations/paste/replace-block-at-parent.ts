@@ -1,17 +1,17 @@
 /**
- * Replace a single block at `blockPath` with `replacement` blocks via the
- * controller's commitMultiScope, bypassing whatever blockEdit happens to be in
- * scope. Used for paste paths that splice into a parent the caller's blockEdit
- * can't address — e.g., paste-into-cell needs to mutate doc.children but the
- * cell's blockEdit is the row-level nested bundle (which would treat the
- * doc-level table index as a column index inside the row).
+ * Replace a single block at `blockPath` with `replacement` blocks, committing at
+ * the block's parent scope (`parent-scope.ts`) rather than through the caller's
+ * blockEdit — paste-into-cell has to mutate doc.children while holding the
+ * row-level nested bundle.
  */
 
 import type { UndoEntryMode } from '../../action-contracts';
 import type { OperationDetailMap } from '../../schema/operations';
 import type { CstNode, Document } from '../../core/nodes';
-import type { PasteCommitCoordinator, MultiScopeTarget } from './paste-deps';
+import type { PasteCommitCoordinator } from './paste-deps';
 import { nodeAt } from '../node-ops';
+import { resolveParentScope } from './parent-scope';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
@@ -43,15 +43,9 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		source
 	} = args;
 
-	const parentPath = blockPath.slice(0, -1);
 	const blockIdx = blockPath[blockPath.length - 1];
-	const isTopLevel = parentPath.length === 0;
-	const parentNode = isTopLevel ? null : (nodeAt(doc, parentPath) as CstNode | null);
-	if (!isTopLevel && (!parentNode || !parentNode.children)) return;
-
-	const scope: MultiScopeTarget = isTopLevel
-		? controller.getDocScope()
-		: { node: parentNode!, state: controller.expectState(parentNode!), path: parentPath };
+	const scope = resolveParentScope(doc, blockPath, controller);
+	if (!scope) return;
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
@@ -59,7 +53,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 
 	await controller.commitMultiScope({
 		scopes: [scope],
-		snapshot: undoEntry === 'join' ? 'skip' : { path: blockPath.slice(), offset: 0 },
+		snapshot: undoEntry === 'join' ? 'skip' : { path: docPathFrom(blockPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(blockIdx, 1, ...replacement);
 			// Identity preservation only helps when the kind matches — different
@@ -73,7 +67,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		op: {
 			kind: 'replaceBlock',
 			detail: { source },
-			eventPath: blockPath
+			eventPath: docPathFrom(blockPath)
 		},
 		afterTick: () => {
 			const focusIdx = blockIdx + focusReplacementIndex;

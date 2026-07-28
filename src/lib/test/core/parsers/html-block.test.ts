@@ -177,36 +177,37 @@ describe('matchHtmlBlock — type 7 (complete-tag catch-all)', () => {
 
 function parseHtmlBlockFromSource(src: string) {
 	const lines = splitLines(src);
-	return parseHtmlBlock(lines, 0, lines.length, '');
+	const type = matchHtmlBlock(lines[0].text)!;
+	return parseHtmlBlock(lines, 0, lines.length, '', type);
 }
 
 describe('parseHtmlBlock — per-type close conditions', () => {
 	describe('type 1 (script/pre/style/textarea)', () => {
 		it('same-line open and close yields a one-line block', () => {
-			const { node, nextIndex } = parseHtmlBlockFromSource('<script>foo</script>\nafter\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<script>foo</script>\nafter\n');
 			expect(node.kind).toBe('htmlBlock');
 			expect(node.raw).toBe('<script>foo</script>\n');
-			expect(nextIndex).toBe(1);
+			expect(consumed).toBe(1);
 		});
 		it('close-tag on later line includes that line in the block', () => {
-			const { node, nextIndex } = parseHtmlBlockFromSource('<script>\nfoo\n</script>\nafter\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<script>\nfoo\n</script>\nafter\n');
 			expect(node.raw).toBe('<script>\nfoo\n</script>\n');
-			expect(nextIndex).toBe(3);
+			expect(consumed).toBe(3);
 		});
 		it('any close tag closes any type-1 block (spec-exact)', () => {
 			// <script> opener closed by </pre> per CommonMark §4.6.
-			const { node, nextIndex } = parseHtmlBlockFromSource('<script>\nfoo\n</pre>\nafter\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<script>\nfoo\n</pre>\nafter\n');
 			expect(node.raw).toBe('<script>\nfoo\n</pre>\n');
-			expect(nextIndex).toBe(3);
+			expect(consumed).toBe(3);
 		});
 		it('case-insensitive close: </SCRIPT> closes <script>', () => {
 			const { node } = parseHtmlBlockFromSource('<script>\n</SCRIPT>\nafter\n');
 			expect(node.raw).toBe('<script>\n</SCRIPT>\n');
 		});
 		it('unclosed type 1 block extends to EOF (no blank-line stop)', () => {
-			const { node, nextIndex } = parseHtmlBlockFromSource('<script>\nfoo\n\nbar\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<script>\nfoo\n\nbar\n');
 			expect(node.raw).toBe('<script>\nfoo\n\nbar\n');
-			expect(nextIndex).toBe(4);
+			expect(consumed).toBe(4);
 		});
 	});
 
@@ -230,9 +231,9 @@ describe('parseHtmlBlock — per-type close conditions', () => {
 
 	describe('type 4 (declaration)', () => {
 		it('same-line <!DOCTYPE html> is a one-line block (close is `>`)', () => {
-			const { node, nextIndex } = parseHtmlBlockFromSource('<!DOCTYPE html>\nafter\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<!DOCTYPE html>\nafter\n');
 			expect(node.raw).toBe('<!DOCTYPE html>\n');
-			expect(nextIndex).toBe(1);
+			expect(consumed).toBe(1);
 		});
 		it('multi-line declaration closes on first line containing >', () => {
 			const { node } = parseHtmlBlockFromSource('<!DOCTYPE\nhtml>\nafter\n');
@@ -249,14 +250,14 @@ describe('parseHtmlBlock — per-type close conditions', () => {
 
 	describe('type 6 (listed tag) and type 7 (catch-all)', () => {
 		it('type 6 closes on blank line; blank line is NOT part of block', () => {
-			const { node, nextIndex } = parseHtmlBlockFromSource('<div>\ncontent\n\nafter\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<div>\ncontent\n\nafter\n');
 			expect(node.raw).toBe('<div>\ncontent\n');
-			expect(nextIndex).toBe(2);
+			expect(consumed).toBe(2);
 		});
 		it('type 7 closes on blank line; blank line is NOT part of block', () => {
-			const { node, nextIndex } = parseHtmlBlockFromSource('<custom>\ncontent\n\nafter\n');
+			const { node, consumed } = parseHtmlBlockFromSource('<custom>\ncontent\n\nafter\n');
 			expect(node.raw).toBe('<custom>\ncontent\n');
-			expect(nextIndex).toBe(2);
+			expect(consumed).toBe(2);
 		});
 		it('type 6 unclosed at EOF runs to EOF', () => {
 			const { node } = parseHtmlBlockFromSource('<div>\ncontent\n');

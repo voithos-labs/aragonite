@@ -1,82 +1,94 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, type Mock } from 'vitest';
+import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { parse } from '$lib/core/parser';
 import {
-	makeStickyColumn,
-	makeStubBlockEdit,
-	makeStubFocus,
+	makeBlockListState,
 	makeEditorActionsDeps,
-	makeNode
+	makeStubBlockEdit
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
-import type { CstNode } from '$lib/core/nodes';
+import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// G2.9 paste op-kind dual-emit. A paste surfaces a DIFFERENT op kind depending
-// on depth: top-level insertParsedBlocks emits `paste`, a paste into a container
-// emits `replaceBlock` (it routes through the nested replaceBlock path). Both
-// matter — a consumer watching only one kind misses half the pastes — so each
-// case asserts its kind fires AND the other does not.
+// G2.9 paste op-kind emission. A paste surfaces under MORE THAN ONE op kind,
+// chosen by the paste STRATEGY (not the target's depth): the default single-leaf
+// structural paste emits `replaceBlock` (it splices its folded replacement
+// through the replace-at-parent path, at every depth), the list/container
+// absorb-and-merge strategies emit `paste`, and a cross-block inline paste emits
+// `updateContent` (it commits the same re-parse funnel `updateBlockContent` runs).
+// A consumer counting pastes must watch all three — watching one misses the
+// others. Driven through the live `pasteDispatch` so the guard tracks the real
+// routing.
 
-function editKinds(handler: Mock<(e: EditEvent) => void>): string[] {
+function editOps(handler: Mock<(e: EditEvent) => void>): string[] {
 	return handler.mock.calls.map(([event]) => event.op);
 }
 
-describe('G2.9 paste op-kind dual-emit', () => {
-	it('top-level paste emits paste, not replaceBlock', async () => {
-		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+describe('G2.9 paste op-kind emission', () => {
+	it('a default structural paste emits replaceBlock, not paste', async () => {
+		const { deps, events } = makeEditorActionsDeps([parse('hello world\n').children[0]]);
+		const coordinator = createPasteCoordinator(createUndoController(deps));
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
 
-		await actions.insertParsedBlocks(0, 3, [makeNode('paragraph', 'pasted\n')]);
+		// Multi-block clipboard into a plain paragraph → the default structural hook.
+		await pasteDispatch(
+			{ pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 },
+			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator }
+		);
 
-		const kinds = editKinds(onEdit);
-		expect(kinds).toContain('paste');
-		expect(kinds).not.toContain('replaceBlock');
+		const ops = editOps(onEdit);
+		expect(ops).toContain('replaceBlock');
+		expect(ops).not.toContain('paste');
 	});
 
-	it('paste into a container emits replaceBlock, not paste', async () => {
-		const innerPara = makeNode('paragraph', 'hello\n');
-		const containerNode: CstNode = {
-			kind: 'blockquote',
-			leadingTrivia: '',
-			raw: '> hello\n',
-			children: [innerPara],
-			innerPrefix: '> ',
-			innerSuffix: ''
-		} as CstNode;
+	it('a list-absorb paste emits paste, not replaceBlock', async () => {
+		const { deps, events } = makeEditorActionsDeps([parse('1. one\n2. two\n').children[0]]);
+		const coordinator = createPasteCoordinator(createUndoController(deps));
 
-		const { deps, events } = makeEditorActionsDeps([containerNode]);
-		const controller = createUndoController(deps);
-		const containerEdit = createContainerEditActions(deps, controller);
-		const containerState = createBlockListState(() => containerNode);
-
-		const bundle = createStandardNestedActions(containerState, {
-			index: 0,
-			get node() {
-				return containerNode;
-			},
-			path: [0],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit
-			}
-		});
+		// list-absorb commits on the outer list scope, resolved through the registry.
+		const liveList = () => deps.doc.children[0];
+		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
+		registerBlockListState(liveList(), listState as unknown as BlockListState);
 
 		const onEdit = vi.fn<(e: EditEvent) => void>();
 		events.on('edit', onEdit);
 
-		await bundle.blockEdit.insertParsedBlocks(0, 3, [makeNode('paragraph', 'pasted\n')]);
+		// A matching ordered-list item pasted onto a list item → list-absorb.
+		await pasteDispatch(
+			{ pastedText: '1. INSERTED\n', targetPath: [0, 0, 0], offset: 'one'.length },
+			{ doc: deps.doc, blockEdit: makeStubBlockEdit(), controller: coordinator }
+		);
 
-		const kinds = editKinds(onEdit);
-		expect(kinds).toContain('replaceBlock');
-		expect(kinds).not.toContain('paste');
+		const ops = editOps(onEdit);
+		expect(ops).toContain('paste');
+		expect(ops).not.toContain('replaceBlock');
+	});
+
+	it('a cross-block inline paste emits updateContent, not paste or replaceBlock', async () => {
+		const { deps, events } = makeEditorActionsDeps(parse('hello world\n').children);
+		const coordinator = createPasteCoordinator(createUndoController(deps));
+
+		const onEdit = vi.fn<(e: EditEvent) => void>();
+		events.on('edit', onEdit);
+
+		await pasteDispatch(
+			{ pastedText: 'XYZ\nsecond', targetPath: [0], offset: 5 },
+			{
+				doc: deps.doc,
+				blockEdit: makeStubBlockEdit(),
+				controller: coordinator,
+				undoEntry: 'join'
+			}
+		);
+
+		const ops = editOps(onEdit);
+		expect(ops).toContain('updateContent');
+		expect(ops).not.toContain('paste');
+		expect(ops).not.toContain('replaceBlock');
 	});
 });

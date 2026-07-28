@@ -1,18 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
-
-const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
-const count = (page: Page) => page.locator('.search-count');
-const overlays = (page: Page) => page.locator('.match-overlay');
-const activeOverlays = (page: Page) => page.locator('.match-overlay-active');
-
-async function openFind(editor: EditorPage) {
-	await editor.clickBlock(0);
-	await editor.page.keyboard.press(`${primaryModifier}+f`);
-	await findInput(editor.page).waitFor({ state: 'visible' });
-}
+import { activeOverlays, count, openFind, overlays } from './helpers';
 
 // An atomic image widget contributes 0 chars to textContent and carries its raw
 // bytes via data-source-*. A match landing entirely inside the widget's source

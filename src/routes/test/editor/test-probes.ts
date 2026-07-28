@@ -1,4 +1,4 @@
-import type { Editor, PresentationMode } from '$lib';
+import type { Editor, PastedImage, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
@@ -8,6 +8,7 @@ import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
+import type { EditorSelection } from '$lib/selection/primitives';
 import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import {
@@ -74,6 +75,20 @@ export function getFocusedBlockPath(): number[] | null {
 	const node = sel.getRangeAt(0).startContainer;
 	const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
 	return findBlockPathForElement(el);
+}
+
+// The focused prose block's inline tree, parsed fresh from `source`. Empty string
+// when no prose block holds the caret. Shared by the probe surface and the demo
+// DebugPanel's inline-tree getter.
+export function dumpFocusedInlineTree(source: string): string {
+	const path = getFocusedBlockPath();
+	if (!path) return '';
+	const doc = parse(source);
+	const node = nodeAt(doc, path);
+	if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
+	const range = getContentRange(node);
+	const inline = parseInline(node.raw, range.start, range.end);
+	return dumpInlineTree(inline);
 }
 
 function isCrossBlockSnapshot(sel: {
@@ -208,15 +223,112 @@ function collectConformanceEntries(): ConformanceSweepEntry[] {
 			}
 		});
 	}
+	// A sweep over zero rows asserts nothing about any kind. Loud beats vacuous.
+	if (entries.length === 0) {
+		throw new Error(
+			'collectConformanceEntries: no registered kind declares a conformanceFixture; the browser sweep would run over an empty set'
+		);
+	}
 	return entries;
 }
 
 // ── window.__test probe surface (backs the e2e suite) ──────────────────────
 
 type ProbeRect = { top: number; left: number; width: number; height: number } | null;
+type CaretProbeState = { captured: boolean; rect: ProbeRect };
 
-let capturedErrorOrigins: string[] = [];
-let disposeErrorCapture: (() => void) | undefined;
+// A start/stop accumulator over an editor-event subscription: `start` disposes any
+// live session, resets the accumulator, and subscribes; `stop` disposes and returns
+// the accumulated value; `peek` reads it without ending the session.
+//
+// A session subscribes to ONE editor's events. The accumulator is module-level and
+// so survives a remount, but the subscription does not — it stays attached to the
+// destroyed instance's emitter. Reading it would hand back an empty array, a
+// vacuous green. `invalidate` marks such a session stale so the read throws.
+function createSessionProbe<T>(init: () => T): {
+	start: (subscribe: (accumulator: T) => () => void) => void;
+	stop: () => T;
+	peek: () => T;
+	invalidate: (reason: string) => void;
+} {
+	let value = init();
+	let dispose: (() => void) | undefined;
+	let staleReason: string | undefined;
+	const assertLive = () => {
+		if (staleReason) throw new Error(`test probe session is dead: ${staleReason}`);
+	};
+	return {
+		start(subscribe) {
+			dispose?.();
+			staleReason = undefined;
+			value = init();
+			dispose = subscribe(value);
+		},
+		stop() {
+			assertLive();
+			dispose?.();
+			dispose = undefined;
+			return value;
+		},
+		peek() {
+			assertLive();
+			return value;
+		},
+		invalidate(reason) {
+			if (!dispose) return;
+			dispose();
+			dispose = undefined;
+			staleReason = reason;
+		}
+	};
+}
+
+// Every edit op, in order; the count probe reads this array's length. Error origins
+// from caught render failures. The first cross-block caretRect.
+const editOpProbe = createSessionProbe<string[]>(() => []);
+const errorProbe = createSessionProbe<string[]>(() => []);
+const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
+
+// ── Image-paste host hook ──────────────────────────────────────────────────
+//
+// `onPasteImage` is set-once at mount, so the page installs THIS stable function
+// (opted into with `?imagePaste=on`) and a spec swaps what it answers behind it —
+// otherwise every arm of the contract would need its own remount. Responses are
+// consumed one per image in clipboard order; the last one repeats once the list
+// runs out.
+
+interface ImagePasteResponse {
+	/** Markdown to insert; omitted or null exercises the skip-this-image arm. */
+	markdown?: string | null;
+	reject?: boolean;
+	/** Stay pending until `release()`, so a spec can move the caret mid-import. */
+	hold?: boolean;
+}
+
+interface ImagePasteCall {
+	mimeType: string;
+	suggestedName: string | null;
+	bytes: number;
+}
+
+let imagePasteResponses: ImagePasteResponse[] = [];
+const imagePasteCalls: ImagePasteCall[] = [];
+let releaseHeldImport: (() => void) | null = null;
+
+export async function harnessPasteImage(image: PastedImage): Promise<string | null> {
+	const response = imagePasteResponses[
+		Math.min(imagePasteCalls.length, imagePasteResponses.length - 1)
+	] ?? { markdown: null };
+	imagePasteCalls.push({
+		mimeType: image.mimeType,
+		suggestedName: image.suggestedName ?? null,
+		bytes: image.blob.size
+	});
+	if (response.hold) await new Promise<void>((resolve) => (releaseHeldImport = resolve));
+	if (response.reject) throw new Error('harness image import rejected');
+	return response.markdown ?? null;
+}
+
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
 // Handles kept by source name so a spec can dispose/invalidate a source it
 // registered — the returned handle carries functions and can't cross page.evaluate.
@@ -231,6 +343,21 @@ export function installTestProbes({
 	setPresentationMode
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
+
+	// A reinstall means a new editor instance; any session still open belongs to the
+	// old one's emitter and can no longer observe anything.
+	const remounted = 'the editor remounted while the session was open';
+	editOpProbe.invalidate(remounted);
+	errorProbe.invalidate(remounted);
+	caretProbe.invalidate(remounted);
+
+	// Unfiltered: the multi-scope requirement files claim "exactly one edit event per
+	// user gesture" without qualification, so the probe counts what they claim. A
+	// filter here would let a second commit leg landing as `op:'input'` count zero.
+	const subscribeEditOps = (ops: string[]): (() => void) =>
+		editor.getEvents().on('edit', (e: { op: string }) => {
+			ops.push(e.op);
+		});
 
 	(window as any).__test = {
 		getSource: () => editor.getSource(),
@@ -327,9 +454,15 @@ export function installTestProbes({
 			node.kind = kind;
 			doc.children = [...doc.children];
 		},
-		isCrossBlockActive: () => {
-			return document.querySelector('[data-cross-block]') !== null;
-		},
+		// Reads SelectionState, never the `data-cross-block` DOM mirror: that attribute
+		// is written by a deferred $effect, so it lags — and every spec asserting
+		// `false` is asserting the direction a lag turns into a false pass. Same rule
+		// `editor-rects.ts` carries. The mirror is also document-global, so on a
+		// two-editor route it would answer for whichever editor set it last.
+		isCrossBlockActive: (): boolean => editor.__test.isCrossBlockActive(),
+		// Whether the SELECTION spans two paths — narrower than the mode above, which
+		// an intra-table rectangle also turns on while both endpoints keep the table's
+		// own path.
 		isCrossBlockSelection: (): boolean => {
 			const sel = editor?.getSelection();
 			if (!sel) return false;
@@ -343,6 +476,11 @@ export function installTestProbes({
 				focus: { path: sel.focus.path, offset: sel.focus.offset }
 			};
 		},
+		// Faithful mirrors of the snapshot/restore doors, unlike getSelectionPaths
+		// above: a round-trip spec must hand back the endpoint UNION variant it got,
+		// and the path-only projection drops `cellCoordinate`.
+		getSelection: (): EditorSelection | null => editor.getSelection(),
+		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
@@ -359,6 +497,22 @@ export function installTestProbes({
 		// survive a replace (e.g. skipped container matches), so specs read the
 		// replaced count here.
 		getSearchReplacedCount: (): number | null => editor.getSearch().replacedCount,
+		// ── Image-paste hook knob (the hook itself is installed by the page) ──
+		imagePaste: {
+			setResponses: (responses: ImagePasteResponse[]): void => {
+				imagePasteResponses = responses;
+			},
+			release: (): void => {
+				releaseHeldImport?.();
+				releaseHeldImport = null;
+			},
+			getCalls: (): ImagePasteCall[] => [...imagePasteCalls],
+			reset: (): void => {
+				imagePasteResponses = [];
+				imagePasteCalls.length = 0;
+				releaseHeldImport = null;
+			}
+		},
 		// ── Decoration source probe (register sources without a plugin) ────
 		/**
 		 * Register a decoration source through the public registry so e2e can
@@ -386,7 +540,9 @@ export function installTestProbes({
 			rangeRects: (path: number[], start: number, end: number): DOMRect[] =>
 				editor.getRects().rangeRects(path, start, end),
 			caretRect: (): DOMRect | null => editor.getRects().caretRect(),
-			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path)
+			reveal: (path: number[]): Promise<boolean> => editor.getRects().reveal(path),
+			scrollTo: (path: number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean> =>
+				editor.getRects().scrollTo(path, opts)
 		},
 		// ── Cross-block caretRect timing probe ─────────────────────────────
 		// Captures editor.getRects().caretRect() the first time a selectionChange
@@ -394,25 +550,16 @@ export function installTestProbes({
 		// window before the deferred data-cross-block $effect runs. Pins that
 		// caretRect reads SelectionState, not the lagging DOM mirror: reading the
 		// stale attribute mid-emit would leak the parked cross-block range.
-		startCrossBlockCaretProbe: (): void => {
-			const w = window as any;
-			w.__test._cbCaret = { captured: false, rect: null };
-			w.__test._cbCaretDispose?.();
-			w.__test._cbCaretDispose = editor.getEvents().on('selectionChange', (sel) => {
-				if (w.__test._cbCaret.captured || !sel || !isCrossBlockSnapshot(sel)) return;
-				const r = editor.getRects().caretRect();
-				w.__test._cbCaret = {
-					captured: true,
-					rect: r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null
-				};
-			});
-		},
-		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => {
-			const w = window as any;
-			w.__test._cbCaretDispose?.();
-			w.__test._cbCaretDispose = null;
-			return w.__test._cbCaret ?? { captured: false, rect: null };
-		},
+		startCrossBlockCaretProbe: (): void =>
+			caretProbe.start((state) =>
+				editor.getEvents().on('selectionChange', (sel) => {
+					if (state.captured || !sel || !isCrossBlockSnapshot(sel)) return;
+					const r = editor.getRects().caretRect();
+					state.captured = true;
+					state.rect = r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null;
+				})
+			),
+		readCrossBlockCaretProbe: (): { captured: boolean; rect: ProbeRect } => caretProbe.stop(),
 		// ── Perf instruments surface ──────────────────────────────────────
 		perf: {
 			enable: enablePerfInstruments,
@@ -434,78 +581,29 @@ export function installTestProbes({
 		dumpTree: (opts?: Parameters<typeof dumpTree>[1]) =>
 			dumpTree(editor.__test.getDocument(), opts),
 		dumpSelection: () => liveSelectionText(editor),
-		dumpInlineTree: () => {
-			const path = getFocusedBlockPath();
-			if (!path) return '';
-			const doc = parse(editor.getSource());
-			const node = nodeAt(doc, path);
-			if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
-			const range = getContentRange(node);
-			const inline = parseInline(node.raw, range.start, range.end);
-			return dumpInlineTree(inline);
-		},
+		dumpInlineTree: () => dumpFocusedInlineTree(editor.getSource()),
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
-		// ── Edit-event counting probe ─────────────────────────────────────
-		/**
-		 * Begin accumulating structural edit events (op !== 'input').
-		 * Call `stopEditCount()` to unsubscribe and retrieve the count.
-		 * Only one session at a time — calling startEditCount again while
-		 * one is running replaces the previous subscription.
-		 */
-		startEditCount: (): void => {
-			if ((window as any).__test._editCountDispose) {
-				(window as any).__test._editCountDispose();
-			}
-			(window as any).__test._editCount = 0;
-			(window as any).__test._editCountDispose = editor
-				.getEvents()
-				.on('edit', (e: { op: string }) => {
-					if (e.op !== 'input') (window as any).__test._editCount++;
-				});
-		},
-		stopEditCount: (): number => {
-			const dispose = (window as any).__test._editCountDispose;
-			if (dispose) dispose();
-			(window as any).__test._editCountDispose = null;
-			return (window as any).__test._editCount ?? 0;
-		},
-		/**
-		 * Accumulate structural edit op names (op !== 'input') until
-		 * `stopEditOpCapture()` returns them. One session at a time.
-		 */
-		startEditOpCapture: (): void => {
-			if ((window as any).__test._editOpCaptureDispose) {
-				(window as any).__test._editOpCaptureDispose();
-			}
-			(window as any).__test._editOps = [] as string[];
-			(window as any).__test._editOpCaptureDispose = editor
-				.getEvents()
-				.on('edit', (e: { op: string }) => {
-					if (e.op !== 'input') (window as any).__test._editOps.push(e.op);
-				});
-		},
-		stopEditOpCapture: (): string[] => {
-			const dispose = (window as any).__test._editOpCaptureDispose;
-			if (dispose) dispose();
-			(window as any).__test._editOpCaptureDispose = null;
-			return (window as any).__test._editOps ?? [];
-		},
+		// ── Edit-event capture / counting probes ──────────────────────────
+		// startEditCount and startEditOpCapture drive one accumulator (a count is
+		// its length), so no spec runs both at once. One session at a time — a
+		// second start replaces the first.
+		startEditCount: (): void => editOpProbe.start(subscribeEditOps),
+		stopEditCount: (): number => editOpProbe.stop().length,
+		startEditOpCapture: (): void => editOpProbe.start(subscribeEditOps),
+		stopEditOpCapture: (): string[] => editOpProbe.stop(),
 		// ── Error-event capture probe ─────────────────────────────────────
-		/**
-		 * Accumulate `error`-event origins until `getCapturedErrors()` reads
-		 * them. Subscribes to the same EditorEvents instance BlockHost emits
-		 * to, so a caught render failure surfaces here. One session at a time.
-		 */
-		startErrorCapture: (): void => {
-			capturedErrorOrigins = [];
-			disposeErrorCapture?.();
-			disposeErrorCapture = editor.getEvents().on('error', (e) => {
-				capturedErrorOrigins.push(e.origin);
-			});
-		},
-		getCapturedErrors: (): string[] => capturedErrorOrigins,
+		// Subscribes to the same EditorEvents instance BlockHost emits to, so a
+		// caught render failure surfaces here. getCapturedErrors reads without
+		// ending the session.
+		startErrorCapture: (): void =>
+			errorProbe.start((origins) =>
+				editor.getEvents().on('error', (e) => {
+					origins.push(e.origin);
+				})
+			),
+		getCapturedErrors: (): string[] => errorProbe.peek(),
 		// ── List item id probe ────────────────────────────────────────────
 		/**
 		 * Return the innerBlockIds array of the container node at the given
@@ -537,6 +635,18 @@ export function installTestProbes({
 		},
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**
+		 * Call `BlockComponent.focus` the way a plugin-authored container holding
+		 * its children's refs does — the public door (`BlockComponent` is an
+		 * exported type) that no gesture-level spec can reach, since every
+		 * built-in caret placement goes through a pointer or keyboard path first.
+		 */
+		focusBlockComponent: (path: number[], offset: number): boolean => {
+			const block = editor.__test.getBlockComponent(path);
+			if (!block) return false;
+			block.focus(offset);
+			return true;
+		},
+		/**
 		 * Lets E2E specs assert the shallow/deep cursor contract that
 		 * `getSelection()` hides — e.g., a 2D surface like TableBlock must
 		 * null its shallow getCursorOffset because (row, col) can't be
@@ -562,6 +672,14 @@ export function installTestProbes({
 		 * length from its node.children. Regression guard for the
 		 * cross-block-delete desync bug where nested state was left out of
 		 * sync with the mutated children array.
+		 *
+		 * Throws rather than reporting `[]` when the document holds containers but
+		 * none resolved a state: seven call sites assert `toEqual([])`, so a
+		 * registration regression (the re-register `$effect` stops running, the
+		 * WeakMap keying changes, a walk lands inside the unshare window before
+		 * re-registration flushes) would turn every one of them vacuously green
+		 * while the desync was total. Same loud-on-absent shape as
+		 * `e2e/container-parity.ts`.
 		 */
 		auditBlockListStateConsistency: (): Array<{
 			path: number[];
@@ -578,10 +696,14 @@ export function installTestProbes({
 				idsLen: number;
 				refsLen: number;
 			}> = [];
+			let containers = 0;
+			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {
 				if (!node.children) return;
+				containers++;
 				const state = getStateForNode(node);
 				if (state) {
+					resolved++;
 					const childrenLen = node.children.length;
 					const idsLen = state.innerBlockIds.length;
 					const refsLen = state.innerBlockRefs.length;
@@ -595,6 +717,11 @@ export function installTestProbes({
 			}
 			for (let i = 0; i < doc.children.length; i++) {
 				walk(doc.children[i], [i]);
+			}
+			if (containers > 0 && resolved === 0) {
+				throw new Error(
+					`auditBlockListStateConsistency: ${containers} container(s) in the live tree resolved no BlockListState; the audit visited nothing and must not report vacuous success`
+				);
 			}
 			return violations;
 		}

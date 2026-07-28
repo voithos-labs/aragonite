@@ -231,8 +231,8 @@ test.describe('table block: row affordance menu', () => {
 		await page.locator('[data-table-row-grip]').nth(1).click(); // first body row
 		await page.getByRole('menuitem', { name: /delete row/i }).click();
 
-		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|/);
-		expect(await editor.bridge.getSource()).not.toContain('| 1 | 2 |');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
+		expect(await editor.bridge.getSource()).toContain('| 3 | 4 |');
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 
@@ -336,8 +336,8 @@ test.describe('table block: cell right-click menu', () => {
 		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // body cell ("1"), row 1
 		await page.getByRole('menuitem', { name: /delete row/i }).click();
 
-		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|/);
-		expect(await editor.bridge.getSource()).not.toContain('| 1 | 2 |');
+		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
+		expect(await editor.bridge.getSource()).toContain('| 3 | 4 |');
 	});
 
 	test('right-clicking outside the table does not open the affordance menu', async ({ page }) => {

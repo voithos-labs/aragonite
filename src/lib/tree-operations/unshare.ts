@@ -11,8 +11,8 @@
  * tree wraps stored values in proxies, and later writes must go through the
  * canonical wrapper or proxy readers see a stale view.
  *
- * Callers live in editor-actions/ and selection/ — the layers that know paths;
- * tree-operations stays path-free internally.
+ * Any layer that knows a path may call in; tree-operations ops own their own
+ * spine rather than assuming an upstream unshare.
  *
  * This seam is the ONE sanctioned view→mutable door (core/node-views.ts):
  * inputs accept readonly views, returns are owned mutable nodes — the runtime
@@ -27,6 +27,7 @@ import type { NodeParent } from './node-ops';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
 
@@ -45,16 +46,19 @@ function copyNode(node: NodeView, sharing: SharingState): CstNode {
 }
 
 /**
- * Unshare every node along `path` (child indices from `root`), splicing
- * copies into their (already-unshared) parents. Returns the node chain,
- * outermost first. `root` is the live document for out-of-ceremony writes
- * (routine typing) or a `{ children }` view over a commit ceremony's array
- * copy — either way the caller owns the array, so the splice is safe.
+ * The copy-on-write spine walk shared by `ensureUnsharedPath` and
+ * `rebuildUnsharedAncestry`: descend `path` from `root`, copying every
+ * still-shared node into its (already-unshared) parent, and return the owned
+ * chain outermost-first. `assertInRange` is the only difference between the two
+ * callers — it fires G1.22 on an index that ran off a live child (the strict
+ * unshare path) or stays silent (tolerant rebuild passes hand short paths). The
+ * walk stops at the first gap either way.
  */
-export function ensureUnsharedPath(
+function walkUnsharing(
 	root: NodeParentView,
 	path: number[],
-	sharing: SharingState
+	sharing: SharingState,
+	assertInRange: boolean
 ): CstNode[] {
 	const chain: CstNode[] = [];
 	// The door (file header): the root is the live document or a ceremony-owned
@@ -62,10 +66,12 @@ export function ensureUnsharedPath(
 	let parentChildren = root.children as CstNode[];
 	for (const index of path) {
 		let node = parentChildren[index];
-		assertInvariant('unshare-path-in-range', () =>
-			node ? null : { code: 'unshare-path', message: `path index ${index} out of range` }
-		);
-		if (!node) return chain;
+		if (assertInRange) {
+			assertInvariant('unshare-path-in-range', () =>
+				node ? null : { code: 'unshare-path', message: `path index ${index} out of range` }
+			);
+		}
+		if (!node) break;
 		if (sharing.isShared(node)) {
 			parentChildren[index] = copyNode(node, sharing);
 			// Write-then-re-read (file header).
@@ -78,6 +84,21 @@ export function ensureUnsharedPath(
 }
 
 /**
+ * Unshare every node along `path` (child indices from `root`), splicing
+ * copies into their (already-unshared) parents. Returns the node chain,
+ * outermost first. `root` is the live document for out-of-ceremony writes
+ * (routine typing) or a `{ children }` view over a commit ceremony's array
+ * copy — either way the caller owns the array, so the splice is safe.
+ */
+export function ensureUnsharedPath(
+	root: NodeParentView,
+	path: number[],
+	sharing: SharingState
+): CstNode[] {
+	return walkUnsharing(root, path, sharing, true);
+}
+
+/**
  * Unshare one direct child of an already-unshared parent — a node, or a
  * caller-owned `{ children }` view (e.g. a commit ceremony's array copy).
  */
@@ -87,7 +108,13 @@ export function ensureUnsharedChild(
 	sharing: SharingState
 ): CstNode {
 	const child = parent.children![index];
-	if (!sharing.isShared(child)) return child;
+	// G1.22, the same gate the spine walk carries: an index off the end is a caller
+	// bug either way, but reading `ownerEpoch` off the gap made it epoch-dependent —
+	// silent before the first snapshot, a TypeError inside `isShared` after one.
+	assertInvariant('unshare-path-in-range', () =>
+		child ? null : { code: 'unshare-path', message: `child index ${index} out of range` }
+	);
+	if (!child || !sharing.isShared(child)) return child;
 	parent.children![index] = copyNode(child, sharing);
 	// Write-then-re-read (file header).
 	return parent.children![index];
@@ -124,11 +151,17 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 // ── Sharing-aware raw rebuilds ───────────────────────────────────────────────
 
 /**
- * Rebuild one owned container's raw. A table rebuild rewrites EVERY row's raw
- * (canonical padding), so table rows are unshared first.
+ * Rebuild one owned container's raw. A grid rebuild rewrites its children's raw
+ * (the table's canonical padding), so a grid's children are unshared first — read
+ * off the container contract, not a `table` kind test, or a plugin grid writes
+ * through shared children. Over-broad by one level (a row's rebuild only reads its
+ * cells), which is the safe direction: an unnecessary copy is correct, a missed one
+ * corrupts history.
  */
 export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): void {
-	if (node.kind === 'table') ensureUnsharedChildren(node, sharing);
+	if (getBlockKindDescriptor(node.kind).containerContract === 'grid') {
+		ensureUnsharedChildren(node, sharing);
+	}
 	rebuildContainerRawIfContainer(node);
 }
 
@@ -176,18 +209,5 @@ export function rebuildUnsharedAncestry(
 	path: number[],
 	sharing: SharingState
 ): void {
-	const chain: CstNode[] = [];
-	let parentChildren: CstNode[] | undefined = root.children;
-	for (const index of path) {
-		let node: CstNode | undefined = parentChildren?.[index];
-		if (!node) break;
-		if (sharing.isShared(node)) {
-			parentChildren![index] = copyNode(node, sharing);
-			// Write-then-re-read (file header).
-			node = parentChildren![index];
-		}
-		chain.push(node);
-		parentChildren = node.children;
-	}
-	rebuildUnsharedChain(chain, sharing);
+	rebuildUnsharedChain(walkUnsharing(root, path, sharing, false), sharing);
 }

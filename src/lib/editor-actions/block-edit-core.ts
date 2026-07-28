@@ -4,16 +4,11 @@
  * no edge guards, no upward delegation, no unwrap dispatch; the factories
  * wrap these with their level-specific concerns. Behavior is pinned by
  * block-edit-core.test.ts plus the two factories' e2e + the simulation.
- *
- * insertParsedBlocks is deliberately NOT here: the top-level path emits a
- * `paste` op while the container path routes through `replaceBlock` (G2.9
- * dual-emit invariant), so it cannot be a single shared body. Each factory
- * keeps its own.
  */
 
 import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { displayLength } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
 import {
 	splitNode as performSplit,
 	mergeWithNext as performMergeNext,
@@ -21,7 +16,8 @@ import {
 	deleteNode as performDelete,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
-	rebuildOwnedContainer
+	rebuildOwnedContainer,
+	emptyParagraph
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -92,7 +88,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
-					const body: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+					// The synthesized body line IS a line ending, so it takes the chrome
+					// sibling's (G4.20) — a defaulted LF strands one in a CRLF container.
+					const body = emptyParagraph('', trailingLineEnding(view.children[i]?.raw ?? '\n'));
 					view.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);

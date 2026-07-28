@@ -48,7 +48,7 @@ export function registerTocBlock(): void {
 			},
 			searchPaint: {
 				mode: 'implemented',
-				via: 'source raw scanned and navigable; the rendered TocBlock carries no measurable text node, so a match is counted but not painted'
+				via: 'source raw scanned and navigable; while folded, createEditableLeaf covers the rendered block box (opaque single-unit fallback)'
 			},
 			undo: {
 				mode: 'implemented',
@@ -63,7 +63,7 @@ export function registerTocBlock(): void {
 		// `linkReferenceDefinition`, which declines it (no `:` after the label). So
 		// this is gap placement (rule 2) reasoned off that built-in — priced just
 		// below it, which also keeps `[[toc]]` winning were the link-ref matcher ever
-		// widened to double brackets. 75 is unshared (harness uses 5/15/25/45/65).
+		// widened to double brackets.
 		priority: OPENER_PRIORITIES.linkReferenceDefinition - 5,
 		interruptsParagraph: (text) => text === TOC_LINE,
 		tryOpen(ctx) {
@@ -73,18 +73,34 @@ export function registerTocBlock(): void {
 			if (ctx.line.text !== TOC_LINE) return null;
 			return {
 				node: { kind: toc, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		}
 	});
 }
 
-export function tocPlugin(): EditorPlugin {
+/** Heading levels shown in the outline; entries deeper than this are filtered out. */
+export type MaxHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface TocOptions {
+	/** Deepest heading level listed (default 6 = every level). */
+	maxDepth?: MaxHeadingLevel;
+}
+
+export function tocPlugin(options?: TocOptions): EditorPlugin {
+	// Definition-time option: the register-once component entry carries it as a
+	// constant extraProp, so a single install fixes the depth process-wide (the
+	// documented first-wins install semantics). Per-instance depth would need the
+	// EditorContext options channel, which this bundled plugin deliberately skips.
+	const maxDepth = options?.maxDepth ?? 6;
 	return definePlugin({
 		name: 'toc',
 		setup() {
 			registerTocBlock();
-			registerBlockComponent(declaredPluginKind(TOC_BLOCK), defineBlockComponent(TocBlock));
+			registerBlockComponent(
+				declaredPluginKind(TOC_BLOCK),
+				defineBlockComponent(TocBlock, () => ({ maxDepth }))
+			);
 		}
 	});
 }

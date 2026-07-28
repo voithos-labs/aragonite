@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
-import { serialize } from '../../../core/serializer';
+import { describeRoundTrips } from '$lib/test/support/round-trip';
 
 // GFM §4.4: an indented code block cannot interrupt a paragraph, but after any
 // other block (heading, fence, break, table) it opens with no blank line — a
@@ -41,10 +41,9 @@ describe('indented code — never interrupts an open paragraph', () => {
 	});
 });
 
-describe('indented code — round-trips regardless of predecessor', () => {
-	for (const source of ['# T\n    x\n', '---\n    x\n', 'text\n    x\n', 'text\n\n    x\n']) {
-		it(`round-trips ${JSON.stringify(source)}`, () => {
-			expect(serialize(parse(source))).toBe(source);
-		});
-	}
-});
+describeRoundTrips('indented code — round-trips regardless of predecessor', [
+	'# T\n    x\n',
+	'---\n    x\n',
+	'text\n    x\n',
+	'text\n\n    x\n'
+]);

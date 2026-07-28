@@ -1,7 +1,8 @@
 import type { DocumentView } from '../core/node-views';
-import { compileMatcher } from './matcher';
-import { scanDocument, type Match } from './document-scan';
-import { pathKey } from '../decorations/buckets';
+import { buildRegexSpec, compileMatcher } from './matcher';
+import { collectScanTargets, matchesFromRanges, scanDocument, type Match } from './document-scan';
+import { createRegexExecutor, type RegexExecutor } from './regex-executor';
+import { groupByPathKey, pathKey } from '../decorations/buckets';
 import type {
 	DecorationRegistry,
 	DecorationSourceHandle,
@@ -11,6 +12,11 @@ import type {
 import { createBoundedMemo } from '../bounded-memo';
 
 const EMPTY_MATCHES: IndexedMatch[] = [];
+
+// Both reuse the invalid-regex readout: a scan that produced no usable answer is
+// one state to the reader, whatever ended it.
+const REGEX_TOO_SLOW = 'Regex too slow';
+const REGEX_SCAN_FAILED = 'Regex search failed';
 
 export interface SearchOptions {
 	caseSensitive: boolean;
@@ -27,6 +33,10 @@ export interface IndexedMatch {
 
 interface SearchDeps {
 	getDoc: () => DocumentView;
+	/** Bumped when the whole document is REPLACED (a `source` prop swap), never on
+	 *  an in-place edit and never on undo — both of those reassign or mutate the
+	 *  tree under a position the user still owns. */
+	getDocumentGeneration: () => number;
 	/** Highlights ship as mark decorations under source 'editor:search' —
 	 *  registered on open, disposed on close, so a closed bar costs nothing. */
 	decorations: DecorationRegistry;
@@ -37,6 +47,10 @@ interface SearchDeps {
 		replaceAll(m: Match[], t: string): Promise<number>;
 	};
 	reveal: (path: number[]) => Promise<unknown>;
+	/** Test seam. Production builds the worker-backed executor internally; a suite
+	 *  that needs a deadline it can reach, or a scan it can fail on demand, supplies
+	 *  its own. */
+	regexExecutor?: RegexExecutor;
 	// Closing unmounts the bar; without this the focused find input is removed and
 	// focus falls to <body>, stranding keyboard routing (undo, cross-block) outside
 	// the editor. Returns focus to the document.
@@ -58,6 +72,16 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	// re-run would otherwise wipe it instantly.
 	let replacedCount = $state<number | null>(null);
 
+	// A regex scan lands asynchronously, so `matches` can be a scan behind the query
+	// that asked for it. `scanEpoch` is the drop token: every rescan (and close)
+	// bumps it, and an outcome tagged with a spent epoch is discarded.
+	let scanning = $state(false);
+	let scanEpoch = 0;
+	let pendingScan: Promise<void> | null = null;
+	const regexExecutor = deps.regexExecutor ?? createRegexExecutor();
+
+	let lastGeneration = deps.getDocumentGeneration();
+
 	let handle: DecorationSourceHandle | null = null;
 
 	// The scan runs for its side effects (matches/error/activeIndex), so only the
@@ -72,10 +96,14 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	// commits and would serve stale matches while typing. notifyEdit bumps the
 	// epoch (edit → miss → rescan); invalidate leaves it (navigation → hit →
 	// active-class remap only).
-	function provide(_doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
+	function provide(doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
 		const { caseSensitive, wholeWord, regex } = options;
 		scanMemo(`${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`, () => {
-			rescan();
+			// Scan the document the registry is providing FOR, not whatever the deps
+			// getter resolves to. The two agree today; a source reading its own getter
+			// instead of its argument is the shape this file would be teaching, since
+			// the plugin guide points decoration authors here.
+			rescan(doc);
 			return null;
 		});
 		return matches.map(
@@ -89,7 +117,20 @@ export function createSearchState(deps: SearchDeps): SearchState {
 		);
 	}
 
-	function rescan(): void {
+	function rescan(doc: DocumentView = deps.getDoc()): void {
+		// A whole-document REPLACEMENT restarts navigation at the first match, the way
+		// a new query does: the carried position indexes a document the user never
+		// navigated. In-place edits, undo and option toggles keep it — they leave the
+		// user where they were — so those fall through to the clamp in applyMatches.
+		const generation = deps.getDocumentGeneration();
+		const documentReplaced = generation !== lastGeneration;
+		lastGeneration = generation;
+
+		scanEpoch++;
+		pendingScan = null;
+		scanning = false;
+		if (documentReplaced) activeIndex = 0;
+
 		const r = compileMatcher(query, options);
 		if (!r.ok) {
 			error = r.error;
@@ -98,8 +139,46 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			return;
 		}
 		error = null;
-		matches = scanDocument(deps.getDoc(), r.matcher);
+		if (options.regex && query !== '') {
+			startRegexScan(doc);
+			return;
+		}
+		applyMatches(scanDocument(doc, r.matcher));
+	}
+
+	function applyMatches(found: Match[]): void {
+		matches = found;
 		if (activeIndex >= matches.length) activeIndex = 0;
+	}
+
+	function failScan(message: string): void {
+		error = message;
+		matches = [];
+		activeIndex = 0;
+	}
+
+	// Regex is the only path that can run away, so it is the only one that leaves
+	// the main thread. Matches clear at kickoff: overlays from the query being
+	// replaced must not sit over the document while the new scan runs.
+	function startRegexScan(doc: DocumentView): void {
+		const epoch = scanEpoch;
+		const targets = collectScanTargets(doc);
+		const { pattern, flags } = buildRegexSpec(query, options);
+		matches = [];
+		scanning = true;
+		pendingScan = regexExecutor
+			.scan({ texts: targets.map((t) => t.raw), pattern, flags, epoch })
+			.then((outcome) => {
+				if (epoch !== scanEpoch) return; // a newer scan, or a close, owns the state now
+				if (!outcome.ok && outcome.reason === 'cancelled') return;
+				scanning = false;
+				pendingScan = null;
+				if (outcome.ok) applyMatches(matchesFromRanges(targets, outcome.ranges));
+				else failScan(outcome.reason === 'timeout' ? REGEX_TOO_SLOW : REGEX_SCAN_FAILED);
+				// invalidate, not refresh(): refresh's no-handle fallback re-runs rescan,
+				// which would start a second scan from inside this one's completion.
+				handle?.invalidate();
+			});
 	}
 
 	// Every state change routes through the engine so the published marks follow.
@@ -112,6 +191,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	}
 
 	async function revealActive(): Promise<void> {
+		await pendingScan; // a regex scan lands async; reveal the match we will actually show
 		const m = matches[activeIndex];
 		if (m) await deps.reveal(m.path);
 	}
@@ -141,6 +221,9 @@ export function createSearchState(deps: SearchDeps): SearchState {
 		get error() {
 			return error;
 		},
+		get isScanning() {
+			return scanning;
+		},
 		get replacedCount() {
 			return replacedCount;
 		},
@@ -155,6 +238,12 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			handle = null;
 			matches = [];
 			replacedCount = null;
+			// Bump before releasing: a scan settling after close must find its epoch
+			// spent and write nothing onto a bar that is gone.
+			scanEpoch++;
+			scanning = false;
+			pendingScan = null;
+			regexExecutor.release();
 			scanMemo = createBoundedMemo<string, null>({ cap: 1 });
 			deps.onClose();
 		},
@@ -193,6 +282,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			}
 		},
 		async replaceCurrent() {
+			await pendingScan; // regex matches land async; replacing needs the settled set
 			const m = matches[activeIndex];
 			if (!m) return;
 			const n = await deps.replace.replaceOne(m, replacement);
@@ -204,6 +294,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			replacedCount = n;
 		},
 		async replaceAll() {
+			await pendingScan;
 			if (!matches.length) return;
 			const n = await deps.replace.replaceAll(matches, replacement);
 			rescan();
@@ -214,14 +305,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 }
 
 function groupByPath(list: readonly Match[]): Map<string, IndexedMatch[]> {
-	const byPath = new Map<string, IndexedMatch[]>();
-	list.forEach((match, index) => {
-		const key = pathKey(match.path);
-		const bucket = byPath.get(key);
-		if (bucket) bucket.push({ match, index });
-		else byPath.set(key, [{ match, index }]);
-	});
-	return byPath;
+	return groupByPathKey(list, (match, index) => ({ match, index }));
 }
 
 /** Public controller surface — what `editor.getSearch()` exposes. Deliberately
@@ -238,6 +322,9 @@ export interface SearchState {
 	matchesForPath(path: number[]): IndexedMatch[];
 	readonly activeIndex: number;
 	readonly error: string | null;
+	/** True while a regex scan is off the main thread. Literal search is synchronous
+	 *  and never sets it. */
+	readonly isScanning: boolean;
 	readonly replacedCount: number | null;
 	open(): void;
 	close(): void;

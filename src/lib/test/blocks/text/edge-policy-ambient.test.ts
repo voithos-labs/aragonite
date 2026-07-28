@@ -54,6 +54,7 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 		},
 		getEl: () => el,
 		getAmbientLength: () => marker.textContent!.length,
+		hasIslands: () => false,
 		getRawSelection: () =>
 			rawSelection && {
 				start: asRawOffset(rawSelection.start),
@@ -83,8 +84,8 @@ function select(anchor: [Node, number], focus: [Node, number]): void {
 	sel.addRange(range);
 }
 
-function key(name: string): KeyboardEvent {
-	return new KeyboardEvent('keydown', { key: name, cancelable: true });
+function key(name: string, modifiers: Partial<KeyboardEvent> = {}): KeyboardEvent {
+	return new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
 }
 
 afterEach(() => {
@@ -112,6 +113,23 @@ describe('ambient-marker selection delete', () => {
 		expect(h.handleKeydown(key('Delete'), asRawOffset(2) as RawOffset)).toBe(true);
 		expect(h.edits).toEqual([{ index: 0, content: 'cd\n', start: 0, end: 0 }]);
 	});
+
+	// The sibling arms decline modifier chords so the platform word-delete runs
+	// natively. This arm deliberately does not, and the difference is not an
+	// oversight: the browser refuses to modify a range overlapping the
+	// contenteditable="false" marker and fires no beforeinput, so declining would
+	// leave the chord doing nothing at all rather than deleting a word. Deleting a
+	// non-empty selection whatever the chord is also what every editor does.
+	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }])(
+		'%o+Backspace over a marker-touching selection still deletes the range',
+		(mods) => {
+			const h = mount('abcd\n', { start: 0, end: 2 });
+			select([h.marker.firstChild!, 1], [h.text, 2]);
+
+			expect(h.handleKeydown(key('Backspace', mods), asRawOffset(2) as RawOffset)).toBe(true);
+			expect(h.edits).toEqual([{ index: 0, content: 'cd\n', start: 0, end: 0 }]);
+		}
+	);
 
 	it('a selection entirely inside the content does not touch the marker — not consumed', () => {
 		const h = mount('abcd\n', { start: 1, end: 3 });

@@ -14,7 +14,9 @@ import type {
 	InlineWidgetEditingPolicy,
 	InlineWidgetEditingContext,
 	PluginInlineKind,
-	InlineNode
+	InlineNode,
+	ImageFields,
+	ImageSyntaxRewriter
 } from '$lib/plugin';
 
 // The inline authoring surface is unstable (pre-freeze). This probe pins the
@@ -45,8 +47,13 @@ describe('aragonite/plugin inline authoring surface', () => {
 			'augmentInlineWidgetKind',
 			'getInlineWidgetEditing',
 			'getInlineWidgetComponent',
-			'getInlineSyntax',
 			'hasInlineSyntax',
+			'hasPrefixRungs',
+			'hasScanProbeRungs',
+			'isScanProbeTrigger',
+			'getInlineRungs',
+			'getUnreservedRungs',
+			'getPrefixRungs',
 			'__resetInlineSyntaxForTests',
 			'__resetInlineWidgetsForTests'
 		]) {
@@ -61,8 +68,13 @@ describe('aragonite/plugin inline authoring surface', () => {
 		const widgetStartOf = (ctx: InlineWidgetEditingContext) => ctx.widgetStart;
 		const kind: PluginInlineKind | null = null;
 		const node: InlineNode = { kind: 'math' as PluginInlineKind, start: 0, end: 0 };
+		// The rewrite hook a rung minting built-in `image` nodes registers, and the
+		// fields an edit hands it — a plugin cannot write one without both.
+		const fields: ImageFields = { alt: 'cat', url: 'cat.png', width: 320 };
+		const rewriteImage: ImageSyntaxRewriter = (_source, next) => `![[${next.url}]]`;
 
 		expect(recognizer('', 0, 0)).toBeNull();
+		expect(rewriteImage('![[cat.png]]', fields)).toBe('![[cat.png]]');
 		expect(descriptor.isWidget({} as never, '')).toBe(false);
 		expect(widgetStartOf).toBeTypeOf('function');
 		expect(kind).toBeNull();

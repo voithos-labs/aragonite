@@ -26,19 +26,36 @@ import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
-import { trimTrailingLineEnding } from '../core/lines';
+import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { findMergeTarget } from '../schema/merge-rules';
 import { rebuildAncestryRaw } from '../schema/container-raw';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
+import { resyncChildIds } from './children';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 
 // ── Types ──
 
 export type NodeParent = { children: CstNode[] };
+
+// ── Node minting ──
+
+/**
+ * The empty-paragraph placeholder that keeps an emptied document or container
+ * caret-addressable; its line ending collapses back into trivia on
+ * `parse(serialize(...))`. Both arguments are required: the placeholder IS a line
+ * ending, so a mint site must answer which document it lands in (G4.20) rather than
+ * inherit a `\n` that strands a lone LF in a CRLF file. Returns a fresh node every
+ * call — a shared instance would alias across tree positions and corrupt the
+ * snapshot/unshare model (G1.9), so this must never hand back a cached or
+ * module-level node.
+ */
+export function emptyParagraph(leadingTrivia: string, lineEnding: string): CstNode {
+	return { kind: 'paragraph', leadingTrivia, raw: lineEnding };
+}
 
 // ── Path resolution ──
 
@@ -49,7 +66,7 @@ export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentVi
 export function nodeAt(doc: DocumentView, path: number[]): NodeView | DocumentView | null {
 	let cur: NodeView | DocumentView = doc;
 	for (const idx of path) {
-		if (!cur.children || idx >= cur.children.length) return null;
+		if (!cur.children || idx < 0 || idx >= cur.children.length) return null;
 		cur = cur.children[idx];
 	}
 	return cur;
@@ -80,6 +97,11 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
  * Split the node at `blockIndex` into two at raw `offset` (display-relative,
  * line-ending preserved). First half inherits the original ID.
  *
+ * A kind whose content range ends before its raw carries a structural suffix
+ * after the editable text (the setext underline). A split inside the content
+ * keeps that whole suffix on the first half — a plain cut would strand the
+ * underline below, where it reparses as junk and demotes the heading.
+ *
  * At `offset === 0` the leading half is `'\n'` — an empty paragraph that
  * collapses into trivia on `parse(serialize(...))`. The live-vs-reparse shape
  * difference is a tolerated transient state (Enter-at-end produces the same
@@ -93,31 +115,28 @@ export function splitNode(
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const node = parent.children[blockIndex];
+	const descriptor = getBlockKindDescriptor(node.kind);
 
 	// A context-dependent kind (tableCell, container chrome) has no standalone
 	// recognizer — reparseAsNode would destroy BOTH halves, and chrome is
 	// single-line by serialization (its bytes live in the container's opener
 	// line), so a split is unrepresentable. No-op; the Enter gesture routes to
 	// chrome.descendToBody instead. Also shields the list-context split caller.
-	if (getBlockKindDescriptor(node.kind).contextDependentKind) return { op: 'noop' };
+	if (descriptor.contextDependentKind) return { op: 'noop' };
 
 	const rawText = node.raw;
+	const lineEnding = trailingLineEnding(rawText);
 
-	const lineEnding = rawText.endsWith('\r\n') ? '\r\n' : '\n';
-
-	let firstRaw = rawText.slice(0, offset);
-	let secondRaw = rawText.slice(offset);
+	const suffixSplit = structuralSuffixSplit(descriptor, node, offset);
+	let firstRaw = suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, offset);
+	let secondRaw = suffixSplit ? suffixSplit.secondRaw : rawText.slice(offset);
 
 	if (!firstRaw.endsWith('\n')) {
 		firstRaw += lineEnding;
 	}
 
-	if (secondRaw.length === 0 || !secondRaw.endsWith('\n')) {
-		if (secondRaw.length === 0) {
-			secondRaw = lineEnding;
-		} else {
-			secondRaw += lineEnding;
-		}
+	if (!secondRaw.endsWith('\n')) {
+		secondRaw += lineEnding;
 	}
 
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
@@ -125,6 +144,29 @@ export function splitNode(
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
 	return replacePreservingFirst(blockIndex, 1, 2);
+}
+
+/**
+ * A split that keeps a kind's structural suffix — any raw beyond its content
+ * range, today only the setext underline — on the first half. Null when the
+ * kind has no suffix, or when the offset is at block start or inside the suffix
+ * itself: both keep the plain raw cut (offset 0 makes the empty block above; a
+ * marker edit splits the underline as authored).
+ */
+function structuralSuffixSplit(
+	descriptor: BlockKindDescriptor,
+	node: CstNode,
+	offset: number
+): { firstRaw: string; secondRaw: string } | null {
+	const getRange = descriptor.getContentRange;
+	if (!getRange) return null;
+	const raw = node.raw;
+	const contentEnd = getRange(node).end;
+	if (contentEnd >= displayLength(raw) || offset <= 0 || offset > contentEnd) return null;
+	return {
+		firstRaw: raw.slice(0, offset) + raw.slice(contentEnd),
+		secondRaw: raw.slice(offset, contentEnd)
+	};
 }
 
 // ── Merge ──
@@ -187,7 +229,7 @@ export function mergeIntoPrevDeepLeaf(
 
 	const targetRaw = target.raw ?? '';
 	const currRaw = curr.raw ?? '';
-	const lineEnding = targetRaw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(targetRaw);
 	const targetText = trimTrailingLineEnding(targetRaw);
 	const currText = trimTrailingLineEnding(currRaw);
 	const joinOffset = targetText.length;
@@ -270,12 +312,15 @@ export function updateNodeContent(
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
+	const oldDescriptor = getBlockKindDescriptor(oldKind);
 
 	// A context-dependent kind (tableCell, plugin chrome) has no standalone
 	// recognizer, so reparsing would downgrade it. Its container's rebuildRaw
-	// owns the surrounding syntax; keep the kind and just write raw.
-	if (getBlockKindDescriptor(oldKind).contextDependentKind) {
-		node.raw = newText;
+	// owns the surrounding syntax; keep the kind and just write raw — through the
+	// kind's own legality pass, because this branch is where every gesture's text
+	// reaches those bytes and a delimiter arriving bare restructures the container.
+	if (oldDescriptor.contextDependentKind) {
+		node.raw = oldDescriptor.normalizeRawWrite?.(newText) ?? newText;
 		return { op: 'noop' };
 	}
 
@@ -283,6 +328,11 @@ export function updateNodeContent(
 	// absent (paste, split/merge reparse) defaults to the global grammar.
 	const parsed = parse(newText, { grammar }).children;
 	const first: CstNode | undefined = parsed[0];
+	// A container whose empty body will be backfilled: its typed raw can't account
+	// for the synthesized focus paragraph unless its marker line doubles as the
+	// blank body (blockquote/listItem). A marker-consuming container (a GitHub
+	// alert) needs its raw rebuilt from the backfilled body, or G1.1 stale-raw fires.
+	const firstBackfilled = !!first && isEmptyEditableContainer(first);
 	if (first) ensureEditableContainers(first);
 
 	// Multi-block: replace the slot with every parsed block. The first block is
@@ -294,6 +344,7 @@ export function updateNodeContent(
 		for (const sibling of rest) ensureEditableContainers(sibling);
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
+		if (firstBackfilled) reconcileBackfilledRaw(first);
 		parent.children.splice(blockIndex, 1, first, ...rest);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
 	}
@@ -307,8 +358,14 @@ export function updateNodeContent(
 		node.raw = newText;
 		node.metadata = first?.metadata;
 		node.children = first?.children;
+		// The reparse can change the child count (a blockquote gaining a paragraph),
+		// and this branch reports `noop`, so no downstream descriptor resyncs the
+		// parallel id array — and `createBlockListState` backfills only an ABSENT
+		// one, making a wrong length permanent.
+		resyncChildIds(node);
 		node.innerPrefix = first?.innerPrefix;
 		node.innerSuffix = first?.innerSuffix;
+		if (firstBackfilled) reconcileBackfilledRaw(node);
 		return { op: 'noop' };
 	}
 
@@ -318,6 +375,7 @@ export function updateNodeContent(
 	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
 	replacement.raw = newText;
 	replacement.leadingTrivia = node.leadingTrivia;
+	if (firstBackfilled) reconcileBackfilledRaw(replacement);
 	parent.children.splice(blockIndex, 1, replacement);
 	return replacePreservingFirst(blockIndex, 1, 1);
 }
@@ -388,6 +446,26 @@ export function normalizeReplacementTrivia(original: CstNode, replacement: CstNo
 // ── Editable container backfill ──
 
 /**
+ * A container `ensureEditableContainers` will backfill: editable, not whole-block-
+ * focus, and currently childless. Read BEFORE the backfill runs — afterwards it
+ * holds the synthesized paragraph and no longer qualifies.
+ */
+function isEmptyEditableContainer(node: CstNode): boolean {
+	const d = getBlockKindDescriptor(node.kind);
+	return d.isContainer && d.blockFocus !== 'whole-block' && (node.children?.length ?? 0) === 0;
+}
+
+/**
+ * Sync a just-backfilled container's `raw` to its synthesized body via the kind's
+ * `rebuildRaw`. Needed only for a marker-consuming container whose typed raw lacks a
+ * blank body line (a GitHub alert's `> [!TYPE]`); blockquote/listItem already strip
+ * to the blank, so their rebuild is a no-op here.
+ */
+function reconcileBackfilledRaw(node: CstNode): void {
+	getBlockKindDescriptor(node.kind).rebuildRaw?.(node);
+}
+
+/**
  * Ensure every container has at least one child block, so the cursor always
  * has a target (a list item with no content after the marker, etc.).
  */
@@ -401,14 +479,17 @@ export function ensureEditableContainers(node: CstNode): void {
 		if (node.children.length === 0) {
 			// discovered-descendant mutation, see file header
 			const chromeKind = reservedChromeKindOf(node.kind);
+			// Backfilled lines take the container's own ending (G4.20) — they are pure
+			// line ending, so a literal LF strands one inside a CRLF container.
+			const lineEnding = trailingLineEnding(node.raw);
 			// A chrome-declaring container must re-mint its child-0 leaf too, or the
 			// backfilled paragraph would occupy the reserved slot and violate G1.14.
 			if (chromeKind !== undefined) {
 				// Runtime chrome kind — generic-mint cast (the paragraph below is a literal arm).
-				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: '\n' } as CstNode);
+				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: lineEnding } as CstNode);
 			}
-			node.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
-			// The synthesized paragraph's '\n' already represents the trailing
+			node.children.push(emptyParagraph('', lineEnding));
+			// The synthesized paragraph's ending already represents the trailing
 			// blank that parseBlocks routed into innerPrefix when there were no
 			// children. Leaving both in place double-counts the line on rebuild
 			// — `- \n` + edit produces `- \n  X\n` instead of `- X\n`.

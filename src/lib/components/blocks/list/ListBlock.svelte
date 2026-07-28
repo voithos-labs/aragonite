@@ -23,7 +23,8 @@
 	import { sliceWindow } from '../../../reactivity/window-slice';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import {
 		createContainerBlockComponent,
@@ -46,18 +47,23 @@
 	// Read parent context before the setContext below shadows it.
 	const parentListContext = getContext<ListContext | undefined>(LIST_CONTEXT_KEY);
 
+	// Minted once, passed by reference to every factory below — never spread.
+	const scope: NodeScope = {
+		get index() {
+			return index;
+		},
+		get node() {
+			return node;
+		},
+		get path() {
+			return myPath;
+		}
+	};
+
 	const bundle = createStandardNestedActions(
 		listState,
 		{
-			get index() {
-				return index;
-			},
-			get node() {
-				return node;
-			},
-			get path() {
-				return myPath;
-			},
+			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
 			parentListContext,
@@ -67,34 +73,13 @@
 				containerEdit: parentContainerEdit
 			}
 		},
-		createListOverrides({
-			get index() {
-				return index;
-			},
-			get node() {
-				return node;
-			},
-			get path() {
-				return myPath;
-			},
-			state: listState,
-			parentBlockEdit,
-			parentContainerEdit
-		})
+		createListOverrides({ scope, parentBlockEdit })
 	);
 
 	setNestedActionsContexts(bundle);
 
 	const listContext = createListContext({
-		get index() {
-			return index;
-		},
-		get node() {
-			return node;
-		},
-		get path() {
-			return myPath;
-		},
+		scope,
 		state: listState,
 		parentBlockEdit,
 		parentFocus,
@@ -199,7 +184,5 @@
 <style>
 	.list-block {
 		margin: 4px 0;
-		padding-left: 0;
-		list-style: none;
 	}
 </style>

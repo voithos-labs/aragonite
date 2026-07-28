@@ -57,5 +57,22 @@ export function computeInlineContent(
  * Parse inline content over raw[start, end): a single-pass character-dispatch
  * scan with delimiter and bracket stacks (scan/). Returned node offsets are
  * absolute into raw; every byte lands in exactly one node's range.
+ *
+ * Both bounds are checked, not just typed: a caller the compiler cannot reach
+ * (plain JS, an `any`-typed site) that passes only the source would otherwise
+ * compare against `undefined` throughout, skip the scan, and receive one text node
+ * holding the whole string — wrong output that looks like a result.
  */
-export const parseInline = scanInline;
+export function parseInline(
+	raw: string,
+	start: number,
+	end: number,
+	resolver?: LinkReferenceResolver
+): InlineNode[] {
+	if (!Number.isFinite(start) || !Number.isFinite(end)) {
+		throw new TypeError(
+			'parseInline requires both scan bounds — to scan a whole string, call parseInline(src, 0, src.length)'
+		);
+	}
+	return scanInline(raw, start, end, resolver);
+}

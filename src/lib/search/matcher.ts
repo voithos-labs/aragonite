@@ -13,34 +13,49 @@ export interface CompiledMatcher {
 }
 export type CompileResult = { ok: true; matcher: CompiledMatcher } | { ok: false; error: string };
 
+/** What a regex-mode query compiles to. The off-thread executor searches the same
+ *  language as the synchronous matcher because both mint the spec here. */
+export interface RegexSpec {
+	pattern: string;
+	flags: string;
+}
+
+export function buildRegexSpec(query: string, opts: MatcherOptions): RegexSpec {
+	return {
+		pattern: opts.wholeWord ? `\\b(?:${query})\\b` : query,
+		// no 's'/'m': . excludes newline, ^/$ stay per-block
+		flags: opts.caseSensitive ? 'g' : 'gi'
+	};
+}
+
+/** Every match of an already-compiled global regex. The scan worker carries its
+ *  own copy of this loop (it ships as source text and cannot import), pinned to
+ *  this one by a parity test. */
+export function execAll(re: RegExp, text: string): RawRange[] {
+	const out: RawRange[] = [];
+	re.lastIndex = 0;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text)) !== null) {
+		out.push({ start: m.index, end: m.index + m[0].length, groups: [...m] });
+		if (m.index === re.lastIndex) re.lastIndex++; // zero-width guard
+	}
+	return out;
+}
+
 const isWordChar = (ch: string | undefined) => !!ch && /\w/.test(ch);
 
 export function compileMatcher(query: string, opts: MatcherOptions): CompileResult {
 	if (query === '') return { ok: true, matcher: { findAll: () => [] } };
 
 	if (opts.regex) {
-		const pattern = opts.wholeWord ? `\\b(?:${query})\\b` : query;
+		const { pattern, flags } = buildRegexSpec(query, opts);
 		let re: RegExp;
 		try {
-			re = new RegExp(pattern, opts.caseSensitive ? 'g' : 'gi'); // no 's'/'m': . excludes newline, ^/$ stay per-block
+			re = new RegExp(pattern, flags);
 		} catch (e) {
 			return { ok: false, error: e instanceof Error ? e.message : 'invalid pattern' };
 		}
-		return {
-			ok: true,
-			matcher: {
-				findAll(text) {
-					const out: RawRange[] = [];
-					re.lastIndex = 0;
-					let m: RegExpExecArray | null;
-					while ((m = re.exec(text)) !== null) {
-						out.push({ start: m.index, end: m.index + m[0].length, groups: [...m] });
-						if (m.index === re.lastIndex) re.lastIndex++; // zero-width guard
-					}
-					return out;
-				}
-			}
-		};
+		return { ok: true, matcher: { findAll: (text) => execAll(re, text) } };
 	}
 
 	const needle = opts.caseSensitive ? query : query.toLowerCase();

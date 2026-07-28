@@ -16,7 +16,7 @@
 import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
-import type { ClosureBlock } from './closure';
+import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBlockKind } from './block-kind-descriptor';
 import {
@@ -26,6 +26,7 @@ import {
 	rebuildTableRaw,
 	rebuildTableRowRaw
 } from './container-rebuilders';
+import { normalizeCellRaw } from './table-cell-raw';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -101,6 +102,29 @@ const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
 };
 
+// The prose trio (paragraph, heading, setextHeading) share a closure that differs
+// only in three via strings — the merge role and what selection/search painting
+// skips — plus paragraph's reorder addendum. Bake the structurally-fixed rows;
+// demand the varying vias so the honesty rule stays author-supplied.
+function proseLeafClosure(vias: {
+	mergeBackspaceVia: string;
+	selectionPaintVia: string;
+	searchPaintVia: string;
+	reorderVia?: string;
+}): ClosureBlock {
+	return {
+		roundTrip: { mode: 'inherit-default' },
+		focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
+		mergeBackspace: { mode: 'implemented', via: vias.mergeBackspaceVia },
+		selectionPaint: { mode: 'implemented', via: vias.selectionPaintVia },
+		searchPaint: { mode: 'implemented', via: vias.searchPaintVia },
+		reorder: { mode: 'implemented', via: vias.reorderVia ?? 'Alt+Arrow block.move keymap' },
+		undo: { mode: 'inherit-default' },
+		clipboard: { mode: 'inherit-default' },
+		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
+	};
+}
+
 // ── Built-in registrations ──────────────────────────────────────────────────
 
 // Idempotence guard, not a registry bypass: both entry points call this, and a
@@ -117,23 +141,12 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: true,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'hello world\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=prose — Backspace merges into the previous prose block'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (raw offsets, per visual line)'
-			},
-			searchPaint: { mode: 'implemented', via: 'prose raw scanned; matches painted as marks' },
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap; resolveReorderUnit' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-		}
+		closure: proseLeafClosure({
+			mergeBackspaceVia: 'mergeRole=prose — Backspace merges into the previous prose block',
+			selectionPaintVia: 'measurePartialRects (raw offsets, per visual line)',
+			searchPaintVia: 'prose raw scanned; matches painted as marks',
+			reorderVia: 'Alt+Arrow block.move keymap; resolveReorderUnit'
+		})
 	});
 	registerBlockKind('heading', {
 		mergeRole: 'prose-absorber',
@@ -142,26 +155,11 @@ export function registerBuiltInDescriptors(): void {
 		getContentRange: headingContentRange,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '# Heading\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=prose-absorber — absorbs the following prose block'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (content range, marker skipped)'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'content-range raw scanned; marks (marker prefix skipped)'
-			},
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-		}
+		closure: proseLeafClosure({
+			mergeBackspaceVia: 'mergeRole=prose-absorber — absorbs the following prose block',
+			selectionPaintVia: 'measurePartialRects (content range, marker skipped)',
+			searchPaintVia: 'content-range raw scanned; marks (marker prefix skipped)'
+		})
 	});
 	registerBlockKind('setextHeading', {
 		mergeRole: 'prose-absorber',
@@ -170,26 +168,11 @@ export function registerBuiltInDescriptors(): void {
 		getContentRange: setextHeadingContentRange,
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'Title\n===\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=prose-absorber — absorbs the following prose block'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (content range, underline skipped)'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'content-range raw scanned; marks (underline line skipped)'
-			},
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-		}
+		closure: proseLeafClosure({
+			mergeBackspaceVia: 'mergeRole=prose-absorber — absorbs the following prose block',
+			selectionPaintVia: 'measurePartialRects (content range, underline skipped)',
+			searchPaintVia: 'content-range raw scanned; marks (underline line skipped)'
+		})
 	});
 	registerBlockKind('fencedCode', {
 		mergeRole: 'not-mergeable',
@@ -229,6 +212,7 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,
+		blockFocus: 'whole-block',
 		keymap: [
 			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -238,11 +222,11 @@ export function registerBuiltInDescriptors(): void {
 			roundTrip: { mode: 'inherit-default' },
 			focus: {
 				mode: 'implemented',
-				via: 'ThematicBreakBlock whole-block focus (focus-then-delete model)'
+				via: 'blockFocus=whole-block — focus-then-delete; ThematicBreakBlock supplies the focus surface'
 			},
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'not-mergeable — caret-adjacent Backspace focuses, a second press deletes'
+				via: 'blockFocus=whole-block — caret-adjacent Backspace focuses, a second press deletes'
 			},
 			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect (no partial offsets)' },
 			searchPaint: {
@@ -251,7 +235,10 @@ export function registerBuiltInDescriptors(): void {
 			},
 			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
 			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
+			clipboard: {
+				mode: 'implemented',
+				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); cross-block slice inherits the default'
+			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
 		}
 	});
@@ -343,6 +330,7 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		contextDependentKind: true,
+		normalizeRawWrite: normalizeCellRaw,
 		getContentRange: tableCellContentRange,
 		renderImagesAsWidgets: false,
 		keymap: [
@@ -412,32 +400,28 @@ export function registerBuiltInDescriptors(): void {
 			contract: 'strip',
 			rebuildRaw: rebuildBlockquoteRaw,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child',
+				middleChildBackspace: 'default-merge',
+				quoteShaped: true
+			},
+			reorderChildren: {}
 		},
 		conformanceFixture: '> quoted\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=strip — rebuildBlockquoteRaw' },
+		closure: containerClosure({
+			roundTripVia: 'container contract=strip — rebuildBlockquoteRaw',
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
 			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'real child blocks paint; container cover spans them'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'children are real blocks — search descends and paints'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
 				via: 'containerPaste.matchesAncestor — clipboard top merges into a same-kind ancestor'
 			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (nested blockquote edits)' }
-		}
+		})
 	});
 	registerBlockKind('list', {
 		mergeRole: 'container',
@@ -455,26 +439,24 @@ export function registerBuiltInDescriptors(): void {
 			unwrapRole: {
 				firstChildBackspace: 'list-item-cascade',
 				middleChildBackspace: 'list-item-cascade'
-			}
+			},
+			reorderChildren: { renumberMarkers: true }
 		},
 		conformanceFixture: '- item\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=strip — rebuildListRaw' },
+		closure: containerClosure({
+			roundTripVia: 'container contract=strip — rebuildListRaw',
 			focus: { mode: 'implemented', via: 'focus walks into the first item' },
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=container + unwrapRole (list-item-cascade)'
 			},
-			selectionPaint: { mode: 'implemented', via: 'item child blocks paint; container cover' },
-			searchPaint: { mode: 'implemented', via: 'descends into items — mark overlay per child' },
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
 				via: 'containerPaste.siblingAbsorb — clipboard items splice as siblings, ordered-flag matched'
 			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (list edits)' }
-		}
+		})
 	});
 	registerBlockKind('listItem', {
 		mergeRole: 'container',
@@ -486,22 +468,19 @@ export function registerBuiltInDescriptors(): void {
 			{ chord: 'Shift+Tab', command: 'list.unindent' }
 		],
 		conformanceFixture: '- item\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=strip — rebuildListItemRaw' },
+		closure: containerClosure({
+			roundTripVia: 'container contract=strip — rebuildListItemRaw',
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=container — Backspace cascades via the parent list unwrapRole'
 			},
-			selectionPaint: { mode: 'implemented', via: 'child blocks paint; item cover' },
-			searchPaint: { mode: 'implemented', via: 'descends into item children — mark overlay' },
 			reorder: {
 				mode: 'implemented',
 				via: 'list.indent/unindent keymap; whole-item reorder through the parent list'
 			},
 			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (list item edits)' }
-		}
+		})
 	});
 }

@@ -10,10 +10,27 @@
 
 import type { Component } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../nodes';
-import type { NodeView } from '../node-views';
+import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
+import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { registerOnce } from '../../schema/register-once';
+
+/**
+ * The atomic-widget shell every core widget builder shares: a `contenteditable=false`
+ * span carrying the generic `[data-inline-widget]` marker and `data-source-start`/`-end`
+ * = the node's offsets. Those `data-*` attrs are the offset walk's only handle, so the
+ * shell is minted in one place; builders add the body (glyph, `<br>`, verbatim source).
+ */
+export function mintWidgetShell(className: string, node: InlineNode): HTMLSpanElement {
+	const shell = document.createElement('span');
+	shell.className = className;
+	shell.dataset.inlineWidget = '';
+	shell.dataset.sourceStart = String(node.start);
+	shell.dataset.sourceEnd = String(node.end);
+	shell.setAttribute('contenteditable', 'false');
+	return shell;
+}
 
 /**
  * Props a `component` widget kind is mounted with. A frozen-at-mount snapshot: the
@@ -32,20 +49,26 @@ export interface InlineWidgetComponentProps {
 	 *  Always supplied by the editor's mount; optional so a bare harness can
 	 *  mount without it (absent reads as 'source'). */
 	getPresentationMode?: () => PresentationMode;
+	/** LIVE root-document read, a getter for the same reason as the mode: the pool
+	 *  keys on `${kind} ${source}`, so a widget whose derived value depends on the
+	 *  document (footnote numbering) survives edits elsewhere with no source change
+	 *  — a frozen snapshot would go stale. Supplied by the editor's render surfaces;
+	 *  optional so a bare harness can mount without it. */
+	getDocument?: () => DocumentView | undefined;
 }
 
 /**
  * Per-kind editing behavior for a live inline widget.
  *
- * `deleteGranularity` distinguishes a one-press whole delete (`atomic`, the future
- * inline-entity consumer — `&copy;`) from the two-press select-then-delete image and
- * `<br>` use today; `onEdge` distinguishes selecting the construct whole from stepping
- * transparently over it. The caret-edge dispatch (`components/blocks/text/edge-policy-dispatch.ts`)
- * consults `deleteGranularity` for widget kinds directly; `onEdge` is island-internal
- * today — the dispatch expresses its internal island policies in this vocabulary, but
- * no code path reads `onEdge` off a widget kind's registration yet (widget-policy
- * consumer pending). `atomic` likewise awaits its consumer — no built-in kind sets
- * it — so both are typed forward-wiring, not yet load-bearing for a shipped kind.
+ * `deleteGranularity` distinguishes a one-press whole delete (`atomic`) from the
+ * two-press select-then-delete image and `<br>` use; `onEdge` distinguishes selecting
+ * the construct whole from stepping transparently over it. The decoded-entity widget
+ * (`&copy;`) is the shipped consumer of both — `{ deleteGranularity: 'atomic',
+ * onEdge: 'step-over' }` — so a caret-adjacent Backspace removes it whole and a plain
+ * arrow walks the caret across it like a character. The caret-edge dispatch
+ * (`components/blocks/text/edge-policy-dispatch.ts`) reads both off a widget kind's
+ * registration; the decoration islands express their internal policies in the same
+ * vocabulary (never on the public API).
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
@@ -199,6 +222,17 @@ registerInlineWidgetKind('image', {
 registerInlineWidgetKind('rawHtml', {
 	isWidget: (node, raw) => isLiveHtmlTag(raw.slice(node.start, node.end)),
 	buildWidget: (node) => buildLiveHtmlWidget(node)
+});
+
+// The first consumer of `deleteGranularity: 'atomic'`: a caret-adjacent
+// Backspace/Delete removes the whole reference in one press, one commit, one
+// undo entry, and `onEdge: 'step-over'` walks the caret across it like a
+// character. Gated to visibly-rendering glyphs (`entityRendersGlyph`) — an
+// invisible entity keeps its literal-source span.
+registerInlineWidgetKind('entityReference', {
+	isWidget: (node) => entityRendersGlyph(node.decoded),
+	buildWidget: (node) => buildEntityWidget(node),
+	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
 });
 
 // Must stay below the built-in registrations above — it snapshots what the test

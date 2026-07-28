@@ -16,81 +16,38 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength } from '../core/lines';
-import { walkBetween, charOffsetOf, cellIndexOf } from './primitives';
+import { displayLength, trailingLineEnding } from '../core/lines';
+import { cellRowCol } from '../cursor/coordinate-spaces';
+import { charOffsetOf, cellIndexOf } from './primitives';
 import { replaceAtPath } from '../tree-operations/path-mutate';
-import { filterToSubtreeRoots, deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
-	comparePaths,
-	lowestCommonAncestor,
-	isPathSubtreeBetween,
-	pathHasPrefix,
-	pathsEqual
-} from './path-math';
-import { blockNodeAt } from '../tree-operations/node-ops';
+	resolveEndWall,
+	planCrossBlockDeletion,
+	applyPlannedDeletion,
+	rebuildSharedAncestries
+} from './range-delete-ceremony';
+import { comparePaths } from './path-math';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
 	ensureUnsharedSubtree,
 	rebuildOwnedContainer,
-	rebuildUnsharedAncestry,
-	rebuildUnsharedChain
+	rebuildUnsharedAncestry
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
+import { isCollapsedContainer } from '../schema/reserved-chrome';
 import {
 	nearestChromeContainer,
 	isChromeChild,
-	rangeConsumesContainer,
-	lastChildDescendant,
-	lineEndingOf,
 	terminateLine,
-	reparseWithFallback,
-	type ChromeContainer
+	reparseWithFallback
 } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function involvesTable(startBlock: CstNode, endBlock: CstNode): boolean {
 	return startBlock.kind === 'table' || endBlock.kind === 'table';
-}
-
-/**
- * Coverage classification for an intra-table cell-index range. Drives the
- * Backspace dispatch: full-table → delete table block; full-row → delete row;
- * full-column → delete column; otherwise → clear cells.
- */
-export type TableCoverageKind = 'table' | 'row' | 'column' | 'cells';
-
-export interface TableCoverage {
-	kind: TableCoverageKind;
-	rowIdx?: number;
-	colIdx?: number;
-}
-
-export function classifyTableSelectionCoverage(
-	startCellIdx: number,
-	endCellIdx: number,
-	columnCount: number,
-	rowCount: number
-): TableCoverage {
-	const lo = Math.min(startCellIdx, endCellIdx);
-	const hi = Math.max(startCellIdx, endCellIdx);
-	const cellCount = columnCount * rowCount;
-
-	if (lo === 0 && hi === cellCount - 1) return { kind: 'table' };
-
-	const startRow = Math.floor(lo / columnCount);
-	const startCol = lo - startRow * columnCount;
-	const endRow = Math.floor(hi / columnCount);
-	const endCol = hi - endRow * columnCount;
-
-	if (startRow === endRow && startCol === 0 && endCol === columnCount - 1) {
-		return { kind: 'row', rowIdx: startRow };
-	}
-	if (startCol === endCol && startRow === 0 && endRow === rowCount - 1) {
-		return { kind: 'column', colIdx: startCol };
-	}
-	return { kind: 'cells' };
 }
 
 export function tableAwareRangeDelete(
@@ -155,8 +112,7 @@ function deleteWithinTable(
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
-	const anchorRow = Math.floor(start.offset / cellsPerRow);
-	const anchorCol = start.offset - anchorRow * cellsPerRow;
+	const { row: anchorRow, col: anchorCol } = cellRowCol(start.offset, cellsPerRow);
 
 	return {
 		newDoc: doc,
@@ -168,10 +124,8 @@ function deleteWithinTable(
 function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellIdx: number): void {
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
-	const aRow = Math.floor(anchorCellIdx / cellsPerRow);
-	const aCol = anchorCellIdx - aRow * cellsPerRow;
-	const fRow = Math.floor(focusCellIdx / cellsPerRow);
-	const fCol = focusCellIdx - fRow * cellsPerRow;
+	const { row: aRow, col: aCol } = cellRowCol(anchorCellIdx, cellsPerRow);
+	const { row: fRow, col: fCol } = cellRowCol(focusCellIdx, cellsPerRow);
 	const minRow = Math.min(aRow, fRow);
 	const maxRow = Math.max(aRow, fRow);
 	const minCol = Math.min(aCol, fCol);
@@ -184,128 +138,6 @@ function clearRectangularCells(table: CstNode, anchorCellIdx: number, focusCellI
 		}
 		rebuildTableRowRaw(row);
 	}
-}
-
-// ── Shared deletion-path ceremony ───────────────────────────────────────────
-// The cross-block cases interleave replaceAtPath differently (case 1 after
-// deletes, case 2 before — see its ordering comment), so the steps stay
-// separate helpers the cases sequence explicitly.
-
-interface EndWall {
-	container: ChromeContainer;
-	consumed: boolean;
-}
-
-/**
- * End-side wall context: the chrome container holding the end point, when the
- * range enters it from outside. `consumed` means the whole subtree is covered
- * — the chrome branch's last-byte rule for a prose end; for a table end, the
- * emptied table sitting on the container's last-child chain — so the container
- * unit-deletes instead of leaving a husk.
- */
-function resolveEndWall(
-	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	endTableEmptied: boolean | null
-): EndWall | null {
-	const container = nearestChromeContainer(doc, end.path);
-	if (!container || pathHasPrefix(start.path, container.path)) return null;
-	const consumed =
-		endTableEmptied === null
-			? rangeConsumesContainer(container, end)
-			: endTableEmptied && lastChildDescendant(container, end.path) !== null;
-	return { container, consumed };
-}
-
-interface DeletionPlan {
-	deletionPaths: number[][];
-	chromeClearChain: CstNode[] | null;
-}
-
-/**
- * Covered subtree roots (chrome-ceremony parity: one splice per covered
- * subtree) plus endpoint paths the caller marks for removal, honoring the
- * chrome wall: a surviving end container's covered chrome CLEARS instead of
- * deleting (returned as an unshared chain for the caller's raw write +
- * rebuild), and a consumed container replaces its own endpoint/descendant
- * splices with one unit delete.
- */
-function collectDeletionPlan(
-	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	endpointPaths: number[][],
-	wall: EndWall | null,
-	sharing: SharingState
-): DeletionPlan {
-	const between = walkBetween(doc, start.path, end.path).filter((p) =>
-		isPathSubtreeBetween(p, start.path, end.path)
-	);
-	const chromeClearPath = wall && !wall.consumed ? [...wall.container.path, 0] : null;
-	let chromeClearChain: CstNode[] | null = null;
-	let candidates: number[][] = [];
-	for (const p of between) {
-		if (chromeClearPath && pathsEqual(p, chromeClearPath)) {
-			const chain = ensureUnsharedPath(doc, p, sharing);
-			if (chain.length === p.length) chromeClearChain = chain;
-		} else {
-			candidates.push(p);
-		}
-	}
-	candidates.push(...endpointPaths);
-	if (wall?.consumed) {
-		candidates = candidates.filter((p) => !pathHasPrefix(p, wall.container.path));
-		candidates.push(wall.container.path.slice());
-	}
-	return { deletionPaths: filterToSubtreeRoots(candidates), chromeClearChain };
-}
-
-/**
- * Plan the deletion — covered subtree roots plus caller-marked endpoint paths
- * (via {@link collectDeletionPlan}) — then own every deletion path's parent
- * spine before any splice (G1.9) and resolve the LCA cascade cleanup stops at.
- * The caller resolves `wall` itself: its `consumed` flag also gates each case's
- * endpoint prose-replace, which runs before this on some cases.
- */
-function planCrossBlockDeletion(
-	doc: Document,
-	start: SelectionPoint,
-	end: SelectionPoint,
-	endpointPaths: number[][],
-	wall: EndWall | null,
-	sharing: SharingState
-): { plan: DeletionPlan; lcaPath: number[] } {
-	const plan = collectDeletionPlan(doc, start, end, endpointPaths, wall, sharing);
-	for (const path of plan.deletionPaths) {
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
-	}
-	return { plan, lcaPath: lowestCommonAncestor(start.path, end.path) };
-}
-
-/**
- * Apply the plan as one atomic step: clear a surviving end container's covered
- * chrome (raw write, never a node delete), then splice the covered subtrees in
- * reverse doc order under the identity gate. The cases sequence their endpoint
- * prose-replace before or after this call per their ordering comments.
- */
-function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
-	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
-	if (chrome) chrome.raw = '\n';
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, lcaPath);
-}
-
-/**
- * Rebuild every deletion path's surviving ancestry, then the cleared chrome's
- * opener line (chain-based so the re-emit survives the splices). Shared tail of
- * every case's rebuild block; case-specific survivor rebuilds stay at the call
- * site, on their own side of this call.
- */
-function rebuildSharedAncestries(doc: Document, plan: DeletionPlan, sharing: SharingState): void {
-	for (const path of plan.deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing);
-	}
-	if (plan.chromeClearChain) rebuildUnsharedChain(plan.chromeClearChain, sharing);
 }
 
 // ── Case 1: prose start, table end ─────────────────────────────────────────
@@ -324,7 +156,11 @@ function deleteFromProseIntoTable(
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	let truncatedReplacement: CstNode[] | null = null;
 	if (!startIsChrome) {
-		truncatedReplacement = reparseWithFallback(startHead, startBlock.leadingTrivia);
+		truncatedReplacement = reparseWithFallback(
+			terminateLine(startHead, startBlock.raw),
+			startBlock.leadingTrivia,
+			trailingLineEnding(startBlock.raw)
+		);
 		for (const node of truncatedReplacement) sharing.stamp(node);
 	}
 
@@ -377,6 +213,7 @@ function deleteFromTableIntoProse(
 	endBlock: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	const lineEnding = trailingLineEnding(table.raw);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
 	const { result: tableResult, splice } = deleteCellsAndCollapse(
 		table,
@@ -394,8 +231,9 @@ function deleteFromTableIntoProse(
 		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
 		if (!endIsChrome) {
 			tailReplacement = reparseWithFallback(
-				endTail || lineEndingOf(endBlock.raw),
-				endBlock.leadingTrivia
+				endTail || trailingLineEnding(endBlock.raw),
+				endBlock.leadingTrivia,
+				trailingLineEnding(endBlock.raw)
 			);
 			for (const node of tailReplacement) sharing.stamp(node);
 		}
@@ -416,7 +254,7 @@ function deleteFromTableIntoProse(
 	let tailNode: CstNode | null = null;
 	if (endIsChrome) {
 		// The wall: a chrome end keeps its tail by raw write — kind and node kept.
-		endBlock.raw = endTail || lineEndingOf(endBlock.raw);
+		endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
 		tailNode = endBlock;
 	} else if (!consumed) {
 		replaceAtPath(doc, end.path, tailReplacement!);
@@ -444,7 +282,7 @@ function deleteFromTableIntoProse(
 		tableResult === 'tableEmpty'
 			? tailPath
 				? { path: tailPath, offset: 0 }
-				: caretNearestSurvivor(doc, start.path, sharing)
+				: caretNearestSurvivor(doc, start.path, sharing, lineEnding)
 			: survivingAnchorCellCaret(table, start.path, startCell);
 
 	return {
@@ -464,8 +302,7 @@ function survivingAnchorCellCaret(
 	anchorCellIdx: number
 ): SelectionPoint {
 	const cellsPerRow = metadataOf(table, 'table').columnCount;
-	const anchorRow = Math.floor(anchorCellIdx / cellsPerRow);
-	const anchorCol = anchorCellIdx - anchorRow * cellsPerRow;
+	const { row: anchorRow, col: anchorCol } = cellRowCol(anchorCellIdx, cellsPerRow);
 
 	if (anchorCol > 0) {
 		const cell = table.children![anchorRow].children![anchorCol];
@@ -493,6 +330,7 @@ function deleteAcrossTwoTables(
 	endTable: CstNode,
 	sharing: SharingState
 ): RangeDeleteResult {
+	const lineEnding = trailingLineEnding(startTable.raw);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
 	const { result: startResult, splice: startSplice } = deleteCellsAndCollapse(
 		startTable,
@@ -542,7 +380,7 @@ function deleteAcrossTwoTables(
 		// its first surviving cell (row 0, col 0).
 		collapsedCaret = { path: [...endTablePath, 0, 0], offset: 0 };
 	} else {
-		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing);
+		collapsedCaret = caretNearestSurvivor(doc, start.path, sharing, lineEnding);
 	}
 
 	const tableRowSplices = [
@@ -556,29 +394,86 @@ function deleteAcrossTwoTables(
 // side convention: prefer the end of the nearest surviving block before the
 // deleted range; else the start of the first surviving block after it; else
 // materialize an empty paragraph (the document emptied — mirrors the prose
-// rangeDelete fallback). Adjacent surviving tables get deep cell carets,
-// never a shallow table path.
+// rangeDelete fallback). Both survivor branches descend to a focusable leaf, so
+// a surviving container never yields its own bare path.
+//
+// Survivors are sought in the deleted block's OWN container: a nested start has
+// no relation to `doc.children[startPath[0]]`. Cascade cleanup can take that
+// container too, so the search walks outward until it finds one that still
+// holds children.
+//
+// `lineEnding` is the deleted start table's, captured before the mutation
+// (G4.20): the placeholder IS a line ending, and nothing survives to read one
+// from, so a defaulted LF silently flips a CRLF document to LF.
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],
-	sharing: SharingState
+	sharing: SharingState,
+	lineEnding: string
 ): SelectionPoint {
-	const children = doc.children;
-	const beforeIdx = startPath[0] - 1;
-
-	if (beforeIdx >= 0) {
-		const before = children[beforeIdx];
-		if (before.kind === 'table') return lastCellCaret(before, [beforeIdx]);
-		return { path: [beforeIdx], offset: displayLength(before.raw) };
-	}
-	if (children.length > 0) {
-		return children[0].kind === 'table' ? { path: [0, 0, 0], offset: 0 } : { path: [0], offset: 0 };
+	let containerPath = startPath.slice(0, -1);
+	let childIdx = startPath[startPath.length - 1];
+	let siblings = survivingChildren(doc, containerPath);
+	while (siblings === null && containerPath.length > 0) {
+		childIdx = containerPath[containerPath.length - 1];
+		containerPath = containerPath.slice(0, -1);
+		siblings = survivingChildren(doc, containerPath);
 	}
 
-	const filler: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
+	if (siblings) {
+		const beforeIdx = childIdx - 1;
+		if (beforeIdx >= 0) {
+			const before = siblings[beforeIdx];
+			const beforePath = [...containerPath, beforeIdx];
+			return before.kind === 'table'
+				? lastCellCaret(before, beforePath)
+				: survivorEndCaret(before, beforePath);
+		}
+		return survivorStartCaret(siblings[0], [...containerPath, 0]);
+	}
+
+	const filler = emptyParagraph('', lineEnding);
 	sharing.stamp(filler);
 	doc.children.push(filler);
 	return { path: [0], offset: 0 };
+}
+
+/** A container's children when it survived with any, else null. */
+function survivingChildren(doc: Document, path: number[]): CstNode[] | null {
+	const node = path.length === 0 ? doc : blockNodeAt(doc, path);
+	const children = node?.children;
+	return children && children.length > 0 ? children : null;
+}
+
+// End-of-survivor caret, descending a container to the leaf a caret lands in.
+// Mirrors the walk a container's own focus runs — last child at each step,
+// collapse-aware (a collapsed container clamps its body out of view, so the
+// visible target is its chrome child 0). The gate is FOCUSABILITY, not merge-
+// eligibility: a fenced-code / html leaf is editable but not merge-eligible, so
+// resolving through the merge walk would return null and strand the caret on the
+// container's own path — a full-raw offset no leaf owns, which the restore
+// clamps or mis-lands. A leaf resolves to its own end.
+function survivorEndCaret(node: CstNode, path: number[]): SelectionPoint {
+	let leaf = node;
+	const leafPath = path.slice();
+	while (leaf.children && leaf.children.length > 0) {
+		const next = isCollapsedContainer(leaf) ? 0 : leaf.children.length - 1;
+		leaf = leaf.children[next];
+		leafPath.push(next);
+	}
+	return { path: leafPath, offset: displayLength(leaf.raw) };
+}
+
+// Start-of-survivor caret — the twin of survivorEndCaret. First child at each
+// level is also the collapse-visible chrome child, so no collapse case is needed.
+function survivorStartCaret(node: CstNode, path: number[]): SelectionPoint {
+	let leaf = node;
+	const leafPath = path.slice();
+	while (leaf.children && leaf.children.length > 0) {
+		leaf = leaf.children[0];
+		leafPath.push(0);
+	}
+	return { path: leafPath, offset: 0 };
 }
 
 function lastCellCaret(table: CstNode, tablePath: number[]): SelectionPoint {
@@ -637,10 +532,8 @@ function deleteCellsAndCollapse(
 	const rows = table.children!;
 	const cellsPerRow = meta.columnCount;
 
-	const startRow = Math.floor(startCellIdx / cellsPerRow);
-	const startCol = startCellIdx - startRow * cellsPerRow;
-	const lastRowInRange = Math.floor((endCellIdx - 1) / cellsPerRow);
-	const lastColInRange = endCellIdx - 1 - lastRowInRange * cellsPerRow;
+	const { row: startRow, col: startCol } = cellRowCol(startCellIdx, cellsPerRow);
+	const { row: lastRowInRange, col: lastColInRange } = cellRowCol(endCellIdx - 1, cellsPerRow);
 
 	// First range row is fully covered iff startCol === 0; last iff
 	// lastColInRange === cellsPerRow - 1; middle rows always are.
@@ -667,8 +560,7 @@ function clearCellsInRange(table: CstNode, startCellIdx: number, endCellIdx: num
 	const rows = table.children!;
 	const touchedRows = new Set<number>();
 	for (let i = startCellIdx; i < endCellIdx; i++) {
-		const r = Math.floor(i / cellsPerRow);
-		const c = i - r * cellsPerRow;
+		const { row: r, col: c } = cellRowCol(i, cellsPerRow);
 		rows[r].children![c].raw = '';
 		touchedRows.add(r);
 	}

@@ -1,7 +1,15 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { capturePageErrors, FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import {
+	FIXTURE_BYTES,
+	cstBlockCount,
+	spacerCount,
+	editorScrollHeight,
+	topVisibleHostTop,
+	progressiveScrollTo
+} from './vr-helpers';
+import { capturePageErrors } from '../../page-probes';
 
 // Scroll-anchor stability: a deep jump, a viewport resize, an above-fold insert, a
 // column pin, or a below-fold reorder must hold the viewport (no vanish, no
@@ -63,25 +71,13 @@ test('scrolling to a mid offset does not make the top visible block vanish', asy
 	await editor.goto();
 	await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
 
-	const scrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeight = await editorScrollHeight(page);
 	await editor.scrollEditorTo(Math.round(scrollHeight / 2));
 
 	// Identify the top-level block sitting at the top of the viewport and its
 	// in-viewport offset.
-	const topBlock = await page.evaluate(() => {
-		const editorEl = document.querySelector('.editor') as HTMLElement;
-		const top = editorEl.getBoundingClientRect().top;
-		const hosts = Array.from(
-			document.querySelectorAll('[data-block-path]:not([data-block-path*=","])')
-		) as HTMLElement[];
-		for (const host of hosts) {
-			const rect = host.getBoundingClientRect();
-			if (rect.bottom > top + 1)
-				return { path: host.getAttribute('data-block-path'), top: rect.top };
-		}
-		return null;
+	const topBlock = await topVisibleHostTop(page, {
+		selector: '[data-block-path]:not([data-block-path*=","])'
 	});
 	expect(topBlock).not.toBeNull();
 
@@ -96,7 +92,7 @@ test('scrolling to a mid offset does not make the top visible block vanish', asy
 	const after = await page.evaluate((path) => {
 		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
 		return host ? host.getBoundingClientRect().top : null;
-	}, topBlock!.path);
+	}, topBlock!.ref);
 	expect(after).not.toBeNull();
 	expect(Math.abs(after! - topBlock!.top)).toBeLessThan(200);
 	expect(pageErrors).toEqual([]);
@@ -132,16 +128,8 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 	// the above-window items at estimate in BOTH branches, so the rebuild would
 	// change nothing there and the test couldn't tell Fix 1 apart. Measuring them
 	// in first is what makes the rebuild's reseed observable.
-	const viewport = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).clientHeight
-	);
-	const target = await page.evaluate(() =>
-		Math.round((document.querySelector('.editor') as HTMLElement).scrollHeight / 2)
-	);
-	for (let top = 0; top < target; top += Math.round(viewport * 0.6)) {
-		await editor.scrollEditorTo(top);
-	}
-	await editor.scrollEditorTo(target);
+	const target = Math.round((await editorScrollHeight(page)) / 2);
+	await progressiveScrollTo(editor, target);
 	await editor.waitForRenderFlush();
 
 	// Reference: the topmost in-view nested CONTENT host (list items aren't
@@ -169,9 +157,7 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 	expect(inView.reference).toBeTruthy();
 	expect(inView.editTarget).toBeTruthy();
 
-	const scrollHeightBefore = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeightBefore = await editorScrollHeight(page);
 
 	// Real structural edit: click into a visible item's content and press Enter at
 	// its end to split off a NEW sibling item (+1 to the list's child count), which
@@ -196,9 +182,7 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 	// Primary signal: scrollHeight stability. Without Fix 1 the rebuild reseeds every
 	// above-window item from estimate, collapsing the spacer-backed content height by
 	// thousands of px; the single added item moves it only by one item's height.
-	const scrollHeightAfter = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeightAfter = await editorScrollHeight(page);
 	expect(Math.abs(scrollHeightAfter - scrollHeightBefore)).toBeLessThan(500);
 
 	// Corroborating signal: the reference host (above the edit) must not teleport.
@@ -219,24 +203,12 @@ test('nested: scrolling mid into a giant blockquote does not teleport the top ne
 	await editor.goto();
 	await editor.loadLargeFixture('giant-single-blockquote', 2_000_000);
 
-	const scrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeight = await editorScrollHeight(page);
 	await editor.scrollEditorTo(Math.round(scrollHeight / 2));
 
 	// The NESTED host (path carries a comma) at the top of the viewport, and its
 	// in-viewport offset. Inverts the top-level anchor test's :not([*=","]) filter.
-	const topNested = await page.evaluate(() => {
-		const editorEl = document.querySelector('.editor') as HTMLElement;
-		const top = editorEl.getBoundingClientRect().top;
-		const hosts = Array.from(document.querySelectorAll('[data-block-path*=","]')) as HTMLElement[];
-		for (const host of hosts) {
-			const rect = host.getBoundingClientRect();
-			if (rect.bottom > top + 1)
-				return { path: host.getAttribute('data-block-path'), top: rect.top };
-		}
-		return null;
-	});
+	const topNested = await topVisibleHostTop(page, { selector: '[data-block-path*=","]' });
 	expect(topNested).not.toBeNull();
 
 	await editor.waitForRenderFlush();
@@ -244,7 +216,7 @@ test('nested: scrolling mid into a giant blockquote does not teleport the top ne
 	const after = await page.evaluate((path) => {
 		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
 		return host ? host.getBoundingClientRect().top : null;
-	}, topNested!.path);
+	}, topNested!.ref);
 	expect(after).not.toBeNull();
 	// Guards non-disappearance / non-teleport of the SETTLED top block, not VR-2
 	// anchoring: a before/after block-Y delta reads flat by construction (the spacer
@@ -285,16 +257,8 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 	// window passes over (mounts + measures) the tall rows. Rows reach the model only
 	// via setChildSubtotal, and only when mounted; a direct jump leaves above-window
 	// rows at estimate and the rebuild would change nothing there.
-	const viewport = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).clientHeight
-	);
-	const target = await page.evaluate(() =>
-		Math.round((document.querySelector('.editor') as HTMLElement).scrollHeight / 2)
-	);
-	for (let top = 0; top < target; top += Math.round(viewport * 0.6)) {
-		await editor.scrollEditorTo(top);
-	}
-	await editor.scrollEditorTo(target);
+	const target = Math.round((await editorScrollHeight(page)) / 2);
+	await progressiveScrollTo(editor, target);
 	await editor.waitForRenderFlush();
 
 	// Reference: the topmost visible row's cell (by row-idx + top — a display:contents
@@ -322,9 +286,7 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 	expect(view.reference).toBeTruthy();
 	expect(view.editIdx).toBeTruthy();
 
-	const scrollHeightBefore = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeightBefore = await editorScrollHeight(page);
 
 	// Real structural edit: click the lower visible cell, Ctrl+Enter inserts a row
 	// below it (+1 to the table's child count), triggering the TableBlock rebuild.
@@ -342,9 +304,7 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 	// write, the rebuild reseeds every above-window row from estimate, collapsing the
 	// spacer-backed content height by thousands of px; one added row moves it only by
 	// one row's height.
-	const scrollHeightAfter = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeightAfter = await editorScrollHeight(page);
 	expect(Math.abs(scrollHeightAfter - scrollHeightBefore)).toBeLessThan(500);
 
 	// Corroborating signal: the reference row (above the edit) must not teleport.
@@ -365,25 +325,15 @@ test('scrolling mid into a giant table does not teleport the top visible row', a
 	await editor.goto();
 	await editor.loadLargeFixture('giant-single-table', 2_000_000);
 
-	const scrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeight = await editorScrollHeight(page);
 	await editor.scrollEditorTo(Math.round(scrollHeight / 2));
 
 	// The row at the top of the viewport, tracked via a CELL's top (display:contents
 	// row has no box). Identify the row by data-table-row-idx and read its first cell.
-	const topRow = await page.evaluate(() => {
-		const editorEl = document.querySelector('.editor') as HTMLElement;
-		const top = editorEl.getBoundingClientRect().top;
-		const rows = Array.from(document.querySelectorAll('[data-table-row-idx]')) as HTMLElement[];
-		for (const row of rows) {
-			const cell = row.querySelector(':scope > .table-cell') as HTMLElement | null;
-			if (!cell) continue;
-			const rect = cell.getBoundingClientRect();
-			if (rect.bottom > top + 1)
-				return { idx: row.getAttribute('data-table-row-idx'), top: rect.top };
-		}
-		return null;
+	const topRow = await topVisibleHostTop(page, {
+		selector: '[data-table-row-idx]',
+		attr: 'data-table-row-idx',
+		cell: true
 	});
 	expect(topRow).not.toBeNull();
 
@@ -400,7 +350,7 @@ test('scrolling mid into a giant table does not teleport the top visible row', a
 			.querySelector(`[data-table-row-idx="${idx}"]`)
 			?.querySelector(':scope > .table-cell') as HTMLElement | null;
 		return cell ? cell.getBoundingClientRect().top : null;
-	}, topRow!.idx);
+	}, topRow!.ref);
 	expect(after).not.toBeNull();
 	expect(Math.abs(after! - topRow!.top)).toBeLessThan(250);
 	expect(pageErrors).toEqual([]);
@@ -432,9 +382,7 @@ test('a deep jump into an unmeasured band holds the viewport via scroll-anchor c
 	// Precondition: windowing is active, or there is no spacer band to jump into and the
 	// test is vacuous.
 	expect(await spacerCount(page)).toBeGreaterThan(0);
-	const estimateScrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const estimateScrollHeight = await editorScrollHeight(page);
 
 	// Jump 60% into the estimate-seeded content — a fresh, unmeasured band whose blocks
 	// the estimator under-models by ~30× (the tall `<br>` paragraphs).
@@ -507,16 +455,8 @@ test('narrowing the viewport re-measures wrapped heights and holds the anchor (V
 	// blocks whose real heights change when the column narrows. (Above-window blocks sit
 	// at estimate and reseed to a narrow estimate either way; the mounted band is where
 	// re-measure is observable.)
-	const wideScrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
-	const viewport = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).clientHeight
-	);
-	for (let top = 0; top < wideScrollHeight / 2; top += Math.round(viewport * 0.6)) {
-		await editor.scrollEditorTo(top);
-	}
-	await editor.scrollEditorTo(Math.round(wideScrollHeight / 2));
+	const wideScrollHeight = await editorScrollHeight(page);
+	await progressiveScrollTo(editor, Math.round(wideScrollHeight / 2));
 
 	const before = await page.evaluate(() => {
 		const editorEl = document.querySelector('.editor') as HTMLElement;
@@ -630,9 +570,7 @@ test('a deep jump into a giant blockquote holds the viewport via the nested scop
 		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
 	).toBeGreaterThan(0);
 
-	const estimateScrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const estimateScrollHeight = await editorScrollHeight(page);
 
 	// Jump 60% into the estimate-seeded nested content — a fresh band whose quoted paragraphs
 	// the estimator under-models by ~30× (the tall `<br>` paragraphs), the VR-2 jump condition
@@ -713,37 +651,20 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	// Scroll mid-doc, measuring the band the window passes over so the model holds real
 	// (measured) heights around the anchor — the rebuild's reseed is only observable where
 	// measured heights diverge from the reseed estimate.
-	const viewport = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).clientHeight
-	);
-	const scrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeight = await editorScrollHeight(page);
 	const target = Math.round(scrollHeight / 2);
-	for (let top = 0; top < target; top += Math.round(viewport * 0.6)) {
-		await editor.scrollEditorTo(top);
-	}
-	await editor.scrollEditorTo(target);
+	await progressiveScrollTo(editor, target);
 	await editor.waitForRenderFlush();
 
 	// The nested host at the top of the viewport (the anchor): its child index within the
 	// blockquote and its screen Y. The insert lands at child 0, well above it.
-	const before = await page.evaluate(() => {
-		const editorEl = document.querySelector('.editor') as HTMLElement;
-		const top = editorEl.getBoundingClientRect().top;
-		const hosts = Array.from(document.querySelectorAll('[data-block-path*=","]')) as HTMLElement[];
-		for (const host of hosts) {
-			const rect = host.getBoundingClientRect();
-			if (rect.bottom > top + 1)
-				return {
-					childIndex: JSON.parse(host.getAttribute('data-block-path')!)[1] as number,
-					y: rect.top
-				};
-		}
-		return null;
-	});
-	expect(before).not.toBeNull();
-	expect(before!.childIndex).toBeGreaterThan(5); // the insert is far above the fold
+	const topHost = await topVisibleHostTop(page, { selector: '[data-block-path*=","]' });
+	expect(topHost).not.toBeNull();
+	const before = {
+		childIndex: (JSON.parse(topHost!.ref!) as number[])[1],
+		y: topHost!.top
+	};
+	expect(before.childIndex).toBeGreaterThan(5); // the insert is far above the fold
 
 	const childCountBefore = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length
@@ -769,9 +690,9 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 			`[data-block-path='${JSON.stringify([0, childIndex])}']`
 		) as HTMLElement | null;
 		return host ? host.getBoundingClientRect().top : null;
-	}, before!.childIndex + 1);
+	}, before.childIndex + 1);
 
-	const drift = after !== null ? Math.abs(after - before!.y) : Infinity;
+	const drift = after !== null ? Math.abs(after - before.y) : Infinity;
 	console.log(`F4 anchor-remap ${JSON.stringify({ ...before, after, drift })}`);
 
 	expect(after).not.toBeNull();
@@ -821,9 +742,7 @@ test('a column does not shrink when its widest cell scrolls out of the window (F
 	expect(widthBefore!).toBeGreaterThan(200);
 
 	// Scroll deep so the wide row (near the top) unmounts and only narrow rows remain mounted.
-	const scrollHeight = await page.evaluate(
-		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
-	);
+	const scrollHeight = await editorScrollHeight(page);
 	await editor.scrollEditorTo(Math.round(scrollHeight * 0.9));
 	await editor.waitForRenderFlush();
 

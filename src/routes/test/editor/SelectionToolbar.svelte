@@ -3,8 +3,7 @@
 	 * Consumer-side rect-API example: no plugin, no internal imports, no native
 	 * selection reads — a `bind:this` EditorInstance, `selectionChange` for
 	 * lifecycle, `rangeRects` for both the cross-block and single-block anchors.
-	 * Scroll is v1 non-glue: the bar re-anchors on the next selection change,
-	 * not on scroll.
+	 * The bar re-anchors on the next selection change, not on scroll.
 	 */
 	import {
 		SELECTION_END,

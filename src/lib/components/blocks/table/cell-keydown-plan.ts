@@ -50,6 +50,12 @@ export type CellKeyPlan =
 	| { kind: 'insert-row-below' }
 	| { kind: 'exit'; direction: 'up' | 'down' };
 
+// CapsLock (or a held Shift) reports the letter uppercased, so both chords that
+// key off `a` test through here rather than against a single literal.
+function isLetterA(key: string): boolean {
+	return key === 'a' || key === 'A';
+}
+
 const SHORTCUTS: Array<{
 	match: (e: CellKeyInput) => boolean;
 	action: CellShortcutAction;
@@ -109,7 +115,7 @@ const SHORTCUTS: Array<{
 		arg: (s) => s.colIdx
 	},
 	{
-		match: (e) => e.ctrlOrMeta && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a'),
+		match: (e) => e.ctrlOrMeta && e.shiftKey && !e.altKey && isLetterA(e.key),
 		action: 'cycleAlignment',
 		arg: (s) => s.colIdx
 	}
@@ -118,7 +124,7 @@ const SHORTCUTS: Array<{
 export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 	const pos = { rowIdx: s.rowIdx, colIdx: s.colIdx };
 
-	if (e.ctrlOrMeta && e.key === 'a' && !e.shiftKey && !e.altKey) {
+	if (e.ctrlOrMeta && isLetterA(e.key) && !e.shiftKey && !e.altKey) {
 		return {
 			kind: 'select-all-step',
 			step: s.selectAllCount === 0 ? 'native' : s.selectAllCount === 1 ? 'table' : 'document'

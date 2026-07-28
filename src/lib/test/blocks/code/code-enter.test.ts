@@ -1,6 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import { computeCodeEnter } from '../../../components/blocks/code/code-enter';
 
+// ── line ending ─────────────────────────────────────────────────────────────
+
+describe('computeCodeEnter — the block’s line ending', () => {
+	it('splices CRLF into a CRLF body, indent included', () => {
+		const result = computeCodeEnter({
+			display: '```\r\n  code',
+			selection: { start: 11, end: 11 },
+			mode: 'normal',
+			ending: '\r\n'
+		});
+		expect(result.newText).toBe('```\r\n  code\r\n  ');
+		expect(result.newCursor).toBe(15);
+	});
+
+	it('splices CRLF in soft mode too', () => {
+		const result = computeCodeEnter({
+			display: 'a',
+			selection: { start: 1, end: 1 },
+			mode: 'soft',
+			ending: '\r\n'
+		});
+		expect(result.newText).toBe('a\r\n');
+		expect(result.newCursor).toBe(3);
+	});
+});
+
 // ── normal mode (auto-indent) ───────────────────────────────────────────────
 
 describe('computeCodeEnter — normal mode', () => {
@@ -8,7 +34,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display: 'foo',
 			selection: { start: 3, end: 3 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('foo\n');
 		expect(result.newCursor).toBe(4);
@@ -18,7 +45,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display: '    indented',
 			selection: { start: 12, end: 12 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('    indented\n    ');
 		expect(result.newCursor).toBe(17);
@@ -29,7 +57,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display,
 			selection: { start: 7, end: 11 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('    foo\n    ');
 		expect(result.newCursor).toBe(12);
@@ -39,7 +68,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display: '\tcode',
 			selection: { start: 5, end: 5 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('\tcode\n\t');
 		expect(result.newCursor).toBe(7);
@@ -49,7 +79,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display: 'before|after'.replace('|', ''),
 			selection: { start: 6, end: 6 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('before\nafter');
 		expect(result.newCursor).toBe(7);
@@ -59,7 +90,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display: '  hello world',
 			selection: { start: 7, end: 13 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('  hello\n  ');
 		expect(result.newCursor).toBe(10);
@@ -69,7 +101,8 @@ describe('computeCodeEnter — normal mode', () => {
 		const result = computeCodeEnter({
 			display: 'a\n\nb',
 			selection: { start: 2, end: 2 },
-			mode: 'normal'
+			mode: 'normal',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('a\n\n\nb');
 		expect(result.newCursor).toBe(3);
@@ -83,7 +116,8 @@ describe('computeCodeEnter — soft mode', () => {
 		const result = computeCodeEnter({
 			display: '    indented',
 			selection: { start: 12, end: 12 },
-			mode: 'soft'
+			mode: 'soft',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('    indented\n');
 		expect(result.newCursor).toBe(13);
@@ -93,7 +127,8 @@ describe('computeCodeEnter — soft mode', () => {
 		const result = computeCodeEnter({
 			display: '\tfoo\tbar',
 			selection: { start: 4, end: 4 },
-			mode: 'soft'
+			mode: 'soft',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('\tfoo\n\tbar');
 		expect(result.newCursor).toBe(5);
@@ -103,7 +138,8 @@ describe('computeCodeEnter — soft mode', () => {
 		const result = computeCodeEnter({
 			display: 'aaaXXXbbb',
 			selection: { start: 3, end: 6 },
-			mode: 'soft'
+			mode: 'soft',
+			ending: '\n'
 		});
 		expect(result.newText).toBe('aaa\nbbb');
 		expect(result.newCursor).toBe(4);

@@ -6,8 +6,8 @@
  * and the unshare primitive. Both factories are the SINGLE mint point for the
  * commit args' doc-absolute paths (snapshot restore + event target), minted as
  * `DocPath` — the core hands over local indices only. The commit-arg path
- * fields are plain `number[]`, so the brand decays into them; the runtime
- * G1.16 guard re-checks the dialect at the commit seam.
+ * fields carry `DocPath`, so the mint survives to the commit seam; G1.16 stays
+ * the runtime belt for the JS callers types don't bind.
  */
 
 import type { OpDescriptor } from '../schema/operations';
@@ -17,7 +17,8 @@ import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
-import { asDocPath, extendDocPath } from '../selection/path-math';
+import { asDocPath } from '../selection/path-math';
+import { extendDocPath } from '../cursor/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';

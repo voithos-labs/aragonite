@@ -2,7 +2,7 @@
  * Factory for the ListContext bundle that a ListBlock provides to its child
  * ListItemBlocks. All list-side structural mutations route through
  * `commitMultiScope`, whose owned scope views are the only legal write
- * targets — never the pre-commit `deps.node` captures.
+ * targets — never the pre-commit `deps.scope.node` captures.
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
@@ -10,13 +10,15 @@ import { FOCUS_LAST_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
+import { trailingLineEnding } from '../core/lines';
+import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { MultiScopeTarget, UndoController } from './deps';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit } from '../tree-operations';
+import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
@@ -32,11 +34,10 @@ import {
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
+import type { NodeScope } from './nested/nested-actions';
 
 export interface ListContextDeps {
-	get index(): number;
-	get node(): NodeView;
-	get path(): number[];
+	scope: NodeScope;
 	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
 	parentFocus: FocusActions;
@@ -47,7 +48,7 @@ export interface ListContextDeps {
 export function createListContext(deps: ListContextDeps): ListContext {
 	return {
 		async indentItem(itemIndex: number): Promise<void> {
-			const node = deps.node;
+			const node = deps.scope.node;
 			if (!node.children || itemIndex === 0) return;
 
 			const prevItem = node.children[itemIndex - 1];
@@ -63,25 +64,25 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Scope 0 = outer list (item removed).
 			// Scope 1 = destination: existing same-kind nested list, or prevItem's
 			//           children (where a new nested list will be appended).
-			const scopes: MultiScopeTarget[] = [{ node, state: deps.state, path: deps.path }];
+			const scopes: MultiScopeTarget[] = [{ node, state: deps.state, path: deps.scope.path }];
 
 			if (existingNestedList && existingNestedList.children) {
 				scopes.push({
 					node: existingNestedList,
 					state: expectStateForNode(existingNestedList),
-					path: [...deps.path, itemIndex - 1, existingNestedIdx]
+					path: [...deps.scope.path, itemIndex - 1, existingNestedIdx]
 				});
 			} else {
 				scopes.push({
 					node: prevItem,
 					state: expectStateForNode(prevItem),
-					path: [...deps.path, itemIndex - 1]
+					path: [...deps.scope.path, itemIndex - 1]
 				});
 			}
 
 			await deps.controller.commitMultiScope({
 				scopes,
-				snapshot: { path: [...deps.path, itemIndex], offset: 0 },
+				snapshot: { path: extendDocPath(deps.scope.path, itemIndex), offset: 0 },
 				mutate: ([outerScope, destScope]) => {
 					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
@@ -103,9 +104,13 @@ export function createListContext(deps: ListContextDeps): ListContext {
 							normalizeItemMarkerToList(moved, destList);
 						}
 					} else {
-						destList = buildListShell(ordered, [movedItem]);
-						sharing.stamp(destList);
-						destScope.children.push(destList);
+						const shell = buildListShell(ordered, [movedItem]);
+						sharing.stamp(shell);
+						destScope.children.push(shell);
+						// Write-then-re-read (tree-operations/unshare.ts header): the writes
+						// below must go through the tree-held value, not the raw shell the
+						// $state proxy has now observed.
+						destList = destScope.children[destScope.children.length - 1];
 					}
 
 					// Renumber writes the moved item's marker — sharing unshares it.
@@ -121,7 +126,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'indentItem', itemIndex },
-					eventPath: [...deps.path]
+					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex - 1]?.focus(FOCUS_LAST_START);
@@ -130,16 +135,16 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		},
 
 		async unindentItem(itemIndex: number): Promise<void> {
-			if (!deps.parentListContext || !deps.node.children) return;
+			if (!deps.parentListContext || !deps.scope.node.children) return;
 			await deps.parentListContext.promoteNestedItem(
 				deps.parentListContext.getContainingItemIndex(),
-				deps.node,
+				deps.scope.node,
 				itemIndex
 			);
 		},
 
 		async insertItemAfter(itemIndex: number, newItem?: CstNode): Promise<void> {
-			const node = deps.node;
+			const node = deps.scope.node;
 			if (!node.children) return;
 
 			if (!newItem) {
@@ -154,13 +159,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						taskChecked: false,
 						taskMarker: inheritTask ? '[ ] ' : null
 					},
-					[{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }]
+					// The new item's body IS a line ending, so it takes the list's (G4.20);
+					// rebuildListItemRaw derives the item's raw from it.
+					[emptyParagraph('', trailingLineEnding(node.raw))]
 				);
 			}
 
 			await deps.controller.commitMultiScope({
-				scopes: [{ node, state: deps.state, path: deps.path }],
-				snapshot: { path: [...deps.path], offset: 0 },
+				scopes: [{ node, state: deps.state, path: deps.scope.path }],
+				snapshot: { path: docPathFrom(deps.scope.path), offset: 0 },
 				mutate: ([scope]) => {
 					const sharing = scope.sharing;
 					sharing.stamp(newItem!);
@@ -171,7 +178,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'appendBlock',
 					detail: { itemIndex },
-					eventPath: [...deps.path]
+					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
@@ -180,7 +187,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		},
 
 		async splitItemAtOffset(itemIndex: number, innerIndex: number, offset: number): Promise<void> {
-			const outerList = deps.node;
+			const outerList = deps.scope.node;
 			if (!outerList.children) return;
 
 			const item = outerList.children[itemIndex];
@@ -193,11 +200,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Combining both into one commit gives mid-item Enter a single undo entry.
 			await deps.controller.commitMultiScope({
 				scopes: [
-					{ node: outerList, state: deps.state, path: deps.path },
-					{ node: item, state: itemState, path: [...deps.path, itemIndex] }
+					{ node: outerList, state: deps.state, path: deps.scope.path },
+					{ node: item, state: itemState, path: [...deps.scope.path, itemIndex] }
 				],
 				// The true pre-edit caret: `offset` sits inside the split leaf.
-				snapshot: { path: [...deps.path, itemIndex, innerIndex], offset },
+				snapshot: { path: docPathFrom([...deps.scope.path, itemIndex, innerIndex]), offset },
 				mutate: ([outerScope, itemScope]) => {
 					const sharing = outerScope.sharing;
 					const itemChildren = itemScope.children;
@@ -240,7 +247,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'split',
 					detail: { at: offset, itemIndex, innerIndex },
-					eventPath: [...deps.path]
+					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
@@ -253,7 +260,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			nestedListNode: NodeView,
 			nestedItemIdx: number
 		): Promise<void> {
-			const node = deps.node;
+			const node = deps.scope.node;
 			if (!node.children || !nestedListNode.children) return;
 
 			const parentItem = node.children[parentItemIdx];
@@ -270,11 +277,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			// Scope 1 = nested list (item spliced out).
 			// Scope 2 (conditional) = parentItem (empty nested list removed).
 			const scopes: MultiScopeTarget[] = [
-				{ node, state: deps.state, path: deps.path },
+				{ node, state: deps.state, path: deps.scope.path },
 				{
 					node: nestedListNode,
 					state: expectStateForNode(nestedListNode),
-					path: [...deps.path, parentItemIdx, nestedIdxInParent]
+					path: [...deps.scope.path, parentItemIdx, nestedIdxInParent]
 				}
 			];
 			let parentItemScopeIdx = -1;
@@ -283,7 +290,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				scopes.push({
 					node: parentItem,
 					state: expectStateForNode(parentItem),
-					path: [...deps.path, parentItemIdx]
+					path: [...deps.scope.path, parentItemIdx]
 				});
 			}
 
@@ -291,7 +298,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				scopes,
 				// The promoted item's pre-move path (its nested-list slot).
 				snapshot: {
-					path: [...deps.path, parentItemIdx, nestedIdxInParent, nestedItemIdx],
+					path: docPathFrom([...deps.scope.path, parentItemIdx, nestedIdxInParent, nestedItemIdx]),
 					offset: 0
 				},
 				mutate: (scopeViews) => {
@@ -341,7 +348,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				op: {
 					kind: 'replaceBlock',
 					detail: { action: 'promoteNestedItem', parentItemIdx, nestedItemIdx },
-					eventPath: [...deps.path]
+					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
 					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
@@ -355,7 +362,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		},
 
 		async exitListAtItem(itemIndex: number): Promise<void> {
-			const node = deps.node;
+			const node = deps.scope.node;
 			if (!node.children) return;
 
 			// Nested list: one Enter outdents one level (Shift+Tab semantics), matching
@@ -371,7 +378,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			}
 
 			const replacement = buildExitReplacement(node, itemIndex);
-			await deps.parentBlockEdit.replaceBlock(deps.index, replacement.blocks, {
+			await deps.parentBlockEdit.replaceBlock(deps.scope.index, replacement.blocks, {
 				replacementIndex: replacement.paragraphIndex,
 				offset: 0
 			});

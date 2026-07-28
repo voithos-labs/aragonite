@@ -65,6 +65,23 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 	sel?.addRange(range);
 }
 
+/**
+ * Resolve `point.path` to its mounted block element and place a focused collapsed
+ * caret there — the place-caret-and-focus idiom every cross-block arm runs once a
+ * mutation settles. Returns whether an element was found; a missing target is a
+ * no-op, which one caller turns into a native-selection clear.
+ */
+export function focusCollapsedCaret(
+	getBlockElByPath: (path: number[]) => HTMLElement | null,
+	point: SelectionPoint
+): boolean {
+	const blockEl = getBlockElByPath(point.path);
+	if (!blockEl) return false;
+	applyCollapsedCaret(blockEl, point);
+	blockEl.focus();
+	return true;
+}
+
 export function applySingleBlockRange(
 	blockEl: HTMLElement,
 	startOffset: number,
@@ -188,34 +205,31 @@ function copySelectionPoint(point: SelectionPoint): SelectionPoint {
  * Restore an EditorSelection to the DOM. Custom-rendered selections
  * (intra-table multi-cell, cross-block) route through SelectionState's
  * overlay; same-path prose ranges use native browser selection.
+ *
+ * Returns whether the placement landed — false means the target block resolved
+ * in the model but is not in the DOM.
  */
 export function applySelectionToDom(
 	selection: EditorSelection,
 	selectionState: SelectionState,
 	getBlockElByPath: (path: number[]) => HTMLElement | null
-): void {
+): boolean {
 	// Classify before mutating state so a single-block restore never emits a
 	// phantom transient cross-block selectionChange (enterCrossBlock → clear).
 	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		const blockEl = getBlockElByPath(selection.anchor.path);
-		if (blockEl) {
-			applyCollapsedCaret(blockEl, selection.anchor);
-			blockEl.focus();
-		}
-		return;
+		return focusCollapsedCaret(getBlockElByPath, selection.anchor);
 	}
 
 	if (route === 'single-block') {
 		selectionState.clear();
 		const blockEl = getBlockElByPath(selection.anchor.path);
-		if (blockEl) {
-			applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
-			blockEl.focus();
-		}
-		return;
+		if (!blockEl) return false;
+		applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
+		blockEl.focus();
+		return true;
 	}
 
 	// Custom: cross-block or intra-table cell rect → the overlay paints. Park a
@@ -226,13 +240,10 @@ export function applySelectionToDom(
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	const cellPath = selectionState.cellDeepPath(selection.focus);
 	const parkPath = cellPath ?? selection.focus.path;
-	const focusEl = getBlockElByPath(parkPath);
-	if (focusEl) {
-		applyCollapsedCaret(focusEl, cellPath ? { path: parkPath, offset: 0 } : selection.focus);
-		focusEl.focus();
-	} else {
-		clearNativeSelection();
-	}
+	const parkPoint = cellPath ? { path: parkPath, offset: 0 } : selection.focus;
+	if (focusCollapsedCaret(getBlockElByPath, parkPoint)) return true;
+	clearNativeSelection();
+	return false;
 }
 
 // ── Viewport point → block offset ───────────────────────────────────────────

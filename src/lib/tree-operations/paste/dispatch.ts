@@ -14,6 +14,7 @@ import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
+import { trailingLineEnding } from '../../core/lines';
 import { isBlockNode, nodeAt } from '../node-ops';
 import { getPasteSurface, type PasteRange } from '../paste-surfaces';
 import { isReservedChromeChild } from '../../schema/reserved-chrome';
@@ -94,7 +95,7 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete);
-		applyInlineResult(input.targetPath, result, ctx);
+		await applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
 
@@ -150,7 +151,7 @@ export async function pasteDispatch(
 		await surface.onScopedStructuralPaste({
 			doc: ctx.doc,
 			targetPath: input.targetPath,
-			blocks: materializeBlankLines(parsed.children),
+			blocks: materializeBlankLines(parsed.children, trailingLineEnding(targetNode.raw)),
 			controller: ctx.controller,
 			undoEntry: ctx.undoEntry ?? 'own'
 		});
@@ -160,12 +161,12 @@ export async function pasteDispatch(
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, pastedText, input.preDelete);
-		applyInlineResult(input.targetPath, result, ctx);
+		await applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const blocks = materializeBlankLines(parsed.children);
+	const blocks = materializeBlankLines(parsed.children, trailingLineEnding(targetNode.raw));
 	const result = hook(targetNode, input.offset, blocks, input.preDelete);
 	await applyStructuralResult(input.targetPath, result, ctx);
 	return {};

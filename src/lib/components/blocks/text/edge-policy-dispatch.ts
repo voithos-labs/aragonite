@@ -14,13 +14,15 @@
  *   ───────────────  ────────────────────────────────────────  ─────────────────────────────
  *   reveal widget    revealSource: true                        reveal source on entry (math, directive text)
  *   image widget     select-then-delete (the widget default)   select whole; second press deletes (selected-widget seam)
- *   atomic widget    deleteGranularity:'atomic' (no consumer)  delete whole in one press, no select step
+ *   entity widget    deleteGranularity:'atomic' + step-over    delete whole in one press; a plain arrow walks over it
  *   replace island   onEdge:'select' + 'select-then-delete'    select whole; second press deletes the hidden range
  *   widget island    onEdge:'step-over'                        transparent — act on the adjacent real byte
  *   ambient overlap  guarded range                             delete the selection overlapping the non-editable marker
  *
- * A non-reveal widget with no explicit policy takes the image row's default. Only an
- * explicit deleteGranularity:'atomic' diverges. Islands carry internal policy records
+ * A non-reveal widget with no explicit policy takes the image row's default. An
+ * explicit deleteGranularity:'atomic' diverges (whole-delete on one press); an
+ * explicit onEdge:'step-over' declines a plain arrow so native steps the caret
+ * across the atomic island. Islands carry internal policy records
  * in the same vocabulary (never on the public API); the ambient marker is the
  * deliberate exception — a one-press delete of the selection range overlapping the
  * marker, not a caret-edge construct, so it fits no onEdge/deleteGranularity value.
@@ -38,13 +40,14 @@ import type { NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
-import { getInlineContent } from '../../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
+import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { widgetAtCursor } from './widget-adjacency';
 
 /** The subset of the inline-widget vocabulary the internal island/ambient policies
@@ -72,10 +75,20 @@ export interface EdgePolicyDispatchDeps {
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
+	/** Whether this block currently carries any decoration islands. The render path's
+	 *  own source for the same set (`decorationEngine.islandsForPath`), so a false read
+	 *  gates the per-keystroke DOM scan without risking disagreement with the painted
+	 *  `[data-decoration-island]` spans. */
+	hasIslands: () => boolean;
 	/** Anchor/focus raw-content offsets of the live selection, or null when collapsed. */
 	getRawSelection: () => { start: RawOffset; end: RawOffset } | null;
 	blockEdit: BlockEditActions;
-	setPendingCursor: (offset: number | null, source: string) => void;
+	/** Park a caret for the post-render restore, tagged with the gesture for the
+	 *  trace. `writtenText` is the text that offset addresses: a kind whose write
+	 *  sink rewrites bytes (tableCell escapes every free `|`) moves the offset, and
+	 *  only the text it was measured against can map it. Omitted where the arm parks
+	 *  ahead of every byte the write can change, so no mapping exists to get wrong. */
+	setPendingCursor: (offset: number | null, source: string, writtenText?: string) => void;
 	setSnapTarget: (offset: number | null) => void;
 	/** A widget's `$…$` source is currently revealed — the CST still reports the
 	 *  widget as atomic, but the DOM is editable text, so the widget branch stands
@@ -100,22 +113,11 @@ export interface EdgePolicyDispatch {
 
 export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePolicyDispatch {
 	function inlinesOf(node: NodeView): InlineNode[] {
-		return getInlineContent(node, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+		return resolvedInlineContent(node, deps.linkRef);
 	}
 
 	function display(): string {
 		return trimTrailingLineEnding(deps.node.raw);
-	}
-
-	function isTypingKey(e: KeyboardEvent): boolean {
-		if (e.ctrlKey || e.metaKey || e.altKey) return false;
-		return e.key.length === 1;
-	}
-
-	function caretIsInTextNode(): boolean {
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return false;
-		return sel.getRangeAt(0).startContainer.nodeType === Node.TEXT_NODE;
 	}
 
 	// ── CST inline widget ────────────────────────────────────────────────────
@@ -132,39 +134,54 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!widgetAt) return false;
 
 		// Caret-entry against a widget edge: ArrowLeft/Backspace from the trailing
-		// edge, ArrowRight/Delete from the leading edge.
+		// edge, ArrowRight/Delete from the leading edge — and only unchorded. A
+		// modifier makes the key a word-scoped platform command; entering here would
+		// swap a word-step for the modal widget-selected state, where the user's next
+		// printable key replaces the construct's bytes instead of typing beside them.
+		const plainEdgeKey = !e.shiftKey && !hasModifier(e);
 		const enterFromRight =
-			!e.shiftKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
+			plainEdgeKey && widgetAt.atRight && (e.key === 'ArrowLeft' || e.key === 'Backspace');
 		const enterFromLeft =
-			!e.shiftKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
+			plainEdgeKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
 		if (enterFromRight || enterFromLeft) {
-			e.preventDefault();
-			deps.setSnapTarget(null);
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
 			const policy = getInlineWidgetEditing(widgetAt.kind);
+			// onEdge:'step-over' (inline entity): a plain arrow treats the widget as one
+			// character — decline so native contenteditable carries the caret across the
+			// atomic island. Only navigation steps over; a destructive key still runs the
+			// atomic-delete branch below.
+			if (!isDestructive && policy?.onEdge === 'step-over') return false;
+			e.preventDefault();
+			deps.setSnapTarget(null);
 			if (isDestructive && policy?.deleteGranularity === 'atomic' && !deps.isReading()) {
-				// An atomic kind (future inline entity) deletes whole on one press —
-				// no select step. Anchored at the pre-delete caret so Ctrl+Z lands there.
+				// An atomic kind (inline entity) deletes whole on one press — no select
+				// step. Anchored at the pre-delete caret so Ctrl+Z lands there.
 				const newRaw = node.raw.slice(0, widgetAt.start) + node.raw.slice(widgetAt.end);
 				void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, widgetAt.start);
 				deps.setPendingCursor(widgetAt.start, 'widget');
 				return true;
 			}
 			// onEdge:'select' (and reveal-capable kinds, which enterWidget routes to
-			// their source reveal instead). There is no shipped CST step-over kind.
+			// their source reveal instead); step-over kinds already returned above.
 			deps.enterWidget(widgetAt, enterFromRight);
 			return true;
 		}
 		// Chromium inserts into a text node natively, but drops printable keys at
 		// element-level positions adjacent to a contenteditable=false widget.
-		if (!caretIsInTextNode() && isTypingKey(e) && !deps.isReading()) {
+		const el = deps.getEl();
+		if (
+			el &&
+			!caretIsInTextContent(el, window.getSelection()) &&
+			isPlainTypingKey(e) &&
+			!deps.isReading()
+		) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			const typed = e.key;
 			const newRaw = node.raw.slice(0, caretOffset) + typed + node.raw.slice(caretOffset);
 			const postEdit = caretOffset + typed.length;
 			void deps.blockEdit.updateBlockContent(deps.index, newRaw, caretOffset, postEdit);
-			deps.setPendingCursor(postEdit, 'widget');
+			deps.setPendingCursor(postEdit, 'widget', newRaw);
 			return true;
 		}
 		return false;
@@ -197,7 +214,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			start,
 			caretAfter
 		);
-		deps.setPendingCursor(caretAfter, 'island');
+		deps.setPendingCursor(caretAfter, 'island', next);
 	}
 
 	function selectIslandWhole(el: HTMLElement): void {
@@ -212,10 +229,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function handleIsland(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		// Modifier chords (Ctrl/Alt/Cmd word-delete and shortcuts) stay native — the
 		// island rules own only the plain edge presses.
-		const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
-		const isDestructive = !hasModifier && (e.key === 'Backspace' || e.key === 'Delete');
-		const isTyping = !hasModifier && e.key.length === 1;
+		const isDestructive = !hasModifier(e) && (e.key === 'Backspace' || e.key === 'Delete');
+		const isTyping = isPlainTypingKey(e);
 		if (!isDestructive && !isTyping) return false;
+
+		// Island-free blocks (the common case) skip the DOM scan entirely: the engine's
+		// path buckets are the same source the render just painted from, so a false here
+		// cannot disagree with the DOM's `[data-decoration-island]` spans.
+		if (!deps.hasIslands()) return false;
 
 		const el = deps.getEl();
 		if (!el) return false;
@@ -282,7 +303,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// caret adjacent to a contenteditable=false island. Chromium types natively
 		// (masking this branch in e2e), so the branch is unit-pinned. A text-node caret
 		// always types natively.
-		if (isTyping && !caretIsInTextNode()) {
+		if (isTyping && !caretIsInTextContent(el, window.getSelection())) {
 			e.preventDefault();
 			editDisplay(caretOffset, caretOffset, e.key);
 			return true;

@@ -21,6 +21,10 @@ contributes zero `textContent` but several raw bytes.
 - escaped pipe in a cell: `b \| c` renders with a dimmed `\` marker and the cell's
   textContent stays `b \| c` (the escape node renders marker + literal `|`)
 - image in a cell stays alt-text: `![a](u)` renders the alt text `a`, no `<img>` / widget
+- image in a cell under reading mode: both marker spans hide, leaving the alt as the
+  cell's only painted text, and the bytes stay in the DOM (regression: the fallback's
+  split is what a marker collapse acts on — a single unsplit span leaves the whole
+  source painted, or nothing at all)
 - empty cell renders without leftover markup and stays focusable
 - a cell with only a `<br>` widget renders the widget and nothing else
 

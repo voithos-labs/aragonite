@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { getInlineSyntax, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
+import { getInlineRungs, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 
 // registerCalloutKind must activate ALL directive tiers (via activateDirectives),
@@ -18,8 +18,8 @@ describe('registerCalloutKind activates the inline text tier', () => {
 	});
 
 	it('registers the `:` inline recognizer, not just the `:::` opener', () => {
-		expect(getInlineSyntax(':')).toBeUndefined();
+		expect(getInlineRungs(':')).toHaveLength(0);
 		registerCalloutKind();
-		expect(getInlineSyntax(':')).toBeDefined();
+		expect(getInlineRungs(':').length).toBeGreaterThan(0);
 	});
 });

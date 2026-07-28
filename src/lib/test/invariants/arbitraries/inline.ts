@@ -1,13 +1,20 @@
 import fc from 'fast-check';
+import type { InlineNode } from '../../../core/nodes';
 
 // Inline content fragments: emphasis/strong/strike runs, code spans, links,
-// autolinks, escapes, entities, hard breaks, and plain words — interleaved so
-// the emphasis matcher, code-span handler, and bracket stack all see realistic
-// adjacency. Image and `<br>` fragments are excluded: they render as atomic
-// widgets (0 textContent) and images expose a parsed `alt` that diverges from
-// raw bytes, so the widget-free spine property (G2.4) and the offset partition
-// (G2.5) stay clean. The widget-delta case in the spine test supplies those
-// explicitly.
+// autolinks, escapes, hard breaks, plain words, and the `&` scanner's decline
+// forms — interleaved so the emphasis matcher, code-span handler, and bracket
+// stack all see realistic adjacency. Image, `<br>`, and *accepting* character
+// references are excluded. A visible-glyph reference (`&copy;`) renders as an
+// atomic widget (0 textContent), which would break the widget-free spine (G2.4);
+// a whitespace-decoding one (`&nbsp;`, `&#10;`) shifts commonmark's emphasis
+// flanking around the decoded space, which the kind-differential oracle sees as
+// an undocumented divergence. Only the decode-declining forms (`&notreal;`, `&`)
+// are flanking-neutral literal text, so they exercise the `&` scanner without
+// perturbing any shared property. Accepting-reference tiling is covered by the
+// conformance corpus (G2.11) and `test/core/inline/character-refs.test.ts`; the
+// entity-widget spine delta lives in the spine test's widget-delta case. Images
+// re-enter the spine as `arbAltOnlyImage` below, where they are not widgets.
 
 // Non-ASCII words (CJK, combining mark, emoji, ZWJ cluster) arm the properties
 // against surrogate/cluster slicing: no node boundary may land mid-pair.
@@ -27,7 +34,7 @@ const word = fc.constantFrom(
 );
 
 const emphasisRun = fc
-	.tuple(fc.constantFrom('*', '**', '_', '__', '~~', '***'), word)
+	.tuple(fc.constantFrom('*', '**', '_', '__', '~', '~~', '***'), word)
 	.map(([marker, inner]) => marker + inner + marker);
 
 const codeSpan = fc
@@ -57,7 +64,9 @@ const autolink = fc.constantFrom(
 
 const escape = fc.constantFrom('\\*', '\\\\', '\\`', '\\[', '\\&', '\\!');
 
-const entity = fc.constantFrom('&copy;', '&amp;', '&#39;', '&#x22;', '&notreal;', '&');
+// Only the `&` scanner's decline forms — both stay literal text on aragonite and
+// commonmark alike (see the header for why accepting references are excluded).
+const ampersandDecline = fc.constantFrom('&notreal;', '&');
 
 // Hard breaks: backslash-newline and two-spaces-newline, both LF and CRLF.
 const hardBreak = fc.constantFrom('\\\n', '\\\r\n', '  \n', '  \r\n');
@@ -74,17 +83,63 @@ const fragment = fc.oneof(
 	{ arbitrary: referenceLink, weight: 1 },
 	{ arbitrary: autolink, weight: 1 },
 	{ arbitrary: escape, weight: 2 },
-	{ arbitrary: entity, weight: 2 },
+	{ arbitrary: ampersandDecline, weight: 2 },
 	{ arbitrary: hardBreak, weight: 1 },
 	{ arbitrary: punctSpacer, weight: 3 }
 );
 
 /**
- * Inline source string (no block syntax, no images / `<br>` widgets). Biased
- * toward emphasis flanking, nested delimiters, and code/link/escape adjacency
- * so the offset-partition and textContent-spine properties exercise the parser
- * and renderer interactions, not just plain text.
+ * Inline source string (no block syntax, no image / `<br>` widgets, no accepting
+ * character references — see the header). Biased toward emphasis flanking, nested
+ * delimiters, and code/link/escape adjacency so the offset-partition and
+ * textContent-spine properties exercise the parser and renderer interactions, not
+ * just plain text.
  */
 export const arbInlineSource = fc
 	.array(fragment, { minLength: 1, maxLength: 12 })
 	.map((parts) => parts.join(''));
+
+// ── Minted images (the alt-only render path) ─────────────────────────────────
+
+/**
+ * An `image` node paired with the bytes it spans, minted the way an inline-syntax
+ * rung mints one: `alt` is whatever the rung derived, and need not be a slice of the
+ * node — or of the document — at all. No source arbitrary can reach this, because a
+ * parsed alt is always read off its own label; that blind spot is what let an image
+ * rendered through the alt-only path print bytes its span did not have.
+ */
+export const arbAltOnlyImage = fc
+	.record({
+		lead: fc.constantFrom('', 'see ', '## '),
+		open: fc.constantFrom('![', '![[', '!'),
+		target: fc.constantFrom('cat.png', 'a', 'x y', '汉字.png', ''),
+		close: fc.constantFrom('](u)', ']]', '|300]]', ']', ''),
+		trail: fc.constantFrom('', ' tail'),
+		// Pulls the node's end inside its own construct, so an alt read off the bytes
+		// can outrun the span that owns it — the shape a fixture never thinks to build.
+		shrink: fc.nat({ max: 3 }),
+		altKind: fc.constantFrom('target', 'sourceRun', 'span', 'foreign', 'none')
+	})
+	.map(({ lead, open, target, close, trail, shrink, altKind }) => {
+		const raw = lead + open + target + close + trail;
+		const start = lead.length;
+		const end = Math.max(start + 1, start + open.length + target.length + close.length - shrink);
+		const alt = {
+			target,
+			// The bytes a GFM-shaped read calls the alt: matches `raw` at the assumed
+			// opener and runs past the node.
+			sourceRun: raw.slice(start + 2),
+			span: raw.slice(start, end),
+			foreign: 'elsewhere',
+			none: undefined
+		}[altKind];
+		const node: InlineNode = {
+			kind: 'image',
+			start,
+			end,
+			children: [],
+			url: target,
+			...(alt !== undefined ? { alt } : {})
+		};
+		return { raw, node };
+	});

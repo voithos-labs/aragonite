@@ -20,7 +20,7 @@ test.describe('image resize', () => {
 		await page.mouse.down();
 		await page.mouse.move(handleBox.x + 4 - 100, handleBox.y + 4, { steps: 10 });
 		await page.mouse.up();
-		await editor.bridge.waitForSourceMatches(/\|\d+\]/);
+		await editor.bridge.waitForSourceNotContains('|400');
 		const src = await editor.bridge.getSource();
 		const match = src.match(/\|(\d+)\]/);
 		expect(match).not.toBeNull();

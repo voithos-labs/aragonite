@@ -5,19 +5,28 @@
 
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
-import type { CstNode, Document } from '../core/nodes';
+import type { Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
 import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
+	focusCollapsedCaret,
 	applySingleBlockRange,
 	clearNativeSelection,
 	offsetFromViewportPoint
 } from './native-bridge';
 import type { BlockElLookup } from '../editor-keys';
-import { nextPath, previousPath, firstPath, lastPath } from './path-lookup';
+import {
+	nextPath,
+	previousPath,
+	firstPath,
+	lastPath,
+	firstLeafAtOrAfter,
+	lastLeafAtOrBefore,
+	findCellPathForElement
+} from './path-lookup';
 import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths, isStrictAncestorOf } from './path-math';
 import { cellEndpointDeepPath } from './table-endpoint-snap';
@@ -41,8 +50,10 @@ function enterCrossBlockFromKeyboard(
 		path: anchorPoint.path.slice(),
 		offset: anchorPoint.offset
 	});
-	// Collapse (not clear) so the focus block retains a caret — otherwise
-	// Chromium fires paste on <body>. See parkCaretInFocusBlock.
+	// Collapse (not clear) so the focus block retains a caret — otherwise Chromium
+	// retargets the clipboard events to <body>. See parkCaretInFocusBlock. Best-effort
+	// only: an endpoint that hosts no text position gets no caret however this is
+	// called, which is why components/editor-root-clipboard.ts exists.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
 	return true;
 }
@@ -74,11 +85,7 @@ export async function collapseCrossBlock(
 	}
 
 	await revealPath(target.path);
-	const blockEl = getBlockElByPath(target.path);
-	if (blockEl) {
-		applyCollapsedCaret(blockEl, target);
-		blockEl.focus();
-	}
+	focusCollapsedCaret(getBlockElByPath, target);
 }
 
 /**
@@ -282,7 +289,14 @@ export function handleShiftClick(
 	}
 
 	if (!previouslyFocusedBlockEl || !previouslyFocusedBlockPath) return false;
-	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, previouslyFocusedBlockPath);
+	// The anchor path is resolved from the DOM, not from a surface's getMyPath(),
+	// and no path host exists below a table — so a caret parked in a cell would be
+	// labelled with the TABLE's path while its offset is still in characters. The
+	// endpoint seam cannot repair that (a char offset on a table path is
+	// indistinguishable from a cell index), so deepen to the cell here and let the
+	// seam do the char→cell conversion it does for every other producer.
+	const anchorPath = findCellPathForElement(previouslyFocusedBlockEl) ?? previouslyFocusedBlockPath;
+	const anchor = readNativeCaretInBlock(previouslyFocusedBlockEl, anchorPath);
 	if (!anchor) return false;
 
 	// Same-block — native selection already produced a single-block range.
@@ -296,29 +310,6 @@ export function handleShiftClick(
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
-
-function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
-	let cur: number[] | null = path;
-	while (cur) {
-		const node = nodeAt(doc, cur);
-		if (!node) return null;
-		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
-		cur = [...cur, 0];
-	}
-	return null;
-}
-
-function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
-	let cur: number[] | null = path;
-	while (cur) {
-		// Annotated: overload resolution + the `cur` reassignment below otherwise cycle inference.
-		const node: CstNode | Document | null = nodeAt(doc, cur);
-		if (!node) return null;
-		if (!('children' in node) || !node.children || node.children.length === 0) return cur;
-		cur = [...cur, node.children.length - 1];
-	}
-	return null;
-}
 
 /** First leaf reachable from `fromPath` going forward (descend or step). */
 function firstLeafAfter(doc: Document, fromPath: number[]): number[] | null {

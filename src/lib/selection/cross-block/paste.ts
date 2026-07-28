@@ -7,12 +7,13 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import type { Document } from '../../core/nodes';
-import { metadataOf } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
-import { normalizeLineEndings } from '../../core/lines';
+import { tableCellCount } from '../table-endpoint-snap';
+import { CURSOR_END } from '../../block-component';
+import { normalizeLineEndings, trailingLineEnding } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { applyCollapsedCaret } from '../native-bridge';
+import { focusCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
@@ -25,14 +26,21 @@ import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
-	e: ClipboardEvent
+	e: ClipboardEvent,
+	replacement?: string
 ): Promise<boolean> {
 	if (!ctx.selection.isCrossBlock) return false;
 
 	ctx.stickyColumn.reset();
 	ctx.selection.resetSelectAllCount();
 	e.preventDefault();
-	const pasted = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+	// `!== undefined`, not `??`: a caller that supplied its own payload must never
+	// reach the clipboard read, whatever that payload is. With `??` the guarantee
+	// would depend on callers never passing '', which is not a property of this seam.
+	const pasted =
+		replacement !== undefined
+			? replacement
+			: normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
 	const doc = ctx.getDoc();
@@ -89,11 +97,7 @@ async function landCaretAfterPaste(
 ): Promise<void> {
 	await ctx.afterReactivity();
 	if (inlineCaretOffset !== undefined) {
-		const el = ctx.getBlockElByPath(caretPath);
-		if (el) {
-			applyCollapsedCaret(el, { path: caretPath, offset: inlineCaretOffset });
-			el.focus();
-		}
+		focusCollapsedCaret(ctx.getBlockElByPath, { path: caretPath, offset: inlineCaretOffset });
 		return;
 	}
 	const editorRoot = ctx.getEditorRoot();
@@ -111,9 +115,7 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	if (!pathsEqual(anchor.path, focus.path)) return false;
 	const node = nodeAt(doc, anchor.path);
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return false;
-	const meta = metadataOf(node, 'table');
-	const rowCount = node.children?.length ?? 0;
-	const cellCount = meta.columnCount * rowCount;
+	const cellCount = tableCellCount(node);
 	if (cellCount === 0) return false;
 	// Same-path intra-table selection: cell offsets are context-established
 	// (same table, unflagged), so read directly.
@@ -141,10 +143,10 @@ async function replaceTableWithPaste(
 	// transforms run here too — the rule lives in the helper, applied at both sites.
 	const parsed = parse(applyPasteTransforms(pasted));
 	if (parsed.children.length === 0) return;
-	const blocks = materializeBlankLines(parsed.children);
 
 	const tableNode = blockNodeAt(doc, tablePath);
 	if (!tableNode) return;
+	const blocks = materializeBlankLines(parsed.children, trailingLineEnding(tableNode.raw));
 	const replacement = normalizeReplacementTrivia(tableNode, blocks);
 	for (const node of replacement) ensureEditableContainers(node);
 
@@ -158,7 +160,7 @@ async function replaceTableWithPaste(
 		controller: ctx.pasteCoordinator,
 		undoEntry: 'join',
 		focusReplacementIndex: replacement.length - 1,
-		focusOffset: Number.MAX_SAFE_INTEGER,
+		focusOffset: CURSOR_END,
 		source: 'cross-block-paste-whole-table'
 	});
 }

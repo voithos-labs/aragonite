@@ -5,10 +5,13 @@
  * block) rather than by tracking full block-parser state.
  */
 
-import type { CstNode } from '../nodes';
-import type { ParsedLine } from '../lines';
+import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { defaultGrammarView, lineInterruptsParagraph } from '../../schema/block-openers';
+import {
+	defaultGrammarView,
+	lineInterruptsParagraph,
+	type BlockOpenerResult
+} from '../../schema/block-openers';
 
 export function matchBlockquote(text: string): boolean {
 	return /^ {0,3}>/.test(text);
@@ -30,13 +33,21 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 	return true;
 }
 
-export function parseBlockquote(
+/**
+ * Scan a blockquote's extent (CommonMark §5.1 lazy continuation) and return its
+ * byte-exact `raw` plus the index past it — no child decomposition. The narrow
+ * shape a blockquote-shaped opener needs when it decomposes its own body
+ * (`> [!NOTE]` GitHub alerts strip the marker line before parsing children).
+ *
+ * A scanner yields an index, not an opener's `consumed` delta: both callers slice
+ * with it (`lines.slice(startIndex, nextIndex)`), and a delta would make every
+ * slice re-add the origin. The opener subtracts once, at its return.
+ */
+export function blockquoteExtent(
 	lines: ParsedLine[],
 	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	depth: number = 0
-): { node: CstNode; nextIndex: number } {
+	endIndex: number
+): { raw: string; nextIndex: number } {
 	let i = startIndex;
 	let paragraphOpen = false;
 	while (i < endIndex) {
@@ -48,40 +59,33 @@ export function parseBlockquote(
 			continue;
 		}
 		if (paragraphOpen && wouldKeepParagraphOpen(lineText)) {
-			paragraphOpen = true;
 			i++;
 			continue;
 		}
 		break;
 	}
+	return { raw: joinRaw(lines, startIndex, i), nextIndex: i };
+}
 
-	const raw = joinRaw(lines, startIndex, i);
+export function parseBlockquote(
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number,
+	leadingTrivia: string,
+	depth: number = 0
+): BlockOpenerResult {
+	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
 
 	// Lazy continuation lines have no `> ` to strip — pass them verbatim so
 	// the recursive paragraph parser sees a continuous multi-line paragraph.
-	let offset = 0;
-	const strippedLines = lines.slice(startIndex, i).map((line) => {
-		const stripped = matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text;
-		const lineEnding = line.lineEnding;
-		const raw = stripped + lineEnding;
-		const strippedLine: ParsedLine = {
-			raw,
-			text: stripped,
-			lineEnding,
-			start: offset,
-			end: offset + raw.length
-		};
-		offset += raw.length;
-		return strippedLine;
-	});
+	const strippedLines = remapStrippedLines(lines.slice(startIndex, i), (line) =>
+		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
+	);
 
 	const inner = parseBlocks(strippedLines, 0, strippedLines.length, defaultGrammarView, depth + 1);
 
-	const quoteDepth =
-		lines[startIndex].text
-			.match(/^ {0,3}(>[ \t]?)+/)?.[0]
-			.split('')
-			.filter((c) => c === '>').length ?? 1;
+	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)?.[0] ?? '';
+	const quoteDepth = (quotePrefix.match(/>/g) ?? []).length || 1;
 
 	return {
 		node: {
@@ -93,6 +97,6 @@ export function parseBlockquote(
 			children: inner.children,
 			innerSuffix: inner.suffix
 		},
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }

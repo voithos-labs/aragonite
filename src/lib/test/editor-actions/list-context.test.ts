@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createListContext } from '../../editor-actions/list-context';
 import { registerBlockListState } from '../../reactivity/state-registry';
-import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { parse } from '../../core/parser';
 import {
 	makeBlockListState,
-	makeStubBlockEdit,
-	makeStubFocus,
-	makeEditorActionsDeps
+	makeEditorActionsDeps,
+	makeListContextAt
 } from '../harness/editor-actions';
 import { metadataOf, type CstNode } from '../../core/nodes';
 
@@ -30,30 +27,16 @@ describe('list-context — splitItemAtOffset', () => {
 		expect(item.children).toHaveLength(3);
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveItem = () => deps.doc.children[0].children![0];
-		const listState = makeBlockListState(liveList, ['item-0']);
-		registerBlockListState(list, listState as any);
 		const itemState = makeBlockListState(liveItem, ['para-a', 'para-b', 'para-c']);
 		registerBlockListState(item, itemState as any);
 
-		const controller = createUndoController(deps);
-
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
+		const {
+			listContext,
+			state: listState,
+			getNode: liveList
+		} = makeListContextAt(deps, 0, {
+			ids: ['item-0']
 		});
 
 		await listContext.splitItemAtOffset(0, 0, 1);
@@ -82,30 +65,16 @@ describe('list-context — splitItemAtOffset', () => {
 		const item = list.children![0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveItem = () => deps.doc.children[0].children![0];
-		const listState = makeBlockListState(liveList, ['item-0']);
-		registerBlockListState(list, listState as any);
 		const itemState = makeBlockListState(liveItem, ['para-a']);
 		registerBlockListState(item, itemState as any);
 
-		const controller = createUndoController(deps);
-
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
+		const {
+			listContext,
+			state: listState,
+			getNode: liveList
+		} = makeListContextAt(deps, 0, {
+			ids: ['item-0']
 		});
 
 		await listContext.splitItemAtOffset(0, 0, 3);
@@ -125,30 +94,11 @@ describe('list-context — splitItemAtOffset', () => {
 		expect(metadataOf(item, 'listItem')).toMatchObject({ taskItem: true, taskMarker: '[ ] ' });
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveItem = () => deps.doc.children[0].children![0];
-		const listState = makeBlockListState(liveList, ['item-0']);
-		registerBlockListState(list, listState as any);
 		const itemState = makeBlockListState(liveItem, ['para-0']);
 		registerBlockListState(item, itemState as any);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
-		});
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
 
 		// Split "foobar" after "foo": the new sibling inherits the task identity.
 		await listContext.splitItemAtOffset(0, 0, 3);
@@ -170,31 +120,14 @@ describe('list-context — splitItemAtOffset', () => {
 		const list = doc.children[0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
-		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
-		registerBlockListState(list, listState as any);
 		const item0 = list.children![0];
 		registerBlockListState(
 			item0,
 			makeBlockListState(() => deps.doc.children[0].children![0], ['para-0']) as any
 		);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, {
+			ids: ['item-0', 'item-1']
 		});
 
 		// Split item 0 ("1. a") mid-word: the new sibling takes marker "2. " and
@@ -216,31 +149,12 @@ describe('list-context — insertItemAfter', () => {
 		const list = doc.children[0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
-		const listState = makeBlockListState(liveList, ['item-0']);
-		registerBlockListState(list, listState as any);
 		registerBlockListState(
 			list.children![0],
 			makeBlockListState(() => deps.doc.children[0].children![0], ['para-0']) as any
 		);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
-		});
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
 
 		await listContext.insertItemAfter(0);
 
@@ -254,6 +168,26 @@ describe('list-context — insertItemAfter', () => {
 			taskMarker: '[ ] '
 		});
 		expect(items[1].raw).toBe('2. [ ] \n');
+	});
+
+	// The new item's body is nothing but a line ending, and rebuildListItemRaw
+	// derives the item's raw from it — so a defaulted `\n` reaches the document's
+	// bytes as a lone LF inside a CRLF list (G4.20).
+	it('the new item takes the list’s line ending', async () => {
+		const doc = parse('1. a\r\n');
+		const list = doc.children[0];
+
+		const deps = makeDeps([list]);
+		registerBlockListState(
+			list.children![0],
+			makeBlockListState(() => deps.doc.children[0].children![0], ['para-0']) as any
+		);
+
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
+		await listContext.insertItemAfter(0);
+
+		expect(liveList().children![1].raw).toBe('2. \r\n');
+		expect(liveList().raw).toBe('1. a\r\n2. \r\n');
 	});
 });
 
@@ -270,30 +204,13 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 		const list = doc.children[0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
-		registerBlockListState(list, listState as any);
 		const sublist = list.children![0].children![1];
 		expect(sublist.kind).toBe('list');
 		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0']) as any);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, {
+			ids: ['item-0', 'item-1']
 		});
 
 		await listContext.indentItem(1);
@@ -313,32 +230,13 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 		const list = doc.children[0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const listState = makeBlockListState(liveList, ['item-0']);
-		registerBlockListState(list, listState as any);
 		const sublist = list.children![0].children![1];
 		expect(sublist.kind).toBe('list');
 		expect(sublist.children).toHaveLength(2);
 		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0', 'sub-1']) as any);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
-		});
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
 
 		await listContext.promoteNestedItem(0, sublist, 0);
 
@@ -362,30 +260,13 @@ describe('list-context — unordered glyph adopts destination on move', () => {
 		const list = doc.children[0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
-		registerBlockListState(list, listState as any);
 		const sublist = list.children![0].children![1];
 		expect(sublist.kind).toBe('list');
 		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0']) as any);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, {
+			ids: ['item-0', 'item-1']
 		});
 
 		await listContext.indentItem(1);
@@ -403,32 +284,13 @@ describe('list-context — unordered glyph adopts destination on move', () => {
 		const list = doc.children[0];
 
 		const deps = makeDeps([list]);
-		const liveList = () => deps.doc.children[0];
 		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const listState = makeBlockListState(liveList, ['item-0']);
-		registerBlockListState(list, listState as any);
 		const sublist = list.children![0].children![1];
 		expect(sublist.kind).toBe('list');
 		expect(sublist.children).toHaveLength(2);
 		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0', 'sub-1']) as any);
 
-		const controller = createUndoController(deps);
-		const listContext = createListContext({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return liveList();
-			},
-			get path() {
-				return [0];
-			},
-			state: listState as any,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentFocus: makeStubFocus(),
-			parentListContext: undefined,
-			controller
-		});
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
 
 		await listContext.promoteNestedItem(0, sublist, 0);
 

@@ -6,7 +6,7 @@ First-party plugins that ship inside the package, each at its own `aragonite/plu
 
 The owner-decided split between what ships and what stays a dev fixture:
 
-- **Bundled (in-package):** admonitions, details, latex, mermaid, toc, highlight-occurrences.
+- **Bundled (in-package):** admonitions, details, emoji, footnotes, latex, mermaid, toc, highlight-occurrences.
 - **Dev fixtures (stay in `src/routes/test/plugins/`):** callout, memo, block-badge, fold, doc-stats, ghost-text (+ sim-mark and the `multi/` + `staggered/` route fixtures).
 
 ## External-shaped

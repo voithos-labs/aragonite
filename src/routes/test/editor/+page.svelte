@@ -1,30 +1,30 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Editor, type PresentationMode } from '$lib';
 	import { parse } from '$lib/core/parser';
-	import { applyTheme, DEFAULT_THEME, currentThemeType } from './theme';
 	import {
 		dumpTree,
 		dumpUndoStack,
-		dumpInlineTree,
 		dumpOperationsLog,
 		dumpInteractionTrace
 	} from '$lib/debug/inspect';
 	import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
-	import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
-	import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
 	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import SelectionToolbar from './SelectionToolbar.svelte';
-	import { installTestProbes, getFocusedBlockPath, liveSelectionText } from './test-probes';
+	import {
+		harnessPasteImage,
+		installTestProbes,
+		liveSelectionText,
+		dumpFocusedInlineTree
+	} from './test-probes';
+	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	let source = $state(SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
-	let editorSlot = $state<HTMLElement>();
 
 	// `?dragHandles=false` starts with the hover drag handle disabled (the
 	// reorder-handle e2e covers the off path). The header checkbox flips it live;
@@ -40,6 +40,27 @@
 		dragHandlesOn = !dragHandlesOn;
 	}
 
+	// `?imagePaste=on` installs the harness image-import hook. The prop is set-once
+	// at mount, so the opt-in is a URL param (like `dragHandles`) and the per-image
+	// response is swapped behind the stable function via `__test.imagePaste`. Off by
+	// default, which is also the no-hook arm of the contract.
+	const onPasteImage =
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('imagePaste') === 'on'
+			? harnessPasteImage
+			: undefined;
+
+	// `?header=on` mounts a host header inside the editor's scroll container (the
+	// DocumentHero shape). Off by default: a preamble shifts every block's geometry,
+	// which specs across the suite measure. Its height toggles between two values so
+	// the anchor compensation has something to compensate for; the toggle control
+	// lives in the page header, OUTSIDE the editor's scroll container, because
+	// clicking a control inside it would scroll the very position under test.
+	const headerOn =
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('header') === 'on';
+	let headerTall = $state(false);
+
 	// `?presentationMode=reading|preview-block|preview-inline` starts in that mode;
 	// the header toggles flip it live (the prop reads live — no remount, unlike
 	// blockDragHandles).
@@ -51,6 +72,14 @@
 			) as PresentationMode | undefined)) ||
 			'source'
 	);
+
+	// Each header checkbox toggles its mode against source. testids are pinned by the
+	// presentation e2e.
+	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
+		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
+		{ mode: 'preview-block', testid: 'preview-block-toggle', label: 'Block preview' },
+		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' }
+	];
 
 	// Reading-mode link activation records to a page-scoped sink instead of opening a
 	// window, so the presentation e2e can assert the handler fired on a plain click.
@@ -67,10 +96,6 @@
 	// moves the caret but no Svelte signal fires, so the inline/selection
 	// sections never refresh.
 	let panelTick = $state(0);
-
-	onMount(() => {
-		applyTheme(DEFAULT_THEME);
-	});
 
 	$effect(() => {
 		if (typeof window === 'undefined' || !editor) return;
@@ -99,6 +124,18 @@
 		return editor?.getSource() ?? source;
 	});
 
+	// The LIVE tree first, because the panel's whole job is the state a reparse
+	// cannot express: a live-kind-vs-raw desync, or a transient block the serializer
+	// trims. The reparse rides along as a second labeled view — when the two differ,
+	// the difference IS the bug being hunted.
+	function cstSection(): string {
+		const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
+		if (!editor) return reparse;
+		return `--- LIVE ---\n${dumpTree(editor.__test.getDocument())}\n\n${reparse}`;
+	}
+
+	trackParityDocument(() => editor);
+
 	$effect(() => {
 		if (!editor) return;
 		installTestProbes({
@@ -116,6 +153,33 @@
 	});
 </script>
 
+<!-- The host chrome a consumer mounts in the header slot: a title, a link (host
+     chrome follows the page's link behaviour, not the editor's modifier-click
+     policy), and a filler whose height the page-header button toggles. -->
+{#snippet documentHero()}
+	<div class="demo-hero" data-testid="harness-header" style:height={headerTall ? '240px' : '80px'}>
+		<input
+			class="demo-hero-title"
+			data-testid="hero-title"
+			aria-label="Document title"
+			value="Untitled document"
+		/>
+		<!-- A contenteditable title is the likelier hero shape, and the one that puts a
+		     native caret inside the editor root. -->
+		<div
+			class="demo-hero-note"
+			data-testid="hero-note"
+			contenteditable="true"
+			role="textbox"
+			aria-label="Document note"
+			tabindex="0"
+		>
+			A note in the host's chrome
+		</div>
+		<a href="#hero-link" data-testid="hero-link">#tag</a>
+	</div>
+{/snippet}
+
 <div class="test-harness aragonite-editor-theme">
 	<header class="demo-header">
 		<div class="demo-heading">
@@ -129,38 +193,39 @@
 			<input type="checkbox" checked={dragHandlesOn} onchange={toggleDragHandles} />
 			Drag handles
 		</label>
-		<label class="demo-toggle">
+		{#if headerOn}
+			<button
+				type="button"
+				class="demo-btn"
+				data-testid="header-height-toggle"
+				onclick={() => (headerTall = !headerTall)}
+			>
+				Header: {headerTall ? 'tall' : 'short'}
+			</button>
+			<!-- The same field mounted OUTSIDE the editor root: the control that says
+			     whether a chord result is about the slot or about text fields at large. -->
 			<input
-				type="checkbox"
-				data-testid="presentation-toggle"
-				checked={presentationMode === 'reading'}
-				onchange={() => (presentationMode = presentationMode === 'reading' ? 'source' : 'reading')}
+				class="demo-btn"
+				data-testid="outside-title"
+				aria-label="Outside title"
+				value="Outside the editor"
 			/>
-			Reading mode
-		</label>
-		<label class="demo-toggle">
-			<input
-				type="checkbox"
-				data-testid="preview-block-toggle"
-				checked={presentationMode === 'preview-block'}
-				onchange={() =>
-					(presentationMode = presentationMode === 'preview-block' ? 'source' : 'preview-block')}
-			/>
-			Block preview
-		</label>
-		<label class="demo-toggle">
-			<input
-				type="checkbox"
-				data-testid="preview-inline-toggle"
-				checked={presentationMode === 'preview-inline'}
-				onchange={() =>
-					(presentationMode = presentationMode === 'preview-inline' ? 'source' : 'preview-inline')}
-			/>
-			Inline preview
-		</label>
+		{/if}
+		{#each PRESENTATION_TOGGLES as toggle (toggle.mode)}
+			<label class="demo-toggle">
+				<input
+					type="checkbox"
+					data-testid={toggle.testid}
+					checked={presentationMode === toggle.mode}
+					onchange={() =>
+						(presentationMode = presentationMode === toggle.mode ? 'source' : toggle.mode)}
+				/>
+				{toggle.label}
+			</label>
+		{/each}
 	</header>
 	<div class="demo-body">
-		<div class="editor-slot" bind:this={editorSlot}>
+		<div class="editor-slot">
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
@@ -169,14 +234,16 @@
 					{keybindings}
 					{presentationMode}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
-					theme={$currentThemeType}
+					{onPasteImage}
+					header={headerOn ? documentHero : undefined}
+					theme="dark"
 				/>
 			{/key}
 			<SelectionToolbar {editor} />
 		</div>
 		<DebugPanel
 			rawSource={liveSource}
-			getCst={() => dumpTree(parse(liveSource))}
+			getCst={cstSection}
 			getSelection={() => {
 				void panelTick;
 				return liveSelectionText(editor);
@@ -194,14 +261,7 @@
 				// dep registration independent of editor's ready state.
 				void panelTick;
 				if (!editor) return '';
-				const path = getFocusedBlockPath();
-				if (!path) return '';
-				const doc = parse(liveSource);
-				const node = nodeAt(doc, path);
-				if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
-				const range = getContentRange(node);
-				const inline = parseInline(node.raw, range.start, range.end);
-				return dumpInlineTree(inline);
+				return dumpFocusedInlineTree(liveSource);
 			}}
 			getOpsLog={() => {
 				const log = editor?.__test?.getOperationsLog?.();
@@ -252,6 +312,32 @@
 	.demo-toggle input {
 		cursor: pointer;
 		margin: 0;
+	}
+	.demo-btn {
+		flex: 0 0 auto;
+		font-size: 0.85rem;
+		font-family: var(--font-editor, ui-monospace, monospace);
+		color: var(--color-text-secondary, #888);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-radius: 4px;
+		padding: 0.25rem 0.6rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.demo-hero {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.35rem;
+		overflow: hidden;
+		box-sizing: border-box;
+		padding: 0.5rem 0;
+		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+	}
+	.demo-hero-title {
+		font-size: 1.6rem;
+		font-weight: 600;
 	}
 	.demo-title {
 		margin: 0;

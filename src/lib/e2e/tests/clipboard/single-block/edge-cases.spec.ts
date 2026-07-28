@@ -11,15 +11,16 @@ test.describe('single-block clipboard: edge cases', () => {
 
 	test('cut then undo restores text', async () => {
 		await editor.loadContent('Restore me\n');
+		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.page.keyboard.press('Control+x');
-		await editor.bridge.waitForSource((s) => !s.includes('Restore'));
+		await editor.bridge.waitForSourceNotContains('Restore');
 		expect(await editor.bridge.getSource()).not.toContain('Restore');
 
 		await editor.undo();
-		await editor.bridge.waitForSourceContains('Restore me');
-		expect(await editor.bridge.getSource()).toContain('Restore me');
+		await editor.bridge.waitForSourceEquals(before);
+		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('paste at end of block appends text', async () => {

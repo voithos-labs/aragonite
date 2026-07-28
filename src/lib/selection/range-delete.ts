@@ -10,9 +10,11 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
+import { trailingLineEnding } from '../core/lines';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
-import { blockNodeAt } from '../tree-operations/node-ops';
+import { firstLeafAtOrAfter } from './path-lookup';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
@@ -93,11 +95,13 @@ export function rangeDelete(
 		};
 	}
 
-	const reparsed = parse(mergedRaw || '\n');
+	// A range that consumes both endpoints whole leaves only a bare ending to
+	// reparse, which yields no blocks — the placeholder that stands in for it takes
+	// the start block's ending, not a literal LF (G4.20).
+	const lineEnding = trailingLineEnding(startRaw);
+	const reparsed = parse(mergedRaw || lineEnding);
 	const replacement: CstNode[] =
-		reparsed.children.length > 0
-			? reparsed.children
-			: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }];
+		reparsed.children.length > 0 ? reparsed.children : [emptyParagraph('', lineEnding)];
 	for (const node of replacement) sharing.stamp(node);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past end —
@@ -116,7 +120,7 @@ export function rangeDelete(
 		ensureUnsharedPath(doc, path.slice(0, -1), sharing);
 	}
 
-	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath);
+	deleteSubtreesIdentityGated(doc, deletionPaths, lcaPath, sharing);
 
 	replaceAtPath(doc, start.path, replacement);
 
@@ -125,8 +129,17 @@ export function rangeDelete(
 		rebuildUnsharedAncestry(doc, path, sharing);
 	}
 
-	return {
-		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: start.offset }
-	};
+	// The re-parse is allowed to change kind, including leaf → CONTAINER (a list
+	// marker joined to its item text, a header row joined to its delimiter). The
+	// caret is restored by walking the block element at its path, so a container
+	// path walks the whole rendered subtree and drops focus on a non-editable
+	// wrapper. Descend to the leaf instead. The join offset indexes the merged
+	// raw, which only the surviving leaf owns — a descended caret starts at 0.
+	const leafPath = firstLeafAtOrAfter(doc, start.path);
+	const collapsedCaret: SelectionPoint =
+		leafPath && leafPath.length > start.path.length
+			? { path: leafPath, offset: 0 }
+			: { path: start.path.slice(), offset: startOffset };
+
+	return { newDoc: doc, collapsedCaret };
 }

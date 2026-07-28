@@ -12,6 +12,7 @@ import { PluginsPage, readDoc, waitForDoc, activeBlockPath, roundTripStable } fr
  */
 
 const DOC = 'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
+const MERMAID_MD = '```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```';
 
 class MermaidFocusPage extends PluginsPage {
 	async setup(): Promise<void> {
@@ -163,5 +164,41 @@ test.describe('mermaid whole-block focus', () => {
 		doc = await readDoc(page);
 		expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph']);
 		expect([doc.texts[0], doc.texts[2]]).toEqual(['Above text', 'tail text']);
+	});
+
+	// Container-factory pin for the shared whole-block copy tail: the gesture lands
+	// once in handleWholeBlockKeys, so mermaid inherits Mod+C/Mod+X like the built-in
+	// thematic break (pinned in clipboard/whole-block-atomic-copy).
+	// navigator.clipboard.writeText normalizes line endings to the OS convention
+	// (CRLF on Windows); the block markdown is authored LF, so compare LF-normalized.
+	const readClipboardLF = () =>
+		editor.page
+			.evaluate(() => navigator.clipboard.readText())
+			.then((t) => t.replaceAll('\r\n', '\n'));
+
+	test('Mod+C while focused copies the diagram markdown; the document is unchanged', async ({
+		page
+	}) => {
+		await editor.viewport.click();
+		await expect(editor.viewport).toBeFocused();
+		const before = await editor.bridge.getSource();
+		await page.keyboard.press('Control+c');
+		await editor.waitForClipboardWrite();
+		expect(await readClipboardLF()).toBe(MERMAID_MD);
+		expect(await editor.bridge.getSource()).toBe(before);
+	});
+
+	test('Mod+X while focused copies the markdown and deletes the block; one undo restores it', async ({
+		page
+	}) => {
+		const original = await editor.bridge.getSource();
+		await editor.viewport.click();
+		await expect(editor.viewport).toBeFocused();
+		await page.keyboard.press('Control+x');
+		await editor.waitForClipboardWrite();
+		expect(await readClipboardLF()).toBe(MERMAID_MD);
+		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(original);
 	});
 });

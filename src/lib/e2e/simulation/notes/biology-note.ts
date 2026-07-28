@@ -6,9 +6,9 @@ import type { NoteFixture } from './types';
  * from HOLD constructs — those a char-by-char gesture build reproduces exactly,
  * so end-state equality (typing ≡ loading) stays a primary oracle. ATX headings
  * only (Enter splits a block, so setext is unreachable by typing); lists, a
- * blockquote, an unclosed fenced code block with auto-close-safe content, a
- * thematic break with a guaranteed preceding blank line, and one image inserted
- * then resized. `expectedMarkdown` is calibrated against the editor, not guessed:
+ * blockquote, a fenced code block the escape gesture auto-closes, a thematic
+ * break with a guaranteed preceding blank line, and one image inserted then
+ * resized. `expectedMarkdown` is calibrated against the editor, not guessed:
  * loading it and re-serializing yields itself, and it round-trips stably.
  *
  * Two structural Enters need the source-delta `softEnter` rather than the frozen
@@ -17,13 +17,6 @@ import type { NoteFixture } from './types';
  */
 export const BIOLOGY_NOTE: NoteFixture = {
 	name: 'biology-note',
-	// The unclosed fenced code block below is followed by a summary/divider/image
-	// that stay separate live blocks while typing but GFM lazy-collapses into the
-	// fence on reload — byte-safe, structurally divergent (docs/issues.md). Exempt
-	// from the checkpoint convergence oracle; bytes stay guarded by round-trip +
-	// end-state equality.
-	unconvergedReason:
-		'content typed after an unclosed fenced code block (byte-safe reload-collapse)',
 	async build(g: Gestures): Promise<void> {
 		await g.typeText('# Cell Division and Photosynthesis');
 		await g.pressEnter();
@@ -127,6 +120,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'```\n' +
 		'photons = 8\n' +
 		'glucose = photons / 8\n' +
+		'```\n' +
 		'\n' +
 		'Summary follows the divider.\n' +
 		'\n' +

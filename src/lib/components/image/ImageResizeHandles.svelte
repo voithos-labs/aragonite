@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EditorEvents } from '../../editor-events';
 	import { clampWidth, snapWidth, resolveAspectLockedHeight, MIN_WIDTH } from './image-resize';
+	import { devWarn } from '../../dev-warn';
 
 	let {
 		getWidgetEl,
@@ -120,8 +121,8 @@
 		// Surface the "image suddenly becomes tiny on release" symptom with the
 		// upstream signals that would explain it (editorContentWidth=0, etc.) so
 		// the next occurrence is diagnosable without guessing.
-		if (import.meta.env.DEV && finalWidth <= MIN_WIDTH && Math.abs(e.clientX - startX) > 50) {
-			console.warn('[image-resize] suspicious commit', {
+		if (finalWidth <= MIN_WIDTH && Math.abs(e.clientX - startX) > 50) {
+			devWarn('image-resize', 'suspicious commit', {
 				startWidth,
 				finalWidth,
 				dx: e.clientX - startX,

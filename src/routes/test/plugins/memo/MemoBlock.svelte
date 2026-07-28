@@ -1,8 +1,9 @@
 <script lang="ts">
 	// Plain-mode editable leaf: a `%%`-prefixed memo that is always an editable
-	// text surface. All editing behavior (caret, IME, per-keystroke commits,
-	// undo batching, cross-block selection) lives in `createEditableLeaf`; this
-	// component owns only the text-sync view.
+	// text surface. All editing behavior (caret, IME, per-keystroke commits, undo
+	// batching, cross-block selection) — and the text-sync, focus-park, and
+	// mode-gated `contenteditable` — lives in `createEditableLeaf`; spreading
+	// `leaf.surfaceProps` wires the whole source surface.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -15,18 +16,6 @@
 		getPath: () => myPath,
 		getEl: () => el ?? null,
 		mode: 'plain'
-	});
-
-	// Sync the CST text into the view (tracks node.raw through sourceText).
-	$effect(() => {
-		leaf.syncSource();
-	});
-
-	// Windowed out while focused: hand focus to the editor root so the next
-	// keystroke routes through its document listener instead of <body>.
-	$effect(() => {
-		const view = el;
-		return () => leaf.parkFocus(view ?? null);
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────────────
@@ -55,26 +44,10 @@
 	} satisfies BlockComponent);
 </script>
 
-<!-- Plain mode keeps its source always mounted, so the component binds
-	contenteditable off the leaf's mode read — the leaf-tier reference wiring. -->
-<div
-	bind:this={el}
-	tabindex="0"
-	class="memo-block"
-	contenteditable={leaf.getPresentationMode() === 'reading' ? 'false' : 'true'}
-	role="textbox"
-	aria-label="Memo"
-	spellcheck="false"
-	oninput={leaf.onInput}
-	onkeydown={leaf.handleKeydown}
-	oncopy={leaf.onCopy}
-	oncut={leaf.onCut}
-	onpaste={leaf.onPaste}
-	onpointerdown={leaf.onPointerDown}
-	onfocusout={leaf.onFocusOut}
-	oncompositionstart={leaf.onCompositionStart}
-	oncompositionend={leaf.onCompositionEnd}
-></div>
+<!-- The leaf-tier reference wiring: one spread carries every handler, the
+	attributes, the text-sync + focus-park attachments, and the mode-gated
+	contenteditable a plain leaf's always-mounted source needs. -->
+<div bind:this={el} {...leaf.surfaceProps} class="memo-block" aria-label="Memo"></div>
 
 <style>
 	.memo-block {

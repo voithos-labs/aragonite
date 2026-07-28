@@ -3,10 +3,10 @@ import { nodeAt } from '$lib/tree-operations/node-ops';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createListOverrides } from '$lib/editor-actions/list-overrides';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
-	makeStickyColumn,
+	makeNestedActionsDeps,
+	makeNestedHarness,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
@@ -66,19 +66,16 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		const controller = createUndoController(deps);
 		const bundle = createStandardNestedActions(
 			createBlockListState(() => deps.doc.children[1]),
-			{
+			makeNestedActionsDeps({
 				index: 1,
-				get node() {
-					return deps.doc.children[1];
-				},
+				getNode: () => deps.doc.children[1],
 				path: [1],
-				stickyColumn: makeStickyColumn(),
 				parent: {
 					blockEdit: makeStubBlockEdit(),
 					focus: makeStubFocus(),
 					containerEdit: createContainerEditActions(deps, controller)
 				}
-			}
+			})
 		);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
@@ -89,31 +86,13 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 	});
 
 	it('container delete stores the deleted item path', async () => {
-		const { deps } = makeEditorActionsDeps([listOf(['one\n', 'two\n'])]);
-		const controller = createUndoController(deps);
-		const state = createBlockListState(() => deps.doc.children[0]);
-		const overrides = createListOverrides({
-			get index() {
-				return 0;
-			},
-			get node() {
-				return deps.doc.children[0];
-			},
-			get path() {
-				return [0];
-			},
-			state,
-			parentBlockEdit: makeStubBlockEdit(),
-			parentContainerEdit: createContainerEditActions(deps, controller)
-		})({
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit: {} as never
-		});
+		// The list item delete falls through to the shared core (via the list bundle),
+		// which still seeds the snapshot with the deleted item's deep path.
+		const h = makeNestedHarness([listOf(['one\n', 'two\n'])], { listOverrides: true, index: 0 });
 
-		await overrides.blockEdit!.deleteBlock!(1);
+		await h.bundle.blockEdit.deleteBlock(1);
 
-		const entry = lastUndoEntry(deps);
+		const entry = lastUndoEntry(h.deps);
 		expect(entry.selection.focus.path).toEqual([0, 1]);
 		expect(nodeAt(entry.snapshot, entry.selection.focus.path)).toBeTruthy();
 	});
@@ -125,28 +104,23 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		const liveQuote = () => deps.doc.children[1];
 		const liveList = () => liveQuote().children![0];
 
-		const quoteBundle = createStandardNestedActions(createBlockListState(liveQuote), {
-			index: 1,
-			get node() {
-				return liveQuote();
-			},
-			path: [1],
-			stickyColumn: makeStickyColumn(),
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit: rootContainerEdit
-			}
-		});
-		const listBundle = createStandardNestedActions(createBlockListState(liveList), {
-			index: 0,
-			get node() {
-				return liveList();
-			},
-			path: [1, 0],
-			stickyColumn: makeStickyColumn(),
-			parent: quoteBundle
-		});
+		const quoteBundle = createStandardNestedActions(
+			createBlockListState(liveQuote),
+			makeNestedActionsDeps({
+				index: 1,
+				getNode: liveQuote,
+				path: [1],
+				parent: {
+					blockEdit: makeStubBlockEdit(),
+					focus: makeStubFocus(),
+					containerEdit: rootContainerEdit
+				}
+			})
+		);
+		const listBundle = createStandardNestedActions(
+			createBlockListState(liveList),
+			makeNestedActionsDeps({ index: 0, getNode: liveList, path: [1, 0], parent: quoteBundle })
+		);
 
 		await listBundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 

@@ -19,12 +19,11 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 		// need to reveal; see its adjacent-only contract.)
 		revealPath: parent.focus.revealPath,
 		// `moveFocus` is sync and does not reveal an off-window inner target,
-		// unlike the root `moveFocus` (which routes through `revealPath`). Every
-		// caller steps by one from the focused caret (arrow navigation, widget
-		// edge, unwrap-merge) and out-of-range delegates to the parent by one, so
-		// the target is always within overscan of the pinned caret and therefore
-		// mounted. A hypothetical >overscan inner jump would silently no-op — VR-12
-		// (nested analog), latent and not currently reachable by any gesture.
+		// unlike the root `moveFocus` (which routes through `revealPath`). The
+		// adjacent-only precondition is the caller's: the target must sit within
+		// overscan of the pinned caret. A caller whose inner index can scale with
+		// anything other than caret distance must reveal first — VR-12 (nested
+		// analog; docs/design/virtual-rendering.md § VR Identifier Catalog).
 		async moveFocus(
 			innerIndex: number,
 			position: FocusPosition,

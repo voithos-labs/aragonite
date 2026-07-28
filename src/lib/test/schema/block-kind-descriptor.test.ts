@@ -172,10 +172,15 @@ describe('containerContract — strip / grid / opaque container-shape union', ()
 describe('blockFocus — whole-block-focus opt-in', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	it('no built-in kind declares blockFocus', () => {
-		for (const kind of ALL_BLOCK_KINDS) {
-			expect(getBlockKindDescriptor(kind).blockFocus, `${kind}.blockFocus`).toBeUndefined();
-		}
+	// thematicBreak is the one built-in on the model — an opaque, childless rule that
+	// is its own focus target. Pinned as an exact set, so a kind gaining or losing the
+	// declaration has to be a deliberate edit here rather than a silent widening.
+	it('thematicBreak is the only built-in kind declaring blockFocus', () => {
+		const declaring = ALL_BLOCK_KINDS.filter(
+			(kind) => getBlockKindDescriptor(kind).blockFocus !== undefined
+		);
+		expect(declaring).toEqual(['thematicBreak']);
+		expect(getBlockKindDescriptor('thematicBreak').blockFocus).toBe('whole-block');
 	});
 
 	it('survives leaf registration', () => {

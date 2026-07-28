@@ -11,47 +11,33 @@ import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
+/**
+ * Walk-space offset of a live `(node, offset)` DOM position. A position at or
+ * inside an atomic widget snaps to that widget's own walk boundary — the walk
+ * has no interior positions to report, and browsers do rebind carets into these
+ * contenteditable=false islands. An unreachable position reads as end-of-walk;
+ * callers that must distinguish "not mine" guard containment first.
+ */
 export function domTextOffsetAtNode(
 	container: HTMLElement,
 	node: Node,
 	offset: number
 ): DomTextOffset {
-	let count = 0;
-	let stopped = false;
-
-	function visit(current: Node): boolean {
-		if (stopped) return true;
-		if (current === node) {
-			if (current.nodeType === Node.TEXT_NODE) {
-				count += offset;
-			} else {
-				const cap = Math.min(offset, current.childNodes.length);
-				for (let i = 0; i < cap; i++) {
-					if (visit(current.childNodes[i])) return true;
-				}
-			}
-			stopped = true;
-			return true;
+	// Outside the container there is no landmark to find: document order against a
+	// disconnected tree is implementation-specific, so such a position reads as
+	// end-of-walk rather than as a nondeterministic offset.
+	const boundary = container.contains(node) ? positionBoundary(node, offset) : null;
+	let total = 0;
+	for (const seg of walkSegments(container)) {
+		const segNode = seg.kind === 'text' ? seg.node : seg.el;
+		if (seg.kind === 'widget' && seg.el.contains(node)) {
+			return asDomTextOffset(offset === 0 ? seg.start : seg.start + seg.len);
 		}
-		if (current.nodeType === Node.TEXT_NODE) {
-			count += current.textContent?.length ?? 0;
-			return false;
-		}
-		if (current.nodeType === Node.ELEMENT_NODE) {
-			const el = current as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				count += widgetRawLength(el);
-				return false;
-			}
-			for (const child of current.childNodes) {
-				if (visit(child)) return true;
-			}
-		}
-		return false;
+		if (segNode === node) return asDomTextOffset(seg.start + offset);
+		if (boundary && startsAtOrAfter(segNode, boundary)) return asDomTextOffset(seg.start);
+		total = seg.start + seg.len;
 	}
-
-	visit(container);
-	return asDomTextOffset(count);
+	return asDomTextOffset(total);
 }
 
 export interface DomPosition {
@@ -70,58 +56,31 @@ export function findDomTextOffsetTarget(
 	container: ParentNode,
 	target: DomTextOffset
 ): DomPosition | null {
-	let count = 0;
 	let last: DomPosition | null = null;
-
-	function visit(current: Node): DomPosition | null {
-		if (current.nodeType === Node.TEXT_NODE) {
-			const len = current.textContent?.length ?? 0;
-			if (count + len >= target) {
-				return { node: current, offset: target - count };
-			}
-			count += len;
-			last = { node: current, offset: len };
-			return null;
+	for (const seg of walkSegments(container)) {
+		if (seg.kind === 'text') {
+			if (seg.start + seg.len >= target) return { node: seg.node, offset: target - seg.start };
+			last = { node: seg.node, offset: seg.len };
+			continue;
 		}
-		if (current.nodeType === Node.ELEMENT_NODE) {
-			const el = current as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				const len = widgetRawLength(el);
-				const parent = el.parentNode;
-				const idx = parent ? Array.prototype.indexOf.call(parent.childNodes, el) : 0;
-				// Prefer landing in an adjacent text node — Chromium drops beforeinput
-				// at element-level offsets between two contenteditable=false islands.
-				if (count === target && parent) {
-					const prev = el.previousSibling;
-					if (prev && prev.nodeType === Node.TEXT_NODE) {
-						return { node: prev, offset: prev.textContent?.length ?? 0 };
-					}
-					return { node: parent, offset: idx };
-				}
-				if (count + len >= target && parent) {
-					const next = el.nextSibling;
-					if (next && next.nodeType === Node.TEXT_NODE) {
-						return { node: next, offset: 0 };
-					}
-					return { node: parent, offset: idx + 1 };
-				}
-				count += len;
-				if (parent) last = { node: parent, offset: idx + 1 };
-				return null;
+		const { el, start, len } = seg;
+		const parent = el.parentNode;
+		const idx = parent ? Array.prototype.indexOf.call(parent.childNodes, el) : 0;
+		// Prefer landing in an adjacent text node — Chromium drops beforeinput
+		// at element-level offsets between two contenteditable=false islands.
+		if (start === target && parent) {
+			const prev = el.previousSibling;
+			if (prev && prev.nodeType === Node.TEXT_NODE) {
+				return { node: prev, offset: prev.textContent?.length ?? 0 };
 			}
-			for (const child of current.childNodes) {
-				const result = visit(child);
-				if (result) return result;
-			}
+			return { node: parent, offset: idx };
 		}
-		return null;
-	}
-
-	// Iterate children rather than visiting `container` itself: a fragment root
-	// matches neither node-type branch, and the container is never a widget.
-	for (const child of container.childNodes) {
-		const found = visit(child);
-		if (found) return found;
+		if (start + len >= target && parent) {
+			const next = el.nextSibling;
+			if (next && next.nodeType === Node.TEXT_NODE) return { node: next, offset: 0 };
+			return { node: parent, offset: idx + 1 };
+		}
+		if (parent) last = { node: parent, offset: idx + 1 };
 	}
 	return last;
 }
@@ -143,49 +102,20 @@ export function widgetsIntersectingRange(
 	end: DomTextOffset
 ): HTMLElement[] {
 	const out: HTMLElement[] = [];
-	let count = 0;
-	function visit(current: Node): void {
-		if (current.nodeType === Node.TEXT_NODE) {
-			count += current.textContent?.length ?? 0;
-			return;
-		}
-		if (current.nodeType === Node.ELEMENT_NODE) {
-			const el = current as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				const len = widgetRawLength(el);
-				// Half-open intersection of the widget span [count, count+len) with
-				// the requested [start, end). A zero-length widget can't be covered.
-				if (len > 0 && count < end && start < count + len) {
-					out.push(el as HTMLElement);
-				}
-				count += len;
-				return;
-			}
-			for (const child of current.childNodes) visit(child);
+	for (const seg of walkSegments(container)) {
+		// Half-open overlap of the widget's [start, start+len) span with the
+		// requested [start, end); a zero-length widget can't be covered.
+		if (seg.kind === 'widget' && seg.len > 0 && seg.start < end && start < seg.start + seg.len) {
+			out.push(seg.el as HTMLElement);
 		}
 	}
-	visit(container);
 	return out;
 }
 
 /** Total walk length of `container` — its one-past-end walk position. */
 export function containerDomTextLength(container: ParentNode): DomTextOffset {
 	let count = 0;
-	function visit(node: Node): void {
-		if (node.nodeType === Node.TEXT_NODE) {
-			count += node.textContent?.length ?? 0;
-			return;
-		}
-		if (node.nodeType === Node.ELEMENT_NODE) {
-			const el = node as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				count += widgetRawLength(el);
-				return;
-			}
-			for (const child of node.childNodes) visit(child);
-		}
-	}
-	for (const child of container.childNodes) visit(child);
+	for (const seg of walkSegments(container)) count += seg.len;
 	return asDomTextOffset(count);
 }
 
@@ -199,29 +129,18 @@ export function widgetSpanContainingOffset(
 	container: ParentNode,
 	offset: DomTextOffset
 ): { start: DomTextOffset; end: DomTextOffset } | null {
-	let count = 0;
-	let found: { start: DomTextOffset; end: DomTextOffset } | null = null;
-	function visit(node: Node): void {
-		if (found || count > offset) return;
-		if (node.nodeType === Node.TEXT_NODE) {
-			count += node.textContent?.length ?? 0;
-			return;
-		}
-		if (node.nodeType === Node.ELEMENT_NODE) {
-			const el = node as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				const len = widgetRawLength(el);
-				if (len > 0 && count < offset && offset < count + len) {
-					found = { start: asDomTextOffset(count), end: asDomTextOffset(count + len) };
-				}
-				count += len;
-				return;
-			}
-			for (const child of node.childNodes) visit(child);
+	for (const seg of walkSegments(container)) {
+		if (seg.start > offset) break;
+		if (
+			seg.kind === 'widget' &&
+			seg.len > 0 &&
+			seg.start < offset &&
+			offset < seg.start + seg.len
+		) {
+			return { start: asDomTextOffset(seg.start), end: asDomTextOffset(seg.start + seg.len) };
 		}
 	}
-	for (const child of container.childNodes) visit(child);
-	return found;
+	return null;
 }
 
 /** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
@@ -282,6 +201,65 @@ export function createRangeAtDomTextOffsets(
 		setEndAtContainerEnd();
 	}
 	return range;
+}
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+type WalkSegment =
+	| { kind: 'text'; node: Node; start: number; len: number }
+	| { kind: 'widget'; el: Element; start: number; len: number };
+
+/**
+ * The classification every walk-space consumer shares: a text node contributes
+ * its textContent length, an atomic widget contributes its raw source length and
+ * is never descended, any other element is transparent (children walked in
+ * order). `root` may be a live block or a detached fragment; `start` is the
+ * running walk offset at each segment. Offsets stay plain numbers — consumers
+ * mint the `DomTextOffset` brand at the same sites the walks always did.
+ */
+function* walkSegments(root: ParentNode): Generator<WalkSegment> {
+	let count = 0;
+	function* visit(node: Node): Generator<WalkSegment> {
+		if (node.nodeType === Node.TEXT_NODE) {
+			const len = node.textContent?.length ?? 0;
+			yield { kind: 'text', node, start: count, len };
+			count += len;
+			return;
+		}
+		if (node.nodeType === Node.ELEMENT_NODE) {
+			const el = node as Element;
+			if (el.matches?.(WIDGET_SELECTOR)) {
+				const len = widgetRawLength(el);
+				yield { kind: 'widget', el, start: count, len };
+				count += len;
+				return;
+			}
+			for (const child of node.childNodes) yield* visit(child);
+		}
+	}
+	for (const child of root.childNodes) yield* visit(child);
+}
+
+/**
+ * A DOM position re-expressed as a document-order landmark, so a walk can find
+ * it without a parallel descent. Text positions need none: every text node under
+ * `container` is either a segment of its own or lives inside a widget.
+ */
+type PositionBoundary = { node: Node; side: 'before' | 'afterContents' };
+
+function positionBoundary(node: Node, offset: number): PositionBoundary | null {
+	if (node.nodeType === Node.TEXT_NODE) return null;
+	const child = node.childNodes[offset];
+	return child ? { node: child, side: 'before' } : { node, side: 'afterContents' };
+}
+
+function startsAtOrAfter(segNode: Node, boundary: PositionBoundary): boolean {
+	if (segNode === boundary.node) return boundary.side === 'before';
+	const mask = boundary.node.compareDocumentPosition(segNode);
+	if ((mask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
+	// A descendant follows the landmark's own start but precedes the end of its
+	// contents, so only the 'before' side counts it.
+	return boundary.side === 'before' || (mask & Node.DOCUMENT_POSITION_CONTAINED_BY) === 0;
 }
 
 function widgetRawLength(el: Element): number {

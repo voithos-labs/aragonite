@@ -50,10 +50,11 @@ test.describe('component-portal inline widgets', () => {
 
 		await clickWidgetCenter(editor.mathWidget);
 		await expect(editor.mathWidget).toHaveCount(0);
-		// Step past the opening `$`, insert inside the formula, commit.
+		// Step past the opening `$`, insert inside the formula, then walk the caret out
+		// of the source — the gesture that folds an edited reveal.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
-		await page.keyboard.press('Enter');
+		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
 		await editor.bridge.waitForSourceContains('$yx^2$');

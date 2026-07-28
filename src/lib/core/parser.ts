@@ -7,7 +7,12 @@
 import type { CstNode, Document } from './nodes';
 import { splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
-import { defaultGrammarView, type GrammarView, type OpenContext } from '../schema/block-openers';
+import {
+	defaultGrammarView,
+	type BlockOpenerResult,
+	type GrammarView,
+	type OpenContext
+} from '../schema/block-openers';
 import { assertInvariant } from '../invariants/assert';
 import { parseParagraph } from './parsers/paragraph';
 import { registerBuiltInOpeners } from './parsers/built-in-openers';
@@ -104,10 +109,10 @@ export function parseBlocks(
 			grammar,
 			depth
 		};
-		const { node, nextIndex } = parseNextBlock(ctx);
+		const { node, consumed } = parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
-		index = nextIndex;
+		index += consumed;
 	}
 
 	return { prefix, children, suffix: pendingTrivia };
@@ -115,7 +120,7 @@ export function parseBlocks(
 
 // ── Dispatch ────────────────────────────────────────────────────────────
 
-function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } {
+function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 	// At the nesting cap, no container may recurse further — everything folds into
 	// a paragraph so the remaining bytes stay covered without another stack frame.
 	if (ctx.depth >= MAX_NESTING_DEPTH) {
@@ -123,38 +128,51 @@ function parseNextBlock(ctx: OpenContext): { node: CstNode; nextIndex: number } 
 	}
 	for (const opener of ctx.grammar.orderedOpeners()) {
 		const result = opener.tryOpen(ctx);
-		if (result) {
-			if (import.meta.env.DEV) guardOpenerResult(ctx, result);
-			return result;
+		if (!result) continue;
+		if (result.consumed <= 0) {
+			reportNonAdvancingOpener(ctx, result);
+			continue;
 		}
+		if (import.meta.env.DEV) assertOpenerRawMatches(ctx, result);
+		return result;
 	}
 	// Paragraph is the total fallback; it also detects setext headings and tables.
 	return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 }
 
 /**
- * DEV-only trust check on a plugin opener's return, at the one site the parser
- * consumes it. A non-advancing `nextIndex` would spin the parse loop forever
- * (browser hang on load), so it throws — naming the offending kind — instead of
- * hanging. A `raw` that doesn't byte-match the consumed lines silently breaks
- * `serialize(parse(source)) === source` (serialize reads `raw` only), so it fires
- * the invariant channel. Both O(consumed lines); tree-shaken in production.
+ * The `[invariant:…]` fire behind the call site's decline. An opener that matched but
+ * consumed nothing is declined in every build, not just DEV: returning it would leave
+ * `index` where it was and spin the parse loop forever (a hung tab on document load),
+ * and declining is always safe — the next opener, ultimately the paragraph fallback,
+ * covers the line. The message names the decline as well as the kind, so an author can
+ * connect "my block renders as a paragraph" to its cause.
  */
-function guardOpenerResult(ctx: OpenContext, result: { node: CstNode; nextIndex: number }): void {
-	if (result.nextIndex <= ctx.index) {
-		throw new Error(
-			`block opener for kind "${result.node.kind}" did not advance past line ${ctx.index} — ` +
-				`an opener must consume at least one line (return nextIndex > ctx.index)`
-		);
-	}
+function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): void {
+	assertInvariant('opener-advance', () => ({
+		code: 'opener-did-not-advance',
+		message:
+			`block opener for kind "${result.node.kind}" claimed no line at ${ctx.index} and was ` +
+			`declined — an opener must consume at least one line (return consumed >= 1)`,
+		detail: result.node.kind
+	}));
+}
+
+/**
+ * DEV-only trust check on a plugin opener's `raw`, at the one site the parser
+ * consumes it: bytes that don't match the consumed lines silently break
+ * `serialize(parse(source)) === source` (serialize reads `raw` only).
+ * O(consumed lines); tree-shaken in production.
+ */
+function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-raw', () =>
-		result.node.raw === joinRaw(ctx.lines, ctx.index, result.nextIndex)
+		result.node.raw === joinRaw(ctx.lines, ctx.index, ctx.index + result.consumed)
 			? null
 			: {
 					code: 'opener-stale-raw',
 					message:
 						`opener for kind "${result.node.kind}" built raw that does not byte-match its ` +
-						`${result.nextIndex - ctx.index} consumed source line(s)`,
+						`${result.consumed} consumed source line(s)`,
 					detail: result.node.kind
 				}
 	);

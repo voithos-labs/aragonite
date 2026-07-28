@@ -12,6 +12,7 @@
  */
 
 import type { NodeView } from '../../../core/node-views';
+import { displayLength } from '../../../core/lines';
 import { sliceFencedCode } from './code-renderer';
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -21,6 +22,12 @@ export interface FenceBoundaryInput {
 	offset: number;
 	/** True when the user pressed Delete (forward) rather than Backspace. */
 	forward: boolean;
+}
+
+/** Display-text offset range, as the code gestures pass it around. */
+export interface CodeRange {
+	start: number;
+	end: number;
 }
 
 export type FenceBoundaryResult =
@@ -51,17 +58,13 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
 	const { node, offset, forward } = input;
 
 	const slice = sliceFencedCode(node);
-	const hasOpenerNewline = slice.openerLine.endsWith('\n');
-	const hasCloser = slice.closerLine.length > 0;
-	const bodyStart = slice.openerLine.length;
-	const closerStart = bodyStart + slice.body.length;
-	const bodyEnd = slice.body.endsWith('\n') ? closerStart - 1 : closerStart;
+	const { start: bodyStart, end: bodyEnd } = fenceBodyBounds(slice);
 
 	if (!forward) {
-		if (hasOpenerNewline && offset === bodyStart) return { kind: 'exitPrev' };
+		if (slice.openerLine.endsWith('\n') && offset === bodyStart) return { kind: 'exitPrev' };
 		return { kind: 'allow' };
 	}
-	if (hasCloser && offset === bodyEnd) return { kind: 'exitNext' };
+	if (slice.closerLine.length > 0 && offset === bodyEnd) return { kind: 'exitNext' };
 	return { kind: 'allow' };
 }
 
@@ -77,4 +80,36 @@ export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 	const openerLine = sliceFencedCode(node).openerLine;
 	const openerTextEnd = openerLine.endsWith('\n') ? openerLine.length - 1 : openerLine.length;
 	return offset < openerTextEnd ? openerLine.length : offset;
+}
+
+/**
+ * Clamp a whole range onto the body, for the gestures that rewrite entire LINES
+ * (Tab indent, Shift+Tab dedent). The fence lines are structure, not content: a
+ * tab on the closer pushes it past GFM's 3-space limit so it stops closing the
+ * block, and the fence then absorbs the rest of the document on reload; a tab on
+ * the opener demotes the whole block to an indented code block. Both survive the
+ * live session looking fine — the corruption lands at the next parse.
+ */
+export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
+	const bounds = fenceBodyBounds(sliceFencedCode(node));
+	// A fence with no body line yet (` ``` ` plus its ending) has a body start past
+	// the display text, so the block's own end is the floor everything collapses to.
+	const displayEnd = displayLength(node.raw);
+	const lo = Math.min(bounds.start, displayEnd);
+	const hi = Math.min(Math.max(bounds.end, lo), displayEnd);
+	const clamp = (offset: number) => Math.min(Math.max(offset, lo), hi);
+	return { start: clamp(range.start), end: clamp(range.end) };
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+/**
+ * The body's display-text bounds: `[start, end)` spans the content lines and
+ * excludes both fence lines. `end` reads the body's own trailing ending through
+ * `displayLength` — the old `closerStart - 1` assumed a one-character ending, so
+ * in a CRLF document the boundary landed BETWEEN the `\r` and the `\n`.
+ */
+function fenceBodyBounds(slice: ReturnType<typeof sliceFencedCode>): CodeRange {
+	const start = slice.openerLine.length;
+	return { start, end: start + displayLength(slice.body) };
 }

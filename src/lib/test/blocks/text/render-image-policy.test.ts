@@ -35,8 +35,8 @@ function makeDeps(node: CstNode, el: HTMLElement, initialPolicy: ImageLoadPolicy
 		get linkResolver() {
 			return undefined;
 		},
-		get linkSignature() {
-			return '';
+		get linkStamp() {
+			return '0';
 		},
 		get islands() {
 			return [];
@@ -44,6 +44,7 @@ function makeDeps(node: CstNode, el: HTMLElement, initialPolicy: ImageLoadPolicy
 		get presentationMode() {
 			return 'source' as const;
 		},
+		getDocument: () => undefined,
 		brokenUrlCache: new Set<string>()
 	};
 	return {

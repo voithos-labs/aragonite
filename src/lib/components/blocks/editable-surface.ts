@@ -2,9 +2,10 @@
  * Shared editable-surface plumbing for the core contenteditable blocks
  * (TextEditableBlock, CodeBlock, table/TableCellBlock) and the `editable-leaf`
  * seam plugin leaves build on. Owns the cross-block handler wiring, the
- * SharedKeydownContext, the BlockComponent surface methods, and the
- * input/composition skeleton. Each consumer constructs a CursorBackend for its
- * own coordinate system (ambient-aware, content-offset, or cell raw walker) and
+ * SharedKeydownContext, the BlockComponent surface methods, the input/composition
+ * skeleton, and — below the divider — the copy/cut/paste skeleton and its host
+ * image-import arm. Each consumer constructs a CursorBackend for its own
+ * coordinate system (ambient-aware, content-offset, or cell raw walker) and
  * supplies the per-surface input commit; the rest is identical.
  *
  * The component keeps its markup, render `$effect`, the F2 focus-park `$effect`,
@@ -14,19 +15,16 @@
  */
 
 import { tick } from 'svelte';
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	FocusActions,
-	HistoryActions
-} from '../../action-contracts';
+import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
 import type {
 	BlockElLookup,
 	DocumentGetter,
+	PasteImageHook,
 	PluginEditorLookup,
 	PresentationModeGetter
 } from '../../editor-keys';
+import type { EditorEvents } from '../../editor-events';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
@@ -43,10 +41,12 @@ import {
 } from '../../cursor/coordinate-spaces';
 import { findOffsetNearestX } from '../../cursor/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
+import { normalizeLineEndings } from '../../core/lines';
 import {
 	createCrossBlockHandlers,
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
+import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -61,6 +61,24 @@ export interface CursorBackend {
 	getRaw(): RawOffset | null;
 	setRaw(offset: RawOffset): void;
 	buildRange(start: RawOffset, end: RawOffset): Range | null;
+}
+
+/**
+ * Guarded pending-caret restore, shared by the three surfaces' render/sync passes.
+ * Applies only while `el` still holds focus, so a blur between arming the restore
+ * and the render drops it instead of yanking the global selection back into the
+ * just-blurred block. Returns whether it applied; callers own the pending field and
+ * clear it unconditionally afterward, so a skipped restore is never re-armed.
+ */
+export function consumePendingRestore<T>(
+	el: HTMLElement | null,
+	pending: T | null,
+	apply: (value: T) => void
+): boolean {
+	if (pending === null) return false;
+	const applied = document.activeElement === el;
+	if (applied) apply(pending);
+	return applied;
 }
 
 export interface EditableSurfaceDeps {
@@ -89,9 +107,11 @@ export interface EditableSurfaceDeps {
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
 	getEditorRoot: () => HTMLElement | null;
+	/** What scrolls this editor — the root in self mode, the host's scroller in host
+	 *  mode; threaded to the cross-block drag-select autoscroll. */
+	getScrollHost: () => HTMLElement | null;
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
-	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
@@ -105,10 +125,11 @@ export interface EditableSurfaceDeps {
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
-	 *  Optional at this seam: a leaf that omits it falls back to the global grammar
-	 *  (byte-identical). Supplied via `registryView.grammar` where a surface wires it. */
-	grammar?: GrammarView;
+	/** The instance's block grammar (`registryView.grammar`), forwarded to the
+	 *  cross-block join-paste reparse. Required-nullable to match the dispatch tier it
+	 *  feeds: a surface must answer the question, and `undefined` means the global
+	 *  grammar deliberately. */
+	grammar: GrammarView | undefined;
 
 	// ── SharedKeydownContext per-surface readers ──────────────────────────────
 	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
@@ -132,12 +153,24 @@ export interface EditableSurface {
 	crossBlock: CrossBlockHandlers;
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
+	caret: ClipboardCaretIO;
 	onInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
 }
 
-/** The BlockComponent methods shared verbatim across the three surfaces. */
+/**
+ * The caret door the clipboard seam borrows from its surface. `getEl` is here as a
+ * liveness test, because a host import hook can outlive the block that started the
+ * paste. Minted by `createEditableSurface` so each surface threads one value.
+ */
+export interface ClipboardCaretIO {
+	getEl: () => HTMLElement | null;
+	getCursorOffset: () => number | null;
+	focus: (offset: number) => void;
+}
+
+/** The BlockComponent methods shared verbatim across every editable surface. */
 export interface EditableSurfaceMethods {
 	focus(offset: number): void;
 	focusAtColumn(x: number, from: StickyColumnDirection): void;
@@ -157,9 +190,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getBlockElByPath: deps.getBlockElByPath,
 		revealPath: deps.focusActions.revealPath,
 		getEditorRoot: deps.getEditorRoot,
+		getScrollHost: deps.getScrollHost,
 		getEditorLifetime: deps.getEditorLifetime,
 		stickyColumn: deps.stickyColumn,
-		containerEdit: deps.containerEdit,
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		history: deps.history,
@@ -170,8 +203,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pasteCoordinator: deps.pasteCoordinator,
 		grammar: deps.grammar,
 		getCursorOffset: () => deps.backend.getRaw(),
-		afterReactivity: () => tick(),
-		setPendingCursor: (offset) => deps.setPendingCursor(offset)
+		afterReactivity: () => tick()
 	});
 
 	const sharedCtx: SharedKeydownContext = {
@@ -287,5 +319,216 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onInput();
 	}
 
-	return { crossBlock, sharedCtx, surface, onInput, onCompositionStart, onCompositionEnd };
+	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };
+
+	return { crossBlock, sharedCtx, surface, caret, onInput, onCompositionStart, onCompositionEnd };
+}
+
+// ── Clipboard skeleton ──────────────────────────────────────────────────────
+
+/**
+ * The ordered copy / cut / paste skeleton shared by the four editable surfaces
+ * (text, code, table cell, and the `editable-leaf` plugin seam). It owns the arms
+ * that must stay in lockstep — the reading-mode gate, the cross-block copy/cut
+ * write, the reveal fold, the host image-import arm, and the paste's
+ * preventDefault-before-any-await — so a new surface can neither skip a step nor
+ * resequence one. Each surface supplies only its genuinely-different arms: the
+ * intra-block payload tails, and the optional pre-cross-block arms (a
+ * selected-widget copy, an intra-table rect).
+ *
+ * The preventDefault discipline, stated once here so no call site re-derives it:
+ *  - Paste prevents before the first await, or the browser's native paste fires
+ *    during the reveal-fold tick (or the cross-block await) and injects DOM the
+ *    CST never sees.
+ *  - Cut prevents up front — every cut arm writes.
+ *  - Copy prevents as it writes: a cell with no selection writes nothing and lets
+ *    native copy through, so the copy arms (not the seam) own their prevent.
+ * Every READ and write goes through the event's synchronous `clipboardData` —
+ * `navigator.clipboard.writeText` is async/permission-gated and unreliable in
+ * Tauri's wry webview, and the event's own accessor is not dependably live once
+ * the handler has awaited.
+ */
+export interface ClipboardSurfaceDeps {
+	stickyColumn: StickyColumnState;
+	selection: SelectionState;
+	getDoc: DocumentGetter;
+	crossBlock: CrossBlockHandlers;
+	/** Reading mode: copy/cut write the visible selection string, paste is inert. */
+	isReadOnly: () => boolean;
+	/** The surface's caret door, borrowed by the image arm to anchor its insertion. */
+	caret: ClipboardCaretIO;
+	/** The instance event surface — the image arm's only channel for a host hook
+	 *  that rejects. Non-nullable so a surface cannot silently swallow every failed
+	 *  import; every surface sources it from `EditorServices.events`, which is itself
+	 *  non-optional, so there is nothing to widen for. */
+	events: EditorEvents;
+	/** Host image-import hook from the policies context. Undefined leaves an
+	 *  image-bearing paste on the text/plain path, exactly as before the hook. */
+	onPasteImage: PasteImageHook | undefined;
+	/** Fold a live inline-source reveal before a cut/paste mutates, so the mutation
+	 *  runs against a CST consistent with the swapped DOM; returns the committed
+	 *  caret, or null when nothing was revealed. Omit on a surface with no reveal. */
+	foldReveal?: () => number | null;
+	/** Pre-cross-block copy arm (selected-widget slice, intra-table rect). Returns
+	 *  true when it wrote the payload and the handler should stop; owns its own
+	 *  preventDefault. */
+	copyPreHook?: (e: ClipboardEvent) => boolean;
+	/** Pre-cross-block cut arm (selected-widget splice, intra-table rect cut). */
+	cutPreHook?: (e: ClipboardEvent) => boolean | Promise<boolean>;
+	/** The intra-block copy payload; owns its preventDefault. Omit to write the
+	 *  visible selection string (code, leaf); text and the cell slice their raw. */
+	copyTail?: (e: ClipboardEvent) => void;
+	/** The intra-block cut: a synchronous clipboardData write, then the CST delete. */
+	cutTail: (e: ClipboardEvent) => void | Promise<void>;
+	/** The intra-block paste after normalize: the surface's splice/dispatch, handed
+	 *  the normalized text and the reveal-fold landing caret. */
+	pasteTail: (
+		e: ClipboardEvent,
+		pastedText: string,
+		foldedCaret: number | null
+	) => void | Promise<void>;
+}
+
+export interface ClipboardHandlers {
+	onCopy(e: ClipboardEvent): void;
+	onCut(e: ClipboardEvent): Promise<void>;
+	onPaste(e: ClipboardEvent): Promise<void>;
+}
+
+export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
+	const crossDeps = { selection: deps.selection, getDoc: deps.getDoc, crossBlock: deps.crossBlock };
+
+	// Reading mode / plain-text surfaces copy what the reader sees — the native
+	// selection string, which drops the CSS-hidden markers — not a raw slice.
+	const writeVisibleSelection = (e: ClipboardEvent): void => {
+		e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
+	};
+
+	function onCopy(e: ClipboardEvent): void {
+		deps.stickyColumn.reset();
+		if (deps.isReadOnly()) {
+			e.preventDefault();
+			writeVisibleSelection(e);
+			return;
+		}
+		if (deps.copyPreHook?.(e)) return;
+		if (writeCrossBlockCopy(e, crossDeps)) return;
+		if (deps.copyTail) {
+			deps.copyTail(e);
+			return;
+		}
+		e.preventDefault();
+		writeVisibleSelection(e);
+	}
+
+	async function onCut(e: ClipboardEvent): Promise<void> {
+		deps.stickyColumn.reset();
+		e.preventDefault();
+		if (deps.isReadOnly()) {
+			onCopy(e);
+			return;
+		}
+		if (deps.foldReveal && deps.foldReveal() !== null) await tick();
+		if (await deps.cutPreHook?.(e)) return;
+		if (await writeCrossBlockCut(e, crossDeps)) return;
+		await deps.cutTail(e);
+	}
+
+	async function onPaste(e: ClipboardEvent): Promise<void> {
+		e.preventDefault();
+		if (deps.isReadOnly()) return;
+		// Both reads stay above the fold's tick — see the discipline above.
+		const importImage = deps.onPasteImage;
+		const images = importImage ? imageFilesOf(e.clipboardData) : [];
+		const foldedCaret = deps.foldReveal?.() ?? null;
+		if (foldedCaret !== null) await tick();
+		if (importImage && images.length > 0) {
+			deps.stickyColumn.reset();
+			await pasteImages(deps, importImage, e, images, foldedCaret);
+			return;
+		}
+		if (await deps.crossBlock.handlePaste(e)) return;
+		deps.stickyColumn.reset();
+		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+		if (!pastedText) return;
+		await deps.pasteTail(e, pastedText, foldedCaret);
+	}
+
+	return { onCopy, onCut, onPaste };
+}
+
+// ── Image-paste arm ─────────────────────────────────────────────────────────
+
+/** A paste can carry a plain attachment alongside its text; only image files
+ *  belong to the host hook, the rest stays on the text/plain path. */
+function imageFilesOf(data: DataTransfer | null): File[] {
+	return Array.from(data?.files ?? []).filter((file) => file.type.startsWith('image/'));
+}
+
+/**
+ * Offer each pasted image to the host hook in clipboard order, then insert what comes
+ * back — as ONE insertion, not one per image: a hook may return multi-line markdown,
+ * whose structural paste can split the block out from under a second insertion
+ * addressed at anchor + length, and one paste gesture owes the user one undo entry.
+ *
+ * The two branches place that insertion differently, and only one of them is frozen at
+ * paste time. Intra-block honours the anchor captured before the first await, so an
+ * import that takes seconds cannot follow a caret the user moved meanwhile. The
+ * cross-block branch instead reads `isCrossBlock` LIVE, because the seam it delegates
+ * to resolves endpoints by path at call time — so a multi-block selection made WHILE
+ * the import was in flight is the one that gets replaced, and a cross-block selection
+ * collapsed before the import landed falls through to the intra-block anchor. Both are
+ * documented in the requirement file; snapshotting the mode at paste time would fight
+ * the by-path seam, which is what makes the landing independent of which surface
+ * caught the event.
+ */
+async function pasteImages(
+	deps: ClipboardSurfaceDeps,
+	importImage: PasteImageHook,
+	e: ClipboardEvent,
+	images: File[],
+	foldedCaret: number | null
+): Promise<void> {
+	const anchor = deps.caret.getCursorOffset() ?? foldedCaret ?? 0;
+	const markdown: string[] = [];
+	for (const image of images) {
+		try {
+			const inserted = await importImage({
+				blob: image,
+				mimeType: image.type,
+				suggestedName: image.name || undefined
+			});
+			// Empty markdown skips like null: there is nothing to insert either way, and
+			// it keeps `text` below non-empty for the cross-block seam.
+			if (inserted) markdown.push(inserted);
+		} catch (error) {
+			// One failed import skips its image; the rest of the paste still lands.
+			deps.events.emit('error', { origin: 'command', error });
+		}
+	}
+	if (markdown.length === 0) return;
+	const text = markdown.join('');
+	// A multi-block selection is REPLACED, like every other paste route. Offered only
+	// once the hook has answered, so a declined or failed import destroys nothing —
+	// and offered to the cross-block seam rather than the surface tail because the
+	// delete collapses start-wins: the block that received this event may be the one
+	// merged away, while the seam addresses the survivor by path and lands the whole
+	// delete + insert in one undo entry.
+	if (await deps.crossBlock.handlePaste(e, text)) return;
+	// A hook slow enough to outlive its block leaves nothing to insert into, and the
+	// surface tails would fall back to offset 0 — markdown at a position the user
+	// never pointed at. Decline, loudly.
+	if (!deps.caret.getEl()) {
+		deps.events.emit('error', {
+			origin: 'command',
+			error: new Error('onPasteImage resolved after its block was gone; insertion declined')
+		});
+		return;
+	}
+	// Re-seat ONLY when the caret actually drifted. Seating collapses the DOM range,
+	// and every surface tail derives its replaced span from that range — so seating
+	// unconditionally would make this the one paste route that doesn't replace the
+	// selection it landed on.
+	if (deps.caret.getCursorOffset() !== anchor) deps.caret.focus(anchor);
+	await deps.pasteTail(e, text, foldedCaret);
 }

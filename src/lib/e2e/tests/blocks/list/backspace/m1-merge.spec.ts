@@ -1,6 +1,7 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 import { getContainerParityMismatches } from '../../../../container-parity';
+import { capturePageErrors } from '../../../../page-probes';
 
 test.describe('list Backspace — M1 merge on non-first item', () => {
 	let editor: EditorPage;
@@ -110,11 +111,10 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 	// trailing undefined keys.
 	test('M1 keeps children/childIds parity at every depth (rows 3+4 shape)', async ({ page }) => {
 		const consoleErrors: string[] = [];
-		const pageErrors: string[] = [];
 		page.on('console', (m) => {
 			if (m.type() === 'error' || m.type() === 'warning') consoleErrors.push(m.text());
 		});
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent('- A\n  - B\n    - C\n- D\n  - E\n');
 		const dItem = editor.page.locator('[contenteditable="true"]', { hasText: 'D' }).first();
@@ -134,8 +134,7 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		// Regression: Backspace at start of the item after a fenced-code-only item
 		// once threw inside the commit ceremony (DEV crash / prod dead key). It must
 		// now no-op structurally and move the caret to the previous item's code block.
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent('- ```\n  code\n  ```\n- text\n');
 		const textItem = editor.page.locator('[contenteditable="true"]', { hasText: 'text' }).first();
@@ -160,6 +159,9 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForListItemCount(4);
+		// The new empty item pushes Third to 4; without pinning that, the
+		// post-Backspace `3. Third` is just the document as loaded.
+		await editor.bridge.waitForSourceMatches(/^4\. Third$/m);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/3\.\s*Third/);
 		const source = await editor.bridge.getSource();

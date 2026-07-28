@@ -21,6 +21,7 @@
 
 import {
 	chromeChild,
+	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
@@ -89,27 +90,22 @@ export function registerDetailsKind(): void {
 			rebuildRaw: rebuildDetailsRaw,
 			reservedChrome: {
 				kind: detailsSummary,
-				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open
+				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
+				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
 		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=opaque — rebuildDetailsRaw' },
+		closure: containerClosure({
+			roundTripVia: 'container contract=opaque — rebuildDetailsRaw',
 			focus: { mode: 'implemented', via: 'focus walks to the summary chrome / first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=container + unwrapRole; collapse-aware merge walk'
 			},
-			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'children are real blocks — search descends and paints'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: {
 				mode: 'implemented',
-				via: 'updateOwnMetadata — the open-state toggle commits as one undoable metadataUpdate'
+				via: 'updateOwnMetadata — an open-state flip (disclosure toggle, or a reveal opening the expandPatch door) commits as one undoable metadataUpdate'
 			},
 			clipboard: {
 				mode: 'implemented',
@@ -119,7 +115,7 @@ export function registerDetailsKind(): void {
 				mode: 'implemented',
 				via: 'details container/windowing e2e under the [invariant:] watcher'
 			}
-		}
+		})
 	});
 
 	registerChromeLeaf(detailsSummary, { blockClass: 'details-summary' });
@@ -127,9 +123,9 @@ export function registerDetailsKind(): void {
 	registerBlockOpener(details, {
 		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
 		priority: OPENER_PRIORITIES.htmlBlock - 5,
-		// defensive parity, not current behavior: htmlBlock@70's type-6 interrupt
-		// already covers the canonical opener and details wins the re-dispatch at 65 —
-		// this guards against a future priority/interrupt regression.
+		// defensive parity, not current behavior: htmlBlock's type-6 interrupt already
+		// covers the canonical opener and details wins the re-dispatch — this guards
+		// against a future priority/interrupt regression.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
@@ -196,7 +192,7 @@ export function registerDetailsKind(): void {
 				lineEnding: ctx.line.lineEnding,
 				closerNewline: ctx.lines[closeIdx].lineEnding !== ''
 			});
-			return { node, nextIndex: closeIdx + 1 };
+			return { node, consumed: closeIdx + 1 - ctx.index };
 		}
 	});
 }

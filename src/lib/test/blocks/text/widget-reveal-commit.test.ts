@@ -9,9 +9,11 @@
 //      commit pushes a dead undo entry);
 //   2. the post-commit caret is the widget's live trailing edge, so an edit to the
 //      surrounding prose shifts it correctly (a length delta off the old end would not);
-//   3. a cross-block selection bails the commit, keeping the source revealed so a
-//      fold can't strand a selection endpoint anchored in the source text node.
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+//   3. the cross-block rule sits at the BLUR caller, not inside the commit: blur
+//      keeps the source revealed so its rects measure real text, while the clipboard
+//      fold still commits — the alternative is splicing node.raw bytes the ephemeral
+//      edit never reached.
+import { describe, it, expect } from 'vitest';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
@@ -20,10 +22,14 @@ import { createWidgetSelectionState } from '$lib/components/image/widget-selecti
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
 import { trimTrailingLineEnding } from '$lib/core/lines';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { stampMathWidget, resetInlineState } from './math-widget-fixture';
+import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import {
+	stampMathWidget,
+	installMathInline,
+	mountWidgetBlock,
+	widgetInteractionDeps
+} from './math-widget-fixture';
 
 interface Commit {
 	index: number;
@@ -32,77 +38,40 @@ interface Commit {
 	after: number;
 }
 
-beforeEach(() => {
-	resetInlineState();
-	registerMathInline();
-});
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	resetInlineState();
-});
+installMathInline();
 
 // A paragraph "Before $x^2$ after" mounted as TextEditableBlock renders it: the
 // math is one atomic [data-inline-widget] island between two real text nodes.
 function mountMathBlock() {
-	const node: CstNode = parse('Before $x^2$ after').children[0];
-	const math = computeInlineContent(node).find((n: InlineNode) => n.kind === MATH_INLINE)!;
-	const display = trimTrailingLineEnding(node.raw);
-
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(
-		document.createTextNode(node.raw.slice(0, math.start)),
-		stampMathWidget(math),
-		document.createTextNode(display.slice(math.end))
-	);
-	document.body.appendChild(el);
-	el.focus();
+	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
+	const math = inlineWidgets[0];
 
 	const commits: Commit[] = [];
-	const pendingCursors: (number | null)[] = [];
+	const pendingCursors: { offset: number | null; writtenText?: string }[] = [];
 	let crossBlock = false;
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the reveal-commit path');
 	};
-	const deps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get myPath() {
-			return [0];
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		getEditorContentWidth: () => 800,
-		cursor: new Proxy({}, { get: trap }),
-		widgetSelection,
-		blockEdit: {
-			updateBlockContent: (index: number, raw: string, before: number, after: number) => {
-				commits.push({ index, raw, before, after });
+	const interaction = createWidgetInteraction(
+		widgetInteractionDeps(
+			{ node, el },
+			{
+				cursor: new Proxy({}, { get: trap }),
+				blockEdit: {
+					updateBlockContent: (index: number, raw: string, before: number, after: number) => {
+						commits.push({ index, raw, before, after });
+					}
+				},
+				focusActions: new Proxy({}, { get: trap }),
+				setPendingCursor: (offset: number | null, writtenText?: string) => {
+					pendingCursors.push({ offset, writtenText });
+				},
+				setRevealing: () => {},
+				isCrossBlock: () => crossBlock
 			}
-		},
-		focusActions: new Proxy({}, { get: trap }),
-		getSnapTarget: () => null,
-		setSnapTarget: () => {},
-		setPendingCursor: (offset: number | null) => {
-			pendingCursors.push(offset);
-		},
-		readRawText: () =>
-			Array.from(el.childNodes).reduce((acc, child) => acc + rawTextOfNode(child, node.raw), ''),
-		setRevealing: () => {},
-		isCrossBlock: () => crossBlock,
-		get linkRef() {
-			return undefined;
-		}
-	} as unknown as WidgetInteractionDeps;
-
-	const interaction = createWidgetInteraction(deps);
+		)
+	);
 
 	// Entry from the leading edge opens the widget's reveal there and anchors undo at
 	// the widget's leading offset (math.start) — the anchor the commit assertions below
@@ -126,8 +95,11 @@ function mountMathBlock() {
 	};
 }
 
-async function commitViaEnter(interaction: ReturnType<typeof mountMathBlock>['interaction']) {
-	await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+// The fold seam every commit gesture funnels through — blur, a clipboard splice, a
+// block command. Driving it directly keeps these cases about the commit contract
+// rather than about whichever key happens to reach it.
+function commitViaFold(interaction: ReturnType<typeof mountMathBlock>['interaction']) {
+	interaction.foldRevealBeforeMutation();
 }
 
 describe('commitReveal — no-edit short-circuit', () => {
@@ -136,15 +108,45 @@ describe('commitReveal — no-edit short-circuit', () => {
 		await block.reveal();
 		expect(block.interaction.isRevealing()).toBe(true);
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		// The dead-undo-entry finding: a zero-diff updateBlockContent still pushes a
 		// snapshot, so the user's next Ctrl+Z reverts nothing.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(false);
 		// Folded back to the rendered widget via the focus-guarded pending cursor,
-		// landing at the widget's trailing edge.
-		expect(block.pendingCursors).toEqual([block.math.end]);
+		// landing at the widget's trailing edge. No text rides along: nothing was
+		// written, so the offset already addresses the CST's own bytes.
+		expect(block.pendingCursors).toEqual([{ offset: block.math.end, writtenText: undefined }]);
+	});
+});
+
+describe('handleRevealingKeydown — the keys a reveal claims', () => {
+	it('leaves Enter to the block, which splits after folding', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+
+		const consumed = await block.interaction.handleRevealingKeydown(
+			new KeyboardEvent('keydown', { key: 'Enter' })
+		);
+
+		// Declining is the whole contract: a claimed Enter cost the user the split,
+		// and nothing here may fold on its own — the command seam owns that order.
+		expect(consumed).toBe(false);
+		expect(block.interaction.isRevealing()).toBe(true);
+		expect(block.commits).toEqual([]);
+	});
+
+	it('still claims Escape', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+
+		const consumed = await block.interaction.handleRevealingKeydown(
+			new KeyboardEvent('keydown', { key: 'Escape' })
+		);
+
+		expect(consumed).toBe(true);
+		expect(block.interaction.isRevealing()).toBe(false);
 	});
 });
 
@@ -154,7 +156,7 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		await block.reveal();
 		block.sourceNode().textContent = '$yx^2$';
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		expect(block.commits).toHaveLength(1);
 		expect(block.commits[0]).toMatchObject({
@@ -172,15 +174,31 @@ describe('commitReveal — edit persistence and caret precision', () => {
 		// `widgetEnd + totalDelta` caret would land one char too far.
 		block.trailingTextNode().textContent = ' afterZ';
 
-		await commitViaEnter(block.interaction);
+		commitViaFold(block.interaction);
 
 		expect(block.commits).toHaveLength(1);
 		expect(block.commits[0].raw).toBe('Before $x^2$ afterZ\n');
 		expect(block.commits[0].after).toBe(block.math.end);
 	});
+
+	it('parks the caret together with the text that caret addresses', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+		block.sourceNode().textContent = '$yx^2$';
+
+		commitViaFold(block.interaction);
+
+		// The commit caret goes through the block-edit door, which a kind whose write
+		// sink rewrites bytes (tableCell escapes every free `|`) can map. The pending
+		// cursor bypasses that door, so it can only be mapped against the text it
+		// addresses — which therefore has to travel with it. Prose ignores the text.
+		expect(block.pendingCursors).toEqual([
+			{ offset: block.math.end + 1, writtenText: 'Before $yx^2$ after' }
+		]);
+	});
 });
 
-describe('commitReveal — cross-block bail', () => {
+describe('commitReveal — the cross-block rule lives at the blur caller', () => {
 	it('keeps the source revealed on blur while a selection spans blocks', async () => {
 		const block = mountMathBlock();
 		await block.reveal();
@@ -192,6 +210,23 @@ describe('commitReveal — cross-block bail', () => {
 		// node an endpoint is anchored in.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(true);
+	});
+
+	it('folds an edited source for the clipboard even mid-cross-block selection', async () => {
+		const block = mountMathBlock();
+		await block.reveal();
+		block.sourceNode().textContent = '$yx^2$';
+		block.setCrossBlock(true);
+
+		const caret = block.interaction.foldRevealBeforeMutation();
+
+		// A null return means "nothing was open", which is what the clipboard seam
+		// tests to decide whether to tick and fold. Refusing here let cut/paste
+		// splice the pre-reveal bytes and drop the edit with no undo entry.
+		expect(caret).not.toBeNull();
+		expect(block.commits).toHaveLength(1);
+		expect(block.commits[0].raw).toBe('Before $yx^2$ after\n');
+		expect(block.interaction.isRevealing()).toBe(false);
 	});
 });
 
@@ -236,7 +271,6 @@ describe('cancelReveal — identity-exact fold-back', () => {
 			getAmbientLength: () => 0,
 			getEditorContentWidth: () => 800,
 			widgetSelection,
-			getSnapTarget: () => null,
 			setSnapTarget: () => {},
 			setPendingCursor: () => {},
 			readRawText: () => '',

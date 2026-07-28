@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { capturePageErrors, FIXTURE_BYTES } from './vr-helpers';
+import { FIXTURE_BYTES } from './vr-helpers';
+import { capturePageErrors } from '../../page-probes';
 
 // VR-4 measure-batching guard. On a fling, many blocks mount in one frame; the
 // per-block measure-then-mutate path must not force one synchronous reflow per

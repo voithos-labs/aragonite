@@ -5,10 +5,26 @@ on:
   pull_request:
   workflow_dispatch:
 
+# No job needs to write anything back through GITHUB_TOKEN; actions/cache
+# authenticates to the cache service on its own, not through this scope.
+permissions:
+  contents: read
+
+# Cancel superseded PR runs — three pushes to an open PR otherwise run three full
+# matrices. Push runs (main) are NOT cancelled: main's pass/fail record per commit
+# is the thing the branch is protected on.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Third-party actions are pinned to commit SHAs with the version in a trailing
+# comment: a major tag is mutable, so a repoint silently changes what every job
+# runs. Bump the SHA and the comment together.
+#
 # Parallel jobs: the fast static+unit gate, the sharded Playwright e2e battery,
-# the prod-build perf gate, and the external-consumer realism gate (packs the
+# the prod-build perf gate, the external-consumer realism gate (packs the
 # library, installs the tarball into examples/consumer, and runs its
-# SSR-no-crash + hydration smoke).
+# SSR-no-crash + hydration smoke), and the emoji-table provenance gate.
 # e2e shards run every Playwright project via the dev webServer the playwright
 # config starts (the e2e-perf specs self-skip there unless PERF_GATE/PERF is
 # set; the dedicated perf job is what runs them, against the prod build).
@@ -16,8 +32,8 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
@@ -35,8 +51,8 @@ jobs:
       matrix:
         shard: ['1/4', '2/4', '3/4', '4/4']
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
@@ -44,7 +60,7 @@ jobs:
       # Cache the browser download (~100MB per run); `playwright install` skips
       # re-downloading a cached build and still installs the OS deps.
       - run: echo "PLAYWRIGHT_VERSION=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_ENV"
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
@@ -59,32 +75,45 @@ jobs:
       # unscaled gate stays the tight one.
       PERF_RUNNER_SCALE: '2.5'
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: echo "PLAYWRIGHT_VERSION=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_ENV"
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
       - run: npx playwright install --with-deps chromium
       # perf:check:prod builds and previews the app, then gates the keystroke rows
       # against that prod build (the e2e-perf-prod project) — a dev-server run would
-      # measure vite transform overhead, not the editor. Gate rows only: the
-      # attribution axes are diagnostic instruments with a recorded standing timeout
-      # on 1MB fixtures (docs/issues.md) — they are not part of the regression gate.
-      - run: npm run perf:check:prod -- --grep-invert attribution
+      # measure vite transform overhead, not the editor. The report-only rows exclude
+      # themselves via their own PERF_GATE skip, so this needs no row filter.
+      - run: npm run perf:check:prod
 
   consumer-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: node scripts/consumer-smoke.mjs
+
+  # The committed emoji table is a generated artifact no other gate reproduces, so
+  # a hand-edit or half-finished regen would ship silently. Its own job: no `npm ci`
+  # (the script imports node builtins only), and a drift reads as drift rather than
+  # as a failure buried in the unit suite. The fetch is of a pinned commit, so this
+  # is deterministic — a red here means the table changed, not that upstream did.
+  emoji-table:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - run: node scripts/verify-emoji-table.mjs

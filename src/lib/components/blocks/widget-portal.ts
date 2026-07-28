@@ -14,6 +14,7 @@
 
 import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
+import type { DocumentView } from '../../core/node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
 import { tracePoolPass } from '../../debug/interaction-trace';
@@ -145,13 +146,16 @@ interface PortalHandle {
  * mount throw is caught, reported through `reportError` (the editor's `error`
  * channel), and surfaced as null so the caller falls back to the raw span.
  *
- * `getPresentationMode` rides ALONGSIDE the frozen snapshot as a live getter prop:
- * pool reuse keys on `${kind} ${source}`, so an instance survives a mode flip —
- * a frozen mode value would go stale where the getter stays current.
+ * `getPresentationMode` and `getDocument` ride ALONGSIDE the frozen snapshot as
+ * live getter props: pool reuse keys on `${kind} ${source}`, so an instance
+ * survives a mode flip or a document edit elsewhere — a frozen value would go
+ * stale where the getter stays current (the footnote-number derivation depends on
+ * the live document, unchanged in source).
  */
 export function createSvelteWidgetPool(
 	reportError?: (error: unknown) => void,
-	getPresentationMode?: () => PresentationMode
+	getPresentationMode?: () => PresentationMode,
+	getDocument?: () => DocumentView | undefined
 ): WidgetPool {
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
@@ -165,7 +169,7 @@ export function createSvelteWidgetPool(
 			try {
 				const instance = mount(component, {
 					target: wrapper,
-					props: { inline, source, getPresentationMode }
+					props: { inline, source, getPresentationMode, getDocument }
 				});
 				return { wrapper, instance };
 			} catch (error) {

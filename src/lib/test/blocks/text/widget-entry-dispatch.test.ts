@@ -6,11 +6,8 @@
 // (inline math) open the source reveal at the direction-appropriate edge; non-reveal
 // kinds (image) keep select-then-step. This pins the split at both seams so a
 // regression to N−1-of-N sibling parity fails here, not only in e2e.
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import {
-	createWidgetInteraction,
-	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import {
 	createEdgePolicyDispatch,
 	type EdgePolicyDispatchDeps
@@ -20,21 +17,16 @@ import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
-import { rawTextOfNode, domTextOffsetAtNode } from '$lib/cursor/widget-offset';
+import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { AnyInlineKind, CstNode, InlineNode } from '$lib/core/nodes';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { stampMathWidget, resetInlineState } from './math-widget-fixture';
+import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { stampMathWidget, installMathInline, widgetInteractionDeps } from './math-widget-fixture';
+
+installMathInline();
 
 beforeEach(() => {
-	resetInlineState();
-	registerMathInline();
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
-});
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	resetInlineState();
 });
 
 // Mount a paragraph with one atomic widget island between two prose text nodes —
@@ -56,34 +48,20 @@ function mount(source: string, widgetKind: string) {
 
 	const commits: { index: number; raw: string; before: number; after: number }[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-	const interaction = createWidgetInteraction({
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get myPath() {
-			return [0];
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		getEditorContentWidth: () => 800,
-		cursor: new Proxy({}, { get: () => () => {} }),
-		widgetSelection,
-		blockEdit: { updateBlockContent: () => {} },
-		focusActions: new Proxy({}, { get: () => () => {} }),
-		getSnapTarget: () => null,
-		setSnapTarget: () => {},
-		setPendingCursor: () => {},
-		readRawText: () =>
-			Array.from(el.childNodes).reduce((acc, child) => acc + rawTextOfNode(child, node.raw), ''),
-		setRevealing: () => {},
-		isCrossBlock: () => false,
-		get linkRef() {
-			return undefined;
-		}
-	} as unknown as WidgetInteractionDeps);
+	const interaction = createWidgetInteraction(
+		widgetInteractionDeps(
+			{ node, el },
+			{
+				cursor: new Proxy({}, { get: () => () => {} }),
+				widgetSelection,
+				blockEdit: { updateBlockContent: () => {} },
+				focusActions: new Proxy({}, { get: () => () => {} }),
+				setPendingCursor: () => {},
+				setRevealing: () => {},
+				isCrossBlock: () => false
+			}
+		)
+	);
 
 	// The within-block caret-edge dispatch classifies the widget and calls the
 	// interaction's entry seam — the same split the cross-block enterEdgeWidget takes.
@@ -99,6 +77,7 @@ function mount(source: string, widgetKind: string) {
 		},
 		getEl: () => el,
 		getAmbientLength: () => 0,
+		hasIslands: () => false,
 		getRawSelection: () => null,
 		blockEdit: {
 			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
@@ -183,10 +162,10 @@ describe('edge dispatch — image kind keeps select-then-step', () => {
 // ── Atomic deleteGranularity: delete whole in one press, no select step ──────
 
 describe('edge dispatch — an atomic kind deletes whole on one press', () => {
-	// No shipped kind sets deleteGranularity:'atomic' (it awaits the inline-entity
-	// consumer), so reconfigure the math kind as a synthetic atomic widget to prove
-	// the field is honored, not inert. The beforeEach reset re-registers math clean
-	// for the next test, so the override never leaks.
+	// entityReference is the shipped deleteGranularity:'atomic' consumer (pinned in
+	// its own block below). Reconfiguring the math kind as a synthetic atomic widget
+	// proves the field is honored for ANY kind, not just the built-in entity. The
+	// beforeEach reset re-registers math clean for the next test, so it never leaks.
 	it('Backspace at the trailing edge removes the widget span through one CST edit', () => {
 		// MATH_INLINE is the raw kind string; the augment API takes the branded kind.
 		augmentInlineWidgetKind(MATH_INLINE as AnyInlineKind, {
@@ -212,6 +191,43 @@ describe('edge dispatch — an atomic kind deletes whole on one press', () => {
 		expect(b.dispatch.handleKeydown(b.key('Delete'), asRawOffset(b.widget.start))).toBe(true);
 		expect(b.commits).toHaveLength(1);
 		expect(b.commits[0].raw).not.toContain('$x^2$');
+	});
+});
+
+// ── Entity widget: the shipped step-over + atomic consumer ───────────────────
+
+describe('edge dispatch — entityReference steps over and deletes atomically', () => {
+	// `a&copy;b` renders © as an atomic widget spanning raw [1,7). No synthetic
+	// override — this pins the built-in entity policy the registry ships.
+	for (const [label, keyName, offsetSide] of [
+		['ArrowLeft at the trailing edge', 'ArrowLeft', 'end'],
+		['ArrowRight at the leading edge', 'ArrowRight', 'start']
+	] as const) {
+		it(`${label} declines so native steps the caret over the glyph, no select`, () => {
+			const b = mount('a&copy;b', 'entityReference');
+			const offset = asRawOffset(offsetSide === 'end' ? b.widget.end : b.widget.start);
+			// A false return leaves the arrow to native contenteditable, which walks the
+			// caret across the contenteditable=false island in one press.
+			expect(b.dispatch.handleKeydown(b.key(keyName), offset)).toBe(false);
+			expect(b.widgetSelection.getSelected()).toBeNull();
+			expect(b.commits).toHaveLength(0);
+		});
+	}
+
+	it('Backspace at the trailing edge removes the whole entity in one commit', () => {
+		const b = mount('a&copy;b', 'entityReference');
+		expect(b.dispatch.handleKeydown(b.key('Backspace'), asRawOffset(b.widget.end))).toBe(true);
+		expect(b.widgetSelection.getSelected()).toBeNull();
+		expect(b.commits).toHaveLength(1);
+		expect(b.commits[0].raw).toBe('ab');
+		expect(b.commits[0].after).toBe(b.widget.start);
+	});
+
+	it('Delete at the leading edge removes the whole entity the same way', () => {
+		const b = mount('a&copy;b', 'entityReference');
+		expect(b.dispatch.handleKeydown(b.key('Delete'), asRawOffset(b.widget.start))).toBe(true);
+		expect(b.commits).toHaveLength(1);
+		expect(b.commits[0].raw).toBe('ab');
 	});
 });
 

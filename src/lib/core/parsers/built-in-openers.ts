@@ -53,7 +53,7 @@ export function registerBuiltInOpeners(): void {
 					raw: ctx.line.raw,
 					metadata: { level: heading.level }
 				},
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		},
 		interruptsParagraph: (t) => matchHeading(t) !== null
@@ -73,7 +73,7 @@ export function registerBuiltInOpeners(): void {
 					raw: ctx.line.raw,
 					metadata: { marker }
 				},
-				nextIndex: ctx.index + 1
+				consumed: 1
 			};
 		},
 		// `---` is ambiguous with a setext L2 underline — the setext branch has
@@ -118,8 +118,9 @@ export function registerBuiltInOpeners(): void {
 	registerBlockOpener('htmlBlock', {
 		priority: OPENER_PRIORITIES.htmlBlock,
 		tryOpen(ctx) {
-			if (matchHtmlBlock(ctx.line.text) === null) return null;
-			return parseHtmlBlock(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+			const type = matchHtmlBlock(ctx.line.text);
+			if (type === null) return null;
+			return parseHtmlBlock(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, type);
 		},
 		interruptsParagraph: htmlCanInterrupt
 	});

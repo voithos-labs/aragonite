@@ -6,6 +6,7 @@ import { serialize } from '../../../core/serializer';
 import { buildLinkReferenceMap } from '../../../core/inline/link-reference-resolver';
 import { parseInline } from '../../../core/inline/index';
 import { metadataOf } from '../../../core/nodes';
+import { describeRoundTrips } from '$lib/test/support/round-trip';
 
 // ── Escaped brackets in labels (CommonMark §4.7) ────────────────────────────
 
@@ -127,22 +128,14 @@ describe('parseLinkReferenceDefinition — invalidating tails and interruptions'
 	});
 });
 
-describe('round-trip: link reference definition with escaped brackets', () => {
-	const cases = [
-		{ name: '\\] in label', source: '[foo\\]bar]: /url\n' },
-		{ name: '\\[ in label', source: '[foo\\[bar]: /url\n' },
-		{
-			name: 'definition + reference both with \\]',
-			source: '[foo\\]bar]: /url\n\n[foo\\]bar]\n'
-		}
-	];
-	for (const { name, source } of cases) {
-		it(`round-trips: ${name}`, () => {
-			const doc = parse(source);
-			expect(serialize(doc)).toBe(source);
-		});
+describeRoundTrips('round-trip: link reference definition with escaped brackets', [
+	{ name: '\\] in label', source: '[foo\\]bar]: /url\n' },
+	{ name: '\\[ in label', source: '[foo\\[bar]: /url\n' },
+	{
+		name: 'definition + reference both with \\]',
+		source: '[foo\\]bar]: /url\n\n[foo\\]bar]\n'
 	}
-});
+]);
 
 describe('reference resolution with escaped brackets in label', () => {
 	it('resolves an inline shortcut reference whose label contains \\]', () => {

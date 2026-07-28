@@ -68,9 +68,8 @@ test.describe('selection — pointer: edge cases', () => {
 		await editor.waitForCrossBlock(false);
 
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('beta');
+		await editor.bridge.waitForSourceContains('X');
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('beta');
 		const betaBlock = source.split('\n\n').find((s) => s.includes('beta'));
 		expect(betaBlock).toContain('X');
 	});

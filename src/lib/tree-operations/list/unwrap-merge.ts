@@ -8,14 +8,15 @@
 import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
+import { trailingLineEnding } from '../../core/lines';
 import type { SharingState } from '../sharing';
-import { cloneNode } from '../clone';
+import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
-import { freshChildIds } from '../../block-id';
+import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
@@ -80,10 +81,10 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		leadingTrivia: '',
 		raw: '',
 		metadata: clonedList.metadata
-			? ({ ...clonedList.metadata } as ListMetadata)
+			? (cloneMetadata(clonedList.metadata) as ListMetadata)
 			: { ordered: parentOrdered },
 		children: remainingItems,
-		childIds: freshChildIds(remainingItems),
+		childIds: assignIds(remainingItems),
 		innerPrefix: clonedList.innerPrefix ?? '',
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};
@@ -252,7 +253,7 @@ export function mergeListItemIntoPrevious(
 	const currentFirstParagraph = currentItem.children[0];
 	const currentFirstText = (currentFirstParagraph.raw ?? '').replace(/\r?\n$/, '');
 
-	const lineEnding = (targetParagraph.raw ?? '').endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
 	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
 
 	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);

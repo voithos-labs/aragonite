@@ -1,34 +1,10 @@
 import { test, expect } from '../../../fixtures';
-import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { boxesOf, dragBetweenBoxes } from './helpers';
+import { capturePageErrors } from '../../../page-probes';
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
-
-async function dragBetween(
-	page: Page,
-	fromBox: { x: number; y: number; width: number; height: number },
-	toBox: { x: number; y: number; width: number; height: number }
-): Promise<void> {
-	const sx = fromBox.x + fromBox.width / 2;
-	const sy = fromBox.y + fromBox.height / 2;
-	const ex = toBox.x + toBox.width / 2;
-	const ey = toBox.y + toBox.height / 2;
-	await page.mouse.move(sx, sy);
-	await page.mouse.down();
-	for (let i = 1; i <= 12; i++) {
-		const t = i / 12;
-		await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-	}
-	await page.mouse.up();
-}
-
-async function boxesOf(a: ReturnType<Page['locator']>, b: ReturnType<Page['locator']>) {
-	const ab = await a.boundingBox();
-	const bb = await b.boundingBox();
-	if (!ab || !bb) throw new Error('missing bounding box');
-	return [ab, bb] as const;
-}
 
 test.describe('table block: cross-block delete', () => {
 	let editor: EditorPage;
@@ -77,7 +53,7 @@ test.describe('table block: cross-block delete', () => {
 			page.getByText('Before.'),
 			page.locator('[role="cell"]').nth(3)
 		);
-		await dragBetween(page, paraBox, cellBox);
+		await dragBetweenBoxes(page, paraBox, cellBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| A | B |');
@@ -97,7 +73,7 @@ test.describe('table block: cross-block delete', () => {
 			page.locator('[role="cell"]').nth(3), // body row 1, col 1 = "2"
 			page.getByText('follow paragraph')
 		);
-		await dragBetween(page, cellBox, paraBox);
+		await dragBetweenBoxes(page, cellBox, paraBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
@@ -121,7 +97,7 @@ test.describe('table block: cross-block delete', () => {
 			page.locator('[role="cell"]').nth(3),
 			page.getByText('follow paragraph')
 		);
-		await dragBetween(page, cellBox, paraBox);
+		await dragBetweenBoxes(page, cellBox, paraBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 |');
@@ -182,7 +158,7 @@ test.describe('table block: cross-block delete', () => {
 			page.locator('[role="cell"]').nth(3),
 			page.locator('[role="cell"]').nth(5)
 		);
-		await dragBetween(page, fromBox, toBox);
+		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
@@ -196,7 +172,7 @@ test.describe('table block: cross-block delete', () => {
 			page.locator('[role="cell"]').nth(1),
 			page.locator('[role="cell"]').nth(7)
 		);
-		await dragBetween(page, fromBox, toBox);
+		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('| A | C |');
@@ -213,7 +189,7 @@ test.describe('table block: cross-block delete', () => {
 			page.locator('[role="cell"]').nth(0),
 			page.locator('[role="cell"]').nth(4)
 		);
-		await dragBetween(page, fromBox, toBox);
+		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('|  |  | C |');
@@ -230,7 +206,7 @@ test.describe('table block: cross-block delete', () => {
 			page.locator('[role="cell"]').nth(2),
 			page.locator('[role="cell"]').nth(3)
 		);
-		await dragBetween(page, fromBox, toBox);
+		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
@@ -296,7 +272,7 @@ test.describe('table block: cross-block delete', () => {
 		// whole-row snap would clear the wrong cell in the second table, leaving an
 		// empty leading cell (`|  | 2 |`) — partial-clear corruption.
 		const [fromBox, toBox] = await boxesOf(cells.nth(3), cells.nth(7));
-		await dragBetween(page, fromBox, toBox);
+		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('Z');
@@ -321,8 +297,7 @@ test.describe('table block: cross-block delete', () => {
 		// proxy-wrapped, so resolving its survivor path by node identity — instead
 		// of re-reading through the tree — throws "surviving block not found". A
 		// top-level prose end never reaches this: it mutates a plain proxy-doc clone.
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 
 		const source = `${TABLE_2x3}\n> quoted text\n`;
 		await editor.loadContent(source);
@@ -332,7 +307,7 @@ test.describe('table block: cross-block delete', () => {
 		if (!cellBox) throw new Error('missing cell bounding box');
 		// Nested prose endpoint: the paragraph inside the blockquote at [1, 0].
 		const endPoint = await editor.pointForOffset([1, 0], 3);
-		await dragBetween(page, cellBox, { x: endPoint.x, y: endPoint.y, width: 0, height: 0 });
+		await dragBetweenBoxes(page, cellBox, { x: endPoint.x, y: endPoint.y, width: 0, height: 0 });
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		// Bounded settle: on success the source mutates; on the survivor-path throw

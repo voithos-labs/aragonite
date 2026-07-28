@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { capturePageErrors } from '../../../page-probes';
 
 // 12 columns at ~150px each overflow `.table-block`'s overflow-x in an 800px
 // viewport, so the late columns start scrolled off the right edge. Header row is
@@ -24,8 +25,7 @@ test.describe('table block: column drag on a wide (overflowing) table', () => {
 
 	test('autoscroll reveals a clipped column and the drag drops onto it', async ({ page }) => {
 		test.setTimeout(60_000);
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent(WIDE_TABLE);
 		const tableEl = page.locator('[role="table"]').first();

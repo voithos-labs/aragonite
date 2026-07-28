@@ -1,22 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { renderKeySegmentDiff, islandRenderKeyPart } from '$lib/components/blocks/text/text-render';
+import { renderKeySegmentDiff } from '$lib/components/blocks/text/text-render';
+import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
 
-// A renderKey is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}${islandPart}`,
-// where mode is '' in source and islandPart is '' or `\0<sig>`. The diff names
-// which of the six segments moved — the interaction trace's rebuild cause. These
-// pin the decomposition directly, off the recorder path (the dump is never an
-// assertion target).
+// A renderKey is
+// `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}${islandPart}`, where
+// mode is '' in source and islandPart is '' or `\0<sig>`. The diff names which
+// segment moved — the interaction trace's rebuild cause. These pin the
+// decomposition directly, off the recorder path (the dump is never an assertion
+// target).
 function key(parts: {
 	ambient?: string;
 	raw: string;
 	ref?: string;
 	img?: string;
 	mode?: string;
+	kind?: string;
 	islands?: string;
 }) {
-	return `${parts.ambient ?? ''}\0${parts.raw}\0${parts.ref ?? ''}\0${parts.img ?? ''}\0${parts.mode ?? ''}${parts.islands ?? ''}`;
+	return `${parts.ambient ?? ''}\0${parts.raw}\0${parts.ref ?? ''}\0${parts.img ?? ''}\0${parts.mode ?? ''}\0${parts.kind ?? 'paragraph'}${parts.islands ?? ''}`;
 }
 
 const island = (offset: number): IndexedDecoration<WidgetDecoration | ReplaceDecoration> => ({
@@ -49,6 +52,12 @@ describe('renderKeySegmentDiff', () => {
 		expect(
 			renderKeySegmentDiff(key({ raw: 'x', img: 'auto' }), key({ raw: 'x', img: 'placeholder' }))
 		).toBe('imgPolicy');
+	});
+
+	it('names kind when the block kind flips under an unchanged raw', () => {
+		expect(renderKeySegmentDiff(key({ raw: '# a' }), key({ raw: '# a', kind: 'heading' }))).toBe(
+			'kind'
+		);
 	});
 
 	it('names islands when the island part appears', () => {

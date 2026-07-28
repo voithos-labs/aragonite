@@ -74,19 +74,19 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	// At end-of-display the inserted `\n` becomes the block's trailing ending, so the
-	// original is not reattached (reattaching would double it into a blank line). The
-	// break is transitional there; the caret clamps to the new display length — one
-	// past the trailing `\`, valid immediately.
+	// At end-of-display the break's own line ending becomes the block's trailing
+	// ending, so the original is not reattached (reattaching would double it into a
+	// blank line). The break is transitional there; the caret clamps to the new
+	// display length — one past the trailing `\`, valid immediately.
 	it('emits the transitional break at end of display text, caret clamped', () => {
 		const r = insertHardBreak('abc\n', 3);
 		expect(r.newRaw).toBe('abc\\\n');
 		expect(r.caretOffset).toBe(4);
 	});
 
-	it('collapses a CRLF ending at end-of-display, caret clamped', () => {
+	it('keeps the CRLF ending at end-of-display, caret clamped', () => {
 		const r = insertHardBreak('abc\r\n', 3);
-		expect(r.newRaw).toBe('abc\\\n');
+		expect(r.newRaw).toBe('abc\\\r\n');
 		expect(r.caretOffset).toBe(4);
 	});
 
@@ -96,10 +96,10 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(4);
 	});
 
-	it('preserves trailing CRLF', () => {
+	it('gives a mid-display break the block CRLF ending, caret past it', () => {
 		const r = insertHardBreak('abc\r\n', 1);
-		expect(r.newRaw).toBe('a\\\nbc\r\n');
-		expect(r.caretOffset).toBe(3);
+		expect(r.newRaw).toBe('a\\\r\nbc\r\n');
+		expect(r.caretOffset).toBe(4);
 	});
 
 	it('handles raw with no trailing line ending', () => {

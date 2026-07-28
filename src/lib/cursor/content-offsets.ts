@@ -1,9 +1,10 @@
 /**
- * Cursor / range / selection helpers for contenteditable text surfaces.
- * Offsets count DOM text characters ambient-inclusively (`Range.toString()`
- * does not skip contenteditable=false islands), so they are `DomTextOffset`.
- * Consumers are zero-ambient, widget-free surfaces (code, plugin leaves, table
- * cells) where the space coincides numerically with raw.
+ * Cursor / range / selection helpers for contenteditable text surfaces. Offsets
+ * count DOM text characters ambient-inclusively (`Range.toString()` does not skip
+ * contenteditable=false islands), so they are `DomTextOffset`. A requested offset
+ * inside an atomic inline widget snaps to the widget's leading or trailing edge, so
+ * widget-bearing surfaces (table cells, plugin leaves) are valid consumers alongside
+ * plain prose.
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';

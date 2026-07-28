@@ -20,6 +20,7 @@ import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
 import type { UndoController } from './editor-actions/deps';
 import type { ReorderAction } from './editor-actions/reorder-action';
@@ -38,6 +39,18 @@ export type ReorderAnnounce = (message: string) => void;
 export type KeybindingOverridesGetter = () => KeybindingOverrideMap;
 export type ResolveImageUrl = (rawUrl: string) => string;
 export type ResolveLinkUrl = (rawUrl: string) => string;
+
+/** One image file lifted off an image-bearing paste, handed to the host's import
+ *  hook. `suggestedName` is the clipboard's filename when it carried one. */
+export interface PastedImage {
+	blob: Blob;
+	mimeType: string;
+	suggestedName?: string;
+}
+
+/** Host import hook for pasted images: resolves to the markdown to insert, or null
+ *  to skip that image. Called once per image file, in clipboard order. */
+export type PasteImageHook = (image: PastedImage) => Promise<string | null>;
 export type PresentationModeGetter = () => PresentationMode;
 export type PluginEditorLookup = (pluginName: string) => EditorContext;
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
@@ -48,9 +61,15 @@ export type WidthVersionGetter = () => number;
 /** Resolver ref read by inline parsers in block components. Wrapped in a
  *  `{ current }` accessor so the shell can rebuild the resolver after each
  *  commit without invalidating descendants' getContext bindings. `signature`
- *  is the LRD-set snapshot that reference-bearing render memos key on so they
- *  re-render when a definition elsewhere changes. */
-export type LinkReferenceResolverRef = { current?: LinkReferenceResolver; signature?: string };
+ *  is the LRD-set snapshot the lazy inline cache validates on; `epoch` is a
+ *  compact stamp the shell bumps in lockstep with it, so reference-bearing
+ *  render memos can key on the epoch instead of concatenating the whole
+ *  (~MB-scale) signature into their key every keystroke. */
+export type LinkReferenceResolverRef = {
+	current?: LinkReferenceResolver;
+	signature?: string;
+	epoch?: number;
+};
 
 // ── Action triple (per-key: containers re-provide these three) ───────────────
 
@@ -125,6 +144,9 @@ export interface EditorServices {
 	 *  BlockHost resolves component/descriptor through it so a per-instance
 	 *  enablement filter reaches the render path. */
 	registryView: RegistryView;
+	/** The instance's rect surface, delivered to every block component as a prop
+	 *  so a block can measure/reveal/scroll by path through the one seam. */
+	rects: EditorRects;
 }
 
 /** Host-supplied render/behavior policies: URL resolution, load and drag-handle
@@ -140,6 +162,10 @@ export interface EditorPolicies {
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
 	keybindingOverrides: KeybindingOverridesGetter;
+	/** Set-once host import hook for image-bearing pastes. Required-nullable: a
+	 *  mount must answer, and `undefined` leaves such a paste on the text/plain
+	 *  path deliberately. */
+	onPasteImage: PasteImageHook | undefined;
 	/** Per-editor cache of resolved image URLs that failed to load this session —
 	 *  one Set per instance so a failed load never suppresses another editor's
 	 *  broken-state recompute (`components/image/widget-dom.ts`). */
@@ -160,11 +186,22 @@ export interface EditorDoc {
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;
 	editorRoot: () => HTMLElement | null;
+	/** What a drag autoscrolls to reach more of this editor: the root in self mode,
+	 *  the nearest USER-scrollable ancestor in host mode, null when the page's own
+	 *  viewport scrolls. One resolution per instance. What BOUNDS the editor's
+	 *  visible region is a separate question with a separate answer (the whole
+	 *  clipping chain, held by the rect surface) — see `cursor/scroll-ancestors`. */
+	scrollHost: () => HTMLElement | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; drives per-level VR pins. */
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
 	heightOracle: HeightOracle;
+	/** False in host-scroll mode, where the root is not a scrollport and there is no
+	 *  viewport to window against: every scope stays inactive and mounts all its
+	 *  children. Set once at mount — a windowing scope reads it inside its window
+	 *  derived, so a live prop read here would make it a keystroke-path dependency. */
+	windowingEnabled: () => boolean;
 	/** Monotonic width-change counter the root bumps on an editor width resize, so
 	 *  every windowing scope rebuilds its model and re-measures at the new width. */
 	widthVersion: WidthVersionGetter;

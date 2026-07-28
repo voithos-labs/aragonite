@@ -18,11 +18,13 @@ test.describe('list indent — ref alignment via registry', () => {
 		await editor.page.keyboard.press('Tab');
 
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('- nested under two');
+		await editor.bridge.waitForSourceContains('Xthree');
 
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('- nested under two');
-		expect(src).toContain('Xthree');
+		// Nesting, not just the typed char: bare 'Xthree' also passes when Tab
+		// no-ops and only the typing lands.
+		expect(src).toMatch(/^ {2}- Xthree$/m);
 	});
 
 	test('Tab-indent into a fresh nested list focuses the moved item', async () => {

@@ -97,3 +97,10 @@ export function rawHasNoTextBefore(raw: string, offset: number): boolean {
 export function rawHasNoTextAfter(raw: string, offset: number): boolean {
 	return raw.slice(offset).trim() === '';
 }
+
+/** The live inline-widget island element whose source starts at `start`, or null.
+ *  The one selector every widget-island lookup shares — a typo'd copy would fail
+ *  silently (querySelector null). */
+export function widgetElByStart(el: HTMLElement, start: number): HTMLElement | null {
+	return el.querySelector<HTMLElement>(`[data-inline-widget][data-source-start="${start}"]`);
+}

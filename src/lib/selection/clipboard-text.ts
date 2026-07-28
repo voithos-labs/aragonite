@@ -10,10 +10,11 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
+import { cellRowCol } from '../cursor/coordinate-spaces';
 import { displayLength } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
 import { isReservedChromeChild } from '../schema/reserved-chrome';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -80,8 +81,8 @@ export function collectCrossBlockText(
 				startTail = startRaw.slice(startOffset);
 			}
 		} else if (startOffset > 0 && start.path.length > 1) {
-			startTail =
-				startPartialWithContainerMarker(doc, start, startRaw) ?? startRaw.slice(startOffset);
+			const marker = soleChildContainerPrefix(doc, start.path, startRaw);
+			startTail = (marker ?? '') + startRaw.slice(startOffset);
 		} else {
 			startTail = startRaw.slice(startOffset);
 		}
@@ -107,7 +108,8 @@ export function collectCrossBlockText(
 				endHead = endRaw.slice(0, endOffset);
 			}
 		} else if (endOffset > 0 && endOffset < displayLength(endRaw) && end.path.length > 1) {
-			endHead = endPartialWithContainerMarker(doc, end, endRaw) ?? endRaw.slice(0, endOffset);
+			const marker = soleChildContainerPrefix(doc, end.path, endRaw);
+			endHead = (marker ?? '') + endRaw.slice(0, endOffset);
 		} else {
 			endHead = endRaw.slice(0, endOffset);
 		}
@@ -163,8 +165,8 @@ function emitTablePortion(
 	if (startCellIdx === 0 && endCellIdxExclusive === allCellsCount) {
 		return table.raw;
 	}
-	const startRow = Math.floor(startCellIdx / colCount);
-	const endRow = Math.floor((endCellIdxExclusive - 1) / colCount);
+	const startRow = cellRowCol(startCellIdx, colCount).row;
+	const endRow = cellRowCol(endCellIdxExclusive - 1, colCount).row;
 	return copyRectangleAsSubTable(
 		table,
 		{ rowIdx: startRow, colIdx: 0 },
@@ -173,57 +175,32 @@ function emitTablePortion(
 }
 
 /**
- * Mirror of {@link endPartialWithContainerMarker} for the start endpoint.
- * Without the container marker, CommonMark §5.2 prevents subsequent "N."
- * lines from interrupting the paragraph, collapsing the round-trip into a
- * single multi-line block.
+ * The container marker prefix a partial-leaf clipboard slice must keep when the
+ * leaf is the sole child of a strip container (e.g. "3. " so "3. thi" survives
+ * rather than "thi"). Without it, CommonMark §5.2 stops a following "N." line
+ * from interrupting the paragraph and the round-trip collapses into one
+ * multi-line block. Null when the container isn't eligible — the callers prepend
+ * nothing and keep the bare leaf slice.
+ *
+ * Eligibility is the descriptor's `strip` contract (raw is a per-line marker
+ * around serialize(children)), not a kind list: listItem, blockquote, githubAlert
+ * and footnote-def all recover their wrapper by the same suffix arithmetic.
+ *
+ * Sole-child is required: with earlier siblings, their text sits between the
+ * marker and the leaf's raw, so the suffix arithmetic wouldn't recover a prefix.
  */
-function startPartialWithContainerMarker(
+function soleChildContainerPrefix(
 	doc: DocumentView,
-	start: SelectionPoint,
-	startRaw: string
+	leafPath: number[],
+	leafRaw: string
 ): string | null {
-	const parentPath = start.path.slice(0, -1);
-	const parent = nodeAt(doc, parentPath);
+	const parent = nodeAt(doc, leafPath.slice(0, -1));
 	if (!parent || !isBlockNode(parent) || !parent.children) return null;
-	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
-
+	if (tryGetBlockKindDescriptor(parent.kind)?.containerContract !== 'strip') return null;
 	if (parent.children.length !== 1) return null;
-	if (start.path[start.path.length - 1] !== 0) return null;
-
-	const parentRaw = parent.raw;
-	if (!parentRaw.endsWith(startRaw)) return null;
-
-	const prefix = parentRaw.slice(0, parentRaw.length - startRaw.length);
-	return prefix + startRaw.slice(charOffsetOf(start, 'startPartialWithContainerMarker'));
-}
-
-/**
- * Prepend the container marker to a partial leaf slice when the leaf is the
- * sole child of a listItem / blockquote, so the clipboard retains structural
- * formatting (e.g. "3. thi" rather than "thi"). Returns null when the
- * container isn't eligible; callers fall back to the plain leaf slice.
- */
-function endPartialWithContainerMarker(
-	doc: DocumentView,
-	end: SelectionPoint,
-	endRaw: string
-): string | null {
-	const parentPath = end.path.slice(0, -1);
-	const parent = nodeAt(doc, parentPath);
-	if (!parent || !isBlockNode(parent) || !parent.children) return null;
-	if (parent.kind !== 'listItem' && parent.kind !== 'blockquote') return null;
-
-	// Prefix recovery requires the leaf be the sole child — otherwise earlier
-	// siblings' text sits between the marker and the leaf's raw.
-	if (parent.children.length !== 1) return null;
-	if (end.path[end.path.length - 1] !== 0) return null;
-
-	const parentRaw = parent.raw;
-	if (!parentRaw.endsWith(endRaw)) return null;
-
-	const prefix = parentRaw.slice(0, parentRaw.length - endRaw.length);
-	return prefix + endRaw.slice(0, charOffsetOf(end, 'endPartialWithContainerMarker'));
+	if (leafPath[leafPath.length - 1] !== 0) return null;
+	if (!parent.raw.endsWith(leafRaw)) return null;
+	return parent.raw.slice(0, parent.raw.length - leafRaw.length);
 }
 
 /**

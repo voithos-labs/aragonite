@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
+import { parseInline } from '../../../../core/inline';
 import { scanInline } from '../../../../core/inline/scan';
+import { __resetInlineSyntaxForTests } from '../../../../core/inline/scan/plugin-syntax';
 import {
 	normalizeLinkLabel,
 	type LinkReferenceResolver,
@@ -36,11 +38,27 @@ export function assertChildCoverage(parent: InlineNode, markerRanges: MarkerRang
 	expect(pos).toBe(parent.end);
 }
 
-const EMPHASIS_MARKER_LEN: Partial<Record<InlineNode['kind'], number>> = {
+const FIXED_MARKER_LEN: Partial<Record<InlineNode['kind'], number>> = {
 	emphasis: 1,
-	strong: 2,
-	strikethrough: 2
+	strong: 2
 };
+
+// Emphasis and strong carry a fixed marker width; strikethrough runs are 1 or 2
+// tildes (cmark-gfm), so its width is derived from the leading child boundary and
+// checked for symmetry, catching a parser that mis-sized one side.
+function emphasisMarkerLen(node: InlineNode): number | undefined {
+	const fixed = FIXED_MARKER_LEN[node.kind];
+	if (fixed !== undefined) return fixed;
+	if (node.kind !== 'strikethrough') return undefined;
+	const children = node.children ?? [];
+	const interiorStart = children.length > 0 ? children[0].start : node.end;
+	const interiorEnd = children.length > 0 ? children[children.length - 1].end : node.start;
+	const openLen = interiorStart - node.start;
+	const closeLen = node.end - interiorEnd;
+	expect(openLen).toBe(closeLen);
+	expect(openLen === 1 || openLen === 2).toBe(true);
+	return openLen;
+}
 
 /**
  * Every emphasis-family, link, and image node in the tree tiles as leading
@@ -49,7 +67,7 @@ const EMPHASIS_MARKER_LEN: Partial<Record<InlineNode['kind'], number>> = {
  */
 export function assertConstructCoverage(nodes: InlineNode[]): void {
 	for (const node of nodes) {
-		const markerLen = EMPHASIS_MARKER_LEN[node.kind];
+		const markerLen = emphasisMarkerLen(node);
 		if (markerLen !== undefined) {
 			assertChildCoverage(node, [
 				{ start: node.start, end: node.start + markerLen },
@@ -177,6 +195,15 @@ export function resolverOf(entries: Record<string, ResolvedReference>): LinkRefe
 }
 
 // ── Case runner ─────────────────────────────────────────────────────────────
+
+/**
+ * The empty-registry reading of `raw` — the byte-identity oracle every plugin-rung
+ * decline is measured against. Resets first, so a caller can register after taking it.
+ */
+export function scanClean(raw: string, end = raw.length): InlineNode[] {
+	__resetInlineSyntaxForTests();
+	return parseInline(raw, 0, end);
+}
 
 export type ScanCase = [name: string, raw: string, expected: InlineNode[]];
 

@@ -19,7 +19,7 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../editor-keys';
-	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../perf/instruments';
+	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
 	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
@@ -44,6 +44,11 @@
 	} = $props();
 
 	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
+	// The optional reads below (and the two overlays') are what keep THIS component
+	// from throwing there; the leaf it mounts is a separate question, and today every
+	// one of them destructures the action and facet contexts as required. So a
+	// shell-less mount reaches the render boundary, not a rendered block — bare
+	// mounting is a property of the host, not yet of the subtree.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
@@ -52,6 +57,9 @@
 	// kit) get no provider and read the global default — behavior-preserving.
 	const registryView = services?.registryView ?? defaultRegistryView;
 	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
+	// The instance's rect surface, delivered to the block as a prop. Stable object,
+	// so a plain read (not a getter); bare mounts without the shell get undefined.
+	const rects = services?.rects;
 	const getDragHandles = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.blockDragHandles;
@@ -115,12 +123,7 @@
 
 	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
 
-	$effect(() => {
-		if (perfEnabled()) incMountedBlocks();
-		return () => {
-			if (perfEnabled()) decMountedBlocks();
-		};
-	});
+	useMountGauge();
 
 	// Enroll in the scope's batched measure pass instead of measuring inline — a
 	// per-block read interleaved with a sibling's model write forces one reflow per
@@ -188,9 +191,10 @@
 		};
 	});
 
-	// Badges prepend BEFORE the block component; every first-non-overlay-child
-	// lookup excludes `.decoration-badge` (Editor.getBlockElByPath and the e2e
-	// helpers) — keep them in step if this wrapper class ever changes.
+	// Badges prepend BEFORE the block component; the first-non-overlay-child lookups
+	// (Editor.getBlockElByPath and the e2e helpers) exclude `.decoration-badge` via
+	// BLOCK_CONTENT_SELECTOR (block-content-selector.ts) — keep that constant in step
+	// if this wrapper class ever changes.
 	$effect(() => {
 		const decs = blockDecs;
 		const el = hostEl;
@@ -240,6 +244,7 @@
 				{myPath}
 				{ambientPrefix}
 				document={getDoc?.()}
+				{rects}
 				bind:this={ref}
 				{...entry.extraProps?.(node) ?? {}}
 			/>
@@ -250,6 +255,7 @@
 				{myPath}
 				{ambientPrefix}
 				document={getDoc?.()}
+				{rects}
 				bind:this={ref}
 				blockClass="raw-block"
 			/>

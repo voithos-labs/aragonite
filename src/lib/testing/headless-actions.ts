@@ -33,7 +33,7 @@ export function stubBlockComponent(): BlockComponent {
 }
 
 export function stubStickyColumn(): StickyColumnState {
-	return { get: () => null, reset: () => {}, capture: () => {} };
+	return { get: () => null, reset: () => {}, capture: () => {}, noteKey: () => {} };
 }
 
 export function stubBlockEdit(): BlockEditActions {
@@ -45,7 +45,6 @@ export function stubBlockEdit(): BlockEditActions {
 		deleteBlock: () => {},
 		updateBlockContent: () => {},
 		updateBlockMetadata: () => {},
-		insertParsedBlocks: () => {},
 		replaceBlock: () => {}
 	};
 }

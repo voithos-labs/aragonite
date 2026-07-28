@@ -16,7 +16,12 @@ import {
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
-import type { EditorContext } from '$lib/schema/plugin-install';
+import {
+	definePlugin,
+	installPlugins,
+	__resetInstalledPluginsForTests,
+	type EditorContext
+} from '$lib/schema/plugin-install';
 
 const editor = {
 	editorId: 'e',
@@ -137,5 +142,37 @@ describe('chorded global command survives dev re-eval', () => {
 	it('under test the same command+chord re-registration still throws', () => {
 		registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' });
 		expect(() => registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' })).toThrow();
+	});
+});
+
+// The mint's owner is what distinguishes a plugin re-minting its own name from a
+// cross-plugin collision, and it is what the collision message names. The block
+// sibling passes it; this one minted anonymously, so a second plugin's collision
+// reported "another registration" and named nobody.
+describe('registerGlobalCommand owner attribution', () => {
+	afterEach(() => {
+		__resetInstalledPluginsForTests();
+	});
+
+	it('names the owning plugin when a second plugin re-mints the same command', () => {
+		installPlugins([
+			definePlugin({
+				name: 'first',
+				setup: () => {
+					registerGlobalCommand('shared.name', () => true);
+				}
+			})
+		]);
+
+		expect(() =>
+			installPlugins([
+				definePlugin({
+					name: 'second',
+					setup: () => {
+						registerGlobalCommand('shared.name', () => true);
+					}
+				})
+			])
+		).toThrow(/plugin "first"/);
 	});
 });

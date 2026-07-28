@@ -10,7 +10,7 @@ import type { IndexedDecoration } from '../../decorations/buckets';
 import { applyIslandDecorations } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
 import { mountDecorationWidget } from '../../decorations/widget-dom';
-import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
+import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
 // G2.4: the rendered DOM's textContent reproduces the source bytes. Every char
 // in raw maps to a DOM text node so caret <-> offset round-trips; markers render
@@ -103,6 +103,48 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 		container.appendChild(renderInlineNodes(nodes, source));
 		expect(container.textContent).toBe(expectedWithWidgetsRemoved(source, nodes));
 		expect(container.textContent).toBe('ab');
+	});
+
+	it('a visible entity widget shows its glyph but the walk reads back its bytes', () => {
+		const source = 'a&copy;b';
+		const nodes = parseInline(source, 0, source.length);
+		const container = document.createElement('div');
+		container.appendChild(renderInlineNodes(nodes, source));
+		// The DOM textContent is the glyph (the widget contributes its `©`, not `&copy;`);
+		// the raw-aware walk recovers the source bytes from data-source-*.
+		expect(container.textContent).toBe('a©b');
+		expect(rawTextOfNode(container, source)).toBe(source);
+	});
+
+	it('an invisible entity keeps its literal span, so textContent equals raw', () => {
+		const source = 'a&nbsp;b';
+		const nodes = parseInline(source, 0, source.length);
+		const container = document.createElement('div');
+		container.appendChild(renderInlineNodes(nodes, source));
+		expect(container.querySelector('[data-inline-widget]')).toBeNull();
+		expect(container.textContent).toBe(source);
+	});
+});
+
+// A kind that declines image widgets (a table cell) renders an image INTO the
+// spine, so its bytes are the invariant rather than a widget delta. The nodes are
+// minted, not parsed: a rung may derive an alt from anywhere, while a parsed alt is
+// always a slice of its own label — so this is the only corpus that can state the
+// rule the render path actually needs.
+describe('G2.4 textContent spine (alt-only images)', () => {
+	it('a minted image renders its own bytes, whatever its alt says', () => {
+		fc.assert(
+			fc.property(arbAltOnlyImage, ({ raw, node }) => {
+				const nodes: InlineNode[] = [];
+				if (node.start > 0) nodes.push({ kind: 'text', start: 0, end: node.start });
+				nodes.push(node);
+				if (node.end < raw.length) nodes.push({ kind: 'text', start: node.end, end: raw.length });
+				const container = document.createElement('div');
+				container.appendChild(renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false }));
+				expect(container.textContent).toBe(raw);
+			}),
+			PARAMS
+		);
 	});
 });
 

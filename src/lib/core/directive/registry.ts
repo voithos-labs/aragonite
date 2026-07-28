@@ -84,6 +84,20 @@ export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolea
 	return definitions.has(keyOf(tier, name));
 }
 
+/**
+ * Whether any registered directive, in any tier, produces `kind`. The reverse
+ * lookup the "does this kind have a standalone recognizer" question needs: a
+ * directive kind owns no block opener of its own — the shared `:::` opener
+ * recognizes it on the kind's behalf — so an opener-registry probe alone reads
+ * the whole directive tier as unrecognizable.
+ */
+export function isDirectiveKind(kind: AnyBlockKind | PluginInlineKind): boolean {
+	for (const def of definitions.values()) {
+		if (def.kind === kind) return true;
+	}
+	return false;
+}
+
 export function __resetDirectiveRegistryForTests(): void {
 	definitions.clear();
 }

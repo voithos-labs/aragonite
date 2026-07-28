@@ -15,6 +15,7 @@ export interface WindowInputs {
 	overscan: number; // blocks to mount above and below the visible range
 	pinnedIndex: number | null; // focused/caret block to keep mounted
 	pinExtensionCap: number; // max blocks to extend the range by to keep the pin mounted
+	windowingEnabled: boolean; // false in host-scroll mode — no scrollport, so never activate
 	active: boolean; // current activation (for hysteresis)
 	activateAbovePx: number; // high watermark — activate when total exceeds it
 	deactivateBelowPx: number; // low watermark — deactivate when total drops below it
@@ -33,7 +34,12 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	const total = model.total();
 
 	// Hysteresis: cross the high watermark to turn on, fall below the low one to turn off.
-	const active = input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx;
+	// The one activation decision in the feature — host-scroll mode reaches the
+	// never-active result through this gate rather than substituting a window of its
+	// own, so `active` can never disagree with what the consumer renders.
+	const active =
+		input.windowingEnabled &&
+		(input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx);
 
 	if (!active || n === 0) {
 		return { active: false, start: 0, end: n, topSpacerPx: 0, bottomSpacerPx: 0 };
@@ -73,6 +79,9 @@ export interface BlockWindowDeps {
 	getLocalScrollTop: () => number;
 	getViewportHeight: () => number;
 	getPinnedIndex: () => number | null;
+	/** Static read (host-scroll is set once at mount): reading a live prop here would
+	 *  make it a dependency of the window derived, the editor's hottest path. */
+	windowingEnabled: () => boolean;
 	overscan: number;
 	pinExtensionCap: number;
 	activateAbovePx: number;
@@ -111,6 +120,7 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			overscan: deps.overscan,
 			pinnedIndex: deps.getPinnedIndex(),
 			pinExtensionCap: deps.pinExtensionCap,
+			windowingEnabled: deps.windowingEnabled(),
 			active,
 			activateAbovePx: deps.activateAbovePx,
 			deactivateBelowPx: deps.deactivateBelowPx

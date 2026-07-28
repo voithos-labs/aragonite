@@ -6,12 +6,12 @@
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata } from '../clone';
 import { parseFirstBlock } from '../parse-block';
 import { renumberOrderedList } from './ordered-markers';
-import { freshChildIds } from '../../block-id';
+import { assignIds } from '../../block-id';
 
 // ── List / item construction ─────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ export function assembleListHalf(
 			? (cloneMetadata(template.metadata) as ListMetadata)
 			: { ordered: false },
 		children: items,
-		childIds: freshChildIds(items),
+		childIds: assignIds(items),
 		innerPrefix: template.innerPrefix ?? '',
 		innerSuffix: template.innerSuffix ?? ''
 	};
@@ -70,7 +70,7 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
 			: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
 		innerPrefix: template.innerPrefix ?? '',
 		children,
-		childIds: freshChildIds(children),
+		childIds: assignIds(children),
 		innerSuffix: template.innerSuffix ?? ''
 	};
 	if (children[0]) children[0].leadingTrivia = '';
@@ -92,7 +92,7 @@ export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): 
 		metadata,
 		innerPrefix: '',
 		children,
-		childIds: freshChildIds(children),
+		childIds: assignIds(children),
 		innerSuffix: ''
 	};
 	if (children[0]) children[0].leadingTrivia = '';
@@ -114,7 +114,7 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 		raw: '',
 		metadata,
 		children,
-		childIds: freshChildIds(children)
+		childIds: assignIds(children)
 	};
 }
 
@@ -152,7 +152,7 @@ export function splitLeafForPaste(
 	leaf: CstNode,
 	offset: number
 ): { leadingNode: CstNode | null; trailingNode: CstNode | null; lineEnding: '\n' | '\r\n' } {
-	const lineEnding: '\n' | '\r\n' = leaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(leaf.raw);
 	const display = trimTrailingLineEnding(leaf.raw);
 	const leadingText = display.slice(0, offset);
 	const trailingText = display.slice(offset).replace(/^[ \t]/, '');

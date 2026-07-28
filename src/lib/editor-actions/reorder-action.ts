@@ -2,22 +2,23 @@
  * Sibling-reorder action for the drag-and-drop and keyboard-nudge callers.
  * Resolves the reorderable unit a path points into, clamps the destination,
  * and commits one permutation of the parent's children — document scope through
- * `commitStructural`, list/blockquote scope through `commitContainerStructural`.
+ * `commitStructural`, container scope through `commitContainerStructural`.
  *
  * A reorder creates no node: each moved block keeps its id + ref via the
  * `reorderChildren` idMap (no stamp, no destroy/recreate). The only writes are
  * positional separators (`leadingTrivia` stays with the slot, not the node —
- * see `reorderChildrenWithTrivia`), ordered-list marker renumbering, and the
- * container's raw rebuild, all of which the commit's scope view owns.
+ * see `reorderChildrenWithTrivia`) and ordered-list marker renumbering; the
+ * container's raw is rebuilt by the commit ceremony through the descriptor's
+ * rebuildRaw, so no kind is named here.
  */
 
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
-import { rebuildListRaw, rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
+import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 export interface ReorderAction {
@@ -35,10 +36,14 @@ export function createReorderAction(
 	}
 
 	async function commitReorder(unit: ReorderUnit, to: number, offset: number): Promise<void> {
-		if (unit.parentKind === 'document') {
+		if (unit.scope === 'document') {
 			await controller.commitStructural({
-				snapshot: { path: [unit.index], offset },
-				op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: [unit.index] },
+				snapshot: { path: docPathFrom([unit.index]), offset },
+				op: {
+					kind: 'reorder',
+					detail: { from: unit.index, to },
+					eventPath: docPathFrom([unit.index])
+				},
 				mutate: (children) => reorderChildrenWithTrivia(children, unit.index, to, deps.sharing),
 				afterTick: () => deps.blockRefs[to]?.focus(0)
 			});
@@ -53,17 +58,19 @@ export function createReorderAction(
 			path: unit.parentPath,
 			state,
 			// A drag carries no live caret: restore to the moved unit's pre-move path.
-			snapshot: { path: [...unit.parentPath, unit.index], offset },
-			op: { kind: 'reorder', detail: { from: unit.index, to }, eventPath: unit.parentPath },
+			snapshot: { path: extendDocPath(unit.parentPath, unit.index), offset },
+			op: {
+				kind: 'reorder',
+				detail: { from: unit.index, to },
+				eventPath: docPathFrom(unit.parentPath)
+			},
 			mutate: (scope) => {
 				const change = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
-				if (unit.parentKind === 'list') {
-					// No-op on unordered lists; on ordered lists it unshares each item
-					// whose marker it rewrites (scope.sharing) before the rebuild.
+				if (unit.renumberMarkers) {
+					// Ordered-list markers are position-dependent: unshare each item whose
+					// marker it rewrites (scope.sharing) so the ceremony's descriptor rebuild
+					// concatenates the renumbered raws. No-op on unordered lists.
 					renumberOrderedList(scope.node, 0, scope.sharing);
-					rebuildListRaw(scope.node);
-				} else {
-					rebuildBlockquoteRaw(scope.node);
 				}
 				return change;
 			},
@@ -77,7 +84,7 @@ export function createReorderAction(
 	): { unit: ReorderUnit; to: number; total: number } | null {
 		const unit = resolveReorderUnit(deps.doc, fromPath);
 		if (!unit) return null;
-		const parent = unit.parentKind === 'document' ? deps.doc : nodeAt(deps.doc, unit.parentPath);
+		const parent = unit.scope === 'document' ? deps.doc : nodeAt(deps.doc, unit.parentPath);
 		const total = parent?.children?.length ?? 0;
 		const to = Math.max(0, Math.min(computeTo(unit.index), total - 1));
 		if (to === unit.index) return null;

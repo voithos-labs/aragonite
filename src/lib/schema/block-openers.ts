@@ -43,10 +43,21 @@ export interface OpenContext {
 	grammar: GrammarView;
 }
 
+/**
+ * A claim on the lines starting at `ctx.index`. `consumed` is a count, not a
+ * position: an opener says how many lines it took, never where the parser should
+ * resume. It must be >= 1 — claiming nothing is the one return that could spin the
+ * parse loop, so the dispatch declines it (see `core/parser.ts`).
+ */
+export interface BlockOpenerResult {
+	node: CstNode;
+	consumed: number;
+}
+
 export interface BlockOpener {
 	priority: number;
 	/** Attempt to open this kind at ctx.index; null declines. */
-	tryOpen(ctx: OpenContext): { node: CstNode; nextIndex: number } | null;
+	tryOpen(ctx: OpenContext): BlockOpenerResult | null;
 	/** Whether a line of this kind interrupts an open paragraph (GFM continuation rules); `false` = never. */
 	interruptsParagraph: ((lineText: string) => boolean) | false;
 }

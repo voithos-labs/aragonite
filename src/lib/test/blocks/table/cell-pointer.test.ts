@@ -6,6 +6,8 @@ import { devWarn } from '../../../dev-warn';
 import {
 	handleCellShiftClick,
 	cellCoordsOfElement,
+	mountedRowEls,
+	rowCellEls,
 	type CellAnchor
 } from '../../../components/blocks/table/cell-pointer';
 import { createSelectionState } from '../../../selection/selection-state.svelte';
@@ -109,9 +111,20 @@ describe('cellCoordsOfElement', () => {
 		tableEl.remove();
 	});
 
-	it('cellCoordsOfElement reads coords from a cell descendant', () => {
+	// Returning the resolved cell element is what lets `cellAtPoint` delegate here
+	// and still yield its `{ rowIdx, colIdx, cellEl }` shape.
+	it('cellCoordsOfElement reads coords and the resolved cell from a cell descendant', () => {
 		const cell = tableEl.querySelector('[data-table-row-idx="1"] > [role="cell"]:nth-child(2)');
-		expect(cellCoordsOfElement(cell, tableEl)).toEqual({ rowIdx: 1, colIdx: 1 });
+		expect(cellCoordsOfElement(cell, tableEl)).toEqual({ rowIdx: 1, colIdx: 1, cellEl: cell });
+	});
+
+	it('cellCoordsOfElement resolves from a nested descendant, not just the cell itself', () => {
+		const cell = tableEl.querySelector(
+			'[data-table-row-idx="0"] > [role="cell"]:nth-child(3)'
+		) as HTMLElement;
+		const inner = document.createElement('span');
+		cell.appendChild(inner);
+		expect(cellCoordsOfElement(inner, tableEl)).toEqual({ rowIdx: 0, colIdx: 2, cellEl: cell });
 	});
 
 	it('cellCoordsOfElement returns null when element is outside the table', () => {
@@ -133,5 +146,50 @@ describe('cellCoordsOfElement', () => {
 		document.body.appendChild(otherTable);
 		expect(cellCoordsOfElement(otherCell, tableEl)).toBeNull();
 		otherTable.remove();
+	});
+});
+
+// The one selector contract for the cell grid: rows by `data-table-row-idx`,
+// cells by `role="cell"`, direct children only.
+describe('mountedRowEls / rowCellEls', () => {
+	let tableEl: HTMLElement;
+
+	beforeEach(() => {
+		tableEl = document.createElement('div');
+		tableEl.setAttribute('role', 'table');
+		// A grip corner sits directly under the table but is not a row; the row
+		// selector must skip it (mirrors the real grid's leading corner span).
+		tableEl.appendChild(document.createElement('span'));
+		for (let r = 0; r < 3; r++) {
+			const rowEl = document.createElement('div');
+			rowEl.setAttribute('data-table-row-idx', String(r));
+			tableEl.appendChild(rowEl);
+			for (let c = 0; c < 2; c++) {
+				const cellEl = document.createElement('div');
+				cellEl.setAttribute('role', 'cell');
+				rowEl.appendChild(cellEl);
+			}
+		}
+	});
+
+	it('mountedRowEls returns the row elements in DOM order, skipping non-rows', () => {
+		const rows = mountedRowEls(tableEl);
+		expect(rows.map((r) => r.getAttribute('data-table-row-idx'))).toEqual(['0', '1', '2']);
+	});
+
+	it('rowCellEls returns a row’s direct cells in column order', () => {
+		const row = mountedRowEls(tableEl)[1];
+		expect(rowCellEls(row)).toHaveLength(2);
+		expect(rowCellEls(row).every((c) => c.getAttribute('role') === 'cell')).toBe(true);
+	});
+
+	it('rowCellEls ignores a nested cell in a sub-table', () => {
+		const row = mountedRowEls(tableEl)[0];
+		// A cell that itself holds a nested table's cell must not be counted for the
+		// outer row: `:scope >` keeps the walk to the row's own column cells.
+		const nested = document.createElement('div');
+		nested.setAttribute('role', 'cell');
+		row.firstChild!.appendChild(nested);
+		expect(rowCellEls(row)).toHaveLength(2);
 	});
 });
