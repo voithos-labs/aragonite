@@ -109,9 +109,9 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	test('Backspace over an opener-into-body selection keeps the opener line', async () => {
 		await selectFrom(editor, 3, 6); // "js\ncon"
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('st x = 1');
-
-		expect(await editor.bridge.getSource()).toBe('```js\nst x = 1\n```\n');
+		// Equality, not a fragment: what survives this edit is a substring of the
+		// fixture, so a `contains` would settle on the first poll and observe nothing.
+		await editor.bridge.waitForSourceEquals('```js\nst x = 1\n```\n');
 	});
 
 	test('a selection inside the info string is still editable verbatim', async () => {
@@ -191,8 +191,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.getBlock(0).click();
 		await selectFrom(editor, 0, 3);
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('js\nconst x');
-
-		expect(await editor.bridge.getSource()).toBe('js\nconst x\n');
+		// Equality for the same reason: the post-state is the fixture minus a prefix, so
+		// every fragment of it is already true before the gesture.
+		await editor.bridge.waitForSourceEquals('js\nconst x\n');
 	});
 });
