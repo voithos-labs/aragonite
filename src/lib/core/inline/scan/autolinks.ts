@@ -1,7 +1,13 @@
 /**
  * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) and the GFM §6.9
- * bare/www/email autolink pass over completed text runs. The reference has no
- * autolink extension — the GFM rules here answer to the GFM spec directly.
+ * bare/www/email autolink pass over completed text runs.
+ *
+ * The conformance reference has no autolink extension, so the GFM rules here
+ * answer to the GFM spec text where it is explicit — including the blanket
+ * leading-boundary rule, which cmark-gfm applies to www/url but not to email.
+ * Where the prose runs out, cmark-gfm settles the corner, since it is what
+ * GitHub runs (see `scanEmailDomain`). Its `np > 10` underscore escape is the
+ * one exception, called out at `hasValidDomain`.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -333,7 +339,37 @@ function matchBareWwwAutolink(
 }
 
 const EMAIL_LOCAL = /[A-Za-z0-9._+-]/;
-const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9-]/;
+const EMAIL_DOMAIN_CHAR = /[A-Za-z0-9_-]/;
+const EMAIL_LABEL_START = /[A-Za-z0-9]/;
+const EMAIL_DOMAIN_END = /[A-Za-z]/;
+
+/**
+ * The email domain per GFM §6.9 — "characters which are alphanumeric, or `-` or
+ * `_`, separated by periods", at least one period, and no `-` or `_` at the end.
+ * Where that prose runs out the rule is cmark-gfm's, since it is what GitHub
+ * runs: the last character must be a LETTER, and a `.` separates labels only
+ * when an alphanumeric follows it (so `a@b._c` and `a@b.c1` stay literal, while
+ * an empty first label in `a@.b` is accepted). Returns the domain's end offset,
+ * or -1 when the address is not one.
+ */
+function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): number {
+	let end = domainStart;
+	let separators = 0;
+	while (end < regionEnd) {
+		const ch = raw[end];
+		if (ch === '.') {
+			if (end + 1 >= regionEnd || !EMAIL_LABEL_START.test(raw[end + 1])) break;
+			separators++;
+		} else if (!EMAIL_DOMAIN_CHAR.test(ch)) {
+			break;
+		}
+		end++;
+	}
+	if (separators === 0) return -1;
+	// The walk stops before a `.` it did not count, so `end - 1` is a domain
+	// character and a trailing-punctuation trim would have nothing to remove.
+	return EMAIL_DOMAIN_END.test(raw[end - 1]) ? end : -1;
+}
 
 function matchBareEmailAutolink(
 	raw: string,
@@ -348,27 +384,9 @@ function matchBareEmailAutolink(
 	// Boundary applies at the start of the URL, which for email is the local-part start.
 	if (!isValidLeadingBoundary(raw, localStart, regionStart)) return null;
 
-	const domainStart = atPos + 1;
-	let domainEnd = domainStart;
-	while (domainEnd < regionEnd && EMAIL_DOMAIN_CHAR.test(raw[domainEnd])) domainEnd++;
-	if (domainEnd === domainStart) return null; // empty first segment
-	if (raw[domainEnd - 1] === '-') return null; // GFM: last seg char cannot be -
-	if (domainEnd >= regionEnd || raw[domainEnd] !== '.') return null;
-	const firstSegEnd = domainEnd;
+	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd);
+	if (domainEnd < 0) return null;
 
-	while (domainEnd < regionEnd && raw[domainEnd] === '.') {
-		const segStart = domainEnd + 1;
-		let segEnd = segStart;
-		while (segEnd < regionEnd && EMAIL_DOMAIN_CHAR.test(raw[segEnd])) segEnd++;
-		if (segEnd === segStart) break; // empty segment after dot
-		if (raw[segEnd - 1] === '-') break; // GFM: domain segment cannot end in -
-		domainEnd = segEnd;
-	}
-	if (domainEnd === firstSegEnd) return null; // never got a second segment
-
-	// No trailing-punctuation trim: the segment walk above only ever advances over
-	// `[A-Za-z0-9-]` and refuses a segment ending in `-`, so `domainEnd` already sits
-	// after an alphanumeric and there is nothing for the trim to remove.
 	return {
 		kind: 'autolink',
 		start: localStart,

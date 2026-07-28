@@ -481,6 +481,17 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   continue its open paragraph — the definition scan models no lazy continuation, which is now a
   ledger entry rather than an accident.
 
+- **The bare-email autolink domain is cmark-gfm's, underscores included.** `a@b_c.com` stayed
+  literal here and linked on GitHub, because the domain character class excluded `_`. Widening the
+  class alone would have traded one divergence for two, so the domain scan is now the rule
+  cmark-gfm actually implements: labels of alphanumerics, `-` and `_`; a `.` separates labels only
+  when an alphanumeric follows it; at least one separator; and the last character must be a letter.
+  That fixes two more divergences the old per-label hyphen rule carried — `foo@bar-.com` now links
+  (its last character is `m`) and `foo@bar.com_` no longer links a truncated address, matching the
+  spec's own `a.b-c_d@a.b_` example, which renders literal. Where the spec's prose is explicit this
+  module still keeps it against cmark-gfm: the §6.9 leading-boundary rule stays applied to the email
+  form, which cmark-gfm exempts, and the www/url `np > 10` underscore escape stays unreproduced.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

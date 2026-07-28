@@ -620,23 +620,6 @@ delta into the absolute recomputation the anchor already performs is the other s
 **Why deferred:** the frame ordering _is_ the defect, so a fix without a repro is a claim. Both
 writes are individually pinned; only their collision is not.
 
-### The bare-email autolink rejects underscores GFM permits in a domain
-
-**Severity:** minor (conformance divergence; literal here, a live link on GitHub)
-**Files:** `src/lib/core/inline/scan/autolinks.ts` (`EMAIL_DOMAIN_CHAR`)
-
-`EMAIL_DOMAIN_CHAR = /[A-Za-z0-9-]/` excludes `_`, but GFM's email autolink permits it in the
-domain, so `a@b_c.com` stays literal in aragonite and links on GitHub. Found while fixing the www
-and url underscore rule (the last-two-labels restriction), which does not apply to the email
-form. cmark-gfm's own `np > 10` underscore-escape quirk was checked and deliberately not
-reproduced (an artifact of its counter pair, not spec text; noted in the code).
-
-**Fix direction:** widen the class to match cmark-gfm's email domain acceptance, with the spec's
-own boundary cases pinned both ways.
-
-**Why deferred:** found at the tail of a batch whose scope was closing, and the fix wants its own
-small conformance pass against cmark test vectors rather than a ride-along character-class edit.
-
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
