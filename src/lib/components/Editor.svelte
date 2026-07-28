@@ -27,6 +27,7 @@
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { clippingAncestors, nearestUserScrollableAncestor } from '../cursor/scroll-ancestors';
+	import { placeCaretFromDeadSpaceClick } from '../selection/dead-space-caret';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -376,7 +377,13 @@
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
-			if (!anchor) return;
+			// No anchor means the click may have landed in the editor's dead space —
+			// the root's own padding, or below the last block. The helper claims only
+			// clicks whose target IS the root, so nothing the editor renders is touched.
+			if (!anchor) {
+				placeCaretFromDeadSpaceClick(root, e, { getBlockComponent });
+				return;
+			}
 			// Host chrome follows the page's link behaviour, not the editor's
 			// plain-click-edits policy.
 			if (isHostChrome(anchor)) return;

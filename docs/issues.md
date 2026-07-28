@@ -439,6 +439,30 @@ with its own pins. Tightening it means threading the commit's promise out throug
 the two disagreeing about what "settled" means, which is worse than the shared limit. Fix both
 together, or neither.
 
+### A dead-space click declines on surfaces that address something other than characters
+
+**Severity:** minor (a click that does nothing, on a narrow set of surfaces)
+**Files:** `src/lib/selection/dead-space-caret.ts` (the `foreignDragHitTest` and
+`contenteditable="true"` gates in `placeCaretFromDeadSpaceClick`)
+
+A click in the editor's padding, or below the last block, places the caret at the nearest text.
+Two families decline instead. A **table** carries `foreignDragHitTest` because its offset is a
+row-major cell index, not a character position, so "the end of that line" names a cell and the
+gesture has no unambiguous landing. A **non-editable leaf** (thematic break, a rendered diagram,
+an image block) has no character position at all; declining is deliberate there rather than
+handing the block the whole-block focus a click ON it means, which would arm the next Backspace
+against a block the user only clicked near.
+
+**Repro:** put a table last in the document and click below it; nothing the editor did happens
+(the browser's own click handling still places a caret in the nearest cell, so the decline is
+not separately visible).
+
+**Why deferred:** the table case needs a decision, not code — either the table kind grows a
+"nearest cell to this point" contract distinct from its drag hit test, or the gesture means
+"caret at the end of the last cell" regardless of x. Both are table-cell caret work, and picking
+one on the way past would set the precedent for every future kind with internal addressing. The
+non-editable case is not deferred at all: declining is the answer.
+
 ## Virtual rendering
 
 ### Pasting a long list into a windowed list loses the caret (VR-12, reachable)
