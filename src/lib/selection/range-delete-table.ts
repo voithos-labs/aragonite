@@ -11,6 +11,7 @@
  * path, so the linear scan is an accepted correctness-first cost.
  */
 
+import type { GrammarView } from '../schema/block-openers';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
@@ -54,7 +55,8 @@ export function tableAwareRangeDelete(
 	doc: Document,
 	start: SelectionPoint,
 	end: SelectionPoint,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	const sameBlock = comparePaths(start.path, end.path) === 0;
 
@@ -69,15 +71,15 @@ export function tableAwareRangeDelete(
 	if (!sameBlock && endBlock.kind === 'table') ensureUnsharedSubtree(endBlock, sharing);
 
 	if (sameBlock) {
-		return deleteWithinTable(doc, start, end, startBlock, sharing);
+		return deleteWithinTable(doc, start, end, startBlock, sharing, grammar);
 	}
 	if (startBlock.kind === 'table' && endBlock.kind === 'table') {
-		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing);
+		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
 	if (startBlock.kind === 'table') {
-		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing);
+		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
-	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing);
+	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar);
 }
 
 /**
@@ -101,14 +103,15 @@ function deleteWithinTable(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	table: CstNode,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	// Same-path intra-table endpoints: cell-ness is context-established (same
 	// path + table node), NOT flagged, so these read `.offset` directly — routing
 	// them through cellIndexOf would warn spuriously. The cross-block cases below
 	// carry the flag and do use the accessor.
 	clearRectangularCells(table, start.offset, end.offset);
-	rebuildUnsharedAncestry(doc, start.path, sharing);
+	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
@@ -148,7 +151,8 @@ function deleteFromProseIntoTable(
 	end: SelectionPoint,
 	startBlock: CstNode,
 	table: CstNode,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	const startChar = charOffsetOf(start, 'deleteFromProseIntoTable:start');
 	const startHead = startBlock.raw.slice(0, startChar);
@@ -192,9 +196,9 @@ function deleteFromProseIntoTable(
 
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
-	rebuildUnsharedAncestry(doc, start.path, sharing);
-	rebuildSharedAncestries(doc, plan, sharing);
-	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing);
+	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+	rebuildSharedAncestries(doc, plan, sharing, grammar);
+	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, grammar);
 
 	return {
 		newDoc: doc,
@@ -211,7 +215,8 @@ function deleteFromTableIntoProse(
 	end: SelectionPoint,
 	table: CstNode,
 	endBlock: CstNode,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	const lineEnding = trailingLineEnding(table.raw);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
@@ -269,10 +274,10 @@ function deleteFromTableIntoProse(
 
 	if (tableResult === 'tableSurvives') {
 		rebuildOwnedContainer(table, sharing);
-		rebuildUnsharedAncestry(doc, start.path, sharing);
+		rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
 	}
-	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing);
-	rebuildSharedAncestries(doc, plan, sharing);
+	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing, grammar);
+	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
 	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: when the
 	// table is fully consumed, the caret lands at the start of the surviving tail
@@ -328,7 +333,8 @@ function deleteAcrossTwoTables(
 	end: SelectionPoint,
 	startTable: CstNode,
 	endTable: CstNode,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView | undefined
 ): RangeDeleteResult {
 	const lineEnding = trailingLineEnding(startTable.raw);
 	const startCell = cellIndexOf(start, 'deleteAcrossTwoTables:start');
@@ -363,13 +369,13 @@ function deleteAcrossTwoTables(
 
 	if (startResult === 'tableSurvives') {
 		rebuildOwnedContainer(startTable, sharing);
-		rebuildUnsharedAncestry(doc, start.path, sharing);
+		rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
 	}
 	if (endTablePath) {
 		rebuildOwnedContainer(endTable, sharing);
-		rebuildUnsharedAncestry(doc, endTablePath, sharing);
+		rebuildUnsharedAncestry(doc, endTablePath, sharing, grammar);
 	}
-	rebuildSharedAncestries(doc, plan, sharing);
+	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
 	let collapsedCaret: SelectionPoint;
 	if (startResult === 'tableSurvives') {

@@ -28,7 +28,8 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 			doc,
 			{ path: [0], offset: 5 },
 			{ path: [1], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const para = result.newDoc.children[0];
@@ -62,7 +63,8 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 			doc,
 			{ path: [0], offset: 6 },
 			{ path: [1], offset: 1 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -77,7 +79,8 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 			doc,
 			{ path: [0], offset: 4 },
 			{ path: [2], offset: 1 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const survivors = result.newDoc.children;
@@ -102,7 +105,8 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [2, 0], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const survivors = result.newDoc.children;
@@ -135,7 +139,8 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 			doc,
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 7 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const survivors = result.newDoc.children;
@@ -165,7 +170,8 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 0 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -185,7 +191,8 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [1, 1], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const survivors = result.newDoc.children;
@@ -208,7 +215,8 @@ describe('rangeDelete — Case 3 (prose → table → prose, full-table span)', 
 			doc,
 			{ path: [0], offset: 4 },
 			{ path: [2], offset: 4 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		// head + tail merge: 'head' + ' text' = 'head text\n'
@@ -231,7 +239,8 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [0], offset: lastCellIdx },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = result.newDoc.children[0];
@@ -258,7 +267,8 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [0], offset: 5 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = result.newDoc.children[0];
@@ -287,7 +297,8 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 			doc,
 			{ path: [0], offset: 1 },
 			{ path: [0], offset: 7 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = result.newDoc.children[0];
@@ -312,7 +323,8 @@ describe('rangeDelete — table edge cases', () => {
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: lastCellIdx },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(result.newDoc.children).toHaveLength(1);
@@ -330,7 +342,8 @@ describe('rangeDelete — table edge cases', () => {
 			doc,
 			{ path: [0], offset: 4 },
 			{ path: [1], offset: 0 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = result.newDoc.children[0];

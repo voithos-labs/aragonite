@@ -39,7 +39,7 @@ const cell = (path: number[], index: number): CellSelectionPoint => ({
 
 function deletedBytes(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
-	return serialize(tableAwareRangeDelete(doc, start, end, createSharingState()).newDoc);
+	return serialize(tableAwareRangeDelete(doc, start, end, createSharingState(), undefined).newDoc);
 }
 
 /** The block kinds the delete's own output parses back to. */

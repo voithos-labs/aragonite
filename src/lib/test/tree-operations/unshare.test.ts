@@ -134,6 +134,6 @@ it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild',
 
 	const tolerant = sharedDoc('para\n');
 	vi.mocked(devWarn).mockClear();
-	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing);
+	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing, undefined);
 	expect(firedInRangeAssert()).toBe(false);
 });

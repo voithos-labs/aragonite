@@ -32,7 +32,7 @@ describe('round-trip — task items', () => {
 		const para = item.children![0];
 
 		para.raw = 'upper more\n';
-		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState());
+		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState(), undefined);
 
 		expect(serialize(doc)).toBe('- [X] upper more\n');
 	});
@@ -43,7 +43,7 @@ describe('round-trip — task items', () => {
 		const para = doc.children[0].children![0].children![0];
 
 		para.raw = 'extra more\n';
-		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState());
+		rebuildUnsharedAncestry(doc, [0, 0, 0], createSharingState(), undefined);
 
 		expect(serialize(doc)).toBe('- [x]  extra more\n');
 	});

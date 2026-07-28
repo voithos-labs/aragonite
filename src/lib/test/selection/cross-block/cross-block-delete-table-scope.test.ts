@@ -34,7 +34,8 @@ function makeEnv(source: string) {
 		getBlockElByPath: () => null,
 		revealPath: harness.deps.revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0)
+		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
+		grammar: undefined
 	};
 	return {
 		...harness,

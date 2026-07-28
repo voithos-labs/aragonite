@@ -20,7 +20,7 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState());
+	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -125,7 +125,13 @@ describe('chrome wall — rangeDelete post-states', () => {
 	it("end at the container's last byte: the container dies as one unit, children intact", () => {
 		const doc = parse(FIXTURE);
 		const note = doc.children[1];
-		const result = rangeDelete(doc, point([0], 5), point([1, 2], 5), createSharingState());
+		const result = rangeDelete(
+			doc,
+			point([0], 5),
+			point([1, 2], 5),
+			createSharingState(),
+			undefined
+		);
 		expect(serialize(result.newDoc)).toBe('Above\n\nBelow\n');
 		// One splice, not an empty-then-cascade: the detached node keeps its
 		// children so a commit scope holding it stays invariant-clean.
@@ -162,7 +168,7 @@ describe('chrome wall — rangeDelete post-states', () => {
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing);
+		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing, undefined);
 
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});

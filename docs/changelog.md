@@ -446,11 +446,19 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   array, so the swap carries it for free) and backfilling a caret target. Eligibility is the
   opener registry rather than a kind list — registering an opener IS the claim that `parse(raw)`
   reproduces the kind, so a listItem (`- x` parses to a _list_), a tableRow, chrome and tableCell
-  are excluded by construction, and a future container kind opts in by being parseable at all. The
-  reparse resolves through the instance grammar, so a disabled kind stays unreachable. Cost is
-  gated on the container's FIRST line changing across its rebuild, since an opener claims from
-  line 1: measured 0 reparses across 20 body-line keystrokes and 20 across 20 opener-line ones, on
-  top of a rebuild that already walks the subtree. The mirror direction is structural (the pass
+  are excluded by construction (so is `table`, which emerges from the paragraph continuation scan
+  rather than an opener), and a future container kind opts in by being parseable at all. The
+  reparse resolves through the instance grammar — a required-nullable parameter threaded from all
+  twelve rebuild call sites, with a source-scan lint refusing an `undefined` answer — so a
+  disabled kind stays unreachable. Cost is gated twice, because the reparse is linear in container
+  bytes: line 1 must have changed (an opener claims from there), and that line's opener verdict
+  must have MOVED, asked of the registry itself one line at a time. The second gate is
+  load-bearing rather than an optimization — typing into a list's first item or a callout title
+  rewrites the opener line on every keystroke and moves no verdict, and without it that keystroke
+  cost 43 ms at 1MB against 0.6 ms with it. Two perf rows now type INSIDE a giant container, the
+  place no latency row's caret had ever sat, which also put a name on a pre-existing
+  non-viewport-bounded axis (`performance.md`): the container raw rebuild alone is ~52 ms per
+  keystroke on a 1MB list's head child. The mirror direction is structural (the pass
   compares kinds, not names) but unreachable for `githubAlert` by editing: its rebuild re-emits
   the marker from metadata, so line 1 always re-opens as an alert — a metadata write is the only
   route, and it is pinned as one.

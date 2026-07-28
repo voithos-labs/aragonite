@@ -381,7 +381,9 @@ export function checkInnermostFirstAncestry(
 	leaf.raw = marker + '\n';
 
 	// Fresh sharing state: nothing is shared, so this is a pure ancestry rebuild.
-	rebuildUnsharedAncestry(doc, leafPath, createSharingState());
+	// Global grammar: the kit carries no editor registry view to source an instance
+	// one from, and this probe asserts raw propagation, never a kind re-derivation.
+	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), undefined);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
 }

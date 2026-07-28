@@ -26,7 +26,8 @@ function soleTableEnv(source: string) {
 		getBlockElByPath: () => null,
 		revealPath: deps.revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0)
+		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
+		grammar: undefined
 	};
 	return { deps, table, ctx };
 }
