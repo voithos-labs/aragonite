@@ -16,7 +16,7 @@
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
-import { sliceFencedCode } from './code-renderer';
+import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -140,25 +140,34 @@ export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * The one splice every gesture that rewrites a range on this surface goes through
- * — native delete/type-over (via the beforeinput guard), cut, and paste's
- * pre-delete: `insert` replaces the edit span, `''` for a delete. Null when there
- * is nothing to rewrite, so the gesture commits no CST edit and spends no undo
- * entry.
+ * The refusal rule, shared by every mutating gesture on this surface: a range that
+ * reached structure and kept no body after the clamp has nothing to rewrite. Text
+ * aimed there is declined rather than re-sited to the body edge, where the user
+ * never pointed. Paste consults this directly — it splices through the paste tree-op
+ * rather than through `computeFenceRangedEdit` — so the rule stays one predicate
+ * instead of one copy per entry path.
+ */
+export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean {
+	const ordered = orderedRange(range);
+	if (!crossesFenceBoundary(node, ordered)) return false;
+	const span = clampRangeToBody(node, ordered);
+	return span.start === span.end;
+}
+
+/**
+ * The one splice every gesture that rewrites a range IN PLACE goes through — native
+ * delete/type-over (via the beforeinput guard) and cut: `insert` replaces the edit
+ * span, `''` for a delete. Null when there is nothing to rewrite, so the gesture
+ * commits no CST edit and spends no undo entry.
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
 	range: CodeRange,
 	insert: string
 ): FenceRangedEdit | null {
+	if (isStructureOnlyRange(node, range)) return null;
 	const display = trimTrailingLineEnding(node.raw);
-	const ordered = orderedRange(range);
-	const crossed = crossesFenceBoundary(node, ordered);
-	const span = crossed ? clampRangeToBody(node, ordered) : ordered;
-	// A range that reached structure and kept no body to rewrite is refused, not
-	// re-sited: a character aimed at a fence must not land at the body edge, where
-	// the user never pointed.
-	if (crossed && span.start === span.end) return null;
+	const span = fenceEditSpan(node, range);
 	const newText = display.slice(0, span.start) + insert + display.slice(span.end);
 	if (newText === display) return null;
 	return { newText, newCursor: span.start + insert.length };
@@ -187,7 +196,7 @@ interface FenceRegions {
 function fenceRegions(node: NodeView): FenceRegions {
 	const slice = sliceFencedCode(node);
 	const displayEnd = displayLength(node.raw);
-	const body = bodyWindow(node);
+	const body = bodyWindowOf(slice, displayEnd);
 	const openerTextEnd = Math.min(displayLength(slice.openerLine), displayEnd);
 	const hasCloser = slice.closerLine.length > 0;
 	const contentStart = hasCloser
@@ -232,10 +241,13 @@ function orderedRange(range: CodeRange): CodeRange {
 }
 
 function bodyWindow(node: NodeView): CodeRange {
-	const bounds = fenceBodyBounds(sliceFencedCode(node));
+	return bodyWindowOf(sliceFencedCode(node), displayLength(node.raw));
+}
+
+function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): CodeRange {
+	const bounds = fenceBodyBounds(slice);
 	// A fence with no body line yet (` ``` ` plus its ending) has a body start past
 	// the display text, so the block's own end is the floor everything collapses to.
-	const displayEnd = displayLength(node.raw);
 	const start = Math.min(bounds.start, displayEnd);
 	return { start, end: Math.min(Math.max(bounds.end, start), displayEnd) };
 }

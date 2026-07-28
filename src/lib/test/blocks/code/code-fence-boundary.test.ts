@@ -5,7 +5,8 @@ import {
 	clampRangeToBody,
 	computeFenceRangedEdit,
 	crossesFenceBoundary,
-	fenceEditSpan
+	fenceEditSpan,
+	isStructureOnlyRange
 } from '../../../components/blocks/code/code-fence-boundary';
 import { computeCodeEnter } from '../../../components/blocks/code/code-enter';
 import { indentLines } from '../../../components/blocks/code/code-indent';
@@ -387,6 +388,27 @@ describe('fenceEditSpan', () => {
 		expect(fenceEditSpan(closed, { start: 5, end: 6 })).toEqual({ start: 6, end: 6 });
 		expect(fenceEditSpan(closed, { start: 18, end: 21 })).toEqual({ start: 17, end: 17 });
 		expect(fenceEditSpan(closed, { start: 0, end: 3 })).toEqual({ start: 6, end: 6 });
+	});
+});
+
+// The refusal every mutating gesture shares — the guard and cut through
+// computeFenceRangedEdit, paste directly, because the tree-op owns its splice.
+describe('isStructureOnlyRange', () => {
+	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
+
+	it('is true for a range confined to either fence line', () => {
+		expect(isStructureOnlyRange(closed, { start: 19, end: 19 })).toBe(true); // caret in closer
+		expect(isStructureOnlyRange(closed, { start: 18, end: 21 })).toBe(true); // closer text
+		expect(isStructureOnlyRange(closed, { start: 1, end: 1 })).toBe(true); // caret in markers
+		expect(isStructureOnlyRange(closed, { start: 0, end: 3 })).toBe(true); // marker run
+		expect(isStructureOnlyRange(closed, { start: 17, end: 18 })).toBe(true); // body ending
+	});
+
+	it('is false wherever an edit has body to land in', () => {
+		expect(isStructureOnlyRange(closed, { start: 12, end: 20 })).toBe(false); // crosses, body survives
+		expect(isStructureOnlyRange(closed, { start: 8, end: 8 })).toBe(false); // caret in body
+		expect(isStructureOnlyRange(closed, { start: 4, end: 4 })).toBe(false); // caret in info
+		expect(isStructureOnlyRange(closed, { start: 0, end: 21 })).toBe(false); // whole display
 	});
 });
 
