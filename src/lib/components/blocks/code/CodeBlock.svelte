@@ -48,6 +48,7 @@
 		computeFenceRangedEdit,
 		crossesFenceBoundary,
 		fenceEditSpan,
+		isStructureOnlyRange,
 		type CodeRange
 	} from './code-fence-boundary';
 	import { metadataOf, type CstNode } from '../../../core/nodes';
@@ -642,7 +643,12 @@
 		},
 		pasteTail: async (e, pastedText) => {
 			if (!el) return;
-			const sel = fenceEditSpan(node, currentRange());
+			// Paste writes text like typing does, so it refuses where typing refuses: a
+			// target confined to fence structure has nothing to paste into. Only the
+			// clamp differs — the tree-op owns the splice, so the span goes to it.
+			const target = currentRange();
+			if (isStructureOnlyRange(node, target)) return;
+			const sel = fenceEditSpan(node, target);
 			const result = await pasteDispatch(
 				{
 					pastedText,

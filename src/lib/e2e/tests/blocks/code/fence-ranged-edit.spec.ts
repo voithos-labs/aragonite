@@ -83,6 +83,29 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
 	});
 
+	// Paste follows the same refusal as typing: a target confined to structure has no
+	// content to write into, so the payload lands nowhere rather than at the body edge.
+	test('paste with the caret inside a fence run is inert', async ({ page }) => {
+		await page.evaluate(() => navigator.clipboard.writeText('Y'));
+
+		for (const offset of [19, 1]) {
+			await editor.focusBlock(0, offset);
+			await editor.page.keyboard.press('Control+v');
+			await editor.waitForNoSourceMutation();
+
+			expect(await editor.bridge.getSource()).toBe(SOURCE);
+		}
+	});
+
+	test('paste over a closer-only selection is inert', async ({ page }) => {
+		await page.evaluate(() => navigator.clipboard.writeText('Y'));
+		await selectFrom(editor, 18, 3);
+		await editor.page.keyboard.press('Control+v');
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+	});
+
 	test('Backspace over an opener-into-body selection keeps the opener line', async () => {
 		await selectFrom(editor, 3, 6); // "js\ncon"
 		await editor.page.keyboard.press('Backspace');

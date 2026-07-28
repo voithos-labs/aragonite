@@ -16,7 +16,9 @@ test.describe('code block paste — fence bumping', () => {
 	test('paste containing ``` into a code block bumps outer fence to ````', async ({ page }) => {
 		await editor.loadContent('```\nfirst\n```\n');
 		await editor.getBlock(0).click();
-		await editor.focusBlockEnd(0);
+		// End of the body line, not end of the block: the block's last offset sits inside
+		// the closer run, where every write — paste included — is refused.
+		await editor.focusBlock(0, 9);
 
 		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
 		await editor.page.keyboard.press('Control+v');

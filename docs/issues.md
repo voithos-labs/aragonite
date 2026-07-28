@@ -13,7 +13,8 @@ or a **Why deferred** rationale (if not). Remove entries when shipped.
 the auto-pair arm — both police WHERE an edit lands, not WHAT it writes),
 `src/lib/components/blocks/code/code-beforeinput.ts` (`computeAutoPair` closes a typed backtick
 into a pair), `src/lib/components/blocks/code/code-paste-surface.ts` (paste bumps the opener's
-fence length, but only for the body splice)
+fence length when the pasted text carries a matching run — the shape of a fix, applied to one
+character class)
 
 Where an edit may land is settled: the fence marker runs, the opener indentation and the two
 body line endings are structure, and every gesture that would rewrite them is clamped onto the
@@ -42,6 +43,24 @@ character, or bump the fence the way paste already bumps it). The structural con
 complete and independently enforced; bolting a character rule onto its predicate would blur two
 rules into one guard. The body half is the same family as the container terminator-collision
 work, which has its own conformance cell.
+
+### A caret parks on a code block's fence lines, where every keystroke is inert
+
+**Severity:** minor (no corruption; silent no-op with no feedback)
+**Files:** `src/lib/components/blocks/code/CodeBlock.svelte` (the fence guard refuses the edit
+but nothing keeps the caret out), `src/lib/cursor/visual-lines.ts` (the arrow-boundary tier
+counts fence lines as visual lines like any other)
+
+The fence marker runs are structure now: typing, deleting or pasting inside one is refused. The
+caret still parks there — a click on the closer line, ArrowDown from the last body line, End on
+the opener — and every keystroke does nothing, with no cue that the position is read-only. Two
+independently written e2e tests had encoded the opposite assumption (that ArrowDown from the
+last body line leaves the block), which is how the state was found.
+
+**Why deferred:** the fix is a navigation change, not an editing one — clicks, Home/End, the
+visual-line math and the sticky column all have to agree on a caret that skips two lines, and
+the same question applies to any block whose rendering has non-editable structural lines. It is
+worth deciding once for that whole class rather than for code alone.
 
 ### Interactive reading mode (live task checkboxes) — deferred product question
 

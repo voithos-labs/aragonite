@@ -24,7 +24,8 @@ The contract, in four parts:
   language must keep working.
 - **A structure-only edit is inert.** Its intersection with the body is empty, so it rewrites
   nothing and spends no undo entry. An insertion is refused rather than re-sited to the body
-  edge: a character aimed at a fence must not land where the user never pointed.
+  edge: a character aimed at a fence must not land where the user never pointed. One rule for
+  every gesture that writes — typing, paste and cut all decline at the same offsets.
 - **An unclosed fence keeps its marker run editable.** With no closer to orphan, demoting the
   block to a paragraph is how a just-typed ` ``` ` is undone, and nothing gets absorbed.
 - **Copy stays verbatim.** A non-mutating read keeps the literal bytes, fences included. Cut
@@ -60,6 +61,8 @@ block whole (a cross-block selection, or Ctrl+A twice) removes it.
   not convert to a paragraph, as an unguarded native delete of the whole display would)
 - typing inside the closer run is inert; so is Backspace inside it (the auto-pair delete
   reads a caret between two backticks as a pair and must decline there)
+- paste is inert wherever typing is: with the caret inside either marker run, and over a
+  selection made only of fence characters
 - deleting a selected opener marker run is inert on a closed fence
 - an unclosed fence keeps its marker run editable: deleting it demotes the block to a
   paragraph, byte-for-byte

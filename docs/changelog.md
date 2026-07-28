@@ -393,8 +393,11 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   never closes, one deleted opener backtick demotes the block and promotes its closer to an
   absorbing opener, one character typed into the closer run does the same, and a fourth leading
   space on the opener demotes it to an indented code block. So both marker runs are structure,
-  and typing or deleting inside either is inert — including the auto-pair delete, which reads a
-  caret between two backticks as a pair and now declines when that pair is a fence. The one
+  and every gesture that writes is inert inside either — typing, deleting, cut and paste alike,
+  including the auto-pair delete, which reads a caret between two backticks as a pair and now
+  declines when that pair is a fence. One predicate answers for all of them, because the paste
+  route splices through the tree-op rather than through the surface's own edit, and a rule that
+  each entry path carried a copy of is a rule one of them would eventually not carry. The one
   exception is an UNCLOSED fence: with no closer to orphan, its markers stay editable, because
   demoting the block is how a just-typed ` ``` ` is un-typed and nothing can be absorbed. Two
   consequences beyond the bug: select-all then delete inside a code block now empties the body
