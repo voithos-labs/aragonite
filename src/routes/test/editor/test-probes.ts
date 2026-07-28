@@ -635,6 +635,18 @@ export function installTestProbes({
 		},
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**
+		 * Call `BlockComponent.focus` the way a plugin-authored container holding
+		 * its children's refs does — the public door (`BlockComponent` is an
+		 * exported type) that no gesture-level spec can reach, since every
+		 * built-in caret placement goes through a pointer or keyboard path first.
+		 */
+		focusBlockComponent: (path: number[], offset: number): boolean => {
+			const block = editor.__test.getBlockComponent(path);
+			if (!block) return false;
+			block.focus(offset);
+			return true;
+		},
+		/**
 		 * Lets E2E specs assert the shallow/deep cursor contract that
 		 * `getSelection()` hides — e.g., a 2D surface like TableBlock must
 		 * null its shallow getCursorOffset because (row, col) can't be

@@ -20,3 +20,7 @@ gesture died silently.
   the same way, and Ctrl+C must still copy the whole document.
 - A cross-block copy that a block surface DOES receive keeps writing exactly once — the
   root fallback must not double-write or overwrite the block's payload.
+- The listeners sit on `document`, so every copy on the page enters them. Copying from a
+  host header field mounted inside the editor root (`?header=on` — both its `<input>` and
+  its `contenteditable`) and from the find bar's input each yields that surface's own
+  text, never the document, even with a whole-document range live.
