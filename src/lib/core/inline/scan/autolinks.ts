@@ -4,10 +4,10 @@
  *
  * The conformance reference has no autolink extension, so the GFM rules here
  * answer to the GFM spec text where it is explicit — including the blanket
- * leading-boundary rule, which cmark-gfm applies to www/url but not to email.
- * Where the prose runs out, cmark-gfm settles the corner, since it is what
- * GitHub runs (see `scanEmailDomain`). Its `np > 10` underscore escape is the
- * one exception, called out at `hasValidDomain`.
+ * leading-boundary rule, which every form here applies and cmark-gfm applies to
+ * the `www.` form alone. Where the prose runs out, cmark-gfm settles the corner,
+ * since it is what GitHub runs (see `scanEmailDomain`). Its `np > 10` underscore
+ * escape is the one exception, called out at `hasValidDomain`.
  */
 
 import type { InlineNode } from '../../nodes';

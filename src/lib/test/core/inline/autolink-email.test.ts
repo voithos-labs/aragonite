@@ -7,7 +7,8 @@ import { inlineOf } from './inline-test-helpers';
  * leaves loose ("one or more characters … separated by periods"); the four spec
  * examples below agree with it. The leading-boundary rule is the one place this
  * module keeps the spec against cmark-gfm — see the two boundary rows, which
- * cmark-gfm links and the spec's blanket "after whitespace or `*_~(`" does not.
+ * cmark-gfm links (it guards only the `www.` form) and the spec's blanket "after
+ * whitespace or `*_~(`" does not.
  */
 
 function emailAutolinks(source: string) {
