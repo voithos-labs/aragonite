@@ -664,7 +664,7 @@
 	// page never leak load failures into each other's broken-state recompute.
 	const brokenImageUrls = new Set<string>();
 
-	const pasteCoordinator = createPasteCoordinator(controller);
+	const pasteCoordinator = createPasteCoordinator(controller, revealPath);
 
 	// Pre-search caret, snapshotted on Ctrl+F open and restored on close. Plain
 	// `let` (mirrors focusedPath): only read/written from imperative handlers.

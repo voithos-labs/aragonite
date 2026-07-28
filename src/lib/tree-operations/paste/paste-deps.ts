@@ -8,7 +8,6 @@
  */
 
 import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
-import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { SharingState } from '../sharing';
 
@@ -28,10 +27,13 @@ export interface PasteCommitCoordinator {
 	/** Strict variant — throws when `node` has no mounted state (caller guarantees a mounted container). */
 	expectState(node: CstNode): MultiScopeTarget['state'];
 	/**
-	 * Land the caret at a sub-path within a container's mounted refs, for the
-	 * post-commit focus a paste owns itself. Supplied by the editor-actions factory
-	 * so a paste module never imports the focus dispatcher — the one back-edge that
-	 * made `tree-operations -> editor-actions` a cycle.
+	 * Land the caret at a doc-absolute path, revealing an off-window target first.
+	 * Every structural paste lands at the END of the pasted run, so its target
+	 * index scales with the CLIPBOARD, not with where the caret was — a sync ref
+	 * lookup would silently no-op past the window's overscan (VR-12). One reveal
+	 * seam for all of them; supplied by the editor-actions factory so a paste
+	 * module never imports the focus layer — the one back-edge that made
+	 * `tree-operations -> editor-actions` a cycle.
 	 */
-	focusByPath(refs: (BlockComponent | undefined)[], path: number[], offset: number): void;
+	landCaret(path: number[], offset: number): Promise<void>;
 }

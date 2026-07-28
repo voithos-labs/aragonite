@@ -11,6 +11,7 @@
  */
 
 import type { OpDescriptor } from '../schema/operations';
+import type { CommitAfterTick } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -41,7 +42,7 @@ export interface ScopeCommitArgs {
 	eventTarget: number;
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
-	afterTick?: () => void;
+	afterTick?: CommitAfterTick;
 	/**
 	 * Leaf(ves) the dev staleness oracle checks when `mutate` returns `noop` (an
 	 * in-place metadata/kind write the StructuralChange can't name). The owned copy

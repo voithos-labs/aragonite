@@ -41,6 +41,15 @@ export type UndoEntryMode = 'own' | 'join';
  */
 export type DiscardIfNoop = boolean;
 
+/**
+ * Post-tick view callback — where a commit lands its caret. Awaited, so a
+ * landing that must first reveal an off-window target (VR-12) is expressible
+ * here rather than fire-and-forget: the promise a commit returns means "the
+ * edit AND its caret have settled". A reveal is bounded (VR-5 degrades instead
+ * of waiting for a mount that can never fire), so awaiting cannot hang.
+ */
+export type CommitAfterTick = () => void | Promise<void>;
+
 // ── Action sub-interfaces ──────────────────────────────────────────────────
 
 export interface BlockEditActions {
@@ -159,7 +168,7 @@ export interface CommitMultiScopeArgs<
 		readonly [K in keyof S]: StructuralChange;
 	};
 	op?: ScopedOpDescriptor;
-	afterTick?: () => void;
+	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
 }
 
@@ -167,7 +176,7 @@ export interface CommitStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (children: CstNode[]) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: () => void;
+	afterTick?: CommitAfterTick;
 	/** Leaf(ves) for the dev invariant check when `mutate` returns `noop` (in-place kind change). */
 	touchedNodes?: CstNode[];
 	discardIfNoop?: DiscardIfNoop;
@@ -185,7 +194,7 @@ export interface CommitContainerStructuralArgs {
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
 	op?: ScopedOpDescriptor;
-	afterTick?: () => void;
+	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
 }
 

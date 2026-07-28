@@ -137,7 +137,7 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 			{
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(createUndoController(deps)),
+				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 				undoEntry: 'join'
 			}
 		);
@@ -156,7 +156,7 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 			{
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(createUndoController(deps)),
+				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 				undoEntry: 'join',
 				grammar: createGrammarView((kind) => kind !== 'list')
 			}

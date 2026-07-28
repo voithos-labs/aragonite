@@ -203,6 +203,23 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   A closure cell is prose a compiler cannot read, so the honesty of the matrix rested entirely on
   review — and the thematic break above is what that gap looked like in a shipped built-in.
 
+- **A big paste into a long list no longer loses the caret (VR-12).** Every structural paste lands
+  the caret at the END of the pasted run, so its target index is offset by the CLIPBOARD's block
+  count — unrelated to where the caret was. All five routes reached that target through a
+  synchronous ref lookup, which cannot mount an off-window block, so once the pasted run cleared the
+  render window's overscan the landing silently no-op'd: the user pasted, typed, and nothing
+  happened anywhere in the document. The ledger named one route; the pinned repro exercised a
+  different one, which is the tell that the bound was on the wrong thing. A landing index that
+  scales with the clipboard is the defect, and every structural paste has one, so the fix is a
+  single reveal seam the paste layer lands through — doc-absolute path in, scroll-mount-focus out
+  — rather than five callers each remembering. Reaching it required the commit ceremony's
+  post-tick callback to be awaited, which it now is: the promise a commit hands back means the
+  edit AND its caret have settled, and a reveal is bounded (it degrades rather than waiting for a
+  mount that can never fire), so awaiting cannot hang. Widening that callback's return type also
+  surfaced a landing that had been silently discarding a boolean the whole time. Documents small
+  enough that the target was already mounted are unchanged down to the absence of a scroll: reveal
+  skips a mounted target without touching the scroll position.
+
 - **A structural paste mints its blank-line rows at the target document's ending.** Pasting content
   with an internal blank line into a CRLF document left a lone LF row behind: paste normalizes the
   clipboard to LF before parsing, so the trivia those rows materialize from cannot tell a CRLF

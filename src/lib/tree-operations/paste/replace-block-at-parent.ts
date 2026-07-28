@@ -69,9 +69,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			detail: { source },
 			eventPath: docPathFrom(blockPath)
 		},
-		afterTick: () => {
-			const focusIdx = blockIdx + focusReplacementIndex;
-			scope.state.innerBlockRefs[focusIdx]?.focus(focusOffset);
-		}
+		afterTick: () =>
+			controller.landCaret([...scope.path, blockIdx + focusReplacementIndex], focusOffset)
 	});
 }

@@ -93,8 +93,11 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
  * precondition is the CALLER's, not this function's: the target must be within
  * overscan of the pinned focus index. A caller whose target index can scale
  * with anything other than caret distance (a clipboard item count, say) must
- * route through `revealByPath` first — the async sibling, which scrolls +
- * mounts. VR-12 (docs/design/virtual-rendering.md § VR Identifier Catalog).
+ * route through `revealByPath`/`revealPath` instead — the async siblings, which
+ * scroll + mount. VR-12 (docs/design/virtual-rendering.md § VR Identifier
+ * Catalog). Auditing "the callers" against that bound is what let VR-12 hide:
+ * the enumeration was of this file's importers, and the reachable violation
+ * lived a layer away. Bound the LANDING, not the caller list.
  */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],

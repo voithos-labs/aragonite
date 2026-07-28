@@ -41,7 +41,7 @@ describe('structural paste into a CRLF document', () => {
 			{
 				doc: deps.doc,
 				blockEdit: makeStubBlockEdit(),
-				controller: createPasteCoordinator(createUndoController(deps)),
+				controller: createPasteCoordinator(createUndoController(deps), deps.revealPath),
 				undoEntry: 'own'
 			}
 		);

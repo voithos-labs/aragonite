@@ -40,7 +40,7 @@ function stubScope(
 				sharing,
 				unshareChild: (i) => children[i]
 			});
-			args.afterTick?.();
+			await args.afterTick?.();
 		}
 	};
 	return { scope, commits, children };

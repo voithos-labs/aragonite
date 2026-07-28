@@ -29,7 +29,7 @@ function blockquoteHarness() {
 		deps,
 		events,
 		liveQuote,
-		coordinator: createPasteCoordinator(createUndoController(deps))
+		coordinator: createPasteCoordinator(createUndoController(deps), deps.revealPath)
 	};
 }
 
@@ -95,7 +95,7 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 	// realign childIds — only ref alignment is unavailable.
 	it('an unmounted container still commits instead of throwing', async () => {
 		const { deps } = makeEditorActionsDeps(parse('> # Head\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps));
+		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0, 0], offset: 'Head'.length + 2 },
@@ -114,7 +114,7 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 
 	it('top-level target syncs the document-scope block ids', async () => {
 		const { deps, events } = makeEditorActionsDeps(parse('# Head\n').children);
-		const coordinator = createPasteCoordinator(createUndoController(deps));
+		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
 		void events;
 
 		await pasteDispatch(
