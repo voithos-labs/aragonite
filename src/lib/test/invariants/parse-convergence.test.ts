@@ -37,8 +37,14 @@ describe('parseConverges tolerates the documented empty-paragraph placeholders',
 		expect(parseConverges(docOf([list]))).toBe(true);
 	});
 
-	it('a blockquote with a trailing empty-paragraph placeholder', () => {
-		const bq = parse('> hi\n>\n').children[0];
+	it.each([
+		['LF', '> hi\n>\n'],
+		// CRLF puts the `\r` in the line's ending, not its text, so the blank test
+		// still sees an empty line — the one path where a per-line rule could have
+		// read a stray `\r` as content.
+		['CRLF', '> hi\r\n>\r\n']
+	])('a blockquote with a trailing empty-paragraph placeholder (%s)', (_label, source) => {
+		const bq = parse(source).children[0];
 		const trailingBlank = bq.innerSuffix ?? '';
 		bq.innerSuffix = '';
 		bq.children!.push({ kind: 'paragraph', leadingTrivia: '', raw: trailingBlank });
