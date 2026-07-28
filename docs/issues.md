@@ -140,24 +140,30 @@ the post-change coordinate and the top-level divergence want a joint look.
 seam and both content-commit factories together — a careful reconciliation, not a spot change.
 Fold into the history-seam pass (limestone internal integration).
 
-### writeText clipboard writes normalize line endings per-OS; wry reliability unproven
+### `navigator.clipboard.readText()` did not settle on its first use under wry
 
-**Severity:** watch (no defect today; relevant to the limestone/Tauri integration)
-**Files:** `src/lib/editor-actions/container-block-component.ts` (the whole-block Mod+C/Mod+X write)
+**Severity:** watch (observed once, not reproduced; a hang defeats the `catch` that guards it)
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` (the cell menu's Paste arm)
 
-The focused-block copy writes via `navigator.clipboard.writeText` — no ClipboardEvent exists in
-a keydown handler. Two platform behaviors to watch: Chromium's `writeText` normalizes a
-multi-line payload to the OS line ending (CRLF on Windows — the mermaid e2e normalizes before
-comparing; intra-editor paste re-normalizes to LF, so no corruption), and the cross-block
-clipboard code documents wry (Tauri) refusing `writeText` in some contexts — unverified for this
-path. A setData-in-a-copy-event fallback was proven workable during implementation (the native
-copy event does fire on the focused div; `preventDefault` currently suppresses it), at the cost
-of per-surface `oncopy` handlers.
+Measured in the real limestone desktop app (Tauri v2 + wry + WebView2, Windows), in one
+session, in this order: `permissions.query({name: 'clipboard-read'})` reported `prompt`;
+`readText()` called from a real click handler never settled, neither resolving nor rejecting, at
+3s and again at 12s, while a `writeText` in the same handler resolved; later in the same session
+the cell menu's Paste worked; after that the permission read `granted` and a bare `readText()`
+resolved.
 
-**Fix direction:** if the limestone integration observes a failed focused-block copy under wry,
-switch the tail to the proven copy-event fallback behind the same shared seam.
+What granted the permission was not isolated, and whether a fresh WebView2 profile stalls the
+first call was not retested (that would mean clearing a real user profile). The reason it is
+ledgered anyway: the call site wraps the await in a `try`/`catch` that degrades to a no-op, and
+a `catch` covers a rejection but not a promise that never settles. If the first-call stall is
+real on a fresh profile, that menu item hangs silently instead of degrading.
 
-**Why deferred:** watch-class; needs the real embedder to falsify.
+**Fix direction:** race the read against a timeout so the no-op degradation covers a stall as
+well as a rejection. Confirm the stall on a clean profile first — a fix aimed at a
+mis-attributed cause is worse than the watch.
+
+**Why deferred:** one observation, no reproduction, and the reproduction attempt costs a real
+user profile. The Tauri example app the roadmap plans is where a clean profile is free.
 
 ### Emphasis-dense giant paragraphs scan quadratically
 
