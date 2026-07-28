@@ -44,9 +44,11 @@ export type DiscardIfNoop = boolean;
 /**
  * Post-tick view callback — where a commit lands its caret. Awaited, so a
  * landing that must first reveal an off-window target (VR-12) is expressible
- * here rather than fire-and-forget: the promise a commit returns means "the
- * edit AND its caret have settled". A reveal is bounded (VR-5 degrades instead
- * of waiting for a mount that can never fire), so awaiting cannot hang.
+ * here rather than fire-and-forget. A reveal is bounded (VR-5 degrades instead
+ * of waiting for a mount that can never fire), so awaiting cannot hang. What a
+ * landing hands back is still its own choice: one that deliberately does not
+ * make the commit wait on it — blockquote-exit voids its upward moveFocus —
+ * says so by returning nothing, and that stays a property the seam declares.
  */
 export type CommitAfterTick = () => void | Promise<void>;
 
@@ -89,7 +91,7 @@ export interface BlockEditActions {
 	updateBlockMetadata(
 		blockIndex: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
+		options?: { undoEntry?: UndoEntryMode; afterTick?: CommitAfterTick }
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.

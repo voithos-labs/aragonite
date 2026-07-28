@@ -25,8 +25,11 @@ export function registerBlockListState(node: NodeView, state: BlockListState): v
  * nothing about ownership. Re-ask once the flush settles: a loser that gave up
  * its child refs was torn down (the handoff), while one still holding them is a
  * second live owner writing into a state nothing can resolve, which is what this
- * warns about. A childless loser is indistinguishable and reads as a handoff —
- * it has no refs to orphan, so there is nothing for the warning to protect.
+ * warns about. Two holes in the net, both deliberate: a childless loser is
+ * indistinguishable and reads as a handoff (it has no refs to orphan, so there is
+ * nothing to protect), and a third registration in the same tick drops the earlier
+ * contest unreported — naming a winner that no longer owns the node would be worse
+ * than silence. This is a dev signal, not a guarantee.
  */
 async function reportContestedClaim(
 	node: NodeView,
