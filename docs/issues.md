@@ -464,7 +464,7 @@ the root path a second, divergent copy.
 
 **Severity:** minor (a click that does nothing, on a narrow set of surfaces)
 **Files:** `src/lib/selection/dead-space-caret.ts` (the `foreignDragHitTest` and
-`contenteditable="true"` gates in `placeCaretFromDeadSpaceClick`)
+`contenteditable="true"` gates in `createDeadSpaceCaret`'s `handleClick`)
 
 A click in the editor's padding, or below the last block, places the caret at the nearest text.
 Two families decline instead. A **table** carries `foreignDragHitTest` because its offset is a

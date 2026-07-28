@@ -107,13 +107,15 @@ test.describe('dead-space clicks place a caret', () => {
 		const root = await rootBox();
 		const para = await blockBox(0);
 		await editor.page.mouse.click(root.right - 5, para.top + 6);
-		await editor.waitForCrossBlock(false);
 
+		// Assert the outcome before the mechanism, so a regression reds on "the
+		// document was eaten" rather than on a locator timeout for the overlay.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const source = await editor.bridge.getSource();
-		expect(source).toContain('first para');
+		expect(source, 'the stale range type-replaced the document away').toContain('first para');
 		expect(source).toContain('third para');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
 	// A drag that started ON a block and released in the margin reports the ROOT as

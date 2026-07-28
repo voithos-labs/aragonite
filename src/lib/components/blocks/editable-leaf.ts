@@ -57,6 +57,7 @@ import {
 } from './editable-surface';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
+import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
@@ -536,6 +537,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// over the rendered view stays available.
 		if (e.shiftKey || isReading()) return;
 		e.preventDefault();
+		// The reveal lands a caret, so this is a caret-placing gesture and owes the
+		// shared preamble every sibling runs. It does NOT route through
+		// crossBlock.handlePointerDown: that hit-tests the pointer against the SOURCE
+		// text, which the rendered view is not.
+		resetForPointerDown(selection, stickyColumn, e.shiftKey);
 		void revealKernel.reveal(0);
 	}
 

@@ -94,11 +94,19 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Place the caret at `offset`, focusing the surface. Two sentinels arrive
+	 * Park the caret at `offset`, focusing the surface. Two sentinels arrive
 	 * through this same `number`: `CURSOR_END` (past any length, meaning end of
 	 * content) and `FOCUS_LAST_START` (`-1`, which a leaf clamps to 0 and a
 	 * container cascades into its last child). An out-of-range offset must clamp,
 	 * never throw. A raw DOM seek on `-1` raises IndexSizeError and loses the caret.
+	 *
+	 * Park, not select: this does NOT end a live cross-block range, because the
+	 * cross-block dispatcher parks its own dispatch caret through this same call
+	 * while an extend is still growing one. A caller moving the caret because the
+	 * USER acted wants the editor's `setSelection` instead, which states a new
+	 * selection and ends the old one. Calling this with a range live leaves it
+	 * painted, and the next keystroke will replace all of it. Both behaviours are
+	 * pinned by `e2e/tests/selection/public-caret-doors.spec.ts`.
 	 */
 	focus(offset: number): void;
 	/**
