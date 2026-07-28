@@ -1,18 +1,20 @@
 /**
  * Pure decisions that keep an edit off the fence lines of a fenced code block.
  * The opener fence (` ```... ` + its trailing `\n`) and closer fence (leading
- * `\n` + ` ```... `) are structure, not editable content — an edit that consumes
- * either line ending merges the body into a fence line and leaves an unclosed
- * fence that absorbs the rest of the document at the next parse. Two tiers:
- * a keystroke at the boundary re-routes to a focus-move out of the block
- * (`classifyFenceBoundary`), and anything that rewrites a range is re-sited onto
- * the body window (`fenceEditSpan` and the clamps around it).
+ * `\n` + ` ```... `) are structure, not editable content — an edit that rewrites
+ * either leaves an unclosed fence, and an unclosed fence absorbs the rest of the
+ * document at the next parse. The block's editable content is its body plus the
+ * opener's info string; `crossesFenceBoundary` carries the parser evidence for
+ * where that line sits. Two tiers: a keystroke at the body boundary re-routes to
+ * a focus-move out of the block (`classifyFenceBoundary`), and anything that
+ * rewrites a range is re-sited onto the body (`fenceEditSpan` and its clamps).
  *
  * Display-text coordinates throughout (textContent of the contenteditable;
  * raw without the trailing line ending). Mirrors `code-fence-exit.ts`.
  */
 
 import type { NodeView } from '../../../core/node-views';
+import { metadataOf } from '../../../core/nodes';
 import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
 import { sliceFencedCode } from './code-renderer';
 
@@ -42,9 +44,9 @@ export type FenceBoundaryResult =
  * The corruption this guards against is structural: deleting either of the
  * two `\n` characters that demarcate the body from the fence lines re-parses
  * the block in a different shape (opener fuses with body; closer drifts off
- * column 0). Other in-block edits — typing info-string chars, deleting an
- * opener backtick mid-typing, etc. — are allowed; they round-trip through
- * the parser cleanly.
+ * column 0). This tier answers only the two body boundaries — what else a
+ * keystroke may rewrite is `crossesFenceBoundary`'s question, and the fence
+ * marker runs are structure there.
  *
  *   Backspace at offset == bodyStart (when opener terminates with `\n`)
  *       → exitPrev (would delete the opener's terminating `\n`)
@@ -102,43 +104,47 @@ export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * Does a pending edit's range cross out of the region it starts in? The display
- * text has three: the opener's own text, the body, and the closer's own text. An
- * edit confined to one of them round-trips through the parser — retyping an info
- * string, deleting a closer backtick mid-edit — and keeps native handling. An edit
- * that crosses consumes one of the two line endings that demarcate the body, which
- * fuses a fence line into the body and leaves an unclosed fence that absorbs every
- * following block at the next parse.
+ * Does a pending edit's range reach out of the block's editable content? Only two
+ * spans of the display text are content: the body, and the opener's info string.
+ * Everything else on the two fence lines is structure, and the parser is the
+ * authority on why — each of these is one keystroke away and each swallows every
+ * following block into the code node at the next parse:
+ *
+ *   `` ```js\ncode\n`` ``     one closer backtick gone → the fence never closes
+ *   `` ``js\ncode\n```  ``    one opener backtick gone → the block demotes and its
+ *                             closer becomes the opener of an absorbing fence
+ *   `` ```js\ncode\n``x` ``   one character typed into the closer run → same
+ *   `` (4 leading spaces) ``  the opener demotes to an indented code block
+ *
+ * An UNCLOSED fence is the exception: with no closer to orphan, its marker run is
+ * still content — demoting the block to a paragraph is how a just-typed ` ``` ` is
+ * undone, and there is nothing for the demoted block to absorb.
  */
 export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean {
-	const { openerTextEnd, body, closerTextStart } = fenceRegions(node);
+	const { openerContent, body } = fenceRegions(node);
 	const lo = Math.min(range.start, range.end);
 	const hi = Math.max(range.start, range.end);
-	if (hi <= openerTextEnd) return false;
-	if (lo >= body.start && hi <= body.end) return false;
-	return lo < closerTextStart;
+	if (lo >= openerContent.start && hi <= openerContent.end) return false;
+	return !(lo >= body.start && hi <= body.end);
 }
 
 /**
- * The span a ranged edit actually rewrites: the selection itself while it stays
- * inside one region, its intersection with the body once it crosses. Fence lines
- * are never rewritten, so a selection made entirely of fence characters yields an
+ * The span a ranged edit actually rewrites: the range itself while it stays inside
+ * one content region, its intersection with the body once it reaches structure.
+ * Fence lines are never rewritten, so a range made entirely of structure yields an
  * empty span and the gesture has nothing to apply.
  */
 export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
-	const ordered = {
-		start: Math.min(range.start, range.end),
-		end: Math.max(range.start, range.end)
-	};
-	return crossesFenceBoundary(node, ordered) ? clampRangeToBody(node, ordered) : ordered;
+	const span = orderedRange(range);
+	return crossesFenceBoundary(node, span) ? clampRangeToBody(node, span) : span;
 }
 
 /**
  * The one splice every gesture that rewrites a range on this surface goes through
  * — native delete/type-over (via the beforeinput guard), cut, and paste's
- * pre-delete: `insert` replaces the edit span, `''` for a delete. Null when the
- * clamped edit rewrites nothing, so a fence-only selection commits no CST edit and
- * spends no undo entry.
+ * pre-delete: `insert` replaces the edit span, `''` for a delete. Null when there
+ * is nothing to rewrite, so the gesture commits no CST edit and spends no undo
+ * entry.
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
@@ -146,7 +152,13 @@ export function computeFenceRangedEdit(
 	insert: string
 ): FenceRangedEdit | null {
 	const display = trimTrailingLineEnding(node.raw);
-	const span = fenceEditSpan(node, range);
+	const ordered = orderedRange(range);
+	const crossed = crossesFenceBoundary(node, ordered);
+	const span = crossed ? clampRangeToBody(node, ordered) : ordered;
+	// A range that reached structure and kept no body to rewrite is refused, not
+	// re-sited: a character aimed at a fence must not land at the body edge, where
+	// the user never pointed.
+	if (crossed && span.start === span.end) return null;
 	const newText = display.slice(0, span.start) + insert + display.slice(span.end);
 	if (newText === display) return null;
 	return { newText, newCursor: span.start + insert.length };
@@ -162,6 +174,11 @@ export interface FenceRangedEdit {
 interface FenceRegions {
 	/** End of the opener's own text, before the line ending that starts the body. */
 	openerTextEnd: number;
+	/**
+	 * The editable span of the opener line: the info string of a closed fence, or the
+	 * whole opener text while the fence is still unclosed (see `crossesFenceBoundary`).
+	 */
+	openerContent: CodeRange;
 	body: CodeRange;
 	/** Start of the closer's own text, past the body's line ending. */
 	closerTextStart: number;
@@ -171,12 +188,40 @@ function fenceRegions(node: NodeView): FenceRegions {
 	const slice = sliceFencedCode(node);
 	const displayEnd = displayLength(node.raw);
 	const body = bodyWindow(node);
+	const openerTextEnd = Math.min(displayLength(slice.openerLine), displayEnd);
+	const hasCloser = slice.closerLine.length > 0;
+	const contentStart = hasCloser
+		? Math.min(
+				markerRunEnd(slice.openerLine, metadataOf(node, 'fencedCode').fenceMarker),
+				openerTextEnd
+			)
+		: 0;
 	return {
-		openerTextEnd: Math.min(displayLength(slice.openerLine), displayEnd),
+		openerTextEnd,
+		openerContent: { start: contentStart, end: openerTextEnd },
 		body,
 		// `slice.body` carries its own trailing ending, so its full length is where the
 		// closer line begins; an unclosed fence has no closer and collapses onto the end.
 		closerTextStart: Math.min(body.start + slice.body.length, displayEnd)
+	};
+}
+
+/**
+ * Past the opener's indentation and its run of fence markers — where the info string
+ * starts. Scanned rather than derived from `fenceLength`, so a raw whose recorded
+ * metadata has drifted still measures its own bytes.
+ */
+function markerRunEnd(openerLine: string, marker: string): number {
+	let index = 0;
+	while (openerLine[index] === ' ') index++;
+	while (openerLine[index] === marker) index++;
+	return index;
+}
+
+function orderedRange(range: CodeRange): CodeRange {
+	return {
+		start: Math.min(range.start, range.end),
+		end: Math.max(range.start, range.end)
 	};
 }
 

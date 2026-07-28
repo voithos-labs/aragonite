@@ -21,10 +21,10 @@ const settle = () => new Promise((r) => setTimeout(r));
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
 
-function mountCodeBlock() {
+function mountCodeBlock(source = SOURCE) {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
-	const doc = parse(SOURCE);
+	const doc = parse(source);
 	const blockEdit = makeStubBlockEdit();
 
 	const instance = mount(CodeBlock, {
@@ -57,10 +57,9 @@ function beforeInput(inputType: string, data?: string): InputEvent {
 	return e;
 }
 
-function replacement(transferred: string, data: string | null): InputEvent {
+function replacement(transferred: string): InputEvent {
 	const e = new InputEvent('beforeinput', {
 		inputType: 'insertReplacementText',
-		...(data === null ? {} : { data }),
 		bubbles: true,
 		cancelable: true
 	});
@@ -103,25 +102,16 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst Z\n```');
 	});
 
-	// The one claimed type whose payload is not on `e.data`: an autocorrect replacement
-	// carries it on the dataTransfer.
-	it('claims a replacement and writes its dataTransfer payload', async () => {
+	// A replacement carries its payload on the dataTransfer, which this surface never
+	// reads: an external payload it did not read is one it cannot route through the
+	// paste transforms (G4.11), so a crossing replacement is refused, not re-sited.
+	it('refuses a replacement rather than re-siting a payload it never read', async () => {
 		select(12, 20);
-		const e = replacement('Q', null);
+		const e = replacement('Q');
 		await settle();
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedText()).toBe('```js\nconst Q\n```');
-	});
-
-	// getData answers a missing type with '' rather than null, so a nullish fallback
-	// would take the empty string and silently turn the replacement into a delete.
-	it('falls back to the event data when the dataTransfer carries no text', async () => {
-		select(12, 20);
-		replacement('', 'Q');
-		await settle();
-
-		expect(committedText()).toBe('```js\nconst Q\n```');
+		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
 	it('claims a soft break and splices it inside the body', async () => {
@@ -133,17 +123,42 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n\n```');
 	});
 
+	// The keydown path auto-indents (computeCodeEnter 'normal'); a mobile/IME
+	// insertParagraph is the same gesture and keeps the indent.
+	it('claims a paragraph break and keeps the body line indent', async () => {
+		await unmount(mounted.instance);
+		mounted = mountCodeBlock('```js\n  const x = 1\n```\n');
+		select(14, 22);
+		const e = beforeInput('insertParagraph');
+		await settle();
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committedText()).toBe('```js\n  const \n  \n```');
+	});
+
 	it('prevents a fence-only delete without spending a commit', async () => {
-		select(18, 21); // the closer text plus nothing else is NOT crossing…
-		const e = beforeInput('deleteContentBackward');
-		await settle();
-		expect(e.defaultPrevented).toBe(false);
+		for (const [start, end] of [
+			[17, 18], // the body's own line ending
+			[18, 21], // the closer text — structure, not content
+			[0, 3] // the opener's marker run
+		]) {
+			select(start, end);
+			const e = beforeInput('deleteContentBackward');
+			await settle();
 
-		select(17, 18); // …but the body's own line ending is
-		const prevented = beforeInput('deleteContentBackward');
+			expect(e.defaultPrevented).toBe(true);
+			expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		}
+	});
+
+	// Parser-verified: one typed character inside the closer run leaves an unclosed
+	// fence that swallows every following block.
+	it('prevents a collapsed-caret insertion inside the closer run', async () => {
+		select(19, 19);
+		const e = beforeInput('insertText', 'x');
 		await settle();
 
-		expect(prevented.defaultPrevented).toBe(true);
+		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
@@ -173,6 +188,32 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 
 		expect(e.defaultPrevented).toBe(true);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+	});
+
+	// A target range reaching outside this block is a cross-block edit: the surface
+	// cannot measure it, so it declines rather than guessing an offset — the seam that
+	// owns such a selection has already had its turn by the time the guard runs.
+	it('declines a target range that leaves the surface', async () => {
+		select(12, 20);
+		const foreign = document.createElement('div');
+		foreign.textContent = 'elsewhere';
+		document.body.appendChild(foreign);
+		const target = document.createRange();
+		target.setStart(mounted.el.firstChild!, 0);
+		target.setEnd(foreign.firstChild!, 3);
+
+		const e = new InputEvent('beforeinput', {
+			inputType: 'deleteContentBackward',
+			bubbles: true,
+			cancelable: true
+		});
+		Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
+		mounted.el.dispatchEvent(e);
+		await settle();
+
+		expect(e.defaultPrevented).toBe(false);
+		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		foreign.remove();
 	});
 
 	it('cut deletes only the body part of a fence-crossing selection', async () => {

@@ -312,7 +312,7 @@
 		if (!range || !crossesFenceBoundary(node, range)) return false;
 
 		e.preventDefault();
-		const insert = rangedEditInsertion(e);
+		const insert = rangedEditInsertion(e, fenceEditSpan(node, range));
 		if (insert === null) return true;
 		const edit = computeFenceRangedEdit(node, range, insert);
 		if (!edit) return true;
@@ -343,26 +343,30 @@
 	}
 
 	/**
-	 * The text each claimed input type writes over its range — the grep target for
-	 * "which gestures does the fence guard re-site". The delete family writes
-	 * nothing; the insert family writes its own payload. Null REFUSES the gesture
-	 * instead: a drop is paired with a `deleteByDrag` on the source range, and
-	 * re-siting one half of that pair would duplicate or lose the dragged text.
+	 * The text each claimed input type writes over its span — the grep target for
+	 * "which gestures does the fence guard re-site". The posture, not a list of
+	 * exceptions: this surface re-sites only a payload it can read off the event
+	 * itself or mint itself, and REFUSES (null: prevented, nothing committed) every
+	 * other type. That covers the drop pair (`insertFromDrop` is answered by a
+	 * `deleteByDrag` on the source range, and re-siting one half loses text), the
+	 * replacement whose text rides a `dataTransfer`, and anything unknown or new.
+	 * Refusing is also what keeps this surface off the clipboard→parse ladder: text
+	 * pulled from a `dataTransfer` would reach `parse()` without the plugin paste
+	 * transforms every sanctioned paste route runs (G4.11).
 	 */
-	function rangedEditInsertion(e: InputEvent): string | null {
+	function rangedEditInsertion(e: InputEvent, span: CodeRange): string | null {
 		if (e.inputType.startsWith('delete')) return '';
 		switch (e.inputType) {
 			case 'insertText':
 				return e.data ?? '';
-			// Autocorrect and IME replacements carry their payload on the dataTransfer.
-			// `getData` answers a missing type with '' rather than null, so the fallback
-			// to `data` has to test emptiness — `??` would take the empty string and
-			// turn the replacement into a delete.
-			case 'insertReplacementText':
-				return e.dataTransfer?.getData('text/plain') || e.data || '';
 			case 'insertLineBreak':
-			case 'insertParagraph':
 				return trailingLineEnding(node.raw);
+			// The keydown path auto-indents (computeCodeEnter 'normal'), and a mobile or
+			// IME insertParagraph is the same gesture arriving without a keydown.
+			case 'insertParagraph':
+				return (
+					trailingLineEnding(node.raw) + getLineLeadingWhitespace(getDisplayText(), span.start)
+				);
 			default:
 				return null;
 		}
@@ -437,8 +441,11 @@
 		}
 
 		// Pair-delete: remove both halves so the auto-closed companion isn't stranded.
+		// Backticks are a pair, so a caret inside a fence run reads as one — declining
+		// there drops to the native delete, which the beforeinput guard refuses.
 		const text = getDisplayText();
-		if (isBetweenEmptyPair(text, offset)) {
+		const pairSpan = { start: offset - 1, end: offset + 1 };
+		if (isBetweenEmptyPair(text, offset) && !crossesFenceBoundary(node, pairSpan)) {
 			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
 			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), preEditOffset);
 			pendingCursorOffset = offset - 1;

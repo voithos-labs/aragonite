@@ -36,13 +36,23 @@ test.describe('code block editing — edge cases', () => {
 		await editor.bridge.waitForSourceContains('Above paragraph appended');
 	});
 
-	test('ArrowDown in last line exits to next block', async () => {
+	// The closer fence is its own visual line, so leaving the block downward takes two
+	// ArrowDowns: body → closer line → out. The single press used to look like an exit
+	// because the text then typed landed ON the closer line ("```prepended "), which
+	// stopped closing the block — so the assertion passed on a corrupted fence.
+	test('ArrowDown past the closer line exits to next block', async () => {
 		await editor.loadContent('```\ncode here\n```\n\nBelow paragraph\n');
 		await editor.getBlock(0).click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.page.keyboard.press('Home');
 		await editor.typeText('prepended ');
 		await editor.bridge.waitForSourceContains('prepended');
+
+		expect(await editor.bridge.getSource()).toBe(
+			'```\ncode here\n```\n\nprepended Below paragraph\n'
+		);
 	});
 
 	test('Backspace at position 0 moves focus without deleting code block', async () => {
