@@ -189,17 +189,101 @@ paragraph continuation, so an unindented non-blank line joins the definition's s
 paragraph instead of starting a sibling block. `blockquoteExtent` and the list parser both model
 that state; this scan does not.
 
-**Repro:** `[^a]: one\n \n    two\n` parses to a one-line definition plus a sibling paragraph;
-GitHub renders one definition holding `one`, the NBSP line, and `two`. Any unindented non-blank
-line reproduces it — the NBSP is only what makes the shape reachable by paste.
+**Repro:** a definition line, then a line holding one U+00A0 and nothing else, then a four-space
+indented line (`[^a]: one` / `<NBSP>` / `    two`). It parses to a one-line definition plus a
+sibling paragraph; GitHub renders one definition holding `one`, the NBSP line, and `two`. Any
+unindented non-blank line reproduces it — the NBSP is only what makes the shape reachable by
+paste. Spelled as a literal character the repro is invisible and retypes as an ordinary blank
+line, which does NOT reproduce: a blank line is absorbed and the definition continues.
 
-**Fix direction:** track paragraph-open state across the scan, the way `blockquoteExtent` does. The
-three copies of `wouldKeepParagraphOpen` (blockquote, list, and this one once it grows) are the
-argument for lifting the predicate to one home first.
+**Fix direction:** lift the lazy-continuation **loop**, not the predicate, and land the seam with
+this fix rather than before it. `blockquoteExtent` is already most of it: track paragraph-open
+state and absorb a line only while it is open, with the sibling-opener test injected per
+container. That injection is load-bearing — this opener registers `interruptsParagraph: false`,
+so `lineInterruptsParagraph` will not report a following `[^b]:` line, and a caller that did not
+supply its own opener test would lazily swallow the next definition. Extracting only
+`wouldKeepParagraphOpen` (two copies today, blockquote and list) would leave the third caller
+free to reimplement the state wrong, which is the defect ledgered here. If the seam generalizes
+to a container extent, decide whether it replaces or joins `blockquoteExtent` on the plugin
+barrel **before the freeze cut** — after it both are frozen and the duplicate is permanent.
 
 **Why deferred:** found while narrowing the blank-line predicate (0.9.36), which made the shape
 reachable but did not create it; the fix is a state model in a plugin opener, not a ride-along on a
 core predicate change.
+
+### Markdown whitespace is still Unicode whitespace outside the blank-line rule
+
+**Severity:** minor (block structure diverges from GFM on a paste artifact; byte round-trip holds)
+**Files:** `src/lib/core/parsers/thematic-break.ts` (`matchThematicBreak`, `text.trim()`),
+`src/lib/core/parsers/paragraph.ts` (`matchSetextUnderline`, `\s*$`),
+`src/lib/core/parsers/list.ts` (`matchListItem`, `[-*+]\s+`),
+`src/lib/core/inline/scan/autolinks.ts` (`isValidLeadingBoundary`, JS `\s`)
+
+0.9.36 narrowed the blank-line predicate to GFM §2.1's space-and-tab, but the sibling grammar rules
+still ask `String.trim()` or JS `\s`, both of which admit the whole Unicode whitespace set. GFM is
+ASCII throughout: §4.1 and §4.3 allow only spaces or tabs after a thematic-break run and a setext
+underline, §5.2 requires a bullet marker to be followed by one or more spaces or tabs, and §6.9's
+autolink boundary is whitespace as cmark-gfm's ASCII-only `cmark_isspace` defines it.
+
+**Repro:** five shapes, each a line carrying one U+00A0 where the spec allows only a space or tab.
+Written with `<NBSP>` for the character, checked against commonmark.js:
+
+| Source               | aragonite                         | GFM       |
+| -------------------- | --------------------------------- | --------- |
+| `***<NBSP>`          | `thematicBreak`                   | paragraph |
+| `<NBSP>***`          | `thematicBreak`                   | paragraph |
+| `a` then `===<NBSP>` | `setextHeading`                   | paragraph |
+| `-<NBSP>a`           | `list` / `listItem` / `paragraph` | paragraph |
+| `*<NBSP>**`          | `list` / `listItem` / `paragraph` | paragraph |
+
+The inline case is the mirror: `x<NBSP>www.example.com` autolinks here, where cmark-gfm's ASCII-only
+space test refuses the boundary and leaves it literal.
+
+**Fix direction:** one sweep over `trim()` and `\s` in the block openers and the autolink boundary,
+each narrowed to the ASCII class its spec clause names, with the same four-axis conformance
+treatment the blank-line change got (`test/gfm-conformance/blank-line-axes.test.ts` is the pattern:
+pin the block outline against commonmark.js, assert byte round-trip per fixture).
+
+**Why deferred:** pre-existing and byte-safe. Each rule moves block structure on its own axis, so
+this is its own conformance pass rather than a ride-along on the blank-line change, which is exactly
+the reason that change was not itself a ride-along.
+
+### The bare-email autolink diverges from cmark-gfm on the address boundary
+
+**Severity:** minor (conformance divergence at the local-part boundary; the domain scan itself is
+cmark-exact)
+**Files:** `src/lib/core/inline/scan/autolinks.ts` (`matchBareEmailAutolink`, `EMAIL_LOCAL`,
+`isValidLeadingBoundary`), `src/lib/core/url-policy.ts` (`ALLOWED_HREF_SCHEMES`)
+
+Two halves, deliberately in one entry: the email form should be decided once, and written as a flat
+list of five divergences it reads as a bug backlog and invites someone to "fix" a design decision.
+
+**Half one — deliberate, revisit only on a policy change.** aragonite applies §6.9's leading-boundary
+rule ("at the beginning of a line, after whitespace, or any of the delimiting characters `*`, `_`,
+`~`, and `(`") to the email form; cmark-gfm applies it to the `www.` form alone. The family is
+open-ended, not a list: every preceding character outside that set diverges (`a/xfoo@bar.com`,
+`x)foo@bar.com`, `a:foo@bar.com` all stay literal here and link on GitHub), and the second-`@`
+restart is downstream of the same choice (`foo@bar@example.com` links `bar@example.com` there and
+nothing here; `a@b.c@d.e` links `b.c@d.e` there and `a@b.c` here). The module's stated authority is
+spec prose where explicit, cmark-gfm where the prose runs out, and this clause is explicit and
+blanket, so following it is the policy working. Revisit only if GitHub parity is chosen over spec
+prose for this form.
+
+**Half two — a real gap under that same policy.** cmark-gfm absorbs a `mailto:` or `xmpp:` prefix
+into the address (`validate_protocol` in its rewind loop, byte-exact and lowercase-only, with
+`auto_mailto = false`), so `mailto:foo@bar.com` links on GitHub with its prefix intact and the href
+unduplicated. aragonite links nothing there: `:` is outside `EMAIL_LOCAL`, so the local-part walk
+stops and the boundary check rejects. The spec's prose is silent on prefixes, which is precisely the
+condition under which cmark settles the corner.
+
+**Fix direction:** land half two with half one's decision. The `mailto:` half is a protocol-prefix
+rewind; the `xmpp:` half is a second scheme with its own domain rule (cmark admits `/` in an xmpp
+domain for the resource part) **and** a security-surface decision, since `xmpp` is not in
+`ALLOWED_HREF_SCHEMES` and would otherwise render sanitized.
+
+**Why deferred:** half one is a stated design choice with a documented authority, not a defect. Half
+two is a new accept class that reaches the href allowlist, so it wants its own conformance pass
+rather than a ride-along on a domain-scan fix.
 
 ### Footnote reference numbering is O(widgets × leaves) per reactive flush
 
