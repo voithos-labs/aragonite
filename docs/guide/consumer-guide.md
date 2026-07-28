@@ -164,6 +164,56 @@ The root reflects a `data-scroll-mode` attribute in host mode. **Treat it as an 
 - **The find bar overlays the slot's top strip.** The bar rides the editor's top edge in both modes — one rule, one mount site. In self mode that means it covers the header only at the very top of the scroll; in host mode, where the root never scrolls, it covers it whenever the bar is open.
 - **A header taller than the viewport degrades gracefully.** At the top of the scroll it leaves the block list no room to intersect the viewport, so almost nothing mounts until the reader scrolls past it. Accepted rather than special-cased — a header that tall is a layout the slot is not for.
 
+## Embedding in a webview shell
+
+A desktop shell (Tauri/wry, WebView2, Electron) runs the editor on the same engine a browser does, so nothing about the component changes. What changes is the layer above it: the shell decides which keystrokes reach the page, and which URLs resolve to a local file. The seams below are the ones a browser-driven test run cannot observe, so treat each as something to verify in the built application rather than infer from a green CI run. Layout is the other half of embedding and is not shell-specific; [Embedding in a host layout](#embedding-in-a-host-layout) covers it.
+
+### Chords the page never sees
+
+The shell resolves its own accelerators first. A chord it claims (browser zoom, devtools, reload) is consumed before any `keydown` reaches the document, so the editor cannot bind it, observe it, or report that it went missing. No `keybindings` override reaches a key that never arrives.
+
+- **Verify the chord map in the real shell.** A browser run proves the keymap resolves, not that the chord arrives. Walk the [shortcut table](#keyboard-shortcuts) and your own app's bindings in the built application, on every platform you ship.
+- **Your app's chords are exposed too, not only the editor's.** A zoom control driving `--editor-font-size` (see [Theming](#theming)) is the common casualty, because the chords a user reaches for there are exactly the ones a webview tends to reserve for its own zoom.
+- **Disabling the shell's accelerators is a host decision.** Shells expose a switch over their built-in accelerator set rather than a per-chord list, so it is one all-or-nothing call in your shell's configuration, not something to negotiate binding by binding. Check your shell's current documentation for where that switch lives.
+- **A capture-phase key listener of your own needs an "inside the editor" guard.** A host that handles keys on `window` or `document` before the page sees them has to decline the ones headed for the editor, and the test is containment in the element you mounted `<Editor>` into (its root carries the `.editor` class). A guard inherited from a previously embedded editor keys off a selector that now matches nothing, which reads as "never inside the editor" and quietly swallows every editing chord.
+
+### Clipboard in a webview
+
+**Plain text is the whole model.** Every copy and cut writes `text/plain`, every paste reads it, and there is no HTML flavor to negotiate. What crosses the boundary is Markdown source.
+
+- **A clipboard event may target `document.body` rather than the editor.** Where the selection's focus endpoint hosts no caret (an image-only paragraph, a thematic break), Chromium dispatches `copy` / `cut` / `paste` at the body instead of at the focused block. The editor handles its own case with a root-level handler, so cross-block copy works. What it means for you is that an editor clipboard event does not reliably originate inside the editor's DOM: a host listener that claims clipboard events by "the target is outside the editor" will claim the editor's.
+- **Multi-line writes normalize to the OS line ending.** The whole-block copy chord (`Mod+C` / `Mod+X` on a block focused as a whole) writes through `navigator.clipboard.writeText`, and Chromium rewrites a multi-line payload to the platform's line ending, CRLF on Windows. Pasting back into the editor re-normalizes to LF, so documents are unaffected; a host that reads the system clipboard itself normalizes on its own side.
+- **That asynchronous write is the path to prove in your shell.** wry has refused `writeText` in some contexts, which is why every other clipboard route writes synchronously through the event object instead. A refused write is contained rather than thrown: nothing reaches the clipboard, a dev build warns, and a cut degrades to leaving the block alone.
+
+### Images and host protocols
+
+Scheme checking happens at the render sink, on whatever `resolveImageUrl` / `resolveLinkUrl` returned. A URL outside the admitted set renders inert and lossless: the image never loads and its widget is marked blocked, a link becomes an unlinked span, and the Markdown bytes are untouched in both cases. That blocked state is not `imageLoadPolicy: 'placeholder'`, which defers loading an image the policy allows.
+
+| Sink      | Admitted schemes                 |
+| --------- | -------------------------------- |
+| `img` src | `http`, `https`, `data`, `asset` |
+| link href | `http`, `https`, `mailto`, `tel` |
+
+A URL carrying no scheme at all (relative, fragment) is admitted at both sinks. The two sets differ deliberately: `asset:` hands bytes to an `<img>` and nothing has asked to navigate to one, so the same URL that renders as an image is rejected as an href.
+
+- **`asset:` is admitted for the desktop case.** Tauri's `convertFileSrc` yields `http://asset.localhost/…` on Windows and `asset://localhost/…` on macOS and Linux, so a shell whose local images all render on a Windows machine can have every one of them blocked on the other two platforms. Both forms pass; test on each platform regardless.
+- **A custom host protocol is not admitted.** A scheme your shell registers for itself is one the allowlist does not know, and images carrying it render blocked. Map it to an admitted scheme inside `resolveImageUrl` (the check runs on what your resolver returns), or serve those bytes over the shell's own `http(s)` origin.
+- **The allowlist is not consumer-extensible, and that is the current contract.** Widening it for arbitrary host protocols is a contract surface deferred to the API freeze rather than answered by an ad-hoc prop; `resolveImageUrl` is the seam until then, and it covers the case above.
+
+### Verify in the shell
+
+Run these by hand in the built application, once per platform you ship:
+
+1. Every chord the editor and your app rely on, including whatever the shell reserves for zoom, devtools, and reload.
+2. Select-all across blocks containing an image or a thematic break, copy, then paste into an external application.
+3. The two routes that reach the async `navigator.clipboard` API instead of a clipboard event: whole-block `Mod+C` / `Mod+X` on a thematic break or a plugin diagram, and the table right-click menu's Paste (see "Menu clipboard caveats" under [Keyboard shortcuts](#keyboard-shortcuts)).
+4. Multi-line text copied from a native application and pasted into a block.
+5. An image pasted from the system clipboard, if `onPasteImage` is installed (see [Image paste](#image-paste)).
+6. A local-file image, on each platform, since the asset protocol takes a different form on Windows.
+7. Selection restore across a document or tab swap, if you persist a caret (see [Restoring a selection](#restoring-a-selection)).
+
+A glitch that only reproduces inside the shell is what the interaction trace exists for: arm it, reproduce, and serialize a report that travels back out (see [Diagnostics](#diagnostics)).
+
 ## Multiple instances
 
 Mounting two or more editors in one JavaScript context is supported. The boundary:
