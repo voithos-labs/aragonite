@@ -229,7 +229,7 @@ All structural operations are CST mutations performed by the editor shell. Block
 
 **Reorder** — move a node among its siblings; IDs don't change. Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (an insertion line marks the drop, one commit on release, autoscroll for off-screen targets). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
 
-**Kind change** — when a re-parse of a block's updated `raw` yields a different kind, the node is replaced with one of the correct kind and keeps its ID. When the re-parse yields several blocks, the first keeps the slot's ID and leading trivia and the rest splice in with fresh IDs, exactly as a split does.
+**Kind change** — when a re-parse of a block's updated `raw` yields a different kind, the node is replaced with one of the correct kind and keeps its ID. When the re-parse yields several blocks, the first keeps the slot's ID and leading trivia and the rest splice in with fresh IDs, exactly as a split does. The same rule runs a level up for **containers**: an edit inside one changes what the container's own rebuilt `raw` parses to (typing the rest of a `> [!TIP]` marker), so the ancestry rebuild re-derives the container's kind and swaps the slot the same way (§ 9).
 
 ### Merge eligibility: roles, not pairs
 
@@ -332,6 +332,12 @@ Three contracts exist, declared per kind (`containerContract`); `syntax-tree.md`
 | `'opaque'` | `raw` is authoritative and is not a strip-decomposition — chrome lives in the container's own bytes | directive containers, plugin callouts |
 
 A container's `rebuildRaw` re-emits its `raw` from its children and metadata after any edit inside it, and ancestry dispatch runs it up the whole nesting chain.
+
+Each rebuilt container then **re-derives its own kind** from the raw it just produced — the container half of § 8's kind change, and the one place that notices a container's opener line was rewritten from the inside. Three rules bound it:
+
+- **Eligibility is the opener registry.** Registering an opener is the claim that `parse(raw)` reproduces the kind, so kinds without one — `listItem` (whose `- x` parses to a _list_), `tableRow`, reserved chrome, `tableCell` — are excluded by construction rather than by name.
+- **The re-parse resolves through the instance grammar**, so a kind an instance disabled stays unreachable.
+- **Cost is gated on the container's first line changing** across its rebuild, since an opener claims from line 1. Body-line typing pays a string compare; only an edit that rewrites the opener line pays the re-parse.
 
 ### Addressing
 

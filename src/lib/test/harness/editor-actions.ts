@@ -117,7 +117,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		commitContainer: vi.fn(),
 		pushDebouncedCheckpoint: vi.fn(),
 		nudgeReactivity: vi.fn(),
-		withUnsharedSpine: vi.fn()
+		withUnsharedSpine: vi.fn(() => false)
 	};
 }
 
