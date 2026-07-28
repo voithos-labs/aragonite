@@ -86,6 +86,7 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		grammar,
+		events: env.deps.events,
 		getCursorOffset: () => 0,
 		afterReactivity: async () => {}
 	});

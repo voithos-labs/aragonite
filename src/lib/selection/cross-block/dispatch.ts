@@ -22,6 +22,7 @@ import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
+import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { isReadingMode } from '../../presentation-mode';
@@ -67,6 +68,10 @@ export interface CrossBlockDispatchContext {
 	 *  Required-nullable like `pluginEditor` so a new construction site can't silently
 	 *  skip the thread; `undefined` = the global grammar. */
 	grammar: GrammarView | undefined;
+	/** The instance event surface — the paste arm's only channel for a gesture it
+	 *  consumed but could not land. Non-nullable: a construction site that skipped it
+	 *  would make its editor the one that drops a paste in silence. */
+	events: EditorEvents;
 
 	getCursorOffset: () => number | null;
 

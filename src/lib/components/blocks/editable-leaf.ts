@@ -301,6 +301,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		grammar: registryView.grammar,
+		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
 		readText,

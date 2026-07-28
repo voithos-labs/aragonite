@@ -484,27 +484,25 @@ nested residual needs a tall container plus a late decode), and the ownership mo
 real consumer navigating concurrently to shape it; designing per-call ownership against a single
 caller risks the wrong abstraction.
 
-### A cross-block paste with no resolvable caret drops its payload silently
+### A declined cross-block paste still leaves an undo entry behind
 
-**Severity:** minor (defensive branch off a range that did not resolve; no corruption, and a text
-payload is still on the clipboard)
-**Files:** `src/lib/selection/cross-block/paste.ts` (`handleCrossBlockPaste` — `if (!caret) return
-true`)
+**Severity:** watch (one dead Ctrl+Z press, on a branch that needs two cross-block gestures to race)
+**Files:** `src/lib/selection/cross-block/paste.ts` (`mutCtx.pushUndoSnapshot()` precedes the delete
+that may resolve no caret)
 
-When the delete half of a cross-block replacement resolves a null collapsed caret, the paste is
-reported as consumed and its payload lands nowhere. Inherited from the text route, where the cost
-is low — what did not land is still on the clipboard. An **image** paste through `onPasteImage` is
-the shape that makes it matter: the host has already imported the asset by the time the caret is
-asked for, so the drop orphans a file the user cannot recover by pasting again.
+A cross-block paste pushes its undo snapshot before the delete, so one snapshot covers the whole
+delete-then-paste. When the delete resolves no caret — another cross-block mutation was in flight
+and collapsed the selection while this paste waited it out, which the paste now reports on the
+`error` channel — nothing was mutated under that snapshot, and the stack keeps an entry identical
+to the state it restores. The next Ctrl+Z is a no-op; a second press then undoes the real edit.
 
-**Fix direction:** this route has no error channel — a paste that consumes the event and inserts
-nothing should say so, which is what lets a host release an asset it just imported. Deferring the
-hook call until the caret is known good was costed and rejected: it puts the delete before the
-import, so a failing host would wipe the user's selection with nothing to show for it.
+**Fix direction:** the snapshot has to precede the delete (the delete commits with `undoEntry:
+'join'`), so the fix is a discard rather than a reorder: the controller has no pop for a snapshot
+whose commit never happened, and adding one is a change to the undo seam, not to this route.
 
-**Why deferred:** it is the text route's inherited contract, so closing it is a change to that
-route rather than to the image arm that surfaced the consequence, and no repro has been
-constructed for the unresolvable-caret branch itself.
+**Why deferred:** found while giving the declined branch its error channel; the branch is rare
+enough that the wasted entry has never been observed, and inventing a snapshot-discard API for one
+caller would put a rollback door on the undo controller ahead of any second consumer for it.
 
 ### A reveal fold whose commit changes the block's kind may not have settled when the mutation runs
 

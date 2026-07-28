@@ -567,6 +567,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   load-bearing. The browser's own `selectionchange` may still deliver a trailing duplicate of the
   settled value; what is gone is the stale one.
 
+- **A paste that consumes the gesture and inserts nothing now says so — new `error` origin
+  `clipboard`.** The cross-block paste route's defensive branch (`if (!caret)`) reported the paste
+  as handled and dropped the payload. For text the cost is low, since what did not land is still on
+  the clipboard; for an image it is not, because `onPasteImage` has already imported the asset by
+  the time the caret is asked for, and a host with no signal orphans a file the user cannot recover
+  by pasting again. The route now reports on the editor's `error` channel with a sixth `origin`,
+  `clipboard`, carrying the range's start path — additive and typed, so a plugin or host that
+  switches exhaustively on `origin` sees the new arm at compile time. The alternative costed in the
+  issue stays rejected: deferring the hook call until the caret is known good puts the delete before
+  the import, so a host whose import fails would wipe the user's selection with nothing to show for
+  it. The branch, which the ledger recorded as never reproduced, turns out to be reachable through
+  the delete's own re-entrancy serialization — a paste arriving while a cross-block delete is parked
+  on its reveal waits that delete out, and the delete collapses the selection on its way through —
+  and now has a unit repro. Its residual is filed rather than fixed: the paste's undo snapshot is
+  pushed before the delete, so a declined paste leaves one entry that undoes nothing.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

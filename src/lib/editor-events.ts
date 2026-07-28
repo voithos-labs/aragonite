@@ -31,13 +31,18 @@ export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number)
 export type SelectionChangeEvent = EditorSelection | null;
 
 export interface EditorError {
-	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration';
+	/**
+	 * `clipboard` is a paste that consumed the gesture and inserted nothing —
+	 * the channel a host needs to release an asset `onPasteImage` already
+	 * imported for it.
+	 */
+	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard';
 	error: unknown;
 	/**
 	 * Origin-specific context: block path for render, op kind + event path for
 	 * commit, the block kind + command id (+ owning plugin, when recorded) for a
-	 * contained plugin block-command throw, and the source name for a decoration
-	 * provide that threw.
+	 * contained plugin block-command throw, the source name for a decoration
+	 * provide that threw, and the range start path for a declined clipboard paste.
 	 */
 	context?: {
 		path?: number[];

@@ -88,6 +88,7 @@ function makeHandlers(
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		grammar: undefined,
+		events: env.events,
 		getCursorOffset,
 		afterReactivity: async () => {}
 	});

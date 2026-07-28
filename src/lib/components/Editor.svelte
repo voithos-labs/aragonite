@@ -902,6 +902,7 @@
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
 		grammar: registryView.grammar,
+		events,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
 		afterReactivity: () => tick()
 	});

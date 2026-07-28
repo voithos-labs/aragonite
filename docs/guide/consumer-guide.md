@@ -389,18 +389,18 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 
 Subscribe to the observer surface via `editor.getEvents()`. Four channels:
 
-| Channel                  | Fires                                                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `edit`                   | After every commit (structural ops, the debounced typing flush, undo/redo)                              |
-| `selectionChange`        | Whenever the selection changes; payload is the snapshot or `null`                                       |
-| `error`                  | On a failure the editor contains rather than propagates (subscriber / render / commit / command origin) |
-| `presentationModeChange` | After a `presentationMode` prop change; payload is the effective mode (never fired at mount)            |
+| Channel                  | Fires                                                                                                                            |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `edit`                   | After every commit (structural ops, the debounced typing flush, undo/redo)                                                       |
+| `selectionChange`        | Whenever the selection changes; payload is the snapshot or `null`                                                                |
+| `error`                  | On a failure the editor contains rather than propagates (subscriber / render / commit / command / decoration / clipboard origin) |
+| `presentationModeChange` | After a `presentationMode` prop change; payload is the effective mode (never fired at mount)                                     |
 
 The payload envelopes — read the source types for the per-op arms, which change as operations are added:
 
 - **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op`. `path` is doc-absolute for every op — nested ops and the typing flush included — and resolves from the document root to the operated node.
 - **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused.
-- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command | decoration` and `context` carries the block path or op kind when known (the block kind, command id, and owning plugin for a `command` throw; the source name for a `decoration` throw).
+- **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command | decoration | clipboard` and `context` carries the block path or op kind when known (the block kind, command id, and owning plugin for a `command` throw; the source name for a `decoration` throw; the range start path for a `clipboard` decline).
 - **`PresentationMode`** (`presentationModeChange`) — the effective mode after a `presentationMode` prop change; a bare mode value, not a `{…}` envelope, and never fired at mount.
 
 `on(name, cb)` returns a disposer; call it to unsubscribe. Events fire synchronously from their emission sites. **Handlers must not mutate the document** — reentrant edits are not supported.
