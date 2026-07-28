@@ -208,12 +208,18 @@ function fenceRegions(node: NodeView): FenceRegions {
 
 /**
  * Past the opener's indentation and its run of fence markers — where the info string
- * starts. Scanned rather than derived from `fenceLength`, so a raw whose recorded
- * metadata has drifted still measures its own bytes.
+ * starts. The run's LENGTH is measured rather than read from `fenceLength`, so an
+ * opener a paste has bumped to four markers is measured as four. GFM allows at most
+ * three spaces of indentation (a fourth demotes the block to indented code), so a
+ * longer run is not indentation to skip past: an opener line that does not have its
+ * markers where the grammar puts them has no info string, and every offset on it
+ * falls on the structure side.
  */
 function markerRunEnd(openerLine: string, marker: string): number {
+	const MAX_INDENT = 3;
 	let index = 0;
-	while (openerLine[index] === ' ') index++;
+	while (index < MAX_INDENT && openerLine[index] === ' ') index++;
+	if (openerLine[index] !== marker) return openerLine.length;
 	while (openerLine[index] === marker) index++;
 	return index;
 }
