@@ -439,6 +439,27 @@ with its own pins. Tightening it means threading the commit's promise out throug
 the two disagreeing about what "settled" means, which is worse than the shared limit. Fix both
 together, or neither.
 
+### The editor-root paste fallback skips the image-import arm
+
+**Severity:** minor (an image pasted over one selection shape is dropped rather than imported)
+**Files:** `src/lib/components/editor-root-clipboard.ts` (`handlePaste` calls
+`crossBlock.handlePaste` directly), `src/lib/components/blocks/editable-surface.ts` (`onPaste`
+offers `onPasteImage` its files first)
+
+A block surface's paste tries the host's `onPasteImage` hook before the cross-block arm; the
+root fallback — which runs when the clipboard event was retargeted to `<body>` because the
+selection's focus endpoint holds no caret — goes straight to the cross-block arm. A pure-image
+paste over such a selection therefore reaches `if (!pasted) return true` and is discarded.
+
+**Repro:** whole-document selection in a document whose last block is an image-only paragraph,
+then paste an image file from the system clipboard.
+
+**Why deferred:** the outcome is identical to the pre-fallback behaviour (nothing happened
+then either), so this is a gap the fallback did not close rather than one it opened. Closing it
+means the image arm moving out of the surface skeleton into a seam both callers share, which is
+the same refactor the `onPasteImage` insertion-anchor plumbing wants; doing it here would give
+the root path a second, divergent copy.
+
 ### A dead-space click declines on surfaces that address something other than characters
 
 **Severity:** minor (a click that does nothing, on a narrow set of surfaces)

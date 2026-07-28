@@ -27,7 +27,8 @@
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import { clippingAncestors, nearestUserScrollableAncestor } from '../cursor/scroll-ancestors';
-	import { placeCaretFromDeadSpaceClick } from '../selection/dead-space-caret';
+	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
+	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -371,6 +372,14 @@
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
 
+	// A click in the root's own padding, or below the last block, is the editor's
+	// surface too — it places a caret rather than doing nothing. `getBlockComponent`
+	// is a hoisted function declaration; the reset closure defers its reads.
+	const deadSpaceCaret = createDeadSpaceCaret({
+		getBlockComponent,
+		resetSelectionForClick: () => resetForPointerDown(selectionState, stickyColumn, false)
+	});
+
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
@@ -381,7 +390,7 @@
 			// the root's own padding, or below the last block. The helper claims only
 			// clicks whose target IS the root, so nothing the editor renders is touched.
 			if (!anchor) {
-				placeCaretFromDeadSpaceClick(root, e, { getBlockComponent });
+				deadSpaceCaret.handleClick(root, e);
 				return;
 			}
 			// Host chrome follows the page's link behaviour, not the editor's
@@ -400,7 +409,10 @@
 				e.preventDefault();
 			}
 		};
-		return onRoot(root, 'click', handleClick);
+		return removeAll(
+			onRoot(root, 'click', handleClick),
+			onRoot(root, 'mousedown', (e: MouseEvent) => deadSpaceCaret.notePress(root, e))
+		);
 	});
 
 	// Clear the reveal anchor on the next user-intent gesture in the document, so it
