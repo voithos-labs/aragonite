@@ -187,9 +187,21 @@ export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode
 }
 
 /**
+ * One container slot a rebuild re-kinded. `previous` is the register that puts the
+ * slot back: a commit that unwinds after the swap has already published the
+ * replacement into a live children array, which no other rollback register reaches.
+ */
+export interface ContainerReclassification {
+	siblings: CstNode[];
+	index: number;
+	previous: CstNode;
+	replacement: CstNode;
+}
+
+/**
  * Rebuild raws along an owned spine chain (as returned by ensureUnsharedPath),
  * innermost-first, re-deriving each container's kind from its fresh raw.
- * Returns the replacements a re-derivation minted (empty on the routine path).
+ * Returns the slots a re-derivation re-kinded (empty on the routine path).
  *
  * Chain-based rather than path-based so it stays correct after mutations shifted
  * sibling indices — node references survive splices; `root` supplies the
@@ -206,8 +218,8 @@ export function rebuildUnsharedChain(
 	chain: CstNode[],
 	sharing: SharingState,
 	grammar?: GrammarView
-): CstNode[] {
-	const replacements: CstNode[] = [];
+): ContainerReclassification[] {
+	const reclassified: ContainerReclassification[] = [];
 	for (let i = chain.length - 1; i >= 0; i--) {
 		const node = chain[i];
 		const openerLineBefore = firstLine(node.raw);
@@ -221,11 +233,11 @@ export function rebuildUnsharedChain(
 		const replacement = reclassifyContainer({ children: siblings }, index, grammar);
 		if (replacement) {
 			sharing.stamp(replacement);
-			replacements.push(replacement);
+			reclassified.push({ siblings, index, previous: node, replacement });
 		}
 	}
 	if (perfEnabled()) recordRebuildDepth(chain.length);
-	return replacements;
+	return reclassified;
 }
 
 /** The container's opener line — everything before its first line ending. */
@@ -246,6 +258,6 @@ export function rebuildUnsharedAncestry(
 	path: number[],
 	sharing: SharingState,
 	grammar?: GrammarView
-): CstNode[] {
+): ContainerReclassification[] {
 	return rebuildUnsharedChain(root, walkUnsharing(root, path, sharing, false), sharing, grammar);
 }
