@@ -451,11 +451,14 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   reparse resolves through the instance grammar — a required-nullable parameter threaded from all
   twelve rebuild call sites, with a source-scan lint refusing an `undefined` answer — so a
   disabled kind stays unreachable. Cost is gated twice, because the reparse is linear in container
-  bytes: line 1 must have changed (an opener claims from there), and that line's opener verdict
-  must have MOVED, asked of the registry itself one line at a time. The second gate is
-  load-bearing rather than an optimization — typing into a list's first item or a callout title
-  rewrites the opener line on every keystroke and moves no verdict, and without it that keystroke
-  cost 43 ms at 1MB against 0.6 ms with it. Two perf rows now type INSIDE a giant container, the
+  bytes: line 1 must have changed (an opener claims from there), and the rewritten line, read
+  alone, must no longer open as the kind the node already is — asked of the registry itself, one
+  line at a time. The second gate is load-bearing rather than an optimization: typing into a
+  list's first item rewrites the opener line on every keystroke while `- one` keeps opening as a
+  list, and without it that keystroke cost 43 ms at 1MB against 0.6 ms with it. It is a positive
+  identification rather than a before/after comparison, because a kind whose opener declines a
+  one-line probe (a directive container wants its closer) would compare equal on every edit and
+  elide a real kind change; the partition of registered containers over that answer is pinned. Two perf rows now type INSIDE a giant container, the
   place no latency row's caret had ever sat, which also put a name on a pre-existing
   non-viewport-bounded axis (`performance.md`): the container raw rebuild alone is ~52 ms per
   keystroke on a 1MB list's head child. The mirror direction is structural (the pass

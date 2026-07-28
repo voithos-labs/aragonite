@@ -211,11 +211,17 @@ export interface ContainerReclassification {
  * The kind re-derivation costs a parse of the container's WHOLE raw, so it is
  * gated twice. An opener claims from line 1, so a body-line edit cannot change
  * what the container opens as — that is a string compare. And an edit that DOES
- * rewrite line 1 still only matters when it moved the line's opener verdict
- * (`lineOpensAs`, a one-line parse): typing into a list's first item or a callout
- * title rewrites the opener line on every keystroke and moves nothing. Without the
- * second gate the parse is linear in container bytes on a gesture that is not,
- * which is a keystroke cost on the container-size axis.
+ * rewrite line 1 skips only when the rewritten line, read alone, STILL opens as
+ * the kind the node already is (`lineOpensAs`, a one-line parse). Typing into a
+ * list's first item leaves `- one` opening as a list, so the parse — linear in
+ * container bytes on a gesture that is not — never runs.
+ *
+ * The second gate is deliberately a positive identification, not a before/after
+ * comparison. A kind whose opener declines a one-line probe (a directive
+ * container needs its closer) would compare equal on every edit and elide a real
+ * kind change; requiring the probe to name the current kind makes an
+ * unrecognizable line fall through to the full parse instead. The partition of
+ * kinds over that answer is pinned in `test/tree-operations/opener-verdict-agreement`.
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
@@ -230,7 +236,7 @@ export function rebuildUnsharedChain(
 		rebuildOwnedContainer(node, sharing);
 		const openerLineAfter = firstLine(node.raw);
 		if (openerLineAfter === openerLineBefore) continue;
-		if (lineOpensAs(openerLineAfter, grammar) === lineOpensAs(openerLineBefore, grammar)) continue;
+		if (lineOpensAs(openerLineAfter, grammar) === node.kind) continue;
 
 		const siblings = (i === 0 ? root : chain[i - 1]).children;
 		const index = siblings?.indexOf(node) ?? -1;
