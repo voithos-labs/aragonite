@@ -135,6 +135,23 @@ export function createEditorEvents(): EditorEvents {
  * that owner wins; a block command reports its `kind`, and the owner is resolved
  * by kind lookup. The direct `plugin` therefore never gets clobbered by a lookup.
  */
+/**
+ * Announce a paste that consumed the gesture and inserted nothing. Both paste
+ * entry paths — the cross-block route and the editor-root fallback — reach the
+ * channel here, beside the command router, for the same reason: the envelope
+ * lives with the shell that owns the channel, not with each declining branch.
+ */
+export function emitClipboardDecline(
+	events: EditorEvents,
+	report: { path: number[]; message: string }
+): void {
+	events.emit('error', {
+		origin: 'clipboard',
+		error: new Error(report.message),
+		context: { path: report.path }
+	});
+}
+
 export function emitCommandError(
 	events: EditorEvents | undefined,
 	report: { kind?: AnyBlockKind; command: string; plugin?: string; error: unknown }

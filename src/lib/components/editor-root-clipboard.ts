@@ -18,9 +18,11 @@
  */
 
 import { claimsBodyChord } from '../active-editor';
-import type { DocumentGetter } from '../editor-keys';
+import type { DocumentGetter, PasteImageHook } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
+import { emitClipboardDecline, type EditorEvents } from '../editor-events';
+import { createImagePasteArm } from './paste-image-arm';
 import {
 	writeCrossBlockCopy,
 	writeCrossBlockCut,
@@ -31,6 +33,10 @@ export interface EditorRootClipboardDeps {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
+	/** Host image-import hook, the same value the block surfaces take. Required-nullable
+	 *  so this seam cannot silently skip the arm the surfaces run; `undefined` = no hook. */
+	onPasteImage: PasteImageHook | undefined;
+	events: EditorEvents;
 }
 
 export interface EditorRootClipboard {
@@ -46,6 +52,11 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		getDoc: deps.getDoc,
 		crossBlock: deps.crossBlock
 	};
+	const imageArm = createImagePasteArm({
+		onPasteImage: deps.onPasteImage,
+		events: deps.events,
+		crossBlock: deps.crossBlock
+	});
 
 	/**
 	 * The event landed nowhere: on this root itself (focus parked there after a
@@ -83,7 +94,33 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		},
 		handlePaste(event, root) {
 			if (!claims(event, root)) return;
-			void deps.crossBlock.handlePaste(event);
+			void paste(event);
 		}
 	};
+
+	/**
+	 * The image arm first, exactly as a block surface orders it — the root reaches this
+	 * seam for a pure-image paste whenever the focus endpoint hosts no caret, and going
+	 * straight to the cross-block arm discarded it for want of any `text/plain`.
+	 */
+	async function paste(event: ClipboardEvent): Promise<void> {
+		const images = imageArm.filesOf(event.clipboardData);
+		if (images.length === 0) {
+			await deps.crossBlock.handlePaste(event);
+			return;
+		}
+		// Prevent before the hook is awaited, the same discipline the surface skeleton
+		// states: the browser's own paste would otherwise fire during the import and
+		// inject DOM the CST never sees.
+		event.preventDefault();
+		const markdown = await imageArm.run(event, images);
+		if (markdown === null) return;
+		// `claims` required a cross-block selection, but the hook is awaited: a selection
+		// collapsed while the import was in flight leaves the root with an imported asset
+		// and no caret to put it at — the one landing this seam cannot supply.
+		emitClipboardDecline(deps.events, {
+			path: [],
+			message: 'imported image had no insertion point at the editor root; nothing inserted'
+		});
+	}
 }

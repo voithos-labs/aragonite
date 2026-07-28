@@ -47,6 +47,7 @@ import {
 	type CrossBlockHandlers
 } from '../../selection/cross-block/dispatch';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
+import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -401,6 +402,11 @@ export interface ClipboardHandlers {
 
 export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
 	const crossDeps = { selection: deps.selection, getDoc: deps.getDoc, crossBlock: deps.crossBlock };
+	const imageArm = createImagePasteArm({
+		onPasteImage: deps.onPasteImage,
+		events: deps.events,
+		crossBlock: deps.crossBlock
+	});
 
 	// Reading mode / plain-text surfaces copy what the reader sees — the native
 	// selection string, which drops the CSS-hidden markers — not a raw slice.
@@ -442,13 +448,12 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		e.preventDefault();
 		if (deps.isReadOnly()) return;
 		// Both reads stay above the fold's tick — see the discipline above.
-		const importImage = deps.onPasteImage;
-		const images = importImage ? imageFilesOf(e.clipboardData) : [];
+		const images = imageArm.filesOf(e.clipboardData);
 		const foldedCaret = deps.foldReveal?.() ?? null;
 		if (foldedCaret !== null) await tick();
-		if (importImage && images.length > 0) {
+		if (images.length > 0) {
 			deps.stickyColumn.reset();
-			await pasteImages(deps, importImage, e, images, foldedCaret);
+			await pasteImages(deps, imageArm, e, images, foldedCaret);
 			return;
 		}
 		if (await deps.crossBlock.handlePaste(e)) return;
@@ -463,62 +468,27 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 
 // ── Image-paste arm ─────────────────────────────────────────────────────────
 
-/** A paste can carry a plain attachment alongside its text; only image files
- *  belong to the host hook, the rest stays on the text/plain path. */
-function imageFilesOf(data: DataTransfer | null): File[] {
-	return Array.from(data?.files ?? []).filter((file) => file.type.startsWith('image/'));
-}
-
 /**
- * Offer each pasted image to the host hook in clipboard order, then insert what comes
- * back — as ONE insertion, not one per image: a hook may return multi-line markdown,
- * whose structural paste can split the block out from under a second insertion
- * addressed at anchor + length, and one paste gesture owes the user one undo entry.
- *
- * The two branches place that insertion differently, and only one of them is frozen at
- * paste time. Intra-block honours the anchor captured before the first await, so an
- * import that takes seconds cannot follow a caret the user moved meanwhile. The
- * cross-block branch instead reads `isCrossBlock` LIVE, because the seam it delegates
- * to resolves endpoints by path at call time — so a multi-block selection made WHILE
- * the import was in flight is the one that gets replaced, and a cross-block selection
- * collapsed before the import landed falls through to the intra-block anchor. Both are
- * documented in the requirement file; snapshotting the mode at paste time would fight
- * the by-path seam, which is what makes the landing independent of which surface
- * caught the event.
+ * The surface's half of the image arm: everything the shared seam
+ * (`components/paste-image-arm.ts`) cannot do, because it depends on having a
+ * caret. The anchor is captured before the first await, so an import that takes
+ * seconds cannot follow a caret the user moved meanwhile — the deliberate
+ * asymmetry with the shared seam's cross-block branch, which reads `isCrossBlock`
+ * live because the route it delegates to resolves endpoints by path at call time.
+ * Both are documented in the requirement file; snapshotting the mode at paste time
+ * would fight the by-path seam, which is what makes the landing independent of
+ * which surface caught the event.
  */
 async function pasteImages(
 	deps: ClipboardSurfaceDeps,
-	importImage: PasteImageHook,
+	imageArm: ImagePasteArm,
 	e: ClipboardEvent,
 	images: File[],
 	foldedCaret: number | null
 ): Promise<void> {
 	const anchor = deps.caret.getCursorOffset() ?? foldedCaret ?? 0;
-	const markdown: string[] = [];
-	for (const image of images) {
-		try {
-			const inserted = await importImage({
-				blob: image,
-				mimeType: image.type,
-				suggestedName: image.name || undefined
-			});
-			// Empty markdown skips like null: there is nothing to insert either way, and
-			// it keeps `text` below non-empty for the cross-block seam.
-			if (inserted) markdown.push(inserted);
-		} catch (error) {
-			// One failed import skips its image; the rest of the paste still lands.
-			deps.events.emit('error', { origin: 'command', error });
-		}
-	}
-	if (markdown.length === 0) return;
-	const text = markdown.join('');
-	// A multi-block selection is REPLACED, like every other paste route. Offered only
-	// once the hook has answered, so a declined or failed import destroys nothing —
-	// and offered to the cross-block seam rather than the surface tail because the
-	// delete collapses start-wins: the block that received this event may be the one
-	// merged away, while the seam addresses the survivor by path and lands the whole
-	// delete + insert in one undo entry.
-	if (await deps.crossBlock.handlePaste(e, text)) return;
+	const text = await imageArm.run(e, images);
+	if (text === null) return;
 	// A hook slow enough to outlive its block leaves nothing to insert into, and the
 	// surface tails would fall back to offset 0 — markdown at a position the user
 	// never pointed at. Decline, loudly.

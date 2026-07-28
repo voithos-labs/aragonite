@@ -102,6 +102,31 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await parseConverged(page)).toBe(true);
 	});
 
+	// The event does not always reach a block surface. When the selection's focus
+	// endpoint hosts no caret — an image-only paragraph — the park is a no-op and
+	// Chromium dispatches the paste at <body>, where the editor-root fallback runs.
+	// That fallback went straight to the cross-block arm, so a pure-image paste (no
+	// text/plain to fall back on) was discarded.
+	test('an image pasted over a selection ending in an image block is imported', async ({
+		page
+	}) => {
+		await editor.loadContent(`${PARAGRAPH}\nsecond\n\n![cat](/test-fixtures/sample.png)\n`);
+		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Control+a');
+		await page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+
+		await pasteFiles(page, [PNG], '', 'body');
+
+		await editor.bridge.waitForSourceContains('shot.png');
+		const source = await editor.bridge.getSource();
+		expect(source).not.toContain('second');
+		expect(source).not.toContain('sample.png');
+		expect(await getCalls(page)).toHaveLength(1);
+		expect(await parseConverged(page)).toBe(true);
+	});
+
 	// The cross-block delete has a table-specific branch (cell-index endpoints, the
 	// whole-row snap), so a selection anchored in a cell is its own shape. Asserted
 	// against the SAME string pasted as text over the SAME selection: the arm has to

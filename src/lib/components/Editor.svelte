@@ -958,7 +958,13 @@
 	const rootClipboard = createEditorRootClipboard({
 		selection: selectionState,
 		getDoc,
-		crossBlock: editorCrossBlock
+		crossBlock: editorCrossBlock,
+		// Read through the prop, not a mount-time copy: the hook is a live policy value,
+		// like the accessor the blocks' policies context hands out.
+		get onPasteImage() {
+			return onPasteImage;
+		},
+		events
 	});
 
 	$effect(() => {
