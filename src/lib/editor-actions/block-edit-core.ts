@@ -16,7 +16,7 @@ import {
 	deleteNode as performDelete,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
-	rebuildOwnedContainer,
+	rebuildUnsharedChain,
 	emptyParagraph
 } from '../tree-operations';
 import {
@@ -226,9 +226,18 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					const node = view.unshareChild(i);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
 					// Metadata feeds raw for list items (taskMarker) — resync so the
-					// ceremony's rebuild concatenates fresh raw.
-					rebuildOwnedContainer(node, view.sharing);
-					touchedNodes.push(node);
+					// ceremony's rebuild concatenates fresh raw. Through the chain funnel, not
+					// a bare rebuild: metadata can also feed the container's OPENER line (an
+					// alert's type), and the rebuilt bytes then open as a different kind. The
+					// document-branch commit runs no chain rebuild of its own, so this is the
+					// only seam a top-level metadata write crosses.
+					const [reclassified] = rebuildUnsharedChain(
+						{ children: view.children },
+						[node],
+						view.sharing,
+						view.grammar
+					);
+					touchedNodes.push(reclassified?.replacement ?? node);
 					return { op: 'noop' };
 				},
 				afterTick: options?.afterTick

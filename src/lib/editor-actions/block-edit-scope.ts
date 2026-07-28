@@ -15,6 +15,7 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
+import type { GrammarView } from '../schema/block-openers';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { asDocPath } from '../selection/path-math';
@@ -27,6 +28,8 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 export interface MutationView {
 	children: CstNode[];
 	sharing: SharingState;
+	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
+	grammar?: GrammarView;
 	/** Copy-out-of-sharing the child at `i` before an in-place write; returns the owned node. */
 	unshareChild(i: number): CstNode;
 }
@@ -93,6 +96,7 @@ export function createTopLevelScope(
 					mutate({
 						children,
 						sharing: deps.sharing,
+						grammar: deps.grammar,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
@@ -124,6 +128,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 					mutate({
 						children: scope.children,
 						sharing: scope.sharing,
+						grammar: deps.grammar,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
 				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },

@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { installPlugins } from '$lib';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { parse } from '$lib/core/parser';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '$lib/tree-operations/unshare';
@@ -16,7 +18,7 @@ import {
 
 const KEYSTROKES = 20;
 
-/** Type `count` characters into the blockquote leaf at `leafIndex`, one commit each. */
+/** Type `count` characters into the container's leaf at `leafIndex`, one commit each. */
 function typeInto(source: string, leafIndex: number, count: number): void {
 	const doc = parse(source);
 	const sharing = createSharingState();
@@ -28,6 +30,10 @@ function typeInto(source: string, leafIndex: number, count: number): void {
 		rebuildUnsharedChain(doc, chain, sharing);
 	}
 }
+
+beforeAll(() => {
+	installPlugins([admonitionsPlugin()]);
+});
 
 beforeEach(() => {
 	resetPerfInstruments();
@@ -47,6 +53,16 @@ describe('container kind re-derivation gate', () => {
 	// change what the container opens as, so each of these keystrokes pays a reparse.
 	it('reparses once per keystroke that rewrites the opener line', () => {
 		typeInto('> head\n>\n> body\n', 0, KEYSTROKES);
+
+		expect(perfSnapshot().containerKindReparses).toBe(KEYSTROKES);
+	});
+
+	// The worst case, recorded rather than inferred: a reserved-chrome container keeps
+	// its title's bytes IN the opener line, so typing a title is opener-line typing —
+	// the gate never elides it. Bounded by the container's own subtree, which its raw
+	// rebuild already walks per keystroke.
+	it('reparses on every keystroke into a reserved-chrome title', () => {
+		typeInto(':::note Title\n\nbody\n\n:::\n', 0, KEYSTROKES);
 
 		expect(perfSnapshot().containerKindReparses).toBe(KEYSTROKES);
 	});
