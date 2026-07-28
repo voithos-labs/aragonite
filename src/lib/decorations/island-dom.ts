@@ -151,6 +151,29 @@ export function applyIslandDecorations(
 	}
 }
 
+/** Gated island signature for a render key. No islands ⇒ '' — an undecorated
+ *  block's key stays byte-identical to the island-free format (the zero-cost
+ *  path; pinned by a parity test). Widget identity is deliberately untracked:
+ *  same position + class ⇒ equal signature (see DecorationWidgetSpec). Shared by
+ *  the prose and table-cell render paths. */
+export function islandRenderKeyPart(
+	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
+): string {
+	if (islands.length === 0) return '';
+	return `\0${islands.map((i) => islandSig(i.dec)).join(';')}`;
+}
+
+const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
+	d.type === 'widget'
+		? `w:${d.offset}:${d.side ?? 'after'}`
+		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
+
+/** An island's ordering position: a widget's offset, a replace's start. The shared
+ *  sort key for both the application pass (descending) and the render order. */
+export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
+	return dec.type === 'widget' ? dec.offset : dec.start;
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
@@ -169,10 +192,6 @@ function orderForApplication(
 			tieRank(a.dec) - tieRank(b.dec) ||
 			b.index - a.index
 	);
-}
-
-function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
-	return dec.type === 'widget' ? dec.offset : dec.start;
 }
 
 function tieRank(dec: WidgetDecoration | ReplaceDecoration): number {

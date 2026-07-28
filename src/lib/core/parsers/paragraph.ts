@@ -4,10 +4,9 @@
  * having their own top-level matchers.
  */
 
-import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
-import { lineInterruptsParagraph } from '../../schema/block-openers';
+import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
 import { matchTableDelimiterRow, parseTable, splitRowCells } from './table';
 
 export function parseParagraph(
@@ -15,7 +14,7 @@ export function parseParagraph(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
 		// GFM §4.10: a header/delimiter cell-count mismatch means no table —
@@ -37,7 +36,7 @@ export function parseParagraph(
 			const raw = joinRaw(lines, startIndex, i + 1);
 			return {
 				node: { kind: 'setextHeading', leadingTrivia, raw, metadata: { level: setext.level } },
-				nextIndex: i + 1
+				consumed: i + 1 - startIndex
 			};
 		}
 		i++;
@@ -46,7 +45,7 @@ export function parseParagraph(
 	const raw = joinRaw(lines, startIndex, i);
 	return {
 		node: { kind: 'paragraph', leadingTrivia, raw },
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }
 

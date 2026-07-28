@@ -29,12 +29,14 @@ No browser — Node by default, with a file opting into jsdom via a `// @vitest-
 
 `src/lib/test/` mirrors the source tree one-for-one, with the leading `components/` segment elided — `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. When a SUT moves into a subdirectory, its test follows.
 
-Mirror **import depth**, not just the SUT's directory: a test importing `tree-operations/list/m1-contract` directly (rather than the `tree-operations` barrel) lives at `test/tree-operations/list/m1-contract.test.ts`.
+Mirror **import depth**, not just the SUT's directory: a test importing `tree-operations/list/terminator` directly (rather than the `tree-operations` barrel) lives at `test/tree-operations/list/terminator.test.ts`.
 
-Two deliberate exceptions:
+Four deliberate exceptions:
 
 - **Cross-cutting tests for editor-root services** (round-trip, editor events, block identity, dev warnings) stay at `test/` root, because their SUTs sit at the editor root.
 - **The invariant catalog** (`test/invariants/`, with shared arbitraries under `arbitraries/` and source-scan guards under `lint/`) lives in one place so the whole set is legible in one read. See `docs/design/invariants.md`.
+- **Simulation-engine unit tests** (`test/simulation/`) mirror `e2e/simulation/`, an e2e-owned engine exercised by the unit runner rather than a `src/lib/` module.
+- **The debug-panel state test** (`test/debug/panel-state`) covers a route-level module outside `src/lib/`, so it has no in-library SUT to mirror.
 
 Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no config change.
 
@@ -117,7 +119,9 @@ The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither
 
 Every spec under `src/lib/e2e/tests/` pairs with a requirement file under `src/lib/e2e/requirements/` — a plain-English list of scenarios, written _before_ the spec. The requirements mirror the spec tree: `tests/plugins/callout-container.spec.ts` pairs with `requirements/plugins/callout-container.md`. When a subdirectory's specs split further, the requirements split with them.
 
-The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it. (Perf specs carry a `.perf.spec.ts` suffix; their requirement files pair by the same stem with the suffix stripped.)
+The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it.
+
+`e2e/tests/perf/` holds two families, and the basename decides which project collects a spec: `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts` directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong family and it silently stops running in the suite you meant; G4.17 catches a basename in neither. Requirement files pair by the stem with the `.perf` suffix stripped.
 
 **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the parent category.
 
@@ -153,7 +157,7 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 **Use `focusBlockEnd` / `focusBlockStart` for precise cursor placement.** They set the cursor through the Selection API. Native `End`/`Home` work for simple cases but are unreliable across inline-rendered spans.
 
-**Use `getDomBlockCount()` for structural assertions after a split.** The bridge's `getBlockCount()` re-parses the serialized source, which can absorb empty blocks as whitespace. `getDomBlockCount()` counts DOM elements — the editor's true internal state.
+**Use `getBlockCount()` for structural assertions after a split.** The bridge reads the live CST, so it sees a transient block the serializer would trim and a live-kind-vs-raw desync a reparse cannot. `getDomBlockCount()` counts _mounted_ top-level blocks, which under virtual rendering is the window rather than the document — reach for it only when the mount count is the thing under test, and then on a fixture small enough that nothing windows.
 
 **Test structural operations _through_ a container, not just flat paragraphs.** Split, merge, and delete shift block indices, and containers use their `index` prop in the delegation chain when focus exits them. A test that splits a paragraph and then arrows through more paragraphs won't catch a stale-index or stale-ref bug — that delegation chain is one hop deep. Always follow the structural op with navigation through a container. See the focus-traversal-after-insertion pattern under `tests/keyboard-navigation/`.
 
@@ -162,6 +166,8 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 **Selector helpers live in `EditorPage`.** Each block sits in a `.block-host` positioning container next to its `SelectionOverlay` sibling, and `getBlock(i)` skips the overlay. Write tests against the helpers; reach for raw selectors only when adding a new one.
 
 **Marker prefixes count toward block text.** Headings and list items render their markers as dimmed spans inside the contenteditable, and `getBlockText(i)` returns the full text including the marker.
+
+**Geometry reads against an image widget need a decode barrier, and not every Playwright API is one.** An `<img>` that has not decoded lays out 0x0, and `.md-image-widget` shrink-wraps it, so a rect read too early is degenerate. Compute a point from that rect and the click lands _inside_ the widget once the image decodes, which selects the image instead of placing a caret, so whatever the spec was waiting for is never painted at all. Measured against a 1.2s stalled response: `locator.waitFor()` and `locator.click()` block until the box is non-empty (they ran the full stall), while `locator.boundingBox()` and `page.evaluate(() => el.getBoundingClientRect())` both returned a 0x0 box in under 6ms. So a raw-`evaluate` or bare-`boundingBox` read needs an explicit guard: `waitForFirstImageLoaded` (`tests/blocks/image/helpers.ts`), a preceding `waitFor()`/`click()` on the widget, or an explicit fixture width (`![alt|120](url)`) when width is the only dimension you need. Which regime you land in is set by dev-server latency, so this is invisible in isolation and surfaces as a full-battery flake: the 2026-07-25 measurement was 0 of 120 repeats pre-decode on a warm cache, 80 of 180 with two heavy projects running alongside.
 
 **Driving IME composition.** Two complementary halves. For handler-level contract pins (the composing gate, the end funnel, offset capture), use the unit harness — `test/harness/editable-surface.ts` drives the real surface skeleton with synthetic event calls, simulating the IME's writes by assigning `el.textContent` before firing the end. For browser event ORDER and full wiring, drive real sequences in e2e via CDP: `page.context().newCDPSession(page)`, then `Input.imeSetComposition` per update and `Input.insertText` to commit — see `tests/ime-composition.spec.ts`. Mid-composition there is no source change to settle on; settle on the composed text arriving in the focused element's DOM instead.
 
@@ -215,10 +221,10 @@ The engine is in `src/lib/e2e/simulation/`; the specs are in `tests/simulation/`
 
 ### Running it
 
-| Command                                     | Scope                                                                                                                                                               |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:e2e:simulation`               | The ungated oracle sessions — smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, error collection). All ride `npm test`. |
-| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the two capture suites — every note, screenshotted — writing PNGs and a per-checkpoint `manifest.json` to `simulation-captures/` for the visual review.        |
+| Command                                     | Scope                                                                                                                                                                                             |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:e2e:simulation`               | The ungated oracle sessions — smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, decorations, IME composition, error collection). All ride `npm test`. |
+| `SIM_CAPTURE=1 npm run test:e2e:simulation` | Adds the two capture suites — every note, screenshotted — writing PNGs and a per-checkpoint `manifest.json` to `simulation-captures/` for the visual review.                                      |
 
 New feature surface gets a new simulation gesture. The simulation is the strongest corruption oracle in the repo, and its coverage has to track the product — the plugin surface once went a full minor version without it looking.
 

@@ -4,19 +4,36 @@
  * InlineNode[] with absolute offsets into raw, total coverage of [start, end).
  */
 
-import type { InlineNode } from '../../nodes';
+import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
 import { handleBacktick } from './code-spans';
 import { handleDelimiter, processEmphasis } from './emphasis';
-import { appendNode, createScanContext, flushPendingText, mergeAdjacentText } from './scan-state';
+import {
+	appendNode,
+	createScanContext,
+	flushPendingText,
+	mergeAdjacentText,
+	type ScanContext
+} from './scan-state';
 import { handleAmpersand, handleBackslash, handleNewline } from './simple-nodes';
-import { getInlineSyntax, hasInlineSyntax } from './plugin-syntax';
+import {
+	getPrefixRungs,
+	getUnreservedRungs,
+	hasInlineSyntax,
+	hasPrefixRungs,
+	hasScanProbeRungs,
+	isScanProbeTrigger,
+	type InlineRung
+} from './plugin-syntax';
 
 // Every character that can start a construct or anchor a lookback: the
 // dispatch cases below plus `@` (GFM email lookback). `!` and `]` are
 // deliberately absent — they only matter in ranges that also contain `[`.
+// A plugin rung can make `!` visible per registration (SCAN_PROBED_RESERVED in
+// plugin-syntax.ts) rather than by joining this set, which would drag every
+// prose `"Hello!"` through the scan loop for a syntax most documents never use.
 const SPECIAL_CHARS = '\\`&\n<[*_~@';
 
 // GFM bare http/www autolinks contain no character from the set above, so
@@ -38,22 +55,25 @@ SPECIAL[0x77] = PROBE_WWW; // w
 function needsScan(raw: string, start: number, end: number): boolean {
 	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them
 	// only when something is registered — the empty registry stays byte-identical.
-	const probePlugins = hasInlineSyntax();
+	// The registry answers for both rung shapes through one hoisted flag and one
+	// lookup, so an unregistered scan pays exactly the single always-false test per
+	// character it paid before reserved `!` could be registered at all.
+	const probePlugins = hasScanProbeRungs();
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
 		if (code >= 128) {
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true;
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true;
 			continue;
 		}
 		const cls = SPECIAL[code];
 		if (cls === 0) {
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true;
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true; // registered '!' lands here
 			continue;
 		}
 		if (cls === 1) return true;
 		if (cls === PROBE_SCHEME) {
 			if (raw.charCodeAt(i + 1) === 0x2f && raw.charCodeAt(i + 2) === 0x2f) return true; // ://
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true; // registered ':'
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true; // registered ':'
 		} else {
 			if (
 				(raw.charCodeAt(i + 1) | 0x20) === 0x77 &&
@@ -62,10 +82,48 @@ function needsScan(raw: string, start: number, end: number): boolean {
 			) {
 				return true; // www.
 			}
-			if (probePlugins && getInlineSyntax(raw[i]) !== undefined) return true; // registered 'w'/'W'
+			if (probePlugins && isScanProbeTrigger(raw[i])) return true; // registered 'w'/'W'
 		}
 	}
 	return false;
+}
+
+// Try a trigger's rungs in dispatch order: the first whose prefix matches at
+// `ctx.pos` and whose recognizer claims wins. The claim validation (a node must
+// start at the cursor and advance) lives here once — both the pre-switch
+// consultation and the `default` arm route through it. A decline leaves `ctx`
+// untouched, so a fall-through to a built-in case reads byte-identical bytes.
+function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
+	if (!rungs) return null;
+	const { raw, pos, end } = ctx;
+	for (const rung of rungs) {
+		if (!raw.startsWith(rung.prefix, pos)) continue;
+		const node = rung.recognizer(raw, pos, end);
+		if (!node) continue;
+		if (node.start !== pos) {
+			throw new Error(`inline-syntax "${rung.prefix}" started at ${node.start}, expected ${pos}`);
+		}
+		if (node.end <= pos) {
+			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
+		}
+		stampClaim(node, rung);
+		return node;
+	}
+	return null;
+}
+
+// The claim is knowable only here, and a built-in write path needs it: a rung that
+// mints a BUILT-IN kind borrows the editor's model for bytes of its own, and the
+// editor's inverse for that kind emits the built-in grammar — so an image minted
+// over `![[cat.png]]` would resize into GFM and take the author's syntax with it. A
+// rung's own kind needs no stamp and gets none: the editor has no grammar for it,
+// so nothing outside the plugin can ever re-serialize one. Descendants are stamped
+// on the same rule — they sit inside the claimed range, so a built-in child of a
+// plugin node rewrites into the middle of the rung's bytes. Assigned, never merged:
+// a recognizer handing back a stamp of its own does not get to name its claimer.
+function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
+	if (isBuiltinInlineKind(node.kind)) node.syntaxClaim = claim;
+	if (node.children) for (const child of node.children) stampClaim(child, claim);
 }
 
 export function scanInline(
@@ -80,7 +138,20 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
+	// Reserved-trigger prefix rungs are consulted before the switch so they can
+	// outrank a built-in case — the only order that can work, because a handler
+	// consumes its trigger and advances (`handleBang` eats `![` as one unit), so the
+	// scan never returns to a position the switch has already read. Hoisted so an
+	// empty registry adds no per-char cost.
+	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
+		if (consultPrefixRungs) {
+			const node = tryRungs(ctx, getPrefixRungs(raw[ctx.pos]));
+			if (node) {
+				appendNode(ctx, node);
+				continue;
+			}
+		}
 		switch (raw[ctx.pos]) {
 			case '\\':
 				handleBackslash(ctx);
@@ -113,24 +184,10 @@ export function scanInline(
 				break;
 			default: {
 				if (hasInlineSyntax()) {
-					const recognize = getInlineSyntax(raw[ctx.pos]);
-					if (recognize) {
-						const node = recognize(raw, ctx.pos, ctx.end);
-						if (node) {
-							// appendNode flushes pending text up to node.start and resumes at
-							// node.end, so a node that starts anywhere but the cursor gaps or
-							// overlaps coverage. Fail loud at the seam, not with a torn tree.
-							if (node.start !== ctx.pos) {
-								throw new Error(
-									`inline-syntax "${raw[ctx.pos]}" started at ${node.start}, expected ${ctx.pos}`
-								);
-							}
-							if (node.end <= ctx.pos) {
-								throw new Error(`inline-syntax "${raw[ctx.pos]}" did not advance`);
-							}
-							appendNode(ctx, node);
-							break;
-						}
+					const node = tryRungs(ctx, getUnreservedRungs(raw[ctx.pos]));
+					if (node) {
+						appendNode(ctx, node);
+						break;
 					}
 				}
 				ctx.pos++;

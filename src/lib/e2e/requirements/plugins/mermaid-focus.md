@@ -21,6 +21,10 @@ paragraph `tail text` — so the block has an editable neighbor on each side.
 - Enter while the block is focused inserts an empty paragraph below with the caret in it; the
   diagram's source is unchanged and the document round-trips
 - Alt+ArrowDown reorders the mermaid block below its next sibling; Alt+ArrowUp moves it back
+- Mod+C while the block is focused copies its ` ```mermaid ` markdown; the document is
+  unchanged (the container-factory pin for the shared whole-block copy tail)
+- Mod+X while the block is focused copies the markdown and deletes the block; one Mod+Z
+  restores it
 
 ## User interactions
 

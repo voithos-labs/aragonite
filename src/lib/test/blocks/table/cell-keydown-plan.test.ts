@@ -102,6 +102,15 @@ describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
 			});
 		});
 	}
+
+	// CapsLock reports the letter uppercased; testing only `'a'` dropped the whole
+	// stage machine (the plan fell through to 'native' and the counter never moved).
+	it('starts the run with CapsLock on', () => {
+		expect(cellKeydownPlan(key('A', { ctrlOrMeta: true }), state({ selectAllCount: 1 }))).toEqual({
+			kind: 'select-all-step',
+			step: 'table'
+		});
+	});
 });
 
 describe('cellKeydownPlan: arrow boundary moves', () => {

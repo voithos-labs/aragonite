@@ -59,19 +59,30 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
 
 /**
  * Write a GitHub-alert blockquote to the clipboard and paste it at the caret. The
- * admonitions pre-parse paste transform rewrites `> [!TIP]` to `:::tip` source
- * before the parse, so a `:::tip` admonition lands — putting the transform surface
- * under the round-trip / nested-state / no-errors oracles.
+ * conversion transform is opt-in since 0.9.34 (`convertAlertsOnPaste`, default off),
+ * so the pasted bytes stay GitHub syntax and parse natively as a `githubAlert`
+ * container — putting the native alert grammar under the round-trip /
+ * nested-state / no-errors oracles.
  *
- * Settles on the CONVERTED source, not on a bare delta. A delta settle would pass
- * even with the transform unregistered: the alert would paste through as a literal
- * blockquote, which is still a delta, still round-trip-stable, and still
+ * Settles on the landed KIND, not on a source delta. A delta settle would pass
+ * even with the alert opener broken or unregistered: the bytes would land as a
+ * literal blockquote, which is still a delta, still round-trip-stable, and still
  * nested-state clean — so no oracle would trip and the gesture would guard nothing.
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Pasted alert.\n'));
 	await ctx.page.keyboard.press(`${primaryModifier}+v`);
-	await ctx.editor.bridge.waitForSourceContains(':::tip');
+	await ctx.page.waitForFunction(
+		() => {
+			const t = (window as any).__test;
+			if (!(t.getSource() as string).includes('[!TIP]')) return false;
+			const count = t.getBlockCount() as number;
+			for (let i = 0; i < count; i++) if (t.getBlockKind(i) === 'githubAlert') return true;
+			return false;
+		},
+		null,
+		{ timeout: 2000, polling: 16 }
+	);
 	await ctx.editor.waitForRenderFlush();
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }

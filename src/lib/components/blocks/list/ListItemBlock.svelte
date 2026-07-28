@@ -23,10 +23,11 @@
 	import { displayLength } from '../../../core/lines';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../../perf/instruments';
+	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import {
 		createContainerBlockComponent,
@@ -95,15 +96,10 @@
 	let boxEl: HTMLElement | undefined = $state();
 	let contentEl: HTMLElement | undefined = $state();
 
-	$effect(() => {
-		if (perfEnabled()) incMountedBlocks();
-		return () => {
-			if (perfEnabled()) decMountedBlocks();
-		};
-	});
+	useMountGauge();
 
 	function toggleTask(): void {
-		// Reading mode v1 keeps checkboxes visible but inert (CSS also drops their
+		// Reading mode keeps checkboxes visible but inert (CSS also drops their
 		// pointer affordance); live task toggling is a deferred product question —
 		// see docs/issues.md.
 		if (readOnly) return;
@@ -128,18 +124,22 @@
 		return meta.taskChecked ? 'true' : 'false';
 	});
 
+	const scope: NodeScope = {
+		get index() {
+			return index;
+		},
+		get node() {
+			return node;
+		},
+		get path() {
+			return myPath;
+		}
+	};
+
 	const bundle = createStandardNestedActions(
 		listState,
 		{
-			get index() {
-				return index;
-			},
-			get node() {
-				return node;
-			},
-			get path() {
-				return myPath;
-			},
+			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
 			parent: {
@@ -154,7 +154,7 @@
 					if (!node.children) return;
 
 					// Enter-empty: first child is an empty paragraph. Deliberately shallower than
-					// isItemUserEmpty (used by Backspace) — trailing structural children stay
+					// isItemUserEmpty — trailing structural children stay
 					// until exitListAtItem relocates them.
 					const firstChild = node.children[0];
 					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
@@ -247,8 +247,7 @@
 	// ── Commands ────────────────────────────────────────────────────────
 
 	// Not on the BlockComponent surface (the published ref is containerApi, not
-	// this instance); the bubble handler below closes over it directly and is
-	// its only caller.
+	// this instance); the bubble handler below closes over it directly.
 	function runCommand(id: AnyCommandId): boolean {
 		switch (id) {
 			case 'list.indent':

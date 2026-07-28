@@ -4,12 +4,13 @@
  * imperative inline-DOM construction it dispatches to.
  *
  * The `pendingCursorOffset` restore stays in the SFC — those writes touch
- * $state. This factory only carries a live caret across its own rebuilds
- * (a decoration-driven rebuild has no edit-path pending offset).
+ * $state. This factory only carries a live caret across a decoration-driven
+ * rebuild (no edit-path pending offset); the edit path passes `carryCaret:
+ * false`, since the SFC's pending restore overwrites the selection right after.
  */
 
 import type { AmbientPrefix } from '../../../block-component';
-import type { NodeView } from '../../../core/node-views';
+import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
@@ -17,9 +18,12 @@ import { computeInlineContent, getContentRange, isProseKind } from '../../../cor
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import {
+	captureFocusedCaretWalkOffset,
+	restoreCaretAtWalkOffset
+} from '../../../cursor/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
-import { applyIslandDecorations } from '../../../decorations/island-dom';
+import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '../../../dev-warn';
@@ -48,8 +52,16 @@ export interface TextRenderDeps {
 	/** Effective mode. Read inside the render pass on purpose: the read is the
 	 *  reactive dependency that re-renders every mounted block on a mode flip. */
 	get presentationMode(): PresentationMode;
+	/** Live root document, handed to component widgets whose derived value depends
+	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
+	 *  document across edits, never a mount-time snapshot. */
+	getDocument: () => DocumentView | undefined;
 	get linkResolver(): LinkReferenceResolver | undefined;
-	get linkSignature(): string;
+	/** A compact stamp that changes exactly when the document's LRD signature
+	 *  changes (the shell mints it — link-reference-resolver.ts). Reference-bearing
+	 *  blocks fold this into their render key instead of the whole signature string,
+	 *  which reaches ~MB scale in reference-heavy documents. */
+	get linkStamp(): string;
 	/** Position-sorted islands for this block. A getter, and read inside the
 	 *  render pass on purpose: that read is the reactive dependency that
 	 *  re-renders the block when its island set changes. */
@@ -64,35 +76,29 @@ export interface TextRenderDeps {
 export interface TextRender {
 	/**
 	 * Rebuild the block's children from current node state. Skips work when
-	 * neither (ambientPrefixText, raw, ref-signature, image-policy,
-	 * island-signature) nor `forceRebuild` demands it. Pass `forceRebuild` when
-	 * a pending cursor restoration needs the DOM positions re-anchored even
-	 * though the rendered key is unchanged.
+	 * neither (ambientPrefixText, raw, ref-stamp, image-policy, island-signature)
+	 * nor `forceRebuild` demands it. Pass `forceRebuild` when a pending cursor
+	 * restoration needs the DOM positions re-anchored even though the rendered key
+	 * is unchanged. `carryCaret` (default true) captures and re-anchors the focused
+	 * caret across the rebuild; pass false on the edit path, where the SFC's
+	 * pending-cursor restore overwrites the selection immediately after.
 	 */
-	render(opts?: { forceRebuild?: boolean }): void;
+	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget instance — called when the block unmounts. */
 	dispose(): void;
 }
 
-/** Gated island signature for the render key. No islands ⇒ '' — an undecorated
- *  block's key stays byte-identical to the island-free format (the zero-cost
- *  path; pinned by a parity test). Widget identity is deliberately untracked:
- *  same position + class ⇒ equal signature (see DecorationWidgetSpec). */
-export function islandRenderKeyPart(
-	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
-): string {
-	if (islands.length === 0) return '';
-	return `\0${islands.map((i) => islandSig(i.dec)).join(';')}`;
-}
-
-const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
-	d.type === 'widget'
-		? `w:${d.offset}:${d.side ?? 'after'}`
-		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
-
 // The NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
 // trailing segment islandRenderKeyPart contributes (absent ⇒ no sixth part).
-const RENDER_KEY_SEGMENTS = ['ambient', 'raw', 'ref', 'imgPolicy', 'mode', 'islands'] as const;
+const RENDER_KEY_SEGMENTS = [
+	'ambient',
+	'raw',
+	'ref',
+	'imgPolicy',
+	'mode',
+	'kind',
+	'islands'
+] as const;
 
 /** Which renderKey segment(s) differ between two keys — the interaction trace's
  *  rebuild cause. Pure over the key format so the recorder never learns the NUL
@@ -109,7 +115,11 @@ export function renderKeySegmentDiff(prev: string, next: string): string {
 
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
-	const widgetPool = createSvelteWidgetPool(deps.reportRenderError, () => deps.presentationMode);
+	const widgetPool = createSvelteWidgetPool(
+		deps.reportRenderError,
+		() => deps.presentationMode,
+		deps.getDocument
+	);
 	let islandDestroys: Array<() => void> = [];
 
 	function destroyIslands(): void {
@@ -191,24 +201,17 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	// edit-path pendingCursorOffset set; carry the caret across in walk space.
 	// The SFC's pending restore (when an edit set one) runs after and wins.
 	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
-		if (!document.activeElement || !el.contains(document.activeElement)) return null;
-		const sel = window.getSelection();
-		if (!sel?.focusNode || !el.contains(sel.focusNode)) return null;
-		const walk = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-		traceCursorCapture(walk);
+		const walk = captureFocusedCaretWalkOffset(el);
+		if (walk !== null) traceCursorCapture(walk);
 		return walk;
 	}
 
 	function restoreCaret(el: HTMLElement, walkOffset: DomTextOffset): void {
-		const range = createRangeAtDomTextOffsets(el, walkOffset, walkOffset);
-		if (!range) return;
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
+		restoreCaretAtWalkOffset(el, walkOffset);
 		traceCursorRestore(walkOffset);
 	}
 
-	function render(opts?: { forceRebuild?: boolean }): void {
+	function render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
@@ -218,7 +221,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// every block subscribes to the resolver and one LRD edit re-renders the
 		// whole document.
 		const hasRef = node.raw.includes('[');
-		const refKeyPart = hasRef ? deps.linkSignature : '';
+		const refKeyPart = hasRef ? deps.linkStamp : '';
 		// The built widget bakes in imageLoadPolicy (placeholder class / src), so the
 		// key must track it — but only for blocks with an image, so image-free blocks
 		// neither subscribe to policy changes nor rebuild when the policy flips.
@@ -230,8 +233,14 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const mode = deps.presentationMode;
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
+		// The kind is a render input, not just a branch selector: it picks the content
+		// range (so the block's own dimmed marker) and `renderImagesAsWidgets`. Two
+		// prose kinds can share a raw when the registry gains an opener for bytes
+		// already in the document, and the memo would then early-return onto the
+		// previous kind's DOM.
+		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
+		const carryCaret = opts?.carryCaret ?? true;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
@@ -239,7 +248,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			if (isInteractionTraceEnabled())
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
 			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
-			const caretWalkOffset = captureCaretIfFocused(el);
+			// Edit-path rebuilds (carryCaret false) skip the capture/restore pair: the
+			// SFC's pending-cursor restore overwrites the selection right after, so the
+			// walk is dead work. When focus already left, capture returns null and the
+			// SFC restore skips too — so skipping here is behavior-identical either way.
+			const caretWalkOffset = carryCaret ? captureCaretIfFocused(el) : null;
 			// Bracket the rebuild: portal widgets acquired during the build are adopted
 			// for this pass; the sweep destroys any that the previous DOM held but this
 			// build did not re-acquire (a widget whose source changed or was deleted).

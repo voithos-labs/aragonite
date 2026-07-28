@@ -1,11 +1,13 @@
-// The pure scan behind the highlight-occurrences dogfood: word-under-caret
-// resolution and whole-word occurrence marks over the document's leaves.
+// The two pure halves behind the highlight-occurrences plugin, each asserted at its
+// own level: word-under-caret resolution (`anchorWord`) and the whole-document
+// occurrence index the memoizing source looks that word up in.
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { EditorSelection } from '$lib';
 import {
 	OCCURRENCE_CLASS,
-	occurrenceMarks,
+	anchorWord,
+	buildOccurrenceIndex,
 	wordAt
 } from '$lib/plugins/highlight-occurrences/occurrences';
 
@@ -36,12 +38,45 @@ describe('wordAt', () => {
 	});
 });
 
-describe('occurrenceMarks', () => {
+describe('anchorWord', () => {
 	const doc = parse('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
 
-	it('marks every whole-word occurrence across top-level, nested, and heading leaves', () => {
-		const marks = occurrenceMarks(doc, caret([0], 1));
-		expect(marks).toEqual([
+	it('resolves the word under a caret in a top-level leaf', () => {
+		expect(anchorWord(doc, caret([0], 1))).toBe('cat');
+	});
+
+	it('returns null for a null selection', () => {
+		expect(anchorWord(doc, null)).toBeNull();
+	});
+
+	it('returns null when the caret sits on a marker char', () => {
+		expect(anchorWord(doc, caret([2], 1))).toBeNull();
+	});
+
+	it('returns null for a container focus (table cell-coordinate endpoint)', () => {
+		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
+		expect(anchorWord(tableDoc, caret([0], 1, true))).toBeNull();
+	});
+
+	it('resolves through a deep cell path to the cell leaf', () => {
+		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
+		expect(anchorWord(tableDoc, caret([0, 0, 0], 1))).toBe('cat');
+	});
+
+	// A fenced code block is not an inline-prose surface (supportsInline: false, read
+	// through isProseKind) — the declared capability occurrence highlighting scopes to.
+	it('returns null when the caret sits inside a non-prose leaf', () => {
+		const codeDoc = parse('cat one\n\n```\ncat inside code\n```\n');
+		// Offset 5 sits inside the fence body's 'cat' (raw: '```\ncat inside…').
+		expect(anchorWord(codeDoc, caret([1], 5))).toBeNull();
+	});
+});
+
+describe('buildOccurrenceIndex', () => {
+	const doc = parse('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
+
+	it('indexes every whole-word occurrence across top-level, nested, and heading leaves', () => {
+		expect(buildOccurrenceIndex(doc).get('cat')).toEqual([
 			{ type: 'mark', path: [0], start: 0, end: 3, class: OCCURRENCE_CLASS },
 			{ type: 'mark', path: [1, 0], start: 2, end: 5, class: OCCURRENCE_CLASS },
 			// Heading offsets are raw offsets: 'cat' sits past the '## ' marker.
@@ -49,31 +84,31 @@ describe('occurrenceMarks', () => {
 		]);
 	});
 
-	it('never matches a substring of a longer word', () => {
-		const marks = occurrenceMarks(doc, caret([0], 1));
-		expect(marks.some((m) => m.path[0] === 3)).toBe(false);
+	it('buckets a longer word separately, never as a substring match', () => {
+		const index = buildOccurrenceIndex(doc);
+		expect(index.get('cat')?.some((m) => m.path[0] === 3)).toBe(false);
+		expect(index.get('catalog')?.map((m) => m.path)).toEqual([[3]]);
 	});
 
-	it('returns nothing for a null selection', () => {
-		expect(occurrenceMarks(doc, null)).toEqual([]);
-	});
-
-	it('returns nothing when the caret sits on a marker char', () => {
-		expect(occurrenceMarks(doc, caret([2], 1))).toEqual([]);
-	});
-
-	it('returns nothing for a container focus (table cell-coordinate endpoint)', () => {
+	it('indexes table-cell leaves', () => {
 		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
-		expect(occurrenceMarks(tableDoc, caret([0], 1, true))).toEqual([]);
-	});
-
-	it('marks occurrences inside table-cell leaves for a deep cell caret', () => {
-		const tableDoc = parse('| cat | dog |\n| --- | --- |\n| cat | nap |\n');
-		const marks = occurrenceMarks(tableDoc, caret([0, 0, 0], 1));
 		// The delimiter row is trivia, not a child: body cells sit on row 1.
-		expect(marks.map((m) => m.path)).toEqual([
+		expect(
+			buildOccurrenceIndex(tableDoc)
+				.get('cat')
+				?.map((m) => m.path)
+		).toEqual([
 			[0, 0, 0],
 			[0, 1, 0]
 		]);
+	});
+
+	it('skips non-prose leaves, so a word inside a fenced code block is never indexed', () => {
+		const codeDoc = parse('cat one\n\n```\ncat inside code\n```\n');
+		expect(
+			buildOccurrenceIndex(codeDoc)
+				.get('cat')
+				?.map((m) => m.path)
+		).toEqual([[0]]);
 	});
 });

@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
+import { capturePageErrors } from '../../page-probes';
 
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
 
@@ -69,8 +70,7 @@ function deepNeedleCovered(page: Page): Promise<{ found: boolean; covered: boole
 test('a deep off-window table-row match repaints its highlight after a single scroll into view', async ({
 	page
 }) => {
-	const pageErrors: string[] = [];
-	page.on('pageerror', (e) => pageErrors.push(e.message));
+	const pageErrors = capturePageErrors(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -142,8 +142,7 @@ function visibleCellCovered(page: Page): Promise<{ found: boolean; covered: bool
 test('a cross-block selection repaints over a deep off-window table row after scroll-in', async ({
 	page
 }) => {
-	const pageErrors: string[] = [];
-	page.on('pageerror', (e) => pageErrors.push(e.message));
+	const pageErrors = capturePageErrors(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto();

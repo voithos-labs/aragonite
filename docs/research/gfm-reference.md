@@ -1,6 +1,6 @@
 # GFM Reference
 
-Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 scope; Section 3 is planned as plugins on the plugin-authoring API.
+Quick reference for the GitHub Flavored Markdown syntax the editor parses and renders. Section 1 covers standard CommonMark features, Section 2 covers GFM-specific extensions, Section 3 covers features widely seen on GitHub.com but outside the formal GFM specification. Sections 1 and 2 are the v1.0 core scope. Section 3 is where the plugin platform shows: alerts, diagrams, math, footnotes, collapsible sections and emoji shortcodes all ship today as bundled plugins on the plugin-authoring API; syntax-highlighting aliases ride the built-in code-block highlighter; relative links are a consumer concern (the `resolveLinkUrl` prop) rather than a syntax; and GitHub-specific autolinks are deliberately excluded — see `docs/roadmap.md`.
 
 <!-- Examples demonstrating alternative syntaxes use `text` fences on purpose:
      prettier formats `markdown`-tagged fences as markdown and normalizes away
@@ -208,10 +208,11 @@ These are the formal extensions that distinguish GFM from plain CommonMark.
 | Row 2        |      Data      |          $200 |
 ```
 
-- **Strikethrough:** Cross out text using double tildes.
+- **Strikethrough:** Cross out text using tildes. A run of one or two tildes delimits (`~single~` and `~~double~~` both strike, matching cmark-gfm), while a run of three or more stays literal, and mixed-length runs never pair (a one-tilde opener does not close a two-tilde run).
 
 ```markdown
 ~~This text is crossed out~~
+~Also crossed out~
 ```
 
 - **Autolinks (§6.9):** Bare URLs and email addresses turn into links without angle brackets `< >` or `[text](url)` syntax.
@@ -268,6 +269,16 @@ $$
 \left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)
 $$
 ```
+
+Block math also has a third form: a fenced code block whose info string's first token is `math`.
+
+````markdown
+```math
+x^2 + y^2 = z^2
+```
+````
+
+The editor's inline `$…$` recognizer is digit-guarded on the opener: a `$` immediately followed by a digit stays currency, so `$5` and `$5 and $10` render as literal text rather than math. This is a deliberate divergence. The close is not digit-guarded, so `$x^2$` still closes on its `2`.
 
 - **Mermaid Diagrams:** Fenced code blocks with the `mermaid` language identifier render as diagrams.
 

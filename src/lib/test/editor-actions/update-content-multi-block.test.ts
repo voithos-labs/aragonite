@@ -7,7 +7,7 @@ import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
@@ -34,19 +34,16 @@ function makeNested(source: string) {
 	const controller = createUndoController(harness.deps);
 	const bundle = createStandardNestedActions(
 		createBlockListState(() => harness.deps.doc.children[0]),
-		{
+		makeNestedActionsDeps({
 			index: 0,
-			get node() {
-				return harness.deps.doc.children[0];
-			},
+			getNode: () => harness.deps.doc.children[0],
 			path: [0],
-			stickyColumn: makeStickyColumn(),
 			parent: {
 				blockEdit: makeStubBlockEdit(),
 				focus: makeStubFocus(),
 				containerEdit: createContainerEditActions(harness.deps, controller)
 			}
-		}
+		})
 	);
 	return { ...harness, bundle };
 }

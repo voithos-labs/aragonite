@@ -32,10 +32,16 @@
 
 <script lang="ts">
 	import { Editor } from '$lib';
+	import { trackParityDocument } from '../../../parity-documents.svelte';
 
 	let editorOne = $state<ReturnType<typeof Editor>>();
 	let editorTwo = $state<ReturnType<typeof Editor>>();
 	let secondMounted = $state(false);
+
+	// Both editors, not just the `__test` one: the teardown parity walk reads this
+	// registry, and editor 2 is the one under test here.
+	trackParityDocument(() => editorOne);
+	trackParityDocument(() => editorTwo);
 
 	// Minimal per-editor bridges: this harness's e2e only reads the CST by path, so
 	// each editor exposes just getDocument(). installTestProbes is single-editor (it

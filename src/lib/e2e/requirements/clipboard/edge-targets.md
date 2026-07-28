@@ -10,4 +10,4 @@ Paste / cut into unusual positions — empty document, heterogeneous clipboard, 
 - Cut across two list items removes selection, leaves surviving items intact, puts removed content on clipboard.
 - Cut-then-paste round-trip restores the original content.
 - Paste at end of last block appends correctly.
-- Paste empty clipboard is a no-op.
+- Paste empty clipboard is a no-op: the document stays byte-identical, not merely still-containing its text — a stray newline or a duplicated block is a failure.

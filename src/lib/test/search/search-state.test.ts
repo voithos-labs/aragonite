@@ -13,6 +13,7 @@ function makeState(
 	const doc = parse(source);
 	return createSearchState({
 		getDoc: () => doc,
+		getDocumentGeneration: () => 0,
 		decorations: createDecorationEngine({ getDoc: () => doc }),
 		replace,
 		reveal: async () => null,

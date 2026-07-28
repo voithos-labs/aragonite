@@ -3,8 +3,9 @@ import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
 import {
 	__resetInlineSyntaxForTests,
-	getInlineSyntax,
+	getInlineRungs,
 	hasInlineSyntax,
+	hasScanProbeRungs,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
 } from '../../../../core/inline/scan/plugin-syntax';
@@ -31,8 +32,8 @@ describe('inline-syntax registry', () => {
 		expect(hasInlineSyntax()).toBe(false);
 		registerInlineSyntax('$', recognizeMath);
 		expect(hasInlineSyntax()).toBe(true);
-		expect(getInlineSyntax('$')).toBe(recognizeMath);
-		expect(getInlineSyntax('%')).toBeUndefined();
+		expect(getInlineRungs('$')[0].recognizer).toBe(recognizeMath);
+		expect(getInlineRungs('%')).toHaveLength(0);
 	});
 
 	it('registers a trigger once — a duplicate throws', () => {
@@ -59,6 +60,29 @@ describe('inline-syntax registry', () => {
 	it('still accepts a trigger the built-in scanner ignores', () => {
 		expect(() => registerInlineSyntax('$', recognizeMath)).not.toThrow();
 		expect(() => registerInlineSyntax(':', recognizeMath)).not.toThrow();
+	});
+});
+
+// The fast bail's probe is a cost switch, not a correctness one — it only decides
+// whether ordinary characters pay a lookup before the bail answers. A rung on a
+// trigger SPECIAL_CHARS already visits must leave it off, or every character of every
+// footnote-bearing document pays for a visit the bail was always going to make.
+describe('inline-syntax registry — what the fast bail must probe', () => {
+	it('reports nothing to probe until a trigger is registered', () => {
+		expect(hasScanProbeRungs()).toBe(false);
+	});
+
+	it('stays off for a prefix rung on a scan-visible reserved trigger', () => {
+		registerInlineSyntax('[', recognizeMath, { prefix: '[^', priority: 40 });
+		expect(hasScanProbeRungs()).toBe(false);
+	});
+
+	it.each([
+		['an unreserved trigger', '$', undefined],
+		['a prefix rung on the scan-probed `!`', '!', { prefix: '![[', priority: 40 }]
+	])('turns on for %s', (_name, trigger, options) => {
+		registerInlineSyntax(trigger, recognizeMath, options);
+		expect(hasScanProbeRungs()).toBe(true);
 	});
 });
 

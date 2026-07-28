@@ -14,9 +14,10 @@ import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
+import { trailingLineEnding } from '../../core/lines';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
@@ -24,7 +25,9 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import type { MultiScopeTarget } from './paste-deps';
+import { focusIndexBeforeResidue } from './focus-target';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -56,7 +59,7 @@ export function findListBreakOut(
 ): ListBreakOut | null {
 	if (parsed.children.length === 0) return null;
 	const topBlock = parsed.children[0];
-	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste?.siblingAbsorb) return null;
 
 	const enclosing = findEnclosingListForPaste(doc, targetPath);
@@ -85,7 +88,7 @@ export async function applyListBreakOut(
 	const list = nodeAt(ctx.doc, plan.listPath) as CstNode | null;
 	if (!list?.children) return;
 
-	const replacement = buildListBreakOutReplacement(
+	const { replacement, hasTrailingResidue } = buildListBreakOutReplacement(
 		list,
 		plan.itemIndex,
 		plan.innerIndex,
@@ -96,14 +99,13 @@ export async function applyListBreakOut(
 
 	for (const node of replacement) ensureEditableContainers(node);
 
-	const parentScope = resolveParentScope(plan, ctx);
+	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
-	const listIndex = plan.listPath[plan.listPath.length - 1] ?? plan.listPath[0];
-	const spliceIndex = plan.listPath.length === 1 ? plan.listPath[0] : listIndex;
+	const spliceIndex = plan.listPath[plan.listPath.length - 1];
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...plan.listPath], offset: 0 },
+		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(spliceIndex, 1, ...replacement);
 			const change: StructuralChange = {
@@ -118,21 +120,33 @@ export async function applyListBreakOut(
 		op: {
 			kind: 'paste',
 			detail: { source: 'list-break-out', listPath: plan.listPath },
-			eventPath: plan.listPath
+			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
-			const lastInsertedIdx = spliceIndex + replacement.length - 1;
-			parentScope.state.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+			// End of the pasted content: the last pasted block, before the second-half
+			// residue list — never the residue itself.
+			const lastPastedIdx =
+				spliceIndex + focusIndexBeforeResidue(replacement.length, hasTrailingResidue);
+			parentScope.state.innerBlockRefs[lastPastedIdx]?.focus(CURSOR_END);
 		}
 	});
 }
 
 // ── Replacement builder (pure, testable) ─────────────────────────────────────
 
+export interface ListBreakOutReplacement {
+	/** `[firstHalfList?, ...pastedBlocks, secondHalfList?]` — halves omitted when empty. */
+	replacement: CstNode[];
+	/** The second-half list (post-caret residue) is present as the last node. */
+	hasTrailingResidue: boolean;
+}
+
 /**
  * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks`
  * between the halves. Returns `[firstHalfList?, ...pastedBlocks, secondHalfList?]`
- * — halves are omitted when empty. Input nodes are cloned, not mutated.
+ * — halves are omitted when empty — plus whether the trailing residue half is
+ * present, so the caller can land the caret on the last pasted block rather than
+ * the residue. Input nodes are cloned, not mutated.
  */
 export function buildListBreakOutReplacement(
 	list: CstNode,
@@ -140,12 +154,12 @@ export function buildListBreakOutReplacement(
 	innerIndex: number,
 	offset: number,
 	pastedBlocks: CstNode[]
-): CstNode[] {
+): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];
-	if (!item?.children) return [];
+	if (!item?.children) return { replacement: [], hasTrailingResidue: false };
 	const targetLeaf = item.children[innerIndex];
-	if (!targetLeaf) return [];
+	if (!targetLeaf) return { replacement: [], hasTrailingResidue: false };
 
 	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } = splitLeafForPaste(
 		targetLeaf,
@@ -187,33 +201,21 @@ export function buildListBreakOutReplacement(
 		const cloned = cloneNode(block);
 		// No children-array splice here — the cloned list itself is the unit;
 		// normalize its items so its rebuilt raw can't mash into the next block.
+		// The ending comes from the list being broken out of: the pasted block is
+		// landing among its lines.
 		if (cloned.kind === 'list' && cloned.children) {
-			newlineTerminateListItems(cloned.children);
+			newlineTerminateListItems(cloned.children, trailingLineEnding(list.raw));
 			rebuildListRaw(cloned);
 		}
 		replacement.push(cloned);
 	}
-	if (secondHalfItems.length > 0) {
+	const hasTrailingResidue = secondHalfItems.length > 0;
+	if (hasTrailingResidue) {
 		// Continue numbering across the paste gap from the list's own base — the
 		// split item consumes one slot in each half, so the second half starts at
 		// base + (number of first-half items).
 		replacement.push(assembleListHalf(list, secondHalfItems, base + firstHalfItems.length));
 	}
 
-	return replacement;
-}
-
-// ── Internal ─────────────────────────────────────────────────────────────────
-
-function resolveParentScope(
-	plan: ListBreakOut,
-	ctx: PasteDispatchContext
-): MultiScopeTarget | null {
-	if (plan.listPath.length === 1) {
-		return ctx.controller.getDocScope();
-	}
-	const parentPath = plan.listPath.slice(0, -1);
-	const parent = nodeAt(ctx.doc, parentPath) as CstNode | null;
-	if (!parent) return null;
-	return { node: parent, state: ctx.controller.expectState(parent), path: parentPath };
+	return { replacement, hasTrailingResidue };
 }

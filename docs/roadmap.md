@@ -14,49 +14,14 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 **1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-The **block-kind surface** is API-complete and hardened (0.9.13–0.9.20), the **context
-spine** closed most of the extension-surface gap (0.9.21), the **decoration gap** — the
-one plugin class the platform could not express — closed in 0.9.22, the **demo/packaging
-groundwork** landed in 0.9.23 (bundled plugins as `aragonite/plugins/<name>` subpaths; `/` is
-the showcase shell), the **enforcement-hardening program** shipped in 0.9.24 (branded
-coordinate spaces, the closure matrix as a required registration field + executable battery,
-bytes-readonly node views, the parity-lint family — the audit's two dominant bug classes
-climbed from guards and prose to the compiler), **inline observability** shipped in
-0.9.25 (the interaction trace + consumer diagnostics door, transition asserts on the inline
-state machines, the IME composition harness), and **presentation modes** shipped in 0.9.26
-(the full live-preview ladder — reading mode, block-granular, inline-granular — over a mode
-contract every plugin tier can read; caret affinity dissolved to raw offsets under the
-CST-as-truth model, no stored-marks machinery needed), and the **architecture-concern pass**
-shipped in 0.9.27 (all five flagged designs resolved: the SelectionPoint and CstNode
-discriminated unions, per-instance registry views + the dev idempotence valve, context facets —
-the mount harness, and container-raw exonerated by a falsification benchmark — the resolutions
-are recorded in the 0.9.27 changelog entry), and a **repo-wide forge review** audited
-and fixed the whole surface to green in 0.9.28 — its one structural residual closed in
-0.9.29 (the **freeze-surface liveness pass**: every live read on the frozen factory deps
-surfaces is an explicit thunk, value-capture uncompilable, with the trailing-line-ending
-parity lint riding along). The remaining risk is **validation
-depth**: one clean-room run deep, every consumer since in-repo and same-day — sharpened by the
-0.9.28 third-party audit (addressed and retired in 0.9.30; the full report lives in git
-history), whose highest-stakes finding was that every validation artifact to date is
-owner-authored and the stated gap detector (the 1.3 reference plugins) was scheduled after the
-freeze it exists to inform. The items below are ordered by **risk first, validation before
-freeze**.
-
-1. **Limestone internal integration** — the last unchecked box in the validation list above and
-   the highest-yield finding generator left: a real app wiring save/load, dirty-state, image
-   resolution, and multiple documents against `plugins`, `getEvents()`, and `getSource()`. It
-   also exercises the 0.9.25 field-report workflow (the diagnostics door: reproduce →
-   `serializeDiagnostics()` → attach) end to end, as the first consumer that will actually
-   file one. The
-   integration code lives in limestone; what belongs here is running it before the freeze and
-   landing its findings while they are still cheap. The integration doubles as the
-   **discipline stress-test**: the first consumer that never read the scar tissue, so every
-   misuse of the API it produces (a value passed where liveness matters, a node held across
-   a commit, a call at the wrong lifecycle moment) is logged as a finding and routed to
-   encode-or-document — never just corrected at the call site. Additive API needs it surfaces ship as
-   pre-freeze refinements. The first-party plugin distribution question is settled
-   (0.9.23): the integration consumes the bundled plugins as `aragonite/plugins/<name>` subpath
-   exports directly — the copy-source sync pattern never enters the picture.
+1. **Limestone internal integration — remaining scope.** The integration ran (2026-07) and paid
+   as predicted: the editor is the app's editor, the findings landed as 0.9.36 refinements, and
+   the consumer-lens directions below are its architectural residue. What has NOT yet run, and
+   stays here as forward work: the 0.9.25 **field-report workflow** end to end (the diagnostics
+   door: reproduce → `serializeDiagnostics()` → attach — no real report has been filed yet); the
+   **overridable-history-seam joint design** (§ Downstream boundary — the integration is named as
+   the design table, and the table has not convened); and landing whatever the consumer's
+   remaining manual passes (journal surface, real-webview gestures) surface before the freeze.
 2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
@@ -87,10 +52,11 @@ freeze**.
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
      land as pre-freeze refinements; a structural finding moves the cut.
-   - **1.3 dry-run** — footnotes, the riskiest of the three post-1.0 reference plugins, was
-     build-probed pre-freeze against the public surface only (0.9.30), so this check is
-     executable rather than paper where it matters most; at the cut, walk emoji and autolinks
-     on paper against the probe's findings and confirm no breaking-if-deferred gap remains.
+   - **1.3 dry-run** — the beyond-GFM reference plugins shipped pre-freeze rather than as paper
+     probes: footnotes, the riskiest, on the 0.9.33 inline precedence ladder (build-probed 0.9.30,
+     then promoted whole), and emoji on the 0.9.34 bare-`:` rung, so this check rests on shipped
+     consumers where it matters most. At the cut, confirm the one deliberately-excluded item (the
+     GitHub repo-context autolink sugar, § 1.3) carries no breaking-if-deferred gap.
    - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
      at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
      quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
@@ -102,7 +68,20 @@ freeze**.
    - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
      `git log`.
-   - Final contract reconciliation; pre-freeze labels come off; pending owner decisions land:
+   - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
+     markers in `src/lib/plugin.ts` are the published signal telling an external author which
+     parts of the frozen contract are not yet frozen, so `grep -c pre-freeze src/lib/plugin.ts`
+     returning nonzero after the cut means the API is lying about its own stability; pending
+     owner decisions land:
+     **the `BlockComponent.focus` verb split** (one verb carries two meanings — park-without-clearing
+     for the extend paths, place-and-end-range for user gestures; seating the clear in one verb was
+     measured impossible, two whole-document data losses were the cost of the ambiguity, and the fix
+     is breaking on a frozen export, so it is decided AT the cut, not after — `docs/issues.md`
+     carries the entry and G2.12 holds the line meanwhile),
+     **reveal-anchor claimant identity** (the single slot compares paths, never claimants or block
+     modes — a same-path claimant can lose its band mid-settle and the terminal clears are
+     path-blind; decide claimant tokens vs per-instance slots together with the mount-waiter keying
+     beside it),
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
      the claim), grouping `BlockComponent`'s optional capability probes into named facets, an
@@ -145,7 +124,7 @@ freeze**.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
-     by their single-home modules with the public doors keeping `number`. The liveness pass
+     at their home modules with the public doors keeping `number`. The liveness pass
      (shipped 0.9.29) extends the program: no frozen deps field whose contract is a liveness
      rule remains value-shaped — every live read on the public surface is a thunk. Re-verified
      by the re-audit's enforcement pass, not assumed.
@@ -156,8 +135,47 @@ freeze**.
      the consumer's actual history representation, together with the `EditEvent` real-delta
      discriminant (`plugin-contract.md` § Deferred) — the two are one design, and neither is
      shaped without the consumer at the table.
+   - **Branch protection at the flip to public**: run `node scripts/apply-branch-protection.mjs`.
+     The API plan-gates protection on private free-plan repos, so it cannot be pre-applied; the
+     required status contexts mirror ci.yml's job names (a job rename updates the script).
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
+
+### The consumer lens — architecture directions from the first integration
+
+What the limestone run taught that no in-repo battery could, recorded as direction so the next
+milestone that touches each area inherits it rather than rediscovering it:
+
+- **Inline-widget _editing_ wants to become one surface.** The integration's defect density
+  concentrated overwhelmingly in one region: what happens when a caret, a keystroke, or a command
+  meets an inline widget (the reveal-fold seam, caret mutual exclusion, collapsed-caret formatting,
+  the syntax-of-origin family and its `rewriteImage` hook). Each fix was right, but the editing
+  capabilities a rung can carry have accreted as separate options across registrations — recognizer
+  options, widget descriptors, editing policies, the rewrite hook. Direction for 1.2: gather them
+  into one named per-rung editing facet, and ship the **inline-kind conformance kit** the block
+  kinds already have (`runKindConformance` is block-only; the overlap-decline rule is
+  documented-not-guarded today, and a kit would enroll a rung in the behavioral battery the way the
+  closure matrix does for blocks). Validator: the bundled rungs enroll; the kit reds a rung that
+  swallows the grammar overlap.
+- **The webview host boundary is where consumer bugs live, and the in-repo harness cannot see it.**
+  Three integration finds were invisible to any Chromium-driven battery: clipboard events
+  retargeting to `document.body` off a caret-less endpoint, the host webview's built-in
+  accelerator keys consuming chords before the page, and the image-src scheme policy meeting
+  a real host protocol. Direction: the consumer guide grows a **webview-host section** (what the
+  page never sees, which chords a browser may claim, the scheme policy's shape), and post-1.0 a
+  minimal **Tauri example consumer** joins `examples/` so this class is exercised by a gate rather
+  than discovered by a user. Validator: each webview find of the next integration lands as a row
+  in that example's checklist, not a surprise.
+- **Singletons earn their keep only until the second claimant arrives.** The process-global
+  reveal anchor produced two consumer-visible defects and still carries a claimant-identity gap;
+  the interaction trace interleaves instances by design. The freeze-cut list now carries the
+  anchor decision. Standing direction for anything new: a process-global slot is a deliberate
+  choice with a written second-claimant story, not a default.
+- **Every gesture that places a caret is a data-loss candidate until proven otherwise.** The
+  precondition no suite had ever built — a live cross-block range before a caret-placing
+  gesture — hid two whole-document losses. G2.12 now fails new pointer gestures at birth, but its
+  perimeter is pointer-only by design; the simulation habit (§ Standing posture) should treat
+  select-all → gesture → keystroke as a first-class corruption probe alongside the byte oracles.
 
 ### The two plugin systems
 
@@ -238,6 +256,30 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   claim the fence, render the run surface, keep the bytes. If post-1.0 demand shows genuine need
   for in-place replacement, Plugin System II is its home — after the battery exists to make "you
   own what you replace" checkable.
+- **GitHub's rendered extras that aragonite keeps literal** — inline HTML as live widgets
+  (`<kbd>`, `<sub>`, `<sup>`, `<ins>`) and the diagram fences past mermaid (geoJSON, topoJSON,
+  STL). **Decided: neither pre-1.0** (owner, at the 2026-07 GitHub-parity run). Both are
+  plugin-shaped on surfaces that already ship, so deferring forecloses nothing. A curated tag
+  set is a prefix rung on the reserved `<` trigger rendering an atomic widget over unchanged
+  bytes (the entity-reference mold); the whole design question is the curation — which tags
+  earn a widget, and the answer for every other tag staying "render as literal source", which
+  is also its uninstall story. A diagram fence is a fence claim on the mermaid precedent,
+  priced ahead of `fencedCode` and declining every info string it does not own; those
+  additionally drag heavy render engines for a niche audience, which is why they sit as
+  post-1.0 candidates rather than pre-freeze work.
+- **Heading-anchor `#fragment` navigation** (GitHub/Obsidian in-note links) — a `[jump](#deep-heading)`
+  prose link scrolling to the matching heading. **Decided: deferred, additive-later** (assessed at
+  toc v2, 0.9.35). The heading half is cheap and in reach: a pure `slugify` over the same
+  `heading-outline` walk — GitHub's rule (lowercase, drop all but word chars / spaces / hyphens,
+  spaces → `-`), then dedupe collisions with `-1`, `-2`… in document order — yields a `slug → path`
+  map. The blocker is the **resolution seam**: aragonite has no inline-link-click hook, and in a
+  contenteditable a plain click on a link places the caret (editing), so intercepting it to navigate
+  needs a new editor-level convention (a modifier-click, or a rendered-link activation seam) plus DOM
+  identification of the link's fragment — cross-cutting inline-render / pointer work past a toc-local
+  ~150-line budget, and a which-gesture-navigates-vs-edits UX decision the toc plugin cannot make
+  alone. Direction: when built, the slug utility ships on the plugin barrel beside `headingLevel`, and
+  resolution rides whatever inline-link-activation seam the editor grows, reading the one
+  `heading-outline` walk. No pre-freeze driver forces it.
 
 **Standing posture — the enforcement ladder: unrepresentable > guarded > documented.** Every
 load-bearing contract climbs as high as it can: prefer types/seams that make the violation
@@ -264,6 +306,12 @@ Settles what only an integrated surface can settle:
   backgrounds at full opacity, so it fails contrast wherever it lands (link text, the code-fence
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
+- **Token-role audit** — the first integration found two token-hygiene classes worth one deliberate
+  pass: a token serving two visual roles at once (`--syntax-separator` tinted marker glyphs AND
+  painted the full-width thematic-break rule, so a consumer's palette choice for one was the wrong
+  loudness for the other), and a chrome token with no mode response (`--color-ui-faint`,
+  identical in both palettes and hue-odd among its siblings). The audit asks of every token: one
+  role, both modes answered, and a stated reason for any exception.
 
 _(Presentation modes shipped pre-1.0 in 0.9.26.)_
 
@@ -275,13 +323,12 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7) and the pre-1.0 global-command mint; `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
 - **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent. The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
 - **Trigger-character suggest seam** — a `/` menu, `@`-mentions, `[[`-completion. Table stakes for a notes app, and the class Obsidian carries with `registerEditorSuggest`. Deferred deliberately: the pre-1.0 rect API makes a suggest popup _consumer_-buildable (caret geometry plus `getSelection()`), so the question 1.2 answers is whether it deserves a first-class editor seam or stays a consumer pattern. Decide against a real consumer, not on paper.
-- **Inline-parser precedence overrides** — the scan-stage hook itself shipped pre-1.0 (`registerInlineSyntax`, with KaTeX as the consumer); what remains is a precedence-override variant for recognizers that must outrank built-in inline syntax. The pre-freeze footnotes probe (0.9.30) turned this from a sketch into a spec: `[` is a reserved built-in trigger (registration throws), so a GFM `[^label]` reference needs a prefix-recognizer that can win a reserved trigger's prefix and must define unterminated-construct behavior (`[^` that never closes). Additive-later by the freeze criterion — the reservation throws today, so a carve-out breaks no bound code — and a strong build-now candidate with footnotes as the validating consumer; until it ships, references are expressible as decoration overlays (the probe's working approximation).
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
-- **Decoded-entity inline widget** — `&copy;` renders its glyph as an atomic component widget (the portal seam's natural next consumer); the first shipped consumer of the `deleteGranularity: 'atomic'` editing-policy value (re-added ahead of it by the caret-edge dispatch), delete-whole on one press.
+- **Plugin renderers get a theme seam** — injected renderers (mermaid is the live case) have no way to learn or follow the editor's theme: initialization is memoized process-once and the render memo carries no theme term, so a consumer's dark editor draws light diagrams and a theme flip recolors nothing. The mode contract solved this for components and widgets; renderers are the unfinished third leg. Direction: a theme term in the renderer contract plus a re-render path on theme change; the ledger carries the mechanism notes.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
-De-facto GitHub.com extensions, all built as plugins on the 1.0 authoring API + 1.2 DX — dogfood proof the API carries third-party contributions: footnotes, emoji shortcodes, GitHub autolinks (admonitions and Mermaid already shipped pre-1.0 as reference plugins). If any can't be built cleanly as a plugin, that reveals an API gap — fix the API, not the plugin.
+De-facto GitHub.com extensions built as plugins on the 1.0 authoring API, dogfood proof the API carries third-party contributions. The reference-plugin set shipped pre-1.0: admonitions, Mermaid, and footnotes (footnotes rode the 0.9.33 inline precedence ladder), and emoji shipped on the 0.9.34 bare-`:` rung as the last of them. GitHub autolinks need no plugin (bare, `www.`, and email autolinks are already native GFM), and the remaining GitHub.com repo-context sugar (issue/PR refs like `#123`, `@`-mentions, cross-repo `user/repo#123`) stays deliberately excluded: it resolves against a repo/vault the editor does not own, so it belongs to the consumer, not the editor library. The milestone's forward scope is therefore closed; it stands as the record that the authoring API carried every beyond-GFM extension it was asked to. Had any failed to build cleanly as a plugin, that would have revealed an API gap to fix; none did.
 
 ### 1.4 — Git-native integration (likely a first-party plugin)
 

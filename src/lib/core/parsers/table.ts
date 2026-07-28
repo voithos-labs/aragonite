@@ -1,6 +1,7 @@
 import type { CstNode, TableAlignment } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
+import type { BlockOpenerResult } from '../../schema/block-openers';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ export function parseTable(
 	endIndex: number,
 	leadingTrivia: string,
 	delimiter: { columnCount: number; alignments: TableAlignment[] }
-): { node: CstNode; nextIndex: number } {
+): BlockOpenerResult {
 	let i = startIndex + 2;
 	while (i < endIndex && !isBlankLine(lines[i].text) && lines[i].text.includes('|')) {
 		i++;
@@ -95,7 +96,7 @@ export function parseTable(
 			metadata: { columnCount: delimiter.columnCount, alignments: delimiter.alignments },
 			children: rows
 		},
-		nextIndex: i
+		consumed: i - startIndex
 	};
 }
 

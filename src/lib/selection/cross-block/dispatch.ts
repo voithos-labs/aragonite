@@ -8,11 +8,7 @@
  * and paste / type-replace are passthroughs to their dedicated modules.
  */
 
-import type {
-	BlockEditActions,
-	ContainerEditActions,
-	HistoryActions
-} from '../../action-contracts';
+import type { BlockEditActions, HistoryActions } from '../../action-contracts';
 import type { BlockComponent } from '../../block-component';
 import type {
 	BlockElLookup,
@@ -47,10 +43,12 @@ export interface CrossBlockDispatchContext {
 	getBlockElByPath: BlockElLookup;
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
+	/** What autoscrolls a drag-select that reaches an edge — the root in self mode,
+	 *  the host's scroller in host mode. See `cursor/scroll-ancestors`. */
+	getScrollHost: () => HTMLElement | null;
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
-	containerEdit: ContainerEditActions;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
@@ -74,14 +72,16 @@ export interface CrossBlockDispatchContext {
 
 	/** Svelte's tick() — awaited after mutations so the DOM settles. */
 	afterReactivity: () => Promise<void>;
-	setPendingCursor: (offset: number) => void;
 }
 
 export interface CrossBlockHandlers {
 	/** Returns true if the event was fully handled (caller should return). */
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent): boolean;
-	handlePaste(e: ClipboardEvent): Promise<boolean>;
+	/** `replacement` stands in for the clipboard's own text, for a caller that has
+	 *  already turned the payload into markdown (the image-import arm) and must not
+	 *  re-read the event past its awaits. */
+	handlePaste(e: ClipboardEvent, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/**
@@ -116,12 +116,12 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,
 		handlePointerDown: pointer.handlePointerDown,
-		handlePaste: async (e) => {
+		handlePaste: async (e, replacement) => {
 			if (reading()) {
 				e.preventDefault();
 				return true;
 			}
-			return handleCrossBlockPaste(ctx, mutationCtx, e);
+			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);
 		},
 		handleBeforeInput: async (e) => {
 			if (reading()) {

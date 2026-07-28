@@ -46,8 +46,7 @@ export function installWidgetRangePainter(opts: WidgetRangePainterOpts): void {
 		const range = sel.getRangeAt(0);
 		const widgets = editorRoot.querySelectorAll<HTMLElement>(WIDGET_SELECTOR);
 		for (const w of widgets) {
-			const intersects = safeIntersects(range, w);
-			w.classList.toggle(SELECTED_CLASS, intersects);
+			w.classList.toggle(SELECTED_CLASS, range.intersectsNode(w));
 		}
 	}
 
@@ -61,17 +60,4 @@ export function installWidgetRangePainter(opts: WidgetRangePainterOpts): void {
 		},
 		{ once: true }
 	);
-}
-
-// jsdom shipped `Range.intersectsNode` only in recent versions; fall back to a
-// boundary comparison when missing so unit tests don't crash on older runtimes.
-function safeIntersects(range: Range, node: Node): boolean {
-	if (typeof range.intersectsNode === 'function') {
-		return range.intersectsNode(node);
-	}
-	const nodeRange = node.ownerDocument!.createRange();
-	nodeRange.selectNode(node);
-	const startsBeforeEnd = range.compareBoundaryPoints(Range.END_TO_START, nodeRange) <= 0;
-	const endsAfterStart = range.compareBoundaryPoints(Range.START_TO_END, nodeRange) >= 0;
-	return startsBeforeEnd && endsAfterStart;
 }

@@ -1,7 +1,8 @@
 /**
- * Action interfaces that block components invoke through Svelte context:
- * structural edits, focus movement, history requests, container commits,
- * and the list-item operations a parent list exposes to its children.
+ * Every action interface a block component invokes upward through Svelte
+ * context, plus the commit vocabulary those calls are expressed in and the
+ * per-container contracts a parent exposes to its own children. The section
+ * dividers below are the index; this header deliberately doesn't restate them.
  */
 
 import type { CstNode, TableAlignment } from './core/nodes';
@@ -10,15 +11,16 @@ import type { StructuralChange } from './tree-operations/structural-change';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
+import type { DocPath } from './selection/path-math';
 
 /**
  * No-caret caret-restore coordinate stored with a commit's undo snapshot:
- * `path` is DOC-ABSOLUTE and must resolve in the pre-mutation tree. `'skip'`
- * joins the caller's already-pushed entry (composite operations). The scope
- * factories (`block-edit-scope.ts`) mint the path from local indices — call
- * sites below a factory never compose absolute paths themselves.
+ * `path` is the `DocPath` dialect and must resolve in the pre-mutation tree.
+ * `'skip'` joins the caller's already-pushed entry (composite operations). The
+ * scope factories (`block-edit-scope.ts`) mint the path from local indices;
+ * other op families compose it through the `path-math` mint helpers.
  */
-export type CommitSnapshotArg = { path: number[]; offset: number } | 'skip';
+export type CommitSnapshotArg = { path: DocPath; offset: number } | 'skip';
 
 /**
  * Who owns the undo entry for an operation. `'own'` (the default): the
@@ -44,10 +46,11 @@ export type DiscardIfNoop = boolean;
 export interface BlockEditActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
 	/**
-	 * Reserved-chrome Enter gesture: move the caret from the chrome leaf at
-	 * `blockIndex` into the first body child, minting an empty paragraph when the
-	 * chrome is the container's only child. A body whose ref is off-window leaves
-	 * the caret put (the key is still consumed).
+	 * Focus the block after `blockIndex` in this scope, minting an empty paragraph
+	 * when `blockIndex` is the last child. Two callers: the reserved-chrome Enter
+	 * gesture (descend from a chrome leaf into its body), and the closed-fence
+	 * Enter-exit landing its new paragraph inside the fence's own container. A next
+	 * block whose ref is off-window leaves the caret put (the key is still consumed).
 	 */
 	descendToBody(blockIndex: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
@@ -78,18 +81,6 @@ export interface BlockEditActions {
 		blockIndex: number,
 		metadata: Record<string, unknown>,
 		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
-	): void | Promise<void>;
-	/**
-	 * Insert parsed blocks at a split point. `preDelete` folds a pre-paste
-	 * selection deletion into the same undo entry as the splice so Ctrl+Z
-	 * undoes the whole paste in one step.
-	 */
-	insertParsedBlocks(
-		blockIndex: number,
-		offset: number,
-		blocks: CstNode[],
-		preDelete?: { start: number; end: number },
-		options?: { undoEntry?: UndoEntryMode }
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.

@@ -22,7 +22,7 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 ## The five things to know
 
 1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It is not two-way bound.
-2. **`bind:this` is the read surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()`.
+2. **`bind:this` is the instance surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()` read; `setSelection()` is the one that writes.
 3. **Theming is CSS custom properties** on the editor's own root. Nothing lands on `:root`.
 4. **Plugins are process-global**, installed once at mount. Two editors share one grammar, never any state.
 5. **`editor.__test.*` is not part of the contract.** It is internal and will move.
@@ -48,7 +48,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 | Group                  | What you get                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Component**          | `Editor`, plus `EditorProps` and `EditorInstance` — the prop shape and the `bind:this` surface                                                                                                                                                                                                                                                   |
-| **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` — the types the behavior props reference                                                                                                                                                                                                                                                  |
+| **Policy types**       | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy` — the types the behavior props reference; `PastedImage` and `PasteImageHook` for the image-import hook                                                                                                                                                                                    |
 | **Plugins**            | `installPlugins` for an editor-less pipeline; `EditorPlugin` (the unit) and `EditorPluginEntry` (a `plugins` entry — a bare unit or `{ plugin, options }` for per-instance options)                                                                                                                                                              |
 | **Selection + keymap** | `EditorSelection` (what `getSelection()` returns), `KeybindingOverride` and `CommandId` (what the `keybindings` prop takes)                                                                                                                                                                                                                      |
 | **Search**             | `SearchState`, `SearchOptions`, `Match` — the find/replace controller, its options, and one hit                                                                                                                                                                                                                                                  |
@@ -64,14 +64,25 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 `<Editor>` is controlled-by-prop-at-mount, read imperatively.
 
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
-- **`bind:this`** exposes seven methods:
+- **`bind:this`** exposes eight methods:
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies. Each endpoint (`SelectionPoint`) is a discriminated union: `offset` is a character index into the block, unless `cellCoordinate: true` marks it a table cell index — narrow on the flag before reading `offset` as a character offset.
+  - **`setSelection(snapshot)`** — put a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)).
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
   - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).
   - **`getDecorations()`** — register a view-only annotation source, no plugin needed (same section).
   - **`getDiagnostics()`** — the field-report door: arm the interaction trace and serialize an attachable bug report (see [Diagnostics](#diagnostics)).
+
+### Restoring a selection
+
+`setSelection(snapshot)` takes what `getSelection()` gave you and puts it back — the other half of a save-and-restore pair, for a host that persists a per-document caret or re-seeds the selection after swapping `source`.
+
+It is async, and deliberately: the target may be a block the virtual window has unmounted, so the restore reveals it and scrolls it in before placing the caret. The boolean is honest the same way `scrollTo`'s is — `true` means placed **and** in view.
+
+- **`false` never throws, and covers three shapes.** A path that no longer addresses a block is declined up front with no side effect at all — no scroll, no focus steal, no state write. A path that resolves in the tree but whose element is absent from the DOM has already scrolled, and re-established cross-block state, by the time placement fails. And a placement that lands while the scroll cannot settle the target into view also reports `false`, because the boolean promises in view rather than merely placed.
+- **Out-of-range offsets clamp, each in its own coordinate space.** A character offset clamps to the block's source length; an endpoint addressing a table clamps to the last cell, so a huge offset there becomes the bottom-right cell rather than a character position.
+- **Read the selection back — do not react to the emission burst.** A restore emits `selectionChange` more than once, and on the collapsed-caret route the first emission carries the _pre_-restore selection. Both land inside the call, so `await setSelection(…)` followed by `getSelection()` always reads correctly and a last-write-wins subscriber converges on the right value. A handler that treats the first event of a burst as authoritative — a persist-on-change host, say — will save the stale one. Read back after the await, or debounce the handler.
 
 ## Behavior / policy props
 
@@ -83,6 +94,9 @@ Optional props customize URL and image handling and the editor's affordances.
 | `resolveLinkUrl`   | Rewrite a raw link href at render time                                                                                                    |
 | `imageLoadPolicy`  | `auto` (load images) or `placeholder` (defer loading)                                                                                     |
 | `onLinkActivate`   | Handle a link click (Ctrl/Cmd+click or activation); replaces the default `window.open`                                                    |
+| `onPasteImage`     | Import hook for an image-bearing paste — return the Markdown to insert (see [Image paste](#image-paste))                                  |
+| `header`           | Host chrome rendered inside the scroll container, above the first block (see [The header slot](#the-header-slot))                         |
+| `scrollMode`       | `'self'` (default — the editor owns its scrollport) or `'host'` (an ancestor scrolls it; see [Host scroll mode](#host-scroll-mode))       |
 | `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
@@ -90,7 +104,22 @@ Optional props customize URL and image handling and the editor's affordances.
 | `keybindings`      | Per-instance keymap overrides — rebind or disable a chord (see [Keyboard shortcuts](#keyboard-shortcuts))                                 |
 | `plugins`          | Plugin units installed once at mount, in array order, before the first parse (see [Plugins](#plugins))                                    |
 
-**Set-once at mount** — `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `blockDragHandles`, and `plugins`. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks; set them at mount and treat them as fixed for the editor's lifetime. `theme`, `searchBar`, `presentationMode`, and `keybindings` are the exceptions — they read live and may change after mount.
+**Set-once at mount** — `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `blockDragHandles`, `scrollMode`, and `plugins`. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks; set them at mount and treat them as fixed for the editor's lifetime. Two are sharper than the rest. A block reads `onPasteImage` when it mounts, and under virtual rendering blocks mount lazily — so a mid-session swap can leave different blocks holding different hooks. `scrollMode` is snapshotted outright, deliberately: reading it live would make the editor's hottest path depend on it.
+
+`theme`, `searchBar`, `presentationMode`, and `keybindings` read live and may change after mount, and `header` re-renders like any other snippet.
+
+## Image paste
+
+`onPasteImage` is the import hook for a paste carrying image files. The editor hands you each image; you store it however your app stores assets and return the Markdown that stands in for it — a wiki-style embed, a URL, whatever your `resolveImageUrl` understands. Return `null` to skip that image.
+
+**Installing the hook takes the whole paste.** The clipboard's `text/plain` is not pasted alongside it, and with no hook installed an image-bearing paste behaves exactly as it does in an editor with no image support at all.
+
+- **Once per image, in clipboard order, one insertion.** The images are offered sequentially and what they return is inserted as a single edit — one paste gesture is one undo entry, so a single Ctrl+Z takes the whole thing back.
+- **Failure is skip-and-continue.** A hook that rejects on one image surfaces on the `error` channel with `origin: 'command'`, and the remaining images still land. A hook that answers `null` for every image still consumes the paste; there is no `text/plain` waiting behind it.
+- **The paste replaces the selection it lands on**, within a block and across blocks alike, matching every other paste route. The deletion runs only after your hook has answered, so a declined or failed import destroys nothing.
+- **A surface can disappear mid-import.** If the block the paste fired from is unmounted before a slow hook resolves, the insertion is declined on the `error` channel rather than dropping Markdown at a position the user never pointed at.
+
+**Where the Markdown lands, when the user moves during the upload.** The two branches differ, and the difference is deliberate. An intra-block paste freezes its anchor at paste time: a caret moved while the upload is in flight does not drag the insertion with it. A cross-block paste follows the live selection instead, because that route resolves its endpoints by path at insertion time — so a selection _extended_ during the import is the selection that gets replaced. Snapshotting the second case would mean fighting the seam that owns delete-and-insert as one operation.
 
 ## Presentation modes
 
@@ -106,6 +135,34 @@ Optional props customize URL and image handling and the editor's affordances.
 The effective mode is reflected as `data-presentation` on the editor root — **absent** in source mode, so default-mode DOM is unchanged — and announced to subscribers as a `presentationModeChange` event on `getEvents()`.
 
 One reading-mode limitation to know: blocks are not `contenteditable` there, so there is no within-block text caret — navigation is block-level (mouse selection and copy work natively on the static content). This is the same contract as other reading views (Obsidian's reading mode has no caret either).
+
+## Embedding in a host layout
+
+Two props decide how the editor sits inside your page: who owns the scroll, and what chrome rides above the document.
+
+### Host scroll mode
+
+By default the editor root **is** the scrollport. It owns its scroll position, and virtual rendering keeps the mounted block count proportional to the viewport rather than to the document — which is what lets it hold a large file at all. `scrollMode='host'` is the embedded alternative: the root stops scrolling and grows to its content, and an ancestor of yours scrolls it. A shell that stacks several documents in one scroller (a journal, a comment thread) wants this; a whole-file editor does not.
+
+**The trade is explicit — host mode forfeits O(viewport).** Windowing never activates there and every block stays mounted, because a scope cannot window against a scrollport it neither owns nor may write. Use it for small embedded documents and keep `'self'` for anything a user will grow without limit.
+
+What the host's own CSS has to provide:
+
+- **Resolve the scroller before the editor's first use.** The editor finds the ancestor that scrolls it once, at first need. A shell that swaps its scroller in afterwards — a panel that expands, a wrapper replaced on a route transition — leaves the editor measuring against the wrong box. Settle the layout first, or remount the editor.
+- **A clipping wrapper needs left padding.** Host mode drops the editor's own padding, and the hover drag handle sits in a gutter outside the block box. A wrapper with `overflow: hidden` and no padding clips the handle away entirely, so mouse drag-reorder silently disappears — reserve at least `0.85rem` on the left. Keyboard reorder (Alt+Arrow) is unaffected.
+- **A page-scrolled host gets reveal but not drag autoscroll.** Where the page's own viewport is what scrolls — nothing scrollable between the editor and the document — `scrollTo` and `reveal` work correctly, but dragging a block to the edge of the screen will not scroll the page toward an off-screen destination. Give the editor a scrolling ancestor if you need that.
+- **Nothing anchors the scroll.** The editor keeps native scroll anchoring off (its own windowing corrects the scroll by hand), and in host mode that correction lands on an element that is not scrolling — so an image decoding in above the fold can shift the host's scroll under the reader. Bounded by the small-document bound the mode is for.
+
+The root reflects a `data-scroll-mode` attribute in host mode. **Treat it as an implementation detail, not contract** — it may start being emitted in self mode too. Style host-mode embeddings through your own wrapper elements, which you control; the mode's own layout rules are already scoped to the editor.
+
+### The header slot
+
+`header` is a snippet rendered **inside** the scroll container, above the first block: a document title, a properties panel, a tag row — chrome that belongs to the document rather than to the app frame. It scrolls away with the document instead of pinning above it, and that is exactly what lets the editor keep its own scrollport, and with it virtual rendering. Chrome mounted outside the editor would need an outer scroller and forfeit both.
+
+- **The content is yours.** Links inside the slot follow your page's behavior rather than the editor's plain-click-edits policy, and a text field in the slot keeps its own keystrokes — `Mod+F` in a host title field opens your find, not the editor's.
+- **Height changes do not slide the document.** A slot that grows or shrinks while the reader is scrolled down is compensated, so the block they were reading stays where it was. At the top of the document, growth pushes content down — which is what a reader looking at the header expects. In host mode the shift is left to the page: an embedded editor never writes an ancestor's scroll position.
+- **The find bar overlays the slot's top strip.** The bar rides the editor's top edge in both modes — one rule, one mount site. In self mode that means it covers the header only at the very top of the scroll; in host mode, where the root never scrolls, it covers it whenever the bar is open.
+- **A header taller than the viewport degrades gracefully.** At the top of the scroll it leaves the block list no room to intersect the viewport, so almost nothing mounts until the reader scrolls past it. Accepted rather than special-cased — a header that tall is a layout the slot is not for.
 
 ## Multiple instances
 
@@ -134,16 +191,30 @@ A later editor may mount carrying a plugin an earlier one never had. The late in
 
 ### Bundled plugins
 
-Six first-party plugins ship in the package as subpath exports — install them like any other unit:
+Eight first-party plugins ship in the package as subpath exports — install them like any other unit:
 
 ```ts
 import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
 import { detailsPlugin } from 'aragonite/plugins/details';
 import { tocPlugin } from 'aragonite/plugins/toc';
+import { footnotesPlugin } from 'aragonite/plugins/footnotes';
+import { emojiPlugin } from 'aragonite/plugins/emoji';
 import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
 import { latexPlugin } from 'aragonite/plugins/latex';
 import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 ```
+
+`admonitionsPlugin()` renders `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) as styled boxes, GitHub bytes untouched. Pass `{ convertAlertsOnPaste: true }` to rewrite pasted alerts to directive source instead of rendering them natively.
+
+`tocPlugin()` turns a `[[toc]]` line into a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard. The walk descends into containers, so headings inside blockquotes, lists, and callouts are listed too. Pass `{ maxDepth }` (1 through 6, default 6) to list only the top levels. Navigation is view-only, so entries work in every presentation mode.
+
+`footnotesPlugin()` teaches the editor GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers derived from first-reference order. One clipboard consequence to know: copying part of a single-paragraph definition's body carries its `[^label]: ` marker along (the marker is that block's own source, and a slice without it reparses as a bare paragraph), so pasting that slice elsewhere lands a second definition under the same label.
+
+`emojiPlugin()` teaches the editor GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph widget while the literal `:name:` bytes stay in the source, so round-trip and portability are untouched. Recognition is gated on installation — without the plugin, `:name:` is ordinary prose.
+
+`highlightOccurrencesPlugin()` highlights every other occurrence of the word under the caret across the document's prose blocks — a view-only decoration, never a byte change.
+
+`latexPlugin({ renderer })` renders all three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form. Uninstalled, each stays its lossless plain reading (prose, or a plain `math` code block).
 
 latex and mermaid render through **injected engines** that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
@@ -190,7 +261,7 @@ Every token is editor-owned and declared in `editor-theme.css`. The role table b
 
 | Role            | Token(s)                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
-| **Font**        | `--font-editor` _(mode-independent — one value)_                                  |
+| **Font**        | `--font-editor`, `--editor-font-size` _(mode-independent — one value each)_       |
 | **Text**        | `--color-text`, `--color-text-primary`                                            |
 | **Muted**       | `--color-text-muted`, `--color-ui-muted`, `--color-ui-dulled`, `--color-ui-faint` |
 | **Accent**      | `--color-accent`                                                                  |
@@ -198,7 +269,9 @@ Every token is editor-owned and declared in `editor-theme.css`. The role table b
 | **Backgrounds** | `--color-bg`, `--color-bg-secondary`, `--color-bg-elevated`, `--color-bg-muted`   |
 | **Danger**      | `--color-danger`                                                                  |
 
-**Both-themes guarantee.** Each `--color-*` token carries a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. `--font-editor` is the one exception: mode-independent, declared once.
+**Both-themes guarantee.** Each `--color-*` token carries a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The two font tokens are the exceptions: mode-independent, declared once.
+
+**`--editor-font-size` is the type-scale root.** Headings, code, markers and chrome are all `em`-relative, so overriding this one token scales the whole surface. Set it at `.editor` — **not on a wrapper**. The token is declared on the editor's own root, so a value inherited from an ancestor is shadowed by that declaration and does nothing. To drive it from a host value that changes (a zoom control, a user text-size setting), bridge it through a property of your own: `.editor { --editor-font-size: var(--my-zoom, 1rem); }`. A live change is supported: virtual rendering re-estimates the document at the new scale, so a zoom control is a first-class use of the token, not a mount-time-only one.
 
 Outside that contract sits the editor's own visual language — the syntax and code-token palettes, the Markdown-marker colors, the selection and search overlays, and the reorder/windowing surfaces. Those are dark-based or mode-independent. Read `editor-theme.css` if you mean to retheme them.
 
@@ -210,37 +283,54 @@ Outside that contract sits the editor's own visual language — the syntax and c
 
 Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
-**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck). The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, and the find chords are wired directly into the search components. Rebinding the table chords is tracked in `docs/issues.md` (folded into their migration onto the declarative keymap); the find chords are not rebindable today.
+**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck).
+
+Scoping by kind is what makes the shared structural chords reachable, because a chord like `Tab` is bound separately on every kind that wants it. `{ kind: 'listItem', chord: 'Tab', command: null }` frees `Tab` inside list items (for focus traversal in a form-embedded editor, say) and leaves `Tab` alone in code blocks and prose.
+
+The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, which runs _before_ the keymap, so inside a cell those chords are claimed before any override is consulted — even the ones that are rebindable everywhere else. The find chords are wired directly into the search components. Rebinding the table chords is tracked in `docs/issues.md` (folded into their migration onto the declarative keymap); the find chords are not rebindable today.
 
 **Plugin-global chords resolve last.** A plugin's global command (see the plugin guide) may claim a chord in the plugin-global tier, which resolves after every `keybindings` override, built-in kind chord, and built-in global chord — so a plugin chord never shadows a built-in binding, and the Find/replace chords `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord **on that kind, not elsewhere** — a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 Tables also carry pointer affordances: hovering a row or column reveals a grip you can drag to reorder it or click for a row/column action menu, and right-clicking any cell opens that same menu (with cut/copy/paste). Shift+F10 or the Context Menu key opens it from the keyboard.
 
-| Action                     | Chord                                            |
-| -------------------------- | ------------------------------------------------ |
-| **Editing**                |                                                  |
-| Bold (toggle strong)       | `Mod+B`                                          |
-| Italic (toggle emphasis)   | `Mod+I`                                          |
-| Cycle heading level        | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`) |
-| Undo                       | `Mod+Z`                                          |
-| Redo                       | `Mod+Y` or `Mod+Shift+Z`                         |
-| **Block reorder**          |                                                  |
-| Move block up / down       | `Alt+↑` / `Alt+↓`                                |
-| **Find / replace**         |                                                  |
-| Open find                  | `Mod+F`                                          |
-| Open find + replace        | `Mod+H`                                          |
-| Next / previous match      | `Enter` / `Shift+Enter` (in the find field)      |
-| Close search               | `Esc`                                            |
-| **Tables**                 |                                                  |
-| Move between cells         | `Tab` / `Shift+Tab`, arrow keys                  |
-| Next row (or add one)      | `Enter` (from the last cell, appends a row)      |
-| Insert row below / above   | `Mod+Enter` / `Mod+Shift+Enter`                  |
-| Insert column right / left | `Alt+Shift+→` / `Alt+Shift+←`                    |
-| Delete row                 | `Mod+Shift+Backspace`                            |
-| Delete column              | `Alt+Shift+Backspace`                            |
-| Move row up / down         | `Alt+↑` / `Alt+↓`                                |
-| Move column left / right   | `Alt+←` / `Alt+→`                                |
-| Cycle column alignment     | `Mod+Shift+A`                                    |
+| Action                              | Chord                                               |
+| ----------------------------------- | --------------------------------------------------- |
+| **Editing**                         |                                                     |
+| Bold (toggle strong)                | `Mod+B`                                             |
+| Italic (toggle emphasis)            | `Mod+I`                                             |
+| Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)    |
+| Split a block                       | `Enter` (in a code block, inserts a newline)        |
+| Hard line break                     | `Shift+Enter`                                       |
+| Merge into the block before / after | `Backspace` / `Delete` (at the block's start / end) |
+| Indent / outdent a list item        | `Tab` / `Shift+Tab`                                 |
+| Indent / dedent a code line         | `Tab` / `Shift+Tab`                                 |
+| Insert a tab in prose               | `Tab`                                               |
+| Undo                                | `Mod+Z`                                             |
+| Redo                                | `Mod+Y` or `Mod+Shift+Z`                            |
+| **Block reorder**                   |                                                     |
+| Move block up / down                | `Alt+↑` / `Alt+↓`                                   |
+| **Find / replace**                  |                                                     |
+| Open find                           | `Mod+F`                                             |
+| Open find + replace                 | `Mod+H`                                             |
+| Next / previous match               | `Enter` / `Shift+Enter` (in the find field)         |
+| Close search                        | `Esc`                                               |
+| **Tables**                          |                                                     |
+| Move between cells                  | `Tab` / `Shift+Tab`, arrow keys                     |
+| Next row (or add one)               | `Enter` (from the last cell, appends a row)         |
+| Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                     |
+| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                       |
+| Delete row                          | `Mod+Shift+Backspace`                               |
+| Delete column                       | `Alt+Shift+Backspace`                               |
+| Move row up / down                  | `Alt+↑` / `Alt+↓`                                   |
+| Move column left / right            | `Alt+←` / `Alt+→`                                   |
+| Cycle column alignment              | `Mod+Shift+A`                                       |
+| **Clipboard**                       |                                                     |
+| Copy / cut a focused block          | `Mod+C` / `Mod+X`                                   |
+| Copy / cut a selected image         | `Mod+C` / `Mod+X`                                   |
+
+**The Editing rows assume a caret in ordinary block content.** Inside a table cell, `Enter`, `Tab` and `Shift+Tab` mean what the **Tables** rows say instead: the cell's keydown plan claims those three first, so there they neither split a block nor indent a list item, and no `keybindings` override reaches them.
+
+**Whole-block clipboard.** A block focused as a whole — a thematic break or a plugin diagram — has no text selection, so `Mod+C` / `Mod+X` copy or cut the block's own Markdown (cut removes the block); the same chords on a selected inline image act on the image's source. In reading mode copy works and cut degrades to copy.
 
 **Menu clipboard caveats.** The right-click menu's Cut/Copy write the cell's _rendered_ text, which differs from keyboard `Mod+X`'s raw-source slice for a cell holding an inline widget (a literal `<br>`, say). Menu Paste reads through `navigator.clipboard.readText()` — the one clipboard path not yet proven on the Tauri/wry webview. Keyboard `Mod+V` is unaffected.
 
@@ -292,14 +382,25 @@ Two read/annotate surfaces for building chrome _around_ the document — toolbar
 
 **`getRects()`** answers "where is that, on screen?" in viewport coordinates:
 
-| Method                         | Returns                                                                                           |
-| ------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                         |
-| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table |
-| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)           |
-| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists         |
+| Method                         | Returns                                                                                              |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                            |
+| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table    |
+| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)              |
+| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists            |
+| `scrollTo(path, opts?)`        | Mounts the block, then scrolls the viewport to it (`opts.block`: `'nearest'` default, or `'center'`) |
 
 Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the exported `SELECTION_END` sentinel as `end`, meaning "through the block's last measurable position".
+
+### Recipe: navigating to a block
+
+`getRects().scrollTo(path, opts)` is the programmatic navigation door — jump to a heading, an outline entry, a cross-reference target. Three things to know:
+
+- **It mounts first.** A block the virtual window has unmounted has no element to scroll to, so `scrollTo` reveals it and then scrolls. `reveal(path)` is that same mount without the scroll, for measuring something offscreen.
+- **The boolean is honest.** It resolves only after the position settles, so `true` means the block is genuinely in view — not merely that the call ran. A target that cannot mount (one inside a collapsed `<details>` or admonition, say) resolves `false` and leaves nothing pinned.
+- **`'nearest'` holds, `'center'` places.** The default `'nearest'` keeps the target visible through the reflow a mount triggers (images decoding above it collapse the document height), which is why the built-in search reveal uses it. `'center'` places the block precisely once the scroll settles, and stops holding it after.
+
+Paths are child indices into the document tree, so resolve one by walking `parse(getSource())` — filter for `heading` and `setextHeading`, recursing into container children so headings inside blockquotes and lists are reachable too. The bundled toc plugin does exactly that walk over its live document, and clicking one of its entries is a `scrollTo` call.
 
 ### Recipe: a selection toolbar
 

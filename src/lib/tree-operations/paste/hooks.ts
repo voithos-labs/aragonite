@@ -7,8 +7,9 @@
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
+import { focusIndexBeforeResidue } from './focus-target';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
@@ -27,6 +28,11 @@ import {
 // component wire-up.
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
+/** Splice a pre-delete selection range out of a leaf's display text. */
+function cutPreDelete(display: string, preDelete: PasteRange): string {
+	return display.slice(0, preDelete.start) + display.slice(preDelete.end);
+}
+
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
@@ -34,12 +40,12 @@ export function defaultInlineHook(
 	preDelete?: PasteRange
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
-	const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(node.raw);
 
 	let effectiveDisplay = display;
 	let effectiveOffset = offset;
 	if (preDelete && preDelete.start < preDelete.end) {
-		effectiveDisplay = display.slice(0, preDelete.start) + display.slice(preDelete.end);
+		effectiveDisplay = cutPreDelete(display, preDelete);
 		effectiveOffset = preDelete.start;
 	}
 
@@ -62,10 +68,8 @@ export function defaultStructuralHook(
 	let effectiveOffset = offset;
 	if (preDelete && preDelete.start < preDelete.end) {
 		const display = trimTrailingLineEnding(node.raw);
-		const lineEnding = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
-		const effectiveRaw =
-			display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnding;
-		synthLeaf = { ...node, raw: effectiveRaw };
+		const lineEnding = trailingLineEnding(node.raw);
+		synthLeaf = { ...node, raw: cutPreDelete(display, preDelete) + lineEnding };
 		effectiveOffset = preDelete.start;
 	}
 
@@ -92,14 +96,10 @@ export function pastedContentFocusIndex(
 ): number {
 	const display = trimTrailingLineEnding(node.raw);
 	const cut = preDelete && preDelete.start < preDelete.end;
-	const effectiveDisplay = cut
-		? display.slice(0, preDelete.start) + display.slice(preDelete.end)
-		: display;
+	const effectiveDisplay = cut ? cutPreDelete(display, preDelete) : display;
 	const effectiveOffset = cut ? preDelete.start : offset;
 	const hasTrailingResidue = effectiveOffset < effectiveDisplay.length;
-	return hasTrailingResidue && replacementLength >= 2
-		? replacementLength - 2
-		: replacementLength - 1;
+	return focusIndexBeforeResidue(replacementLength, hasTrailingResidue);
 }
 
 // Built-in kinds register on block-kind-descriptor import, which is transitively

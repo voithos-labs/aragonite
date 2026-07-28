@@ -78,7 +78,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.focusBlockStart(1);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceMatches(/^```\nhello\n```$/m);
+		await editor.bridge.waitForSourceContains('````\n```\nhello\n```\n````');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^```\nhello\n```$/m);

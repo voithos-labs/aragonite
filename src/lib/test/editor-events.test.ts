@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
+import { asDocPath } from '$lib/selection/path-math';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
@@ -146,12 +147,12 @@ describe('createEditorEvents', () => {
 			containerNode,
 			path: [0],
 			state,
-			snapshot: { path: [0, 1], offset: 0 },
+			snapshot: { path: asDocPath([0, 1]), offset: 0 },
 			mutate: ({ children }) => {
 				children.splice(1, 1);
 				return { op: 'delete', at: 1, count: 1 };
 			},
-			op: { kind: 'delete', eventPath: [0, 1] }
+			op: { kind: 'delete', eventPath: asDocPath([0, 1]) }
 		});
 
 		expect(editCount).toBe(1);

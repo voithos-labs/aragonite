@@ -4,6 +4,8 @@
  * run that would otherwise terminate the block.
  */
 
+import { matchFenceClose } from '../../../core/parsers/fenced-code';
+
 export interface CodePasteInput {
 	display: string;
 	selection: { start: number; end: number };
@@ -86,12 +88,19 @@ function bumpFenceLines(
 	lines[0] = lines[0].replace(new RegExp('^( {0,3})' + escapeForRegex(oldFence)), '$1' + newFence);
 
 	if (closed) {
+		const marker = oldFence[0] as '`' | '~';
 		for (let i = lines.length - 1; i >= 0; i--) {
 			if (lines[i].trim().length === 0) continue;
-			lines[i] = lines[i].replace(
-				new RegExp('^(\\s*)' + escapeForRegex(oldFence)),
-				'$1' + newFence
-			);
+			// The parser decides what a closer is. A local regex here spelled the
+			// grammar twice and more loosely — any leading whitespace, no end anchor —
+			// so a tab-indented or info-bearing body line could be rewritten as if it
+			// were the closer.
+			if (matchFenceClose(lines[i], marker, oldFence.length)) {
+				lines[i] = lines[i].replace(
+					new RegExp('^( {0,3})' + escapeForRegex(oldFence)),
+					'$1' + newFence
+				);
+			}
 			break;
 		}
 	}

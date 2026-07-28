@@ -14,7 +14,6 @@
 	 */
 
 	--color-bg: #2d3033;
-	--color-surface: #1a1c1d;
 	--color-border: #3a3d40;
 
 	--color-text-primary: #ffffff;
@@ -24,10 +23,6 @@
 	--color-ui-muted: #a4a4a4;
 
 	--color-accent: #567b67;
-	--color-accent-primary: #567b67;
-
-	--radius-ui: 4px;
-	--radius-surface: 8px;
 
 	--font-ui: 'Inter', system-ui, sans-serif;
 }

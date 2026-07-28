@@ -231,6 +231,28 @@ function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | nul
 }
 
 /**
+ * The consumer-override tier shared by both leaf and bubble resolution: kind
+ * override, then global override. Returns the decision (a binding, or `null` for a
+ * disable) when either tier decides, `undefined` when neither does — so the caller
+ * falls through to its own built-in tiers.
+ */
+function overrideTier(
+	overrides: KeybindingOverrideMap | undefined,
+	kind: AnyBlockKind,
+	chord: string
+): KeyBinding | null | undefined {
+	const kindDecision = overrideDecision(lookupOverride(overrides, kind, chord));
+	if (kindDecision !== undefined) return kindDecision;
+	return overrideDecision(lookupOverride(overrides, 'global', chord));
+}
+
+/** The built-in global keymap tier, then the plugin-global tier — the shared tail of
+ *  leaf resolution and both global-only resolvers. */
+function builtinGlobalBinding(chord: string): KeyBinding | null {
+	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? pluginGlobalBinding(chord);
+}
+
+/**
  * Container-bubble resolution: override(kind) → override(global) → built-in kind
  * keymap. No built-in GLOBAL fallthrough — undo/redo belong to the focused leaf,
  * and a bubble re-firing the built-in global table would double-fire (see
@@ -247,10 +269,8 @@ export function resolveKindBinding(
 	kind: AnyBlockKind,
 	overrides?: KeybindingOverrideMap
 ): KeyBinding | null {
-	const kindDecision = overrideDecision(lookupOverride(overrides, kind, chord));
-	if (kindDecision !== undefined) return kindDecision;
-	const globalDecision = overrideDecision(lookupOverride(overrides, 'global', chord));
-	if (globalDecision !== undefined) return globalDecision;
+	const override = overrideTier(overrides, kind, chord);
+	if (override !== undefined) return override;
 	return builtinKindBinding(chord, kind);
 }
 
@@ -265,15 +285,9 @@ export function resolveBinding(
 	kind: AnyBlockKind,
 	overrides?: KeybindingOverrideMap
 ): KeyBinding | null {
-	const kindDecision = overrideDecision(lookupOverride(overrides, kind, chord));
-	if (kindDecision !== undefined) return kindDecision;
-	const globalDecision = overrideDecision(lookupOverride(overrides, 'global', chord));
-	if (globalDecision !== undefined) return globalDecision;
-	return (
-		builtinKindBinding(chord, kind) ??
-		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
-		pluginGlobalBinding(chord)
-	);
+	const override = overrideTier(overrides, kind, chord);
+	if (override !== undefined) return override;
+	return builtinKindBinding(chord, kind) ?? builtinGlobalBinding(chord);
 }
 
 /**
@@ -285,10 +299,7 @@ export function resolveBinding(
  * (editor-root, thematic break) intercepts a plugin chord too.
  */
 export function isEditorGlobalChord(chord: string): boolean {
-	return (
-		GLOBAL_KEYMAP.some((b) => normalizeChord(b.chord) === chord) ||
-		pluginGlobalBinding(chord) !== null
-	);
+	return builtinGlobalBinding(chord) !== null;
 }
 
 /**
@@ -303,5 +314,5 @@ export function resolveGlobalBinding(
 ): KeyBinding | null {
 	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
 	if (decision !== undefined) return decision;
-	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? pluginGlobalBinding(chord);
+	return builtinGlobalBinding(chord);
 }

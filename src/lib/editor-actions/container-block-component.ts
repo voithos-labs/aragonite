@@ -14,8 +14,9 @@ import {
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import { displayLength } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
+import type { StickyColumnState } from '../cursor/sticky-column';
 import { devWarn } from '../dev-warn';
 
 // ── Whole-block focus surface ───────────────────────────────────────────────
@@ -79,6 +80,7 @@ export interface WholeBlockKeyDeps {
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
 	focus: Pick<FocusActions, 'moveFocus'>;
 	isReading: () => boolean;
+	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
 }
 
 /**
@@ -92,6 +94,15 @@ export interface WholeBlockKeyDeps {
  * branch lands once, not branch-by-branch at both.
  */
 export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps): void {
+	// The classification door, before any branch. A whole-block surface is a
+	// keydown entry path like any other, and skipping it let the column captured
+	// before entering the block survive a horizontal traversal out of it (capture
+	// is idempotent, so the next vertical key in the landing block reused the
+	// stale X). No `measureX`: there is no caret here to measure, which is also
+	// the right semantics, since a vertical run passing THROUGH the block keeps
+	// its column while every other key ends the run.
+	deps.stickyColumn.noteKey(e);
+
 	if (e.key === 'Enter') {
 		e.preventDefault();
 		if (!deps.isReading())
@@ -101,6 +112,18 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
 		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex());
+		return;
+	}
+
+	// Mod+C / Mod+X — the atomic-unit twin of the cross-block sweep-and-copy: the
+	// focused block's own markdown, cut then deleting. A keydown carries no
+	// ClipboardEvent to setData through (the house-rule sync path is event-only),
+	// and owning the gesture in this shared tail avoids duplicating an oncopy
+	// handler on every whole-block surface. preventDefault suppresses the browser's
+	// own copy event, so writeText is the single writer.
+	if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'x')) {
+		e.preventDefault();
+		void copyFocusedWholeBlock(deps, e.key === 'x');
 		return;
 	}
 
@@ -122,6 +145,19 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	}
 }
 
+// Copy is a read, so it never gates; cut's delete gates on reading mode and only
+// runs once the write resolves — a rejected write (a restricted webview refuses
+// writeText, see selection/cross-block/keydown.ts) dev-warns and leaves the block.
+async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(trimTrailingLineEnding(deps.getRaw()));
+	} catch (err) {
+		devWarn('container-block', 'whole-block clipboard write rejected', err);
+		return;
+	}
+	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex());
+}
+
 export interface ContainerBlockComponentDeps {
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	readonly nodeChildrenLength: number;
@@ -137,6 +173,10 @@ export interface ContainerBlockComponentDeps {
 	 *  focus extremum entering the container clamps to it instead of no-oping on
 	 *  an unmounted last child (the caret-walk-into-collapsed rule). */
 	readonly isCollapsed?: () => boolean;
+	/** Open this container so a reveal can descend into its clamped-out body, as a
+	 *  real committed edit; resolves true when an expansion landed. Absent (a kind
+	 *  with no declared expand door) leaves the reveal to degrade on the chrome row. */
+	readonly expandCollapsed?: () => Promise<boolean>;
 	/** Whole-block-focus element for an opaque childless container (a plugin
 	 *  diagram): when supplied, caret entry focuses this element instead of
 	 *  walking into children (which no-op on `children: []`), and the cursor
@@ -228,6 +268,11 @@ export function createContainerBlockComponent(
 		async revealByPath(path: number[]): Promise<BlockComponent | null> {
 			if (path.length === 0) return null;
 			const [head, ...rest] = path;
+			// The chrome row (child 0) stays mounted while collapsed, so only a body
+			// target needs the door opened. Awaited: the expansion is a real commit, and
+			// everything below must run against the post-commit window. A declined
+			// expansion changes nothing — the reveal degrades on the clamp as before.
+			if (head >= 1 && deps.isCollapsed?.()) await deps.expandCollapsed?.();
 			// A child scrolled off-window can leave a stale (detached) ref in this
 			// scope's slot: publishRefSlot's cleanup is conditional, so slot truthiness
 			// is a cache, not a mount oracle. Gate the scroll on the live window bounds

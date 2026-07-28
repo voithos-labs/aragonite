@@ -13,6 +13,7 @@ import { createBlockWindow, type BlockWindow, type WindowResult } from './block-
 import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { NodeView } from '../core/node-views';
+import type { RevealBlock } from '../cursor/reveal-anchor';
 
 export interface ListWindowingDeps {
 	oracle: HeightOracle;
@@ -24,11 +25,12 @@ export interface ListWindowingDeps {
 	getScrollEl: () => HTMLElement | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;
-	/** Top-level-ancestor index of an active reveal target, else null. While set,
-	 *  `correctAnchor` holds THAT index instead of the top-of-viewport block, so an
-	 *  image-decode shrink above it can't clamp the reveal off-screen. Wired on the
-	 *  ROOT scope only (single-claimant — nested scopes would fight over one scrollTop). */
-	getRevealAnchorIndex?: () => number | null;
+	/** Top-level-ancestor index of an active reveal target (plus the `block` placement
+	 *  the reveal asked for), else null. While set, `correctAnchor` holds THAT index at
+	 *  the requested placement instead of the top-of-viewport block, so an image-decode
+	 *  shrink above it can't clamp the reveal off-screen. Wired on the ROOT scope only
+	 *  (single-claimant — nested scopes would fight over one scrollTop). */
+	getRevealAnchorTarget?: () => { index: number; block: RevealBlock } | null;
 	/** Monotonic counter bumped on an editor WIDTH change (after the oracle's measured
 	 *  cache is cleared). Rebuilds the model at the new width and re-measures mounted blocks. */
 	getWidthVersion: () => number;
@@ -38,6 +40,9 @@ export interface ListWindowingDeps {
 	getOwnEl?: () => HTMLElement | null;
 	/** Report this scope's own box height to the parent scope's setChildSubtotal (undefined at top level). */
 	reportSelfHeight?: (height: number) => void;
+	/** False in host-scroll mode: this scope never activates, so every child mounts and
+	 *  no spacer renders. Static — the flag is set once at mount. */
+	windowingEnabled: () => boolean;
 	/** Collapse clamp: while true this scope mounts ONLY its chrome row (child 0) —
 	 *  the returned window is a fixed [0,1) with zero spacers. The window math is
 	 *  bypassed, not fed (collapse is height removal; a clamped slice through
@@ -107,6 +112,16 @@ const collapsedWindow: WindowResult = Object.freeze({
 	bottomSpacerPx: 0
 });
 
+// This scope's list top within the single editor scroll content — the offset that
+// maps root scrollTop into this scope's local range. Real at every depth because
+// spacers preserve the geometry above the list. Load-bearing for spacer geometry:
+// a divergence between the three consumers below would be a coordinate-mapping bug.
+function listTopWithinContent(scrollEl: HTMLElement, listEl: HTMLElement): number {
+	return (
+		listEl.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop
+	);
+}
+
 export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// The id list index-aligned with the CURRENT `model`. Snapshotted (not read live)
 	// because a structural rebuild needs the OLD ordering to remap the anchor by id, but
@@ -140,27 +155,50 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// model write only marks `$state` dirty, so the spacer's bound `style.height` flushes in
 	// a later microtask and a DOM read here would see pre-flush layout (a ~0 delta, a silent
 	// no-op).
-	function correctAnchor(mutate: () => void): void {
+	/**
+	 * The reveal claim, which outranks either anchor rule: while a reveal is in
+	 * flight the target's absolute position is re-asserted after the mutation,
+	 * overriding the browser's auto-clamp (which otherwise drags scrollTop off the
+	 * target as undecoded off-window images measure ~0 and the document shrinks).
+	 * Delta-compensation can't win this — the clamp outpaces it — so we re-scroll
+	 * the way revealChild does. `'center'` re-centers instead of top-pinning, so a
+	 * centered reveal survives the same shrink. Holds until the user takes over.
+	 *
+	 * Returns true when it ran the mutation and owns the scroll position. It lives
+	 * here rather than in one corrector because BOTH correctors run while a reveal
+	 * can be in flight, and the structural one carried no reveal branch at all —
+	 * its rebuild dropped the pin.
+	 */
+	function reassertRevealAnchor(mutate: () => void): boolean {
 		const scrollEl = deps.getScrollEl();
-		const revealIdx = deps.getRevealAnchorIndex?.() ?? null;
-		if (revealIdx != null && revealIdx < model.size && scrollEl) {
-			// A reveal is in flight: re-assert the target's absolute scroll position
-			// after the measure shrinks the model, overriding the browser's auto-clamp
-			// (which otherwise drags scrollTop off the target as undecoded off-window
-			// images measure ~0 and the document shrinks). Delta-compensation can't win
-			// this — the clamp outpaces it — so we re-scroll to the target the same way
-			// revealChild does. Holds until the user takes over (clears the anchor).
-			mutate();
-			const listEl = deps.getListEl();
-			if (listEl) {
-				const listTop =
-					listEl.getBoundingClientRect().top -
-					scrollEl.getBoundingClientRect().top +
-					scrollEl.scrollTop;
-				scrollEl.scrollTop = listTop + model.offsetOf(revealIdx);
-			}
-			return;
+		const reveal = deps.getRevealAnchorTarget?.() ?? null;
+		if (reveal == null || reveal.index >= model.size || !scrollEl) return false;
+
+		mutate();
+		const listEl = deps.getListEl();
+		if (listEl) {
+			const targetTop = listTopWithinContent(scrollEl, listEl) + model.offsetOf(reveal.index);
+			// Center off `scrollEl.clientHeight`, NOT `viewportHeight()`: the reveal anchor
+			// is a root-scope claimant (viewport === the editor box), and clientHeight is
+			// stable through the shrink, whereas viewportHeight()'s scope-intersection reads
+			// listEl geometry mid-mutate — pre-flush and collapsing — and would center off a
+			// transiently-tiny viewport. Model reads (offsetOf/heightOf) stay synchronous.
+			scrollEl.scrollTop =
+				reveal.block === 'center'
+					? targetTop - Math.max(0, (scrollEl.clientHeight - model.heightOf(reveal.index)) / 2)
+					: targetTop;
+			// A programmatic scrollTop write fires no `scroll` event, so the window's
+			// derived scrollTop would stay stale and never re-slice — leaving the target
+			// windowed OUT at the very position we just scrolled it to (revealChild syncs
+			// for exactly this reason). Push it so the window follows and the target mounts.
+			win.syncScrollTop();
 		}
+		return true;
+	}
+
+	function correctAnchor(mutate: () => void): void {
+		if (reassertRevealAnchor(mutate)) return;
+		const scrollEl = deps.getScrollEl();
 		const anchorIndex = model.indexAtOffset(localScrollTop());
 		const before = model.offsetOf(anchorIndex);
 		mutate();
@@ -177,6 +215,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// the width-version trigger (ids unchanged → newIndex === anchorIndex). If the anchor block
 	// itself was deleted (not found), skip — there is no surviving block to hold the line.
 	function correctAnchorByStableId(mutate: () => void): void {
+		if (reassertRevealAnchor(mutate)) return;
 		const scrollEl = deps.getScrollEl();
 		const lst = localScrollTop();
 		const anchorIndex = model.indexAtOffset(lst);
@@ -223,17 +262,12 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		});
 	});
 
-	// Map the single scroll element's scrollTop into this scope's local range. The
-	// list's own top within the scroll content is real because spacers preserve it.
+	// Map the single scroll element's scrollTop into this scope's local range.
 	function localScrollTop(): number {
 		const scrollEl = deps.getScrollEl();
 		const listEl = deps.getListEl();
 		if (!scrollEl || !listEl) return 0;
-		const offsetWithinContent =
-			listEl.getBoundingClientRect().top -
-			scrollEl.getBoundingClientRect().top +
-			scrollEl.scrollTop;
-		return Math.max(0, scrollEl.scrollTop - offsetWithinContent);
+		return Math.max(0, scrollEl.scrollTop - listTopWithinContent(scrollEl, listEl));
 	}
 
 	// Window each scope against its OWN slice of the viewport, not the full editor
@@ -274,6 +308,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		getLocalScrollTop: localScrollTop,
 		getViewportHeight: viewportHeight,
 		getPinnedIndex: pinnedIndex,
+		windowingEnabled: deps.windowingEnabled,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,
@@ -413,11 +448,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			const scrollEl = deps.getScrollEl();
 			const listEl = deps.getListEl();
 			if (!scrollEl || !listEl) return;
-			const listTop =
-				listEl.getBoundingClientRect().top -
-				scrollEl.getBoundingClientRect().top +
-				scrollEl.scrollTop;
-			scrollEl.scrollTop = listTop + model.offsetOf(Math.min(index, model.size));
+			scrollEl.scrollTop =
+				listTopWithinContent(scrollEl, listEl) + model.offsetOf(Math.min(index, model.size));
 			win.syncScrollTop();
 			await tick();
 		},

@@ -1,11 +1,46 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { createCellRender } from '../../../components/blocks/table/cell-render';
+import {
+	INLINE_PRIORITIES,
+	registerInlineSyntax,
+	__resetInlineSyntaxForTests
+} from '../../../core/inline/scan/plugin-syntax';
 import type { CstNode } from '../../../core/nodes';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
+import type { IndexedDecoration } from '../../../decorations/buckets';
+import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
+
+type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
+}
+
+const replaceIsland = (start: number, end: number, buildDom?: () => HTMLElement): Island => ({
+	index: 0,
+	dec: {
+		type: 'replace',
+		path: [0, 0, 0],
+		start,
+		end,
+		class: 'fold-island',
+		widget: buildDom ? { buildDom } : undefined
+	}
+});
+
+function registerEmbedRung(): void {
+	registerInlineSyntax(
+		'!',
+		(raw, pos, end) => {
+			if (!raw.startsWith('![[', pos)) return null;
+			const close = raw.indexOf(']]', pos + 3);
+			if (close < 0 || close + 2 > end) return null;
+			const target = raw.slice(pos + 3, close);
+			return { kind: 'image', start: pos, end: close + 2, children: [], alt: target, url: target };
+		},
+		{ prefix: '![[', priority: INLINE_PRIORITIES.prefixOverride }
+	);
 }
 
 function mount(
@@ -15,6 +50,7 @@ function mount(
 ) {
 	const el = document.createElement('div');
 	let node = makeCell(raw);
+	let islands: Island[] = [];
 	const render = createCellRender({
 		get el() {
 			return el;
@@ -25,16 +61,25 @@ function mount(
 		get linkRef() {
 			return linkRef;
 		},
-		resolveLinkUrl
+		resolveLinkUrl,
+		getDocument: () => undefined,
+		get islands() {
+			return islands;
+		}
 	});
 	return {
 		el,
 		render,
 		setRaw(next: string) {
 			node = makeCell(next);
+		},
+		setIslands(next: Island[]) {
+			islands = next;
 		}
 	};
 }
+
+afterEach(() => __resetInlineSyntaxForTests());
 
 describe('createCellRender', () => {
 	it('renders emphasis as a styled <em> with dimmed markers', () => {
@@ -74,7 +119,21 @@ describe('createCellRender', () => {
 		render.render();
 		expect(el.querySelector('img')).toBeNull();
 		expect(el.querySelector('[data-inline-widget]')).toBeNull();
-		expect(el.textContent).toContain('alt');
+		expect(el.textContent).toBe('![alt](u)');
+		// The split is what a reading-mode collapse leaves behind: markers go, alt stays.
+		expect([...el.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'](u)'
+		]);
+	});
+
+	// A plugin's `![[…]]` rung mints a built-in image whose alt names the target, so
+	// the cell's alt-only path meets a node whose markers aren't the GFM two.
+	it('renders a plugin-minted image as its own source bytes', () => {
+		registerEmbedRung();
+		const { el, render } = mount('![[cat.png]]');
+		render.render();
+		expect(el.textContent).toBe('![[cat.png]]');
 	});
 
 	it('memoizes: a second render with unchanged raw does not rebuild', () => {
@@ -117,6 +176,39 @@ describe('createCellRender', () => {
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');
 	});
 
+	it('keys on the compact epoch, not the signature string, when the resolver supplies one', () => {
+		let url = 'https://old.com';
+		let signature = 'sig-1';
+		let epoch = 1;
+		const linkRef: LinkReferenceResolverRef = {
+			get current() {
+				return (label: string) => (label === 'r' ? { url } : undefined);
+			},
+			get signature() {
+				return signature;
+			},
+			get epoch() {
+				return epoch;
+			}
+		};
+		const { el, render } = mount('[t][r]', linkRef);
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
+
+		// Discriminator: with an epoch supplied, the signature string is NOT in the
+		// key — a string change alone (production-impossible; the reducer moves them
+		// in lockstep) does not re-render.
+		url = 'https://new.com';
+		signature = 'sig-2';
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
+
+		// The lockstep bump re-renders and re-resolves.
+		epoch = 2;
+		render.render();
+		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');
+	});
+
 	it('does not fold signature into the key when raw has no bracket', () => {
 		let signature = 'sig-old';
 		const linkRef: LinkReferenceResolverRef = {
@@ -134,5 +226,42 @@ describe('createCellRender', () => {
 		render.render();
 		// No bracket → signature not read into the key → memo holds, no rebuild.
 		expect(el.firstChild).toBe(child);
+	});
+
+	// ── Islands (parity with the prose render path, ambient length 0) ──────────
+
+	it('applies a replace island in a cell, covering the raw range', () => {
+		const { el, render, setIslands } = mount('a SECRET b');
+		setIslands([
+			replaceIsland(2, 8, () => Object.assign(document.createElement('span'), { textContent: '…' }))
+		]);
+		render.render();
+		const island = el.querySelector('[data-decoration-island]');
+		expect(island).not.toBeNull();
+		expect(island?.getAttribute('data-source-start')).toBe('2');
+		expect(island?.getAttribute('data-source-end')).toBe('8');
+		// The covered bytes leave the DOM text; the island stands for them.
+		expect(el.textContent).not.toContain('SECRET');
+	});
+
+	it('an empty island set contributes nothing to the render key (zero-cost parity)', () => {
+		const { el, render } = mount('plain');
+		render.render();
+		const firstChild = el.firstChild;
+		render.render();
+		expect(el.firstChild).toBe(firstChild);
+	});
+
+	it('a signature change rebuilds; an equal signature does not', () => {
+		const { el, render, setIslands } = mount('a SECRET b');
+		setIslands([replaceIsland(2, 8)]);
+		render.render();
+		const island = el.querySelector('[data-decoration-island]');
+		setIslands([replaceIsland(2, 8)]); // fresh objects, equal signature
+		render.render();
+		expect(el.querySelector('[data-decoration-island]')).toBe(island);
+		setIslands([replaceIsland(0, 1)]); // moved → new signature
+		render.render();
+		expect(el.querySelector('[data-decoration-island]')).not.toBe(island);
 	});
 });

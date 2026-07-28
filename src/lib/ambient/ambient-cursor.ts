@@ -49,22 +49,31 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		return target === null ? null : asRawOffset(target);
 	}
 
-	function getRaw(): RawOffset | null {
+	function readLiveRange(): LiveRange {
 		const el = deps.getEl();
-		if (!el) return null;
-		if (document.activeElement !== el) return null;
+		if (!el || document.activeElement !== el) return { state: 'inactive' };
 		const sel = window.getSelection();
-		// rangeCount=0: Chromium drops element-level carets past atomic widgets
-		// across event-loop yields. Range inside the ambient marker: the browser
-		// rebound the caret into a contenteditable=false island. Either way,
-		// the snap target carries the user's actual intent.
-		if (!sel || sel.rangeCount === 0) return snapTargetRaw();
-		const range = sel.getRangeAt(0);
+		if (!sel || sel.rangeCount === 0) return { state: 'dropped' };
 		const ambient = ambientSpanOf(el);
-		if (ambient && ambient.contains(range.startContainer)) {
-			return snapTargetRaw();
-		}
-		const content = domTextOffsetAtNode(el, range.startContainer, range.startOffset);
+		return {
+			state: 'live',
+			el,
+			range: sel.getRangeAt(0),
+			collapsed: sel.isCollapsed,
+			inAmbient: (node) => ambient !== null && ambient.contains(node)
+		};
+	}
+
+	function getRaw(): RawOffset | null {
+		const live = readLiveRange();
+		if (live.state === 'inactive') return null;
+		// Dropped range: Chromium loses element-level carets past atomic widgets
+		// across event-loop yields. Marker-trapped range: the browser rebound the
+		// caret into a contenteditable=false island. Either way, the snap target
+		// carries the user's actual intent.
+		if (live.state === 'dropped') return snapTargetRaw();
+		if (live.inAmbient(live.range.startContainer)) return snapTargetRaw();
+		const content = domTextOffsetAtNode(live.el, live.range.startContainer, live.range.startOffset);
 		return toClampedRawOffset(content, deps.getAmbientLength());
 	}
 
@@ -108,33 +117,55 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	}
 
 	function clampOutOfAmbient(): void {
-		const el = deps.getEl();
-		if (!el) return;
 		const ambientLength = deps.getAmbientLength();
 		if (ambientLength === 0) return;
-		if (document.activeElement !== el) return;
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
-		const range = sel.getRangeAt(0);
-		const content = domTextOffsetAtNode(el, range.startContainer, range.startOffset);
+		const live = readLiveRange();
+		if (live.state !== 'live' || !live.collapsed) return;
+		const content = domTextOffsetAtNode(live.el, live.range.startContainer, live.range.startOffset);
 		if (content >= ambientLength) return;
 		setToAmbientBoundary();
 	}
 
 	function getRawSelection(): { start: RawOffset; end: RawOffset } | null {
-		const el = deps.getEl();
-		if (!el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.isCollapsed) return null;
-		const range = sel.getRangeAt(0);
+		const live = readLiveRange();
+		if (live.state !== 'live' || live.collapsed) return null;
+		// No snap-target fallback for a marker-trapped endpoint, unlike `getRaw`:
+		// the snap target is a single caret intent and cannot stand in for one end
+		// of a pair, and the clamp below already maps the marker interior to raw 0
+		// — the right boundary for a drag that began inside the marker.
 		const ambientLength = deps.getAmbientLength();
-		const start = domTextOffsetAtNode(el, range.startContainer, range.startOffset);
-		const end = domTextOffsetAtNode(el, range.endContainer, range.endOffset);
+		const { el, range } = live;
 		return {
-			start: toClampedRawOffset(start, ambientLength),
-			end: toClampedRawOffset(end, ambientLength)
+			start: toClampedRawOffset(
+				domTextOffsetAtNode(el, range.startContainer, range.startOffset),
+				ambientLength
+			),
+			end: toClampedRawOffset(
+				domTextOffsetAtNode(el, range.endContainer, range.endOffset),
+				ambientLength
+			)
 		};
 	}
 
 	return { getRaw, setRaw, getRawSelection, clampOutOfAmbient, setToAmbientBoundary };
 }
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+/**
+ * The one preamble every reader of the live native selection shares: `el` holds
+ * focus, the browser still has a range, and the marker island is identified. A
+ * dropped range is its own answer because only the caret readers have a snap
+ * target to fall back on.
+ */
+type LiveRange =
+	| { state: 'inactive' }
+	| { state: 'dropped' }
+	| {
+			state: 'live';
+			el: HTMLElement;
+			range: Range;
+			collapsed: boolean;
+			/** `node` sits inside the marker's contenteditable="false" island. */
+			inAmbient: (node: Node) => boolean;
+	  };

@@ -9,6 +9,7 @@ import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
+import { listRegisteredOpeners } from '$lib/schema/block-openers';
 import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
@@ -17,9 +18,11 @@ import {
 	NOTE_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { registerAdmonitions } from '$lib/plugins/admonitions/register';
-import { ADMONITION } from '$lib/plugins/admonitions/kinds';
-import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
+import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
+import { FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
+import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
+import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
@@ -82,16 +85,18 @@ describe('kind conformance — plugin kinds enroll', () => {
 // listing is the canonical bundled set (the plugin-pack-parity lint derives from the
 // same listing), so a plugin dir born or dropped outside BUNDLED_INSTALLS fails the
 // dir lockstep below at birth. (highlight-occurrences registers no block kind —
-// decoration source only; latex's inline `math` is an inline kind, not a block.)
+// decoration source only; emoji registers an inline kind only; latex's inline
+// `math` is an inline kind, not a block.)
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
+	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
 	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
 ];
 
-const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences']);
+const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);
 
 describe('kind conformance — bundled plugin kinds enroll', () => {
 	beforeEach(() => resetPluginPlatformForTests());
@@ -136,6 +141,10 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 	// swept kinds. `registerAdmonitions` activates the shared directive grammar, so
 	// the core generic-directive fallback kinds ride in — excluded here as they are
 	// core, not bundled plugins, and covered by `closure-fixtures.test.ts` + G1.24.
+	// It also co-registers the native `githubAlert` kind (a second fixtured kind under
+	// one dir), so that rides in too; `registerMathBlock` likewise co-registers the
+	// ```math fence kind under the latex dir.
+	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT, MATH_FENCE];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
 		const directiveFallback = new Set<string>([DIRECTIVE_CONTAINER, DIRECTIVE_LEAF]);
@@ -143,7 +152,29 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 			.filter((k) => !isBuiltinBlockKind(k))
 			.filter((k) => getBlockKindDescriptor(k).conformanceFixture !== undefined)
 			.filter((k) => !directiveFallback.has(k));
-		expect(new Set(registeredBundled)).toEqual(new Set(BUNDLED_INSTALLS.map((b) => b.kind)));
+		expect(new Set(registeredBundled)).toEqual(
+			new Set([...BUNDLED_INSTALLS.map((b) => b.kind), ...CO_REGISTERED_FIXTURED])
+		);
+	});
+
+	// Cross-plugin priority parity: a shared opener priority is invisible to every
+	// isolated suite — it only surfaces at runtime when the colliding plugins are
+	// co-installed AND a parse runs (the exact hole that hid footnote-def tying toc's
+	// `linkReferenceDefinition - 5` until an e2e mounted the whole bundle). Install the
+	// bundled set at once and assert the registry has no two openers sharing a priority,
+	// so a plugin landing on an occupied slot fails here rather than at the next e2e.
+	it('the co-installed bundle declares distinct opener priorities', () => {
+		for (const { install } of BUNDLED_INSTALLS) install();
+		const kindsByPriority = new Map<number, string[]>();
+		for (const { kind, priority } of listRegisteredOpeners()) {
+			const kinds = kindsByPriority.get(priority) ?? [];
+			kinds.push(kind);
+			kindsByPriority.set(priority, kinds);
+		}
+		const ties = [...kindsByPriority.entries()]
+			.filter(([, kinds]) => kinds.length > 1)
+			.map(([priority, kinds]) => `${priority}: ${kinds.sort().join(', ')}`);
+		expect(ties, `openers sharing a priority`).toEqual([]);
 	});
 });
 

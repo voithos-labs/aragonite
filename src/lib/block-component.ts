@@ -1,10 +1,14 @@
 /**
- * View-layer contract for a rendered block: focus/cursor/measurement
- * surface plus the cursor sentinels and ambient-prefix shape that
- * block components produce and consume.
+ * The view-layer contract every rendered block satisfies, plus the cursor
+ * sentinels and ambient-prefix shape block components produce and consume.
+ * Orchestration reaches a block only through this interface, so a capability a
+ * block lacks is an omitted optional member rather than a kind check upstream.
+ * This file is authoritative for external authors: each member's docstring
+ * states its contract (docs/design/editor.md § The block interface).
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
+import type { EditorRects } from './editor-rects';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -80,14 +84,50 @@ export interface BlockComponentProps {
 	ambientPrefix: AmbientPrefix;
 	/** The root document, readonly by type — mutation stays a commit-ceremony concern. */
 	document?: DocumentView;
+	/** The owning instance's rect surface: measure/reveal/scroll by path. The live
+	 *  instance object (delivered through editor context), so a block navigating to
+	 *  another block shares the editor's one seam. */
+	rects?: EditorRects;
 }
 
 // ── BlockComponent ─────────────────────────────────────────────────────────
 
 export interface BlockComponent {
+	/**
+	 * Park the caret at `offset`, focusing the surface. Two sentinels arrive
+	 * through this same `number`: `CURSOR_END` (past any length, meaning end of
+	 * content) and `FOCUS_LAST_START` (`-1`, which a leaf clamps to 0 and a
+	 * container cascades into its last child). An out-of-range offset must clamp,
+	 * never throw. A raw DOM seek on `-1` raises IndexSizeError and loses the caret.
+	 *
+	 * Park, not select: this does NOT end a live cross-block range, because the
+	 * cross-block dispatcher parks its own dispatch caret through this same call
+	 * while an extend is still growing one. A caller moving the caret because the
+	 * USER acted wants the editor's `setSelection` instead, which states a new
+	 * selection and ends the old one. Calling this with a range live leaves it
+	 * painted, and the next keystroke will replace all of it. Both behaviours are
+	 * pinned by `e2e/tests/selection/public-caret-doors.spec.ts`.
+	 */
 	focus(offset: number): void;
+	/**
+	 * Caret position as a raw offset into this block's own bytes: ambient markers
+	 * excluded, a widget counted as the source bytes it stands for. `null` means
+	 * the caret is not in this block, which is how dispatch walks refs to find the
+	 * focused one, so returning 0 for "not focused" breaks that walk.
+	 */
 	getCursorOffset(): number | null;
+	/**
+	 * The current selection's rendered text, or `''` when the block is unmounted
+	 * or nothing is selected. Read from the platform selection and NOT clipped to
+	 * this block, so during a cross-block selection it returns the whole range.
+	 * Rendered, not raw: a widget contributes what it draws (a decoded glyph, or
+	 * nothing), so a caller that needs this block's bytes slices `raw` instead.
+	 */
 	getSelectedText?(): string;
+	/**
+	 * Select `[start, end)` in the same raw-offset space `getCursorOffset` returns.
+	 * A no-op when the block is unmounted or the range doesn't resolve.
+	 */
 	setSelection?(start: number, end: number): void;
 	/**
 	 * Position the cursor at the offset nearest to editor-relative pixel X
@@ -145,15 +185,17 @@ export interface BlockComponent {
 	 * True when vertical traversal (ArrowUp/Down sticky-column dispatch)
 	 * should pass straight through this block — the block has no caret-able
 	 * text positions of its own, only widgets that carry no column meaning.
-	 * Container blocks return true only when every inner ref is transparent.
+	 * Decided from the CST rather than from mounted refs, so a container answers
+	 * the same for an off-window child: it is transparent when every child is.
 	 */
 	isVerticallyTransparent?(): boolean;
 	/**
-	 * Enter an edge widget instead of placing a caret at its boundary. A
-	 * reveal-capable widget (inline math, directive text) opens its source reveal;
-	 * any other widget is selected (image overlay). Returns true when an edge
-	 * widget was entered; false lets the caller fall through to focus(0) /
-	 * focus(CURSOR_END).
+	 * Enter an edge widget instead of placing a caret at its boundary. What
+	 * "enter" means belongs to the widget kind's registered
+	 * `InlineWidgetEditingPolicy` (`revealSource`, `onEdge`), which is an open
+	 * vocabulary, not a two-way reveal-or-select choice. Read that type before
+	 * implementing an else-branch. Returns true when an edge widget was entered;
+	 * false lets the caller fall through to focus(0) / focus(CURSOR_END).
 	 */
 	enterEdgeWidget?(side: 'start' | 'end'): boolean;
 	/**
@@ -179,6 +221,12 @@ export interface BlockComponent {
 		action: 'cut' | 'copy' | 'paste',
 		sel: { start: number; end: number }
 	): Promise<void>;
+	/**
+	 * Whether this component's own surface takes text input. NOT the flag the
+	 * editor gates on: merge eligibility and search read the *descriptor*'s
+	 * `editable` for the kind. Keep the two in agreement.
+	 */
 	readonly editable: boolean;
+	/** Whether focus may land on this block at all. This is the flag focus dispatch reads. */
 	readonly focusable: boolean;
 }

@@ -5,12 +5,8 @@ import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertNestedStateConsistent,
-	assertNoErrors,
-	assertRoundTripStable
-} from '../../simulation/invariants';
+import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { topLevelIndexOf } from './helpers';
 
 // Ungated directive-ops oracle for the `:::name` primitive. The directive surface
 // spans three tiers (opaque container, not-mergeable leaf, atomic inline widget)
@@ -55,18 +51,6 @@ class DirectiveSimPage extends EditorPage {
 	}
 }
 
-// Top-level index of the first child with `kind` — re-derived before each phase so
-// the script survives the index shift the leaf insert and the paste introduce.
-async function topLevelIndexOf(page: Page, kind: string): Promise<number> {
-	return page.evaluate(
-		(k) =>
-			(window as any).__test
-				.getDocument()
-				.children.findIndex((c: { kind?: string }) => c.kind === k),
-		kind
-	);
-}
-
 async function directiveBlockCount(page: Page): Promise<number> {
 	return page.locator('.directive-block').count();
 }
@@ -96,12 +80,7 @@ test.describe('directive-ops simulation', () => {
 		const ctx: SimContext = { page, editor, tracker, errors, label: 'directive-ops' };
 		const g = new Gestures(ctx, makeRng(1));
 
-		const checkOracles = async (label: string): Promise<void> => {
-			ctx.label = label;
-			await assertNoErrors(ctx);
-			await assertRoundTripStable(ctx);
-			await assertNestedStateConsistent(ctx);
-		};
+		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
 		await checkOracles('loaded');
 
 		// ── Text tier: insert an inline widget, then reveal → edit → commit ──────

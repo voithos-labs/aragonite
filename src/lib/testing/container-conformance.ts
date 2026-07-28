@@ -21,9 +21,17 @@
  *       declared unwrapRole names implemented strategies, a declared
  *       containerPaste is shaped as the paste path consumes it, and rebuildRaw
  *       runs non-throwing over a parsed fixture.
+ *   (f) terminator collision — a body line reproducing the container's own
+ *       terminator survives the rebuild: the container still holds it, instead
+ *       of closing early and ejecting everything below it on reparse.
  *
  * Register your kind before calling: the kit parses its fixtures, so the opener
  * (or directive) that produces the kind must be live.
+ *
+ * Which answer a container owes that cell (escalate, immune by construction, or
+ * exempt) is spelled out in the plugin guide's "Conformance-testing a container"
+ * section, which ships with the published docs pack. That is the copy authors
+ * read; a second one here would only drift from it.
  *
  * Strip vs grid vs opaque. Strip containers decompose as outer-syntax-around-
  * children, so their `rebuildRaw` reads only their own direct children and the
@@ -80,6 +88,7 @@ import {
 	assertExemptionDocumented,
 	assertIndices,
 	assertIs,
+	assertRebuildIsParseCanonical,
 	fail,
 	findFirstOfKind,
 	firstChildOfKind,
@@ -106,6 +115,17 @@ export interface LocalIndexFixture {
 	targetChild: number;
 }
 
+/**
+ * `source` must parse to a document whose FIRST top-level block is the kind under
+ * test; `bodyRaw` replaces that node's LAST child and must contain a line
+ * reproducing the container's terminator (a bare `:::` for a colon fence, a
+ * `</details>` line for an HTML close tag).
+ */
+export interface TerminatorCollisionFixture {
+	source: string;
+	bodyRaw: string;
+}
+
 export interface ContainerConformanceProfile {
 	/**
 	 * A nesting where this kind is an intermediate ancestor of a deep editable
@@ -116,10 +136,13 @@ export interface ContainerConformanceProfile {
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
+	/** Required when `terminatorCollision` asserts. */
+	terminatorCollisionFixture?: TerminatorCollisionFixture;
 	localIndex: ConformanceCoverage;
 	ancestry: ConformanceCoverage;
 	multiScope: ConformanceCoverage;
 	focusBubble: ConformanceCoverage;
+	terminatorCollision: ConformanceCoverage;
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
@@ -129,6 +152,7 @@ export type ConformanceCell =
 	| 'ancestry'
 	| 'multiScope'
 	| 'focusBubble'
+	| 'terminatorCollision'
 	| 'declarations';
 
 export interface ConformanceCellReport {
@@ -183,6 +207,9 @@ export async function runContainerConformance(
 	await runCell('focusBubble', profile.focusBubble, () =>
 		checkFocusBubbleTermination(kind, profile)
 	);
+	await runCell('terminatorCollision', profile.terminatorCollision, () =>
+		checkTerminatorCollision(kind, profile)
+	);
 	await runCell('declarations', { mode: 'assert' }, () => checkDeclarationSanity(kind, profile));
 
 	if (failures.length > 0) {
@@ -229,11 +256,13 @@ export async function checkStripLocalIndexAddressing(
 		const captured = node;
 		const state = mountBlockListState(() => captured);
 		const bundle = createStandardNestedActions(state, {
-			index: containerChain[depth],
-			get node() {
-				return captured;
+			scope: {
+				index: containerChain[depth],
+				get node() {
+					return captured;
+				},
+				path: containerChain.slice(0, depth + 1)
 			},
-			path: containerChain.slice(0, depth + 1),
 			stickyColumn: stubStickyColumn(),
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
@@ -413,14 +442,16 @@ async function checkListIndentOneUndo(): Promise<void> {
 	for (const item of list.children!) mountBlockListState(() => item);
 
 	const ctx = createListContext({
-		get index() {
-			return 0;
-		},
-		get node() {
-			return list;
-		},
-		get path() {
-			return [0];
+		scope: {
+			get index() {
+				return 0;
+			},
+			get node() {
+				return list;
+			},
+			get path() {
+				return [0];
+			}
 		},
 		state: listState,
 		parentBlockEdit: stubBlockEdit(),
@@ -537,6 +568,35 @@ export async function checkFocusBubbleTermination(
 	assertIs(bubbled[1], 'end', 'root received the bubbled position');
 }
 
+// ── (f) terminator collision ─────────────────────────────────────────────────
+
+/**
+ * Write a terminator-shaped line into the container's last child, rebuild, and
+ * require the live tree to still converge with a fresh parse of its own bytes.
+ * Convergence — not a byte round-trip — is the oracle: `serialize(parse(s)) === s`
+ * holds throughout a collision (the raw is emitted verbatim either way), while the
+ * container silently stops containing what the live tree says it holds.
+ */
+export function checkTerminatorCollision(
+	kind: AnyBlockKind,
+	profile: ContainerConformanceProfile
+): void {
+	const fixture = profile.terminatorCollisionFixture;
+	if (!fixture)
+		fail('terminatorCollision asserts but the profile carries no terminatorCollisionFixture');
+
+	const doc = parse(fixture.source);
+	const node = doc.children[0];
+	assertIs(node?.kind, kind, 'terminatorCollisionFixture source opens with a node of the kind');
+	const children = node.children ?? [];
+	assert(children.length > 0, 'the fixture node has a body child to overwrite');
+
+	children[children.length - 1].raw = fixture.bodyRaw;
+	rebuildContainerRawIfContainer(node);
+
+	assertParseConverged(doc, `${kind} survives a body line reproducing its terminator`);
+}
+
 // ── (e) declaration sanity ───────────────────────────────────────────────────
 
 /**
@@ -583,20 +643,5 @@ export function checkDeclarationSanity(
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
 	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
 	assert(node, `deepNesting fixture contains a "${kind}" node`);
-	// The fixture node is freshly parsed, hence canonical: for a byte-faithful
-	// (strip/opaque) rebuild, rebuildRaw is the parse inverse — it must reproduce
-	// the SAME bytes, not merely run twice with the same wrong output (the details-
-	// CRLF class the determinism cell is blind to). Grid rebuilds canonicalize
-	// delimiter/padding widths by contract, so a valid non-canonical grid fixture
-	// is legally not a rebuild fixed-point — grid rides the non-throwing run plus
-	// the kind battery's grid determinism cell.
-	const before = node.raw;
-	try {
-		descriptor.rebuildRaw!(node);
-	} catch (error) {
-		fail(`${kind} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
-	}
-	if (descriptor.containerContract !== 'grid') {
-		assertIs(node.raw, before, `${kind} rebuildRaw reproduces the parse-canonical raw`);
-	}
+	assertRebuildIsParseCanonical(descriptor, node, kind);
 }

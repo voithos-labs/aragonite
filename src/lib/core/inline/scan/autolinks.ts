@@ -63,6 +63,31 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 	return end;
 }
 
+const HOST_CHAR = /[\p{L}\p{N}_.-]/u;
+
+/**
+ * Per GFM §6.9 a valid domain carries no underscore in either of its last two
+ * dot-separated segments, so `www.xxx._yyy.zzz` stays literal while
+ * `www._xxx.yyy.zzz` links. The host ends at the first non-host character, which
+ * is what keeps an underscore in a path or query out of the decision.
+ *
+ * cmark-gfm additionally exempts hosts carrying more than ten dots, an artifact
+ * of its two-counter implementation rather than spec text; this module answers to
+ * the spec (see the file header), so that escape is deliberately not reproduced.
+ */
+function hasValidDomain(raw: string, domainStart: number, limit: number): boolean {
+	let hostEnd = domainStart;
+	while (hostEnd < limit && HOST_CHAR.test(raw[hostEnd])) hostEnd++;
+	let dotsSeen = 0;
+	let i = hostEnd;
+	while (i > domainStart && dotsSeen < 2) {
+		i--;
+		if (raw[i] === '.') dotsSeen++;
+		else if (raw[i] === '_') return false;
+	}
+	return true;
+}
+
 /**
  * Per GFM §6.9: a bare autolink is valid only at start-of-region or after
  * whitespace, `*`, `_`, `~`, or `(`.
@@ -124,11 +149,26 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
 export function scanGfmAutolinks(ctx: ScanContext): void {
 	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
 	if (matches.length > 0) {
-		ctx.delimiters = ctx.delimiters.filter(
-			(d) => !matches.some((m) => m.start < d.node.end && d.node.start < m.end)
-		);
+		ctx.delimiters = ctx.delimiters.filter((d) => !meetsAMatch(matches, d.node.start, d.node.end));
 	}
 	scanChildren(ctx.raw, ctx.nodes);
+}
+
+/**
+ * Whether `[start, end)` overlaps any match. Matches are disjoint and ascending —
+ * one left-to-right pass per run, runs walked in order — so the first match ending
+ * past `start` is the only candidate. Asking every delimiter about every match is
+ * O(delimiters x matches), quadratic on a block that is dense in both.
+ */
+function meetsAMatch(matches: InlineNode[], start: number, end: number): boolean {
+	let lo = 0;
+	let hi = matches.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >>> 1;
+		if (matches[mid].end <= start) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo < matches.length && matches[lo].start < end;
 }
 
 function scanChildren(raw: string, nodes: InlineNode[]): void {
@@ -145,12 +185,22 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 	}
 }
 
-/** Match and splice bare autolinks into `nodes` in place; returns the matches. */
+/**
+ * Match and splice bare autolinks into `nodes` in place; returns the matches.
+ *
+ * The replacement is accumulated and written back rather than spliced in per run:
+ * spreading a match array as call arguments dies on V8's argument limit past ~65k
+ * matches, and that RangeError drops the whole block to the failed-block fallback,
+ * which cannot heal — its error boundary resets on a `raw` change the block is no
+ * longer editable enough to receive.
+ */
 function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 	const all: InlineNode[] = [];
+	const rebuilt: InlineNode[] = [];
 	let i = 0;
 	while (i < nodes.length) {
 		if (nodes[i].kind !== 'text') {
+			rebuilt.push(nodes[i]);
 			i++;
 			continue;
 		}
@@ -158,13 +208,17 @@ function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 		while (j + 1 < nodes.length && nodes[j + 1].kind === 'text') j++;
 		const matches = scanRunForBareAutolinks(raw, nodes[i].start, nodes[j].end);
 		if (matches.length === 0) {
-			i = j + 1;
-			continue;
+			for (let k = i; k <= j; k++) rebuilt.push(nodes[k]);
+		} else {
+			for (const match of matches) all.push(match);
+			for (const node of spliceRun(raw, nodes.slice(i, j + 1), matches)) rebuilt.push(node);
 		}
-		all.push(...matches);
-		const replaced = spliceRun(raw, nodes.slice(i, j + 1), matches);
-		nodes.splice(i, j - i + 1, ...replaced);
-		i += replaced.length;
+		i = j + 1;
+	}
+	// In place: the working list is held by identity (ctx.nodes, a parent's children).
+	if (all.length > 0) {
+		nodes.length = 0;
+		for (const node of rebuilt) nodes.push(node);
 	}
 	return all;
 }
@@ -248,9 +302,10 @@ function matchBareHttpAutolink(
 	if (schemeLen === 0) return null;
 	let urlEnd = pos + schemeLen;
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-	if (urlEnd === pos + schemeLen) return null;
+	if (urlEnd <= pos + schemeLen) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	if (urlEnd === pos + schemeLen) return null;
+	if (urlEnd <= pos + schemeLen) return null;
+	if (!hasValidDomain(raw, pos + schemeLen, urlEnd)) return null;
 	return { kind: 'autolink', start: pos, end: urlEnd, url: raw.slice(pos, urlEnd) };
 }
 
@@ -264,9 +319,13 @@ function matchBareWwwAutolink(
 	if (!matchesCI(raw, pos, 'www.')) return null;
 	let urlEnd = pos + 4;
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
-	if (urlEnd === pos + 4) return null;
+	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	if (urlEnd === pos + 4) return null;
+	// `.` is trailing punctuation, so the trim can cross the `www.` prefix itself
+	// and leave a bare `www` — a live link to a host the user never wrote. Every
+	// floor check in this family is at-or-below for that reason.
+	if (urlEnd <= pos + 4) return null;
+	if (!hasValidDomain(raw, pos, urlEnd)) return null;
 	// GFM §6.9: a www autolink has no scheme in its bytes; `http` is inserted
 	// automatically. The node's raw span stays verbatim (start..urlEnd) — only
 	// the derived href gains the scheme, exactly like email prepends `mailto:`.
@@ -307,13 +366,13 @@ function matchBareEmailAutolink(
 	}
 	if (domainEnd === firstSegEnd) return null; // never got a second segment
 
-	const urlEnd = trimTrailingPunctuation(raw, localStart, domainEnd);
-	if (urlEnd === domainStart) return null; // trim ate everything past @
-
+	// No trailing-punctuation trim: the segment walk above only ever advances over
+	// `[A-Za-z0-9-]` and refuses a segment ending in `-`, so `domainEnd` already sits
+	// after an alphanumeric and there is nothing for the trim to remove.
 	return {
 		kind: 'autolink',
 		start: localStart,
-		end: urlEnd,
-		url: `mailto:${raw.slice(localStart, urlEnd)}`
+		end: domainEnd,
+		url: `mailto:${raw.slice(localStart, domainEnd)}`
 	};
 }

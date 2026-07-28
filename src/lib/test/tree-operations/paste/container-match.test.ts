@@ -5,32 +5,12 @@ import { findContainerMatchingUnwrap } from '../../../tree-operations/paste/cont
 import { parse } from '../../../core/parser';
 import { createSharingState, type SharingState } from '../../../tree-operations/sharing';
 import { rebuildOwnedContainer } from '../../../tree-operations/unshare';
-import {
-	expectStateForNode,
-	getStateForNode,
-	registerBlockListState
-} from '../../../reactivity/state-registry';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
+import { registerBlockListState } from '../../../reactivity/state-registry';
+import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
 import type { BlockComponent } from '../../../block-component';
 import type { UndoController } from '../../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
-
-function makeStubController(): UndoController & PasteCommitCoordinator {
-	return {
-		sharing: createSharingState(),
-		pushUndoSnapshot: vi.fn(),
-		pushUndoSnapshotDebounced: vi.fn(),
-		commitStructural: vi.fn(),
-		commitContainerStructural: vi.fn(),
-		commitMultiScope: vi.fn(),
-		getDocScope: vi.fn(),
-		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn(),
-		resolveState: getStateForNode,
-		expectState: expectStateForNode
-	} as unknown as UndoController & PasteCommitCoordinator;
-}
 
 function registerStubState(node: CstNode): void {
 	registerBlockListState(node, {

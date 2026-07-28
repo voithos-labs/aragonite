@@ -13,6 +13,7 @@
  * uninitialized state.
  */
 import { ALL_BLOCK_KINDS, type AnyBlockKind } from '../core/nodes';
+import type { ClosureCell } from './closure';
 import { assertInvariant, type InvariantViolation } from '../invariants/assert';
 import {
 	checkRegistryCompleteness,
@@ -20,9 +21,16 @@ import {
 	checkKeymapCoherence,
 	checkReservedChromeCoherence,
 	checkClosureCoherence,
-	checkLateOpenerRegistration
+	checkLateOpenerRegistration,
+	checkMergeRoleVocabulary,
+	type ClosureCoherenceEntry,
+	type MergeRoleEntry
 } from '../invariants/registry';
-import { tryGetBlockKindDescriptor, getAllRegisteredKinds } from './block-kind-descriptor';
+import {
+	tryGetBlockKindDescriptor,
+	getAllRegisteredKinds,
+	type BlockKindDescriptor
+} from './block-kind-descriptor';
 import { getBlockComponent } from './block-component-registry';
 import { listRegisteredOpeners } from './block-openers';
 import { isBuiltinCommandId } from './commands';
@@ -31,8 +39,6 @@ import { normalizeChord, isChordWellFormed } from './keybindings';
 import { takeRegistrationFlushWork } from './registration-pending';
 
 export {
-	enqueueRegistrationCheck,
-	markGrammarConsumed,
 	hasPendingRegistrationChecks,
 	__resetRegistrationChecksForTests
 } from './registration-pending';
@@ -58,22 +64,48 @@ const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
 		};
 	});
 
+const viaOf = (cell: ClosureCell): string | undefined =>
+	cell.mode === 'implemented' ? cell.via : undefined;
+
+/**
+ * Descriptor → G1.24 entry. Exported because the suites that check a live
+ * descriptor project the same fields: a test-local copy that missed a column would
+ * pass while the rule it claims to exercise went unread.
+ */
+export const closureCoherenceEntry = (
+	kind: AnyBlockKind,
+	d: BlockKindDescriptor
+): ClosureCoherenceEntry => ({
+	kind,
+	notMergeable: d.mergeRole === 'not-mergeable',
+	hasContainerContract: d.containerContract !== undefined,
+	roundTripMode: d.closure.roundTrip.mode,
+	mergeBackspaceMode: d.closure.mergeBackspace.mode,
+	declaresWholeBlockFocus: d.blockFocus === 'whole-block',
+	focusVia: viaOf(d.closure.focus),
+	mergeBackspaceVia: viaOf(d.closure.mergeBackspace),
+	declaresReservedChrome: d.reservedChrome !== undefined,
+	clipboardMode: d.closure.clipboard.mode
+});
+
 const closureEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds
 		.map((kind) => ({ kind, d: tryGetBlockKindDescriptor(kind) }))
 		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
-		.map(({ kind, d }) => ({
-			kind,
-			notMergeable: d.mergeRole === 'not-mergeable',
-			hasContainerContract: d.containerContract !== undefined,
-			roundTripMode: d.closure.roundTrip.mode,
-			mergeBackspaceMode: d.closure.mergeBackspace.mode
-		}));
+		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
+
+// Widened to `string` on the way out: the vocabulary check exists for the callers
+// the `MergeRole` union cannot bind (a plugin registering through a cast).
+const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
+	kinds.flatMap((kind) => {
+		const mergeRole: string | undefined = tryGetBlockKindDescriptor(kind)?.mergeRole;
+		return mergeRole === undefined ? [] : [{ kind, mergeRole }];
+	});
 
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24). First call sweeps the
+ * Run the registry coherence checks (G1.2/10/11/17/18/24/30). First call sweeps the
  * whole world — bootstrap semantics; later calls validate only the kinds
  * registered since the previous flush, plus opener coherence over the full
  * registry (a new opener's priority collision is inherently cross-entry).
@@ -102,6 +134,7 @@ export function flushPendingRegistrationChecks(
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
 	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
+	report('merge-role-vocabulary', () => checkMergeRoleVocabulary(mergeRoleEntries(kinds)));
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
 	}

@@ -13,8 +13,14 @@
 
 <script lang="ts">
 	import { Editor } from '$lib';
+	import { trackParityDocument } from '../../../parity-documents.svelte';
 
 	let showRight = $state(true);
+	let left = $state<ReturnType<typeof Editor>>();
+	let right = $state<ReturnType<typeof Editor>>();
+
+	trackParityDocument(() => left);
+	trackParityDocument(() => right);
 </script>
 
 <div class="plugins-harness aragonite-editor-theme">
@@ -23,9 +29,9 @@
 			Toggle right editor
 		</button>
 	</div>
-	<Editor source={'# One\n'} plugins={leftPlugins} />
+	<Editor bind:this={left} source={'# One\n'} plugins={leftPlugins} />
 	{#if showRight}
-		<Editor source={'# Two\n\nPara\n'} plugins={rightPlugins} />
+		<Editor bind:this={right} source={'# Two\n\nPara\n'} plugins={rightPlugins} />
 	{/if}
 </div>
 

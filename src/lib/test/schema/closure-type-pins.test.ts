@@ -3,14 +3,18 @@ import type { AnyBlockKind } from '$lib/core/nodes';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import type { ClosureBlock } from '$lib/schema/closure';
-import { simpleLeafClosure } from '$lib/schema/closure';
+import { containerClosure, simpleLeafClosure } from '$lib/schema/closure';
 import { checkClosureCoherence, type ClosureCoherenceEntry } from '$lib/invariants/registry';
+import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { testClosure } from '$lib/test/support/closure';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const leaf = { mergeRole: 'not-mergeable', editable: true, supportsInline: false } as const;
 
 afterEach(() => __resetSchemaRegistriesForTests());
+
+const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry =>
+	closureCoherenceEntry(kind, getBlockKindDescriptor(kind));
 
 // ── Compile-time pins ───────────────────────────────────────────────────────
 // Never invoked — `npm run check` is the gate. An "unused '@ts-expect-error'"
@@ -37,6 +41,22 @@ const typePins = (): void => {
 		focus: { mode: 'implemented', via: 'f' },
 		searchPaint: { mode: 'inherit-default' },
 		undo: { mode: 'inherit-default' }
+	});
+
+	// @ts-expect-error containerClosure still requires the container-specific cells — simOracle omitted
+	containerClosure({
+		roundTripVia: 'rebuildRaw',
+		focus: { mode: 'implemented', via: 'f' },
+		mergeBackspace: { mode: 'implemented', via: 'm' },
+		undo: { mode: 'inherit-default' }
+	});
+
+	// @ts-expect-error containerClosure requires roundTripVia — a container's roundTrip cannot inherit the default
+	containerClosure({
+		focus: { mode: 'implemented', via: 'f' },
+		mergeBackspace: { mode: 'implemented', via: 'm' },
+		undo: { mode: 'inherit-default' },
+		simOracle: { mode: 'inherit-default' }
 	});
 };
 void typePins;
@@ -79,17 +99,6 @@ describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 		simOracle: { mode: 'inherit-default' }
 	} as const;
 
-	const coherenceEntry = (kind: AnyBlockKind): ClosureCoherenceEntry => {
-		const d = getBlockKindDescriptor(kind);
-		return {
-			kind,
-			notMergeable: d.mergeRole === 'not-mergeable',
-			hasContainerContract: d.containerContract !== undefined,
-			roundTripMode: d.closure.roundTrip.mode,
-			mergeBackspaceMode: d.closure.mergeBackspace.mode
-		};
-	};
-
 	it('passes for the baked preset', () => {
 		const kind = declarePluginKind('preset-coherent');
 		registerBlockKind(kind, { ...leaf, closure: simpleLeafClosure(cells) });
@@ -106,5 +115,30 @@ describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 			kind: 'preset-broken',
 			column: 'mergeBackspace'
 		});
+	});
+});
+
+// The container half of G1.24 the leaf preset cannot cover: a container's
+// roundTrip must be `implemented`, so the runtime cross-check proves containerClosure
+// bakes it there and goes red if the baked `roundTrip` mode is ever loosened.
+describe('containerClosure keeps a strip container coherent', () => {
+	const cells = {
+		roundTripVia: 'container contract=opaque — rebuildRaw',
+		focus: { mode: 'implemented', via: 'walks to the first body child' },
+		mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+		undo: { mode: 'inherit-default' },
+		simOracle: { mode: 'inherit-default' }
+	} as const;
+
+	it('bakes roundTrip: implemented so a container clears G1.24', () => {
+		const kind = declarePluginKind('container-preset-coherent');
+		registerBlockKind(kind, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			container: { contract: 'opaque', rebuildRaw: () => {} },
+			closure: containerClosure(cells)
+		});
+		expect(checkClosureCoherence([coherenceEntry(kind)])).toBeNull();
 	});
 });

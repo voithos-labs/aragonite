@@ -1,9 +1,16 @@
 /**
- * Toggle bold/italic formatting over a selection inside a prose block.
- * Strips flanking markers only when they belong to a same-format construct
- * enclosing the selection (inside or outside the range); otherwise wraps —
- * so toggling emphasis over `word` in `**word**` nests to `***word***`
- * instead of eating a star of the strong pair.
+ * Toggle bold/italic formatting inside a prose block.
+ *
+ * Over a SELECTION: strips flanking markers only when they belong to a same-format
+ * construct enclosing the selection (inside or outside the range); otherwise wraps —
+ * so toggling emphasis over `word` in `**word**` nests to `***word***` instead of
+ * eating a star of the strong pair.
+ *
+ * At a COLLAPSED CARET: unwrap the span the caret sits inside, else remove the empty
+ * pair the previous press left, else insert the pair and land the caret between its
+ * halves. Deliberately not Obsidian's toggle-the-whole-word: this editor has no word
+ * boundaries anywhere else, and the unwrap arm already covers the case the word rule
+ * exists for (a caret inside bold text turns bold off).
  */
 
 import { parseInline } from '../../../core/inline';
@@ -49,6 +56,69 @@ function formatSpanEncloses(
 	return covers(parseInline(display, 0, display.length));
 }
 
+// The innermost `format` span whose CONTENT contains `caret`, marker offsets
+// included. Innermost so `***x***` toggled to strong drops the strong layer and
+// leaves the emphasis one standing. Null when the caret is outside every such span
+// — including at a span's outer edge, where the caret is not yet in the construct.
+function innermostFormatSpanAt(
+	display: string,
+	caret: number,
+	format: 'strong' | 'emphasis',
+	mLen: number
+): { start: number; end: number } | null {
+	let found: { start: number; end: number } | null = null;
+	const visit = (nodes: InlineNode[]): void => {
+		for (const node of nodes) {
+			if (node.kind === format && node.start + mLen <= caret && caret <= node.end - mLen) {
+				found = { start: node.start, end: node.end };
+			}
+			if (node.children) visit(node.children);
+		}
+	};
+	visit(parseInline(display, 0, display.length));
+	return found;
+}
+
+function toggleAtCaret(
+	display: string,
+	caret: number,
+	format: 'strong' | 'emphasis',
+	markers: string,
+	mLen: number
+): ToggleInlineFormatResult {
+	const enclosing = innermostFormatSpanAt(display, caret, format, mLen);
+	if (enclosing) {
+		return {
+			newDisplay:
+				display.slice(0, enclosing.start) +
+				display.slice(enclosing.start + mLen, enclosing.end - mLen) +
+				display.slice(enclosing.end),
+			newSelStart: caret - mLen,
+			newSelEnd: caret - mLen
+		};
+	}
+
+	// The empty pair the previous press inserted — no span to find, since `****`
+	// parses as literal text. A caret dead-centre in an unrelated marker run reads
+	// the same and is stripped too; the gesture is one undo away either way.
+	if (
+		display.slice(caret - mLen, caret) === markers &&
+		display.slice(caret, caret + mLen) === markers
+	) {
+		return {
+			newDisplay: display.slice(0, caret - mLen) + display.slice(caret + mLen),
+			newSelStart: caret - mLen,
+			newSelEnd: caret - mLen
+		};
+	}
+
+	return {
+		newDisplay: display.slice(0, caret) + markers + markers + display.slice(caret),
+		newSelStart: caret + mLen,
+		newSelEnd: caret + mLen
+	};
+}
+
 export function toggleInlineFormat(
 	display: string,
 	selection: { start: number; end: number },
@@ -57,6 +127,7 @@ export function toggleInlineFormat(
 	const markers = format === 'strong' ? '**' : '*';
 	const mLen = markers.length;
 	const { start, end } = selection;
+	if (start === end) return toggleAtCaret(display, start, format, markers, mLen);
 	const selectedSlice = display.slice(start, end);
 
 	// Selection itself includes flanking markers (e.g. user selected `**word**`).

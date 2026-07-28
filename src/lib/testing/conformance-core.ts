@@ -12,6 +12,7 @@
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
+import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // ── Coverage vocabulary ──────────────────────────────────────────────────────
 
@@ -56,12 +57,42 @@ export function show(value: unknown): string {
 	return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
+/** A documented reason is substantive, never a bare token — the visible-not-silent-skip floor. */
+export function assertReasonDocumented(reason: string, label: string): void {
+	assert(reason.length > 20, `${label} is documented`);
+}
+
 /** An EXEMPT/BOUNDARY cell must carry a substantive reason — visible, never a silent skip. */
 export function assertExemptionDocumented(cell: ConformanceCoverage, label: string): void {
 	if (cell.mode === 'assert') {
 		fail(`assertExemptionDocumented called on an 'assert' cell: ${label}`);
 	}
-	assert(cell.reason.length > 20, `${label} ${cell.mode} reason is documented`);
+	assertReasonDocumented(cell.reason, `${label} ${cell.mode} reason`);
+}
+
+/**
+ * A freshly parsed fixture node is canonical, so for a byte-faithful (strip/opaque)
+ * rebuild `rebuildRaw` is the parse inverse: it must reproduce the SAME bytes, not
+ * merely run twice with the same wrong output — the details-CRLF class the
+ * determinism cell alone is blind to. Grid rebuilds canonicalize delimiter/padding
+ * widths by contract, so a valid non-canonical grid fixture is legally not a rebuild
+ * fixed-point; grid rides the non-throwing run plus the determinism cell instead.
+ * Mutates `node.raw` in place — pass a fresh parse, never a shared cell node.
+ */
+export function assertRebuildIsParseCanonical(
+	descriptor: BlockKindDescriptor,
+	node: CstNode,
+	label: string
+): void {
+	const before = node.raw;
+	try {
+		descriptor.rebuildRaw!(node);
+	} catch (error) {
+		fail(`${label} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
+	}
+	if (descriptor.containerContract !== 'grid') {
+		assertIs(node.raw, before, `${label} rebuildRaw reproduces the parse-canonical raw`);
+	}
 }
 
 // ── Tree walks ───────────────────────────────────────────────────────────────

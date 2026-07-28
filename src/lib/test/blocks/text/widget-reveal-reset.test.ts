@@ -6,29 +6,12 @@
 // finding — a residual a hand-picked subset clear would leave behind (a wedged
 // `settling` flag that permanently disables the escape-fold, a stale record)
 // surfaces here as a broken second cycle.
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import {
-	createWidgetInteraction,
-	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import type { CstNode, InlineNode } from '$lib/core/nodes';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { stampMathWidget, resetInlineState } from './math-widget-fixture';
+import { describe, it, expect } from 'vitest';
+import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
+import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 
-beforeEach(() => {
-	resetInlineState();
-	registerMathInline();
-});
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	resetInlineState();
-});
+installMathInline();
 
 const settle = () => new Promise((r) => setTimeout(r));
 const key = (k: string) => new KeyboardEvent('keydown', { key: k });
@@ -36,50 +19,23 @@ const key = (k: string) => new KeyboardEvent('keydown', { key: k });
 // "Before $x^2$ after" as TextEditableBlock renders it: one atomic island between
 // two real text nodes. childNodes = [prose, widget|source, trailing prose].
 function mountMathBlock() {
-	const node: CstNode = parse('Before $x^2$ after').children[0];
-	const math = computeInlineContent(node).find((n: InlineNode) => n.kind === MATH_INLINE)!;
-	const display = trimTrailingLineEnding(node.raw);
+	const { el, node, inlineWidgets } = mountWidgetBlock('Before $x^2$ after', MATH_INLINE);
+	const math = inlineWidgets[0];
 
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(
-		document.createTextNode(node.raw.slice(0, math.start)),
-		stampMathWidget(math),
-		document.createTextNode(display.slice(math.end))
-	);
-	document.body.appendChild(el);
-	el.focus();
-
-	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
 	let revealingMirror = false;
-	const interaction = createWidgetInteraction({
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get myPath() {
-			return [0];
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		getEditorContentWidth: () => 800,
-		widgetSelection,
-		blockEdit: { updateBlockContent: () => {} },
-		getSnapTarget: () => null,
-		setSnapTarget: () => {},
-		setPendingCursor: () => {},
-		readRawText: () =>
-			Array.from(el.childNodes).reduce((acc, child) => acc + rawTextOfNode(child, node.raw), ''),
-		setRevealing: (v: boolean) => {
-			revealingMirror = v;
-		},
-		isCrossBlock: () => false,
-		get linkRef() {
-			return undefined;
-		}
-	} as unknown as WidgetInteractionDeps);
+	const interaction = createWidgetInteraction(
+		widgetInteractionDeps(
+			{ node, el },
+			{
+				blockEdit: { updateBlockContent: () => {} },
+				setPendingCursor: () => {},
+				setRevealing: (v: boolean) => {
+					revealingMirror = v;
+				},
+				isCrossBlock: () => false
+			}
+		)
+	);
 
 	async function reveal(): Promise<void> {
 		interaction.enterWidget(math, false);
@@ -108,7 +64,7 @@ type Block = ReturnType<typeof mountMathBlock>;
 
 describe('canonical reset — every exit lands in the same idle state', () => {
 	const exits: [string, (b: Block) => Promise<void>][] = [
-		['Enter-commit', async (b) => void (await b.interaction.handleRevealingKeydown(key('Enter')))],
+		['fold-commit', async (b) => void b.interaction.foldRevealBeforeMutation()],
 		[
 			'Escape-cancel',
 			async (b) => void (await b.interaction.handleRevealingKeydown(key('Escape')))

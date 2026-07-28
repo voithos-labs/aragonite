@@ -8,7 +8,7 @@
 		TableContext
 	} from '../../../action-contracts';
 	import {
-		SELECTION_END,
+		CURSOR_END,
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
@@ -29,14 +29,17 @@
 	import { asEditorX } from '../../../cursor/coordinate-spaces';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { columnNearestX } from './cell-x-mapping';
-	import { cellAtPoint } from './cell-pointer';
+	import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
+	import { intraTableRect } from './cell-clipboard';
+	import { selectedCells } from './selected-cells';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../reactivity/window-slice';
 	import { revealChildOrWait } from '../../../reactivity/publish-ref.svelte';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import {
@@ -73,6 +76,7 @@
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
+		scrollHost: getScrollHost,
 		widthVersion: getWidthVersion,
 		lifetime: editorLifetime
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -104,7 +108,7 @@
 
 	const rowsState = createBlockListState(() => node);
 
-	const bundle = createStandardNestedActions(rowsState, {
+	const scope: NodeScope = {
 		get index() {
 			return index;
 		},
@@ -113,7 +117,11 @@
 		},
 		get path() {
 			return myPath;
-		},
+		}
+	};
+
+	const bundle = createStandardNestedActions(rowsState, {
+		scope,
 		stickyColumn: editorStickyColumn,
 		grammar: registryView.grammar,
 		parent: {
@@ -190,11 +198,10 @@
 		if (!tableEl || columnCount === 0) return;
 		const next = columnMaxWidths.slice();
 		let grew = false;
-		const rows = tableEl.querySelectorAll(':scope > [data-table-row-idx]');
-		for (const rowEl of rows) {
-			const cells = rowEl.querySelectorAll(':scope > .table-cell');
+		for (const rowEl of mountedRowEls(tableEl)) {
+			const cells = rowCellEls(rowEl);
 			for (let c = 0; c < cells.length && c < columnCount; c++) {
-				const width = (cells[c] as HTMLElement).getBoundingClientRect().width;
+				const width = cells[c].getBoundingClientRect().width;
 				if (width > (next[c] ?? 0)) {
 					next[c] = width;
 					grew = true;
@@ -212,7 +219,7 @@
 
 	function offsetForPosition(position: CellPosition): number {
 		if (position === 'start') return 0;
-		if (position === 'end') return Number.MAX_SAFE_INTEGER;
+		if (position === 'end') return CURSOR_END;
 		return position;
 	}
 
@@ -291,16 +298,14 @@
 		clipboardSel: CellSelection | null;
 	} | null>(null);
 
-	// A live intra-table rectangle on THIS table: both cross-block endpoints address
-	// this table's path. It suppresses the cell-local selection, so the menu reads it
+	// A live intra-table rectangle on THIS table (its shared endpoint path is this
+	// table's). It suppresses the cell-local selection, so the menu reads it
 	// separately to keep Cut/Copy enabled.
-	const rectActive = $derived(
-		!!selection?.isCustomRendered &&
-			!!selection.anchor &&
-			!!selection.focus &&
-			pathsEqual(selection.anchor.path, myPath) &&
-			pathsEqual(selection.focus.path, myPath)
-	);
+	const rectActive = $derived.by(() => {
+		if (!selection) return false;
+		const rect = intraTableRect(selection);
+		return rect !== null && pathsEqual(rect.tablePath, myPath);
+	});
 
 	const menuItems = $derived(
 		menu
@@ -331,26 +336,27 @@
 		return rowRefAt(rowIdx)?.getBlockComponentByPath?.([colIdx]) ?? null;
 	}
 
-	// Right-click anywhere in a cell opens the both-axes menu (row group + column
-	// group + clipboard group). Only preventDefault when actually over a cell, so a
-	// right-click in the table's padding gaps keeps the native menu. The cell's
-	// selection is captured now, before clicking a menu item moves focus off it.
+	// Open the both-axes cell menu (row group + column group + clipboard group).
+	// Captures the cell's selection now, before a menu-item click moves focus off
+	// it, so Cut/Copy have a range to act on.
+	function openMenuAtCell(rowIdx: number, colIdx: number, x: number, y: number): void {
+		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
+		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel };
+	}
+
+	// Right-click anywhere in a cell opens the menu at the pointer. Only
+	// preventDefault when actually over a cell, so a right-click in the table's
+	// padding gaps keeps the native menu.
 	function openCellMenu(e: MouseEvent): void {
 		if (readOnly || !tableEl) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
 		if (!cell) return;
 		e.preventDefault();
-		const clipboardSel = cellRefAt(cell.rowIdx, cell.colIdx)?.getSelectionOffsets?.() ?? null;
-		menu = {
-			target: { rowIdx: cell.rowIdx, colIdx: cell.colIdx },
-			x: e.clientX,
-			y: e.clientY,
-			clipboardSel
-		};
+		openMenuAtCell(cell.rowIdx, cell.colIdx, e.clientX, e.clientY);
 	}
 
 	// Keyboard equivalent of the cell right-click: Shift+F10 / ContextMenu on a
-	// focused cell opens the both-axes menu at that cell. The event bubbles up from
+	// focused cell opens the menu at that cell's rect. The event bubbles up from
 	// the cell; preventDefault suppresses the native context menu the key triggers.
 	function onTableKeyDown(e: KeyboardEvent): void {
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
@@ -358,13 +364,7 @@
 		e.preventDefault();
 		const { rowIdx, colIdx } = focusedCell;
 		const rect = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
-		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
-		menu = {
-			target: { rowIdx, colIdx },
-			x: rect ? rect.left : 0,
-			y: rect ? rect.bottom : 0,
-			clipboardSel
-		};
+		openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
 	}
 
 	// Escape restores focus to the originating cell (cell menus only; grip menus
@@ -415,13 +415,12 @@
 	// row windowing. Re-read live each move, so an autoscroll re-slice is reflected.
 	function rowReorderGeometry() {
 		if (!tableEl || rowCount === 0) return null;
-		const rowEls = tableEl.querySelectorAll(':scope > [data-table-row-idx]');
 		const rowEdges: number[] = [];
 		const gapIndices: number[] = [];
 		let lastBottom = 0;
 		let lastIdx = -1;
-		for (const rowEl of rowEls) {
-			const cell = rowEl.querySelector(':scope > .table-cell') as HTMLElement | null;
+		for (const rowEl of mountedRowEls(tableEl)) {
+			const cell = rowCellEls(rowEl)[0];
 			if (!cell) continue;
 			const rect = cell.getBoundingClientRect();
 			const idx = Number(rowEl.getAttribute('data-table-row-idx'));
@@ -448,10 +447,10 @@
 			fromRowIdx: rowIdx,
 			getRowCount: () => rowCount,
 			getGeometry: rowReorderGeometry,
-			// Row windowing scrolls the editor root (its getScrollEl); autoscroll must move
-			// that exact element so off-window rows mount. Not nearestScrollContainer, which
-			// counts overflow:hidden — a no-op autoscroll target (scroll-ancestors.ts header).
-			getScrollContainer: getEditorRoot,
+			// Row windowing scrolls whatever scrolls this editor (list-windowing's
+			// getScrollEl); autoscroll must move that exact element so off-window rows
+			// mount — the root in self mode, the host's scroller in host mode.
+			getScrollContainer: getScrollHost,
 			setLine: (line) => (dragLine = line),
 			onDragRecognized: () => (suppressRowGripClick = true),
 			commit: (from, to) => void mutations.reorderRowTo(from, to),
@@ -465,19 +464,19 @@
 	// Plain let, reset on every grip pointerdown — see suppressRowGripClick.
 	let suppressColumnGripClick = false;
 
-	// Columns aren't windowed, so every column cell is mounted; read the first
-	// MOUNTED row (row 0 may window out — VR-K1) for the shared track geometry.
-	// Client coords match the position:fixed insertion line. Re-read live each
-	// move, so a horizontal-autoscroll shift of the clipped columns is reflected.
+	// Columns aren't windowed, so every column cell is mounted; the shared track
+	// geometry comes from the first mounted row. Client coords match the
+	// position:fixed insertion line. Re-read live each move, so a horizontal-
+	// autoscroll shift of the clipped columns is reflected.
 	function columnReorderGeometry() {
 		if (!tableEl || rowCount === 0 || columnCount === 0) return null;
-		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx]');
+		const firstRowEl = mountedRowEls(tableEl)[0];
 		if (!firstRowEl) return null;
-		const cells = firstRowEl.querySelectorAll(':scope > .table-cell');
+		const cells = rowCellEls(firstRowEl);
 		if (cells.length === 0) return null;
 		const colEdges: number[] = [];
-		for (const cell of cells) colEdges.push((cell as HTMLElement).getBoundingClientRect().left);
-		const lastCell = cells[cells.length - 1] as HTMLElement;
+		for (const cell of cells) colEdges.push(cell.getBoundingClientRect().left);
+		const lastCell = cells[cells.length - 1];
 		colEdges.push(lastCell.getBoundingClientRect().right);
 		const tableRect = tableEl.getBoundingClientRect();
 		return { colEdges, top: tableRect.top, height: tableRect.height };
@@ -596,7 +595,14 @@
 
 	export function measurePartialRects(start: number, end: number): DOMRect[] {
 		if (!tableEl || rowCount === 0) return [];
-		const cells = collectSelectedCells(start, end);
+		const cells = selectedCells({
+			rect: selection ? intraTableRect(selection) : null,
+			myPath,
+			start,
+			end,
+			rowCount,
+			columnCount
+		});
 		const rects: DOMRect[] = [];
 		for (const { rowIdx, colIdx } of cells) {
 			const cellEl = cellElementAt(rowIdx, colIdx);
@@ -615,49 +621,12 @@
 		return { start: win.start, end: win.end };
 	}
 
-	function collectSelectedCells(start: number, end: number): { rowIdx: number; colIdx: number }[] {
-		const anchor = selection?.anchor;
-		const focus = selection?.focus;
-		const isRectangular =
-			selection?.isCustomRendered && !!anchor && !!focus && pathsEqual(anchor.path, focus.path);
-
-		if (isRectangular) {
-			// Same-path intra-table rectangle: cell offsets are context-established
-			// (same table, unflagged), so read directly.
-			const aRow = Math.floor(anchor.offset / columnCount);
-			const aCol = anchor.offset % columnCount;
-			const fRow = Math.floor(focus.offset / columnCount);
-			const fCol = focus.offset % columnCount;
-			const minRow = Math.min(aRow, fRow);
-			const maxRow = Math.max(aRow, fRow);
-			const minCol = Math.min(aCol, fCol);
-			const maxCol = Math.max(aCol, fCol);
-			const cells: { rowIdx: number; colIdx: number }[] = [];
-			for (let r = minRow; r <= maxRow; r++) {
-				for (let c = minCol; c <= maxCol; c++) {
-					cells.push({ rowIdx: r, colIdx: c });
-				}
-			}
-			return cells;
-		}
-
-		const cellCount = rowCount * columnCount;
-		const linearEnd = end === SELECTION_END ? cellCount : Math.min(end, cellCount);
-		const linearStart = Math.max(0, start);
-		const cells: { rowIdx: number; colIdx: number }[] = [];
-		for (let i = linearStart; i < linearEnd; i++) {
-			cells.push({ rowIdx: Math.floor(i / columnCount), colIdx: i % columnCount });
-		}
-		return cells;
-	}
-
 	function cellElementAt(rowIdx: number, colIdx: number): HTMLElement | null {
 		if (!tableEl) return null;
 		if (rowIdx < 0 || rowIdx >= rowCount || colIdx < 0 || colIdx >= columnCount) return null;
 		const rowEl = tableEl.querySelector(`:scope > [data-table-row-idx="${rowIdx}"]`);
 		if (!rowEl) return null;
-		const cells = rowEl.querySelectorAll(':scope > .table-cell');
-		return (cells[colIdx] as HTMLElement) ?? null;
+		return rowCellEls(rowEl)[colIdx] ?? null;
 	}
 
 	void ({
@@ -676,10 +645,7 @@
 
 	function collectColumnRects(): { left: number; right: number }[] {
 		if (!tableEl || rowCount === 0) return [];
-		// Columns share grid track widths, so any mounted row yields the same
-		// geometry. Read the first MOUNTED row (not row 0, which row-windowing
-		// unmounts once the table scrolls past it — VR-K1).
-		const firstRowEl = tableEl.querySelector(':scope > [data-table-row-idx]');
+		const firstRowEl = mountedRowEls(tableEl)[0];
 		if (!firstRowEl) return [];
 		const editorRoot = getEditorRoot();
 		if (!editorRoot) return [];
@@ -687,9 +653,8 @@
 		// editor-relative). cell.getBoundingClientRect() already accounts for
 		// the table's internal scroll position.
 		const editorLeft = editorRoot.getBoundingClientRect().left;
-		const cells = Array.from(firstRowEl.querySelectorAll(':scope > .table-cell'));
-		return cells.map((c) => {
-			const r = (c as HTMLElement).getBoundingClientRect();
+		return rowCellEls(firstRowEl).map((c) => {
+			const r = c.getBoundingClientRect();
 			return { left: r.left - editorLeft, right: r.right - editorLeft };
 		});
 	}
@@ -702,6 +667,9 @@
 	}
 </script>
 
+<!-- Delegated listeners for the cell grid (cells are the interactive surfaces); the
+     table-vs-grid role question is the 1.1 shell a11y decision. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={tableEl}
 	class="table-block"

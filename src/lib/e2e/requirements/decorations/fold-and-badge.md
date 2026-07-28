@@ -24,7 +24,7 @@ heading host. Scenarios run on `/test/plugins?seed=fold` / `?seed=fold-table` /
 ## Edge cases
 
 - a badge survives a block windowing out and back in on a multi-MB fixture
-- islands-in-cells: a fold range inside a table cell renders no island — the
-  cell surface does not apply island decorations (ledgered gap, see
-  docs/issues.md) — and DEV warns exactly once naming the source and kind;
-  the folded bytes still never leave `getSource()`
+- islands-in-cells: a fold range inside a table cell renders one `…` island —
+  the cell surface applies island decorations like the prose path — the covered
+  bytes leave the DOM text but never leave `getSource()`, and the source seam
+  raises no cells-unsupported dev-warn

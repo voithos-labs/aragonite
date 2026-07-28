@@ -2,28 +2,22 @@ import { makeBlockNode, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
 import { concatChildren } from '../core/serializer';
-import { getBlockKindDescriptor, type MergeRole } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners } from '../schema/block-openers';
+import { isDirectiveKind } from '../core/directive/registry';
 import type { InvariantViolation } from './assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
-
-const MERGE_ROLES: ReadonlySet<MergeRole> = new Set([
-	'prose',
-	'prose-absorber',
-	'container',
-	'self-merge',
-	'not-mergeable'
-]);
 
 /**
  * G1.5 — a node's fields match its kind's category. Implications are
  * one-directional (a container *may* be transiently childless mid-edit, so we
  * never require fields, only forbid illegal ones):
  *   - non-containers must not carry `children`;
- *   - container structural fields (`innerPrefix`/`innerSuffix`) only on containers;
- *   - `mergeRole` must be one of the five legal roles.
+ *   - container structural fields (`innerPrefix`/`innerSuffix`) only on containers.
+ * The `mergeRole` vocabulary is a per-KIND fact, so it is checked once per
+ * registration (G1.30) rather than once per committed node.
  * Editor-level fields (`childIds`, `ownerEpoch`) are deliberately unchecked —
  * legal on every kind; the predicate forbids category-bound fields only.
  */
@@ -38,9 +32,6 @@ export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	}
 	if (!d.isContainer && node.innerSuffix !== undefined) {
 		return illegalField(node.kind, 'innerSuffix', 'leaf carries container structural field');
-	}
-	if (!MERGE_ROLES.has(d.mergeRole)) {
-		return illegalField(node.kind, 'mergeRole', `unknown mergeRole "${d.mergeRole}"`);
 	}
 	return null;
 }
@@ -145,18 +136,18 @@ function stripContainerChildren(node: CstNode): CstNode[] {
  * machinery, so only genuine drift fires.
  *
  * When `raw` does not reparse standalone to exactly one block of this kind, the
- * outcome splits on the opener registry: a kind WITH a registered opener has
- * genuinely drifted (its raw no longer matches any shape the opener recognizes)
- * and fires; a kind WITHOUT one has no standalone recognizer, so even stale
- * children cannot be validated and it bails (a test kind whose raw reparses to a
- * paragraph must not fire).
+ * outcome splits on recognizer existence: a kind WITH a standalone recognizer
+ * has genuinely drifted (its raw no longer matches any shape that recognizer
+ * accepts) and fires; a kind WITHOUT one cannot be validated even with stale
+ * children, so it bails (a test kind whose raw reparses to a paragraph must not
+ * fire).
  */
 export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 
 	const blocks = parse(node.raw).children;
 	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
-		if (!listRegisteredOpeners().some((o) => o.kind === node.kind)) return null;
+		if (!hasStandaloneRecognizer(node.kind)) return null;
 		return {
 			code: 'opaque-stale-raw',
 			message: `${node.kind} opaque raw no longer reparses to its own kind`,
@@ -172,6 +163,17 @@ export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 		};
 	}
 	return null;
+}
+
+/**
+ * Can `parse(raw)` reproduce this kind at all? Both registries answer it: a kind
+ * either owns a block opener, or is registered as a directive and the one shared
+ * `:::` opener recognizes it on the kind's behalf. Probing openers alone reads
+ * every directive container as unrecognizable, exempting the whole tier the
+ * plugin guide recommends for authoring one.
+ */
+function hasStandaloneRecognizer(kind: CstNode['kind']): boolean {
+	return listRegisteredOpeners().some((o) => o.kind === kind) || isDirectiveKind(kind);
 }
 
 /**

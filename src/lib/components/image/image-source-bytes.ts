@@ -1,26 +1,49 @@
-// Inverse of the image scanner: rebuild source bytes when fields change
-// (popover edits, drag-resize). Title quoting canonicalizes to double-quotes.
+// Where an image edit becomes bytes: the claim dispatcher every write path calls,
+// and under it the GFM branch — the inverse of the image scanner, whose title
+// quoting canonicalizes to double-quotes. The two live together because G4.21
+// requires the serializer to be named in one module, which has to be this one.
 
-import type { InlineNode } from '../../core/nodes';
+import type { ImageFields, InlineNode } from '../../core/nodes';
+import { devWarn } from '../../dev-warn';
 
-export interface ImageFields {
-	alt: string;
-	url: string;
-	title?: string;
-	width?: number;
-	height?: number;
-	/**
-	 * Reference label, present only for reference-style images (`![alt][label]`).
-	 * When set, `buildImageSourceBytes` emits the reference form and writes no
-	 * url/title — those live in the LRD, so re-inlining them on a resize/alt edit
-	 * would orphan the definition.
-	 */
-	label?: string;
+// ── The write seam ──────────────────────────────────────────────────────────
+
+/**
+ * Bytes to splice over `image`'s range for `fields`, or `null` when the edit must
+ * be declined. **Every image write path goes through here** (G4.21). A node an
+ * inline rung claimed re-serializes through that rung's `rewriteImage` hook, since
+ * emitting the built-in grammar over another syntax's bytes destroys them; a rung
+ * that declares no hook, or whose hook declines, yields `null` and the caller drops
+ * the commit. Rationale and the plugin-side contract: docs/design/plugin-contract.md
+ * § Inline authoring.
+ */
+export function buildImageEditBytes(
+	image: InlineNode,
+	blockRaw: string,
+	fields: ImageFields
+): string | null {
+	const claim = image.syntaxClaim;
+	if (!claim) return buildImageSourceBytes(fields);
+
+	const bytes = claim.rewriteImage?.(blockRaw.slice(image.start, image.end), fields) ?? null;
+	if (bytes === null) {
+		devWarn(
+			'image-edit',
+			`declined: the "${claim.prefix}" inline rung owns these bytes and ` +
+				`${claim.rewriteImage ? 'its rewriteImage hook cannot represent this edit' : 'registered no rewriteImage hook'}`,
+			fields
+		);
+	}
+	return bytes;
 }
 
-/** Canonical fields-as-persisted shape for an image inline node: omits
- *  optional keys the node doesn't carry so round-tripping through
- *  `buildImageSourceBytes` reproduces the original bytes. */
+/** Canonical fields-as-persisted shape for an image inline node: omits optional
+ *  keys the node doesn't carry, so a rebuild writes back only what the source held
+ *  rather than materializing an empty title or a zero width. Byte-exactness is not
+ *  the claim — the GFM serializer canonicalizes (title quoting, destination
+ *  encoding), and for a node an inline rung claimed the bytes are the rung's, which
+ *  only its `rewriteImage` reproduces. What IS pinned is idempotence on the alt:
+ *  a rebuilt span rebuilds to itself, so repeated resizes never grow the escapes. */
 export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	return {
 		alt: image.alt ?? '',
@@ -32,6 +55,10 @@ export function imageFieldsFromInline(image: InlineNode): ImageFields {
 	};
 }
 
+// ── The GFM serializer ──────────────────────────────────────────────────────
+
+/** The built-in grammar's inverse. Reach it through `buildImageEditBytes`, which
+ *  is the only caller entitled to decide these bytes are GFM's to write. */
 export function buildImageSourceBytes(fields: ImageFields): string {
 	const dimSuffix = buildDimSuffix(fields.width, fields.height);
 	const altSegment = escapeAlt(fields.alt) + dimSuffix;
@@ -55,10 +82,28 @@ function escapeTitle(title: string): string {
 }
 
 // Alt sits inside `[...]`; an unescaped bracket closes the scan early and the
-// image degrades to literal text on the next parse. Backslash-escape so the
-// inline escape pass restores the literal characters.
+// image degrades to literal text on the next parse. Unlike `title` and `url`,
+// which arrive spec-processed, `alt` carries RAW label bytes — the scanner slices
+// the label without unescaping — so a blanket escape re-escapes what the source
+// already escaped and doubles every backslash on each commit (a drag-resize alone
+// grew `![C:\path]` to `![C:\\path]` to `![C:\\\\path]`). Pass any backslash PAIR
+// through untouched and escape only bare bytes: idempotent, like
+// `encodeDestination`, and byte-exact on alt the source already escaped. The pair
+// is "backslash + anything", not "backslash + escapable punctuation" — a backslash
+// before an ordinary letter is inert for the label scan, so escaping it would grow
+// the user's bytes for nothing.
 function escapeAlt(alt: string): string {
-	return alt.replace(/[[\]\\]/g, '\\$&');
+	let out = '';
+	for (let i = 0; i < alt.length; i++) {
+		const ch = alt[i];
+		if (ch === '\\' && i + 1 < alt.length) {
+			out += ch + alt[i + 1];
+			i++;
+			continue;
+		}
+		out += ch === '[' || ch === ']' || ch === '\\' ? '\\' + ch : ch;
+	}
+	return out;
 }
 
 // Bare destinations end at whitespace/`"`/`'` and may carry parens only as

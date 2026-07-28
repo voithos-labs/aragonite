@@ -41,13 +41,16 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		heightOracle: oracle,
 		editorRoot: getEditorRoot,
 		focusedPath: getFocusPath,
-		widthVersion: getWidthVersion
+		widthVersion: getWidthVersion,
+		windowingEnabled
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
 	// Single-claimant: only the ROOT scope holds the reveal anchor (path[0]); nested
 	// scopes keep top-of-viewport anchoring, or their deltas would fight over one scrollTop.
-	const isRoot = opts.getParentPath().length === 0;
+	// Host-scroll mode has no claimant at all: the anchor's re-assertion writes scrollTop
+	// on an element that doesn't scroll, and with windowing off nothing needs the pin.
+	const claimsRevealAnchor = opts.getParentPath().length === 0 && windowingEnabled();
 
 	const windowing = createListWindowing({
 		oracle,
@@ -57,13 +60,16 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getOwnEl: opts.getOwnEl,
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
-		getRevealAnchorIndex: isRoot
+		getRevealAnchorTarget: claimsRevealAnchor
 			? () => {
-					const p = revealAnchor?.get() ?? null;
-					return p && p.length > 0 ? p[0] : null;
+					const target = revealAnchor?.get() ?? null;
+					return target && target.path.length > 0
+						? { index: target.path[0], block: target.block }
+						: null;
 				}
 			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
+		windowingEnabled,
 		getParentPath: opts.getParentPath,
 		reportSelfHeight: parentSink
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)

@@ -93,25 +93,6 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
-	it('merge-prev into a non-editable previous block deletes it, targeting the neighbor', async () => {
-		const { scope, commits, children } = stubScope([leaf('---\n'), leaf('text\n')]);
-		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
-		expect(children).toHaveLength(1);
-		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbor (i-1), not i — both scope factories mint the
-		// emitted event path from this target (top-level parity pinned in
-		// top-level-event-paths.test.ts).
-		expect(commits[0].eventTarget).toBe(0);
-	});
-
-	it('merge-next into a non-editable next block deletes it, targeting the neighbor', async () => {
-		const { scope, commits, children } = stubScope([leaf('text\n'), leaf('---\n')]);
-		await createBlockEditCore(scope).mergeWithNextInterior(0);
-		expect(children).toHaveLength(1);
-		expect(commits[0].op.kind).toBe('delete');
-		expect(commits[0].eventTarget).toBe(1);
-	});
-
 	it('merge-prev into an editable-but-unmergeable previous block moves focus without committing', async () => {
 		// fencedCode is not-mergeable yet editable, so the prev block is neither
 		// concatenated nor deleted — the else branch only moves focus.
@@ -237,6 +218,78 @@ describe('block-edit core — whole-block-focus fallback', () => {
 	});
 });
 
+// The delete-the-neighbour fallback, for a non-editable block that does NOT opt
+// into whole-block focus. `---` was the fixture until thematicBreak joined the
+// focus-then-delete model, so this branch now needs a kind of its own: every
+// non-editable built-in is a whole-block-focus target, and only a plugin kind can
+// still reach it.
+describe('block-edit core — non-editable neighbour fallback', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+
+	function inertNode(): CstNode {
+		const kind = declarePluginKind('spec-inert-leaf');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: false,
+			supportsInline: false,
+			closure: testClosure
+		});
+		return { kind, leadingTrivia: '', raw: 'inert\n' };
+	}
+
+	it('merge-prev deletes the non-editable previous block, targeting the neighbor', async () => {
+		const { scope, commits, children } = stubScope([inertNode(), leaf('text\n')]);
+		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
+		expect(children).toHaveLength(1);
+		expect(commits[0].op.kind).toBe('delete');
+		// The deleted neighbor (i-1), not i — both scope factories mint the
+		// emitted event path from this target (top-level parity pinned in
+		// top-level-event-paths.test.ts).
+		expect(commits[0].eventTarget).toBe(0);
+	});
+
+	it('merge-next deletes the non-editable next block, targeting the neighbor', async () => {
+		const { scope, commits, children } = stubScope([leaf('text\n'), inertNode()]);
+		await createBlockEditCore(scope).mergeWithNextInterior(0);
+		expect(children).toHaveLength(1);
+		expect(commits[0].op.kind).toBe('delete');
+		expect(commits[0].eventTarget).toBe(1);
+	});
+});
+
+// thematicBreak is the shipped built-in on the same model: a caret-adjacent
+// destructive key focuses the rule, and only a second press — handled on the
+// focused block itself — deletes it. Registered built-ins rather than a synthetic
+// kind, because the point is that the shipped descriptor carries the declaration
+// its closure cells claim.
+describe('block-edit core — thematicBreak focus-then-delete', () => {
+	const rule = () => leaf('---\n');
+
+	it('merge-prev focuses the rule above instead of deleting it', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([rule(), leaf('text\n')], true, [
+			focus.ref,
+			undefined
+		]);
+		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
+		expect(children).toHaveLength(2);
+		expect(commits).toHaveLength(0);
+		expect(focus.calls).toEqual([0]);
+	});
+
+	it('merge-next focuses the rule below instead of deleting it', async () => {
+		const focus = focusSpy();
+		const { scope, commits, children } = stubScope([leaf('text\n'), rule()], true, [
+			undefined,
+			focus.ref
+		]);
+		await createBlockEditCore(scope).mergeWithNextInterior(0);
+		expect(children).toHaveLength(2);
+		expect(commits).toHaveLength(0);
+		expect(focus.calls).toEqual([0]);
+	});
+});
+
 describe('block-edit core — chrome.descendToBody', () => {
 	it('focuses the existing body sibling without minting or committing', async () => {
 		const body = focusSpy();
@@ -260,6 +313,14 @@ describe('block-edit core — chrome.descendToBody', () => {
 		expect(commits[0].op.kind).toBe('appendBlock');
 		expect(commits[0].eventTarget).toBe(1);
 		expect(body.calls).toEqual([0]);
+	});
+
+	// The minted body IS a line ending, so a defaulted `\n` strands a lone LF
+	// inside a CRLF container (G4.20).
+	it('the minted body paragraph takes the chrome sibling’s line ending', async () => {
+		const { scope, children } = stubScope([leaf('Title\r\n')], true, []);
+		await createBlockEditCore(scope).descendToBody(0);
+		expect(children[1].raw).toBe('\r\n');
 	});
 
 	it('consumes the key without minting when the body ref is windowed out', async () => {

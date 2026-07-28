@@ -8,6 +8,7 @@ import {
 	editorScrollHeight,
 	scrollThrough
 } from './details-helpers';
+import { capturePageErrors } from '../../page-probes';
 
 /**
  * Spec §8.3 — height-oracle estimate for collapsed containers. The oracle reads
@@ -63,8 +64,7 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
-		pageErrors = [];
-		page.on('pageerror', (e) => pageErrors.push(e.message));
+		pageErrors = capturePageErrors(page);
 		await editor.gotoDetails();
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});

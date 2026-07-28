@@ -1,7 +1,7 @@
 /**
  * View-only annotations layered over the rendered document. Decorations never
  * enter the CST — they are produced per-instance by pure sources and consumed by
- * overlays/islands. Four kinds: an inline `mark` span, a positioned `widget`, a
+ * overlays/islands. The kinds: an inline `mark` span, a positioned `widget`, a
  * range `replace`, and a whole-block `block` treatment.
  */
 
@@ -47,9 +47,10 @@ export type DecorationWidgetSpec =
 	| { buildDom: (dec: Decoration) => HTMLElement };
 
 export interface ProvideContext {
-	/** Monotonic counter bumped once per document edit (never by invalidate()) —
-	 *  the memo key for sources that cache their scan. `doc.children` identity is
-	 *  NOT a valid change signal: routine typing mutates in place. */
+	/** Monotonic counter bumped once per document change — an edit, or a whole-document
+	 *  `source` replacement — and never by invalidate(). The memo key for sources that
+	 *  cache their scan. `doc.children` identity is NOT a valid change signal: routine
+	 *  typing mutates in place. */
 	editEpoch: number;
 }
 export interface DecorationSource {

@@ -1,9 +1,28 @@
 {
 	"name": "aragonite",
-	"version": "0.9.30",
+	"version": "0.9.35",
 	"description": "CST block editor for GFM Markdown",
+	"keywords": [
+		"markdown",
+		"gfm",
+		"editor",
+		"block-editor",
+		"wysiwyg",
+		"contenteditable",
+		"syntax-tree",
+		"svelte"
+	],
+	"homepage": "https://github.com/voithos-labs/aragonite#readme",
+	"bugs": {
+		"url": "https://github.com/voithos-labs/aragonite/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/voithos-labs/aragonite.git"
+	},
+	"author": "voithos-labs",
 	"type": "module",
-	"license": "MIT",
+	"license": "GPL-3.0-or-later",
 	"svelte": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
@@ -26,6 +45,16 @@
 			"types": "./dist/plugins/details/index.d.ts",
 			"svelte": "./dist/plugins/details/index.js",
 			"default": "./dist/plugins/details/index.js"
+		},
+		"./plugins/emoji": {
+			"types": "./dist/plugins/emoji/index.d.ts",
+			"svelte": "./dist/plugins/emoji/index.js",
+			"default": "./dist/plugins/emoji/index.js"
+		},
+		"./plugins/footnotes": {
+			"types": "./dist/plugins/footnotes/index.d.ts",
+			"svelte": "./dist/plugins/footnotes/index.js",
+			"default": "./dist/plugins/footnotes/index.js"
 		},
 		"./plugins/latex": {
 			"types": "./dist/plugins/latex/index.d.ts",
@@ -125,13 +154,13 @@
 		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 -- playwright test --project=e2e-perf",
 		"perf:check:prod": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 PERF_PROD=1 -- playwright test --project=e2e-perf-prod",
 		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/gfm-conformance/full-sweep.test.ts",
-		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run src/lib/test/gfm-conformance/kind-differential.property.test.ts src/lib/test/invariants/inline-total-coverage.property.test.ts src/lib/test/invariants/inline-offsets.property.test.ts src/lib/test/invariants/round-trip.property.test.ts src/lib/test/invariants/textcontent-spine.property.test.ts src/lib/test/invariants/serialization-purity.property.test.ts src/lib/test/invariants/selection-partition.property.test.ts src/lib/test/core/directive/roundtrip-coverage.test.ts src/lib/test/undo/undo-restoration.property.test.ts src/lib/test/plugins/mermaid/round-trip.property.test.ts",
+		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run .property.test src/lib/test/core/directive/roundtrip-coverage.test.ts",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && npm run docs:pack:check && npm run lint:eslint",
 		"lint:eslint": "eslint .",
 		"docs:pack:check": "node scripts/build-docs-pack.mjs",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
-		"prepack": "npm run package"
+		"prepack": "npm run package && node scripts/verify-pack.mjs"
 	},
 	"dependencies": {
 		"highlight.js": "^11.11.1"

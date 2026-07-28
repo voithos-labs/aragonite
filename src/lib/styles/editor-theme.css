@@ -25,6 +25,12 @@
 
 :where(.editor, .aragonite-editor-theme) {
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+	/* The editor's type-scale root — headings, code and markers are all `em`-relative,
+	   so one override scales the surface. Mode-independent. Declared HERE, on the
+	   editor root, which means it shadows a value inherited from a host wrapper: a
+	   consumer overrides it at `.editor` (or bridges an ancestor's value through
+	   `.editor { --editor-font-size: var(--my-zoom, 1rem) }`). */
+	--editor-font-size: 1rem;
 
 	/* Host chrome tokens (dark defaults). Consumer-overridable; reads keep inline fallbacks. */
 	--color-bg: #1b1c21;
@@ -91,6 +97,7 @@
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
 	--md-link-blocked-color: rgba(128, 128, 128, 0.7);
 	--md-unresolved-color: #c0392b;
+	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	--md-reorder-indicator: #6496ff;

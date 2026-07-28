@@ -17,8 +17,8 @@ import {
 	type CstNode,
 	type Document
 } from '../nodes';
-import { parseBlocks } from '../parser';
-import { splitLines, type ParsedLine } from '../lines';
+import { parseBlocks, joinRaw } from '../parser';
+import { splitLines, trailingLineEnding, type ParsedLine } from '../lines';
 import { defaultGrammarView } from '../../schema/block-openers';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
@@ -40,7 +40,7 @@ export function registerDirectiveOpeners(): void {
 			const fence = matchDirectiveOpener(ctx.line.text);
 			if (!fence) return null;
 
-			const lineEnding = ctx.line.raw.endsWith('\r\n') ? '\r\n' : '\n';
+			const lineEnding = trailingLineEnding(ctx.line.raw);
 
 			if (fence.tier === 'leaf') {
 				const def = resolveDirective('leaf', fence.name);
@@ -55,7 +55,7 @@ export function registerDirectiveOpeners(): void {
 						closerNewline: false,
 						lineEnding
 					};
-					return { node: factory(parsed), nextIndex: ctx.index + 1 };
+					return { node: factory(parsed), consumed: 1 };
 				}
 				// A leaf re-derives its content range from `node.raw`, so a generic leaf
 				// needs no metadata; a kind-only registration just restamps the kind.
@@ -64,7 +64,7 @@ export function registerDirectiveOpeners(): void {
 					leadingTrivia: ctx.leadingTrivia,
 					raw: ctx.line.raw
 				});
-				return { node, nextIndex: ctx.index + 1 };
+				return { node, consumed: 1 };
 			}
 
 			// Colon-count-aware lookup of the matching closer: a shorter nested closer
@@ -75,14 +75,8 @@ export function registerDirectiveOpeners(): void {
 			if (closerIdx === -1) return null; // unterminated declines to paragraph
 
 			const closerLine = ctx.lines[closerIdx];
-			const bodyText = ctx.lines
-				.slice(ctx.index + 1, closerIdx)
-				.map((l) => l.raw)
-				.join('');
-			const raw = ctx.lines
-				.slice(ctx.index, closerIdx + 1)
-				.map((l) => l.raw)
-				.join('');
+			const bodyText = joinRaw(ctx.lines, ctx.index + 1, closerIdx);
+			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
 			// Reparse the body one nesting level deeper, so nested directives share
 			// the container-depth cap instead of overflowing via a fresh parse().
 			const bodyLines = splitLines(bodyText);
@@ -104,7 +98,7 @@ export function registerDirectiveOpeners(): void {
 					closerNewline,
 					lineEnding
 				};
-				return { node: factory(parsed), nextIndex: closerIdx + 1 };
+				return { node: factory(parsed), consumed: closerIdx + 1 - ctx.index };
 			}
 
 			const node: CstNode = {
@@ -123,7 +117,7 @@ export function registerDirectiveOpeners(): void {
 				closerNewline,
 				lineEnding
 			});
-			return { node, nextIndex: closerIdx + 1 };
+			return { node, consumed: closerIdx + 1 - ctx.index };
 		}
 	});
 }
@@ -131,14 +125,29 @@ export function registerDirectiveOpeners(): void {
 // ── Closer indexing ─────────────────────────────────────────────────────────
 
 // A closer is a line that is entirely colons (`isDirectiveCloser(text, 1)`),
-// closing any opener whose colon count is ≤ the line's length. Their positions
-// and counts are indexed once per line array — an unclosed-opener flood otherwise
+// closing any opener whose colon count is ≤ the line's length. Their positions and
+// counts are indexed once per line array — an unclosed-opener flood otherwise
 // rescans to EOF per opener (O(n²)). Keyed by array identity, so nested reparses
 // (their own stripped arrays) and windows cache independently, and the entry is
 // collected with the array.
-const closerIndexCache = new WeakMap<ParsedLine[], { positions: Int32Array; counts: Int32Array }>();
+//
+// `maxCounts` is a max-tree over `counts`, so "first closer at or after k whose run
+// is long enough" is a descent rather than a forward walk. Bucketing positions per
+// exact colon count — the obvious alternative — fixes only the single-count case: a
+// document spanning K distinct run lengths pays a binary search per candidate count,
+// which is worse than the walk it replaces. The tree is indifferent to how the
+// counts are distributed.
+interface CloserIndex {
+	positions: Int32Array;
+	counts: Int32Array;
+	/** Heap-layout max-tree over `counts`, padded to `leafBase` leaves. */
+	maxCounts: Int32Array;
+	leafBase: number;
+}
 
-function closerIndex(lines: ParsedLine[]): { positions: Int32Array; counts: Int32Array } {
+const closerIndexCache = new WeakMap<ParsedLine[], CloserIndex>();
+
+function closerIndex(lines: ParsedLine[]): CloserIndex {
 	const cached = closerIndexCache.get(lines);
 	if (cached) return cached;
 	const positions: number[] = [];
@@ -150,9 +159,37 @@ function closerIndex(lines: ParsedLine[]): { positions: Int32Array; counts: Int3
 			counts.push(text.length);
 		}
 	}
-	const index = { positions: Int32Array.from(positions), counts: Int32Array.from(counts) };
+	let leafBase = 1;
+	while (leafBase < counts.length) leafBase *= 2;
+	const maxCounts = new Int32Array(2 * leafBase);
+	maxCounts.set(counts, leafBase);
+	for (let i = leafBase - 1; i >= 1; i--) {
+		maxCounts[i] = Math.max(maxCounts[2 * i], maxCounts[2 * i + 1]);
+	}
+	const index: CloserIndex = {
+		positions: Int32Array.from(positions),
+		counts: Int32Array.from(counts),
+		maxCounts,
+		leafBase
+	};
 	closerIndexCache.set(lines, index);
 	return index;
+}
+
+/**
+ * Smallest closer-index slot at or after `from` whose count is ≥ `min`, or -1.
+ * Padding leaves hold 0 and a directive opener runs at least two colons, so they
+ * never match.
+ */
+function firstCloserAtLeast(index: CloserIndex, from: number, min: number): number {
+	const descend = (node: number, lo: number, hi: number): number => {
+		if (hi <= from || index.maxCounts[node] < min) return -1;
+		if (hi - lo === 1) return lo;
+		const mid = (lo + hi) >>> 1;
+		const left = descend(node * 2, lo, mid);
+		return left !== -1 ? left : descend(node * 2 + 1, mid, hi);
+	};
+	return descend(1, 0, index.leafBase);
 }
 
 /**
@@ -166,7 +203,8 @@ function findDirectiveCloser(
 	end: number,
 	colonCount: number
 ): number {
-	const { positions, counts } = closerIndex(lines);
+	const index = closerIndex(lines);
+	const { positions } = index;
 	let lo = 0;
 	let hi = positions.length;
 	while (lo < hi) {
@@ -174,8 +212,7 @@ function findDirectiveCloser(
 		if (positions[mid] <= afterIndex) lo = mid + 1;
 		else hi = mid;
 	}
-	for (let k = lo; k < positions.length && positions[k] < end; k++) {
-		if (counts[k] >= colonCount) return positions[k];
-	}
-	return -1;
+	const slot = firstCloserAtLeast(index, lo, colonCount);
+	if (slot === -1 || slot >= positions.length || positions[slot] >= end) return -1;
+	return positions[slot];
 }

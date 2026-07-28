@@ -21,7 +21,22 @@ export interface KeyBinding {
 }
 
 const MOD_ORDER = ['Mod', 'Alt', 'Shift'] as const;
-const BARE_MODIFIERS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock']);
+
+/**
+ * Keys that are a modifier being held, never a keystroke in their own right —
+ * `eventToChord` returns null for them, and every other keydown consumer that
+ * must ignore "not a chord yet" reads this set rather than re-listing it (the
+ * sticky column's own copy was short two entries, so CapsLock dropped it).
+ */
+export const BARE_MODIFIER_KEYS: readonly string[] = [
+	'Control',
+	'Shift',
+	'Alt',
+	'Meta',
+	'AltGraph',
+	'CapsLock'
+];
+const BARE_MODIFIERS = new Set<string>(BARE_MODIFIER_KEYS);
 
 function normalizeKey(key: string): string {
 	return key.length === 1 ? key.toUpperCase() : key;

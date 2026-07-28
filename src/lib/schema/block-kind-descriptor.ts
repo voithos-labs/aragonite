@@ -24,6 +24,34 @@ export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' 
 export interface UnwrapRole {
 	firstChildBackspace: 'lift-first-child' | 'list-item-cascade';
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
+	/**
+	 * The container is quote-shaped: lifting its first child out (Rule U2) drops
+	 * the opener syntax and leaves a plain blockquote, so `unwrapFirstChildFromQuote`
+	 * takes the lift. A positive opt-in read by presence — a chrome container that
+	 * shares `firstChildBackspace: 'lift-first-child'` but omits this no-ops instead,
+	 * preserving its reserved chrome (the callout path). Keeps the core tree-op free
+	 * of any kind name; a future quote-shaped kind opts in here.
+	 */
+	quoteShaped?: true;
+}
+
+/**
+ * A container whose direct children reorder among themselves (Alt+Arrow nudge /
+ * drag handle). The reorder walk resolves the unit at the nearest ancestor
+ * declaring this; absent means children are NOT independently reorderable — a
+ * listItem's leaf resolves to the item under the list, and an opaque container
+ * declines the reorder at its boundary rather than teleporting the whole block.
+ * Distinct from `quoteShaped`: a list is reorder-within but not quote-shaped, and
+ * a listItem is strip but not reorder-within.
+ */
+export interface ReorderChildrenRole {
+	/**
+	 * Direct children carry position-dependent markers that must be renumbered
+	 * after a permutation (ordered-list numbering). Absent = the per-line marker
+	 * is position-independent (a uniform quote/indent prefix — blockquote,
+	 * githubAlert, footnote-def), so the descriptor's rebuildRaw alone re-emits it.
+	 */
+	renumberMarkers?: true;
 }
 
 export interface BlockKindDescriptor {
@@ -79,6 +107,16 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
+	 * Make text legal as this kind's `raw` before an in-place write lands. The
+	 * companion of `contextDependentKind`: a container that joins its children's
+	 * bytes verbatim gives those bytes delimiter meaning, so a write carrying a
+	 * delimiter would restructure the container instead of adding text (a bare `|`
+	 * in a tableCell deletes the row's last column). Applied at the write sink so
+	 * no gesture carries the rule; must be idempotent and prefix-composable, since
+	 * callers map their caret through the same pass. Absent = raw is written as given.
+	 */
+	normalizeRawWrite?: (raw: string) => string;
+	/**
 	 * Declares child index 0 of this container as a reserved chrome leaf of the
 	 * given kind (a title/summary whose bytes live in the container's own raw —
 	 * e.g. the callout opener line). The machinery enforces: always present,
@@ -94,6 +132,14 @@ export interface BlockKindDescriptor {
 		 * at the chrome leaf instead of reaching into the clamped-out body.
 		 */
 		isCollapsed?: (node: NodeView) => boolean;
+		/**
+		 * The metadata patch that expands a collapsed node, so a reveal aimed at a
+		 * clamped-out body child opens the container instead of dead-ending on it.
+		 * Pure like the probe beside it (node in, patch out); the container seam owns
+		 * the commit — one undoable metadata edit, inert in reading mode. Absent, or a
+		 * null return, means no door: the reveal degrades to the chrome row.
+		 */
+		expandPatch?: (node: NodeView) => Record<string, unknown> | null;
 	};
 	/**
 	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
@@ -118,6 +164,8 @@ export interface BlockKindDescriptor {
 	};
 	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
 	unwrapRole?: UnwrapRole;
+	/** This container's direct children reorder among themselves. Absent = not reorder-within. */
+	reorderChildren?: ReorderChildrenRole;
 	/**
 	 * Declarative chord -> command map for this kind. Consulted by
 	 * dispatchKeyCommand before the editor-global table, so a kind can shadow a
@@ -168,6 +216,7 @@ export interface ContainerDescriptorGroup {
 	reservedChrome?: BlockKindDescriptor['reservedChrome'];
 	containerPaste?: BlockKindDescriptor['containerPaste'];
 	unwrapRole?: UnwrapRole;
+	reorderChildren?: ReorderChildrenRole;
 }
 
 // One source for both the type-level Omit and the runtime strip: excess-property
@@ -179,7 +228,8 @@ const CONTAINER_ONLY_KEYS = [
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',
-	'unwrapRole'
+	'unwrapRole',
+	'reorderChildren'
 ] as const;
 type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
 
@@ -268,6 +318,7 @@ function mergeBlockKindFields(
 		next.reservedChrome = container.reservedChrome ?? existing.reservedChrome;
 		next.containerPaste = container.containerPaste ?? existing.containerPaste;
 		next.unwrapRole = container.unwrapRole ?? existing.unwrapRole;
+		next.reorderChildren = container.reorderChildren ?? existing.reorderChildren;
 	}
 	registry.set(kind, next);
 	enqueueRegistrationCheck(kind);

@@ -10,7 +10,7 @@
 
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { trimTrailingLineEnding } from '../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { ensureEditableContainers } from './node-ops';
 import { parseFirstBlock } from './parse-block';
 
@@ -22,7 +22,7 @@ export function buildPastedReplacement(
 	if (blocks.length === 0) return [];
 
 	const leafRaw = leaf.raw;
-	const lineEnding = leafRaw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lineEnding = trailingLineEnding(leafRaw);
 	const display = trimTrailingLineEnding(leafRaw);
 	const rawBefore = display.slice(0, offset);
 	const rawAfter = display.slice(offset);
@@ -73,33 +73,6 @@ export function buildPastedReplacement(
 	}
 
 	return newNodes;
-}
-
-/**
- * Fold a paste — with an optional pre-delete range — into the replacement node
- * list for a single leaf. Shared by both factories' `insertParsedBlocks`: the
- * pre-delete is spliced out of a synthesized leaf so one replaceBlock/paste
- * covers delete + paste as a single undo entry. The factories differ only in
- * the op they emit around this fold, not the fold itself.
- */
-export function foldPasteReplacement(
-	node: NodeView,
-	offset: number,
-	blocks: CstNode[],
-	preDelete?: { start: number; end: number }
-): CstNode[] {
-	let synthLeaf: NodeView = node;
-	let effectiveOffset = offset;
-	if (preDelete && preDelete.start < preDelete.end) {
-		const display = trimTrailingLineEnding(node.raw);
-		const lineEnd = node.raw.endsWith('\r\n') ? '\r\n' : '\n';
-		synthLeaf = {
-			...node,
-			raw: display.slice(0, preDelete.start) + display.slice(preDelete.end) + lineEnd
-		};
-		effectiveOffset = preDelete.start;
-	}
-	return buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────

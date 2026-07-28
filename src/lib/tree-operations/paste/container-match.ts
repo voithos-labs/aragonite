@@ -7,9 +7,9 @@
 
 import { CURSOR_END } from '../../block-component';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
-import { trimTrailingLineEnding } from '../../core/lines';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt } from '../node-ops';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
@@ -19,6 +19,7 @@ import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
+import { docPathFrom } from '../../cursor/coordinate-spaces';
 
 interface ContainerUnwrap {
 	outerPath: number[];
@@ -52,7 +53,7 @@ export function findContainerMatchingUnwrap(
 ): ContainerUnwrap | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
-	const containerPaste = tryGetBlockKindDescriptor(topBlock.kind)?.containerPaste;
+	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste) return null;
 	if (!topBlock.children || topBlock.children.length === 0) return null;
 
@@ -155,7 +156,8 @@ export async function applyContainerMatchingPaste(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
+		snapshot:
+			ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(unwrap.outerPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
@@ -177,7 +179,7 @@ export async function applyContainerMatchingPaste(
 		op: {
 			kind: 'paste',
 			detail: { source: 'container-matching', outerPath: unwrap.outerPath },
-			eventPath: unwrap.outerPath
+			eventPath: docPathFrom(unwrap.outerPath)
 		},
 		afterTick: () => {
 			const lastInsertedIdx = unwrap.spliceIndex + unwrap.items.length - 1;
@@ -206,7 +208,7 @@ async function applyContainerMatchingMerge(
 	const firstLeaf = firstItem.children?.[0];
 	if (!firstLeaf) return;
 
-	const targetLineEnding = targetLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const targetLineEnding = trailingLineEnding(targetLeaf.raw);
 	const targetDisplay = trimTrailingLineEnding(targetLeaf.raw);
 	const displayBefore = targetDisplay.slice(0, merge.offset);
 	const displayAfter = targetDisplay.slice(merge.offset);
@@ -222,7 +224,8 @@ async function applyContainerMatchingMerge(
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
 			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-			snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
+			snapshot:
+				ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(unwrap.outerPath), offset: 0 },
 			mutate: ([scopeView]) => {
 				const sharing = scopeView.sharing;
 				// The merged leaf sits BELOW the scope node — own its full spine.
@@ -235,10 +238,19 @@ async function applyContainerMatchingMerge(
 			op: {
 				kind: 'paste',
 				detail: { source: 'container-matching-merge-singleton', outerPath: unwrap.outerPath },
-				eventPath: unwrap.outerPath
+				eventPath: docPathFrom(unwrap.outerPath)
 			},
 			afterTick: () => {
-				outerState.innerBlockRefs[unwrap.spliceIndex]?.focus(CURSOR_END);
+				// End of the pasted content, before the reattached residue (displayAfter).
+				// The residue lives INSIDE the merged leaf, so this is a char offset in
+				// that leaf, not a block index — the container ref's focus(number) clamps
+				// a non-sentinel offset to the last child's end, so descend by path.
+				const subPath = merge.targetLeafPath.slice(unwrap.outerPath.length);
+				ctx.controller.focusByPath(
+					outerState.innerBlockRefs,
+					subPath,
+					displayBefore.length + firstItemText.length
+				);
 			}
 		});
 		return;
@@ -251,12 +263,13 @@ async function applyContainerMatchingMerge(
 	// clean no-op rather than a half-applied mutation.
 	const lastLeaf = lastItem.children?.[0];
 	if (!lastLeaf) return;
-	const lastLineEnding = lastLeaf.raw.endsWith('\r\n') ? '\r\n' : '\n';
+	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: [...unwrap.outerPath], offset: 0 },
+		snapshot:
+			ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(unwrap.outerPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			// The merged leaf sits BELOW the scope node — own its full spine.
@@ -273,26 +286,35 @@ async function applyContainerMatchingMerge(
 			// children carry correct raws in one reactive flush.
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
+			// The siblings land after the merged target, which keeps its own slot.
+			const insertAt = unwrap.spliceIndex + 1;
 			const change: StructuralChange = {
 				op: 'insert',
-				at: unwrap.spliceIndex + 1,
+				at: insertAt,
 				count: remainingItems.length
 			};
-			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex + 1, 0, remainingItems);
+			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
 			// Renumber the already-proxied tail below the spliced siblings; the merged
 			// target keeps its number. No-op for unordered lists / non-list containers.
-			renumberOrderedList(scopeView.node, unwrap.spliceIndex + 1 + remainingItems.length, sharing);
+			renumberOrderedList(scopeView.node, insertAt + remainingItems.length, sharing);
 			return [change];
 		},
 		op: {
 			kind: 'paste',
 			detail: { source: 'container-matching-merge', outerPath: unwrap.outerPath },
-			eventPath: unwrap.outerPath
+			eventPath: docPathFrom(unwrap.outerPath)
 		},
 		afterTick: () => {
+			// End of the pasted content: the last spliced item's paragraph, at the
+			// join before the reattached residue (displayAfter) — a char offset in
+			// that leaf, so descend by path rather than CURSOR_END on the item ref.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
-			outerState.innerBlockRefs[lastInsertedIdx]?.focus(CURSOR_END);
+			ctx.controller.focusByPath(
+				outerState.innerBlockRefs,
+				[lastInsertedIdx, 0],
+				lastDisplay.length
+			);
 		}
 	});
 }

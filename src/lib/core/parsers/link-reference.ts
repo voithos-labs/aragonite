@@ -5,57 +5,38 @@
  * Footnote labels (`[^...]:`) are excluded — they parse as paragraphs.
  */
 
-import type { CstNode } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
-import { lineInterruptsParagraph } from '../../schema/block-openers';
+import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
 
 export function parseLinkReferenceDefinition(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string
-): { node: CstNode; nextIndex: number } | null {
+): BlockOpenerResult | null {
 	const first = lines[startIndex];
 	const opener = matchLabelOpener(first.text);
 	if (!opener) return null;
 	const { label, afterColon } = opener;
 	if (label.startsWith('^')) return null;
 
-	const segment = afterColon.replace(/^[ \t]*/, '');
-	let url: string | undefined;
-	let title: string | undefined;
-	let lineCursor = startIndex;
+	// The destination sits on the definition line or the one after it; resolve which
+	// first, then run one url + title tail regardless of which line it came from.
+	const destination = resolveDestinationSegment(afterColon, lines, startIndex, endIndex);
+	if (!destination) return null;
 
-	if (segment.length > 0) {
-		const urlResult = parseUrl(segment);
-		if (!urlResult) return null;
-		url = urlResult.url;
-		const afterUrl = segment.slice(urlResult.consumed).replace(/^[ \t]*/, '');
-		const tail = resolveTitle(afterUrl, lines, lineCursor + 1, endIndex);
-		if (!tail) return null;
-		title = tail.title;
-		if (tail.titleLine !== null) lineCursor = tail.titleLine;
-	} else {
-		// URL may sit on the next line (CommonMark §4.7 allows one line ending
-		// before the destination); bare `[label]:` with no URL is not a definition.
-		if (lineCursor + 1 >= endIndex) return null;
-		const nextLine = lines[lineCursor + 1];
-		// A line that opens another block is that block, not this definition's URL.
-		if (lineInterruptsParagraph(nextLine.text)) return null;
-		const stripped = nextLine.text.replace(/^[ \t]*/, '');
-		if (stripped.length === 0) return null;
-		const urlResult = parseUrl(stripped);
-		if (!urlResult) return null;
-		url = urlResult.url;
-		lineCursor++;
-		const afterUrl = stripped.slice(urlResult.consumed).replace(/^[ \t]*/, '');
-		const tail = resolveTitle(afterUrl, lines, lineCursor + 1, endIndex);
-		if (!tail) return null;
-		title = tail.title;
-		if (tail.titleLine !== null) lineCursor = tail.titleLine;
-	}
+	const urlResult = parseUrl(destination.segment);
+	if (!urlResult) return null;
+	const url = urlResult.url;
+
+	let lineCursor = destination.segmentLine;
+	const afterUrl = stripLeadingSpaces(destination.segment.slice(urlResult.consumed));
+	const tail = resolveTitle(afterUrl, lines, lineCursor + 1, endIndex);
+	if (!tail) return null;
+	const title = tail.title;
+	if (tail.titleLine !== null) lineCursor = tail.titleLine;
 
 	const raw = joinRaw(lines, startIndex, lineCursor + 1);
 	return {
@@ -65,12 +46,40 @@ export function parseLinkReferenceDefinition(
 			raw,
 			metadata: {
 				label,
-				...(url !== undefined ? { url } : {}),
+				url,
 				...(title !== undefined ? { title } : {})
 			}
 		},
-		nextIndex: lineCursor + 1
+		consumed: lineCursor + 1 - startIndex
 	};
+}
+
+function stripLeadingSpaces(s: string): string {
+	return s.replace(/^[ \t]*/, '');
+}
+
+/**
+ * The destination segment and the line it lives on. Same-line `[label]: url` uses the
+ * definition line; an empty tail defers to the next line (CommonMark §4.7 allows one
+ * line ending before the destination). Bare `[label]:` with no URL, a next line that
+ * opens another block, or an empty next line all decline.
+ */
+function resolveDestinationSegment(
+	afterColon: string,
+	lines: ParsedLine[],
+	startIndex: number,
+	endIndex: number
+): { segment: string; segmentLine: number } | null {
+	const sameLine = stripLeadingSpaces(afterColon);
+	if (sameLine.length > 0) return { segment: sameLine, segmentLine: startIndex };
+
+	const nextLineIndex = startIndex + 1;
+	if (nextLineIndex >= endIndex) return null;
+	const nextLine = lines[nextLineIndex];
+	if (lineInterruptsParagraph(nextLine.text)) return null;
+	const segment = stripLeadingSpaces(nextLine.text);
+	if (segment.length === 0) return null;
+	return { segment, segmentLine: nextLineIndex };
 }
 
 // CommonMark §4.7: brackets inside a label may be backslash-escaped. Walks one
@@ -150,7 +159,7 @@ function resolveTitle(
 function parseTrailingTitle(afterUrl: string): string | undefined {
 	const t = matchTitleSingleLine(afterUrl);
 	if (!t) return undefined;
-	const trailing = afterUrl.slice(t.consumed).replace(/^[ \t]*/, '');
+	const trailing = stripLeadingSpaces(afterUrl.slice(t.consumed));
 	return trailing.length === 0 ? t.title : undefined;
 }
 
@@ -160,11 +169,11 @@ function consumeContinuationTitle(
 	endIndex: number
 ): { title: string; lineIndex: number } | null {
 	if (lineIndex >= endIndex) return null;
-	const stripped = lines[lineIndex].text.replace(/^[ \t]*/, '');
+	const stripped = stripLeadingSpaces(lines[lineIndex].text);
 	if (stripped.length === 0) return null;
 	const t = matchTitleSingleLine(stripped);
 	if (!t) return null;
-	const trailing = stripped.slice(t.consumed).replace(/^[ \t]*/, '');
+	const trailing = stripLeadingSpaces(stripped.slice(t.consumed));
 	if (trailing.length !== 0) return null;
 	return { title: t.title, lineIndex };
 }

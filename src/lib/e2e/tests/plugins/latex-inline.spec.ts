@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { PluginsPage, revealWidget, roundTripStable } from './helpers';
+import { capturePageErrors } from '../../page-probes';
 
 /**
  * Inline `$…$` math: select → reveal editable source → commit re-renders (design
@@ -160,14 +161,16 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(revealed).not.toContain('$x^2$Z');
 	});
 
-	test('editing the source and pressing Enter re-renders KaTeX and persists the edit', async ({
+	test('editing the source and walking the caret out re-renders KaTeX and persists the edit', async ({
 		page
 	}) => {
 		await editor.revealByClick();
 		// Move into the source (past the opening `$`) and type inside the formula.
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
-		await page.keyboard.press('Enter');
+		// End carries the caret out of the source, which is what folds an edited reveal.
+		// Enter no longer commits — it is the block's split key (latex-inline-reveal-commands).
+		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
 		await expect(editor.mathWidget.locator('.katex')).toHaveCount(1);
@@ -188,10 +191,11 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(revealed).toContain('z$x^2$');
 		expect(revealed).not.toContain('zBefore');
 
-		await page.keyboard.press('Enter');
+		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
 		// Commit landed the caret at the math's trailing edge: the next char lands
-		// immediately after the re-rendered widget.
+		// immediately after the re-rendered widget — the escape's own End position
+		// does not survive the fold, the widget's trailing edge does.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('$x^2$!');
 		expect(await editor.bridge.getSource()).toContain('Before z$x^2$! after');
@@ -244,35 +248,32 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		// Reveal the math and commit with NO edit. A zero-diff commit would push a dead
 		// undo entry, so this Ctrl+Z would revert the no-op instead of the ABC edit.
 		await editor.revealByClick();
-		await page.keyboard.press('Enter');
+		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains('ABC');
 	});
 
-	// FIXME: battery-order-sensitive — green 55/55 focused (any load), red in the
-	// full plugins battery only; the Shift+ArrowDown never engages cross-block
-	// (waitForCrossBlock times out). End-press, wait-ceiling, font-settle, and the
-	// visual-line reader's dropped-range hard-false (fixed 0.9.27) all falsified.
-	// The semantics are unit-pinned (widget-reveal-collapse's cross-block bail).
-	// Ledgered in docs/issues.md; un-fixme with the repro.
-	test.fixme('a cross-block selection through the revealed source survives a blur without folding', async ({
+	test('a cross-block selection through the revealed source survives a blur without folding', async ({
 		page
 	}) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (e) => pageErrors.push(String(e)));
+		const pageErrors = capturePageErrors(page);
 
 		await editor.revealByClick();
 		// The keyboard-extend decision is visual-line GEOMETRY; a KaTeX font swap
 		// mid-measure (reachable under saturated parallel workers) breaks the
 		// last-line detection, so settle fonts before the gesture.
 		await page.evaluate(() => document.fonts.ready);
-		// Extend down into the next paragraph straight from the reveal caret — the
-		// anchor endpoint stays INSIDE the revealed source text node while the focus
-		// endpoint crosses the block boundary. (An End press first would escape the
-		// source and legitimately fold the reveal under containment scoping — on a
-		// slow machine that selectionchange processes before the cross-block one.)
+		// Extend down into the next paragraph straight from the reveal caret. The
+		// reveal caret lands at the source's leading edge (a mid-block offset), and
+		// the block is one visual line, so the FIRST Shift+ArrowDown extends to the
+		// line end within the block — a shift-extension, which keeps the source
+		// revealed (unlike a collapsed End press, which would escape the island and
+		// fold it). The SECOND crosses the boundary now that the focus sits at the
+		// block end. The anchor stays INSIDE the revealed source throughout (a
+		// forward selection anchors at its origin), so the focus alone crosses.
+		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 

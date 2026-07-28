@@ -6,6 +6,7 @@ import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
 import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/directive/registry';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { roundTripCases } from '$lib/test/support/round-trip';
 
 activateDirectiveGrammar(); // openers + ':' recognizer + generic kinds, before any parse
 
@@ -25,11 +26,7 @@ const cases = [
 ];
 
 describe('directive round-trip property', () => {
-	for (const src of cases) {
-		it(`round-trips ${JSON.stringify(src)}`, () => {
-			expect(serialize(parse(src))).toBe(src);
-		});
-	}
+	roundTripCases(cases);
 
 	it('opens a well-formed :::name as a directive container, not a paragraph', () => {
 		expect(parse(':::x\ny\n:::\n').children[0].kind).toBe('directiveContainer');

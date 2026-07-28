@@ -2,6 +2,14 @@ import { type Page, type Locator } from '@playwright/test';
 import { primaryModifier } from './platform';
 import { EditorBridge } from './editor-bridge';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
+import {
+	BLOCK_CONTENT_SELECTOR,
+	BLOCK_CONTENT_LOCATOR_SELECTOR
+} from '../components/block-content-selector';
+
+// Re-exported so specs route their in-`evaluate` block-content lookups through the
+// one selector definition instead of inlining `:not(.selection-overlay)`.
+export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
 export class EditorPage {
 	readonly editorContainer: Locator;
@@ -87,14 +95,14 @@ export class EditorPage {
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
-			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle):not(.decoration-badge)')
+			.locator(BLOCK_CONTENT_LOCATOR_SELECTOR)
 			.first();
 	}
 
 	getBlocks(): Locator {
 		return this.page
 			.locator('[data-block-path]:not([data-block-path*=","])')
-			.locator(':scope > *:not(.selection-overlay):not(.block-drag-handle):not(.decoration-badge)');
+			.locator(BLOCK_CONTENT_LOCATOR_SELECTOR);
 	}
 
 	async getDomBlockCount(): Promise<number> {
@@ -139,11 +147,9 @@ export class EditorPage {
 		position: 'start' | 'end' | number
 	): Promise<void> {
 		await this.page.evaluate(
-			({ pathAttr, position }) => {
+			({ pathAttr, position, contentSelector }) => {
 				const wrapper = document.querySelector(`[data-block-path='${pathAttr}']`);
-				const block = wrapper?.querySelector(
-					':scope > :not(.selection-overlay):not(.decoration-badge)'
-				) as HTMLElement | null;
+				const block = wrapper?.querySelector(contentSelector) as HTMLElement | null;
 				// Throw, never silently return: a selector drift (missing wrapper or
 				// editable) must fail the spec, not let a downstream absence-assertion
 				// pass for the wrong reason. Mirrors pointForOffset.
@@ -182,7 +188,7 @@ export class EditorPage {
 				sel.removeAllRanges();
 				sel.addRange(range);
 			},
-			{ pathAttr: JSON.stringify([index]), position }
+			{ pathAttr: JSON.stringify([index]), position, contentSelector: BLOCK_CONTENT_SELECTOR }
 		);
 	}
 
@@ -192,15 +198,13 @@ export class EditorPage {
 	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
-			({ path, offset }) => {
+			({ path, offset, contentSelector }) => {
 				const attr = JSON.stringify(path);
 				const wrapper = document.querySelector(`[data-block-path='${attr}']`);
 				// Throw, never silently return: selector drift must fail the spec, not
 				// green an absence-assertion for the wrong reason. Mirrors pointForOffset.
 				if (!wrapper) throw new Error(`focusBlockAtPath: no block wrapper at ${attr}`);
-				const block = wrapper.querySelector(
-					':scope > :not(.selection-overlay):not(.decoration-badge)'
-				) as HTMLElement | null;
+				const block = wrapper.querySelector(contentSelector) as HTMLElement | null;
 				if (!block) throw new Error(`focusBlockAtPath: no editable at ${attr}`);
 				block.focus();
 
@@ -236,7 +240,7 @@ export class EditorPage {
 				range.collapse(false);
 				sel?.addRange(range);
 			},
-			{ path, offset }
+			{ path, offset, contentSelector: BLOCK_CONTENT_SELECTOR }
 		);
 	}
 
@@ -287,10 +291,6 @@ export class EditorPage {
 
 	async selectAll() {
 		await this.page.keyboard.press(`${primaryModifier}+a`);
-	}
-
-	async screenshot(name: string) {
-		await this.page.screenshot({ path: `test-results/${name}.png` });
 	}
 
 	// ── Drag & Shift+Click ──────────────────────────────────────────────

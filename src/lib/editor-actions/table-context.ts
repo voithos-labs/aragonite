@@ -10,10 +10,11 @@ import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
+import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { expectStateForNode } from '../reactivity/state-registry';
+import { getStateForNode } from '../reactivity/state-registry';
 import { assertInvariant } from '../invariants/assert';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
@@ -101,14 +102,18 @@ export function createTableMutationsContext(
 			containerNode: node,
 			path: [...myPath],
 			state: rowsState,
-			snapshot: { path: [...myPath, rowIdx], offset: 0 },
+			snapshot: { path: extendDocPath(myPath, rowIdx), offset: 0 },
 			mutate: (scope) => {
 				insertEmptyRow(scope.node, rowIdx, side);
 				scope.sharing.stamp(scope.children[insertAt]);
 				rebuildTableRowRaw(scope.children[insertAt]);
 				return { op: 'insert', at: insertAt, count: 1 };
 			},
-			op: { kind: 'tableInsertRow', detail: { rowIdx, side }, eventPath: [...myPath, insertAt] },
+			op: {
+				kind: 'tableInsertRow',
+				detail: { rowIdx, side },
+				eventPath: extendDocPath(myPath, insertAt)
+			},
 			afterTick: () => {
 				focusCell(insertAt, 0, 'start');
 				deps.announceReorder('Inserted row');
@@ -116,16 +121,25 @@ export function createTableMutationsContext(
 		});
 	}
 
-	function columnScopes(): MultiScopeTarget[] {
+	/**
+	 * The table scope followed by one scope per MOUNTED row, with the row index
+	 * each of those covers. A row's BlockListState registers on mount, so a row
+	 * windowed out of the table's mounted slice has none — scoping every row threw
+	 * on the first off-window one and took the whole column gesture with it.
+	 * Reactivity is per-mounted-row; the byte work reaches every row through the
+	 * table scope (see `commitColumnEdit`).
+	 */
+	function mountedColumnScopes(): { scopes: MultiScopeTarget[]; rowIndices: number[] } {
 		const { node, myPath, rowsState } = deps;
-		return [
-			{ node, state: rowsState, path: [...myPath] },
-			...(node.children ?? []).map((row, i) => ({
-				node: row,
-				state: expectStateForNode(row),
-				path: [...myPath, i]
-			}))
-		];
+		const scopes: MultiScopeTarget[] = [{ node, state: rowsState, path: [...myPath] }];
+		const rowIndices: number[] = [];
+		(node.children ?? []).forEach((row, i) => {
+			const state = getStateForNode(row);
+			if (!state) return;
+			scopes.push({ node: row, state, path: [...myPath, i] });
+			rowIndices.push(i);
+		});
+		return { scopes, rowIndices };
 	}
 
 	async function commitColumnEdit(opts: {
@@ -137,24 +151,33 @@ export function createTableMutationsContext(
 		afterTick: () => void;
 	}): Promise<void> {
 		const { myPath, controller } = deps;
+		const { scopes, rowIndices } = mountedColumnScopes();
 		await controller.commitMultiScope({
-			scopes: columnScopes(),
+			scopes,
 			// Columns aren't nodes: the table itself is the restore coordinate.
-			snapshot: { path: [...myPath], offset: 0 },
+			snapshot: { path: docPathFrom(myPath), offset: 0 },
 			mutate: ([tableScope, ...rowScopes]) => {
+				// A mounted row is already owned through its own scope; this reaches the
+				// windowed-out rows the scopes skip, so the per-row cell splice below
+				// never writes through a snapshot-shared row (G1.9). The table's own
+				// rebuildRaw then rewrites every row, mounted or not.
+				ensureUnsharedChildren(tableScope.node, tableScope.sharing);
 				// The column splice walks the owned table's rows; this only syncs the
-				// row scopes' ids/refs correctly because each row view IS that child.
+				// row scopes' ids/refs correctly because each row view IS the child at
+				// the index it covers.
 				assertInvariant('column-scope-alignment', () =>
-					rowScopes.every((s, i) => s.node === tableScope.node.children?.[i])
+					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
 						? null
 						: {
 								code: 'column-scope-alignment',
 								message: 'commitColumnEdit: row scopes misaligned with owned table children'
 							}
 				);
-				return [{ op: 'noop' }, ...opts.mutateColumns(tableScope.node)];
+				// One change per row, in row order — pair the mounted rows with theirs.
+				const perRow = opts.mutateColumns(tableScope.node);
+				return [{ op: 'noop' }, ...rowIndices.map((i) => perRow[i])];
 			},
-			op: { ...opts.op, eventPath: [...myPath] },
+			op: { ...opts.op, eventPath: docPathFrom(myPath) },
 			afterTick: opts.afterTick
 		});
 	}
@@ -188,7 +211,7 @@ export function createTableMutationsContext(
 			containerNode: node,
 			path: [...myPath],
 			state: rowsState,
-			snapshot: { path: [...myPath, from], offset: 0 },
+			snapshot: { path: extendDocPath(myPath, from), offset: 0 },
 			mutate: (scope) => {
 				// rebuildTableRaw rewrites EVERY row's raw (canonical padding), so the
 				// rows must be unshared before the write — reorderChildren only permutes
@@ -198,7 +221,7 @@ export function createTableMutationsContext(
 				rebuildTableRaw(scope.node);
 				return change;
 			},
-			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: [...myPath, to] },
+			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: extendDocPath(myPath, to) },
 			afterTick: () => {
 				focusCell(to, col, 'start');
 				deps.announceReorder(`Moved row to position ${to} of ${rowCount - 1}`);
@@ -261,14 +284,18 @@ export function createTableMutationsContext(
 				containerNode: node,
 				path: [...myPath],
 				state: rowsState,
-				snapshot: { path: [...myPath, rowIdx], offset: 0 },
+				snapshot: { path: extendDocPath(myPath, rowIdx), offset: 0 },
 				mutate: (scope) => {
 					// deleteRow promotes the next row to header (a metadata write).
 					ensureUnsharedChildren(scope.node, scope.sharing);
 					mutDeleteRow(scope.node, rowIdx);
 					return { op: 'delete', at: rowIdx, count: 1 };
 				},
-				op: { kind: 'tableDeleteRow', detail: { rowIdx }, eventPath: [...myPath, rowIdx] },
+				op: {
+					kind: 'tableDeleteRow',
+					detail: { rowIdx },
+					eventPath: extendDocPath(myPath, rowIdx)
+				},
 				afterTick: () => {
 					deps.announceReorder('Deleted row');
 					// Read through `deps.node`: the captured `node` is the pre-commit
@@ -313,12 +340,12 @@ export function createTableMutationsContext(
 				containerNode: node,
 				path: [...myPath],
 				state: rowsState,
-				snapshot: { path: [...myPath], offset: 0 },
+				snapshot: { path: docPathFrom(myPath), offset: 0 },
 				mutate: (scope) => {
 					mutCycleAlignment(scope.node, colIdx);
 					return { op: 'noop' };
 				},
-				op: { kind: 'tableCycleAlignment', detail: { colIdx }, eventPath: [...myPath] }
+				op: { kind: 'tableCycleAlignment', detail: { colIdx }, eventPath: docPathFrom(myPath) }
 			});
 		},
 
@@ -336,12 +363,12 @@ export function createTableMutationsContext(
 				containerNode: node,
 				path: [...myPath],
 				state: rowsState,
-				snapshot: { path: [...myPath], offset: 0 },
+				snapshot: { path: docPathFrom(myPath), offset: 0 },
 				mutate: (scope) => {
 					mutSetAlignment(scope.node, colIdx, alignment);
 					return { op: 'noop' };
 				},
-				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: [...myPath] },
+				op: { kind: 'tableSetAlignment', detail: { colIdx }, eventPath: docPathFrom(myPath) },
 				afterTick: () => {
 					focusCell(cell?.rowIdx ?? 0, colIdx, 'start');
 					deps.announceReorder(

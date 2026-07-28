@@ -29,7 +29,7 @@ import { registerBlockListState } from '../../reactivity/state-registry';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
@@ -146,19 +146,15 @@ export function registerSubtreeStates(node: CstNode): void {
 
 function nestedBundleAt(h: Harness, index: number): NestedActionsBundle {
 	const state = makeBlockListState(() => h.deps.doc.children[index]);
-	return createStandardNestedActions(state, {
-		index,
-		get node() {
-			return h.deps.doc.children[index];
-		},
-		path: [index],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: h.blockEdit,
-			focus: makeStubFocus(),
-			containerEdit: h.rootContainerEdit
-		}
-	});
+	return createStandardNestedActions(
+		state,
+		makeNestedActionsDeps({
+			index,
+			getNode: () => h.deps.doc.children[index],
+			path: [index],
+			parent: { blockEdit: h.blockEdit, focus: makeStubFocus(), containerEdit: h.rootContainerEdit }
+		})
+	);
 }
 
 // ── Op runners ───────────────────────────────────────────────────────────────
@@ -254,29 +250,24 @@ async function runListOp(
 	const item = list.children[itemIdx];
 
 	const listState = makeBlockListState(() => h.deps.doc.children[listIndex]);
-	const listDeps = {
+	const listDeps = makeNestedActionsDeps({
 		index: listIndex,
-		get node() {
-			return h.deps.doc.children[listIndex];
-		},
+		getNode: () => h.deps.doc.children[listIndex],
 		path: [listIndex],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: h.blockEdit,
-			focus: makeStubFocus(),
-			containerEdit: h.rootContainerEdit
-		}
-	};
+		parent: { blockEdit: h.blockEdit, focus: makeStubFocus(), containerEdit: h.rootContainerEdit }
+	});
 	const bundle = createStandardNestedActions(listState, listDeps);
 	const context = createListContext({
-		get index() {
-			return listIndex;
-		},
-		get node() {
-			return h.deps.doc.children[listIndex];
-		},
-		get path() {
-			return [listIndex];
+		scope: {
+			get index() {
+				return listIndex;
+			},
+			get node() {
+				return h.deps.doc.children[listIndex];
+			},
+			get path() {
+				return [listIndex];
+			}
 		},
 		state: listState,
 		parentBlockEdit: makeStubBlockEdit(),
@@ -305,15 +296,15 @@ async function runListOp(
 		const leaf = item.children?.[0];
 		if (leaf?.kind !== 'paragraph') return;
 		const itemState = makeBlockListState(() => h.deps.doc.children[listIndex].children![itemIdx]);
-		const itemBundle = createStandardNestedActions(itemState, {
-			index: itemIdx,
-			get node() {
-				return h.deps.doc.children[listIndex].children![itemIdx];
-			},
-			path: [listIndex, itemIdx],
-			stickyColumn: makeStickyColumn(),
-			parent: bundle
-		});
+		const itemBundle = createStandardNestedActions(
+			itemState,
+			makeNestedActionsDeps({
+				index: itemIdx,
+				getNode: () => h.deps.doc.children[listIndex].children![itemIdx],
+				path: [listIndex, itemIdx],
+				parent: bundle
+			})
+		);
 		const text = trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1) + '\n';
 		await itemBundle.blockEdit.updateBlockContent(0, text, 0);
 	}
@@ -363,15 +354,15 @@ async function runTableOp(
 		if (!row.children || row.children.length === 0) return;
 		const colIdx = op.c % row.children.length;
 		const rowState = makeBlockListState(() => h.deps.doc.children[tableIndex].children![rowIdx]);
-		const rowBundle = createStandardNestedActions(rowState, {
-			index: rowIdx,
-			get node() {
-				return h.deps.doc.children[tableIndex].children![rowIdx];
-			},
-			path: [tableIndex, rowIdx],
-			stickyColumn: makeStickyColumn(),
-			parent: nestedBundleAt(h, tableIndex)
-		});
+		const rowBundle = createStandardNestedActions(
+			rowState,
+			makeNestedActionsDeps({
+				index: rowIdx,
+				getNode: () => h.deps.doc.children[tableIndex].children![rowIdx],
+				path: [tableIndex, rowIdx],
+				parent: nestedBundleAt(h, tableIndex)
+			})
+		);
 		const text = trimTrailingLineEnding(row.children[colIdx].raw) + 'z'.repeat(op.n + 1);
 		await rowBundle.blockEdit.updateBlockContent(colIdx, text, 0);
 		return;

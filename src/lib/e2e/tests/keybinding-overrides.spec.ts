@@ -88,7 +88,7 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Tab');
 
-		await editor.page.waitForTimeout(150); // absence-of-indent check; no shape to poll for
+		await editor.waitForNoSourceMutation();
 		expect(await source(editor)).not.toMatch(/- one\n {2}- two/);
 		expect(await source(editor)).toContain('- two');
 	});
@@ -104,7 +104,7 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Tab');
 
-		await editor.page.waitForTimeout(150); // absence-of-indent check; no shape to poll for
+		await editor.waitForNoSourceMutation();
 		expect(await source(editor)).not.toMatch(/- one\n {2}- two/);
 		expect(await source(editor)).toContain('- two');
 	});

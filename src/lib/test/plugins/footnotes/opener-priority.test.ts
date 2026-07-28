@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import { footnotesPlugin } from '../../../../routes/test/plugins/footnotes/footnotes-plugin';
-import { FOOTNOTE_DEF_KIND } from '../../../../routes/test/plugins/footnotes/constants';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 
 describe('footnote definition opener priority', () => {
 	beforeEach(() => {

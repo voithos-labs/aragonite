@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import type { EditorPage } from '../editor-page';
 import type { ExpectationTracker } from './expectation';
 import type { ErrorCollector } from './error-collector';
-import type { NoteFixture } from './notes/types';
+import type { ImeDriver } from './ime';
 import { getContainerParityMismatches } from '../container-parity';
 
 export interface SimContext {
@@ -11,6 +11,10 @@ export interface SimContext {
 	tracker: ExpectationTracker;
 	errors: ErrorCollector;
 	label: string;
+	/** Present only for sessions that drive IME composition — a CDP-backed
+	 *  composition surface created once per session and threaded through, never a
+	 *  global. The composition gestures throw loudly when it is absent. */
+	ime?: ImeDriver;
 }
 
 // ── Content oracles ─────────────────────────────────────────────────────────
@@ -80,8 +84,8 @@ export async function assertNoErrors(ctx: SimContext): Promise<void> {
  * `childIds` gives the trailing keyed-each entries `undefined` keys — Svelte's
  * earliest signal of the desync class, caught here at checkpoint cadence rather
  * than waiting for the boundary to throw mid-render. The walker throws (not
- * returns `[]`) if the doc bridge is absent, so a missing probe is loud, never
- * vacuously green.
+ * returns `[]`) when no editor registered a document, so an empty walk is loud,
+ * never vacuously green.
  */
 export async function assertContainerParity(ctx: SimContext): Promise<void> {
 	const mismatches = await getContainerParityMismatches(ctx.page);
@@ -119,15 +123,10 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
  * point (a tautology for valid GFM); this compares the LIVE CST against a
  * reparse of its own serialization, catching a gesture that left the tree
  * diverging from its raw. Run at checkpoint cadence (not per keystroke), the
- * same cost tier as the round-trip check.
- *
- * A note that declares `unconvergedReason` is exempt: its build is byte-faithful
- * but intentionally non-convergent (an unclosed fenced code block whose trailing
- * blocks GFM lazy-collapses on reload). The reason lives on the fixture, so this
- * is a documented waiver, not a silent skip.
+ * same cost tier as the round-trip check. Unconditional across every note: the
+ * escape gesture auto-closes an unclosed fence, so no build is left divergent.
  */
-export async function assertParseConvergence(ctx: SimContext, note: NoteFixture): Promise<void> {
-	if (note.unconvergedReason) return;
+export async function assertParseConvergence(ctx: SimContext): Promise<void> {
 	const converges = await ctx.page.evaluate(() => (window as any).__test.parseConverged());
 	if (!converges) {
 		const [source, tree] = await Promise.all([
@@ -205,6 +204,19 @@ export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 	if (invalid) {
 		throw new Error(`[${ctx.label}] selection endpoint invalid: ${JSON.stringify(invalid)}`);
 	}
+}
+
+/**
+ * The note-agnostic checkpoint sweep every loaded-ops session runs after each
+ * gesture: set the label so a failure names the checkpoint, then the three
+ * always-on oracles in fixed order. Convergence-running sessions call
+ * assertParseConvergence alongside it — its waiver lives on the note.
+ */
+export async function assertCoreOracles(ctx: SimContext, label: string): Promise<void> {
+	ctx.label = label;
+	await assertNoErrors(ctx);
+	await assertRoundTripStable(ctx);
+	await assertNestedStateConsistent(ctx);
 }
 
 /**

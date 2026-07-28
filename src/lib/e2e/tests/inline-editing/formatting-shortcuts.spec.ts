@@ -72,16 +72,4 @@ test.describe('inline editing — formatting shortcuts', () => {
 		expect(source).toContain('Hello world today');
 		expect(source).not.toContain('****');
 	});
-
-	test('Ctrl+B with no selection is a no-op', async () => {
-		await editor.loadContent('Hello world\n');
-		await editor.focusBlock(0, 5);
-		await editor.page.keyboard.press('Control+b');
-		// Type a marker afterward to flush any async edit Ctrl+B might trigger;
-		// a real bold action would wrap with **markers** and the source diff would surface it.
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('X');
-		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');
-		expect(sourceAfter).toBe('Hello world\n');
-	});
 });

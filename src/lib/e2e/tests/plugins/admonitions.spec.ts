@@ -18,14 +18,23 @@ test.describe('plugin admonitions', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('admonitions');
-		await expect(page.locator('.admonition')).toHaveCount(3);
+		// Three `:::name` directive admonitions plus one native `> [!CAUTION]` alert,
+		// all drawn by the shared component but tagged by their source.
+		await expect(page.locator(".admonition[data-alert-source='directive']")).toHaveCount(3);
+		await expect(page.locator(".admonition[data-alert-source='github']")).toHaveCount(1);
 	});
 
 	test('the seeded kinds each render a box carrying their own data-kind', async ({ page }) => {
 		// Distinct per-kind rendering is the signal a reader tells the kinds apart by.
 		for (const kind of ['important', 'tip', 'caution']) {
-			await expect(page.locator(`.admonition[data-kind='${kind}']`)).toHaveCount(1);
+			await expect(
+				page.locator(`.admonition[data-alert-source='directive'][data-kind='${kind}']`)
+			).toHaveCount(1);
 		}
+		// The native alert renders the same styled box, keyed off its own metadata.
+		await expect(
+			page.locator(".admonition[data-alert-source='github'][data-kind='caution']")
+		).toHaveCount(1);
 	});
 
 	test('a titled admonition shows its title; an untitled one shows the kind placeholder', async ({
@@ -82,23 +91,25 @@ test.describe('plugin admonitions', () => {
 		expect((await readContainer(page, 2)).raw).toBe(':::tip Pro tip\nA titled tip.\n:::\n');
 	});
 
-	test('the convert button rewrites the top-level alert, spares the fenced one, then disables', async ({
+	test('the convert button rewrites the native alert to a directive, spares the fenced one, then disables', async ({
 		page
 	}) => {
 		const convert = page.getByTestId('convert-alerts');
-		// Precondition: a convertible top-level blockquote alert exists → enabled.
+		// Precondition: a native alert exists (a `githubAlert`, not a plain blockquote) → enabled.
 		await expect(convert).toBeEnabled();
-		expect((await readDoc(page)).kinds[5]).toBe('blockquote');
+		expect((await readDoc(page)).kinds[5]).toBe('githubAlert');
 
 		await convert.click();
 
-		// The top-level `> [!CAUTION]` became a real caution admonition (re-parsed).
+		// The native `> [!CAUTION]` alert became a real caution admonition (re-parsed).
 		await editor.bridge.waitForSourceContains(':::caution\nStill a blockquote alert.\n:::');
 		expect((await readDoc(page)).kinds[5]).toBe('admonition');
-		await expect(page.locator('.admonition')).toHaveCount(4);
+		// The alert crossed over: four directive admonitions now, no native alert left.
+		await expect(page.locator(".admonition[data-alert-source='directive']")).toHaveCount(4);
+		await expect(page.locator(".admonition[data-alert-source='github']")).toHaveCount(0);
 
 		// Selectivity: the `> [!NOTE]` inside the code fence is left byte-identical —
-		// never converted to `:::note` — because only top-level blockquotes convert.
+		// never converted to `:::note` — because only top-level alerts convert.
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('```markdown\n> [!NOTE]\n> Inside a fence — must not convert.\n```');
 		expect(source).not.toContain(':::note');

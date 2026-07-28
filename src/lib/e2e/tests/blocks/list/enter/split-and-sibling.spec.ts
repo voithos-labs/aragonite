@@ -41,7 +41,9 @@ test.describe('list Enter — sibling creation and mid-item split', () => {
 		await editor.page.keyboard.press('Home');
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('ArrowRight');
 		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('- Hello');
+		// '- HelloWorld' already contains '- Hello', so only the second item's
+		// marker proves the split ran.
+		await editor.bridge.waitForSourceContains('- World');
 		expect(await editor.bridge.getSource()).toContain('- Hello');
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);

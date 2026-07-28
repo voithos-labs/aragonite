@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { ensureEditableContainers } from '../../tree-operations/node-ops';
+import { ensureEditableContainers, emptyParagraph, nodeAt } from '../../tree-operations/node-ops';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { declarePluginKind } from '../../schema/plugin-kind';
@@ -8,6 +8,50 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
+
+describe('emptyParagraph', () => {
+	it('mints the empty-paragraph placeholder shape, trivia and ending parameterized', () => {
+		expect(emptyParagraph('', '\n')).toEqual({ kind: 'paragraph', leadingTrivia: '', raw: '\n' });
+		expect(emptyParagraph('\n', '\n')).toEqual({
+			kind: 'paragraph',
+			leadingTrivia: '\n',
+			raw: '\n'
+		});
+		expect(emptyParagraph('', '\r\n').raw).toBe('\r\n');
+	});
+
+	// A shared/module-level node would alias across tree positions and break the
+	// snapshot/unshare model (G1.9). Every call must hand back a fresh object.
+	it('returns a distinct object on every call', () => {
+		const first = emptyParagraph('', '\n');
+		const second = emptyParagraph('', '\n');
+		expect(first).not.toBe(second);
+		first.raw = 'mutated\n';
+		expect(second.raw).toBe('\n');
+	});
+});
+
+// Every caller reads `nodeAt` as total — an unresolvable path returns null. It
+// bounded the high side only, so a negative index read `children[-1]`: undefined
+// as a final step (returned as if it were a node) and a TypeError as a walked one.
+// Path composers arithmetic their way to negatives (`index - 1` at a boundary, a
+// decoded coordinate), so this is reachable from any of them, not one subsystem.
+describe('nodeAt — an out-of-range index resolves to nothing, either side', () => {
+	const doc = parse('- alpha\n- beta\n');
+
+	it('declines a negative index as the final step', () => {
+		expect(nodeAt(doc, [-1])).toBeNull();
+	});
+
+	it('declines a negative index it has to walk through', () => {
+		expect(nodeAt(doc, [0, -1, 0])).toBeNull();
+	});
+
+	it('still declines past the high end, and still resolves a real path', () => {
+		expect(nodeAt(doc, [99])).toBeNull();
+		expect(nodeAt(doc, [0, 0])).not.toBeNull();
+	});
+});
 
 describe('ensureEditableContainers', () => {
 	it('backfills an empty container with a paragraph child', () => {

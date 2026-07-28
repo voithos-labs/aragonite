@@ -12,7 +12,7 @@
 
 import type { NodeView } from '../node-views';
 import { getInlineContent } from './inline-cache';
-import { isInlineWidget } from './inline-widgets';
+import { isInlineWidget, getInlineWidgetEditing } from './inline-widgets';
 
 export function isVerticallyTransparentNode(node: NodeView | null | undefined): boolean {
 	if (!node) return false;
@@ -33,7 +33,13 @@ export function isVerticallyTransparentNode(node: NodeView | null | undefined): 
 	const inlines = getInlineContent(node);
 	if (inlines.length === 0) return false;
 	for (const inline of inlines) {
-		if (isInlineWidget(inline, node.raw)) continue;
+		if (isInlineWidget(inline, node.raw)) {
+			// A step-over widget (inline entity glyph) is character-like: it carries a
+			// column, so it makes the block opaque like real text. Select-model widgets
+			// (image, <br>) carry no column meaning and stay skippable.
+			if (getInlineWidgetEditing(inline.kind)?.onEdge === 'step-over') return false;
+			continue;
+		}
 		if (inline.kind === 'text' && (inline.text ?? '').trim() === '') continue;
 		return false;
 	}

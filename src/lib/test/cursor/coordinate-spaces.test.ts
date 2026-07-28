@@ -4,10 +4,13 @@
 import { describe, it, expect } from 'vitest';
 import {
 	asCellIndex,
+	cellRowCol,
 	asDomTextOffset,
 	asEditorX,
 	asRawOffset,
 	asViewportX,
+	docPathFrom,
+	extendDocPath,
 	toClampedRawOffset,
 	toDomTextOffset,
 	toEditorX,
@@ -94,5 +97,34 @@ describe('coordinate-space brands (compile-time pins)', () => {
 		void focusRead;
 
 		expect(asRawOffset(3) satisfies SetRawArg).toBe(3);
+	});
+});
+
+describe('DocPath composition', () => {
+	it('extendDocPath appends the child index to the parent', () => {
+		expect(extendDocPath([1, 2], 3)).toEqual([1, 2, 3]);
+		expect(extendDocPath([], 0)).toEqual([0]);
+	});
+
+	it('docPathFrom brands a copy, not the source array', () => {
+		const src = [0, 1];
+		const out = docPathFrom(src);
+		expect(out).toEqual([0, 1]);
+		// Copied: a later mutation of the composer's own array can't leak into the
+		// emitted event path or snapshot coordinate.
+		expect(out).not.toBe(src);
+	});
+});
+
+describe('cellRowCol', () => {
+	it('decodes a row-major cell index into grid coordinates', () => {
+		expect(cellRowCol(0, 3)).toEqual({ row: 0, col: 0 });
+		expect(cellRowCol(2, 3)).toEqual({ row: 0, col: 2 });
+		expect(cellRowCol(3, 3)).toEqual({ row: 1, col: 0 });
+		expect(cellRowCol(7, 3)).toEqual({ row: 2, col: 1 });
+	});
+
+	it('handles a single-column grid (every index is a new row)', () => {
+		expect(cellRowCol(4, 1)).toEqual({ row: 4, col: 0 });
 	});
 });

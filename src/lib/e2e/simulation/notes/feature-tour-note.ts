@@ -4,8 +4,9 @@ import type { NoteFixture } from './types';
 /**
  * The inline-rich note: a long-prose "feature tour" that stresses inline-parser
  * variety the structural notes deliberately skip — bold, italic, bold-italic,
- * code spans, multiple links, strikethrough, bare-URL and bare-email autolinks,
- * HTML entities, backslash escapes, and a trailing-backslash hard line break.
+ * code spans, multiple links, strikethrough in both tilde forms, bare-URL and
+ * bare-email autolinks, HTML entities, backslash escapes, and a
+ * trailing-backslash hard line break.
  * Every construct is typed char-by-char (the live parser forms the styled spans),
  * so the whole note is HOLD: end-state equality stays a primary oracle. Headings
  * are ATX only; the lists use single-level bullets and ordered items.
@@ -32,7 +33,7 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		);
 		await g.pressEnter();
 		await g.typeText(
-			'Call `render()` then `commit()`, and cross out ~~the deprecated path~~ so readers skip it.'
+			'Call `render()` then `commit()`, and cross out ~~the deprecated path~~ or ~the single flag~ so readers skip it.'
 		);
 		await g.pressEnter();
 		await g.checkpoint('emphasis', 'paragraph');
@@ -97,6 +98,7 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		'bold-italic',
 		'Emphasis and code',
 		'the deprecated path',
+		'the single flag',
 		'Links and autolinks',
 		'team@example.com',
 		'Entities and escapes',
@@ -112,7 +114,7 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		'This tour walks through **bold**, *italic*, and ***bold-italic*** text, plus `inline code` and an [opening link](https://example.com/start).\n' +
 		'## Emphasis and code\n' +
 		'Mix **strong claims** with *soft asides*; combine them as ***both at once*** when a point needs weight.\n' +
-		'Call `render()` then `commit()`, and cross out ~~the deprecated path~~ so readers skip it.\n' +
+		'Call `render()` then `commit()`, and cross out ~~the deprecated path~~ or ~the single flag~ so readers skip it.\n' +
 		'## Links and autolinks\n' +
 		'See the [guide](https://example.com/guide) and the [API notes](https://example.com/api) for details.\n' +
 		'Bare links autolink too: visit https://example.com/raw or email us at team@example.com directly.\n' +

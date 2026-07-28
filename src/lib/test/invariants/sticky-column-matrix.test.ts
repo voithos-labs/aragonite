@@ -3,14 +3,15 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import type { BlockEditActions } from '$lib/action-contracts';
 import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-column';
+import { eventToChord } from '$lib/schema/keybindings';
 import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 
 // G2.10 sticky-column matrix. The idempotent-capture and non-finite guards live
 // on the state object itself and are covered in cursor/sticky-column.test.ts;
 // here we pin the two faces the plan calls out that those tests don't reach:
-// (1) the key→action decision the shared keydown prelude enacts
-// (classifyStickyKey, which shared-keydown.ts consumes), and (2) the structural
-// reset policy — commit ceremony resets sticky on every structural op.
+// (1) the key→action decision every keydown path enacts through noteKey
+// (classifyStickyKey), and (2) the structural reset policy — commit ceremony
+// resets sticky on every structural op.
 
 // ── Decision matrix (classifyStickyKey) ──────────────────────────────────────
 
@@ -27,6 +28,19 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 
 	it('every documented preserve key preserves', () => {
 		for (const key of PRESERVE_KEYS_NON_ARROW) {
+			expect(classifyStickyKey(key)).toBe('preserve');
+		}
+	});
+
+	// The keydown flow carried two hand-written bare-modifier lists that disagreed:
+	// the chord parser's (which decides "this keystroke is not a chord yet") had
+	// AltGraph and CapsLock, the sticky list did not — so an AltGraph press
+	// mid-`ArrowDown`-run, or a CapsLock tap, silently dropped the column.
+	it('every bare modifier the chord parser ignores also preserves', () => {
+		const press = (key: string) =>
+			({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false }) as KeyboardEvent;
+		for (const key of ['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock']) {
+			expect(eventToChord(press(key))).toBeNull();
 			expect(classifyStickyKey(key)).toBe('preserve');
 		}
 	});
@@ -73,10 +87,8 @@ describe('G2.10 structural reset policy', () => {
 		expect(reset).toHaveBeenCalled();
 	});
 
-	it('paste resets sticky column', async () => {
-		const reset = await exercise((a) =>
-			a.insertParsedBlocks(0, 3, [makeNode('paragraph', 'pasted\n')])
-		);
+	it('replaceBlock (structural paste live path) resets sticky column', async () => {
+		const reset = await exercise((a) => a.replaceBlock(0, [makeNode('paragraph', 'pasted\n')]));
 		expect(reset).toHaveBeenCalled();
 	});
 

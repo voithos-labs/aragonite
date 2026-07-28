@@ -8,6 +8,7 @@
  */
 
 import type { CommitMultiScopeArgs, MultiScopeTarget } from '../../action-contracts';
+import type { BlockComponent } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { SharingState } from '../sharing';
 
@@ -26,4 +27,11 @@ export interface PasteCommitCoordinator {
 	resolveState(node: CstNode): MultiScopeTarget['state'] | undefined;
 	/** Strict variant — throws when `node` has no mounted state (caller guarantees a mounted container). */
 	expectState(node: CstNode): MultiScopeTarget['state'];
+	/**
+	 * Land the caret at a sub-path within a container's mounted refs, for the
+	 * post-commit focus a paste owns itself. Supplied by the editor-actions factory
+	 * so a paste module never imports the focus dispatcher — the one back-edge that
+	 * made `tree-operations -> editor-actions` a cycle.
+	 */
+	focusByPath(refs: (BlockComponent | undefined)[], path: number[], offset: number): void;
 }

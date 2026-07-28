@@ -62,3 +62,29 @@ describe('needsScan probes a registered "w" trigger', () => {
 		expect(nodes.some((n) => n.kind === 'autolink')).toBe(true);
 	});
 });
+
+// `!` is reserved (the image opener) yet held out of SPECIAL_CHARS, so its prefix
+// rungs need the same probe the unreserved triggers get. `!{k=v}` carries no `[`,
+// the character that would otherwise force the scan on the embed syntax this
+// unlocks — so only the probe can save it from the fast bail.
+describe('needsScan probes a registered "!" prefix rung', () => {
+	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {
+		expect(parseInline('!{k=v}', 0, 6)).toEqual([
+			{ kind: 'text', start: 0, end: 6, text: '!{k=v}' }
+		]);
+	});
+
+	it('registered "!{" rung is consulted — "!{k=v}" does not fast-bail to text', () => {
+		registerInlineSyntax('!', recognizer('!'), { prefix: '!{', priority: 40 });
+		const nodes = parseInline('!{k=v}', 0, 6);
+		expect(nodes).toEqual([{ kind: 'directiveText', start: 0, end: 6 }]);
+	});
+
+	it('a registered "!" rung leaves prose exclamation marks alone', () => {
+		registerInlineSyntax('!', recognizer('!'), { prefix: '!{', priority: 40 });
+		const raw = 'wow! really';
+		expect(parseInline(raw, 0, raw.length)).toEqual([
+			{ kind: 'text', start: 0, end: raw.length, text: raw }
+		]);
+	});
+});

@@ -2,10 +2,6 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { attachErrorCollector, type ErrorCollector } from '../../simulation/error-collector';
 
-// This suite EXISTS to inject invariant fires and prove the collector trips on
-// them — the watcher fixture must not fail the injections it is here to observe.
-test.use({ expectInvariants: true });
-
 /**
  * Proves the simulation's proxy-bug oracle actually trips. A green session is
  * only meaningful if the collector would have failed on a real fault — so each
@@ -48,7 +44,24 @@ test.describe('simulation error collector', () => {
 		await assertThrows(errors);
 	});
 
+	test('ignores a benign warning without the invariant marker', async ({ page }) => {
+		const errors = attachErrorCollector(page);
+		await errors.start();
+		await page.evaluate(() => console.warn('[some-subsystem] a benign dev warning'));
+		// Give the console event the same delivery window the marker test relies on.
+		await page.waitForTimeout(200);
+		await errors.assertNone();
+	});
+});
+
+// Scoped to the one test that injects a fire: a file-level waiver would also cover
+// the three tests above, which trip no invariant and so must stay under the guard.
+test.describe('simulation error collector: invariant marker', () => {
+	test.use({ expectInvariants: ['proof'] });
+
 	test('catches an invariant-marked dev warning', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
 		const errors = attachErrorCollector(page);
 		await errors.start();
 		await page.evaluate(() => console.warn('[invariant:proof] injected violation'));
@@ -63,14 +76,5 @@ test.describe('simulation error collector', () => {
 				}
 			})
 			.toBe('threw');
-	});
-
-	test('ignores a benign warning without the invariant marker', async ({ page }) => {
-		const errors = attachErrorCollector(page);
-		await errors.start();
-		await page.evaluate(() => console.warn('[some-subsystem] a benign dev warning'));
-		// Give the console event the same delivery window the marker test relies on.
-		await page.waitForTimeout(200);
-		await errors.assertNone();
 	});
 });

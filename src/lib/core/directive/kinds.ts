@@ -16,12 +16,13 @@ import {
 	isInlineKindDeclared
 } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
+import { containerClosure } from '../../schema/closure';
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { displayLength, trimTrailingLineEnding, trailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
-import { registerInlineWidgetKind } from '../inline/inline-widgets';
+import { registerInlineWidgetKind, mintWidgetShell } from '../inline/inline-widgets';
 import { matchDirectiveOpener, serializeDirective } from './grammar';
 
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
@@ -52,26 +53,16 @@ export function registerDirectiveKinds(): void {
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
 		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
-		closure: {
-			roundTrip: {
-				mode: 'implemented',
-				via: 'container contract=opaque — rebuildDirectiveContainerRaw'
-			},
+		closure: containerClosure({
+			roundTripVia: 'container contract=opaque — rebuildDirectiveContainerRaw',
 			focus: { mode: 'implemented', via: 'focus walks into the first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
 			},
-			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'children are real blocks — search descends and paints'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
-		}
+		})
 	});
 
 	registerBlockKind(declarePluginKind(DIRECTIVE_LEAF), {
@@ -121,19 +112,9 @@ export function registerDirectiveTextKind(): void {
 	});
 }
 
-/**
- * Atomic-widget shell: the generic `[data-inline-widget]` marker plus
- * `data-source-start`/`-end` = the node's offsets, which are the shared offset
- * walk's only handle (the shell contributes 0 chars to textContent). Renders the
- * verbatim `:name[...]` source dimmed.
- */
+/** Renders the verbatim `:name[...]` source dimmed inside the shared widget shell. */
 function buildDirectiveTextWidget(node: InlineNode, raw: string): HTMLElement {
-	const shell = document.createElement('span');
-	shell.className = 'directive-text-widget';
-	shell.dataset.inlineWidget = '';
-	shell.dataset.sourceStart = String(node.start);
-	shell.dataset.sourceEnd = String(node.end);
-	shell.setAttribute('contenteditable', 'false');
+	const shell = mintWidgetShell('directive-text-widget', node);
 	shell.textContent = raw.slice(node.start, node.end);
 	return shell;
 }

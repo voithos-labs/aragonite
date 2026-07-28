@@ -7,9 +7,12 @@ import { nodeAt } from '../tree-operations/node-ops';
  * the keystroke hot path. The op discriminates the two ways the set changes:
  *
  *   - A kind change to/from `linkReferenceDefinition` commits structurally as
- *     `updateContent` (the noop-kind-stable path emits the debounced `input`
- *     instead), so any op that is NOT a kind-stable `input`/`metadataUpdate`
- *     could add or remove a definition — rebuild.
+ *     `updateContent`, so any op that is NOT a kind-stable `input`/`metadataUpdate`
+ *     could add or remove a definition — rebuild. The gate cannot verify that
+ *     premise itself: it runs post-commit, so a destroyed definition is
+ *     indistinguishable from ordinary prose. `input` is therefore kind-stable by
+ *     CONSTRUCTION — only the debounced flush emits it, held by the input-op
+ *     kind-stability lint under `test/invariants/lint/`.
  *   - A kind-stable edit can only change the set if it edits a definition's own
  *     bytes (label/url/title) — so an `input`/`metadataUpdate` rebuilds only
  *     when its target node is itself an LRD.
@@ -20,4 +23,21 @@ import { nodeAt } from '../tree-operations/node-ops';
 export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean {
 	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
 	return nodeAt(doc, event.path)?.kind === 'linkReferenceDefinition';
+}
+
+/**
+ * Advance the LRD signature epoch: a monotonic stamp that changes **exactly** when
+ * the signature string changes. Reference-bearing render memos fold the epoch into
+ * their key instead of the whole signature (~MB scale in reference-heavy docs), so
+ * the invariant is load-bearing — a stamp that bumped on every rebuild would
+ * over-invalidate every bracket-bearing block per commit. Returns the previous
+ * pair unchanged when the signature is unchanged; bumps once when it differs.
+ */
+export function advanceSignatureEpoch(
+	prevSignature: string,
+	prevEpoch: number,
+	nextSignature: string
+): { signature: string; epoch: number } {
+	if (nextSignature === prevSignature) return { signature: prevSignature, epoch: prevEpoch };
+	return { signature: nextSignature, epoch: prevEpoch + 1 };
 }

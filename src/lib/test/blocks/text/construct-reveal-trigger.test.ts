@@ -63,12 +63,13 @@ describe('createConstructReveal — trigger', () => {
 			get linkResolver() {
 				return undefined;
 			},
-			get linkSignature() {
-				return '';
+			get linkStamp() {
+				return '0';
 			},
 			get islands() {
 				return [];
 			},
+			getDocument: () => undefined,
 			brokenUrlCache: new Set<string>()
 		} as TextRenderDeps;
 		createTextRender(renderDeps).render();

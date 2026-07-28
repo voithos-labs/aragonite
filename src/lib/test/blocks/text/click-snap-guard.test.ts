@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { caretIsInTextContent } from '../../../components/blocks/text/click-snap-guard';
+import {
+	caretIsInTextContent,
+	isPlainTypingKey
+} from '../../../components/blocks/text/click-snap-guard';
 
 describe('caretIsInTextContent', () => {
 	let el: HTMLElement;
@@ -72,6 +75,32 @@ describe('caretIsInTextContent', () => {
 			expect(caretIsInTextContent(el, sel)).toBe(false);
 		} finally {
 			outside.remove();
+		}
+	});
+});
+
+describe('isPlainTypingKey', () => {
+	const key = (init: KeyboardEventInit) => new KeyboardEvent('keydown', init);
+
+	it('accepts a single printable character with no modifier', () => {
+		for (const k of ['a', 'Z', '3', ' ', '$']) {
+			expect(isPlainTypingKey(key({ key: k }))).toBe(true);
+		}
+	});
+
+	it('accepts a shifted character — Shift is not a command modifier', () => {
+		expect(isPlainTypingKey(key({ key: 'A', shiftKey: true }))).toBe(true);
+	});
+
+	it('rejects a single character held under ctrl/meta/alt (a command chord)', () => {
+		expect(isPlainTypingKey(key({ key: 'a', ctrlKey: true }))).toBe(false);
+		expect(isPlainTypingKey(key({ key: 'a', metaKey: true }))).toBe(false);
+		expect(isPlainTypingKey(key({ key: 'a', altKey: true }))).toBe(false);
+	});
+
+	it('rejects multi-character named keys', () => {
+		for (const k of ['Enter', 'ArrowLeft', 'Backspace', 'Delete', 'Tab', 'Escape']) {
+			expect(isPlainTypingKey(key({ key: k }))).toBe(false);
 		}
 	});
 });

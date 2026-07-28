@@ -20,6 +20,26 @@ export function pushChild(container: CstNode, child: CstNode): void {
 	container.childIds.push(generateBlockId());
 }
 
+/**
+ * Bring `childIds` back to `children`'s length after an in-place children swap
+ * (the reparse branches, which replace the array wholesale rather than splicing).
+ * The surviving prefix keeps its ids: a blanket re-mint would remount every child
+ * of the container under Svelte's keyed each, which is exactly the identity those
+ * branches exist to preserve. No-op when the container never had the array —
+ * the mounting BlockList backfills an absent one.
+ */
+export function resyncChildIds(container: CstNode): void {
+	const ids = container.childIds;
+	if (!ids) return;
+	if (!container.children) {
+		container.childIds = undefined;
+		return;
+	}
+	const count = container.children.length;
+	if (ids.length > count) ids.length = count;
+	for (let i = ids.length; i < count; i++) ids.push(generateBlockId());
+}
+
 export function spliceChildren(
 	container: CstNode,
 	at: number,

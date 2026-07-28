@@ -51,6 +51,7 @@ function setup(childCount: number, isCollapsed?: () => boolean) {
 			getScrollEl: () => scrollEl,
 			getFocusPath: () => null,
 			getWidthVersion: () => 0,
+			windowingEnabled: () => true,
 			getParentPath: () => [],
 			isCollapsed,
 			overscan: 2,

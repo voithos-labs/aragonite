@@ -30,7 +30,11 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const { reorder, events: editorEvents } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		reorder,
+		stickyColumn,
+		events: editorEvents
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
@@ -110,11 +114,15 @@
 			getRaw: () => node.raw,
 			blockEdit,
 			focus: focusActions,
-			isReading
+			isReading,
+			stickyColumn
 		});
 	}
 </script>
 
+<!-- Deliberately focusable non-interactive: the whole-block-focus model (the block IS
+     its own focus target). The role/naming question is the 1.1 shell a11y decision. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={el}
 	tabindex="0"

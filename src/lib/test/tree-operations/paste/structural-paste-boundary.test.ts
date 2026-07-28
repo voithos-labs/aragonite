@@ -15,7 +15,7 @@ import type { CstNode } from '$lib/core/nodes';
 
 const para = (raw: string): CstNode => parse(raw).children[0];
 const clipboard = (): CstNode[] =>
-	materializeBlankLines(parse('# Heading\n\nNew paragraph\n').children);
+	materializeBlankLines(parse('# Heading\n\nNew paragraph\n').children, '\n');
 const raws = (nodes: CstNode[]): string[] => nodes.map((n) => n.raw ?? '');
 
 describe('structural paste at a block boundary', () => {

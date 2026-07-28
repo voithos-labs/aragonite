@@ -86,8 +86,11 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		expect(note.childKinds).toEqual(['note-title', 'table']);
 		expect(note.childTexts[0]).toBe('');
 		expect(note.raw).toBe(':::note\n| 1 | 2 |\n| --- | --- |\n:::\n');
+		// The truncated prose head keeps its line ending, so the blank line the
+		// source had between it and the container survives — matching the
+		// chrome-start case below, whose arm always terminated its head.
 		expect(await editor.bridge.getSource()).toBe(
-			'Ab\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
+			'Ab\n\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);

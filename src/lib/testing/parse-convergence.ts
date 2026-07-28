@@ -24,14 +24,19 @@
  * reads as a false divergence.
  */
 
-import type { CstNode, Document } from '../core/nodes';
+import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
+import { show } from './conformance-core';
 
-// Parse-derived metadata fields per kind (mirrors the BlockMetadataByKind
-// interfaces). Editor-level fields (childIds, ownerEpoch) are not parse-derived,
-// so they are deliberately absent — the reparse never mints them.
-const METADATA_FIELDS: Record<string, readonly string[]> = {
+// Parse-derived metadata fields per kind, typed against BlockMetadataByKind so a
+// renamed or removed field is a compile error here. An ADDED field still needs
+// enrolling by hand — the type cannot know which new fields are parse-derived.
+// Editor-level fields (childIds, ownerEpoch) are not parse-derived, so they stay
+// absent — the reparse never mints them.
+const METADATA_FIELDS: {
+	[K in keyof BlockMetadataByKind]?: readonly (keyof BlockMetadataByKind[K])[];
+} = {
 	heading: ['level'],
 	setextHeading: ['level'],
 	fencedCode: ['fenceMarker', 'fenceLength', 'info', 'closed'],
@@ -101,7 +106,7 @@ function diffNode(live: CstNode, reparsed: CstNode, path: number[]): string | nu
 }
 
 function diffMetadata(live: CstNode, reparsed: CstNode, at: string): string | null {
-	const fields = METADATA_FIELDS[live.kind];
+	const fields = METADATA_FIELDS[live.kind as keyof BlockMetadataByKind];
 	if (!fields) return null;
 	const liveMeta = (live.metadata ?? {}) as Record<string, unknown>;
 	const reMeta = (reparsed.metadata ?? {}) as Record<string, unknown>;
@@ -118,8 +123,4 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 		return a.length === b.length && a.every((v, i) => v === b[i]);
 	}
 	return a === b;
-}
-
-function show(value: unknown): string {
-	return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }

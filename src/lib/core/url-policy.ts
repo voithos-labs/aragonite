@@ -6,7 +6,11 @@
  */
 
 const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
-const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data']);
+// `asset:` is a desktop shell's local-file protocol off Windows, where the same URL
+// arrives as `http://asset.localhost/…` — omitting it makes the policy platform-dependent,
+// passing on the developer's box and blocking every image on macOS and Linux. It carries
+// no script capability: no browser resolves it, and a webview that does serves bytes off disk.
+const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data', 'asset']);
 
 // Match the WHATWG URL parser's pre-scheme normalization: it strips ASCII
 // tab/newline anywhere and leading C0-control-or-space before resolving the
@@ -27,7 +31,7 @@ export function isAllowedHrefScheme(url: string): boolean {
 	return scheme === null || ALLOWED_HREF_SCHEMES.has(scheme);
 }
 
-/** Like href, but `data:` is allowed for images (data:image is common) and `mailto:`/`tel:` are not. */
+/** Same rule as href over a different set: schemes that hand bytes to an `<img>`. */
 export function isAllowedImageSrcScheme(url: string): boolean {
 	const scheme = schemeOf(url);
 	return scheme === null || ALLOWED_IMG_SCHEMES.has(scheme);

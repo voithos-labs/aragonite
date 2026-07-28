@@ -25,12 +25,14 @@ import {
 import { insertImage, resizeImage } from './gestures/image';
 import {
 	backspaceRevealEditInlineMath,
+	deleteAcrossMathFence,
 	deleteAroundInlineMath,
 	deleteInlineMathWidget,
 	editBlockMath,
 	editInlineMath,
 	insertBlockMath,
 	insertInlineMath,
+	reorderPastMathFence,
 	walkThroughInlineMath
 } from './gestures/math';
 import {
@@ -59,6 +61,15 @@ import {
 	leafBackspaceAtStart,
 	revealEditTextDirective
 } from './gestures/directive';
+import {
+	deleteFootnoteReference,
+	editFootnoteLabel,
+	footnoteDefinitionExitBackspace,
+	revealFootnoteReference,
+	splitFootnoteDefinitionBody,
+	typeFootnoteDefinition,
+	typeFootnoteReference
+} from './gestures/footnote';
 import { lateCorrection } from './gestures/correction';
 import { flipPresentationMode } from './gestures/presentation';
 import {
@@ -71,6 +82,22 @@ import {
 	typeOverSelection
 } from './gestures/cross-block';
 import { mergeBackspaceAtStart } from './gestures/merge';
+import {
+	backspaceThroughWidgetIsland,
+	edgeDeleteReplaceIsland,
+	reorderDecoratedBlock,
+	typeAdjacentToIsland,
+	walkAcrossIsland
+} from './gestures/decoration';
+import { atomicDeleteEntityWidget, typeEntityWidget } from './gestures/entity';
+import { atomicDeleteEmoji, stepOverEmoji, typeEmojiShortcode } from './gestures/emoji';
+import {
+	mergeGithubAlertMiddleChild,
+	reorderGithubAlertBodyChild,
+	typeGithubAlert,
+	unwrapGithubAlert
+} from './gestures/github-alert';
+import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
 
 /**
  * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
@@ -311,6 +338,23 @@ export class Gestures {
 		return backspaceRevealEditInlineMath(this.ctx, blockIndex, insert);
 	}
 
+	// A ```math fence is its own `mathFence` kind on the shared render-primary
+	// component. Both fence gestures act from a flanking prose block and never focus
+	// the fence, whose render would reveal its source on pointerdown; they put its raw
+	// bytes under a sibling permutation and a range delete that spans it.
+
+	/** Alt+Arrow the prose above the fence past it and back — a net-identity sibling
+	 *  permutation the fence's raw and kind must survive unchanged. */
+	reorderPastMathFence(proseIndex: number, fenceIndex: number): Promise<void> {
+		return reorderPastMathFence(this.ctx, proseIndex, fenceIndex);
+	}
+
+	/** Backspace a cross-block range built from the prose above to the prose below, so
+	 *  the fence is wholly interior — every fence byte must go, and one undo restores it. */
+	deleteAcrossMathFence(fenceIndex: number): Promise<void> {
+		return deleteAcrossMathFence(this.ctx, this, fenceIndex);
+	}
+
 	// ── Mermaid (whole-block focus, plugins route) ──────────────────────────────
 	// ArrowUp-stop, Enter-below, and the Backspace-from-below two-step delete on an
 	// opaque childless diagram. Each gates on a focus/structural signal and resyncs;
@@ -415,6 +459,41 @@ export class Gestures {
 		return editContainerBody(this.ctx, bodyPath, text);
 	}
 
+	// ── Footnotes (first-party plugin, `?seed=footnotes`) ────────────────────────
+	// Two tiers: the `[^label]: ` strip-container definition and the `[^label]` inline
+	// reference widget. Definition gestures gate on the container promotion; reference
+	// gestures on the widget mount/reveal swap. Each resyncs around the reparse — the
+	// derived reference number is display state the tracker never models, so nothing here
+	// predicts it. The delete degrades to text and nets to identity via a trailing undo.
+
+	typeFootnoteDefinition(targetIndex: number, label: string, body: string): Promise<void> {
+		return typeFootnoteDefinition(this.ctx, targetIndex, label, body);
+	}
+
+	splitFootnoteDefinitionBody(bodyPath: number[]): Promise<void> {
+		return splitFootnoteDefinitionBody(this.ctx, bodyPath);
+	}
+
+	footnoteDefinitionExitBackspace(bodyPath: number[]): Promise<void> {
+		return footnoteDefinitionExitBackspace(this.ctx, bodyPath);
+	}
+
+	typeFootnoteReference(label: string): Promise<void> {
+		return typeFootnoteReference(this.ctx, label);
+	}
+
+	revealFootnoteReference(refIndex: number, blurBlockIndex: number): Promise<void> {
+		return revealFootnoteReference(this.ctx, refIndex, blurBlockIndex);
+	}
+
+	editFootnoteLabel(refIndex: number, text: string, blurBlockIndex: number): Promise<void> {
+		return editFootnoteLabel(this.ctx, refIndex, text, blurBlockIndex);
+	}
+
+	deleteFootnoteReference(refIndex: number, blurBlockIndex: number): Promise<void> {
+		return deleteFootnoteReference(this.ctx, refIndex, blurBlockIndex);
+	}
+
 	// ── Cross-block selection + destruction ──────────────────────────────────────
 	// Build a real cross-block range (Shift+Arrow / Shift+Click / double select-all)
 	// then destroy over it (Backspace/Delete, Cut, type-over, paste-over). Builds
@@ -498,6 +577,106 @@ export class Gestures {
 	 */
 	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
 		return flipPresentationMode(this.ctx, mode);
+	}
+
+	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────
+	// The standing island source paints replace/widget islands and a block badge at
+	// content-keyed positions; these drive the caret/delete/typing surface they own.
+	// Painting never changes bytes, so each resyncs; the replace delete and the
+	// transparent widget backspace net to identity via undo.
+
+	/** Walk the caret across an island — step-over for replace, transparency for widget. */
+	walkAcrossIsland(blockIndex: number): Promise<void> {
+		return walkAcrossIsland(this.ctx, blockIndex);
+	}
+
+	/** Two-press select-then-delete of a replace island, then undo (net identity). */
+	edgeDeleteReplaceIsland(blockIndex: number, key: 'Backspace' | 'Delete'): Promise<void> {
+		return edgeDeleteReplaceIsland(this.ctx, blockIndex, key);
+	}
+
+	/** Backspace through a widget island onto the adjacent real byte, then undo. */
+	backspaceThroughWidgetIsland(blockIndex: number): Promise<void> {
+		return backspaceThroughWidgetIsland(this.ctx, blockIndex);
+	}
+
+	/** Type a char at an island's trailing edge and delete it — the island survives. */
+	typeAdjacentToIsland(blockIndex: number): Promise<void> {
+		return typeAdjacentToIsland(this.ctx, blockIndex);
+	}
+
+	/** Reorder the badge-decorated block down and back; the badge follows the bytes. */
+	reorderDecoratedBlock(blockIndex: number): Promise<void> {
+		return reorderDecoratedBlock(this.ctx, blockIndex);
+	}
+
+	// ── Decoded-entity atomic widget ─────────────────────────────────────────────
+	// Type a character reference mid-prose (an atomic glyph widget), later delete it
+	// whole in one atomic Backspace. The widget contributes its glyph not its raw, so
+	// both resync rather than predict.
+
+	typeEntityWidget(blockIndex: number, offset: number, reference: string): Promise<void> {
+		return typeEntityWidget(this.ctx, blockIndex, offset, reference);
+	}
+
+	atomicDeleteEntityWidget(blockIndex: number): Promise<void> {
+		return atomicDeleteEntityWidget(this.ctx, blockIndex);
+	}
+
+	// ── Emoji shortcode atomic widget (first-party plugin, `?seed=emoji`) ─────────
+	// Type a `:shortcode:` mid-prose (an atomic glyph widget), step the caret over it
+	// both ways, delete it whole in one atomic Backspace. The widget contributes its
+	// glyph not its raw, and the insert is mid-prose, so all three resync.
+
+	typeEmojiShortcode(blockIndex: number, offset: number, shortcode: string): Promise<void> {
+		return typeEmojiShortcode(this.ctx, blockIndex, offset, shortcode);
+	}
+
+	stepOverEmoji(blockIndex: number): Promise<void> {
+		return stepOverEmoji(this.ctx, blockIndex);
+	}
+
+	atomicDeleteEmoji(blockIndex: number): Promise<void> {
+		return atomicDeleteEmoji(this.ctx, blockIndex);
+	}
+
+	// ── Native GitHub alerts (admonitions plugin, `?seed=admonitions`) ────────────
+	// Form a `> [!TYPE]` alert container from live typing, merge a middle body child
+	// staying inside the container, unwrap the first child to drop the marker to a
+	// plain blockquote. Each gates on the promotion / structural change and resyncs;
+	// the merge and unwrap assert containment and marker-drop internally.
+
+	typeGithubAlert(
+		targetIndex: number,
+		alertType: 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION',
+		body: string
+	): Promise<void> {
+		return typeGithubAlert(this.ctx, targetIndex, alertType, body);
+	}
+
+	mergeGithubAlertMiddleChild(alertIndex: number, childIndex: number): Promise<void> {
+		return mergeGithubAlertMiddleChild(this.ctx, alertIndex, childIndex);
+	}
+
+	reorderGithubAlertBodyChild(alertIndex: number, childIndex: number, dir: -1 | 1): Promise<void> {
+		return reorderGithubAlertBodyChild(this.ctx, alertIndex, childIndex, dir);
+	}
+
+	unwrapGithubAlert(alertIndex: number): Promise<void> {
+		return unwrapGithubAlert(this.ctx, alertIndex);
+	}
+
+	// ── IME composition (CDP-threaded) ───────────────────────────────────────────
+	// Compose a multibyte candidate and commit (or abort). The compose window is
+	// DOM-only, so the source stays byte-stable until commit; the tracker resyncs
+	// around the committed bytes. Requires `ctx.ime`, threaded once per session.
+
+	composeCommit(blockIndex: number, composition: CompositionCase): Promise<void> {
+		return composeCommit(this.ctx, blockIndex, composition);
+	}
+
+	composeAbort(blockIndex: number, composition: CompositionCase): Promise<void> {
+		return composeAbort(this.ctx, blockIndex, composition);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────────

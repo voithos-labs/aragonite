@@ -2,21 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
-import { generateBlockId } from '../../block-id';
-
-function applyReplace(
-	ids: string[],
-	at: number,
-	count: number,
-	newCount: number,
-	idMap: Record<number, number> = {}
-): void {
-	const oldIds = ids.slice(at, at + count);
-	const newIds = Array.from({ length: newCount }, (_, i) =>
-		idMap[i] !== undefined ? oldIds[idMap[i]] : generateBlockId()
-	);
-	ids.splice(at, count, ...newIds);
-}
+import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
 
 describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
@@ -36,8 +22,7 @@ describe('splitNode', () => {
 		const doc = parse(source);
 		const ids = ['original-id'];
 		const change = splitNode(doc, 0, 5);
-		if (change.op !== 'replace') throw new Error('expected replace');
-		applyReplace(ids, change.at, change.count, change.newCount, change.idMap);
+		applyStructuralChangeToIdsRefs(change, ids, [undefined]);
 		expect(ids).toHaveLength(2);
 		expect(ids[0]).toBe('original-id');
 		expect(ids[1]).not.toBe('original-id');
@@ -157,6 +142,57 @@ describe('thematic break split', () => {
 		expect(doc.children[0].raw).toBe('---\n');
 		expect(doc.children[1].kind).toBe('paragraph');
 		expect(doc.children[1].raw).toBe('\n');
+	});
+});
+
+// The setext underline sits AFTER the title, so a plain raw cut inside the
+// content strands it in the second half — where `=====` reparses as a junk
+// paragraph and `-----` as a thematicBreak, demoting the heading. The split
+// choke point keeps the whole underline suffix on the originating block.
+describe('setext heading split', () => {
+	for (const underline of ['=====', '-----']) {
+		const source = `Title\n${underline}\n`;
+
+		it(`Enter at the title end keeps the ${underline} underline with the heading`, () => {
+			const doc = parse(source);
+			splitNode(doc, 0, 5);
+			expect(doc.children).toHaveLength(2);
+			expect(doc.children[0].kind).toBe('setextHeading');
+			expect(doc.children[0].raw).toBe(source);
+			expect(doc.children[1].kind).toBe('paragraph');
+			expect(doc.children[1].raw).toBe('\n');
+		});
+
+		it(`Enter mid-title keeps the ${underline} underline with the heading half`, () => {
+			const doc = parse(source);
+			splitNode(doc, 0, 2);
+			expect(doc.children).toHaveLength(2);
+			expect(doc.children[0].kind).toBe('setextHeading');
+			expect(doc.children[0].raw).toBe(`Ti\n${underline}\n`);
+			expect(doc.children[1].kind).toBe('paragraph');
+			expect(doc.children[1].raw).toBe('tle\n');
+		});
+	}
+
+	it('Enter at offset 0 keeps the empty-block-above behavior', () => {
+		const source = 'Title\n=====\n';
+		const doc = parse(source);
+		splitNode(doc, 0, 0);
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('paragraph');
+		expect(doc.children[0].raw).toBe('\n');
+		expect(doc.children[1].kind).toBe('setextHeading');
+		expect(doc.children[1].raw).toBe(source);
+	});
+
+	it('splits a CRLF setext heading with the underline preserved on the heading', () => {
+		const source = 'Title\r\n=====\r\n';
+		const doc = parse(source);
+		splitNode(doc, 0, 5);
+		expect(doc.children[0].kind).toBe('setextHeading');
+		expect(doc.children[0].raw).toBe(source);
+		expect(doc.children[1].kind).toBe('paragraph');
+		expect(doc.children[1].raw).toBe('\r\n');
 	});
 });
 

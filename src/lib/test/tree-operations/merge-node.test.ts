@@ -1,21 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeWithPrevious, mergeWithNext } from '../../tree-operations';
-import { generateBlockId } from '../../block-id';
-
-function applyReplace(
-	ids: string[],
-	at: number,
-	count: number,
-	newCount: number,
-	idMap: Record<number, number> = {}
-): void {
-	const oldIds = ids.slice(at, at + count);
-	const newIds = Array.from({ length: newCount }, (_, i) =>
-		idMap[i] !== undefined ? oldIds[idMap[i]] : generateBlockId()
-	);
-	ids.splice(at, count, ...newIds);
-}
+import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
 
 describe('mergeWithPrevious', () => {
 	it('merges two paragraphs into one (strips internal line break)', () => {
@@ -33,8 +19,7 @@ describe('mergeWithPrevious', () => {
 		const ids = ['keep-me', 'remove-me'];
 		const change = mergeWithPrevious(doc, 1);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
-		if (change.op !== 'replace') throw new Error('expected replace');
-		applyReplace(ids, change.at, change.count, change.newCount, change.idMap);
+		applyStructuralChangeToIdsRefs(change, ids, [undefined, undefined]);
 		expect(ids).toEqual(['keep-me']);
 	});
 
@@ -109,8 +94,7 @@ describe('mergeWithNext', () => {
 		const ids = ['keep-me', 'remove-me'];
 		const change = mergeWithNext(doc, 0);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
-		if (change.op !== 'replace') throw new Error('expected replace');
-		applyReplace(ids, change.at, change.count, change.newCount, change.idMap);
+		applyStructuralChangeToIdsRefs(change, ids, [undefined, undefined]);
 		expect(ids).toEqual(['keep-me']);
 	});
 

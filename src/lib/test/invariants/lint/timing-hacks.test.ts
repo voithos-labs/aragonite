@@ -22,22 +22,20 @@ const ALLOWLIST: Record<string, string> = {
 	// rAF autoscroll loop — frame-paced scrolling during pointer drag, an
 	// animation cadence, not async ordering.
 	'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop (frame cadence)',
-	// rAF coalesces pointermove bursts to one handler per frame (cross-block drag).
-	'src/lib/selection/drag-pointer.ts': 'rAF pointermove throttle (drag)',
-	// Same pointermove throttle for drag-to-reorder; mirrors drag-pointer.ts.
-	'src/lib/editor-actions/reorder-drag.ts': 'rAF pointermove throttle (reorder drag)',
-	// Same pointermove throttle for intra-table drag; mirrors drag-pointer.ts but
-	// lives under table/ because it is table-cell specific.
-	'src/lib/components/blocks/table/cell-pointer.ts': 'rAF pointermove throttle (table drag)',
-	// rAF for pointermove coalescing + the autoscroll loop in table row/column
-	// reorder drag — mirrors reorder-drag.ts (throttle) and autoscroll.ts (loop);
-	// animation cadence, not async sequencing.
-	'src/lib/components/blocks/table/table-reorder-drag.ts':
-		'rAF pointermove throttle + autoscroll loop (table reorder drag)',
+	// rAF coalesces pointermove bursts to one handler per frame. This is the ONE
+	// home for drag coalescing — every drag lifecycle (cross-block selection,
+	// block/row/column reorder, table cell) runs on this session.
+	'src/lib/selection/pointer-session.ts': 'rAF pointermove coalescing (shared drag session)',
 	// setTimeout is wall-clock pause detection for undo debounce ("user stopped
 	// typing ~250ms"). tick() is microtask-grained and cannot express a wall-clock
 	// pause — documented at the call site.
-	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce'
+	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce',
+	// setTimeout is the cancellation deadline on an off-thread regex scan, not an
+	// ordering primitive: nothing waits on the timer, and the only thing it can do
+	// is terminate a worker stuck inside an uninterruptible `RegExp.exec`. tick()
+	// cannot express a wall-clock ceiling, and no main-thread budget can interrupt
+	// a single exec at all — which is why the worker exists.
+	'src/lib/search/regex-executor.ts': 'setTimeout regex-scan cancellation deadline'
 };
 
 const TIMING_RE = /\b(setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/;

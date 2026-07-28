@@ -1,6 +1,4 @@
-# <img width="3840" height="1020" alt="image" src="https://github.com/user-attachments/assets/3ecfc2f5-91de-4317-bd40-8cb95f2218fd" />
-
----
+# <img width="3840" height="1020" alt="image" src="https://github.com/user-attachments/assets/1981410e-b961-4a8e-bac2-554febf64335" />
 
 This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, lean, fast, have a graceful ui/ux, and have a hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
@@ -43,9 +41,9 @@ _Why make aragonite lossless?_ What a stupid question, but let me answer it anyw
 
 _How do other editors deal with this?_ Broadly, three camps. Notion doesn't even pretend: the truth is its proprietary block model, and markdown is an export format. The rich text camp (the ProseMirror markdown lineage: Tiptap, Milkdown, and friends) parses markdown into a rich node tree, treats that tree as the truth, and serializes by walking it. Open a file, change nothing, save, and the diff can be non-empty. And then there's Obsidian, which genuinely is lossless, because its editor is a raw text buffer (CodeMirror 6) wearing syntax hiding decorations. The document model _is_ the string; a fine answer for losslessness, a limiting one for everything else (more on that in [Extensible](#extensible)). Aragonite is a bit more ambitious in its design: I want the byte honesty of a text buffer and a real document model at the same time.
 
-So here's the promise: `serialize(parse(source)) === source`[^16]. For any input, the parser is total (a line no rule claims is still absorbed as paragraph text), and there are guards/checks in place (e.g. Aragonite's property suite fuzzes this exact round trip over arbitrary strings) to keep everyone honest.
+So here's the promise: `serialize(parse(source)) === source`[^9]. For any input, the parser is total (a line no rule claims is still absorbed as paragraph text), and there are guards/checks in place (e.g. Aragonite's property suite fuzzes this exact round trip over arbitrary strings) to keep everyone honest.
 
-To start, then, you need a tree [^9] to act as the document model. Given the lossless promise, the natural conclusion is a concrete syntax tree (CST). But what, exactly, should be the shape for this CST? Well, let's imagine the simplest approach: parse the source into a tree whose nodes each hold their own slice of the original text. Naturally, you'd render the slices as styled DOM, and save by concatenating the slices back together. So serialization might be something quite simple:
+To start, then, you need a tree [^10] to act as the document model. Given the lossless promise, the natural conclusion is a concrete syntax tree (CST). But what, exactly, should be the shape for this CST? Well, let's imagine the simplest approach: parse the source into a tree whose nodes each hold their own slice of the original text. Naturally, you'd render the slices as styled DOM, and save by concatenating the slices back together. So serialization might be something quite simple:
 
 ```ts
 interface Serializable {
@@ -87,7 +85,7 @@ flowchart LR
 
 Congrats, you came up with the gist of the architecture.
 
-_Surely this approach wouldn't work?_ You are thinking. For one, this model means that parents redundantly store their children's contents. Yes, that is certainly true. But look at what the redundancy buys: serialize never recurses. A container's raw already contains its entire subtree's source, so serialization concatenates the top-level children and stops. Nesting depth is never part of the equation, and a function that small has nowhere for a bug to hide. Oh, btw, that code snippet above is `src/lib/core/serializer.ts`, the whole file, verbatim [^10]. That is really how this editor saves your documents.
+_Surely this approach wouldn't work?_ You are thinking. For one, this model means that parents redundantly store their children's contents. Yes, that is certainly true. But look at what the redundancy buys: serialize never recurses. A container's raw already contains its entire subtree's source, so serialization concatenates the top-level children and stops. Nesting depth is never part of the equation, and a function that small has nowhere for a bug to hide. Oh, btw, that code snippet above is `src/lib/core/serializer.ts`, the whole file, verbatim [^11]. That is really how this editor saves your documents.
 
 And, also importantly:
 
@@ -115,7 +113,7 @@ Time to survey the field again. Notion has no plugin system in the editor at all
 | how plugins extend the editor     | they don't (external REST API) | CM6 extensions + post processors | node types + views + plugin state | own a kind: descriptor + component + grammar |
 | custom content, editable in place | no                             | mostly read-only previews        | yes (contentDOM)                  | yes (real nested blocks)                     |
 | round trips your bytes            | no, export is a translation    | yes, it _is_ the bytes           | no, the serializer decides        | yes, serialize reads raw only                |
-| a plugin can break your file      | n/a                            | nothing structural stops it      | a schema/serializer bug can       | no write path: serialize reads raw only      |
+| a plugin can break your file      | n/a                            | nothing structural stops it      | a schema/serializer bug can       | only through its own kind's raw rebuild      |
 
 Notice the pattern though. When plugins cannot own structure, everything collapses into the same two primitives: decorations (annotate text you don't own) and plugin-local state (a slot you re-map through every edit). Useful primitives, and aragonite ships the first one too. But a system built on only those two can decorate a document; it cannot really extend one. That is the box the flat model puts you in.
 
@@ -149,13 +147,15 @@ Ofc, for everything that owns no syntax (spellcheck squiggles, ghost text, comme
 
 ---
 
-Note what is "missing" here: a plugin state API. That is on purpose. Elsewhere, plugin state exists mostly to hold a decoration set and remap it through every edit, because a position is an integer into one flat sequence and goes stale the moment someone types above it. An aragonite position is a path plus an offset into a tree rederived from raw on every edit, so there is nothing to re-map [^11]. A plugin that wants state keeps its own map keyed on the editor's id, and the platform stores nothing.
+Note what is "missing" here: a plugin state API. That is on purpose. Elsewhere, plugin state exists mostly to hold a decoration set and remap it through every edit, because a position is an integer into one flat sequence and goes stale the moment someone types above it. An aragonite position is a path plus an offset into a tree rederived from raw on every edit, so there is nothing to re-map [^12]. A plugin that wants state keeps its own map keyed on the editor's id, and the platform stores nothing.
 
-Circling back to the lossless promise - turns out that also helps here as a safety property (i.e. a plugin cannot corrupt your file):
+Circling back to the lossless promise - turns out that also helps here as a safety property (i.e. a plugin has no accidental path to corrupting your file):
 
 1. serialization reads raw and nothing else
-2. the document a plugin sees is readonly on its bytes at compile time
+2. every node a plugin _reads_ is readonly on its bytes at compile time
 3. mutation happens through commits the editor referees
+
+The one deliberate byte write a plugin makes is its own kind's raw rebuild, which the commit ceremony hands an owned node precisely because that is when a byte write is legal. So the blast radius of a plugin bug is its own syntax rather than your whole document, and it is one function you can test - which is what the published testing seam drives round trips over.
 
 A plugin component that throws takes down its own block, which degrades to a readable fallback while its siblings keep working. Uninstall a plugin and every document written with it still round trips byte for byte, because unknown syntax is handled gracefully.
 
@@ -163,7 +163,7 @@ Also, shipping a kind forces the boring questions up front: the registration typ
 
 This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
 
-Does the design actually work in practice? Well, the six bundled plugins (admonitions, details, math, diagrams, table of contents, occurrence highlighting) are built on the exact surface third parties get, so you tell me.
+Does the design actually work in practice? Well, the eight bundled plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting) are built on the exact surface third parties get, so you tell me.
 
 # Lean
 
@@ -171,14 +171,14 @@ Let's start by establishing the right context: most editors ship as a toolkit, a
 
 (And it drags almost nothing behind it. Exactly one hard runtime dependency, highlight.js, for code-block syntax colors. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
-For all of that surface area the code stays relatively compact: about 48k lines of typescript and svelte for the shipped library, roughly 3k of which is the six bundled plugins [^12]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
+For all of that surface area the code stays relatively compact: about 55k lines of typescript and svelte for the shipped library, roughly 5.8k of which is the eight bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">
-  <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, and selection; the schema registry, invariants, bundled plugins, public API, windowing, and decorations each take progressively smaller slices." src="docs/assets/loc-light.svg">
+  <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, selection, and the bundled plugins; the schema registry, invariants, public API, decorations, and windowing each take progressively smaller slices." src="docs/assets/loc-light.svg">
 </picture>
 
-I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with one hard dependency behind it. The test suite, meanwhile, is nearly twice the size of the library (~87k lines), which says more about my paranoia than the leanness.
+I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with one hard dependency behind it. The test suite, meanwhile, is roughly twice the size of the library (~104k lines), which says more about my paranoia than the leanness.
 
 # Fast
 
@@ -186,7 +186,7 @@ Aragonite is fast, and its this way due to one main reason: the editor only moun
 
 In regards to large documents (how an editor fare with 10KB vs 10MB docs), most editors either solved this long ago, or made peace with the lack of ability to deal with it. On the "I have a solution" side, we have editors like CodeMirror 6, which renders only the visible viewport plus a margin while tracking heights for the whole document (this is a big part of why Obsidian holds up on large files). On the other side, we have the editors who threw in the towel. A long Notion page is thousands of block records, users start noticing lag around a thousand blocks, and the community's standing advice is to hide content inside toggles so less of it loads. The ProseMirror lineage mounts the entire document into one contenteditable, and unmounting the middle of a live editing surface breaks selection, IME, and everything else that already makes contenteditable cranky, so virtualization there remains an open forum thread rather than a feature.
 
-On the second other side, aragonite's block model windows for real: blocks outside the viewport genuinely unmount [^13]. This is only possible because every block is its own editing surface; you cannot unmount the middle of one big contenteditable, but you can unmount nine thousand small ones. The rendered slice sits between two spacers sized by a height model, so the native scrollbar, scroll position, and scroll range are all real.
+On the second other side, aragonite's block model windows for real: blocks outside the viewport genuinely unmount [^14]. This is only possible because every block is its own editing surface; you cannot unmount the middle of one big contenteditable, but you can unmount nine thousand small ones. The rendered slice sits between two spacers sized by a height model, so the native scrollbar, scroll position, and scroll range are all real.
 
 ---
 
@@ -218,7 +218,7 @@ A keystroke, then, roughly goes through this process: the edited block re-reads 
 <details>
 <summary>A full analysis, if you wanna waste your time</summary>
 
-**Model.** Fix a document $s$ of $N$ bytes, parsed into $B$ block nodes of which $B_t$ are top level. An edit site sits at container nesting depth $D$, inside a block whose content length is $L$ bytes; write $S_1 \le S_2 \le \dots \le S_D$ for the source sizes of its enclosing containers, innermost first, so $S_D$ is the outermost. $V$ denotes the mounted block count: the visible slice, a constant overscan band, and the pinned focus block, so $V = O(\text{viewport})$, independent of $N$ and $B$. Costs are unit-cost RAM with string concatenation linear in bytes moved. The registered block-opener set is a constant of the grammar, not of the document.
+**Model.** Fix a document $s$ of $N$ bytes, parsed into $B$ block nodes, of which $B_t$ are top level; $\mathcal{C}$ denotes its set of container nodes (the nodes holding children), and $D_{\max}$ its maximum container nesting depth. An edit site sits at container nesting depth $D \le D_{\max}$, inside a block whose content length is $L$ bytes; write $S_1 \le S_2 \le \dots \le S_D$ for the source sizes of its enclosing containers, innermost first, so $S_D$ is the outermost. $V$ denotes the mounted block count: the visible slice, a constant overscan band, and the pinned focus block, so $V = O(\text{viewport})$, independent of $N$ and $B$. Costs are unit-cost RAM with string concatenation linear in bytes moved. The registered block-opener set is a constant of the grammar, not of the document.
 
 **Proposition 1 (serialization).** Serialization computes $\mathit{prefix} + \sum_{i=1}^{B_t} (\mathit{trivia}_i + \mathit{raw}_i) + \mathit{suffix}$ in $\Theta(N + B_t) = \Theta(N)$, copying each output byte exactly once. Recursion is unnecessary by construction: a container's $\mathit{raw}$ already contains its entire subtree's source, so the top-level pass sees every byte. This is the redundancy the Lossless section bought; here is where it pays.
 
@@ -230,35 +230,35 @@ where $d(\ell)$ is the line's nesting depth. Flat documents give $\Theta(N)$; th
 
 **Definition (the ancestry rebuild).** An edit at depth $D$ re-materializes every enclosing container's $\mathit{raw}$:
 
-$$A \;=\; \sum_{i=1}^{D} \Theta(S_i) \;\subseteq\; O(D \cdot S_D),$$
+$$A = \Theta\left(\sum_{i=1}^{D} S_i\right) \subseteq O(D \cdot S_D),$$
 
-and with $b$ bytes per level uniformly, $A = \Theta(D^2 b)$. Empirically the constants are small: one to two milliseconds per keystroke at realistic nesting ($D \le 10$, $\le 50$ KB per level), 5.5 ms at an adversarial $D = 16$ with 100 KB per level. Top-level edits have $A = 0$.
+and when each level contributes $b$ bytes of its own source (so $S_i = \Theta(i \cdot b)$ ), $A = \Theta(D^2 b)$. Empirically the constants are small: one to two milliseconds per keystroke at realistic nesting ($D \le 10$, $\le 50$ KB per level), 5.5 ms at an adversarial $D = 16$ with 100 KB per level. Top-level edits have $A = 0$.
 
-**Theorem (keystroke cost).** A keystroke in a block of content length $L$ costs
+**Theorem (keystroke cost).** A steady-state keystroke in a block of content length $L$ costs
 
 $$\Theta(L + V) + A.$$
 
-The $\Theta(L)$ term is the DOM read-back, inline reparse, and span rebuild of the one edited block, with a plain-text fast path that keeps the common case allocation-free; $\Theta(V)$ is the reactive flush, which windowing bounds by the viewport and which dominates in steady state; $A$ is the ancestry rebuild. The undo snapshot does not appear: pushes are debounce-batched, so the $\Theta(B_t)$ push amortizes across the batch. Since $V$ is viewport-bounded and $A$ vanishes at top level, typing is $O(\text{viewport})$ independent of document size, which is exactly the property the perf gate enforces. The degenerate case is $L = \Theta(N)$, one paragraph holding the whole file, where the rebuild is $\Theta(N)$ by definition; it is transient, since any split restores $L \ll N$.
+The $\Theta(L)$ term is the DOM read-back, inline reparse, and span rebuild of the one edited block, with a plain-text fast path that keeps the common case allocation-free; $\Theta(V)$ is the reactive flush, which windowing bounds by the viewport and which dominates in steady state; $A$ is the ancestry rebuild. The undo snapshot is what steady-state excludes: consecutive keystrokes share one debounced entry, so only the first keystroke of a batch pays the $\Theta(B_t)$ push (plus, at depth, the once-per-batch copy of the written spine, per Proposition 3). Since $V$ is viewport-bounded and $A$ vanishes at top level, steady-state typing is $O(\text{viewport})$ independent of document size, which is exactly the property the perf gate enforces. The degenerate case is $L = \Theta(N)$, one paragraph holding the whole file, where the rebuild is $\Theta(N)$ by definition; it is transient, since any split restores $L \ll N$.
 
-**Proposition 3 (structural edits and history).** Split, merge, and delete at top level cost $\Theta(B_t + L)$: the $B_t$ term is pointer-array work (the snapshot's copy of the top-level reference array, plus the id and ref splices), and no node is deep-cloned, because a snapshot shares nodes with the live tree under an epoch mark and copy-on-write duplicates only the spine actually written, which at top level has length one. At depth, the cost is $\Theta(B_t + P) + A$, where $P = \sum_{i=1}^{D} c_i$ counts the children along the written spine, one shallow copy per level. Consequently the history heap holds the live tree plus the written spines, never stack-depth many clones: a push is $\Theta(B_t)$, not $\Theta(B)$, and a restore is a pointer swap of the same order.
+**Proposition 3 (structural edits and history).** Split, merge, and delete at top level cost $\Theta(B_t + L)$: the $B_t$ term is pointer-array work (the snapshot's copy of the top-level reference array, plus the id and ref splices), and no node is deep-cloned, because a snapshot shares nodes with the live tree under an epoch mark and copy-on-write duplicates only the spine actually written, which at top level has length one. At depth, the cost is $\Theta(B_t + P) + A$, where $P = \sum_{i=1}^{D} c_i$ and $c_i$ is the child count of the $i$-th container on the written spine, one shallow copy per level. Consequently the history heap holds the live tree plus the written spines, never stack-depth many clones: a push is $\Theta(B_t)$, not $\Theta(B)$, and a restore is a pointer swap of the same order.
 
-**Proposition 4 (rendering and queries).** Mounting is $\Theta(V)$; everything outside the slice is two spacer elements sized from a Fenwick tree over per-block heights, which answers offset-to-index and index-to-offset in $O(\log B)$ per scroll query and absorbs a height correction in $O(\log B)$. Materializing a loaded document is $\Theta(B)$, and in this design $\Omega(B)$: every node must be proxied into reactive state and assigned a stable identity at least once, so load is the one axis windowing cannot bound. Measured: sub-second at realistic sizes, about 4.5 s at the 392k-block extreme.
+**Proposition 4 (rendering and queries).** Mounting is $\Theta(V)$; everything outside the slice is two spacer elements sized from a Fenwick tree over per-block heights, which answers offset-to-index and index-to-offset in $O(\log B)$ per scroll query and absorbs a height correction in $O(\log B)$. Load is the one axis windowing cannot bound. The parse mints all $B$ nodes up front (windowing limits what mounts, not what materializes), so load is Proposition 2's parse plus $\Theta(B)$ of per-node work, and the node count, not the byte count, is the scaling villain (the nine 10 MB fixtures share a byte budget; the 392k-block one loads slowest). Measured: sub-second at realistic sizes, about 4.5 s at that extreme.
 
 **Boundary case (reference definitions).** Editing a `linkReferenceDefinition` whose signature changes invalidates inline rendering document-wide, the closest thing to an $O(N)$ edit in the system. The eager cost is still $\Theta(V)$, because the signature rides each block's render key and only mounted blocks re-render now; the remainder is paid lazily as blocks mount. Every other edit is scoped to a dirty set.
 
 **Remark (tradeoff).** Materialized container raw costs space. Define the amplification factor
 
-$$\alpha \;=\; \frac{1}{N} \sum_{\text{containers } c} |\mathit{raw}(c)|,$$
+$$\alpha = \frac{1}{N} \sum_{c \in \mathcal{C}} \lvert \mathit{raw}(c) \rvert,$$
 
-the bytes containers store over again relative to the document itself: $\alpha$ measures 3.55 on the nested-container fixture and 1.96 on the table-heavy one, and both are asserted as ceilings in the commit gate. What the space buys is the time axis: serialization stays $\Theta(N)$ with no recursion (Proposition 1), and history stays $\Theta(B_t)$ shares instead of $\Theta(B)$ clones (Proposition 3). Deriving container raw from children instead would fix the cheap problem and reintroduce the expensive one.
+the bytes containers store over again relative to the document itself: $\alpha$ measures 3.55 on the nested-container fixture and 1.96 on the table-heavy one, and the commit gate holds both under ceilings with ×1.1 headroom. What the space buys is not asymptotic, since a serializer that re-derived container bytes on demand would still be $\Theta(N)$. The purchase is where the risk lives: serialization stays a non-recursive concatenation (Proposition 1) with nowhere for a bug to hide, and every byte consumer (a save, a clipboard slice, an undo restore) reads stored bytes instead of re-deriving them. Deriving container raw from children would fix the cheap problem (space) and hand the expensive one (round-trip risk) back to the serializer.
 
-In summary: parse and serialize are $\Theta(N)$; a keystroke is $\Theta(L + V) + A$, which is $O(\text{viewport})$ everywhere except inside large containers, where $A$ adds the enclosing subtrees' bytes; load is the unavoidable $\Theta(B)$. The mechanisms behind every term, and the gates holding them, live in [performance.md](./docs/design/performance.md) and the design docs it links.
+In summary: parse and serialize are $\Theta(N)$; a steady-state keystroke is $\Theta(L + V) + A$, which is $O(\text{viewport})$ everywhere except inside large containers, where $A$ adds the enclosing subtrees' bytes; load is parse plus an unavoidable $\Theta(B)$ of per-node work. The mechanisms behind every term, and the gates holding them, live in [performance.md](./docs/design/performance.md) and the design docs it links.
 
 </details>
 
 ---
 
-Two things though. Loading is O(document), because ofc it is (the tree is materialized up front, which is sub-second at realistic sizes and multi-second only out at the hundreds of thousands of blocks extreme). And a single giant paragraph is O(itself) to edit: windowing windows blocks, not the inside of one block, so the span rebuild scales with paragraph length. This one, though, is transient, a single enter splits it into windowed blocks, and you only meet it by pasting a multi megabyte blob into one block [^14].
+Two things though. Loading is O(document), because ofc it is (the tree is materialized up front, which is sub-second at realistic sizes and multi-second only out at the hundreds of thousands of blocks extreme). And a single giant paragraph is O(itself) to edit: windowing windows blocks, not the inside of one block, so the span rebuild scales with paragraph length. This one, though, is transient, a single enter splits it into windowed blocks, and you only meet it by pasting a multi megabyte blob into one block [^15].
 
 Now let me show you some pretty graphs.
 
@@ -272,7 +272,7 @@ Now let me show you some pretty graphs.
   <img alt="Document load time across the same nine shapes, log scale: load grows roughly linearly with size; every shape loads within a few seconds at 10 MB, the 392,000-block extreme taking the longest." src="docs/assets/perf-load-light.svg">
 </picture>
 
-_Recorded 2026-07-16 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^15]
+_Recorded 2026-07-24 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^16]
 
 Now, the numbers here depend on the machine; however, the scale of the numbers and the shape of the graph should tell you the story I want to share.
 
@@ -297,6 +297,10 @@ Check out some screenshots of the actual app:
 
 One last snarky remark to make... All these - all four styles, follow one render path. There is never a second rendering, never a derived raw tree, never a rich text model swapped in behind the scenes. I never exactly planned for live preview, it just so happened that I valued the right promises and made the right decisions that made features like this easily buildable.
 
+# License
+
+Copyright (c) 2026 voithos-labs. aragonite is free software, released under [GPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under GPL-compatible terms. An editor built to keep your notes yours shouldn't end up locked inside someone's proprietary app.
+
 # Footnote
 
 [^1]: read docs/changelog.md to experience my suffering.
@@ -315,18 +319,18 @@ One last snarky remark to make... All these - all four styles, follow one render
 
 [^8]: it might work in safari/firefox, but I did not test them yet
 
-[^9]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
+[^9]: Parse then serialize returns the exact same bytes every time. However, aragonite cannot promise that editing never normalizes. A container re-emits its own bytes from its children, so the first edit inside one canonicalizes that container's own syntax. For example, a table's cell padding and delimiter row take their canonical spelling (`|a|b|` becomes `| a | b |`, `|:--|` becomes `| :--- |`). docs/design/syntax-tree.md covers why the alternative is worse.
 
-[^10]: ok, fine; the real file spells `readonly` in a few places and carries a comment up top. The logic is character for character what you just read.
+[^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 
-[^11]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
+[^11]: ok, fine; the real file spells `readonly` in a few places and carries a comment up top. The logic is character for character what you just read.
 
-[^12]: counted from the tracked `src/lib` source, excluding the ~87k lines of tests. Give or take a refactor; it is a description, not a promise.
+[^12]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
 
-[^13]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
+[^13]: counted from the tracked `src/lib` source, excluding the ~104k lines of tests. Give or take a refactor; it is a description, not a promise.
 
-[^14]: don't you dare try it lol
+[^14]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
 
-[^15]: the nine shapes, each generated from a fixed seed at 100 KB, 1 MB, and 10 MB: flat prose, nested containers (lists four deep plus nested quotes), many small blocks (392k four-word paragraphs at 10 MB), a single giant paragraph, reference-heavy prose (links plus their definitions), many small tables, one giant list, one giant blockquote, and one giant table. Each chart's band is the nine minus its own villain: the giant paragraph for keystrokes, many small blocks for load.
+[^15]: don't you dare try it lol
 
-[^16]: the equation is exact: parse then serialize returns your bytes, every time. what it does not promise is that _editing_ never normalizes — where GFM itself mandates ignoring malformed input, those bytes survive load and save untouched, then drop the first time you edit the block around them. today the lone case is a table body row wider than its header, whose surplus cells GFM discards; the full reasoning is ledgered in docs/issues.md.
+[^16]: the nine shapes, each generated from a fixed seed at 100 KB, 1 MB, and 10 MB: flat prose, nested containers (lists four deep plus nested quotes), many small blocks (392k four-word paragraphs at 10 MB), a single giant paragraph, reference-heavy prose (links plus their definitions), many small tables, one giant list, one giant blockquote, and one giant table. Each chart's band is the nine minus its own villain: the giant paragraph for keystrokes, many small blocks for load.

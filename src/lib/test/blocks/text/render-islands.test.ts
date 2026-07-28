@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
+import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
+import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import {
-	createTextRender,
-	islandRenderKeyPart,
-	type TextRenderDeps
-} from '$lib/components/blocks/text/text-render';
+	disableInteractionTrace,
+	enableInteractionTrace,
+	interactionTraceSnapshot,
+	resetInteractionTrace
+} from '$lib/debug/interaction-trace';
 import type { CstNode } from '$lib/core/nodes';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
@@ -48,8 +51,8 @@ function makeHarness(initialNode: CstNode) {
 		get linkResolver() {
 			return undefined;
 		},
-		get linkSignature() {
-			return '';
+		get linkStamp() {
+			return '0';
 		},
 		get islands() {
 			return islands;
@@ -57,6 +60,7 @@ function makeHarness(initialNode: CstNode) {
 		get presentationMode() {
 			return 'source' as const;
 		},
+		getDocument: () => undefined,
 		brokenUrlCache: new Set<string>()
 	};
 	return {
@@ -176,5 +180,56 @@ describe('text-render island wiring', () => {
 		setIslands([]);
 		render.render();
 		expect(el.querySelector('[data-decoration-island]')).toBeNull();
+	});
+});
+
+// ── Caret-carry gate (the edit path skips the render's own walk) ───────────────
+
+describe('caret-carry gate', () => {
+	beforeEach(() => {
+		enableInteractionTrace();
+		resetInteractionTrace();
+	});
+	afterEach(() => {
+		disableInteractionTrace();
+		resetInteractionTrace();
+	});
+
+	function focusCaretAt(el: HTMLElement, offset: number): void {
+		el.focus();
+		const range = document.createRange();
+		range.setStart(el.firstChild!, offset);
+		range.collapse(true);
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(range);
+	}
+
+	const renderTraceKinds = () =>
+		interactionTraceSnapshot()
+			.filter((e) => e.site === 'text-render')
+			.map((e) => e.kind);
+
+	it('carryCaret:false skips the capture/restore pair on the edit path', () => {
+		const { el, deps } = makeHarness(blockNode('hello world\n'));
+		const render = createTextRender(deps);
+		render.render();
+		focusCaretAt(el, 7);
+		resetInteractionTrace();
+		render.render({ carryCaret: false, forceRebuild: true });
+		expect(renderTraceKinds()).not.toContain('cursor-capture');
+		expect(renderTraceKinds()).not.toContain('cursor-restore');
+	});
+
+	it('the default carry re-anchors the caret across an island-signature rebuild', () => {
+		const { el, deps, setIslands } = makeHarness(blockNode('hello world\n'));
+		const render = createTextRender(deps);
+		render.render();
+		focusCaretAt(el, 7);
+		resetInteractionTrace();
+		setIslands([widgetIsland(2)]);
+		render.render(); // default carryCaret true, no pending offset
+		expect(renderTraceKinds()).toContain('cursor-capture');
+		expect(renderTraceKinds()).toContain('cursor-restore');
 	});
 });

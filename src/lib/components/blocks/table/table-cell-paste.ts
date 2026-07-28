@@ -1,14 +1,19 @@
 /**
- * Cell text ingestion for tableCell: the pipe-escaping primitive shared by every
- * write path, the caret-aware keystroke-commit wrapper, plus the inline +
- * scoped-structural paste hooks exposed as a PasteSurface the editor mount
- * registers (see built-in-blocks.ts).
+ * Cell text ingestion for tableCell: the caret mapping that follows the sink's
+ * inserted backslashes, plus the inline + scoped-structural paste hooks exposed
+ * as a PasteSurface the editor mount registers (see built-in-blocks.ts).
+ *
+ * The bytes themselves are the kind's business, not this module's — every hook
+ * below hands back plain spliced text and `normalizeCellRaw` runs at the write
+ * sink. Three gestures once carried that escape here and each lost it.
  */
 
 import { CURSOR_END } from '../../../block-component';
+import { normalizeCellRaw } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
+import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
@@ -19,37 +24,18 @@ import type {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export function escapeUnescapedPipes(s: string): string {
-	let out = '';
-	for (let i = 0; i < s.length; i++) {
-		const ch = s[i];
-		if (ch !== '|') {
-			out += ch;
-			continue;
-		}
-		let backslashes = 0;
-		for (let j = i - 1; j >= 0 && s[j] === '\\'; j--) backslashes++;
-		out += backslashes % 2 === 0 ? '\\|' : '|';
-	}
-	return out;
-}
-
 export function normalizeWhitespace(s: string): string {
 	return s.replace(/\n+/g, ' ').trim();
 }
 
 /**
- * Escape unescaped pipes in a cell's committed text and report where `caret`
- * lands once the backslashes are inserted. Typing (and IME commit) must produce
- * the same `\|` bytes a paste does — an unescaped `|` splits the row into extra
- * cells on reparse, shifting or dropping every cell after it. The caret shifts by
- * the backslashes inserted before it, so the re-render from raw seats it after
- * the escape it just typed, not inside the `\|` pair.
+ * Where `offset` lands in `text` once the sink's `normalizeCellRaw` has run over
+ * it. Defined as that same pass over the prefix, so the caret cannot drift out of
+ * step with the bytes the way a hand-kept backslash count would: the re-render
+ * from raw seats the caret after an inserted escape, never inside the `\|` pair.
  */
-export function escapeCellCommit(text: string, caret: number): { text: string; caret: number } {
-	const escaped = escapeUnescapedPipes(text);
-	if (escaped === text) return { text, caret };
-	return { text: escaped, caret: escapeUnescapedPipes(text.slice(0, caret)).length };
+export function escapedCellOffset(text: string, offset: number): number {
+	return normalizeCellRaw(text.slice(0, offset)).length;
 }
 
 export function tableCellInlinePaste(
@@ -58,7 +44,7 @@ export function tableCellInlinePaste(
 	text: string,
 	preDelete?: PasteRange
 ): InlinePasteResult {
-	const cleaned = escapeUnescapedPipes(normalizeWhitespace(text));
+	const cleaned = normalizeWhitespace(text);
 
 	let raw = node.raw;
 	let effectiveOffset = offset;
@@ -67,10 +53,14 @@ export function tableCellInlinePaste(
 		effectiveOffset = preDelete.start;
 	}
 
-	const newRaw = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
+	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
+	// The caret is reported in escaped space because the sink escapes the whole
+	// spliced raw, not just the pasted text: the insertion point can sit between a
+	// `\` and the `|` it frees, and a preDelete can consume that `\` outright, so
+	// the newly-freed pipe comes from the surrounding cell rather than the paste.
 	return {
-		newRaw,
-		caretOffset: effectiveOffset + cleaned.length
+		newRaw: spliced,
+		caretOffset: escapedCellOffset(spliced, effectiveOffset + cleaned.length)
 	};
 }
 
@@ -105,7 +95,9 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		replacement,
 		controller: input.controller,
 		undoEntry: input.undoEntry,
-		focusReplacementIndex: firstHalf ? 1 : 0,
+		// End of the pasted content: the last pasted block, before the second table
+		// half (the residue) — never the first pasted block.
+		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,
 		source: 'paste-dispatch-table-cell'
 	});

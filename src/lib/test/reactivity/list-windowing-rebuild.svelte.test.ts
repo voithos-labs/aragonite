@@ -57,6 +57,7 @@ describe('list-windowing structural rebuild', () => {
 				getScrollEl: () => scrollEl,
 				getFocusPath: () => null,
 				getWidthVersion: () => 0,
+				windowingEnabled: () => true,
 				getParentPath: () => [],
 				overscan: 2,
 				pinExtensionCap: 100,

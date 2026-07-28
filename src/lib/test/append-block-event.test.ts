@@ -72,6 +72,24 @@ describe('moveFocus past the last block', () => {
 		expect(appendEvents[0].path).toEqual([1]);
 	});
 
+	// The appended paragraph is a blank separator line plus its own line — both are
+	// pure line ending, so both take the document's (G4.20). A defaulted `\n` pair
+	// puts two lone LFs at the end of a CRLF file.
+	it('takes the last block’s line ending for both the separator and the paragraph', async () => {
+		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
+		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
+		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
+		const { parse } = await import('$lib/core/parser');
+
+		const { deps, doc } = makeEditorActionsDeps(parse('hello\r\n').children);
+		const focus = createFocusActions(deps, createUndoController(deps));
+
+		await focus.moveFocus(doc.children.length, 'start');
+
+		expect(doc.children[1].leadingTrivia).toBe('\r\n');
+		expect(doc.children[1].raw).toBe('\r\n');
+	});
+
 	it('with { append: false } is a no-op at the document end — no block, no event', async () => {
 		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
 		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');

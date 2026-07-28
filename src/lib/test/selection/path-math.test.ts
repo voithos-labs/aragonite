@@ -4,15 +4,11 @@ import {
 	isStrictAncestorOf,
 	pathsEqual,
 	sharedPrefixLength,
-	pointsEqual,
 	isPathBetween,
-	asDocPath,
-	extendDocPath
+	asDocPath
 } from '../../selection/path-math';
-import type { SelectionPoint } from '../../selection/primitives';
+import { extendDocPath, docPathFrom } from '../../cursor/coordinate-spaces';
 import { checkCommitPathAddressable } from '../../invariants/commit-paths';
-
-const P = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
 describe('pathHasPrefix', () => {
 	it('returns true when prefix equals path', () => {
@@ -88,21 +84,6 @@ describe('sharedPrefixLength', () => {
 	});
 });
 
-describe('pointsEqual', () => {
-	it('matches identical paths and offsets', () => {
-		expect(pointsEqual(P([1, 0], 3), P([1, 0], 3))).toBe(true);
-	});
-
-	it('detects offset mismatch', () => {
-		expect(pointsEqual(P([1], 0), P([1], 1))).toBe(false);
-	});
-
-	it('detects path mismatch', () => {
-		expect(pointsEqual(P([0], 5), P([1], 5))).toBe(false);
-		expect(pointsEqual(P([0, 1], 0), P([0], 0))).toBe(false);
-	});
-});
-
 describe('isPathBetween', () => {
 	it('returns true strictly between two paths', () => {
 		expect(isPathBetween([1], [0], [2])).toBe(true);
@@ -118,16 +99,12 @@ describe('isPathBetween', () => {
 });
 
 describe('DocPath brand', () => {
-	it('extendDocPath appends the child index to the parent', () => {
-		expect(extendDocPath([1, 2], 3)).toEqual([1, 2, 3]);
-		expect(extendDocPath([], 0)).toEqual([0]);
-	});
-
 	// Assignment-shaped compile pin (runtime-free): the doc-absolute guard's
 	// entry demands a minted DocPath, so a bare number[] can't reach it. An
 	// unused @ts-expect-error is itself a check error, so a green gate proves both
 	// that the mint is required AND that the brand hasn't decayed to number[].
-	it('the commit-path guard rejects an unminted path', () => {
+	// Covers all three mints (base + the two composition helpers).
+	it('the commit-path guard rejects an unminted path but accepts every mint', () => {
 		type GuardPath = Parameters<typeof checkCommitPathAddressable>[1];
 
 		// @ts-expect-error a plain number[] is not a doc-absolute path
@@ -136,7 +113,9 @@ describe('DocPath brand', () => {
 
 		const minted: GuardPath = asDocPath([0]);
 		const extended: GuardPath = extendDocPath([0], 1);
+		const composed: GuardPath = docPathFrom([0, 1]);
 		expect(minted).toEqual([0]);
 		expect(extended).toEqual([0, 1]);
+		expect(composed).toEqual([0, 1]);
 	});
 });

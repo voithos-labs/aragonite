@@ -1,16 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import {
-	makeStickyColumn,
-	makeStubBlockEdit,
-	makeStubFocus,
-	makeEditorActionsDeps
-} from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
 
 function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
 	return { kind, leadingTrivia: '', raw, metadata };
@@ -236,24 +228,8 @@ function makeContainerSetup(containerIndex: number) {
 	const padNode = makeNode('paragraph', 'pad\n', {});
 	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
 
-	const { deps, events } = makeEditorActionsDeps(docNodes);
-
-	const controller = createUndoController(deps);
-	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const containerState = createBlockListState(() => deps.doc.children[containerIndex]);
-	const bundle = createStandardNestedActions(containerState, {
-		index: containerIndex,
-		get node() {
-			return deps.doc.children[containerIndex];
-		},
-		path: [containerIndex],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit: containerEditActions
-		}
+	const { deps, events, controller, bundle } = makeNestedHarness(docNodes, {
+		index: containerIndex
 	});
 
 	const liveInner = () => deps.doc.children[containerIndex].children![0];
@@ -339,24 +315,8 @@ function makeListContainerSetup(containerIndex: number) {
 	const padNode = makeNode('paragraph', 'pad\n', {});
 	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
 
-	const { deps, events } = makeEditorActionsDeps(docNodes);
-
-	const controller = createUndoController(deps);
-	const containerEditActions = createContainerEditActions(deps, controller);
-
-	const containerState = createBlockListState(() => deps.doc.children[containerIndex]);
-	const bundle = createStandardNestedActions(containerState, {
-		index: containerIndex,
-		get node() {
-			return deps.doc.children[containerIndex];
-		},
-		path: [containerIndex],
-		stickyColumn: makeStickyColumn(),
-		parent: {
-			blockEdit: makeStubBlockEdit(),
-			focus: makeStubFocus(),
-			containerEdit: containerEditActions
-		}
+	const { deps, events, controller, bundle } = makeNestedHarness(docNodes, {
+		index: containerIndex
 	});
 
 	const liveInner = () => deps.doc.children[containerIndex].children![0];

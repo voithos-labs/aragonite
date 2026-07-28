@@ -4,7 +4,7 @@ import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { getInlineSyntax, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
+import { getInlineRungs, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
 import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
@@ -135,12 +135,12 @@ describe('latexPlugin reinstall after a schema reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
-		expect(getInlineSyntax('$')).toBeDefined();
+		expect(getInlineRungs('$').length).toBeGreaterThan(0);
 
 		__resetSchemaRegistriesForTests();
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
-		expect(getInlineSyntax('$')).toBeDefined();
+		expect(getInlineRungs('$').length).toBeGreaterThan(0);
 	});
 });

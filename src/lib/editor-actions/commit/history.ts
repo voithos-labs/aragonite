@@ -13,7 +13,7 @@ import type { HistoryActions } from '../../action-contracts';
 import type { UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../invariants/assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { applySelectionToDom } from '../../selection/native-bridge';
+import { restoreSelection } from '../../selection/selection-restore';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
 export function createHistoryActions(
@@ -28,11 +28,26 @@ export function createHistoryActions(
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		deps.setBlockIds(entry.blockIds);
+		// The tick belongs to the doc swap above, not to the restore: the new tree
+		// must render before the shared seam can reveal or address anything in it.
 		await tick();
-		// Mount the focus block if it scrolled out of the window; applySelectionToDom
-		// still does the placement via getBlockElByPath, which now resolves.
-		await deps.revealPath(entry.selection.focus.path);
-		applySelectionToDom(entry.selection, deps.selectionState, deps.getBlockElByPath);
+		const outcome = await restoreSelection(entry.selection, {
+			getDoc: () => deps.doc,
+			selectionState: deps.selectionState,
+			getBlockElByPath: deps.getBlockElByPath,
+			// Mount, not scroll into view: a history swap must not move the viewport for
+			// a target that is already on screen. The consumer restore door promises the
+			// stronger guarantee and passes the stronger primitive.
+			revealTarget: async (path) => (await deps.revealPath(path)) !== null
+		});
+		// An entry can name a slot that never existed in its own snapshot — the
+		// append-past-end op declares the one-past-the-end coordinate as its restore
+		// fallback (editor-actions/focus/focus.ts) — and the swap would otherwise leave
+		// the pre-swap selection painted over a document that changed underneath it.
+		// The seam declines such a snapshot without side effects, which is right for the
+		// consumer door (it must never disturb a live selection) and leaves this policy
+		// here, where "the doc was replaced" is known.
+		if (outcome === 'unresolvable') deps.selectionState.clear();
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 

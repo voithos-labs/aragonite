@@ -27,3 +27,14 @@ export function isCollapsedContainer(node: NodeView): boolean {
 	const probe = tryGetBlockKindDescriptor(node.kind)?.reservedChrome?.isCollapsed;
 	return probe !== undefined && probe(node);
 }
+
+/**
+ * The metadata patch that expands `node`, or null when its kind declares no expand
+ * door (or declines this node). Sibling of `isCollapsedContainer` over the same one
+ * declaration, so the clamp that hides a body and the reveal that opens it cannot
+ * disagree about which containers collapse.
+ */
+export function expandContainerPatch(node: NodeView): Record<string, unknown> | null {
+	const door = tryGetBlockKindDescriptor(node.kind)?.reservedChrome?.expandPatch;
+	return door?.(node) ?? null;
+}

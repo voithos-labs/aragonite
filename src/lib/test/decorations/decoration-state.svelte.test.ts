@@ -174,6 +174,25 @@ describe('createDecorationEngine', () => {
 		expect(engine.blockDecorationsForPath([2]).map((d) => d.class)).toEqual(['b']);
 	});
 
+	// A whole-document replacement reaches the engine as notifyEdit — the same signal a
+	// commit sends, because the epoch means "the document changed", not "a key was
+	// pressed". What the buckets hold afterwards must be the NEW document's output with
+	// nothing left standing from the old one.
+	it('a document replacement re-provides every source against the new doc and replaces its bucket', () => {
+		let current = parse('one\n\ntwo\n');
+		const engine = createDecorationEngine({ getDoc: () => current });
+		engine.addSource({ name: 'tail', provide: (d) => [mark([d.children.length - 1])] });
+		// Emits only while the document has a second block, so the swap below drives a
+		// non-empty → empty run: its bucket must be cleared, not left standing.
+		engine.addSource({ name: 'pair', provide: (d) => (d.children.length > 1 ? [mark([1])] : []) });
+		expect(engine.marksForPath([1])).toHaveLength(2);
+
+		current = parse('only\n');
+		engine.notifyEdit();
+		expect(engine.marksForPath([0])).toHaveLength(1); // 'tail' re-aimed at the new last block
+		expect(engine.marksForPath([1])).toHaveLength(0); // no mark survives at a path the new doc lacks
+	});
+
 	it('sourceCount tracks add and dispose', () => {
 		const engine = makeEngine();
 		expect(engine.sourceCount).toBe(0);
@@ -223,14 +242,11 @@ describe('non-prose island dev-warn', () => {
 		);
 	});
 
-	it('warns for an island on a table cell — prose kind, but the cell surface applies no islands', () => {
+	it('stays silent for an island on a table cell — the cell surface applies islands', () => {
 		const tableDoc = parse('| a | b |\n| --- | --- |\n| c | d |\n');
 		const engine = createDecorationEngine({ getDoc: () => tableDoc });
 		engine.addSource({ name: 'cell', provide: () => [replace([0, 0, 0], 0, 1)] });
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("source 'cell' places a replace island on a tableCell block"),
-			{ path: [0, 0, 0] }
-		);
+		expect(warnSpy).not.toHaveBeenCalled();
 	});
 
 	it('stays silent for islands on a prose block and for mark/block decorations anywhere', () => {

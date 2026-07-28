@@ -4,6 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
+import type { InlineNode } from '$lib/core/nodes';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
 
 // The component layer injects buildImageWidget; core owns no image-widget code
@@ -160,6 +161,22 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		expect(frag.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
 	});
 
+	// Tauri hands a webview an `asset://` URL for a local file everywhere except
+	// Windows, where the same protocol arrives as `http://asset.localhost/…`.
+	it('allows an asset: src a resolver hands back', () => {
+		const raw = '![x](assets/a.png)';
+		const inline = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(
+			inline,
+			raw,
+			withWidget({ resolveImageUrl: (u) => `asset://localhost/vault/${u}` })
+		);
+		expect(frag.querySelector('img')?.getAttribute('src')).toBe(
+			'asset://localhost/vault/assets/a.png'
+		);
+		expect(frag.querySelector('.md-image-blocked')).toBeNull();
+	});
+
 	it('imageLoadPolicy "placeholder" defers loading (no src, placeholder class)', () => {
 		const raw = '![x](https://example.com/a.png)';
 		const inline = parseInline(raw, 0, raw.length);
@@ -167,5 +184,82 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		const img = frag.querySelector('img');
 		expect(img?.getAttribute('src')).toBeNull();
 		expect(frag.querySelector('.md-image-placeholder')).not.toBeNull();
+	});
+});
+
+// The fallback a kind with `renderImagesAsWidgets: false` (table cells) renders
+// through — and any block whose consumer injects no widget builder.
+describe('inline-render image — alt-only fallback', () => {
+	const renderFallback = (nodes: InlineNode[], raw: string) =>
+		renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false });
+
+	// The shape an inline-syntax rung mints for an Obsidian-style embed: an `image`
+	// node whose alt names the target, over markers three characters wide.
+	const embedNode = (raw: string, target: string): InlineNode => ({
+		kind: 'image',
+		start: 0,
+		end: raw.length,
+		children: [],
+		alt: target,
+		url: target
+	});
+
+	it('prints an image whose alt is not a slice of its source as its own bytes', () => {
+		const raw = '![[cat.png]]';
+		expect(renderFallback([embedNode(raw, 'cat.png')], raw).textContent).toBe(raw);
+	});
+
+	it('leaves such an image unmarked, so no presentation mode can hide its bytes', () => {
+		const raw = '![[cat.png]]';
+		// Markers collapse in reading/preview modes. Claiming bytes as markers when
+		// the node can't say which they are would blank the construct outright.
+		expect(
+			renderFallback([embedNode(raw, 'cat.png')], raw).querySelectorAll('.md-marker')
+		).toHaveLength(0);
+	});
+
+	// The predicate's empty boundary, both shapes: with no alt there is nothing to
+	// leave behind when markers collapse, so the whole construct is markers — never a
+	// split placed over bytes nothing can name.
+	it('renders an alt-less image as markers alone', () => {
+		const gfm = '![](u)';
+		const gfmFrag = renderFallback(parseInline(gfm, 0, gfm.length), gfm);
+		expect(gfmFrag.textContent).toBe(gfm);
+		expect([...gfmFrag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'](u)'
+		]);
+
+		const minted = '![[x]]';
+		const frag = renderFallback(
+			[{ kind: 'image', start: 0, end: minted.length, children: [], url: 'x' }],
+			minted
+		);
+		expect(frag.textContent).toBe(minted);
+		expect([...frag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'[x]]'
+		]);
+	});
+
+	it('keeps a GFM image split into markers around its alt text', () => {
+		const raw = '![cat|400](https://example.com/cat.png)';
+		const frag = renderFallback(parseInline(raw, 0, raw.length), raw);
+		expect([...frag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'|400](https://example.com/cat.png)'
+		]);
+		expect(frag.textContent).toBe(raw);
+	});
+
+	it('keeps the split for a reference-form image, whose alt is read off the label', () => {
+		const raw = '![cat][ref]';
+		const nodes = parseInline(raw, 0, raw.length, () => ({ url: 'https://example.com/cat.png' }));
+		const frag = renderFallback(nodes, raw);
+		expect([...frag.querySelectorAll('.md-marker')].map((m) => m.textContent)).toEqual([
+			'![',
+			'][ref]'
+		]);
+		expect(frag.textContent).toBe(raw);
 	});
 });

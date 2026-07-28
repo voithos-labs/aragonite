@@ -4,65 +4,32 @@ Log of known editor issues. Each entry carries severity, affected files, a descr
 reproduction (where relevant), and either a **Target** version (if scheduled via the roadmap)
 or a **Why deferred** rationale (if not). Remove entries when shipped.
 
-## Decoration & rendering
-
-### Islands (widget/replace decorations) do not render in table cells
-
-**Severity:** minor (parity gap; mark and block decorations serve cells today)
-**Files:** `src/lib/components/blocks/table/cell-render.ts` (applies no islands) vs
-`src/lib/components/blocks/text/text-render.ts` (the prose island seam)
-
-Only the prose text render path consumes `islandsForPath`; the cell surface runs its own
-inline pass and applies no island decorations, so a widget/replace decoration targeting a
-`tableCell` path renders nothing. `tableCell` is a prose kind, so the non-prose island
-dev-warn also stayed silent — the source seam now warns for cell paths, and the gap is
-e2e-pinned (`fold-and-badge.spec.ts`, islands-in-cells). Byte safety holds throughout:
-the targeted bytes never leave `getSource()`.
-
-**Fix direction:** apply `applyIslandDecorations` in the cell render path the way
-`text-render.ts` does (cell raw, ambient length 0 — the offset walk is shared); island
-editing semantics in cells then ride the same wire-up as the cell reveal gap below
-("Inline-widget source editing (reveal) is unwired in table cells").
-
-**Why deferred:** surfaced as the 0.9.22 islands-in-cells verification outcome. Cells
-already lag the prose surface on widget interaction, so island rendering folds into that
-same cell-surface parity pass rather than shipping render support without editing rules.
-
-### HTML entities render as the literal source instead of the decoded character
-
-**Severity:** minor (rendering; deviates from author intent)
-**Files:** `src/lib/core/inline-render.ts` (`entityReference` rendering); spec at `docs/design/inline-parsing.md` § Rendering.
-
-Per the inline-parsing spec, an `entityReference` node renders as a span holding the literal source (`&copy;`, `&mdash;`, `&#39;`). The `decoded` field — the Unicode character the entity resolves to — is parsed but never displayed. This was a deliberate application of the "always-visible styled source" principle, but for entities it's questionable: unlike emphasis (markers _around_ styled content), an entity reference IS the entire markup — there's no separable content to style. A user typing `&copy;` to show © sees `&copy;` and is surprised; most editors (Obsidian, GitHub, VS Code preview) display the decoded glyph.
-
-**Fix direction:** render the decoded character in a `contenteditable=false` atomic span, with offset translation between display textContent (1 char) and raw (`&...;` length) — analogous to the `ambient/` prefix translation but applied to inline mid-content. Round-trip already preserves the source via `node.raw`.
-
-**Target:** the inline-widget path is now fully general — the editing registry shipped (0.9.10), caret-addressing keys generically off `[data-inline-widget]`/`data-source-*`, and a decoded-entity widget could ship as a component via the portal seam (0.9.14). What remains is building the entity widget itself and its atomic-delete consumer — entity editing is defined by atomic delete, which image's select-then-delete model doesn't cover. The `deleteGranularity: 'atomic'` policy field it needs is already re-added on `InlineWidgetEditingPolicy` (typed and honored by the caret-edge dispatch, awaiting this first consumer).
-
-### Search matches on render-primary leaf widgets are counted but not painted
-
-**Severity:** minor (search UX; the match is found and navigable, just not highlighted)
-**Files:** `src/lib/plugins/latex/latex-kind.ts` (`mathBlock`), `src/lib/plugins/toc/toc-plugin.ts` (`toc`)
-
-A render-primary leaf widget renders its source through a component (KaTeX, a rendered
-outline) rather than as editable text, so a search match inside its raw has no measurable
-DOM text node to cover. The document scan finds and counts the match and Enter navigates to
-it, but no `.match-overlay` rect paints on the block — a user sees `1 / 1` with nothing
-highlighted. A whole-block-focus opaque widget (`mermaid`) avoids this by painting a
-whole-block cover via the container shim; the leaf widgets have no equivalent. Surfaced by
-the 0.9.24 conformance browser sweep (`conformance-sweep.spec.ts`), which pins the current
-behaviour so wiring painting later flags the two cells for update. Their `searchPaint` `via`
-records the gap.
-
-**Fix direction:** paint a whole-block cover rect for a match on a render-primary leaf (the
-`mermaid` container-shim path), or reveal-and-measure the source range the way selection paint
-already does while the source is revealed.
-
-**Why deferred:** parity polish on a subsystem that already finds and navigates the match;
-the missing piece is only the highlight rect, and it folds into the render-primary paint pass
-alongside the cell-surface island gap above.
-
 ## Core editing
+
+### A ranged edit spanning a fence line corrupts the fence
+
+**Severity:** important (byte corruption; the block absorbs the rest of the document on reload)
+**Files:** `src/lib/components/blocks/code/CodeBlock.svelte` (`codeBackspace` / `codeDelete` bail on
+a non-collapsed selection; `onBeforeInput` intercepts only `insertText` and `insertLineBreak`;
+`cutTail` writes the spliced display text directly),
+`src/lib/components/blocks/code/code-fence-boundary.ts` (`classifyFenceBoundary` takes one offset,
+not a range)
+
+The fence lines are structure, not content, and every gesture that rewrites whole lines is now
+clamped to the body window. The gestures that rewrite a **range** are not. Select across a fence
+line and press Backspace, Delete, or any printable key: the block's own guards decline on sight of a
+selection, `onBeforeInput` does not claim the input type, so the native ranged edit lands in the
+contenteditable and the surface commits whatever text remains. The committed block is an unclosed
+fence, which absorbs every following block on the next parse. `cutTail` is the same family's
+explicit-write member: it splices the display text itself with no clamp.
+
+**Repro:** in a fenced code block, select from the last body line through the closer fence and press
+Backspace; save and reload.
+
+**Why deferred:** closing this needs a beforeinput-level ranged-edit guard covering delete, cut and
+type-over together, not a clamp per gesture: the block-level guards run below the point where the
+selection is still known to be a range. Fixing one member is 1-of-N and would additionally make cut
+and copy disagree about what a fence-crossing selection means, which is its own decision.
 
 ### Interactive reading mode (live task checkboxes) — deferred product question
 
@@ -76,29 +43,12 @@ disclosure (which commits an `open` metadata edit) is likewise gated. A rendered
 (GitHub, Obsidian reading view) keeps some of these live — whether reading mode should allow
 a curated set of interactive edits is a product question, not a gating bug.
 
-**Why deferred:** decided with the presentation-modes milestone's later rungs, where
-block/inline granularity forces the same "which interactions survive" call anyway.
-
-### Reading-mode code blocks show an empty line above and below the code
-
-**Severity:** minor (rendering; reading mode only, v1 acceptable)
-**Files:** `src/lib/styles/editor.css` (reading-mode fence hiding),
-`src/lib/components/blocks/code/code-renderer.ts` (`renderOpenerLine` / closer — the fence
-marker span plus that line's bare `\n`)
-
-In reading mode the fence lines hide by CSS (`.md-fence` / `.md-lang`), but each fence line's
-bare `\n` text node is CSS-unreachable — CSS cannot remove a text node and structural omission
-is forbidden (the raw-aware walk counts `.length` regardless of layout). The two symmetric
-empty lines read as box padding, one above and one below the code. Offsets survive throughout;
-only the visual carries an extra blank line each side.
-
-**Fix direction:** a render-path change, out of the CSS-first scope reading mode shipped under.
-The `\n` cannot leave the raw, so the likely shape is a CSS-reachable wrapper around each fence
-line (an element the reading-mode rule can collapse) instead of a bare text node — decided
-against the offset walk that reads those bytes.
-
-**Why deferred:** reads as padding, byte-safe, and reachable only in reading mode; the fix
-touches the code renderer's DOM shape, so it folds into a render-path pass, not a CSS tweak.
+**Why deferred:** the original anchor (the presentation-modes milestone's later rungs) shipped
+in 0.9.26 with reading mode fully inert, so the decision is now a standing product question,
+re-anchored to the 1.1 shell integration. Inert-at-freeze is also the safe ordering: ungating
+a curated interaction set later is additive, while shipping interactivity now and re-gating it
+after 1.0 would be a breaking change, and reading-mode inertness is lint-enforced (G4.19),
+an invariant worth keeping whole until the shell decides which interactions survive.
 
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
@@ -132,58 +82,6 @@ with gesture re-choreography, decided against the merge/undo paths that read tho
 divergence needs a save→reload boundary to observe. Not reachable by the current simulation
 notes (they type para→heading and list-exit→paragraph, not Enter-at-end-then-paragraph).
 
-### Content typed after an unclosed fenced code block stays a separate live block but reloads collapsed
-
-**Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
-**Files:** `src/lib/core/parsers/fenced-code.ts` (an unclosed fence has no terminator, so on
-load it absorbs every following line to EOF), `src/lib/core/serializer.ts` (emits `node.raw`
-verbatim, so the live fence's own bytes plus the trailing blocks' bytes compose faithfully)
-
-Typing content after an unclosed fenced code block (` ``` ` with no closing fence) keeps
-that content as separate live blocks — the editor lets you author a paragraph, thematic break,
-or heading below the open fence. But the document serializes to an open fence followed by those
-blocks' bytes, and GFM lazy continuation reparses the whole tail INTO the code block: load →
-one fenced-code node swallowing everything. Byte round-trip (`serialize(parse(s)) === s`) holds
-throughout — the divergence is `parse(serialize(liveTree))` disagreeing with the live tree's
-block structure, invisible to the round-trip oracles. Surfaced when the parse-convergence oracle
-was wired into the simulation checkpoints: three note fixtures (biology, project-plan, readme)
-build this shape deliberately and are exempted with a documented reason (`NoteFixture.unconvergedReason`).
-A live-tree vs reload lazy-continuation divergence, but here the collapse is unavoidable (an
-unclosed fence has no terminator) rather than a separator-ownership gap.
-
-**Fix direction:** a design look at whether the editor should auto-close a fence when a
-structural block is created after it (closing fence minted into the code node's raw), decided
-against the code-block edit/reveal paths that read those bytes.
-
-**Why deferred:** byte-safe and self-consistent in the live session; needs a save→reload to
-observe. The auto-close decision touches fence rebuild, code-block navigation, and the
-descend-below gesture together — a deliberate change, not a spot patch.
-
-### A body row wider than the header drops its surplus cells on first table edit
-
-**Severity:** minor (live-tree vs reload divergence; byte round-trip at load unaffected)
-**Files:** `src/lib/core/parsers/table.ts` (`buildRow` truncates cell children to the
-header width), `src/lib/schema/container-rebuilders.ts` (`rebuildTableRowRaw` maps the
-truncated children)
-
-GFM (§4.10) ignores body cells beyond the header width, so `buildRow` truncates a wider
-row's CHILDREN to `columnCount` while the row/table `raw` keeps the authored bytes verbatim.
-Because `serialize` emits the table's own `raw`, `serialize(parse(source)) === source` holds
-at load — the surplus cells survive a pure round-trip. The first `rebuildTableRowRaw` after
-any table edit rebuilds the row from its (truncated) children, silently dropping the surplus
-bytes. Reachable only by loading or pasting GFM with a malformed wider-than-header row; typing
-cannot produce one (the grid fixes `columnCount`). The dropped cells were never part of the
-model and never rendered, so no editor-visible content is lost.
-
-**Fix direction:** none intended — preserving the surplus would require either phantom
-children or a `raw` that disagrees with `children`, both of which violate CST-is-source-of-truth
-(raw must rebuild FROM children). The accepted behavior is GFM-mandated truncation, normalized
-on first edit like padding and delimiter normalization.
-
-**Why deferred:** spec-compliant and byte-safe at load; the divergence needs a save→reload
-boundary to observe and drops only non-model, never-rendered bytes — the same live-tree vs
-reload divergence class, one rung less severe (the surplus is never user-visible).
-
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 
 **Severity:** minor (undo-selection nuance; the edit is correct and byte-safe)
@@ -201,67 +99,574 @@ the post-change coordinate and the top-level divergence want a joint look.
 seam and both content-commit factories together — a careful reconciliation, not a spot change.
 Fold into the history-seam pass (limestone internal integration).
 
-### Post-paste caret landing diverges across paste routes
+### writeText clipboard writes normalize line endings per-OS; wry reliability unproven
 
-**Severity:** minor (caret placement; the document bytes are correct on every route)
-**Files:** `src/lib/tree-operations/paste/apply.ts`, `src/lib/tree-operations/paste/dispatch.ts`
-(inline `pendingCursorOffset` vs cross-block DOM restore vs structural internal focus)
+**Severity:** watch (no defect today; relevant to the limestone/Tauri integration)
+**Files:** `src/lib/editor-actions/container-block-component.ts` (the whole-block Mod+C/Mod+X write)
 
-The post-paste caret lands through three mechanisms depending on the route; the audit flagged
-two of the five caret gates as placing the caret at a different relative position than the
-others for the same logical paste. The current landings are pinned by the clipboard e2e suite
-(post-paste source plus type-after-paste flows), so any parity change re-baselines those specs.
+The focused-block copy writes via `navigator.clipboard.writeText` — no ClipboardEvent exists in
+a keydown handler. Two platform behaviors to watch: Chromium's `writeText` normalizes a
+multi-line payload to the OS line ending (CRLF on Windows — the mermaid e2e normalizes before
+comparing; intra-editor paste re-normalizes to LF, so no corruption), and the cross-block
+clipboard code documents wry (Tauri) refusing `writeText` in some contexts — unverified for this
+path. A setData-in-a-copy-event fallback was proven workable during implementation (the native
+copy event does fire on the focused div; `preventDefault` currently suppresses it), at the cost
+of per-surface `oncopy` handlers.
 
-**Why deferred:** the divergence is cosmetic (bytes are correct) and the current behavior is
-spec-pinned; unifying the caret target is a deliberate change that must re-pin the affected
-clipboard specs. Fold into the paste caret/transform pass.
+**Fix direction:** if the limestone integration observes a failed focused-block copy under wry,
+switch the tail to the proven copy-event fallback behind the same shared seam.
 
-### caretNearestSurvivor parks a container survivor at a char offset on its own path
+**Why deferred:** watch-class; needs the real embedder to falsify.
 
-**Severity:** minor (caret placement in a narrow table-delete edge; bytes are correct)
-**Files:** `src/lib/selection/range-delete-table.ts` (`caretNearestSurvivor`)
+### Emphasis-dense giant paragraphs scan quadratically
 
-When a table-aware range delete removes every block the caret could land in, the survivor
-before the range gets `{ path: [beforeIdx], offset: displayLength(before.raw) }`. Tables are
-special-cased to a deep cell caret, but a **container** survivor (blockquote/list) falls
-through: `before.raw` is the whole container's raw (nested markers included), so the offset is
-a container-path char offset that no leaf owns. The restore then clamps or mis-lands.
+**Severity:** watch (adversarial shape inside the documented-transient giant-paragraph axis)
+**Files:** `src/lib/core/inline/scan/emphasis.ts` (`wrapMatch` — `nodes.indexOf` + splice)
 
-**Why deferred:** needs a container last-leaf descent resolver (the table branch's
-`lastCellCaret` generalized) and a container-before-consumed-table cross-block-delete scenario;
-not a cheap one-liner. Fold into the caret-landing parity pass.
+Measured (2026-07-21 elegance run): `'*a*'.repeat(N)` scans at 0.86ms/8.2ms/94ms for
+6KB/24KB/96KB single blocks — O(N^~2). Only reachable by pasting emphasis-dense
+content into ONE block, i.e. inside the axis `docs/design/performance.md` already
+documents as transient (any Enter splits it); at 24KB the cost still sits under the
+10MB keystroke ceiling.
 
-### Cross-block type-replace splices the surviving leaf's raw without re-deriving its kind
+The 2026-07-21 entry called four sibling flood paths linear. Re-measured 2026-07-24,
+two of the four were wrong: backticks (growth exponent 0.01) and entities (0.91) are
+linear and stand; the autolink delimiter prune measured 2.00 and is now bounded (a
+lookup over the sorted, disjoint matches); the directive closer lookup measured 1.95
+and is now bounded too (a max-of-counts descent over the closer index, 0.9.36).
 
-**Severity:** minor (transient; the next reparse corrects it)
-**Files:** `src/lib/selection/cross-block/type-replace.ts`
+**The deferral envelope is understated, not wrong.** Every measurement above stops at
+96 KB, where the cost is a stall. The 0.9.35 adversarial pass measured the same scan at
+roughly 53 s on an 800 KB single block, which is one ordinary paste and a reload to
+recover from. So the deferral stands on reachability (the shape needs emphasis-dense
+content pasted into ONE block, and any Enter splits it), not on the cost being small.
 
-The typed character is spliced straight into the surviving leaf's raw and committed via
-commitMultiScope. If the inserted character changes the block kind (e.g. a leading `#`/`>` when
-the merge caret sits at offset 0), the kind stays stale until the next full reparse — unlike the
-single-block type path, which reparses.
+**Why deferred:** the true fix is porting commonmark.js's linked delimiter list —
+med-high conformance-fidelity risk against a faithful port, for a shape the perf model
+already brackets. Re-open only if a real workload holds emphasis-dense multi-KB single
+blocks.
 
-**Why deferred:** a correct fix reparses the spliced leaf and replaces the block when the kind
-changes, which is a reparse-and-replace inside the commit flow, not a cheap tweak. Reachable
-only when the post-delete caret lands at offset 0 and the typed char is a block marker.
+### Blank-line detection admits Unicode whitespace, where GFM means space and tab
+
+**Severity:** minor (block structure diverges from GFM on a common paste artifact; byte round-trip
+holds either way)
+**Files:** `src/lib/core/parser.ts` (`isBlankLine`, exported and consumed by the blockquote, HTML
+block, indented-code, list, paragraph and table parsers),
+`src/lib/plugins/footnotes/footnote-definition.ts` (a private duplicate with the same body)
+
+Both predicates ask `String.trim()`, which strips the whole Unicode whitespace set. GFM's blank line
+is spaces and tabs only. So a line holding nothing but a non-breaking space, the commonest artifact
+of a paste out of a word processor or a web page, reads as blank and splits one paragraph into two,
+and a document whose only content is an NBSP parses to zero children. The ASCII vertical tab and
+form feed are admitted on the same route.
+
+**Repro:** paste a three-line paragraph whose middle line holds one U+00A0 and nothing else; the
+editor shows two paragraphs where GitHub renders one. Parsing that line on its own yields a
+document with no children.
+
+**Why deferred:** narrowing to a space-and-tab test is byte-safe (the line stops terminating its
+block and becomes a paragraph continuation, so its bytes stay inside one node's `raw`), but it
+changes block structure on four axes at once: where a blockquote or paragraph ends, whether a list
+is loose or tight, how far an indented-code run reaches, and when an HTML block terminates. That is
+its own change with the parser owner and its own conformance pass, not a ride-along. The private
+duplicate must move with it, which is the second half of the reason: the rule has two homes and
+should have one, reachable from `$lib/plugin`.
+
+### Footnote reference numbering is O(widgets × leaves) per reactive flush
+
+**Severity:** watch (sub-millisecond at real scale; superlinear only for a reference-dense document)
+**Files:** `src/lib/plugins/footnotes/footnote-numbering.ts` (`assignFootnoteNumbers` walks every prose
+leaf), `src/lib/plugins/footnotes/FootnoteReference.svelte` (each widget's `$derived` calls it independently)
+
+Each mounted reference widget derives its superscript number by walking the whole document through
+`assignFootnoteNumbers`, which inline-parses every prose leaf. The walk is not shared across a flush; it
+re-runs per widget, so a reactive flush costs O(widgets × leaves). Measured ~1.04 ms worst case on a
+40-paragraph document with 20 references (comfortably sub-keystroke), but the shape is superlinear: a
+reference-dense region of hundreds of references over hundreds of leaves runs an order of magnitude past a
+frame budget per keystroke.
+
+A bounded, identity-keyed memo over the document cannot fix it: the `$state` document proxy is mutated in
+place, so its object identity is stable across every edit, and an identity-keyed memo would hit on every
+call and return a stale number map, breaking the live renumber the feature is built on (verified in the
+Task 3 review).
+
+**Fix direction:** a per-epoch shared computation (one `assignFootnoteNumbers` walk per flush keyed on a
+content-version token every widget reads) once a real workload goes reference-dense. No such token reaches
+a widget today: `linkStamp` tracks only the LRD signature rather than general edits, and the decoration
+engine's general `editEpoch` reaches a `DecorationSource`'s `provide` and nothing else — which is exactly
+why highlight-occurrences (a decoration source) could memoize this same walk shape and a reference widget
+cannot.
+
+**Why deferred:** the fix needs a content-version token on the widget surface, which is public plugin
+surface and therefore a freeze-relevant addition, worth taking against a real reference-dense workload
+rather than the synthetic shape. Sub-millisecond until one exists.
+
+### Installed inline-rung consultation is unmeasured by the standing perf gate
+
+**Severity:** watch (measurement gap; the per-consultation cost the entry once assumed is now
+measured and bounded)
+**Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation, the
+default-arm unreserved-rung consultation, and `needsScan`'s per-character probe),
+`src/lib/test/perf/` (the standing harness installs no rung-registering plugin)
+
+A registered inline rung adds a consultation the standing empty-registry gate never measures. Three
+bundled rungs ship, on the two rung shapes:
+
+- **Reserved-prefix** — footnotes' `[^` (0.9.33), consulted before the built-in `[` case, so every
+  `[` in a scanned range pays a registry lookup plus a two-char prefix compare, within ranges
+  `needsScan` already admits.
+- **Unreserved** — emoji's `:` (0.9.34) and latex's `$` (a bare registration predating the ladder,
+  riding its default rung), consulted in the scanner's `default` arm, so every occurrence pays a
+  lookup plus a recognizer attempt. The directive text tier adds a second `:` rung wherever
+  `activateDirectives()` runs.
+
+**The entry's original cost model was wrong and is fixed.** It priced a consultation as
+O(occurrences of the trigger), which assumed each consultation is O(1). Three of the four bundled
+recognizers scanned to the end of the range before declining, so the real cost was quadratic in the
+block: measured 2026-07-24 at growth exponent ~2.0, seconds per parse at 96 KB in one paragraph, on
+ordinary content (`$HOME $PATH $USER` is a shell-documentation paragraph, not an attack). Each
+recognizer now materializes its decline predicate once per block behind a bounded memo and looks it
+up, so the stated model finally describes the code. What the entry always got right is that the perf
+gate cannot see any of this: the measurements came from the adversarial pass, not the standing
+ceilings.
+
+The unreserved shape's cost is **not** confined to its trigger: unreserved triggers are held out of
+`SPECIAL_CHARS`, so registering any one of them flips `needsScan`'s per-character probe on, and
+every ordinary character in a scanned range then pays a map lookup before the fast bail decides. A
+prefix rung on `!` — the one reserved trigger the bail probes on demand rather than always visits
+(0.9.36) — flips the same switch, and carries a larger term with it: on `!` the probe **succeeds**
+on ordinary prose, so a block holding a single exclamation mark loses the fast bail outright and
+runs the full scan loop. That was already true of `:` and `$`; `!` is simply the most
+prose-frequent trigger the ladder has opened, and the first consumer is about to install it. A
+document with latex or emoji installed therefore runs a more expensive bail loop than the standing
+ceilings measure, on every keystroke, not merely a denser trigger cost.
+
+**Fix direction:** when a perf-harness pass next touches fixtures, install each rung shape and
+measure it: a bracket-dense fixture under footnotes, a colon-dense one under emoji, a dollar-dense
+one under latex — plus a **plain-prose** row under any installed unreserved rung, which is the row
+that measures the bail-probe cost the current gate is blindest to. The trigger-dense half now has
+growth bounds in the unit suites (each recognizer's `*-bounds` file), so what is still unmeasured
+is the keystroke ceiling and the plain-prose bail row.
+
+**Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path on an
+empty registry. The bail probe itself predates the ladder — latex's `$` has ridden it since inline
+math shipped — so this is a standing measurement gap, not a ladder regression. Re-open when a
+perf-harness pass next touches fixtures, or if a real workload holds a trigger-dense region under
+an installed rung.
+
+### A navigation click leaves focus where editor-global chords do not reach
+
+**Severity:** minor (a chord that does nothing; no corruption, and the next click restores it)
+**Files:** `src/lib/components/Editor.svelte` (the editor-root keydown effect — the global-chord arm
+gates on `active === root` or an unfocused document), `src/lib/plugins/toc/TocBlock.svelte` (entries
+are real `<button>`s, so activating one parks focus on the button)
+
+Clicking a toc entry leaves DOM focus on the entry `<button>`: inside the editor root, but neither
+the root itself nor a block. The root keydown effect's undo/redo + plugin-global arm deliberately
+fires only when NO element holds focus (the windowed-out-caret case), so it declines; no block
+handler runs either, since the button is not an editable surface. Ctrl+Z immediately after a
+navigation click therefore does nothing until the caret returns to the document.
+
+Latent until 0.9.36, when navigating into a collapsed container started committing an expansion:
+the gesture that makes the edit now leaves focus exactly where the undo for it cannot be typed.
+Reproduced in `details-reveal-expand.spec.ts`, whose undo case restores the caret first and says why.
+
+**Fix direction:** decide which focus states own the editor-global chords. Widening the arm to any
+non-editable element inside the root is the obvious move and the risky one: whole-block-focus
+surfaces (thematic break, a mermaid viewport) are also non-editable tabindex elements that run their
+own chord dispatch, so the widening has to prove it cannot double-fire, and the arm's containment
+guards exist because an unguarded version once let one Ctrl+Z revert two editors on a page.
+
+**Why deferred:** it is a focus-ownership decision across every whole-block surface, not a toc
+patch, and the workaround is the click a user makes anyway. Belongs with the anchor-ownership pass
+below, which is the other half of "who owns a navigation in flight".
+
+### A selection restore emits a transient stale `selectionChange` before the correct one
+
+**Severity:** minor (transient; the last emission of the pair is always correct)
+**Files:** `src/lib/selection/native-bridge.ts` (`applySelectionToDom` — the collapsed route clears
+SelectionState, and so emits, before the caret is placed),
+`src/lib/selection/selection-state.svelte.ts` (every mutator fires `#onChange`; there is no
+batched or silent update)
+
+Restoring a collapsed caret emits `selectionChange` twice: first from `clear()`, while the caret
+is still at its old location, so the payload is the PRE-restore selection; then again once the
+native `selectionchange` bridge sees the placed range. The cross-block route emits the correct
+value twice instead — `enterCrossBlock` writes state before the park, so nothing stale escapes.
+
+The pair lands within the call, so a last-write-wins subscriber converges on the right value and
+`await setSelection(...)` followed by `getSelection()` always reads correctly. A subscriber that
+treats the first event of a burst as authoritative (a persist-on-change host saving per tab) will
+write the stale one first.
+
+Pre-existing on the undo/redo restore path; reaches the public API with `setSelection`.
+
+**Workaround:** read the selection back after the restore — `await setSelection(...)` then
+`getSelection()` — rather than reacting to the emission burst; or debounce the `selectionChange`
+handler so only the settled value is persisted.
+
+**Fix direction:** a batched/silent update seam on SelectionState so one restore is one emission,
+rather than reordering the clear — swapping the two lines only moves which stale value escapes,
+because the native bridge reads through whatever SelectionState still holds.
+
+**Why deferred:** the emission seam is shared by every selection entry path (click, drag, keyboard
+extend, undo, restore), so changing its cardinality is a cross-cutting behavior change needing its
+own red-first pins, not a rider on an additive API commit during the pre-freeze batch.
+
+### Reveal anchor is a single process-global slot with no per-claimant ownership
+
+**Severity:** watch (rare cross-claimant residual; no corruption, no strand within a block)
+**Files:** `src/lib/cursor/reveal-anchor.ts` (the single-target slot), `src/lib/plugins/toc/navigation-queue.ts`
+(the per-block narrowing), `src/lib/editor-rects.ts` (`scrollTo` set/clear)
+
+The reveal anchor holds one target with no per-call ownership. Two reveals racing within the settle
+window (~12 ticks) clash on the one slot: the later `set` overwrites it, and an earlier claimant's
+terminal `clear()` (a `!landed` or `'center'` scroll) can nuke a later claimant's pin. Per-block
+navigation serialization (`navigation-queue.ts`) narrows this to one claimant per block, but two
+DIFFERENT toc blocks — or a toc navigate and a search reveal — still share the slot. Repro shape: a
+rapid cross-block double-click driving two toc blocks' navigations inside the settle window.
+
+**Fix direction:** per-call anchor ownership (a claim token the `clear()` checks, so a stale
+claimant cannot clear a fresher pin), or seam-level serialization at `scrollTo` itself (one in-flight
+reveal per editor instance) instead of each caller serializing its own.
+
+**Second coarseness, same redesign:** `scrollTo` accepts any path, but the anchor it sets holds only
+the target's TOP-LEVEL ancestor (`use-container-windowing.svelte.ts` narrows to `target.path[0]`, and
+`list-windowing.svelte.ts`'s `correctAnchor` re-asserts a top-pin on that index). Inside the settle
+loop the per-tick `scrollIntoView` refine gets the last word, so a nested target resolves correctly —
+verified live: a `[[toc]]` inside a blockquote navigating to a nested heading in a 163-block windowed
+document lands it in view. But `'nearest'` deliberately KEEPS its anchor after resolving, and what
+survives holds the container, not the heading: a container taller than the viewport with an image
+decoding below it on a later measure pass would have the anchor re-assert the container's top and
+push the already-resolved nested target back out of view. Same fix (per-call ownership carrying the
+full target path, not a narrowed index), so it is folded here rather than filed apart.
+
+**One claimant has left, for a reason worth keeping:** `setSelection` no longer holds its pin past
+resolving (`Editor.svelte`, guarded by `selection-restore.spec.ts`'s hand-back scenario). A host
+restores a caret and then its own remembered scroll and then waits, so it never takes the
+user-intent turn that clears the slot — a kept pin sat armed until the next measure pass and threw
+the host's scroll away. Its release checks that the slot still holds the path it revealed, so it
+cannot clear a claimant on a DIFFERENT path; a same-path claimant that lands between scrollTo's synchronous arm and the post-await release can still lose its band (claimant identity and block mode are not compared); the terminal clears on the `'center'` and `!landed` arms still do
+not, and remain part of the shape above. Search keeps its durable band: a searching reader's next
+keystroke lands in the bar — inside the root — and releases it.
+
+**Coverage gap (partly closed):** `details-reveal-expand.spec.ts` now drives a nested `scrollTo`
+target for real — a toc click to a heading inside a collapsed `details` in a windowed document,
+asserting the nested block lands in view past the settle. What that spec does NOT reach is the
+residual above: its container is short, so the anchor's top-level narrowing never fights a nested
+target taller than the viewport, and nothing decodes late. The remaining gap is that shape
+specifically (tall container + a late image decode), not nested targets in general.
+
+**Why deferred:** honest-failing (the loser's target just isn't held — no crash, no corruption; the
+nested residual needs a tall container plus a late decode), and the ownership model wants a second
+real consumer navigating concurrently to shape it; designing per-call ownership against a single
+caller risks the wrong abstraction.
+
+### A cross-block paste with no resolvable caret drops its payload silently
+
+**Severity:** minor (defensive branch off a range that did not resolve; no corruption, and a text
+payload is still on the clipboard)
+**Files:** `src/lib/selection/cross-block/paste.ts` (`handleCrossBlockPaste` — `if (!caret) return
+true`)
+
+When the delete half of a cross-block replacement resolves a null collapsed caret, the paste is
+reported as consumed and its payload lands nowhere. Inherited from the text route, where the cost
+is low — what did not land is still on the clipboard. An **image** paste through `onPasteImage` is
+the shape that makes it matter: the host has already imported the asset by the time the caret is
+asked for, so the drop orphans a file the user cannot recover by pasting again.
+
+**Fix direction:** this route has no error channel — a paste that consumes the event and inserts
+nothing should say so, which is what lets a host release an asset it just imported. Deferring the
+hook call until the caret is known good was costed and rejected: it puts the delete before the
+import, so a failing host would wipe the user's selection with nothing to show for it.
+
+**Why deferred:** it is the text route's inherited contract, so closing it is a change to that
+route rather than to the image arm that surfaced the consequence, and no repro has been
+constructed for the unresolvable-caret branch itself.
+
+### Typing a `> [!TYPE]` marker never forms a GitHub alert (only an atomic insert does)
+
+**Severity:** important (the documented way to author an alert does not work, and the live tree
+diverges from its own bytes)
+**Files:** `src/lib/plugins/admonitions/` (the `githubAlert` reclassification), the blockquote
+kind-transition path
+
+Typing `>` promotes the paragraph to a blockquote and auto-completes the marker to `> `. Typing the
+rest of `[!TIP]` one key at a time leaves the block a **`blockquote` forever** — it never
+reclassifies to `githubAlert`, not on marker completion, not on the following Enter, not after a
+body is typed. `parseConverged()` goes **false**: the live CST holds `blockquote` while a reparse of
+its own serialization yields `githubAlert`. The body then concatenates onto the marker line
+(`> [!TIP]Fresh alert body`) instead of landing in the container.
+
+Inserting the whole marker as ONE input event reparses the block and classifies it correctly, which
+is why every driver in the repo used to pass: both the simulation gesture and the e2e spec formed
+the alert with a single `insertText`. That atomic path is the only reason this was invisible.
+
+**Repro:** on `/test/plugins?seed=admonitions`, put the caret at the end of a paragraph, press
+Enter, then `typeSlowly('>')` followed by `typeSlowly('[!TIP]')`. `getBlockKind` reports
+`blockquote` and `parseConverged()` is `false`.
+
+**Why deferred:** the fix is in the kind-reclassification path, not the test layer; the 2026-07-24
+theme-K pass that found it owns oracles, not the parser. The two drivers are back on the atomic
+insert with an inline comment naming this entry, and both requirement files now state that
+per-keystroke formation is uncovered _because_ of this defect rather than by choice — so restoring
+the per-keystroke gesture is part of the fix.
+
+### A reveal fold whose commit changes the block's kind may not have settled when the mutation runs
+
+**Severity:** minor (unproven in practice; the window is one tick wide and needs a kind flip typed
+outside the revealed span while the reveal is open)
+**Files:** `src/lib/components/blocks/text/TextEditableBlock.svelte` (`runCommand` — the
+`void tick().then(...)` between the fold and the mutation),
+`src/lib/components/blocks/editable-surface.ts` (`onCut` / `onPaste` — the identical discipline),
+`src/lib/editor-actions/block-edit.ts` (`updateBlockContent`'s two paths)
+
+Both mutation seams that fold a live inline reveal — the clipboard splice and the block command
+dispatch — wait exactly one `tick()` before touching the CST. That is sound for the routine path:
+when the committed text keeps the block's kind, `updateBlockContent` mutates synchronously before
+it returns, so the tick only flushes the render. When the commit CHANGES the kind it takes the
+`scope.commit` structural path, which is genuinely async, and one tick is not a guarantee that it
+has landed. Reachable in principle because a reveal only swaps the widget's own span: the rest of
+the block stays natively editable, so a `# ` typed at the block start while math is revealed
+elsewhere in the same block makes the fold's commit a paragraph→heading flip.
+
+**Repro:** not constructed. Needs the kind-flipping edit and the command in one gesture stream.
+
+**Why deferred:** this is a property of the fold-then-mutate discipline, not of the command seam
+that adopted it — the clipboard seam has shipped the same one-tick wait since inline reveal landed,
+with its own pins. Tightening it means threading the commit's promise out through
+`foldRevealBeforeMutation` and awaiting it at both seams; doing that at one seam only would leave
+the two disagreeing about what "settled" means, which is worse than the shared limit. Fix both
+together, or neither.
+
+### The editor-root paste fallback skips the image-import arm
+
+**Severity:** minor (an image pasted over one selection shape is dropped rather than imported)
+**Files:** `src/lib/components/editor-root-clipboard.ts` (`handlePaste` calls
+`crossBlock.handlePaste` directly), `src/lib/components/blocks/editable-surface.ts` (`onPaste`
+offers `onPasteImage` its files first)
+
+A block surface's paste tries the host's `onPasteImage` hook before the cross-block arm; the
+root fallback — which runs when the clipboard event was retargeted to `<body>` because the
+selection's focus endpoint holds no caret — goes straight to the cross-block arm. A pure-image
+paste over such a selection therefore reaches `if (!pasted) return true` and is discarded.
+
+**Repro:** whole-document selection in a document whose last block is an image-only paragraph,
+then paste an image file from the system clipboard.
+
+**Why deferred:** the outcome is identical to the pre-fallback behaviour (nothing happened
+then either), so this is a gap the fallback did not close rather than one it opened. Closing it
+means the image arm moving out of the surface skeleton into a seam both callers share, which is
+the same refactor the `onPasteImage` insertion-anchor plumbing wants; doing it here would give
+the root path a second, divergent copy.
+
+### A dead-space click declines on surfaces that address something other than characters
+
+**Severity:** minor (a click that does nothing, on a narrow set of surfaces)
+**Files:** `src/lib/selection/dead-space-caret.ts` (the `foreignDragHitTest` and
+`contenteditable="true"` gates in `createDeadSpaceCaret`'s `handleClick`)
+
+A click in the editor's padding, or below the last block, places the caret at the nearest text.
+Two families decline instead. A **table** carries `foreignDragHitTest` because its offset is a
+row-major cell index, not a character position, so "the end of that line" names a cell and the
+gesture has no unambiguous landing. A **non-editable leaf** (thematic break, a rendered diagram,
+an image block) has no character position at all; declining is deliberate there rather than
+handing the block the whole-block focus a click ON it means, which would arm the next Backspace
+against a block the user only clicked near.
+
+**Repro:** put a table last in the document and click below it; nothing the editor did happens
+(the browser's own click handling still places a caret in the nearest cell, so the decline is
+not separately visible).
+
+**Why deferred:** the table case needs a decision, not code — either the table kind grows a
+"nearest cell to this point" contract distinct from its drag hit test, or the gesture means
+"caret at the end of the last cell" regardless of x. Both are table-cell caret work, and picking
+one on the way past would set the precedent for every future kind with internal addressing. The
+non-editable case is not deferred at all: declining is the answer.
+
+## Virtual rendering
+
+### Pasting a long list into a windowed list loses the caret (VR-12, reachable)
+
+**Severity:** important (the user pastes, types, and nothing happens)
+**Files:** `src/lib/tree-operations/paste/container-match.ts` (the `afterTick` focus landing),
+`src/lib/editor-actions/focus/focus-dispatch.ts` (`dispatchFocusByPath`, the adjacent-only contract)
+
+The container-matching paste lands the caret with
+`focusByPath(outerState.innerBlockRefs, [spliceIndex + remainingItems.length, 0], …)`. That index
+scales with the CLIPBOARD's item count, unrelated to where the caret was, so it is not adjacent to
+a mounted block the way `dispatchFocusByPath`'s docstring assumes of its callers. Once the pasted
+run clears the container window's overscan (6) the target ref is unmounted, the dispatcher returns
+silently, and the caret is lost. This is the third caller of that function and the only one whose
+landing is not one step from the caret — the sibling-path-parity shape, with the docstring's
+caller enumeration (audited at two callers) as the instrument that hid it. `dispatchFocusByPath`'s
+own comment calls VR-12 "latent and not currently reachable"; that clause is false and should go
+with the fix.
+
+**Repro:** pinned and executing as `src/lib/e2e/tests/perf/vr-paste-focus.spec.ts` as an
+INVERTED assertion (it asserts the caret is lost), so the file turns red the day it is fixed. Load ~600 list items so container windowing
+activates, put a 40-item list on the clipboard, click into item 2, paste, then type — the typed
+characters reach the document nowhere at all.
+
+**Why deferred:** the fix is to route this landing through the async `revealByPath` (scroll +
+mount) rather than the sync dispatcher, which changes the paste's commit/afterTick shape; the
+focus path is owned by a separate wave. The oracle exists and self-retires, so the defect cannot
+be lost.
+
+### List indent briefly double-registers the item's BlockListState
+
+**Severity:** watch (dev-warning signal only; no observed misbehavior)
+**Files:** `src/lib/reactivity/state-registry.ts` (the warning), `src/lib/editor-actions/list-context.ts`
+(`indentItem`), `src/lib/components/blocks/list/ListItemBlock.svelte`
+
+The 2026-07-25 mount-harness pass observed `[state-registry] double register for listItem with a
+different state` firing on list indent (Tab) only: not on Enter, not on paragraph or blockquote
+edits. It means two components briefly claim the same node during `indentItem`, presumably the
+old and new mounts overlapping across the structural remount. No corruption or stale-state
+symptom was found, and the sibling proxy-equality warning investigated at the same time was
+falsified as benign, but this one is uncharacterized beyond the trigger.
+
+**Fix direction:** characterize first: instrument which two mounts claim the node and whether the
+loser's teardown lands after the winner's registration. If it is the remount overlap, the
+registry can tolerate a same-node handoff within one flush without warning.
+
+**Why deferred:** signal without a symptom; wants characterization, not a patch that quiets the
+warning.
+
+### Reveal scrolls a hidden ancestor that a drag deliberately will not
+
+**Severity:** minor (two seams answer the same geometry question differently, on purpose)
+**Files:** `src/lib/cursor/scroll-ancestors.ts` (`nearestUserScrollableAncestor` excludes `hidden`;
+the clipping walk includes it)
+
+A fixed-height `overflow: hidden` ancestor is script-scrollable: `scrollIntoView` moves it, and
+reveal genuinely brings the block into view there — so `scrollTo` reporting `true` is honest. Drag
+autoscroll declines the same box, by convention rather than capability: a user cannot wheel a
+hidden box back, so a drag that scrolled it would strand content out of reach. The consequence for
+a host whose only bounding box is `hidden` is programmatic navigation without drag autoscroll.
+
+**Fix direction:** none wanted unless a real embedding asks. If it needs closing, the move is to
+let a drag scroll a hidden box only while the pointer is held — the window in which the user can
+still undo the strand — rather than widening the predicate.
+
+**Why deferred:** a deliberate divergence, stated at the seam and in the consumer guide's host-CSS
+contract. Recorded so the next reader of that predicate does not "fix" the asymmetry.
+
+### A window-scrolled host embedding has no drag autoscroll
+
+**Severity:** minor (a drag toward the edge does nothing; reveal and keyboard reorder unaffected)
+**Files:** `src/lib/cursor/scroll-ancestors.ts` (the user-scrollable walk returns null when the
+page's own viewport is what scrolls), `src/lib/components/Editor.svelte` (the memoized resolution
+the four autoscroll consumers share)
+
+With `scrollMode='host'` and nothing scrollable between the editor and the document — the page
+itself scrolls — the autoscroll target list is empty, so dragging a block toward the edge of the
+screen scrolls nothing and cannot reach an off-screen destination. Reveal is unaffected: it falls
+back to the window viewport correctly.
+
+`document.scrollingElement` is the obvious target and the wrong one — its rect is the document
+box, not the viewport, so feeding it to the rect-based edge math misfires.
+
+**Fix direction:** a window-scrolled arm in the edge math that measures against the viewport rect
+and scrolls the window, rather than a target element. It wants a page-scrolled harness variant,
+which also pins the window-viewport term of the reveal intersection — one fixture closes both.
+
+**Why deferred:** strictly narrower than the state it replaced (autoscroll was dead in every host
+embedding before the scroll-host seam landed), and the fixture it needs is a route shape the flow
+harness does not have.
+
+### A host-mode editor has no scroll anchoring
+
+**Severity:** minor (accepted inside the small-document bound host mode is scoped to)
+**Files:** `src/lib/components/Editor.svelte` (`overflow-anchor: none`, the windowing-era opt-out),
+`src/lib/reactivity/list-windowing.svelte.ts` (the manual correction host mode disables)
+
+Self mode disables native scroll anchoring because windowing corrects the scroll by hand (VR-2).
+In host mode that manual correction lands on an element that is not scrolling, so neither
+mechanism holds the line: an image decoding in above the fold shifts the host's scroll under the
+reader.
+
+**Fix direction:** `[data-scroll-mode='host'] { overflow-anchor: auto }` — one declaration. It was
+implemented and reverted before hand-off because the only available pin asserts the computed
+style, i.e. that the declaration parsed, not that the anchoring behaved, and this is a behavior
+change against an incident-backed rule. Ship it with an e2e that observes the shift, or not at all.
+
+**Why deferred:** wants an oracle that watches the viewport move rather than a style assertion,
+and no embedder has reported the shift.
+
+### A header resize landing inside a reveal double-applies its delta
+
+**Severity:** minor (the reveal lands off by the height change; no corruption, and the next scroll
+settles it)
+**Files:** `src/lib/components/Editor.svelte` (the header-slot resize observer — a **relative**
+`scrollTop += delta` write), `src/lib/reactivity/list-windowing.svelte.ts` (the reveal anchor's
+re-assert — an **absolute** `scrollTop` write)
+
+The two writers disagree about what they are correcting. The reveal anchor re-asserts an absolute
+scroll position derived from the list's live offset within the scroll content, a measure that
+already includes the header's current height. The header observer adds a relative delta. A header
+resize firing after a re-assert in the same frame therefore adds the delta on top of a position
+that already accounts for it, and the revealed block lands off by that much.
+
+**Repro:** not constructed. Needs a reveal in flight plus a header height change inside the same
+frame — set a `scrollTo` target, resize the slot in the same tick, assert the target's screen
+position.
+
+**Fix direction:** one writer, or an ordering. The header correction is only meaningful when no
+absolute write is pending, so the anchor's in-flight state is the natural gate; folding the header
+delta into the absolute recomputation the anchor already performs is the other shape.
+
+**Why deferred:** the frame ordering _is_ the defect, so a fix without a repro is a claim. Both
+writes are individually pinned; only their collision is not.
+
+### The bare-email autolink rejects underscores GFM permits in a domain
+
+**Severity:** minor (conformance divergence; literal here, a live link on GitHub)
+**Files:** `src/lib/core/inline/scan/autolinks.ts` (`EMAIL_DOMAIN_CHAR`)
+
+`EMAIL_DOMAIN_CHAR = /[A-Za-z0-9-]/` excludes `_`, but GFM's email autolink permits it in the
+domain, so `a@b_c.com` stays literal in aragonite and links on GitHub. Found while fixing the www
+and url underscore rule (the last-two-labels restriction), which does not apply to the email
+form. cmark-gfm's own `np > 10` underscore-escape quirk was checked and deliberately not
+reproduced (an artifact of its counter pair, not spec text; noted in the code).
+
+**Fix direction:** widen the class to match cmark-gfm's email domain acceptance, with the spec's
+own boundary cases pinned both ways.
+
+**Why deferred:** found at the tail of a batch whose scope was closing, and the fix wants its own
+small conformance pass against cmark test vectors rather than a ride-along character-class edit.
 
 ## Code structure
 
-### DocPath brand adoption stops at the scope factories
+### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
 
-**Severity:** minor (enforcement depth; the runtime guard covers the rest)
-**Files:** `src/lib/editor-actions/block-edit-scope.ts` (the mint), `src/lib/selection/path-math.ts`, ~40 op-family path composers (table-context, list-context, unwrap-strategies, reorder-action, focus, image-edit-commit, cross-block ops, paste planners)
+**Severity:** trivial (niche gesture; byte-safe and round-trip stable throughout)
+**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` (the cell's
+`enterWidget` dep to the caret-edge dispatch)
 
-The `DocPath` brand (0.9.24) is minted by the commit scope factories and consumed at the
-G1.16 guard entry, but the op families that legitimately compose doc-absolute paths in
-callers still traffic in plain `number[]` — the brand decays at every spread. Compile-time
-coverage there requires adopting `extendDocPath`-style composition across ~40 mechanical
-call sites.
+Threading the caret-edge dispatch through cells for inline reveal made it meet a
+`<br>` — a non-reveal widget with no cell affordance (images render as alt text).
+The cell's `enterWidget` sends non-reveal kinds to a caret step-over rather than the
+prose image select-then-delete path, which had no cell paint and stranded focus.
+Because `enterWidget` receives only the entry side, not the key, a Backspace/Delete
+at a `<br>` edge takes that same non-deleting step-over: press #1 hops the caret to
+the widget's far edge (no byte deleted), and press #2 — the caret now past the
+widget — deletes a NON-adjacent byte, two positions past where the user pressed; a
+Delete #2 at the trailing edge can land in the NEIGHBORING cell, and the caret
+transiently parks on an off-cell DIV mid-gesture. Every end state is byte-safe and
+round-trips. This is the pre-existing native `<br>`-in-cell behavior (0.9.14, when
+Shift+Enter cells gained `<br>`); the step-over now shields the clean first press,
+which previously stranded focus. Only reachable mid-cell — at the cell's text
+boundaries the plan owns the key.
 
-**Why deferred:** G1.16's runtime dev guard asserts every commit path at every commit, so
-the uncovered class is caught at the gate; full adoption is churn without a driving
-incident. Adopt opportunistically when an op family is next edited, or as one sweep if a
-path-composition bug ever lands.
+**Fix direction:** give the cell a key-aware caret-edge path for non-reveal
+widgets — a one-press atomic delete on Backspace/Delete, a caret hop on arrows —
+which needs the dispatch to hand `enterWidget` the gesture kind (or a separate
+destructive hook).
+
+**Why deferred:** bundled with the whole-table keymap migration below, since both want the cell
+keydown path expressed declaratively rather than special-cased, and every end state here is
+byte-safe and round-trip stable.
 
 ### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
 
@@ -296,64 +701,76 @@ reader, so the fix is cosmetic until a consumer needs a non-editable container s
 
 ## Test coverage
 
-### Decoration tiers lack dedicated simulation gestures
+### The reveal fold is funnelled at the command dispatch, not at every mutation entry path
 
-**Severity:** minor (test coverage; the scripted decoration e2e covers the behavior)
-**Files:** `src/lib/e2e/simulation/gestures/` (no decoration gestures),
-`src/routes/test/plugins/sim-mark/sim-mark-plugin.ts` (the standing source)
+**Severity:** minor (no known reachable caller; the guard covers the arms most likely to grow)
+**Files:** `src/lib/components/blocks/text/TextEditableBlock.svelte` (`runCommand` folds and
+`performBlockCommand` asserts), `src/lib/components/blocks/editable-surface.ts` (the clipboard seam's
+own fold), `src/lib/editor-actions/block-edit.ts` (the door a bypassing caller would reach)
 
-The standing mark source installed under `?seed=sim` puts the decoration engine's per-edit
-run — provide, bucketing, overlay paint — under the loaded-ops corruption oracles on every
-keystroke. What it does not drive is the interaction surface: island caret/delete semantics
-(edge Backspace/Delete, the two-press replace delete) and block-decoration chrome have no
-simulation gesture and are covered by the scripted decoration e2e only. Per the culture rule
-"new feature class → new simulation gesture", this is the ledgered remainder — the closure
-matrix's Sim-oracle ◐ for both decoration rows (`docs/design/plugin-contract.md`) cites it.
+A live inline reveal holds the block's bytes in ephemeral DOM, so any mutation must fold first. Two
+seams do: the clipboard handlers and the block command dispatch, whose `command-during-reveal`
+assertion (G1.26) fires on a `runCommand` branch that skips the fold. Neither reaches a caller that
+goes straight to `blockEdit.splitBlock` / `updateBlockContent` on a revealed block — such a caller
+sees no fold and no guard. That is the sibling-path-parity shape culture.md warns about, and the
+prescribed rung where the funnel cannot be built is a source-scan lint under
+`src/lib/test/invariants/lint/`.
 
-**Fix direction:** an island gesture needs a deterministic island source in the sim document
-(the fold fixture's `[>…<]` shape is the natural seed) plus edge-press vocabulary in the
-gesture set; the block-decoration case rides the same source.
+**Why deferred:** the scan has no low-noise formulation yet. The block-edit door has many legitimate
+direct callers that can never hold a reveal — container overrides, editable leaves, cross-block
+dispatch, paste — so "every call routes through `runCommand`" is false by design, and a rule that
+enumerates the exceptions decays into the list it was meant to replace. The likely growth case is
+covered by construction instead: a new arm added to `blockCommand`'s switch inherits both the fold
+and the guard without its author doing anything. Re-open if a mutation entry path is ever added to
+a reveal-bearing surface outside that switch.
 
-**Why deferred:** the engine spine — the part that runs on every edit and can corrupt state —
-is now under the oracle; the island editing rules are scripted-e2e-pinned and unit-pinned.
-Gesture design is its own bounded task, kept out of 0.9.22 to keep the milestone shippable.
+### The block-component mount harness exists but covers a minority of block components
 
-### Cross-block-through-revealed-source blur spec is battery-order-sensitive
+**Severity:** minor (coverage shape; the pure layer below these components is well covered)
+**Files:** `src/lib/test/harness/mount-context.ts` (the harness), the block components with no test
+at their own level: `BlockquoteBlock`, `ListBlock`, `ListItemBlock`, `TableBlock`, `TableRowBlock`,
+`TableCellBlock`, `DirectiveContainerBlock`, `ThematicBreakBlock`
 
-**Severity:** minor (test flake; the guarded semantics are unit-pinned)
-**Files:** `src/lib/e2e/tests/plugins/latex-inline.spec.ts` (fixme'd final test),
-`src/lib/test/blocks/text/widget-reveal-collapse.test.ts` (the cross-block bail unit pin)
+The harness assembles every context a block component reads, so mounting one in isolation is a few
+lines. It is used by a small handful of suites. The components it is not used for include several of
+the repo's highest bugfix-density files, and the 0.9.35 review's own miss-analysis named this shape
+twice: the pure helper is tested, the entry layer that produces its inputs is not, so a helper's
+documented refusal path is pinned by its own unit test while nothing pins what that refusal means at
+the caller. Where a component has no test at its own level, that gap is total.
 
-The spec passes 55/55 in focused runs at any load (--repeat-each=5 --workers=4) but its
-`waitForCrossBlock` times out deterministically inside the full plugins battery: the
-Shift+ArrowDown keyboard-extend never engages cross-block. Falsified causes: the End-press
-escape (removed), the 2s wait ceiling (widened to 5s), KaTeX font-swap geometry (fonts.ready
-settle added), and the visual-line reader's dropped-range hard-false (0.9.27 gave both
-`isAt{First,Last}VisualLine` a snapped-`fallbackOffset` resolution instead of `false` on
-`rangeCount === 0` — correct independently, but an un-fixme attempt still red on the first
-full-battery pass). Whatever battery-context state breaks the visual-line detection for this
-gesture is unpinned. The product semantics (a cross-block sweep keeps the source revealed;
-blur bails instead of folding) are unit-covered by the interaction factory's cross-block
-bail case.
+**Fix direction:** for each pure helper with a documented refusal path, one test at a caller
+asserting the contrapositive, which for a component-level caller means a mount through the harness.
+Prioritize by bugfix density rather than by component size.
 
-**Fix direction:** reproduce by bisecting the battery's spec set in front of this file to
-find the state carrier, then pin the keyboard-extend geometry read it perturbs. With the
-reveal transition asserts (G1.26) in place, an illegal reveal interleaving now fires
-`invariant:reveal-transition` at the breaking transition — a reproduction that times out
-with no invariant fire narrows the cause to legal-state geometry (the visual-line read),
-not a reveal-machine interleave.
+**Why deferred:** this is a suite-shaping program rather than a fix, and it wants the pre-1.0
+re-audit's unit-suite pass to scope it, since that pass is the one artifact class the 0.9.35 review did
+not cover, so its findings should set the priority order rather than this entry guessing it.
 
-### IME composition lacks a simulation gesture
+### Nothing enforces the requirement↔spec lockstep the testing doc asks for
 
-**Severity:** minor (test coverage; both composition harnesses shipped 0.9.25)
-**Files:** `src/lib/e2e/simulation/gestures/` (no composition gesture)
+**Severity:** minor (coverage-shape risk; every mapping is correct today, by hand)
+**Files:** `src/lib/e2e/requirements/` (the scenario files), `src/lib/e2e/tests/` (the specs),
+`src/lib/e2e/lint/` (the source-scan directory where such a guard would live, holding only the
+settle-predicate vacuity scan)
 
-The composition harness pins the IME contract at the handler level
-(`test/blocks/editable-surface-composition*.test.ts`) and through real browser sequences
-(`e2e/tests/ime-composition.spec.ts` — CDP `Input.imeSetComposition`), but the note-taking
-simulation still types ASCII only. A composition gesture needs the CDP session threaded
-into the gesture set on the "perform, settle, resync" pattern — bounded design work, not
-trivially assembled, so it ledgers here per "new feature class → new simulation gesture".
+`docs/contributing/testing.md` asks requirement files and their specs to stay in lockstep, and the
+e2e lint directory is exactly where a parity rule of that shape belongs — but none exists. Every
+N↔N mapping in the suite is hand-verified at review time, which is the protection culture.md says
+to promote: a rule enforced by review fails silently the day someone adds scenario N+1 without its
+test, and nothing goes red.
+
+The gap has teeth rather than being theoretical. A review pass found a documented selection-restore
+route with no discriminating coverage, and a mutation to that route survived the entire unit
+battery — only the one scenario added afterwards stands between the codebase and shipping it green.
+
+**Fix direction:** a source scan that reads each requirement file's scenario bullets and each
+spec's test titles and asserts a mapping. Semantic pairing is the hard part; the cheap version
+asserts counts and named sections instead, which catches dropped bullets and unmapped tests
+without pretending to understand either.
+
+**Why deferred:** the guard's design is the work, not its wiring, and a counts-only version has to
+be shaped so it does not train authors to pad. Wants the pre-1.0 suite pass already scoped to
+re-shape this directory, which should set its form.
 
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
@@ -367,20 +784,60 @@ legal-if-buggy browser sequence. If a field report shows it, relax the predicate
 per-window pairing to once-per-focus: track "saw a start since this element gained focus"
 and fire only when even that is absent — the wired-end-without-start bug it exists to catch.
 
-### Inline links/autolink suite is a 584-line monolith
-
-**Severity:** trivial (test-shape debt; coverage is intact, only the file shape lags)
-**Files:** `src/lib/test/core/inline/links-autolink.test.ts`
-
-One file carries the whole inline link + autolink corpus (inline links, reference links,
-autolinks, `<...>` autolinks, edge cases) at ~584 lines, well over the ~150-line one-concern
-target. No coverage gap — purely a split-by-behavior-area chore (inline-link resolution,
-reference-link resolution, autolink recognition).
-
-**Why deferred:** a mechanical split touches many cases and earns its own bounded pass; the
-Pass-3 shape sweep ledgered it here rather than bundling the churn into unrelated test work.
+**Why deferred:** the relaxation trades real detection power against a browser behavior nothing in
+the suite can exercise, and no field report has arrived. Loosening a dev predicate on speculation is
+the wrong direction on the enforcement ladder; a warn on a legal-if-buggy sequence is the cheaper
+failure.
 
 ## Plugin containers
+
+### A details body line reproducing `</details>` destroys the container, and no rebuild can repair it
+
+**Severity:** important (container destruction on reload; guarded, not silent)
+**Files:** `src/lib/plugins/details/details-kind.ts` (the opaque rebuild),
+`src/lib/invariants/node-shape.ts` (G1.12, which now covers the directive/details tier),
+`src/lib/test/plugins/details/terminator-collision.test.ts` (the floor pins)
+
+`</details>` is a fixed terminator with no fence length to escalate, so a body line reproducing
+it is unrepresentable: every byte sequence containing that literal line closes the element, in
+aragonite and on GitHub alike. The 2026-07-25 escalation pass proved repair is not available at
+the rebuild seam: escaping the child's bytes on the way out diverges the container's raw from
+its live children, which is exactly the staleness G1.12 exists to fire on. The `:::` containers
+got the fence-escalation fix; this kind structurally cannot.
+
+**Guarded floor (pinned by five tests):** the collision is reachable through the real commit
+path, bytes still round-trip, and G1.12 catches the live-tree-versus-reparse divergence, so the
+dev channel and the e2e invariant watcher see it rather than the document corrupting silently.
+On reload the container is gone and its tail re-parses as siblings.
+
+**Fix direction:** a commit-path escape seam: the kind translates the offending body edit at
+commit time (escape or transform the typed `</details>` before bytes land), the same seam the
+opaque-write / kind-aware replace work needs. Decide the byte policy there, not in `rebuildRaw`.
+
+**Why deferred:** the rebuild-side fix is proven impossible, the commit-path seam is a design
+pass shared with the post-1.0 opaque-write work, and the floor is honest (loud in dev, byte
+round-trip intact).
+
+### The alert stream converter cannot be parser-exact: blockquote extent is stateful
+
+**Severity:** minor (legacy source-to-source path only; the divergent cases are pinned byte-exact)
+**Files:** `src/lib/plugins/admonitions/gh-alert.ts` (`convertGithubAlerts`, `QUOTED_BODY_LINE`),
+`src/lib/core/parsers/blockquote.ts` (`blockquoteExtent`, the stateful authority),
+`src/lib/test/plugins/admonitions/converter-parity.test.ts` (the differential + `known fork` pins)
+
+The parser's blockquote extent tracks paragraph state: a lazy or over-indented `>` line is
+absorbed only while a paragraph is open. A line regex has no such state, so the stream converter
+must over- or under-claim on some input. The 2026-07-25 fix chose the favorable side: a
+tab-indented `> ` continuation (ordinary authoring) stays inside the alert, at the cost of one
+over-claim shape (a body line that closes the paragraph, followed by an over-indented `>` line,
+is claimed where the parser would end the quote). Both divergent cases are asserted byte-exact
+in the `known fork` block of the parity test, which a future consolidation deletes.
+
+**Fix direction:** consolidate the stream path onto one extent authority (run `blockquoteExtent`
+over the stream window instead of a line regex), then delete the `known fork` block.
+
+**Why deferred:** the stream converter is a legacy convenience export; the in-editor paste path
+converts through the parser and has no fork. The differential test makes the residual loud.
 
 ### Search replace skips matches inside childless opaque containers
 
@@ -430,17 +887,17 @@ direction into the post-1.0 clipboard/hook generalization with the container-exi
 
 ### Container components re-export the component surface member-by-member
 
-**Severity:** trivial (authoring ergonomics; all eight containers now guarded)
+**Severity:** trivial (authoring ergonomics; every container is guarded)
 **Files:** `src/lib/components/BlockHost.svelte` (ref binding); every container component
 
 A container block re-exports each `ContainerBlockComponent` member as its own `export const` so
 `bind:this` on `<Comp>` in BlockHost captures the full surface — Svelte 5 instance exports are
 individual top-level declarations, with no spread. That is ~11 identical lines in every container
-component. All eight containers — the four plugin ones (callout, details, admonition, mermaid) and
-the four built-ins (BlockquoteBlock, ListBlock, ListItemBlock, DirectiveContainerBlock) — now end
+component. Every container, built-in and bundled-plugin alike, now ends
 the block with a `satisfies ContainerBlockComponent` guard, so a forgotten member is a compile
 error everywhere (the built-ins' redundant `!` non-null assertions are gone with it). The
-duplication itself remains.
+duplication itself remains. Read the guard's own call sites for the list a migration must cover
+rather than an enumeration here, which has already drifted once as plugins landed.
 
 **Fix direction:** let a container expose ONE well-known instance export (its `containerApi`) and
 have BlockHost read `ref.<that>` as the `BlockComponent` surface it stores and dispatches through
@@ -451,44 +908,71 @@ the whole ref chain, across every block kind — blast radius only the simulatio
 **Target:** 1.2 — carry it with the container-seam ergonomics pass, not as a standalone pre-freeze
 change to the ref chain.
 
-## Plugin inline widgets
+### Footnote definition body ergonomics: Enter-at-end and non-prose-first-child residuals
 
-### Inline-widget source editing (reveal) is unwired in table cells
+**Severity:** minor (edge ergonomics; byte round-trip and the common `[^label]: <prose>` shape hold)
+**Files:** `src/lib/plugins/footnotes/footnote-definition.ts` (`scanDefinitionEnd`, `rebuildFootnoteDefRaw`),
+`src/lib/plugins/footnotes/FootnoteDefinition.svelte` (the ambient marker forward)
 
-**Severity:** minor (parity gap; cells render widgets but cannot edit them)
-**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte`,
-`src/lib/components/blocks/table/cell-render.ts` vs
-`src/lib/components/blocks/text/widget-interaction.ts` (the prose seam)
+The footnote-def is a strip container whose body is real child blocks, and Enter/split inside the body
+inherits the shared blockquote split override (`createContainerBlock` always wires
+`createBlockquoteOverrides`). The `footnote-ops` simulation now pins that a mid-child split grows the
+container's children and never the document root (the boundary the Task 2 review flagged untested). Two
+edges remain:
 
-Cells gained widget rendering/pooling in 0.9.14 (`createSvelteWidgetPool`) but never wired
-`createWidgetInteraction`: no click-to-reveal, no Enter-reveal, no blur commit, and no
-containment-scoped fold. Verified on the `mathtable` seed — clicking a cell's inline `$x^2$`
-widget leaves it rendered; source editing is simply unavailable inside cells. Distinct from
-the reveal collapse/switch fix (which lives at the TextEditableBlock choke point and covers
-every reveal-source kind there); wiring cells means threading the same interaction bundle
-through the cell surface (its pending-cursor `$effect` already carries the
-`document.activeElement` guard the blur-commit path needs).
+- **Enter at the end of the last body child** mints a trailing empty child, and a footnote-def's empty
+  continuation line carries no four-space indent, so `scanDefinitionEnd` drops it as a document blank on
+  reparse, and the live two-child tree then diverges from its one-child reparse. This is the documented
+  Enter-at-end split class (see "Enter-at-end can produce a live block pair…") reaching inside the strip
+  container: the split mints a single-newline, indent-free successor the reparse does not honor. The sim
+  splits mid-child to pin the in-container boundary without tripping it, so the end-split sub-case is
+  unpinned.
+- **A non-prose first child omits the ambient marker.** Only `TextEditableBlock` (which paints the marker)
+  and `ListItemBlock` (which re-forwards it) consume the `ambientPrefix` prop, so a degenerate definition
+  whose first child is a list or code block (`[^a]:\n    - item`) forwards `[^a]: ` to a child that ignores
+  it and the marker is silently absent. This is the platform's inherited `ambientPrefixForFirst` behavior,
+  shared with listItem, not a footnote-introduced one; GFM footnote definitions are effectively always
+  `[^label]: <prose>`, so the edge needs a constructed input.
 
-**Why deferred:** cell reveal is a feature wire-up, not a regression. Cells already render
-widgets (0.9.14) and a `<br>` now paints as one, so the rendering half of the cell-inline
-work has landed; what remains is threading the interaction bundle through the cell surface.
+**Fix direction:** the Enter-at-end edge folds into the deferred splitNode separator design (a kind-aware
+blank-line separator at the split choke point); the marker edge, if ever tightened, should tighten for
+listItem in the same pass, since both inherit the same prefix-forward machinery.
 
-### Copy during an active inline-widget reveal slices stale raw
+**Why deferred:** byte round-trip holds throughout, and both edges need a constructed input the common
+footnote shape never produces; the Enter-at-end fix is the same deferred splitNode design pass its
+top-level sibling entry already owns.
 
-**Severity:** minor (non-mutating; wrong clipboard bytes, no document corruption)
-**Files:** `src/lib/components/blocks/text/text-clipboard.ts` (`onCopy`)
+### Mermaid diagrams have no theme seam
 
-Cut and paste now fold a live source-reveal before running, so they mutate a CST
-consistent with the swapped DOM. Copy takes no such guard — a deliberate asymmetry,
-since copy must never mutate the document and a fold commits an edit. While an
-inline-math `$…$` source is revealed, `onCopy` still slices `node.raw` at DOM-derived
-offsets, so a selection spanning the revealed (DOM-only) edit copies bytes that don't
-match what the user sees. The document is untouched; only the clipboard payload is wrong.
+**Severity:** minor (visual; light-palette diagrams in dark themes)
+**Files:** `src/lib/plugins/mermaid/renderer.ts` (`loadMermaid()` memoizes `initialize` process-once), `src/lib/plugins/mermaid/MermaidBlock.svelte` (render memo keyed on code text only; the `$effect` reads only `code`)
 
-**Fix direction:** while a reveal is active, read the copy payload from the live DOM
-source text rather than the stale raw slice — the read half of the same seam cut/paste
-fold at, without the fold's mutation.
+A consumer cannot recolor diagrams for its theme: a renderer config option alone would not help, because already-drawn diagrams never re-render on a theme change — the memo key carries no theme term and the effect subscribes to none. The seam is a theme term in the memo key plus a re-initialize path (or per-render config). Found by limestone's visual pass; its interim state is light diagrams in dark themes, accepted and recorded consumer-side.
 
-**Why deferred:** non-corrupting and narrow (a copy whose selection overlaps a revealed
-widget source); folding on copy is disallowed, so this needs its own read-path branch.
-Fold into the clipboard seam alongside the copy read.
+### A broken image widget is never redecorated when its load fails
+
+**Severity:** minor (visual; a failed image shows 0×0 until the next block render)
+**Files:** the image widget build path (`src/lib/components/image/`)
+
+The broken-image placeholder appears one render BEHIND the failure: the widget's error state does not trigger a redecoration, so a failed load shows nothing until something else re-renders the block (a mode round-trip suffices and the placeholder then persists). Measured consumer-side at 0×0 after 2s in live preview, 229×60 after a mode round-trip.
+
+### `--color-ui-faint` is the one chrome token that does not flip with mode
+
+**Severity:** nit (token hygiene)
+**Files:** `src/lib/styles/editor-theme.css:48,132`
+
+Declared with the identical value in the dark base and the light override — the only host-contract chrome token with no mode response, and it is blue where every sibling default is neutral or the accent. Either give it a light-mode value or record the both-modes value as intended. Limestone bridges it to an app token consumer-side.
+
+### `BlockComponent.focus(offset)` parks a caret without ending a live cross-block range
+
+**Severity:** important (public-contract footgun; the fix is breaking) · **Target: the 1.0 freeze decision**
+**Files:** `src/lib/block-component.ts` (the public export), `src/lib/components/blocks/editable-surface.ts` (the park primitive)
+
+`focus(offset)` is one verb with two meanings: the extend paths need park-without-clearing (seating a
+clear there reds three real behaviors — measured, not assumed), while every user-facing caret
+placement must end a live range or the next keystroke type-replaces the document (two such data
+losses were found and fixed in 0.9.36's manual wave). The door is documented as a park primitive
+naming `setSelection` as the range-ending door, both halves pinned (`public-caret-doors.spec.ts`),
+and G2.12 fails new pointer gestures at birth. The proper fix — splitting `focus` into two verbs —
+is a breaking change on the frozen public contract and must be on the table at the 1.0 freeze,
+not after it.

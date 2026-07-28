@@ -17,11 +17,11 @@ export function trimTrailingLineEnding(raw: string): string {
 
 /**
  * The block's authored trailing line ending — `\r\n` for a CRLF block, `\n`
- * otherwise. A commit that reattaches the trailing ending reads it here so a
- * CRLF-authored block keeps its ending; a block with no trailing ending keeps the
- * `\n` the commit path has always appended (the code-paste-surface sibling idiom).
+ * otherwise. Every site that reattaches or mints a line ending reads it here (G4.20)
+ * so a CRLF-authored block keeps its ending; a block with no trailing ending keeps
+ * the `\n` the commit paths have always appended.
  */
-export function trailingLineEnding(raw: string): string {
+export function trailingLineEnding(raw: string): '\n' | '\r\n' {
 	return raw.endsWith('\r\n') ? '\r\n' : '\n';
 }
 
@@ -62,4 +62,32 @@ export function splitLines(source: string): ParsedLine[] {
 	}
 
 	return lines;
+}
+
+/**
+ * Re-mint a `ParsedLine[]` after a per-line strip, recomputing `start`/`end` for
+ * the stripped stream. Container parsers (list, blockquote) reparse a body from a
+ * prefix-stripped copy; `stripLine` supplies each line's new text and the offsets
+ * are recomputed so the stream stays byte-consistent with its own `raw`. Recompute,
+ * not spread: reusing an input line's offsets after shortening its text desyncs the
+ * offsets from the bytes (a latent bug the task-checkbox strip carried).
+ */
+export function remapStrippedLines(
+	lines: ParsedLine[],
+	stripLine: (line: ParsedLine, index: number) => string
+): ParsedLine[] {
+	let offset = 0;
+	return lines.map((line, index) => {
+		const text = stripLine(line, index);
+		const raw = text + line.lineEnding;
+		const stripped: ParsedLine = {
+			raw,
+			text,
+			lineEnding: line.lineEnding,
+			start: offset,
+			end: offset + raw.length
+		};
+		offset += raw.length;
+		return stripped;
+	});
 }

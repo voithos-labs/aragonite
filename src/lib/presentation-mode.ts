@@ -11,15 +11,12 @@
  * Every door — the `data-presentation` root attribute, the block/leaf/widget
  * context getters, and `EditorContext.presentationMode` — reports the EFFECTIVE
  * mode, so a consumer or plugin never renders for a mode the editor is not
- * actually in. All four rungs are built, so the effective mode now equals the
- * requested one; the seam stays because every door routes through it.
+ * actually in. Every rung is built, so the effective mode currently equals
+ * the requested one; the editor's `effectiveMode` derived is the seam a future
+ * effective-vs-requested divergence would land in.
  */
 
 export type PresentationMode = 'source' | 'reading' | 'preview-block' | 'preview-inline';
-
-export function resolveEffectivePresentationMode(mode: PresentationMode): PresentationMode {
-	return mode;
-}
 
 /** The two live-preview rungs share their marker-hiding CSS families and the
  *  focus-tracking `data-focused` attribute. */

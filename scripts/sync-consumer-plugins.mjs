@@ -20,25 +20,41 @@ const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte']
 };
 
-rmSync(OUT, { recursive: true, force: true });
+// Quote-agnostic on purpose. Prettier keeps this repo on single quotes, but the
+// gate must not depend on a formatter to be correct: a double-quoted `"$lib"`
+// carries no `$lib/`, so the deep-import scan below would not catch it either, and
+// it would reach the consumer as an unresolvable specifier.
+const BARREL_SPECIFIER = /(['"`])\$lib(\/plugin)?\1/g;
+
+const rewritten = [];
 const offenders = [];
 for (const [plugin, files] of Object.entries(MANIFEST)) {
-	mkdirSync(join(OUT, plugin), { recursive: true });
 	for (const file of files) {
-		let text = readFileSync(join(SRC, plugin, file), 'utf8');
-		text = text.replaceAll("'$lib/plugin'", "'aragonite/plugin'");
-		text = text.replaceAll("'$lib'", "'aragonite'");
+		const text = readFileSync(join(SRC, plugin, file), 'utf8').replace(
+			BARREL_SPECIFIER,
+			(_match, quote, subpath) => `${quote}aragonite${subpath ?? ''}${quote}`
+		);
 		for (const line of text.split('\n')) {
 			if (line.includes('$lib/')) offenders.push(`${plugin}/${file}: ${line.trim()}`);
 		}
-		writeFileSync(join(OUT, plugin, file), text);
+		rewritten.push({ plugin, file, text });
 	}
 }
+
 if (offenders.length) {
 	console.error(
 		'sync-consumer-plugins: deep $lib imports survive the rewrite — these files reach past the public barrels:\n  ' +
 			offenders.join('\n  ')
 	);
 	process.exit(1);
+}
+
+// Nothing is written, and the previous output is not cleared, until the gate has
+// passed over every file: a failed run used to leave a rewritten tree on disk for
+// a later build to consume as though it had been checked.
+rmSync(OUT, { recursive: true, force: true });
+for (const { plugin, file, text } of rewritten) {
+	mkdirSync(join(OUT, plugin), { recursive: true });
+	writeFileSync(join(OUT, plugin, file), text);
 }
 console.log('sync-consumer-plugins: OK');

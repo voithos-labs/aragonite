@@ -53,14 +53,14 @@ export interface DeepTypingMeasurement extends LatencyMeasurement {
 // O(top-level children) CST length probe. getSource() serializes the whole doc
 // per poll, which at 10MB would dwarf the latency being measured; summing raw
 // lengths observes the same commit without building the string.
-function docLengthInPage(): number {
+export function docLengthInPage(): number {
 	const doc = (window as any).__test.getDocument();
 	let length = doc.prefix.length + doc.suffix.length;
 	for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
 	return length;
 }
 
-async function waitForDocLength(page: Page, min: number, timeout: number): Promise<void> {
+export async function waitForDocLength(page: Page, min: number, timeout: number): Promise<void> {
 	await page.waitForFunction(
 		({ fnSrc, min }) => (new Function(`return (${fnSrc})();`)() as number) >= min,
 		{ fnSrc: docLengthInPage.toString(), min },
@@ -74,7 +74,7 @@ async function waitForDocLength(page: Page, min: number, timeout: number): Promi
 // children array. The O(children) sum added a per-poll cost that scaled with
 // block count and inflated flat high-block-count rows — a harness artifact, not
 // editor cost (see docs/design/performance.md).
-async function waitForBlock0Len(page: Page, min: number, timeout: number): Promise<void> {
+export async function waitForBlock0Len(page: Page, min: number, timeout: number): Promise<void> {
 	await page.waitForFunction(
 		(min) => {
 			const c = (window as any).__test.getDocument().children[0];

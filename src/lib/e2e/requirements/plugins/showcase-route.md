@@ -1,7 +1,7 @@
 # Feature: `/` showcase route (bundled-plugin smoke)
 
 The root route `/` is the developer-facing showcase: it mounts `<Editor>` with all
-six bundled plugins installed the way a consumer installs them (each imported from
+eight bundled plugins installed the way a consumer installs them (each imported from
 its `$lib/plugins/<name>` subpath, latex/mermaid engines injected), seeded with a
 document that exercises every built-in block kind alongside each plugin's syntax.
 Unlike the machine-facing `/test/*` routes it exposes no `window.__test` bridge and
@@ -10,7 +10,7 @@ the rendered DOM only.
 
 The bar is deliberately just "the whole surface renders clean": the shared e2e
 `test` fixture fails on any `[invariant:…]` console fire, so a passing run also
-proves the showcase document loads without tripping an invariant under all six
+proves the showcase document loads without tripping an invariant under all eight
 plugins. Editing behavior is owned by the machine-facing batteries and is not
 re-tested here.
 
@@ -24,7 +24,17 @@ re-tested here.
 - the mermaid block renders its container (`.mermaid-block` visible) — presence of
   the async-rendered engine output is not asserted, only the settled container
 - the table of contents lists the document's headings (`.toc-block-item` entries
-  present)
+  present), indented by level: the showcase nests to depth 4, so entries at more
+  than one level class are present and the default outline shows real hierarchy
+  rather than a flat list
+- a footnote reference renders as a superscript number (`.footnote-ref` reading "1"
+  by first-reference order) and its definition renders as an editable block
+  (`.footnote-def` visible) — both plugin tiers on one document
+- a GitHub alert (`> [!NOTE]` syntax) renders the admonition chrome with its bytes
+  untouched — the native-alert kind, not a converted directive
+- an emoji shortcode renders as a glyph widget, including inside a heading and a
+  table cell (the shared widget dispatch, not per-surface plumbing)
+- a ` ```math ` fence renders a second KaTeX block surface beside the `$$` form
 - a sampling of built-in kinds is visible: a table and a fenced code block
 
 ## Edge cases

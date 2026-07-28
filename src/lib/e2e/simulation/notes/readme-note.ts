@@ -6,17 +6,11 @@ import type { NoteFixture } from './types';
  * an ordered install/run sequence, a fenced code block of commands, and a links
  * section. All HOLD (typed char by char), so end-state equality stays primary.
  * The ordered steps, the fenced code body (via `softEnter`), and the inline links
- * each land in the equality spine. Headings are ATX only; the code fence stays
- * unclosed with auto-close-safe content, matching the other code-bearing notes.
+ * each land in the equality spine. Headings are ATX only; the escape gesture
+ * below the code fence auto-closes it, matching the other code-bearing notes.
  */
 export const README_NOTE: NoteFixture = {
 	name: 'readme-note',
-	// Types a Links section after an unclosed fenced code block: those blocks stay
-	// separate while typing but GFM lazy-collapses them into the fence on reload —
-	// byte-safe, structurally divergent (docs/issues.md). Exempt from the checkpoint
-	// convergence oracle; round-trip + end-state equality still guard the bytes.
-	unconvergedReason:
-		'content typed after an unclosed fenced code block (byte-safe reload-collapse)',
 	async build(g: Gestures): Promise<void> {
 		await g.typeText('# Limestone CLI');
 		await g.pressEnter();
@@ -85,6 +79,7 @@ export const README_NOTE: NoteFixture = {
 		'```\n' +
 		'npm run dev\n' +
 		'npm test\n' +
+		'```\n' +
 		'\n' +
 		'## Links\n' +
 		'- [Issues](https://example.com/issues)\n' +

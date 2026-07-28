@@ -45,6 +45,10 @@ test.describe('image cross-block selection', () => {
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
+		// Observe the delete before undoing it: without this, the restore predicate
+		// is satisfied by the document as loaded and a Backspace that never fired
+		// passes the test.
+		await editor.bridge.waitForSourceNotContains('![cat]');
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});

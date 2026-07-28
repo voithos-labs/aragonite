@@ -18,10 +18,11 @@
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
-	import { incMountedBlocks, decMountedBlocks, perfEnabled } from '../../../perf/instruments';
+	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import {
 		createStandardNestedActions,
-		setNestedActionsContexts
+		setNestedActionsContexts,
+		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
@@ -65,15 +66,7 @@
 	let rowEl: HTMLElement | undefined = $state();
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 
-	// Rows aren't BlockHosts, so count this row in the mount gauge directly
-	// (mirrors ListItemBlock) — otherwise a windowed giant table reads as ~0
-	// mounted blocks.
-	$effect(() => {
-		if (perfEnabled()) incMountedBlocks();
-		return () => {
-			if (perfEnabled()) decMountedBlocks();
-		};
-	});
+	useMountGauge();
 
 	// A `display: contents` row has no box, so measure a cell: every cell stretches
 	// to the grid row track (no grid gap), so a cell's border-box height is the row
@@ -109,7 +102,7 @@
 		parentSink?.measureRowNow(id);
 	});
 
-	const bundle = createStandardNestedActions(cellsState, {
+	const scope: NodeScope = {
 		get index() {
 			return index;
 		},
@@ -118,7 +111,11 @@
 		},
 		get path() {
 			return myPath;
-		},
+		}
+	};
+
+	const bundle = createStandardNestedActions(cellsState, {
+		scope,
 		stickyColumn,
 		grammar: registryView.grammar,
 		parent: {

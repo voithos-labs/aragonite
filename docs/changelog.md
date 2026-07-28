@@ -2,6 +2,696 @@
 
 Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
 
+### 0.9.36 (unreleased)
+
+- **Breaking, plugin surface: a block opener returns a consumed-lines count, not a resume
+  index.** `tryOpen` now returns `{ node, consumed }` where `consumed` is the number of lines the
+  opener claimed starting at `ctx.index`, and the parser advances by that delta; the shape is named
+  and exported as `BlockOpenerResult`, so an author no longer hand-inlines it. Migration is one line
+  per opener: `{ node, nextIndex: ctx.index + 1 }` becomes `{ node, consumed: 1 }`. The point is
+  what the type can no longer express: an absolute index could name any position, including
+  `ctx.index` itself, which is the return that hung a tab on document load until the parse loop
+  learned to decline it. That runtime decline is unchanged here; what is new is that the shape no
+  longer offers an easy way to write the bad return. A count carries no origin to get wrong, and the
+  six single-line built-in and bundled openers now say `consumed: 1` with no reference to the cursor
+  at all. The `consumed < 1` case keeps its existing semantics exactly: declined in every build,
+  dev-warned by `invariant:opener-advance`. Taken pre-freeze deliberately, since the same change
+  costs an ecosystem migration after 1.0. Scanners are unaffected and still hand back positions:
+  `blockquoteExtent` returns a `nextIndex` its callers slice with.
+
+- **Breaking, testing surface: `ContainerConformanceProfile` requires a `terminatorCollision`
+  cell.** The container conformance kit grew a sixth invariant, that a body line reproducing the
+  container's own terminator stays inside it, and the cell is required rather than optional, so an
+  external profile written against 0.9.35 stops compiling until it declares one. Declare `assert`
+  and supply a `terminatorCollisionFixture`, or `exempt` with a reason where the terminator is a
+  fixed token with no length to grow. Required on purpose: the collision is invisible to byte
+  round-trip, so an optional cell would have been left undeclared by exactly the containers that
+  need it.
+
+- **Plugin surface: `!` takes an inline prefix rung.** A registration on `!` carrying a `![[` prefix
+  and a priority below `INLINE_PRIORITIES.builtin` now registers instead of throwing, so an
+  Obsidian-style `![[embed]]` can be a real inline kind — recognized, rendered, caret-addressable —
+  rather than a view-only decoration painted over bytes the tree never sees. `!` was rejected
+  because it sits outside the scanner's fast-bail character set (it only matters inside a
+  `[`-bearing range), which would have left the rung a silent no-op in plain prose. The fix is a
+  third route rather than a fourth special character: `!` is now **scan-probed**, and a registration
+  turns the bail's per-character probe on for it — the same probe the unreserved triggers have
+  always used. Making `!` unconditionally special would have been a shorter diff and a permanent tax
+  on prose, dragging every `"Hello!"` through the full scan loop for a syntax most documents never
+  contain; with nothing registered the bail is unchanged down to the single always-false test per
+  character it already paid. Dispatch order is untouched and was the deciding constraint: a prefix
+  rung is consulted before the switch, the only position that can work, since `handleBang` consumes
+  `![` as one unit and advances past it. So a rung on `!` is an explicit claim to outrank the image
+  case wherever its prefix matches, not a claim that the grammars are disjoint — `![[a]](u)` is an
+  image whose alt text is `[a]`. Declining that overlap is the recognizer's job, and a decline
+  leaves the built-in image reading byte-identical bytes. `]` stays rejected: no construct has asked
+  for it, and an unused route is a route that rots.
+
+- **Plugin surface: a rung that mints a built-in `image` re-serializes its own bytes.**
+  `InlineSyntaxOptions` gained `rewriteImage`, a hook the image edit paths hand the node's current
+  source and the fields the edit produces; it returns the replacement in the rung's grammar, or
+  `null` when the edit has no form there. Without it a resize turned `![[cat.png|300]]` into
+  `![cat.png|320](cat.png)` — the consumer's syntax destroyed by a drag, and invisible to a
+  round-trip check because the document round-trips perfectly, just as something else. The write
+  paths could not have known: a node carried no record of who claimed its bytes, so the scan now
+  stamps the claim on any **built-in** kind a rung mints, which is exactly the borrowing case. A
+  rung's own kind is left unstamped on purpose — the editor has no grammar for one, so nothing
+  outside the plugin could ever re-serialize it, and the stamp would have no reader. The safe
+  default is a decline, not a rewrite: a rung with no hook, or a hook that returns `null`, gets no
+  commit at all, so the affordance visibly no-ops and a dev build names the rung. Suppressing the
+  handles instead was the tempting UX and the wrong rung of the ladder — it covers only the no-hook
+  half (a hook may decline one edit and accept the next), leaves the properties popover with no
+  handle to hide, and would put the rule at three render surfaces rather than at the one seam every
+  write already crosses. That seam is now the funnel: the GFM serializer sits under
+  `buildImageEditBytes`, because the three write sites that reached for it independently — commit,
+  keyboard resize, popover dirty check — all emitted GFM, which is the sibling-path shape. The
+  funnel is held by a name scan (G4.21) rather than by the type system: the serializer carries its
+  own unit suite, so it cannot be unexported, and what the lint pins is that no module outside the
+  seam names it and no undocumented site names the seam. A write path that hand-rolls the GFM
+  bytes would still slip past — the honest limit of a scan, stated so the next author does not
+  read it as a proof. Images the built-in scanner read are unaffected, including the overlap a rung
+  declines. Taken pre-freeze because the alternative is a 1.x break: the hook is the difference
+  between an inline rung being able to mint built-in kinds and only pretending to.
+
+- **`setSelection` puts a `getSelection()` snapshot back, and its boolean means in view.** The
+  instance surface gained the write half of the save-and-restore pair a host needs to persist a
+  per-document caret. It is async because the target may be a block the virtual window has
+  unmounted, so the restore reveals it and settles the scroll before placing the caret — and it
+  resolves through the same `scrollTo` semantics, so `true` means genuinely in view rather than
+  merely mounted. Restore is now **one seam** rather than two: undo/redo already carried the
+  recipe inline, and adding a second copy beside it would have been the sibling-path-parity shape
+  that produced most of the 2026-07 audit's corruption findings — so the rule moved into the seam
+  and both entry paths funnel through it. That relocation fixed a live undo defect on the way: the
+  reveal now targets what the applier actually parks at, which for a table endpoint is the deep
+  cell, not the table block whose rows window independently. Declining is never a throw: an
+  unresolvable path is refused before anything happens — no scroll, no focus steal, no state write
+  — while the two ways a resolvable target can still fail to land are reported as `false` with
+  their side effects already run.
+
+- **`onPasteImage` is the import hook for an image-bearing paste.** Each image on the clipboard is
+  offered to the host in order; the Markdown returned is inserted, `null` skips, and a rejection
+  surfaces on the `error` channel while the remaining images still land. Installing the hook takes
+  the whole paste — the clipboard's `text/plain` does not also arrive — and N images are one
+  insertion, because one paste gesture is one undo entry everywhere else in this editor and
+  per-image insertion would make one Ctrl+V need N Ctrl+Z. The arm lives in the clipboard seam the
+  four editable surfaces already share, so each surface threads three inert values and no logic;
+  the alternative was a rule carried at four call sites. Two behaviors were pinned rather than
+  left to discovery: an image paste **replaces** the selection it lands on, cross-block included
+  and by inheriting that route rather than placing anything itself (proven byte-identical to
+  pasting the same string as text), and the selection is offered to the delete only after the hook
+  has answered, so a declined or failed import destroys nothing.
+
+- **`scrollMode='host'` lets an ancestor own the scroll.** The editor root stops being a scrollport
+  and grows to its content, for a shell that stacks several documents in one scroller. The trade is
+  stated rather than hidden: windowing is gated off above the watermark, so every block stays
+  mounted and the mode forfeits O(viewport) — it is for small embedded documents, never a whole
+  file. Reveal stays honest there by measuring what actually bounds the editor's visible box, which
+  turned out to be two different questions that one walk cannot serve: what a drag may autoscroll
+  is the nearest ancestor a **user** can scroll, while what bounds visibility is the whole chain of
+  clipping ancestors intersected with the window — the merged predicate was wrong exactly where
+  each other's case applied, and a rounded card with `overflow: hidden` and automatic height
+  matched it while being neither. Splitting them also surfaced three autoscroll sites that had
+  assumed the root and were dead in any host embedding; they now share one resolver, and making it
+  a required dependency is what enumerated the fourth.
+
+- **A `header` slot renders host chrome inside the scroll container.** A title, a properties panel
+  or a tag row mounts above the first block and scrolls away with the document — which is what lets
+  an embedder have both its own chrome and the editor's scrollport, where chrome mounted outside
+  would need an outer scroller and forfeit windowing. The slice math needed nothing: a scope
+  already measures its list's live offset, so a preamble shrinks the window rather than displacing
+  it. What it needed was the anchor correction — the slot's height is outside the height model, so
+  a slot that grows while the reader is scrolled down routes its delta through the same
+  compensation a measured-in block does, and the document does not slide under them. Inert in host
+  mode, where the shift belongs to the page. The slot also invalidated a premise three keystroke
+  paths shared — "inside the editor root" had meant "the editor's own content" — so a host title
+  field was losing `Mod+F` mid-typing; the fix is one predicate at the dispatch entry, above every
+  arm, so arm N+1 inherits it instead of having to remember. The same predicate answers the two
+  other places that asked the root: `caretRect()` no longer reports a caret in the host's chrome as
+  the document's (a consumer polling it would float caret-following chrome over the host's own
+  title field), and a switch into reading mode no longer blurs a focused header field. The rules
+  that ask "did focus leave the whole widget" keep using containment — for them the slot IS the
+  editor.
+
+- **`--editor-font-size` is a published theme token.** The editor's type scale is `em`-relative
+  throughout, so one override scales headings, code, markers and chrome together. It is declared at
+  `.editor` like every other token, which means it **shadows** a value inherited from a host
+  wrapper: a host overrides at `.editor` scope, and bridges a dynamic ancestor value through a
+  property of its own. Mode-independent, and pinned by the manifest that holds the guide's role
+  table and the token set set-equal. Virtual rendering follows the scale: the height oracle's
+  estimates are calibrated at one font size and the type scale is font-relative, so a host that
+  doubled the text made every estimate several-fold short — and since the activation decision reads
+  the estimated total, a document whose rendered height cleared the watermark could fail to window
+  and mount whole. The estimates now read the root's live computed font size, and a change runs the
+  width-invalidation path, so a zoom control is a supported use of the token rather than a
+  mount-time-only one. A font-size change resizes no other box in the root, hence the one-`em`
+  probe: nothing else reports it.
+
+- **A pathological regex query can no longer freeze the editor.** Regex find runs off the main
+  thread under a hard deadline; on overrun the worker is terminated and the find bar reports the
+  scan as too slow, the way it already reports a pattern that will not compile. Catastrophic
+  backtracking (`(a+)+$` against a few dozen characters) is unbounded work inside a single
+  `RegExp.exec`, and a main-thread time budget cannot interrupt one exec — the editor froze for a
+  minute per edit and the only recovery was a reload. So the bound had to be a thread that can be
+  killed, not a budget that can be checked. Literal search is untouched and stays synchronous, which
+  keeps the common path at zero new risk; only regex leaves the main thread, and its results are
+  epoch-tagged so a superseded scan cannot repaint over the query that replaced it. The worker ships
+  as source text through a Blob URL rather than a bundler worker import, leaving dist packaging and
+  consumer bundling alone. Where workers or blob URLs are unavailable — SSR, a CSP-restricted
+  embedder — the same seam falls back to a synchronous scan that can only check its deadline between
+  blocks, so one runaway exec is still unbounded there: a documented limit of the fallback, not of
+  the design.
+
+- **A document swap restarts the find bar's navigation instead of carrying its position.** Swapping
+  the `source` prop under an open find bar left the active-match index where the previous document
+  had put it, so navigating to `3 / 3` and then swapping to a five-match document read `3 / 5` on a
+  document the user had never navigated. The edit epoch could not tell the two apart, since a
+  keystroke and a whole-document replacement both bump it; the editor now publishes replacements as
+  their own signal and search restarts on that alone. In-place edits, undo and option toggles keep
+  the user's place deliberately — they leave the user reading the same document.
+
+- **Enter inside a revealed inline source splits the block instead of only committing it.** The
+  reveal used to claim Enter as a commit gesture, so the press never reached the split: at a
+  source's leading edge it moved the caret past the widget instead of pushing content down, and on
+  a source already backspaced into plain text it did nothing a user could see, leaving the split to
+  a second press. Enter now commits the edit **and** splits at the caret, so the press is strictly
+  more productive than the one it replaces. Escape stays the reveal's only claimed key; the fold
+  triggers it already had — blur, a caret leaving the source, a clipboard splice — are unchanged,
+  and any block command now folds before it mutates, which is what makes the split land on
+  committed bytes. This reaches all three reveal-capable inline kinds (math, directive text,
+  footnote references). One deliberate exception: inside a table cell Enter is a row hop rather
+  than a split, and hopping would carry the ephemeral edit out of the surface that owns it, so a
+  cell's Enter still commits and stays put.
+
+- **A thematic break takes whole-block focus before it is deleted.** A caret-adjacent Backspace
+  (or Delete from the block above) now focuses the rule, and only a second press removes it — the
+  two-step the mermaid diagram has always had, and which the thematic break's own closure cells had
+  been claiming while the descriptor declared nothing and the block vanished on press one. The
+  descriptor now declares `blockFocus: 'whole-block'`; the component needed nothing, having carried
+  the focus ring, the tab stop and the focused-block key tail since whole-block copy shipped. Ranged
+  and sweep deletes are untouched — this is the caret-adjacent gesture only.
+
+- **Breaking, freeze surface: `parseInline` rejects a call that omits its scan bounds.** Called with
+  the source alone, it used to compare against `undefined` at every step, skip the scan, and hand
+  back a single text node holding the whole string — no throw, no warning, and the inline structure
+  the caller asked for silently absent. It now throws a `TypeError` naming the fix. TypeScript
+  callers were never able to make the call; this closes it for plain JS and `any`-typed sites.
+
+- **A closure cell that claims focus-then-delete must be backed by the declaration that provides
+  it.** The bootstrap coherence family gained two rules: a kind whose `focus` or `mergeBackspace`
+  cell claims the focus-then-delete model has to declare `blockFocus: 'whole-block'`, and a
+  `reservedChrome` container has to say what its clipboard does rather than inherit the default.
+  A closure cell is prose a compiler cannot read, so the honesty of the matrix rested entirely on
+  review — and the thematic break above is what that gap looked like in a shipped built-in.
+
+- **A structural paste mints its blank-line rows at the target document's ending.** Pasting content
+  with an internal blank line into a CRLF document left a lone LF row behind: paste normalizes the
+  clipboard to LF before parsing, so the trivia those rows materialize from cannot tell a CRLF
+  document from an LF one, and the ending has to come from the paste target. The line-ending
+  parameter behind the mint is now required rather than defaulted, which is what turns the next
+  such site into a compile error instead of a silent downgrade.
+
+- **A directive document whose closer lines are all too short to close anything parses in linear
+  time.** The closer index bounded the unclosed-opener flood, but the lookup into it still walked
+  forward from the first later closer until it found a colon run long enough — so a document that
+  contains no such run walked every closer for every opener. The lookup is now a descent over a
+  max-of-counts tree, indifferent to how the run lengths are distributed. Bytes are unchanged;
+  256 KB of the adversarial shape went from roughly 2.4 s to 53 ms.
+
+- **The editable surfaces thread their instance grammar into cross-block join-paste.** The seam
+  field was optional and none of the four production surfaces supplied it, so the join reparse always
+  used the global grammar. It is now required-nullable, matching the dispatch tier it feeds: a
+  surface must answer the question, and `undefined` means the global grammar deliberately.
+  Byte-identical today, since an instance grammar cannot yet diverge.
+
+- **Navigating into a collapsed container opens it instead of doing nothing.** A collapsed
+  collapsible clamps its render window to the chrome row, so a reveal aimed at a body child found
+  its target outside the live window and returned: clicking a toc entry for a heading inside a
+  closed `<details>`, or navigating to a search match found there, was a dead click with no crash
+  and no error to notice. The reveal seam now opens the container first. Expansion is a real
+  committed edit, not a view-only override: the `open` state is serialized bytes, so a transient
+  flip would put the view and the CST into exactly the disagreement the architecture forbids. One
+  Ctrl+Z therefore takes it back, the `edit` event sees it, and the commit error seam contains it.
+  Which containers can be opened, and how, is declared rather than special-cased. **New plugin
+  surface: the container contract's `reservedChrome` gains an optional `expandPatch` field**, a pure
+  hook returning the metadata that opens a collapsed node, declared beside the `isCollapsed` probe
+  the window clamp already reads. Additive, so no existing plugin changes; a collapsible that
+  declares no door keeps degrading exactly as before. Reading mode expands nothing,
+  since a mode that commits no edits cannot make an exception for this one. Nested collapsed
+  ancestors each open, outermost first, and each is its own undo entry: batching them into one would
+  have put commit vocabulary into the navigation signature a plugin author is about to be frozen
+  against, for the doubly-nested case alone.
+
+- **The adjacent-widget-boundary click-snap flake was the spec's own race, not an editor
+  defect.** The geometry read ran with no image-decode barrier, so a pre-decode 0x0 widget box put
+  the click inside the image once it decoded, and the widget select suppressed the snap caret. The
+  spec now waits for the decode and asserts the specific edge; the ledger entry's original suspect
+  (the reveal-anchor pointerdown clear) is falsified in the entry's closing record. Reproduced
+  naturally at 15/60 under contention, 180/180 green after.
+
+- **The byte-corruption family from the 0.9.35 review is closed.** Typing `:::` in an admonition
+  body no longer truncates the container: every directive container escalates its fence past the
+  longest body colon run at the one serializer choke point, narrowing again when the collision
+  goes, and G1.12 now guards the directive tier it used to exempt. `</details>` has no fence to
+  grow; that collision is proven unrepairable at the rebuild seam and pinned as a guarded floor
+  (loud in dev, bytes round-trip), ledgered with the commit-path design it needs. Shift+click out
+  of a table cell mints a cell coordinate instead of a character offset, so copy no longer drops
+  the header row; every cell write escapes freed pipes over the post-splice raw at a schema
+  descriptor seam the tree-op sink applies (the rule had been carried at call sites, and the one
+  bare sink deleted a column); a cross-block delete from prose into a table terminates the
+  truncated head line, so the next parse no longer swallows the table; and a plugin throw inside
+  the commit ceremony rolls the tree back byte-identical and lands attributed on the error
+  channel, from every gate including the paste path. Alongside: word-modifier chords no longer arm
+  a destructive widget state, a selected widget declines chords instead of eating Mod+Z, deleting
+  a link-reference definition refreshes the resolver, `(www.)` stays literal, and the
+  ambient-marker pin covers all four inline wrapper shapes.
+
+- **The suite now reaches what shipped its misses.** Component-level mount suites cover the
+  highest bugfix-density files that had none (blockquote, list, table, BlockHost, the cross-block
+  keydown dispatcher), and finding two latent byte defects on the way is what the program was for.
+  The property lanes reach bundled-plugin syntax, 100 KB inputs, the 0-3-vs-4 block-indent
+  boundary, and CRLF documents holding structured blocks — each previously outside every
+  generator's expressible space. Repo-wide source lints scan the reference plugins and the
+  consumer example; a settle whose expectation is a substring of the loaded content now fails a
+  lint (58 sites repaired); and the e2e invariant watcher names its expected tags instead of
+  waiving whole files. Two live defects the new oracles surfaced are ledgered with executing
+  repros rather than fixed: typing a `> [!TYPE]` marker per keystroke never forms an alert, and a
+  long paste into a windowed list loses the caret (VR-12).
+
+- **A desktop shell's asset URLs pass the image-src allowlist.** `asset:` joins `http`, `https`
+  and `data` as an allowed image scheme, so an editor embedded in a webview shell renders a local
+  file the host resolved for it. The defect this closes is platform-shaped, which is the reason it
+  is worth a scheme rather than a workaround: Tauri's `convertFileSrc` returns
+  `http://asset.localhost/…` on Windows and `asset://localhost/…` on macOS and Linux, so a host
+  whose images all rendered on the developer's machine had every one of them blocked — GFM and
+  plugin-minted alike — on two thirds of its platforms, with nothing a Windows CI could see. The
+  scheme carries no script capability: no browser resolves it, and a webview that does serves
+  bytes off disk. Hrefs are unchanged — an asset URL is a src, and nothing has asked to navigate
+  to one. A consumer-extensible allowlist is the obvious generalization and is deliberately not
+  taken here: a host may name its own protocol (`convertFileSrc(path, 'myasset')`), so the general
+  answer is a contract surface to settle at the freeze, while this is the one name the platform
+  publishes.
+
+- **The widget-free image path prints its own bytes.** A table cell renders an image as source
+  rather than as a widget, and it rebuilt that source from the parsed `alt` assumed to sit two
+  characters into the node — true of a GFM image, false of one a plugin mints, so an
+  Obsidian-style `![[cat.png]]` in a cell displayed as `![cat.pngg]]`. The parsed field now only
+  _locates_ the marker split, and only where it is literally those bytes; every string the path
+  emits is a slice of `raw`, which is the rule the link path beside it already carried and stated.
+  An image whose alt cannot be located renders as unmarked source rather than as markers, because
+  a marker collapses in reading mode and collapsing a construct nobody can decompose would blank
+  it outright. Offsets were never affected — the arithmetic always spanned the node — so bytes,
+  selection and serialization are untouched and only the glyphs change.
+
+- **A cross-block copy whose event lands on nothing now writes anyway.** Select the whole document
+  and press Ctrl+C: if the selection's focus endpoint was a block with no text position in it — an
+  image-only paragraph, a thematic break — the system clipboard was left completely untouched, so a
+  paste into another application produced nothing. The endpoint is where the trail starts: a
+  cross-block selection is painted by overlays, and the collapsed caret the seam parks at the focus
+  endpoint is best-effort, so a caret-less endpoint leaves the native selection empty. Chromium then
+  dispatches `copy` at `document.body` rather than at the focused block, and every clipboard handler
+  in the editor was bound to a block surface. Nothing above them listened, so the gesture died in
+  silence — no throw, no empty write, just an untouched clipboard. The editor root now carries the
+  fallback, the exact sibling of the root keydown routing that already covers a windowed-out caret's
+  chords: an event that landed on the root or on the body, with a cross-block selection live and no
+  block having claimed it, routes into the same cross-block clipboard seam the blocks call. Cut and
+  paste were fixed with it rather than after it — they escape through the identical hole, and cut
+  was the member that silently dropped the gesture entirely. The gate stays narrow on purpose: it
+  reads the event's own target, not the focused element (a block still held focus in every
+  reproduction), and it claims only the root and the body, so the find bar's input and a host's
+  header field keep their own clipboard.
+
+- **Mod+B / Mod+I do something at a collapsed caret.** They used to read the live selection,
+  find null, and return — while still claiming the key, so the chord was a dead press with no
+  feedback of any kind. The contract is now the mainstream one, stated here because it is a
+  choice and not a bug fix: at a collapsed caret the toggle inserts the empty marker pair and
+  lands the caret between its halves, so the next character typed is formatted. Two arms come
+  before the insert. If the caret already sits inside a span of that format the span is
+  unwrapped — a caret in `**bold**` turns bold off, which is what the press means there and
+  what Obsidian's toggle-the-whole-word rule exists to deliver; this reaches it through the
+  inline parser instead, and the editor grows no word-boundary rule it would then have to be
+  consistent with elsewhere. If the caret sits between the halves of an empty pair, that pair
+  is removed, so a second press is an undo of the first. One Ctrl+Z also removes the pair — and
+  if text was typed inside it first, that same press takes the typing with it: the toggle joins
+  the typing checkpoint it opened rather than standing alone, which is the existing batching
+  rule for any content edit at a caret and is not special-cased here. Table cells carry
+  the same contract off the same pure core, and their toggle now claims the chord even when
+  there is no caret to act on — declining would leave the browser's own contenteditable bold to
+  run in a surface the CST owns.
+
+- **A click in the editor's dead space places a caret.** Clicking below the last block, or in
+  the root's own padding beside a line, used to move focus to the root and place no caret at
+  all — a click that did nothing a user could see, on the two regions a user most often clicks
+  when reaching for "put the cursor at the end". Below the last block now lands at the end of
+  its content; beside a line lands at the end of THAT line, which is what makes the gesture
+  worth having on a wrapped paragraph. The rule carries no kind knowledge: the point is clamped
+  into the nearest block's box and handed to the hit test the drag path already uses, so a
+  container is descended into for free and the end-of-document gesture is just the same clamp
+  aimed at a trailing corner. Clicks that land on anything the editor renders — a block, a
+  handle, an overlay, the host's header slot — are untouched, because the claim is on the
+  event's target being the root itself. Two families decline rather than guess: a table, whose
+  offset is a cell index and so has no "end of that line", and a non-editable leaf like a
+  thematic break, which would otherwise take the whole-block focus a click ON it means and arm
+  the next Backspace against a block the user only clicked near. Both are in `docs/issues.md`.
+  A drag-select that ends in the margin keeps its selection.
+
+- **A reveal click on a rendered block no longer leaves the whole document armed for
+  deletion.** Clicking the rendered view of a render-primary leaf — block math, the table of
+  contents, a footnote definition — reveals its source and lands a caret in it, which makes it a
+  caret-placing gesture. It was the one such gesture that skipped the shared pointerdown
+  preamble, so a live cross-block selection stayed painted over a caret that had just moved out
+  of it, and the next Backspace deleted the range rather than a character: select all, click the
+  math, press Backspace, and the document was gone. It runs the preamble now. It still does not
+  route through the cross-block dispatcher the source surfaces use, because that hit-tests the
+  pointer against source text a rendered view does not have. Found by writing out the entry set
+  for the new guard below rather than by a report, which is the entry set's whole point: the rule
+  that a caret-placing gesture ends a live range is carried by each gesture, and
+  `invariants/lint/caret-gesture-range-reset` now makes a gesture that joins the set declare
+  which door it uses — or say what it does instead of placing a caret. The rule cannot be seated
+  in a funnel, and that is measured rather than assumed: `BlockComponent.focus` is the obvious
+  candidate and is the same call the cross-block dispatcher parks its own caret with mid-extend,
+  so a clear seated there reds three extend specs. `focus` is therefore documented as a park
+  primitive; the consumer door that ends a range is `setSelection`, and both halves are pinned.
+
+Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
+restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
+identical at the batch base).
+
+### 0.9.35: the navigation API + toc v2
+
+Path-addressed navigation became a public surface, and the two bundled plugins that had been bare
+surface dogfoods — toc and highlight-occurrences — grew into the shapes a real editor's user
+expects. This closes the GitHub-parity package's editor side on the package's own rule: every
+capability gap a plugin hit was closed at the API level first, then consumed by the plugin.
+
+- **`rects.scrollTo(path, opts?)` shipped as the one navigation seam.** `reveal(path)` keeps its
+  mount-only semantics (measuring something offscreen must never scroll); its new sibling mounts the
+  target and then scrolls the viewport to it, and search's private reveal wiring migrated onto it
+  rather than leaving a second copy of the rule. Reveal-and-scroll turned out to be two
+  responsibilities: `scrollIntoView` places a target once, but a windowed-out target past undecoded
+  images strands anyway — the images reserve height off-window and collapse on mount, so the document
+  shrinks and the browser clamps the scroll away from it. So `scrollTo` sets the reveal anchor at the
+  requested placement and the windowing scope re-asserts it on every post-mount measure pass,
+  refining `'center'` to exact placement once mounted and then releasing it. The boolean resolves
+  only after the position settles, so `true` means genuinely in view. Fixing the strand surfaced a
+  root defect underneath: the anchor correction wrote `scrollTop` directly, which fires no `scroll`
+  event, so the window's derived scrollTop stayed stale and never re-sliced — the target sat at the
+  anchored position, unmounted.
+- **Block components reach the editor's geometry.** `BlockComponentProps` grew a `rects` field
+  carrying the owning instance's rect surface (growth-as-fields, the frozen-shape rule), delivered
+  through editor context and threaded on both of BlockHost's dispatch branches — pinned by a parity
+  lint that fails the day a branch drops it, and which codifies the previously e2e-only `document`
+  precedent alongside it. A block can now reveal, scroll, and measure without an editor context it
+  does not have. Caret placement by path stays deliberately unexposed, recorded in the contract as a
+  decision rather than an omission.
+- **The toc plugin became a table of contents.** Entries indent by heading level; labels project the
+  inline parse to clean text (formatting markers dropped, links and images reduced to their text,
+  emoji and entities shown as their glyph); the heading walk recurses into containers, so a heading
+  inside a blockquote or a callout is listed; and each entry is a real button that navigates to its
+  heading on click or Enter, in every presentation mode — a navigation click is view-only, verified
+  against the reading-inertness lint rather than assumed. `tocPlugin({ maxDepth })` trims the outline
+  to the top N levels, and the heading-level read the hierarchy needs graduated to the authoring
+  barrel as `headingLevel`. Navigation is serialized per block (one scroll in flight, latest target
+  wins), so overlapping clicks cannot strand the later target on the process-global reveal anchor.
+  The stretch goal — GitHub-style slugs plus `#fragment` link navigation — stayed a roadmap entry
+  with its design sketch: the slug half is cheap, but resolution needs an inline-link-activation seam
+  the editor does not have, plus a which-gesture-navigates-versus-edits decision the toc plugin
+  cannot make alone.
+- **highlight-occurrences hardened into the shape its own recipe describes.** The word index is built
+  once per edit epoch and a caret move re-filters it with a single map read, where before every
+  un-debounced selection change re-walked the whole document. Non-prose leaves are skipped through
+  the descriptor's declared `supportsInline` capability rather than a kind check — deliberately
+  narrower than the true mark-painting set, since code blocks do paint marks and occurrence
+  highlighting is an inline-prose feature. The export unified with its siblings as
+  `highlightOccurrencesPlugin()`, and the plugin-guide recipe that contradicted the implementation
+  now tells one story with it.
+- **A `source` prop swap now signals the decoration engine.** The edit epoch means "the document
+  changed", and a whole-document replacement is that, but the swap reset (doc, ids, refs, undo,
+  selection, LRD resolver) never notified the engine, so every epoch-memoized source kept serving a
+  document that no longer existed: occurrence marks painted into the wrong blocks, and an open find
+  bar held its old count over a phantom overlay. The bump site is now one named function both the
+  post-commit subscriber and the swap reset call, so the guard and the deferred tick cannot diverge
+  between them. The gap predated the epoch itself; what this milestone added was the first bundled
+  consumer of the memo and the recipe telling third-party authors to build on it.
+- **Strip containers reorder and copy through declared capabilities, not kind names.**
+  Reorder-within membership became a container-descriptor capability (`reorderChildren`, whose one
+  honest sub-discriminant is `renumberMarkers` — only ordered-list markers are position-dependent),
+  and the clipboard's sole-child marker recovery keys on the `strip` container contract. Both had
+  dispatched on a hardcoded `list`/`blockquote` allowlist, so a plugin strip container — a native
+  alert, a footnote definition — fell through: a body child's reorder teleported the whole container
+  among document siblings, and a partial copy lost its wrapper. Correcting the ledger entry this
+  closes: the predicted marker-dropping corruption is ceremony-masked and was never observable in
+  committed state (the commit ceremony rebuilds a scope container's raw through its own descriptor),
+  so the real defects were the teleport and the wrapper-less slice, and the reorder rebuild hardcode
+  is deleted rather than routed. The parity lint that would have caught the class now scans
+  `editor-actions/` and `selection/` beside `tree-operations/`.
+- **The oracles and the showcase track the new surface.** A reorder-within gesture joined the
+  github-alert simulation family under the structural and convergence oracle stack, and new e2e
+  specs cover the scrollTo settle over an image band, toc navigation (windowed-out target, keyboard
+  entry, both presentation modes), and the occurrence memo through a live scan counter rather than
+  timing. The `/` showcase nests its headings so the outline's hierarchy is visible, and the consumer
+  guide documents the navigation door — the honest boolean included — end to end.
+
+Ship gates: unit 4606, e2e 1506, check 0/0, lint 0, perf 95, perf:check 24/24.
+
+Post-stamp records: the perf baseline's e2e rows were re-blessed 2026-07-24 on the calibration
+machine (27 fixture rows; the gate re-verified green against the fresh floor) and the README's
+perf and lines-of-code charts re-rendered from live data — library ~53k lines, tests ~97k,
+eight bundled plugins.
+
+**Post-ship review (2026-07-24).** A repo-wide forge review of this version, and the fixes it
+routed. Twenty scopes covered the library source, the docs and comment corpora, stylesheets, CI,
+packaging and the e2e suite; the unit suite's own quality was the one artifact class no pass
+reached, and it carries forward to the pre-freeze re-audit. The record itself stays in git history
+rather than a tracked document, following 0.9.27 and 0.9.32.
+
+- **A non-advancing block opener hung the parse loop in production.** The github-alert marker
+  accepted unbounded leading indent while the blockquote extent scan refuses a four-space line, so
+  the opener consumed nothing and the loop spun. The guard that caught it was DEV-only, so a
+  production build tree-shook the check and a hand-typable document froze the tab on load. The
+  marker is bounded to CommonMark's 0-3 space rule, the opener declines when the extent does not
+  advance, and the parser now treats a non-advancing opener as a decline in every build. That last
+  part is what makes "the worst case for a parser bug is bad styling, not a corrupted file" true
+  for a third-party opener and not just for the built-ins.
+- **One byte-corruption family, closed at its seams.** A block's trailing ending must come from the
+  block's own raw, never a literal: four reported sites turned out to be nine, because the root
+  cause was a shared paragraph mint hard-coding `\n` across four branches at once. A second pass
+  found seven live mint sites that took that parameter's default and downgraded a CRLF document
+  the same way. Two guards landed with them, since a call-site scan cannot see a pure transform or
+  a defaulted parameter: a third lint arm covering container rebuild provenance, and an
+  outcome-level oracle that runs thirteen gestures over an LF fixture and its CRLF mirror and
+  asserts the results match. Separately, the cross-block inline paste arm was the one paste route
+  mutating children outside the commit ceremony, so a container's ids desynced permanently and no
+  edit event fired at all; the list terminator patched a nested container's raw without its
+  children, which mashed two list items together on the next edit; fence lines came into range for
+  indent, dedent and CRLF forward-delete, each of which could un-close a fence and let the block
+  absorb the rest of the document on reload; and image alt escaping became idempotent instead of
+  doubling backslashes on every commit.
+- **Every inline recognizer now bounds its decline, not just its claim.** Three of the six inline
+  recognizers scanned to the end of the range before declining, which is quadratic in the block. All
+  three are bundled rungs; the fourth bundled rung (emoji) was already linear. At 96 KB in one
+  paragraph, over a full inline parse: latex `$` 8168 ms to 8.8 ms, footnotes `[^` 15407 ms to
+  18.4 ms, the directive text tier 2779 ms to 14.4 ms. Each materializes its decline predicate once
+  per block behind a bounded memo and looks it up per consultation. The latex leg needed no
+  adversarial intent: a paragraph of shell documentation is ordinary content. The autolink
+  delimiter prune was quadratic too (677 ms to 38 ms at 384 KB) and became a binary search over the
+  sorted, disjoint match list, which took two `RangeError`s with it; the wrapped-inline renderer was
+  de-recursed to a frame stack, removing a stack overflow and running about twice as fast at every
+  depth. A realistic paragraph carrying all four constructs parses in 0.052 ms with every parse a
+  forced cache miss, so the headline costs nothing at the keystroke.
+- **The release path and the review workflow.** The tarball verifier moved onto the publish
+  lifecycle, where it had been running in CI only, so a dangling export subpath can no longer ship;
+  repository metadata was added; and the docs-pack script's unguarded recursive delete is gone
+  rather than guarded. The review workflow's blast radius over untrusted PR content narrowed: the
+  job token no longer persists in the checkout, default permissions drop to read, and the prompt
+  frames fork content as data. What did not change is the trigger gate, which was already
+  admin-gated and fail-closed.
+- **The review corrected the project's own records.** Three ledger entries rested on claims this
+  run falsified by measurement: two of four "measured linear" sibling flood paths were quadratic,
+  and the installed-rung cost model priced a consultation as constant when three of the four
+  bundled rungs scanned the whole block before declining. The closure-cell entry's hypothetical
+  turned out to be live, on a built-in: the thematic break's cells promise focus-then-delete while
+  the kind declares no `blockFocus`, so it deletes on the first press, and the design spec and the
+  published plugin guide had been teaching it as the reference model. The attribution is corrected
+  in both, and the descriptor's own cells are ledgered as the live instance.
+  `CLAUDE.md`'s layer-contract sentence and its new-block-kind rule were both false as written, and
+  the documented ship gate named a script that already runs inside `npm test` while the real
+  ceiling gate went unnamed in every contributor doc.
+
+Review gates: unit 4606 to 4695, e2e 1506 passed / 60 skipped with zero flaky over two full
+batteries, check 0/0, lint 0, perf:check 24/24 with several fixtures faster than the fresh floor.
+
+### 0.9.34: emoji + native alerts + parity smalls
+
+GitHub-parity extensions rode the surfaces the recent minors shipped: `:shortcode:` emoji on
+the 0.9.33 inline ladder, native `> [!TYPE]` alerts as a first-class container kind, and the two
+small GFM-parity fixes (single-tilde strikethrough, the ` ```math ` fence). Every one is
+byte-preserving and uninstall-clean: an installed extension changes rendering, never the source.
+
+- **Emoji shortcodes shipped as the first bare-trigger inline kind.** `:shortcode:` renders as an
+  atomic glyph widget on a bare `:` rung priced above the directive text tier, so the two disjoint
+  grammars coexist on one trigger and a table-lookup miss falls through byte for byte. The literal
+  `:name:` bytes stay in the raw, so round-trip and portability are untouched, and the widget
+  carries the decoded-entity edge policy (atomic delete, step-over caret). A gemoji shortcode table
+  is generated and checked in (no runtime or network dependency), and recognition is install-gated.
+  Ships at `aragonite/plugins/emoji`; the roadmap's 1.3 emoji item graduated pre-freeze.
+- **Native GitHub alerts became a first-class container kind.** A blockquote whose first line is
+  `> [!TYPE]` parses as its own `githubAlert` strip container (the ATX/setext per-kind precedent),
+  reusing the blockquote extent scan and the shared admonition chrome. The marker line lives only
+  in the container's raw and metadata, and the bytes are never rewritten to `:::`. With native
+  rendering shipped, the admonitions paste transform became opt-in
+  (`admonitionsPlugin({ convertAlertsOnPaste: true })`, default off): pasted GitHub bytes now stay
+  GitHub bytes and render natively, and the whole-document convert affordance is untouched.
+- **Two GFM-parity smalls landed.** The emphasis scanner now accepts tilde runs of length 1 or 2
+  per cmark-gfm: `~x~` and `~~x~~` both strike, a run of three stays literal, and a mixed-length
+  pair never matches (GitHub does not set `DOUBLE_TILDE`). The conformance pins that asserted the
+  old literal `~x~` reading were re-baselined. And GitHub's third math form, a fenced block whose
+  info-string first token is `math`, parses as a distinct `mathFence` kind sharing the block-math
+  render component; uninstalled it stays a lossless plain `math` code block.
+- **The corruption oracle tracks the new surface.** Two simulation gesture families drive the new
+  kinds under the structural and convergence oracle stack: emoji adjacency (mid-prose insert,
+  both-directions atomic step-over, single-press delete, undo unwind) and github-alert container
+  editing (from-scratch formation, kind-stable inner edit, contained middle-child merge,
+  marker-dropping unwrap). The alert and math-fence kinds each gained interactive e2e coverage, and
+  all three surfaces appear on the `/` showcase and in the consumer and plugin guides.
+
+Ship gates: unit 4547, e2e 1479, check 0/0, lint 0, perf 95, perf:check 24/24.
+
+### 0.9.33: inline priority ladder + footnotes
+
+The inline recognizer gained a published priority ladder mirroring `OPENER_PRIORITIES`, and GFM
+footnotes shipped on it as the first-party `aragonite/plugins/footnotes` plugin. The pre-freeze
+probe's definition side (0.9.30) was rebuilt from an opaque leaf into an editable strip container,
+and the reference side is newly built: first-class inline widgets on the prefix ladder, replacing
+the probe's decoration-overlay approximation.
+
+- **Inline precedence overrides shipped.** The scan stage now consults a per-trigger rung list with
+  published built-in anchors (`INLINE_PRIORITIES`), so a plugin recognizer can claim syntax that
+  begins on a reserved trigger by registering a prefix rung priced below the built-in, the inline
+  mirror of an opener pricing below a built-in. `[` stays a reserved trigger (a bare registration
+  throws), but a `[^`-prefix rung wins it only where `[^` matches, and an unterminated `[^` declines
+  and falls back to the built-in link reading byte for byte. Rungs on one trigger dispatch by
+  priority ascending, then longer-prefix-first, then lexicographic, independent of registration
+  order. Graduated from the roadmap's 1.2 precedence-override item, build-validated by footnotes.
+- **Footnote definitions are an editable strip container.** `[^label]: content` parses to a
+  not-mergeable container in the listItem mold: the `[^label]: ` marker paints as a dimmed ambient
+  prefix on the first child, the body is real child blocks, and the container rebuilds its raw from
+  the marker plus four-space continuation indents so a post-edit rebuild canonicalizes exactly as
+  listItem does. The container factory grew a `getAmbientPrefix` thunk to forward the marker.
+- **Footnote references are first-class inline widgets.** `[^label]` recognizes through the new prefix
+  rung and renders as a superscript whose number derives reactively from first-reference order: an
+  earlier reference typed elsewhere renumbers a widget live though its own block is never edited and
+  its source never changes. The literal bytes stay in the raw, so round-trip and GFM portability are
+  untouched, and a caret-adjacent destructive key reveals the source rather than deleting the
+  reference whole. Numbering is a pure function over the read-only document (`assignFootnoteNumbers`).
+- **The corruption oracle tracks the new surface.** A `footnote-ops` simulation drives both tiers
+  under the structural and convergence oracle stack: reference type / reveal / edit / delete, and
+  definition formation, mid-body split (pinning that the split grows the container and never the
+  root, the blockquote-override boundary), and not-mergeable exit. The plugin ships at the
+  `./plugins/footnotes` subpath, showcased on `/` and documented in the consumer and plugin guides.
+
+Ship gates: unit 4396→4442, e2e 1463, check 0/0, lint 0, perf 95, perf:check 24/24.
+
+### 0.9.32: the elegance run
+
+An owner-directed whole-repo elegance pass: simplification, dedup, dead-code removal,
+and evidence-gated performance work, run as thirteen read-only discovery surveys over
+every subsystem (library, tests, e2e, shell, perf), a triaged ledger (~110 accepted,
+every rejection recorded with its reason), and twenty-odd reviewed fix batches. Net
+effect: the same behavior on fewer, better-homed lines — and three real latent bugs
+found because rules moved into seams.
+
+- **Rules moved to choke points.** The clipboard copy/cut/paste ordering lives in one
+  `createClipboardHandlers` seam (four surfaces supply only their genuine arms); the
+  pointer-drag lifecycle (listener trio, rAF coalescing, autoscroll, teardown,
+  pointerId filter) lives in one `createPointerDragSession`; the end-wall deletion
+  atoms live in the range-delete ceremony; a shared `NodeScope` carries the container
+  getter trio once; `BlockquoteBlock` rides the container seam its docstring claimed
+  to mirror. `emptyParagraph`, `remapStrippedLines`, `mintWidgetShell`,
+  `cellRowCol`/`intraTableRect`, `readBlockPath`, `blockAtPoint`, and the segment
+  walk inside `widget-offset` each collapsed multi-site duplication into one home.
+- **Three latent bugs surfaced by the consolidation, fixed red-first.** CodeBlock and
+  non-reveal table cells prevented the native paste only after the first await —
+  provably too late, masked in e2e by the CST-authoritative re-render; a second
+  pointer could end another pointer's drag on three of four lifecycles (only table
+  filtered `pointerId`); the task-checkbox strip left stale `ParsedLine` offsets on
+  the public opener surface.
+- **The superseded paste mechanism is gone** (`insertParsedBlocks`,
+  `foldPasteReplacement`, −204 lines) and its G2.9 invariant was rewired
+  depth→strategy onto the live path — whose `paste`-op side had been unguarded.
+  List-overrides' hand-copied delete/replace fell through to the shared core, gaining
+  the noop-discard, focus-offset, and backfill guards it had drifted away from.
+- **Evidence-gated perf.** Three refactors rejected on measurement (the
+  commit-preview parse-once, the autolink prune — observed linear, the emphasis
+  linked-list port — quadratic but confined to the documented transient axis, now a
+  ledger characterization); three pure-waste removals shipped with two-sided pins
+  (the keydown island scan, the dead caret-carry walk, and render keys folding a
+  compact LRD epoch instead of the ~MB signature string). Two perf watches closed
+  no-action (BlockHost heal, parser laziness). `perf:check` 24/24 with p50s at or
+  below baseline throughout.
+- **The plugin surface grew two additive conveniences** (`surfaceProps` on the
+  editable leaf — a consumer can no longer drop a handler; `getPresentationMode` on
+  the container factory) plus `containerClosure` beside `simpleLeafClosure`, all
+  guide-documented pre-freeze.
+- **The suites got cheaper to extend without losing a test**: ~750 lines of copied
+  unit-harness assembly became four helpers with the live-getter contract; 31 test
+  files moved to mirror their sources; two monoliths split as proven pure partitions;
+  the e2e helper families (cell drag, pageerror capture, sim oracles, search split)
+  consolidated coverage-neutrally; a new lint pins the block-content selector so the
+  9-site parity rot cannot regrow.
+
+Final commit gate: unit 4346→4396, e2e 1449, check 0/0, lint green, perf:check 24/24.
+Per-fix miss-analyses live in `git log`; the run's triage ledger (accepted, rejected
+with reasons, measured, deferred with anchors) is the durable record of what was
+deliberately NOT done.
+
+### 0.9.31: five reports and a ledger burn-down
+
+Five same-day user reports answered, then the known-issues ledger cut from 22 entries to 11
+in one dispatched pass: every fix red-first, every substantive diff adversarially reviewed,
+and each surviving entry re-verified to carry a named deferral anchor.
+
+- **User reports.** Enter in a setext title no longer demotes the heading and strands the
+  underline as a junk block; split keeps a structural suffix with its block via a generic
+  content-range rule at the `splitNode` choke point. Focused whole-block blocks (thematic
+  break, mermaid) and selected inline widgets copy and cut with Mod+C/Mod+X, landed once in
+  the shared seams so every kind of each tier inherits the gesture. Fence lines hide whole in
+  reading and preview (a CSS-reachable wrapper per fence line; the bare-newline Chromium caret
+  workaround proved dormant when faithfully reconstructed and was retired into a guarded e2e
+  pin). The details disclosure caret centers on its summary line (buttons don't inherit
+  font-size, so its em geometry resolved against the UA default). `check` runs at 0 errors
+  0 warnings (the deliberate-interaction a11y suppressions; role questions stay parked at 1.1).
+- **Byte fidelity.** Three CRLF defects closed red-first: the trailing `\r` (trim at the
+  source slice), the interior highlighter mangle (highlight an LF copy, positionally restore
+  each original ending, count-mismatch dev-warn at the seam), and the all-blank reading
+  collapse. The wider-than-header truncation left the ledger for `syntax-tree.md` as accepted
+  GFM-mandated normalization.
+- **Caret and clipboard parity.** The post-paste caret now honors the documented contract on
+  all ten routes (three divergent gates fixed, the residue-skip rule single-sourced into one
+  seam); range-delete survivors descend by focusability rather than merge-eligibility;
+  cross-block type-replace re-derives the surviving leaf's kind; copy during an active reveal
+  reads the live DOM instead of stale raw.
+- **Cells reach prose parity.** Decoration islands render and inline widgets reveal inside
+  table cells through the prose seam's own machinery, guarded by a cell commit wrapper that
+  escapes pipes and strips newlines (the row-splitting corruption a naive wire-up ships).
+- **Entities render.** `&copy;` shows © as an atomic inline widget, the first consumer of the
+  `deleteGranularity: 'atomic'` policy, gated to visibly-rendering glyphs (lone combining
+  marks stay literal-source spans). Pulled forward from the 1.2 sketch.
+- **Reload convergence.** An unclosed fence auto-closes when Enter-exit authors a block below
+  it, so save-then-reload keeps the authored structure; the simulation's parse-convergence
+  oracle is now unconditional (the exemption mechanism deleted whole). The closed/unclosed
+  exit-scope asymmetry it surfaced was then decided in-container: the closed exit mints its new
+  paragraph inside the fence's own container scope too, unified with the auto-close and the
+  whole-block Enter tier.
+- **The suite grew teeth.** New simulation gestures for decoration islands, block decorations,
+  IME composition (driven over CDP), and atomic entities; the `DocPath` brand adopted across
+  every op-family path composer with completeness enumerated by the compiler; G4.8 gained the
+  clipboard-chord family and the consumer guide documents the new chords; the links-autolink
+  test monolith split six ways at exact case parity; and the long-fixme'd reveal-blur spec
+  fell to a systematic bisect that found no battery carrier at all, only a stale test premise.
+
+Final commit gate: unit 4257→4346, e2e 1391→1443 (every project including simulation),
+check 0 errors 0 warnings, lint green. Per-fix miss-analyses live in `git log`.
+
 ### 0.9.30 — The audit-response pass: an outside review, answered
 
 A third-party audit of 0.9.28 (filed at `13e88c44`, retired with this entry — git history
