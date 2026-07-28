@@ -94,6 +94,45 @@ test.describe('dead-space clicks place a caret', () => {
 		);
 	});
 
+	// A cross-block range is overlay-painted with the native selection empty, so the
+	// drag guard above cannot see it. Left live, the range stays painted over the
+	// caret this click just placed and the next printable key type-replaces all of it.
+	test('the click ends a live cross-block selection', async () => {
+		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
+		await editor.focusBlockStart(0);
+		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('Control+a');
+		await editor.waitForCrossBlock(true);
+
+		const root = await rootBox();
+		const para = await blockBox(0);
+		await editor.page.mouse.click(root.right - 5, para.top + 6);
+		await editor.waitForCrossBlock(false);
+
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceContains('X');
+		const source = await editor.bridge.getSource();
+		expect(source).toContain('first para');
+		expect(source).toContain('third para');
+	});
+
+	// A drag that started ON a block and released in the margin reports the ROOT as
+	// its click target — the common ancestor of press and release — so `click` alone
+	// cannot tell it from a dead-space click.
+	test('a cross-block drag released in the margin keeps its selection', async () => {
+		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
+		const root = await rootBox();
+		const first = await blockBox(0);
+		const last = await lastBlockBox();
+
+		await editor.page.mouse.move(first.left + 4, first.top + 6);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(root.left + 40, last.bottom + 30, { steps: 10 });
+		await editor.page.mouse.up();
+
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+	});
+
 	// A rule holds no character position, so the click declines rather than handing
 	// it the whole-block focus a click ON the rule means.
 	test('a document ending in a thematic break is not focused by the click below it', async () => {

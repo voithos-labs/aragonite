@@ -330,8 +330,10 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   what Obsidian's toggle-the-whole-word rule exists to deliver; this reaches it through the
   inline parser instead, and the editor grows no word-boundary rule it would then have to be
   consistent with elsewhere. If the caret sits between the halves of an empty pair, that pair
-  is removed, so a second press is an undo of the first. One Ctrl+Z also removes the pair: the
-  toggle commits as one content edit, unbatched from the typing that follows. Table cells carry
+  is removed, so a second press is an undo of the first. One Ctrl+Z also removes the pair — and
+  if text was typed inside it first, that same press takes the typing with it: the toggle joins
+  the typing checkpoint it opened rather than standing alone, which is the existing batching
+  rule for any content edit at a caret and is not special-cased here. Table cells carry
   the same contract off the same pure core, and their toggle now claims the chord even when
   there is no caret to act on — declining would leave the browser's own contenteditable bold to
   run in a surface the CST owns.

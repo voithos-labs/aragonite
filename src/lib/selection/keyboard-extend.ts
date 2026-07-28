@@ -50,8 +50,10 @@ function enterCrossBlockFromKeyboard(
 		path: anchorPoint.path.slice(),
 		offset: anchorPoint.offset
 	});
-	// Collapse (not clear) so the focus block retains a caret — otherwise
-	// Chromium fires paste on <body>. See parkCaretInFocusBlock.
+	// Collapse (not clear) so the focus block retains a caret — otherwise Chromium
+	// retargets the clipboard events to <body>. See parkCaretInFocusBlock. Best-effort
+	// only: an endpoint that hosts no text position gets no caret however this is
+	// called, which is why components/editor-root-clipboard.ts exists.
 	applyCollapsedCaret(currentBlockEl, anchorPoint);
 	return true;
 }

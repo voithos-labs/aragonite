@@ -78,10 +78,11 @@ async function handleCrossBlockActive(
 	const myPath = ctx.getMyPath();
 	const doc = getDoc();
 
-	// Ctrl+C / Ctrl+X intentionally pass through — the synthetic copy/cut event
-	// reaches the block's onCopy/onCut, which writes synchronously via
-	// e.clipboardData.setData. Tauri's wry webview refuses
-	// navigator.clipboard.writeText in some contexts.
+	// Ctrl+C / Ctrl+X intentionally pass through — the copy/cut event writes
+	// synchronously via e.clipboardData.setData, since Tauri's wry webview refuses
+	// navigator.clipboard.writeText in some contexts. It reaches the block's
+	// onCopy/onCut only when the endpoint holds a caret; when it does not, Chromium
+	// retargets the event to <body> and components/editor-root-clipboard.ts catches it.
 
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
