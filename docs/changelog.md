@@ -4,6 +4,19 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **A reveal in flight is the only writer of the scroll position.** The reveal anchor re-asserts an
+  ABSOLUTE position derived from the list's live offset within the scroll content, which already
+  includes the header slot's current height; the slot's own resize observer adds a RELATIVE delta.
+  Each is right on its own and they produce the same number — but for one resize, in that order,
+  the delta lands on a position that already accounted for it and the revealed block sits a header
+  height off. What kept this from surfacing is why it needed its own pass: the wrong write shifts
+  the scroll, that shift mounts a block, and the mount's measure pass re-asserts the anchor, which
+  puts it back — so the landing is usually correct and the defect was invisible to every arm that
+  measured where the target came to rest. It is invisible, not absent: the corrector runs only when
+  the slide happens to mount something. The observer now re-places through the anchor rather than
+  adding a delta, and its regression arm watches the writes rather than the resting place — once
+  one write has put the target where the reveal asked, no later write may take it away.
+
 - **A drag reaching the edge of the screen scrolls the page.** The autoscroll edge math compares
   the pointer against a scrollport's rect, and asked "what scrolls this editor" through a walk
   that answered `null` when nothing above the editor did — which every caller spelled as an empty
