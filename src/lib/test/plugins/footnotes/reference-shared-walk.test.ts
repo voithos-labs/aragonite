@@ -74,8 +74,12 @@ describe('footnote reference widgets read the editor content version', () => {
 		mounted = mountReferences(() => 4242);
 		expect(mounted.refs.map((el) => el.textContent)).toEqual(['1', '2']);
 
-		// One shared walk is LEAVES computes plus the block's own render; two walks
-		// would be 2 × LEAVES before the render is counted at all.
-		expect(perfSnapshot().inlineComputeCount).toBeLessThan(2 * LEAVES);
+		// Assert the WALK COUNT, not the raw compute total: one numbering walk is
+		// LEAVES computes, and the block's own render adds a small constant on top.
+		// Rounding lands the verdict midway between one walk and two, so the pin
+		// discriminates the regression it exists to catch rather than sitting a
+		// single incidental compute away from being unable to fail.
+		const walks = Math.round(perfSnapshot().inlineComputeCount / LEAVES);
+		expect(walks).toBe(1);
 	});
 });

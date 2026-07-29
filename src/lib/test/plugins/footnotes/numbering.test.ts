@@ -4,9 +4,11 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
-	collectFootnoteReferences,
-	footnoteNumbersFor
+	collectFootnoteReferences
 } from '$lib/plugins/footnotes';
+// Plugin-internal (see the barrel's note): the shared walk keys on the editor's
+// content version, so only an editor-mounted widget can call it.
+import { footnoteNumbersFor } from '$lib/plugins/footnotes/footnote-numbering';
 
 describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {

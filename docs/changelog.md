@@ -243,15 +243,18 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 - **A mutation that folds a live reveal now waits for that fold's write, not for one tick.** The two
   seams that fold before they mutate, the clipboard splice and the block command dispatch, each
-  waited exactly one `tick()`. That is sound while the committed text keeps the block's kind, since
-  the content write lands synchronously; when the commit CHANGES the kind it takes the structural
-  path, and a tick that outlasts it does so by accident of which promise chain registered first, not
-  by contract. The fold now returns the write's completion alongside the committed caret, and every
-  caller awaits it: cut, paste, the block command, and the click that reopens a reveal on a second
-  widget. Both seams moved together deliberately, since one of them holding a stronger definition of
-  "settled" than the other is worse than a shared limit. Nothing user-visible changes at today's
-  commit shapes; what changes is that the ordering survives an `afterTick` caret landing that is
-  itself async, which the commit ceremony already permits.
+  waited exactly one `tick()`. The defect ledger held that a kind-changing commit landed its BYTES
+  asynchronously and could therefore lose that race; measuring it disproved that, on both the
+  top-level and the container path — the commit ceremony mutates and publishes before its own first
+  `await`, so the bytes are there the moment the call returns. What is genuinely async is the
+  commit's **completion**, whose `afterTick` caret landing Task 3 made awaitable precisely because a
+  landing can be async. So the old one-tick wait outlasted the commit by accident of which promise
+  chain registered first, not by contract. The fold now returns the write's completion alongside the
+  committed caret, and every caller awaits it: cut, paste, the block command, and the click that
+  reopens a reveal on a second widget. Both seams moved together deliberately, since one of them
+  holding a stronger definition of "settled" than the other is worse than a shared limit. Nothing
+  user-visible changes at today's timing; what changes is that the ordering is now stated rather
+  than inherited from microtask scheduling.
 
 - **A thematic break takes whole-block focus before it is deleted.** A caret-adjacent Backspace
   (or Delete from the block above) now focuses the rule, and only a second press removes it — the

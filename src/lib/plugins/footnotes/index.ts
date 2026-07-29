@@ -4,10 +4,10 @@
 // reference widget reads.
 export { footnotesPlugin } from './footnotes-plugin';
 export { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from './constants';
-export {
-	assignFootnoteNumbers,
-	collectFootnoteReferences,
-	footnoteNumbersFor
-} from './footnote-numbering';
+// `footnoteNumbersFor` is deliberately NOT here: its second argument is the
+// EDITOR's content version, so the only caller that can honour its contract is a
+// widget the editor mounted. The reusable half of that recipe is the version
+// itself (`InlineWidgetComponentProps.getContentVersion`), not this plugin's map.
+export { assignFootnoteNumbers, collectFootnoteReferences } from './footnote-numbering';
 export type { FootnoteReference } from './footnote-numbering';
 export type { FootnoteDefMetadata } from './footnote-definition';

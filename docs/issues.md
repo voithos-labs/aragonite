@@ -348,6 +348,12 @@ that measures the bail-probe cost the current gate is blindest to. The trigger-d
 growth bounds in the unit suites (each recognizer's `*-bounds` file), so what is still unmeasured
 is the keystroke ceiling and the plain-prose bail row.
 
+The bracket-dense footnote fixture carries a second, unrelated mechanism, so it must be typed into
+with a reference widget **in the viewport**: a mounted reference reads the editor's content version,
+which walks the CST rather than the mounted set (`docs/design/performance.md`, third non-viewport
+axis). One fixture, two costs — the scanner consultation this entry is about, and the mounted
+derivation, which nothing measures today either.
+
 **Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path on an
 empty registry. The bail probe itself predates the ladder — latex's `$` has ridden it since inline
 math shipped — so this is a standing measurement gap, not a ladder regression. Re-open when a
