@@ -4,6 +4,18 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **A drag reaching the edge of the screen scrolls the page.** The autoscroll edge math compares
+  the pointer against a scrollport's rect, and asked "what scrolls this editor" through a walk
+  that answered `null` when nothing above the editor did — which every caller spelled as an empty
+  target list. In the host embedding whose page owns the scroll, that meant a block drag toward an
+  off-screen destination scrolled nothing at all, on any of the four drags (block reorder,
+  cross-block select, table row, table column). The walk now answers the window instead of
+  nothing, so the case is unrepresentable rather than merely handled. The window is not
+  substitutable by an element: `document.scrollingElement`'s rect is the whole document box, so
+  feeding it to the edge math puts the bottom edge thousands of pixels below the screen and the
+  pointer never reaches it. The rect comes from the viewport and the write goes to the scrolling
+  element — two halves of one answer, from different places on purpose.
+
 - **A host-mode editor gets native scroll anchoring back.** The root turns `overflow-anchor` off
   because windowing corrects the scroll by hand (VR-2), and that opt-out excludes the editor's
   whole subtree from the HOST's anchor candidates too. In host mode windowing never activates, so

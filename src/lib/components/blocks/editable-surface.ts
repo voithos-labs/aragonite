@@ -17,6 +17,7 @@
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
+import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type {
 	BlockElLookup,
 	DocumentGetter,
@@ -108,9 +109,9 @@ export interface EditableSurfaceDeps {
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
 	getEditorRoot: () => HTMLElement | null;
-	/** What scrolls this editor — the root in self mode, the host's scroller in host
-	 *  mode; threaded to the cross-block drag-select autoscroll. */
-	getScrollHost: () => HTMLElement | null;
+	/** What scrolls this editor — the root in self mode, the host's scroller (or the
+	 *  window) in host mode; threaded to the cross-block drag-select autoscroll. */
+	getScrollHost: () => UserScrollport | null;
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
 	blockEdit: BlockEditActions;

@@ -84,4 +84,52 @@ describe('createAutoScroll — rAF loop termination at scroll limits (E-F7)', ()
 		expect(rafCalls).toBe(2);
 		autoScroll.dispose();
 	});
+
+	// The window target answers its two halves from different places, and one of them
+	// is the reason the page-scrolled case had no autoscroll for a release.
+	describe('the window target', () => {
+		const VIEWPORT_HEIGHT = 700;
+		let written: number;
+
+		// jsdom lays nothing out and leaves `scrollingElement` null, so the viewport
+		// and the document box both have to be stated. The gap between them is the
+		// point: a browser's document box is nothing like its viewport.
+		beforeEach(() => {
+			written = 0;
+			const doc = document.documentElement;
+			Object.defineProperty(doc, 'clientHeight', { value: VIEWPORT_HEIGHT, configurable: true });
+			Object.defineProperty(doc, 'clientWidth', { value: 1024, configurable: true });
+			doc.getBoundingClientRect = () => ({ left: 0, top: 0, right: 1024, bottom: 5000 }) as DOMRect;
+			Object.defineProperty(doc, 'scrollTop', {
+				get: () => written,
+				set: (v: number) => (written = v),
+				configurable: true
+			});
+			Object.defineProperty(document, 'scrollingElement', { value: doc, configurable: true });
+		});
+
+		afterEach(() => {
+			const doc = document.documentElement as unknown as Record<string, unknown>;
+			for (const prop of ['clientHeight', 'clientWidth', 'getBoundingClientRect', 'scrollTop']) {
+				delete doc[prop];
+			}
+			delete (document as unknown as Record<string, unknown>).scrollingElement;
+		});
+
+		it('measures the viewport, not the document box, and writes the scrolling element', () => {
+			const autoScroll = createAutoScroll({
+				getPointer: () => ({ clientX: 500, clientY: VIEWPORT_HEIGHT - 5 }),
+				getTargets: () => [window]
+			});
+
+			// The pointer sits in the VIEWPORT's bottom edge band and nowhere near the
+			// document box's, so measuring `document.scrollingElement`'s rect — the
+			// obvious substitution — never starts the loop at all.
+			autoScroll.maybeStart();
+			expect(rafCalls).toBe(1);
+			drainOneFrame();
+			expect(written).toBeGreaterThan(0);
+			autoScroll.dispose();
+		});
+	});
 });

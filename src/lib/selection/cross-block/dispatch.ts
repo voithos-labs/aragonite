@@ -16,6 +16,7 @@ import type {
 	PluginEditorLookup,
 	PresentationModeGetter
 } from '../../editor-keys';
+import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { CrossBlockMutationContext } from './ops';
@@ -45,8 +46,9 @@ export interface CrossBlockDispatchContext {
 	revealPath: (path: number[]) => Promise<BlockComponent | null>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge — the root in self mode,
-	 *  the host's scroller in host mode. See `cursor/scroll-ancestors`. */
-	getScrollHost: () => HTMLElement | null;
+	 *  the host's scroller in host mode, the window when the page's own viewport is
+	 *  the scrollport. See `cursor/scroll-ancestors`. */
+	getScrollHost: () => UserScrollport | null;
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;

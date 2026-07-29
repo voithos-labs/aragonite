@@ -26,7 +26,11 @@
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
-	import { clippingAncestors, nearestUserScrollableAncestor } from '../cursor/scroll-ancestors';
+	import {
+		clippingAncestors,
+		userScrollportFor,
+		type UserScrollport
+	} from '../cursor/scroll-ancestors';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
@@ -131,18 +135,19 @@
 	// first read and memoized — drag autoscroll asks per pointer frame, and the
 	// ancestor chain is a property of the host's layout at mount, so a host that
 	// swaps the scroller after mounting must remount the editor.
-	let resolvedScrollHost: HTMLElement | null = null;
+	let resolvedScrollHost: UserScrollport | null = null;
 	let resolvedClipBounds: HTMLElement[] = [];
 	let hostResolved = false;
 	function resolveHost(): void {
 		if (hostResolved || !editorEl) return;
-		resolvedScrollHost = nearestUserScrollableAncestor(editorEl);
+		resolvedScrollHost = userScrollportFor(editorEl);
 		resolvedClipBounds = clippingAncestors(editorEl);
 		hostResolved = true;
 	}
 	/** What a drag autoscrolls: the root in self mode, the nearest genuinely
-	 *  scrollable ancestor in host mode, null when the page's viewport scrolls. */
-	function getScrollHost(): HTMLElement | null {
+	 *  scrollable ancestor in host mode, the window when the page's own viewport is
+	 *  the scrollport. Null only before the root mounts. */
+	function getScrollHost(): UserScrollport | null {
 		if (!hostScroll) return editorEl ?? null;
 		resolveHost();
 		return resolvedScrollHost;

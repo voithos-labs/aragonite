@@ -16,6 +16,7 @@
 import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { ImageLoadPolicy } from './core/inline-render';
+import type { UserScrollport } from './cursor/scroll-ancestors';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
@@ -196,7 +197,7 @@ export interface EditorDoc {
 	 *  viewport scrolls. One resolution per instance. What BOUNDS the editor's
 	 *  visible region is a separate question with a separate answer (the whole
 	 *  clipping chain, held by the rect surface) — see `cursor/scroll-ancestors`. */
-	scrollHost: () => HTMLElement | null;
+	scrollHost: () => UserScrollport | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; drives per-level VR pins. */
 	focusedPath: FocusedPathGetter;
