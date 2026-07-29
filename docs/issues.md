@@ -560,37 +560,6 @@ reader, so the fix is cosmetic until a consumer needs a non-editable container s
 
 ## Test coverage
 
-### Every VR e2e fixture clears the activation watermark, so the inactive-window branch is ungated
-
-**Severity:** minor (a real defect shipped through it and was caught by inspection, not by a gate)
-**Files:** `src/lib/e2e/tests/perf/vr-*.spec.ts` (fixture sizing — `FIXTURE_BYTES`, the
-500KB windowed shape, `loadLargeFixture`), `src/lib/reactivity/block-window.svelte.ts`
-(`activateAbovePx: 4000`, the branch nothing exercises)
-
-Windowing is a hysteresis gate, so every scope has two behaviours, and the whole `e2e-vr` suite
-loads documents far above the high watermark. Nothing in it exercises the ACTIVE=false branch of a
-scope that still scrolls — a document under 4000px in a shorter scrollport — even though that is
-the ordinary shape for a small note. The branches differ in a way that hides defects rather than
-just leaving them uncovered: with windowing active, `correctAnchor` runs on every measure pass, so
-an anchor is re-asserted constantly and a writer that re-places instead of compensating is
-indistinguishable from one that compensates. With it inactive, no measure pass recurs and the two
-diverge.
-
-This is not hypothetical: a header-resize-defers-to-reveal fix passed every scoped suite and every
-landing arm while introducing a 263px unrequested scroll on exactly this branch (found by
-inspection during the same task, fixed in the follow-up commit, and now pinned by one
-under-watermark arm in `vr-header-reveal-race.spec.ts`).
-
-**Fix direction:** one shared under-watermark fixture in `vr-helpers.ts` — a document that scrolls
-but does not window — and a companion arm for the anchoring/reveal specs whose behaviour is
-watermark-sensitive. Not every spec: the windowing census specs are about the active branch by
-definition. The specs that want the pair are the ones asserting where content ENDS UP
-(`vr-anchoring`, `vr-reveal`, `vr-header-slot`, `vr-header-reveal-race`).
-
-**Why deferred:** found while fixing an unrelated defect, and closing it properly is a fixture +
-per-spec-arm pass across the VR suite rather than a rider. The one path that has demonstrably
-broken is pinned; the topology gap is what remains.
-
 ### The reveal fold is funnelled at the command dispatch, not at every mutation entry path
 
 **Severity:** minor (no known reachable caller; the guard covers the arms most likely to grow)

@@ -181,37 +181,19 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	const registry = new Map<string, MeasurableChild>();
 	const pending = new Set<string>();
 
-	// Hold the anchor block's screen position fixed across a height mutation that resizes
-	// the top spacer and would otherwise slide the visible content (VR-2). The editor
-	// disables native `overflow-anchor`, so nothing else holds the line. The delta is read
-	// from the Fenwick model — synchronous and exact — NOT from `getBoundingClientRect`: a
-	// model write only marks `$state` dirty, so the spacer's bound `style.height` flushes in
-	// a later microtask and a DOM read here would see pre-flush layout (a ~0 delta, a silent
-	// no-op).
 	/**
-	 * The reveal claim, which outranks either anchor rule: while a reveal is in
-	 * flight the target's absolute position is re-asserted after the mutation,
-	 * overriding the browser's auto-clamp (which otherwise drags scrollTop off the
-	 * target as undecoded off-window images measure ~0 and the document shrinks).
-	 * Delta-compensation can't win this — the clamp outpaces it — so we re-scroll
-	 * the way revealChild does. `'center'` re-centers instead of top-pinning, so a
-	 * centered reveal survives the same shrink. Holds until the claim is released.
+	 * The scrollTop that puts the active reveal target at the placement it asked for,
+	 * or null when no reveal is in flight (or its geometry isn't readable yet). Pure —
+	 * the one definition of "where the target belongs", shared by the writer that moves
+	 * there and the predicate that asks whether we already are.
 	 *
-	 * The offset that positions the ancestor comes from the Fenwick model, never
-	 * from `getBoundingClientRect`: a model write only marks `$state` dirty, so the
-	 * spacer's bound `style.height` flushes in a later microtask and a DOM read here
-	 * would see pre-flush layout. `innerOffset` is the one measured input, and it is
-	 * a DIFFERENCE between two rects of the same layout — stale by at most this
-	 * pass's own change inside the container, where treating it as zero is stale by
-	 * the whole container.
-	 *
-	 * Returns true when it ran the mutation and owns the scroll position. It lives
-	 * here rather than in one corrector because BOTH correctors run while a reveal
-	 * can be in flight, and the structural one carried no reveal branch at all —
-	 * its rebuild dropped the pin.
+	 * The offset that positions the ancestor comes from the Fenwick model, never from
+	 * `getBoundingClientRect`: a model write only marks `$state` dirty, so the spacer's
+	 * bound `style.height` flushes in a later microtask and a DOM read here would see
+	 * pre-flush layout. `innerOffset` is the one measured input, and it is a DIFFERENCE
+	 * between two rects of the same layout — stale by at most this pass's own change
+	 * inside the container, where treating it as zero is stale by the whole container.
 	 */
-	/** The scrollTop that puts the active reveal target at the placement it asked for,
-	 *  or null when no reveal is in flight (or its geometry isn't readable yet). */
 	function revealTargetScrollTop(): number | null {
 		const scrollEl = deps.getScrollEl();
 		const listEl = deps.getListEl();
@@ -244,6 +226,20 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return true;
 	}
 
+	/**
+	 * The reveal claim, which outranks either anchor rule: while a reveal is in flight
+	 * the target's absolute position is re-asserted after the mutation, overriding the
+	 * browser's auto-clamp (which otherwise drags scrollTop off the target as undecoded
+	 * off-window images measure ~0 and the document shrinks). Delta-compensation can't
+	 * win this — the clamp outpaces it — so we re-scroll the way revealChild does.
+	 * `'center'` re-centers instead of top-pinning, so a centered reveal survives the
+	 * same shrink. Holds until the claim is released.
+	 *
+	 * Returns true when it ran the mutation and owns the scroll position. It lives here
+	 * rather than in one corrector because BOTH correctors run while a reveal can be in
+	 * flight, and the structural one carried no reveal branch at all — its rebuild
+	 * dropped the pin.
+	 */
 	function reassertRevealAnchor(mutate: () => void): boolean {
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
 		if (reveal == null || reveal.index >= model.size || !deps.getScrollEl()) return false;
@@ -252,6 +248,13 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return true;
 	}
 
+	// Hold the anchor block's screen position fixed across a height mutation that resizes
+	// the top spacer and would otherwise slide the visible content (VR-2). The editor
+	// disables native `overflow-anchor`, so nothing else holds the line. The delta is read
+	// from the Fenwick model — synchronous and exact — NOT from `getBoundingClientRect`: a
+	// model write only marks `$state` dirty, so the spacer's bound `style.height` flushes in
+	// a later microtask and a DOM read here would see pre-flush layout (a ~0 delta, a silent
+	// no-op).
 	function correctAnchor(mutate: () => void): void {
 		if (reassertRevealAnchor(mutate)) return;
 		const scrollEl = deps.getScrollEl();
