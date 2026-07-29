@@ -28,6 +28,7 @@ const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sa
 // The table is the LAST block, so the band below the document clamps onto it.
 const TABLE_TAIL_DOC = 'lead para\n\nmiddle para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
+const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph.\n';
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
 
 interface Probe {
@@ -77,13 +78,20 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		title: 'a find-bar open/navigate/close hands the range back to the keystroke',
 		doc: PROSE_DOC
 	},
-	// The render-primary reveal click is the gesture whose missing reset cost a
-	// whole-document delete; typing after it must reach the reveal buffer.
 	'inline-reveal-click': {
 		route: 'plugins',
-		title: 'a reveal click types into the reveal, not over the document',
+		title: 'an inline reveal click types into the reveal, not over the document',
 		doc: MATH_DOC,
 		ready: '.math-inline-widget'
+	},
+	// The render-primary reveal click is the gesture whose missing reset cost a
+	// whole-document delete — the one door with no source text for the cross-block
+	// dispatcher to hit-test, so its rendered view owes the preamble itself.
+	'block-reveal-click': {
+		route: 'plugins',
+		title: 'a render-primary reveal click types into the reveal, not over the document',
+		doc: BLOCK_MATH_DOC,
+		ready: '.math-block-render'
 	},
 	// A TOC entry lands its caret through `rects.navigateTo`, not through any pointer
 	// door — outside the perimeter G2.12 can see at all.
