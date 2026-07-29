@@ -347,15 +347,15 @@ function interleavings(fixture: string, trigger: string): string[] {
 	];
 }
 
-const TAIL_FILLERS = ['z', 'q', 'k'];
-
 /**
- * Inert bytes past the scan range. Catches the rung that grabs to end-of-string:
- * carrying none of the author's grammar, it can only be reached by a claim that
- * stops at no terminator at all.
+ * How far into `fixture` its own opener ends. Cutting a range there puts the scan's
+ * last consultation on a prefix whose closer is out of range — the shape a heading's
+ * excluded `#` run makes of any construct straddling it. Located rather than assumed
+ * at offset 0, since a fixture may carry prose before its claim (`a :smile: b`).
  */
-function inertTail(trigger: string): string {
-	return TAIL_FILLERS.find((c) => c !== trigger)!.repeat(4);
+function openerWidth(fixture: string, prefix: string): number {
+	const at = fixture.indexOf(prefix);
+	return at < 0 ? prefix.length : at + prefix.length;
 }
 
 function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): string {
@@ -371,24 +371,19 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 			assertScanTiles(source, source.length);
 
 			// A block whose scan range stops short of its raw — a heading's content range
-			// excludes a closing `#` run, a table cell's excludes its `|`. Bytes past
-			// `end` are invisible to a range-correct rung whatever they spell, since
-			// declining a claim that would exceed `end` IS the contract, so none of these
-			// can red one. Three drives, because the ways to overrun differ:
-			//
-			//   inert tail        — a claim that stops at no terminator at all;
-			//   the fixture       — the author's own grammar past the boundary, which is
-			//                       what a terminator search reaches for;
-			//   opener straddling — the range cut just past a prefix whose closer lies
-			//                       beyond it. Deterministic where the plain fixture tail
-			//                       is not: whether that one presents an unterminated
-			//                       opener at the boundary depends on the author's fixtures.
-			assertScanTiles(source + inertTail(profile.trigger), source.length);
+			// excludes a closing `#` run, a table cell's excludes its `|`. The tail is the
+			// author's OWN grammar, which is what a terminator search written against the
+			// string (`raw.indexOf(closer, pos)` with no `end` bound) reaches for; inert
+			// bytes would only reach a claim that stops at nothing at all, and such a claim
+			// overruns whatever the tail spells. Two cut points, because where the boundary
+			// falls relative to a construct is the variable: at the fixture's end, and just
+			// past its opener with the closer beyond. The second is the discriminating one;
+			// the first needs no prefix search, so it still bites when `openerWidth` lands
+			// on an occurrence of the prefix the rung does not actually claim from. Neither
+			// can red a range-correct rung — bytes past `end` are invisible to one, since
+			// declining a claim that would exceed `end` IS the contract.
 			assertScanTiles(source + fixture, source.length);
-			assertScanTiles(
-				source + fixture,
-				source.length + Math.min(rung.prefix.length, fixture.length)
-			);
+			assertScanTiles(source + fixture, source.length + openerWidth(fixture, rung.prefix));
 			count++;
 		}
 	}

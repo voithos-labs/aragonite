@@ -26,9 +26,9 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   `serialize(parse(source))` is raw-driven and cannot observe an inline rung at all: the property
   that IS a rung's to break is the scanner's, that its nodes tile the range with no gap or overlap.
   A block's scan range is not always its raw — a heading's excludes a closing `#` run, a table
-  cell's its `|` — so the kit drives the tiling with bytes past `end` three ways, including a cut
-  just past an opener whose closer lies beyond it, which is what catches a terminator search
-  written against the string instead of the range. A cell whose mechanism was out of headless reach
+  cell's its `|` — so the kit drives the tiling with the author's own grammar past `end`, cut once
+  at the fixture's end and once just past an opener whose closer lies beyond it. That second cut is
+  what catches a terminator search written against the string instead of the range. A cell whose mechanism was out of headless reach
   reports `boundary` rather than a pass: without a DOM, and for a `component` kind whose island the
   editor mints rather than the plugin, the island contract genuinely did not run and the report
   says so.
