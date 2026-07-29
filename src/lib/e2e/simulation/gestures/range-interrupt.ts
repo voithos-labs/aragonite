@@ -27,9 +27,9 @@ import {
  * self-confirms.
  *
  * - `range` — the gesture left the range live: the key replaces exactly it.
- * - `caret` / `block` / `reveal` — the gesture ended the range: the key lands where
+ * - `caret` / `block` / `reveal-*` — the gesture ended the range: the key lands where
  *   the gesture left it pointed (a caret, a whole selected block, or a reveal buffer
- *   whose bytes stay ephemeral until the escape commits them).
+ *   whose bytes stay ephemeral until an escape or a blur commits them).
  *
  * Every prediction is one contiguous byte splice of the pre-gesture source, so no
  * outcome needs its own arithmetic: the endpoints come from the live top-level block
@@ -61,10 +61,15 @@ export type RangeInterruptGesture =
 	| 'escape'
 	| 'search-round-trip'
 	| 'inline-reveal-click'
+	| 'block-reveal-click'
 	| 'toc-entry-click';
 
-/** What the one printable key is predicted to consume. */
-type Consumes = 'range' | 'caret' | 'block' | 'reveal';
+/**
+ * What the one printable key is predicted to consume. The two reveal rungs differ
+ * only in what commits the ephemeral buffer: an inline reveal commits when the caret
+ * escapes it, a render-primary block's when focus leaves the block.
+ */
+type Consumes = 'range' | 'caret' | 'block' | 'reveal-escape' | 'reveal-blur';
 
 interface GestureSpec {
 	consumes: Consumes;
@@ -88,7 +93,21 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	// oracle for a reason this probe is not about. A prose-range anchor is interior.
 	escape: { consumes: 'caret', build: 'prose-range', act: pressEscape },
 	'search-round-trip': { consumes: 'range', build: 'prose-range', act: searchRoundTrip },
-	'inline-reveal-click': { consumes: 'reveal', build: 'select-all', act: clickInlineMathWidget },
+	// Two reveal doors, and only the second is the one that cost a whole-document
+	// delete: an inline island sits inside a text block, so its click reaches the
+	// cross-block dispatcher that resets on the way past. A render-primary block has no
+	// source text for that dispatcher to hit-test, so its rendered view calls the
+	// preamble itself — the call that was missing.
+	'inline-reveal-click': {
+		consumes: 'reveal-escape',
+		build: 'select-all',
+		act: clickInlineMathWidget
+	},
+	'block-reveal-click': {
+		consumes: 'reveal-blur',
+		build: 'select-all',
+		act: clickBlockMathRender
+	},
 	// Navigation lands at the heading's offset 0, so the fixture keeps a blank line under
 	// that heading — the same lazy-continuation class Escape avoids by its build.
 	'toc-entry-click': { consumes: 'caret', build: 'select-all', act: clickTocEntry }
@@ -144,9 +163,10 @@ export async function rangeInterrupt(
 	});
 
 	await ctx.editor.typeSlowly(char);
-	if (spec.consumes === 'reveal') {
+	if (spec.consumes === 'reveal-escape' || spec.consumes === 'reveal-blur') {
 		await assertRevealEphemeral(ctx, gesture, before);
-		await commitReveal(ctx, before);
+		if (spec.consumes === 'reveal-blur') await commitRevealByBlur(ctx, before, landing);
+		else await commitRevealByEscape(ctx, before);
 	}
 	await settleTypedSource(ctx, predicted);
 	if (landing && landing.focus.path.length > 1) {
@@ -361,6 +381,16 @@ async function clickInlineMathWidget(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
+/**
+ * Click the rendered `$$…$$` display to reveal its source. Unlike the inline island
+ * this is a whole-block render-primary view, which is the door that owns the reset.
+ */
+async function clickBlockMathRender(ctx: SimContext): Promise<undefined> {
+	await ctx.page.locator('.math-block-render').first().click();
+	await ctx.page.locator('.math-block-source').first().waitFor({ state: 'visible' });
+	return undefined;
+}
+
 async function clickTocEntry(ctx: SimContext): Promise<undefined> {
 	await ctx.page.locator('.toc-block-item').first().click();
 	await ctx.editor.waitForRenderFlush();
@@ -417,13 +447,28 @@ async function assertRevealEphemeral(
 	}
 }
 
-/** Walk the caret out of the reveal, which is what commits it. */
-async function commitReveal(ctx: SimContext, before: string): Promise<void> {
+/** Walk the caret out of an inline reveal, which is what commits it. */
+async function commitRevealByEscape(ctx: SimContext, before: string): Promise<void> {
 	for (let i = 0; i < 40; i++) {
 		await ctx.page.keyboard.press('ArrowRight');
 		if ((await ctx.editor.bridge.getSource()) !== before) return;
 	}
 	throw new Error(`[${ctx.label}] the revealed source never committed on a caret escape`);
+}
+
+/** Click a sibling leaf, which is what commits a render-primary block's reveal. */
+async function commitRevealByBlur(
+	ctx: SimContext,
+	before: string,
+	landing: BuiltRange | null
+): Promise<void> {
+	const revealed = landing?.focus.path[0] ?? -1;
+	const target = (await topLevelLeaves(ctx)).find((i) => i !== revealed);
+	if (target === undefined) {
+		throw new Error(`[${ctx.label}] no sibling leaf to blur onto, so the reveal cannot commit`);
+	}
+	await ctx.editor.clickBlock(target);
+	await ctx.editor.bridge.waitForSourceWith((source, prior) => source !== prior, before);
 }
 
 /**

@@ -56,6 +56,7 @@ not about.
 | `escape`                 | prose range | range span replaced     | **key at the range's anchor**              |
 | `search-round-trip`      | prose range | **range span replaced** | key at the caret the close returned        |
 | `inline-reveal-click`    | select-all  | one-char document       | **no byte moves until the escape commits** |
+| `block-reveal-click`     | select-all  | one-char document       | **no byte moves until the blur commits**   |
 | `toc-entry-click`        | select-all  | one-char document       | **key at the heading it navigated to**     |
 
 Contracts come from observation of each gesture over a live range, not from the lint's
@@ -77,6 +78,16 @@ outcome, deliberately and in one line.
 - inline reveal click: the range ends, the reveal opens, and the typed key is ephemeral
   DOM — the source holds byte-identical until the caret escapes the reveal, which
   commits it inside the formula
+- render-primary block reveal click: the same, committed by a blur onto a sibling leaf
+  rather than a caret escape. These are two different doors, and only this one owns the
+  reset: an inline island sits inside a text block, so its click reaches the cross-block
+  dispatcher that resets on the way past, while a render-primary block offers that
+  dispatcher no source text to hit-test and so calls the preamble itself. The pair is
+  what discriminates them — neutering the rendered view's reset reds this probe and
+  leaves the inline one green, which is exactly the per-file "both doors" claim the
+  caret-gesture lint makes. For this gesture the pre-keystroke contract check is the
+  deterministic catch, because the open reveal swallows a printable key rather than
+  letting it reach the cross-block destroy path
 
 ## Edge cases
 
