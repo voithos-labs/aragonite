@@ -232,6 +232,30 @@ function soleChildContainerPrefix(
 }
 
 /**
+ * The rebuild a chrome-wrapper synthesis may run for `container`, or null when
+ * re-emitting its wrapper is not the faithful answer. Both chrome endpoint paths
+ * below consult this and nothing else, so the rule cannot hold on one endpoint
+ * and not the other.
+ *
+ * The `'opaque'` gate carries the weight: an opaque container's syntax is an
+ * opener line plus a closer, so a truncated chrome IS an opener and the kind's
+ * rebuildRaw supplies the matching close. A `'strip'` container's syntax is a
+ * per-line prefix with nothing to close, and the same synthesis would emit a
+ * wrapper the kind never opens (`> Tit` around a callout's title) —
+ * `soleChildContainerPrefix` is that family's seam. `'grid'` containers declare
+ * no chrome and ride the table arm.
+ */
+function chromeWrapperRebuild(
+	container: NodeView,
+	childIndex: number
+): ((node: CstNode) => void) | null {
+	if (!isReservedChromeChild(container, childIndex)) return null;
+	const descriptor = getBlockKindDescriptor(container.kind);
+	if (descriptor.containerContract !== 'opaque') return null;
+	return descriptor.rebuildRaw ?? null;
+}
+
+/**
  * Bytes for a copy endpoint that lands inside a container's reserved chrome (a
  * title/summary whose syntax lives in the container's own raw). The generic
  * raw.slice emits wrapper-less bytes that reparse to a bare paragraph — the kind
@@ -257,9 +281,9 @@ function endChromeContainerBytes(
 ): string | null {
 	const childIndex = end.path[end.path.length - 1];
 	const parent = nodeAt(doc, end.path.slice(0, -1));
-	if (!parent || !isBlockNode(parent) || !isReservedChromeChild(parent, childIndex)) return null;
+	if (!parent || !isBlockNode(parent)) return null;
 
-	const rebuildRaw = getBlockKindDescriptor(parent.kind).rebuildRaw;
+	const rebuildRaw = chromeWrapperRebuild(parent, childIndex);
 	if (!rebuildRaw) return null;
 
 	// A synthetic node built from the parent's runtime kind for a rebuildRaw probe.
@@ -292,14 +316,8 @@ interface ChromeStartContainer {
 
 /**
  * The container a copy STARTS inside the chrome of, when re-emitting its wrapper
- * around the collected body is the faithful answer; null when it isn't.
- *
- * Gated on the `'opaque'` contract, not merely on the chrome declaration: an
- * opaque container's syntax is an opener line plus a closer, so a truncated
- * chrome is exactly an opener and the kind's rebuildRaw supplies the matching
- * close. A `'strip'` container's syntax is a per-line prefix with nothing to
- * close — `soleChildContainerPrefix` is that family's seam — and `'grid'`
- * containers have no chrome and ride the table arm.
+ * around the collected body is the faithful answer; null when it isn't. The
+ * eligibility rule is `chromeWrapperRebuild`'s, shared with the END path.
  */
 function startChromeContainer(
 	doc: DocumentView,
@@ -310,15 +328,14 @@ function startChromeContainer(
 	const containerPath = start.path.slice(0, -1);
 	const container = nodeAt(doc, containerPath);
 	if (!container || !isBlockNode(container)) return null;
-	if (!isReservedChromeChild(container, start.path[start.path.length - 1])) return null;
 
-	const descriptor = getBlockKindDescriptor(container.kind);
-	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
+	const rebuildRaw = chromeWrapperRebuild(container, start.path[start.path.length - 1]);
+	if (!rebuildRaw) return null;
 	return {
 		path: containerPath,
 		node: container,
 		chromeTail: startRaw.slice(startOffset),
-		rebuildRaw: descriptor.rebuildRaw
+		rebuildRaw
 	};
 }
 

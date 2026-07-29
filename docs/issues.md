@@ -783,9 +783,9 @@ grammar-threading gap.
 **Why deferred:** fold into the post-1.0 container editable-flag / opaque-write work (see
 "Container shim hardcodes the component `editable` flag").
 
-### A copy endpoint inside a NESTED container's body loses that container's wrapper
+### A copy endpoint inside a container's body loses that container's wrapper
 
-**Severity:** minor (clipboard fidelity; the inner container's kind flattens to prose on paste)
+**Severity:** minor (clipboard fidelity; the container's kind flattens to prose on paste)
 **Files:** `src/lib/selection/clipboard-text.ts` (`collectCrossBlockText`)
 
 The collection walk skips endpoint ancestors, so a container holding an endpoint never emits its
@@ -793,20 +793,34 @@ own syntax. Four seams recover the shapes that matter: `promoteToContainer` (an 
 full boundary takes the whole container), `soleChildContainerPrefix` (a strip container's sole
 child keeps its per-line marker), and the reserved-chrome pair (an END mid-chrome synthesizes a
 chrome-only container; a START mid-chrome reopens the container around the collected body and
-closes it where the walk leaves its subtree). What none covers is an endpoint landing inside a
-nested container that has body siblings. Repro: in `::::note Outer` holding `:::note Inner`, a
-copy from mid-`Outer`-title to mid-`I1` collects the inner's chrome and body bytes flat, so the
-inner reparses as prose inside the (correctly re-emitted) outer. Same shape start-side: a start
-inside a non-chrome body child emits no opener for the container it sits in, so a partial
-blockquote with two children loses its `>` prefixes.
+closes it where the walk leaves its subtree). Everything outside those four loses the wrapper,
+and the gap starts at depth 1, not at nesting. Measured repros:
+
+```
+> A          start mid-"A", end in "Below"  →  "\n\nB\n\nBel"          two bare paragraphs
+>
+> B          two children: the sole-child marker seam declines
+
+> Line one   start mid-"Line one", end in "Below"  →  "ne one\nLine two\n\nBel"
+> Line two   sole child, but multi-line: the seam's suffix arithmetic
+             (parent.raw.endsWith(leafRaw)) fails, since the child's raw
+             carries no ">" and the parent's carries one per line
+```
+
+Nested containers are the same defect one level down: in `::::note Outer` holding
+`:::note Inner`, a copy from mid-`Outer`-title to mid-`I1` collects the inner's chrome and body
+bytes flat, so the inner reparses as prose inside the (correctly re-emitted) outer.
 
 **Fix direction:** generalize the chrome-start wrapper into endpoint-ancestor reconstruction.
 Every container strictly between the LCA and an endpoint re-emits its own wrapper (opener plus
 closer for `opaque`, per-line prefix for `strip`) around the fragment it holds, innermost first,
 so nesting depth stops being the thing that decides whether structure survives a copy.
 
-**Why deferred:** the reachable-today gestures (a single container, either endpoint) all round-
-trip. Fold the general case into the post-1.0 clipboard/hook generalization.
+**Why deferred:** not rarity, cost. Reconstructing every endpoint ancestor changes the bytes a
+copy produces for shapes that ship today (a partial blockquote, a partial list item, any
+multi-child container), so it moves existing byte expectations across the clipboard suites rather
+than adding to them. Fold it into the post-1.0 clipboard/hook generalization, where those
+expectations are being revisited anyway.
 
 ### Container components re-export the component surface member-by-member
 
