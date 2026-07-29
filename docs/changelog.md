@@ -4,6 +4,25 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Breaking, plugin surface: an inline rung that claims past its scan range now throws at the
+  dispatch.** The scanner already refused a claim that started somewhere other than the cursor or
+  failed to advance; it never checked the far end. A block's scan range is not always its raw — a
+  heading's content range excludes the closing `#` run, a table cell's excludes the `|` — so a
+  recognizer written against the string rather than the `end` it is handed claims bytes the block
+  still needs, and the overrun left no trace at all: the node was appended, the cursor jumped past
+  the range, and the scan loop exited as if it had finished. Nothing moved in the document; every
+  caret offset after the claim was simply wrong, and the widget's `data-source-*` span covered
+  markup the widget did not stand for. Semantics are half-open exactly as documented, so a claim
+  ending AT the range end is the ordinary full-range case and only one running past it is a fault;
+  the check is top-level only, since descendants sit inside the claimed range by construction. The
+  break is the point, in the shape of the opener `consumed` change above: a third-party rung
+  shipping this bug today fails loudly at first render instead of corrupting caret arithmetic
+  silently, and the fix is to bound the terminator search by `end`. Taken pre-freeze for the same
+  reason — after 1.0 the same change costs an ecosystem migration. Every bundled rung and the
+  in-repo wiki test rung were checked against every sub-range of their own fixtures before this
+  landed; none trips it. The conformance kit's range cuts stay: they name the failure as a cell
+  against an author's own fixture at test time, where the dispatch throws at first render.
+
 - **Testing surface: `runInlineKindConformance` — the battery a registered inline rung is held
   to.** Block kinds have had an executable closure matrix and containers their own kit; inline
   rungs, where the limestone integration's defect density concentrated, had nothing. The kit drives
@@ -25,10 +44,11 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   failure, not a waiver. The tiling half is worth its own sentence, because
   `serialize(parse(source))` is raw-driven and cannot observe an inline rung at all: the property
   that IS a rung's to break is the scanner's, that its nodes tile the range with no gap or overlap.
-  A block's scan range is not always its raw — a heading's excludes a closing `#` run, a table
-  cell's its `|` — so the kit drives the tiling with the author's own grammar past `end`, cut once
-  at the fixture's end and once just past an opener whose closer lies beyond it. That second cut is
-  what catches a terminator search written against the string instead of the range. A cell whose mechanism was out of headless reach
+  A block's scan range is not always its raw, so the kit also drives every fixture over a RESTRICTED
+  range with the author's own grammar past `end`, cut once at the fixture's end and once just past
+  an opener whose closer lies beyond it. The dispatch guard above is what refuses the resulting
+  overrun; what these drives buy is when an author hears about it — against their own fixture, under
+  a named cell, rather than at first render of a heading in somebody's app. A cell whose mechanism was out of headless reach
   reports `boundary` rather than a pass: without a DOM, and for a `component` kind whose island the
   editor mints rather than the plugin, the island contract genuinely did not run and the report
   says so.

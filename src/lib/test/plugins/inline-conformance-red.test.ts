@@ -215,6 +215,11 @@ describe('widget reds a claim that cannot stand on its own bytes', () => {
 // `#` run, a table cell's excludes its `|`. A rung that reads the string instead of
 // the range swallows those bytes into its widget's source span, and every caret
 // offset after it is off by the difference with nothing moving in the document.
+//
+// The dispatch throws on such a claim, so the kit is not the enforcer here — what it
+// owns is WHEN the author hears about it. These cases pin that the kit drives a
+// restricted range at all: without those drives the rung is only caught at first
+// render of a heading, in the consumer's app rather than in the plugin's own suite.
 describe('roundTrip reds a claim that reads past the range the block offered', () => {
 	/** Registers `@…@` with an `end`-unaware recognizer of the caller's shape. */
 	function registerOverrunningRung(
@@ -238,7 +243,7 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 	it('fails a claim that runs to the end of the string', () => {
 		const kind = registerOverrunningRung((raw) => raw.length);
 		expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).toThrow(
-			/roundTrip: .*reading bytes the block did not offer/s
+			/roundTrip: .*past the scan range end/s
 		);
 	});
 
@@ -252,7 +257,7 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 			return close < 0 || close === pos + 1 ? null : close + 1;
 		});
 		expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).toThrow(
-			/roundTrip: .*reading bytes the block did not offer/s
+			/roundTrip: .*past the scan range end/s
 		);
 	});
 
@@ -265,7 +270,7 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 			return close < 0 || close === pos + 1 ? null : close + 1;
 		});
 		expect(run({ ...markerProfile(kind), fixtures: ['ab @tag@ cd'] })).toThrow(
-			/roundTrip: .*reading bytes the block did not offer/s
+			/roundTrip: .*past the scan range end/s
 		);
 	});
 });
