@@ -37,6 +37,12 @@ and `test/cursor/editor-rects`; this file covers what a reader observes.
 - The pin outlives the settle, so a decode landing after the navigation resolves
   re-asserts the target rather than shifting it. Second property of the race case,
   not what the race itself turns on.
+- **A bare `scroll` never releases the pin** — only a keydown, pointerdown or wheel
+  does, because a programmatic anchor correction fires a `scroll` itself and would
+  otherwise self-release mid-settle. Carried by the race case's pre-release
+  assertion: every re-assertion between the navigation resolving and that read
+  happens after scroll events the correction itself fired, so a pin that released
+  on `scroll` strands the target there.
 - **Not covered, and known:** churn INSIDE the target's own container. A nested
   scope's upward subtotal report is correction-free by design, so the pin is never
   consulted for it (`docs/issues.md`).

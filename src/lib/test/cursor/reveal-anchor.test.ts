@@ -47,6 +47,18 @@ describe('reveal anchor', () => {
 		expect(stale.isSuperseded()).toBe(true);
 	});
 
+	// A claim in flight outlives the pin it lost: a reveal parked in its mount wait
+	// while the user's pointerdown empties the slot is still running, and the next
+	// reveal to be issued owns the viewport over it. Reading the slot instead of the
+	// last mint loses that — the successor would find nobody to supersede.
+	it('a later claim supersedes an earlier one across an emptied slot', () => {
+		const anchor = createRevealAnchorState();
+		const inFlight = anchor.claim([1]);
+		anchor.releaseAll();
+		anchor.claim([2]);
+		expect(inFlight.isSuperseded()).toBe(true);
+	});
+
 	it('a superseded claim cannot release the fresher pin', () => {
 		const anchor = createRevealAnchorState();
 		const stale = anchor.claim([1]);
