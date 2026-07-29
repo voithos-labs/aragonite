@@ -301,35 +301,6 @@ domain for the resource part) **and** a security-surface decision, since `xmpp` 
 two is a new accept class that reaches the href allowlist, so it wants its own conformance pass
 rather than a ride-along on a domain-scan fix.
 
-### Footnote reference numbering is O(widgets × leaves) per reactive flush
-
-**Severity:** watch (sub-millisecond at real scale; superlinear only for a reference-dense document)
-**Files:** `src/lib/plugins/footnotes/footnote-numbering.ts` (`assignFootnoteNumbers` walks every prose
-leaf), `src/lib/plugins/footnotes/FootnoteReference.svelte` (each widget's `$derived` calls it independently)
-
-Each mounted reference widget derives its superscript number by walking the whole document through
-`assignFootnoteNumbers`, which inline-parses every prose leaf. The walk is not shared across a flush; it
-re-runs per widget, so a reactive flush costs O(widgets × leaves). Measured ~1.04 ms worst case on a
-40-paragraph document with 20 references (comfortably sub-keystroke), but the shape is superlinear: a
-reference-dense region of hundreds of references over hundreds of leaves runs an order of magnitude past a
-frame budget per keystroke.
-
-A bounded, identity-keyed memo over the document cannot fix it: the `$state` document proxy is mutated in
-place, so its object identity is stable across every edit, and an identity-keyed memo would hit on every
-call and return a stale number map, breaking the live renumber the feature is built on (verified in the
-Task 3 review).
-
-**Fix direction:** a per-epoch shared computation (one `assignFootnoteNumbers` walk per flush keyed on a
-content-version token every widget reads) once a real workload goes reference-dense. No such token reaches
-a widget today: `linkStamp` tracks only the LRD signature rather than general edits, and the decoration
-engine's general `editEpoch` reaches a `DecorationSource`'s `provide` and nothing else — which is exactly
-why highlight-occurrences (a decoration source) could memoize this same walk shape and a reference widget
-cannot.
-
-**Why deferred:** the fix needs a content-version token on the widget surface, which is public plugin
-surface and therefore a freeze-relevant addition, worth taking against a real reference-dense workload
-rather than the synthetic shape. Sub-millisecond until one exists.
-
 ### Installed inline-rung consultation is unmeasured by the standing perf gate
 
 **Severity:** watch (measurement gap; the per-consultation cost the entry once assumed is now

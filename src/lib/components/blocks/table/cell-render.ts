@@ -34,6 +34,9 @@ export interface CellRenderDeps {
 	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
 	 *  document across edits, never a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
+	/** The editor's content version, handed to component widgets so a derivation
+	 *  over the document can be memoized on it. Absent in a bare harness. */
+	getContentVersion?: () => number;
 	/** Position-sorted islands for this cell. A getter, read inside the render
 	 *  pass on purpose: that read is the reactive dependency that re-renders the
 	 *  cell when its island set changes. */
@@ -58,7 +61,11 @@ export interface CellRender {
 
 export function createCellRender(deps: CellRenderDeps): CellRender {
 	let lastRenderedKey = '';
-	const widgetPool = createSvelteWidgetPool(deps.reportRenderError, undefined, deps.getDocument);
+	const widgetPool = createSvelteWidgetPool({
+		reportError: deps.reportRenderError,
+		getDocument: deps.getDocument,
+		getContentVersion: deps.getContentVersion
+	});
 	let islandDestroys: Array<() => void> = [];
 
 	function destroyIslands(): void {

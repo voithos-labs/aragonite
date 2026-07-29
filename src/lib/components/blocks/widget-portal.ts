@@ -139,24 +139,31 @@ interface PortalHandle {
 	instance: Record<string, unknown>;
 }
 
+/** The live channels a mounted widget reads beside its frozen `{ inline, source }`
+ *  snapshot. Every member is optional so a bare harness can mount without a shell. */
+export interface SvelteWidgetPoolDeps {
+	/** A widget component's synchronous mount throw goes here (the editor's `error`
+	 *  channel). Absent leaves the caller falling back to the raw span silently. */
+	reportError?: (error: unknown) => void;
+	getPresentationMode?: () => PresentationMode;
+	getDocument?: () => DocumentView | undefined;
+	getContentVersion?: () => number;
+}
+
 /**
  * The pool wired to Svelte mounting. `create` builds the atomic-island wrapper
  * carrying the attributes the cursor/selection machinery keys on, then mounts the
  * kind's component inside it with frozen `{ inline, source }` props. A synchronous
- * mount throw is caught, reported through `reportError` (the editor's `error`
- * channel), and surfaced as null so the caller falls back to the raw span.
+ * mount throw is caught, reported, and surfaced as null so the caller falls back to
+ * the raw span.
  *
- * `getPresentationMode` and `getDocument` ride ALONGSIDE the frozen snapshot as
- * live getter props: pool reuse keys on `${kind} ${source}`, so an instance
- * survives a mode flip or a document edit elsewhere — a frozen value would go
- * stale where the getter stays current (the footnote-number derivation depends on
- * the live document, unchanged in source).
+ * The getters ride ALONGSIDE the frozen snapshot as live props: pool reuse keys on
+ * `${kind} ${source}`, so an instance survives a mode flip or a document edit
+ * elsewhere — a frozen value would go stale where the getter stays current (the
+ * footnote-number derivation depends on the live document, unchanged in source).
  */
-export function createSvelteWidgetPool(
-	reportError?: (error: unknown) => void,
-	getPresentationMode?: () => PresentationMode,
-	getDocument?: () => DocumentView | undefined
-): WidgetPool {
+export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
+	const { reportError, getPresentationMode, getDocument, getContentVersion } = deps;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind);
@@ -169,7 +176,7 @@ export function createSvelteWidgetPool(
 			try {
 				const instance = mount(component, {
 					target: wrapper,
-					props: { inline, source, getPresentationMode, getDocument }
+					props: { inline, source, getPresentationMode, getDocument, getContentVersion }
 				});
 				return { wrapper, instance };
 			} catch (error) {

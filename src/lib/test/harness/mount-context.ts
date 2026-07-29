@@ -92,8 +92,13 @@ function stubbedPolicies(): EditorPolicies {
 }
 
 function stubbedDoc(emptyDoc: Document): EditorDoc {
+	// Fresh on every read: a bare mount has no reactive graph to invalidate a
+	// derived on, so "always a memo miss" is the only stub that can't hand a
+	// consumer a stale answer. A test measuring memo hits supplies its own.
+	let version = 0;
 	return {
 		doc: () => emptyDoc,
+		contentVersion: () => ++version,
 		linkRef: {},
 		pluginEditor: (() => undefined) as unknown as EditorDoc['pluginEditor'],
 		lifetime: new AbortController().signal,

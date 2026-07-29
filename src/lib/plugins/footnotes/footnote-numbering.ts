@@ -68,3 +68,32 @@ export function assignFootnoteNumbers(document: DocumentView): Map<string, numbe
 	}
 	return numbers;
 }
+
+// ── Per-version sharing ──────────────────────────────────────────────────────
+
+const numberingByDocument = new WeakMap<
+	DocumentView,
+	{ version: number; numbers: Map<string, number> }
+>();
+
+/**
+ * The numbering every reference widget in one flush shares. Each widget derives
+ * its own number, so without this the walk above ran once per widget: O(widgets ×
+ * leaves), superlinear on a reference-dense document.
+ *
+ * `contentVersion` is the memo key, and the document alone would be wrong: the
+ * editor's `$state` document is mutated IN PLACE, so its object identity survives
+ * every edit and an identity-keyed memo would hit forever and return a stale map,
+ * breaking the live renumber this feature is built on. The document stays in the
+ * key only to separate two editors on one page (each versions independently).
+ */
+export function footnoteNumbersFor(
+	document: DocumentView,
+	contentVersion: number
+): Map<string, number> {
+	const cached = numberingByDocument.get(document);
+	if (cached && cached.version === contentVersion) return cached.numbers;
+	const numbers = assignFootnoteNumbers(document);
+	numberingByDocument.set(document, { version: contentVersion, numbers });
+	return numbers;
+}

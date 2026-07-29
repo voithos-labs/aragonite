@@ -56,6 +56,9 @@ export interface TextRenderDeps {
 	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
 	 *  document across edits, never a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
+	/** The editor's content version, handed to component widgets so a derivation
+	 *  over the document can be memoized on it. Absent in a bare harness. */
+	getContentVersion?: () => number;
 	get linkResolver(): LinkReferenceResolver | undefined;
 	/** A compact stamp that changes exactly when the document's LRD signature
 	 *  changes (the shell mints it — link-reference-resolver.ts). Reference-bearing
@@ -115,11 +118,12 @@ export function renderKeySegmentDiff(prev: string, next: string): string {
 
 export function createTextRender(deps: TextRenderDeps): TextRender {
 	let lastRenderedKey = '';
-	const widgetPool = createSvelteWidgetPool(
-		deps.reportRenderError,
-		() => deps.presentationMode,
-		deps.getDocument
-	);
+	const widgetPool = createSvelteWidgetPool({
+		reportError: deps.reportRenderError,
+		getPresentationMode: () => deps.presentationMode,
+		getDocument: deps.getDocument,
+		getContentVersion: deps.getContentVersion
+	});
 	let islandDestroys: Array<() => void> = [];
 
 	function destroyIslands(): void {

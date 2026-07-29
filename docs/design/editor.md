@@ -200,9 +200,10 @@ Some container metadata feeds the container's `rebuildRaw` — a list item's `ta
 
 ### Reactive state plumbing (Svelte 5)
 
-Two invariants govern how CST state crosses into Svelte's reactivity. Both exist to prevent silent corruption; neither is discoverable from the types. Both were paid for (`contributing/culture.md`).
+Three invariants govern how CST state crosses into Svelte's reactivity. Each exists to prevent silent corruption, and none is discoverable from the types (`contributing/culture.md`).
 
 - **Reactive state crosses module boundaries as getters, never values.** Re-init effects and bootstrap helpers read mutable state through `() => state` closures or getter properties. A plain value-read would snapshot at effect-run time _and_ register the state as a dependency of the effect — re-firing it on every later mutation and wiping unrelated work. The `source !== lastSource` guard in `Editor.svelte` exists for the same reason.
+- **The document is not its own memo key; the content version is.** The `$state` document is mutated in place, so its object identity survives every edit. Anything derived from the whole tree (footnote numbering, a table of contents) must key on the editor's **content version**, a lazy derived on the document facet that changes whenever a byte-carrying field moves and is stable otherwise. Lazy is load-bearing: a document nothing memoizes against never computes it. It is not the decoration engine's `editEpoch`, which moves at edit-event cadence and so lags a typing batch; the version moves at render cadence.
 - **The render path computes inline content locally and reads no cache.** There is no `inlineContent` node field. Prose blocks compute the inline tree from `node.raw` on each render, so a render effect's reactive read set is `node.raw` plus its closure inputs — nothing more. Non-render consumers (event handlers, exported methods, click-snap) read inline content through an accessor backed by an external, non-reactive WeakMap that Svelte's ownership tracking never observes. The original incident was a render effect that both read and wrote a reactive cache field: write-during-read closed the loop, and Svelte's ownership tracking corrupted keyed `{#each}` index assignments after `splitBlock`. With no reactive cache field to read or write, that class cannot recur.
 
 ## 8. Orchestration
