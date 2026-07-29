@@ -899,15 +899,15 @@ One companion worth asserting alongside it: `reversedAncestryLeavesRootStale(pro
 
 If your plugin registers inline syntax, `runInlineKindConformance` is the same idea one layer down: register the rung, then point the kit at its trigger and prefix and it drives the behaviors a rung can break without moving a byte.
 
-| Cell             | What it holds you to                                                                               |
-| ---------------- | -------------------------------------------------------------------------------------------------- |
-| `claims`         | Every fixture you supply is actually claimed by **your** rung                                      |
-| `roundTrip`      | Your fixtures and the kit's interleavings of them round-trip, and your claims tile the scan range  |
-| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it                   |
-| `widget`         | Your claimed bytes are one atomic unit, and your island carries the span the caret walk reads      |
-| `editingPolicy`  | Your widget's editing declaration is in the vocabulary the caret-edge dispatch actually reads      |
-| `imageClaim`     | A rung minting a built-in kind carries the `rewriteImage` hook the write paths need                |
-| `registration`   | Your rung is registered where you say, once, priced inside its tier, on a trigger the scan reaches |
+| Cell             | What it holds you to                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `claims`         | Every fixture you supply is actually claimed by **your** rung                                     |
+| `roundTrip`      | Your fixtures and the kit's interleavings of them round-trip, and your claims tile the scan range |
+| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it                  |
+| `widget`         | Your claimed bytes are one atomic unit, and your island carries the span the caret walk reads     |
+| `editingPolicy`  | Your widget's editing declaration is in the vocabulary the caret-edge dispatch actually reads     |
+| `imageClaim`     | A rung minting a built-in kind carries the `rewriteImage` hook the write paths need               |
+| `registration`   | Your rung is actually registered where your profile says it is                                    |
 
 ```
 import { runInlineKindConformance } from 'aragonite/testing';
@@ -933,9 +933,11 @@ it('my rung conforms', () => {
 
 The other three cells you declare, because only you know whether they have anything to bite on — but an excuse the kit can falsify, it falsifies. Declaring `imageClaim` exempt while a fixture mints a stamped built-in fails, as does excusing `widget` for a kind that _is_ a registered live widget. A reason is a claim about your rung, not a waiver.
 
-Two things worth knowing about `widget`. It asserts your claimed slice is **self-delimiting** — re-scanning it alone must re-form the same kind over the whole slice, because that slice is what `data-source-*` hands the clipboard and a source reveal. And where your kind builds its own island (`buildWidget`), it renders your fixture and measures the caret walk, which must equal the source length: a widget counts as its source span, never as what it draws, so an emoji showing one glyph for seven bytes still walks seven. A `component` kind's island is minted by the editor, not by you, so that half is recorded rather than asserted.
+Two things worth knowing about `widget`. It asserts your claimed slice is **self-delimiting** — re-scanning it alone must re-form the same kind over the whole slice, because that slice is what `data-source-*` hands the clipboard and a source reveal. And where your kind builds its own island (`buildWidget`), it renders your fixture and measures the caret walk, which must equal the source length: a widget counts as its source span, never as what it draws, so an emoji showing one glyph for seven bytes still walks seven. A `component` kind's island is minted by the editor, not by you, so that half does not run and the cell reports `boundary` rather than claiming a pass.
 
-Run it under a DOM (`// @vitest-environment jsdom` for Vitest). Without one the island half records itself as a boundary with the reason, and you lose the walk check.
+Run it under a DOM (`// @vitest-environment jsdom` for Vitest). Without one the island half cannot run either, and the cell again reports `boundary` naming what you lost — the recognition and self-delimiting halves still execute.
+
+`registration` is the thinnest cell and the one that caught a real bug. Most of what it checks — one rung per rung, a prefix long enough for a reserved trigger, a priority under the built-in boundary, a trigger the fast bail visits — `registerInlineSyntax` already refuses at registration, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your rung not being there at all: a setup step that ran under the wrong guard, or an install order that let another plugin's registration on a shared trigger look like your own. That is what this cell reds on, and it is how the bundled directive tier's own recognizer was found missing.
 
 ## API reference
 

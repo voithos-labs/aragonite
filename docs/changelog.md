@@ -22,7 +22,16 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   going hollow where an optional field would let it: fixtures are required and one the rung does
   not claim fails enrollment instead of skipping it, and an excuse the kit can falsify it
   falsifies — declaring the image-claim cell exempt while a fixture mints a stamped built-in is a
-  failure, not a waiver.
+  failure, not a waiver. The tiling half is worth its own sentence, because
+  `serialize(parse(source))` is raw-driven and cannot observe an inline rung at all: the property
+  that IS a rung's to break is the scanner's, that its nodes tile the range with no gap or overlap.
+  A block's scan range is not always its raw — a heading's excludes a closing `#` run, a table
+  cell's its `|` — so the kit drives the tiling with bytes past `end` three ways, including a cut
+  just past an opener whose closer lies beyond it, which is what catches a terminator search
+  written against the string instead of the range. A cell whose mechanism was out of headless reach
+  reports `boundary` rather than a pass: without a DOM, and for a `component` kind whose island the
+  editor mints rather than the plugin, the island contract genuinely did not run and the report
+  says so.
 
 - **A plugin that takes `:` first no longer kills the inline directive tier.** Directive
   activation latched its four steps on four different probes, and the inline recognizer's asked
@@ -31,8 +40,11 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   plugin that activates directives (`admonitionsPlugin()` does) answered yes for somebody else and
   skipped the recognizer, leaving `directiveText` declared and its widget registered with nothing
   to recognize: `:name[label]` stayed literal prose. Invisible to byte round-trip, which is what
-  kept it in for a release — the bytes are unchanged either way, the tier simply is not there. All
-  four steps now read one latch, the `directiveText` kind, sampled before any of them declares it.
+  kept it in for a release — the bytes are unchanged either way, the tier simply is not there. Every
+  step now guards on something the directive tier itself owns; the inline one, having no
+  registration of its own to probe, borrows the `directiveText` kind's latch, sampled before the
+  step that declares it. The rule the fix generalizes: guard on your own identity, never on a
+  shared resource somebody else may be holding.
 
 - **Breaking, plugin surface: a block opener returns a consumed-lines count, not a resume
   index.** `tryOpen` now returns `{ node, consumed }` where `consumed` is the number of lines the
