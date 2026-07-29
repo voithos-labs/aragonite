@@ -22,7 +22,7 @@ import { pathsEqual } from '../path-math';
 import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
-import { emitClipboardDecline } from '../../editor-events';
+import { emitClipboardError } from '../../editor-events';
 
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
@@ -57,7 +57,7 @@ export async function handleCrossBlockPaste(
 
 	// Read before the delete collapses the selection — the only coordinate an
 	// error report on the declined branch below could still name.
-	const rangeStartPath = ctx.selection.start?.path.slice() ?? [];
+	const rangeStartPath = ctx.selection.start?.path.slice();
 
 	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave
 	// an intermediate "selection-deleted but blocks-not-inserted" state.
@@ -74,9 +74,9 @@ export async function handleCrossBlockPaste(
 	// host already imported for `onPasteImage` does not: report so it can release
 	// the asset rather than orphan it.
 	if (!caret) {
-		emitClipboardDecline(ctx.events, {
-			path: rangeStartPath,
-			message: 'cross-block paste resolved no caret; nothing inserted'
+		emitClipboardError(ctx.events, {
+			error: new Error('cross-block paste resolved no caret; nothing inserted'),
+			...(rangeStartPath ? { path: rangeStartPath } : {})
 		});
 		return true;
 	}

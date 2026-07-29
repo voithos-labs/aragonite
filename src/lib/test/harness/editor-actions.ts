@@ -150,8 +150,13 @@ export interface EditorActionsHarness {
 
 // Builds an EditorActionsDeps over `docChildren` with the standard mutable
 // id/ref slots (setBlockIds / setBlockRefs reassign internal arrays so tests
-// can read post-mutation state via the returned getters).
-export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarness {
+// can read post-mutation state via the returned getters). `onSelectionChange` has
+// to be supplied here rather than attached later — SelectionState takes it at
+// construction, so a test counting emissions cannot install one afterwards.
+export function makeEditorActionsDeps(
+	docChildren: CstNode[],
+	options: { onSelectionChange?: () => void } = {}
+): EditorActionsHarness {
 	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
 	let blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
@@ -178,7 +183,9 @@ export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarn
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn: makeStickyColumn(),
-		selectionState: createSelectionState(),
+		selectionState: createSelectionState(
+			options.onSelectionChange ? { onChange: options.onSelectionChange } : undefined
+		),
 		getBlockElByPath: () => null,
 		// No render window in unit tests: every block is "mounted", so reveal is the
 		// production fast path — resolve from the live ref slots, descend if nested.

@@ -188,6 +188,10 @@ describe('editor-root clipboard routing', () => {
 			h.fire('paste', document.body, { files: [pngFile()] });
 
 			await vi.waitFor(() => expect(h.errors.map((e) => e.origin)).toEqual(['clipboard']));
+			// Captured synchronously with the event. Reading it at the decline instead
+			// would report nothing every time: the only way to REACH the decline is a
+			// selection that collapsed, and a collapsed selection has no start.
+			expect(h.errors[0].context?.path).toEqual([0]);
 		});
 
 		it('leaves an image paste on the text route when no hook is installed', async () => {

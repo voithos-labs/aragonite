@@ -12,7 +12,7 @@
  */
 
 import type { PasteImageHook } from '../editor-keys';
-import type { EditorEvents } from '../editor-events';
+import { emitClipboardError, type EditorEvents } from '../editor-events';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 
 export interface ImagePasteArmDeps {
@@ -89,8 +89,11 @@ async function importAll(
 			});
 			if (inserted) markdown.push(inserted);
 		} catch (error) {
-			// One failed import skips its image; the rest of the paste still lands.
-			deps.events.emit('error', { origin: 'command', error });
+			// One failed import skips its image; the rest of the paste still lands. Still
+			// a clipboard failure, not a command throw: the host reads it for the same
+			// reason it reads a decline — to know an asset it started importing is not
+			// going to appear in the document.
+			emitClipboardError(deps.events, { error });
 		}
 	}
 	return markdown.join('');
