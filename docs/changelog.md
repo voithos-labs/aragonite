@@ -4,6 +4,23 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **A load is not proof an image loaded.** The broken-image placeholder was decided by two
+  predicates that disagreed: the build-time probe called a finished-but-unsized request broken,
+  while the `load` listener could only ever CLEAR the class. So a response that resolves as
+  success with no intrinsic size (measured: a zero-dimension SVG loads with `naturalWidth` 0,
+  where a dead URL errors in ~60ms) rendered a 0×0 widget with no placeholder at all — until an
+  unrelated rebuild ran the build-time probe against it, which is why a mode round-trip "fixed"
+  it and the placeholder then stuck. One predicate now serves both sites, and the failed-URL
+  memo is written wherever the state is decided rather than only on the error path. The reported
+  shape was "a failed load is never redecorated"; the error listener was in fact synchronous and
+  already pinned, so the fix is the arm nobody had looked at.
+
+- **`--color-ui-faint` responds to the mode.** The hover veil on the table action menu shipped
+  blue among neutral siblings and with one value for both palettes — a token satisfying the
+  both-themes guarantee by declaring itself twice. It is now a neutral veil that flips polarity
+  with the mode, and the manifest lint compares VALUES, so declaring a themed token twice with
+  the same value no longer passes: it either differs per mode or is recorded as deliberate.
+
 - **A reveal HOLDING the scroll position is its only writer.** The reveal anchor re-asserts an
   ABSOLUTE position derived from the list's live offset within the scroll content, which already
   includes the header slot's current height; the slot's own resize observer adds a RELATIVE delta.

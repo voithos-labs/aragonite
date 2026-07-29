@@ -804,19 +804,20 @@ top-level sibling entry already owns.
 
 A consumer cannot recolor diagrams for its theme: a renderer config option alone would not help, because already-drawn diagrams never re-render on a theme change — the memo key carries no theme term and the effect subscribes to none. The seam is a theme term in the memo key plus a re-initialize path (or per-render config). Found by limestone's visual pass; its interim state is light diagrams in dark themes, accepted and recorded consumer-side.
 
-### A broken image widget is never redecorated when its load fails
+### A deferred or blocked image widget has no placeholder styling
 
-**Severity:** minor (visual; a failed image shows 0×0 until the next block render)
-**Files:** the image widget build path (`src/lib/components/image/`)
+**Severity:** nit (visual; an unloaded image occupies 0×0 instead of reserving space)
+**Files:** `src/lib/components/image/widget-dom.ts` (adds `md-image-placeholder` /
+`md-image-blocked`), `src/lib/styles/editor.css` (styles neither)
 
-The broken-image placeholder appears one render BEHIND the failure: the widget's error state does not trigger a redecoration, so a failed load shows nothing until something else re-renders the block (a mode round-trip suffices and the placeholder then persists). Measured consumer-side at 0×0 after 2s in live preview, 229×60 after a mode round-trip.
+`imageLoadPolicy: 'placeholder'` and a disallowed `src` scheme both leave `img.src` unset and
+mark the widget with a class that has no CSS anywhere, so the widget shrink-wraps a 0×0 `<img>`
+and the image reads as missing rather than deferred. `md-image-broken` is the styled sibling and
+the shape a fix would copy.
 
-### `--color-ui-faint` is the one chrome token that does not flip with mode
-
-**Severity:** nit (token hygiene)
-**Files:** `src/lib/styles/editor-theme.css:48,132`
-
-Declared with the identical value in the dark base and the light override — the only host-contract chrome token with no mode response, and it is blue where every sibling default is neutral or the accent. Either give it a light-mode value or record the both-modes value as intended. Limestone bridges it to an app token consumer-side.
+**Why deferred:** what a deferred image should look like is a visual-design decision (reserve the
+declared `|WxH` box? a click-to-load affordance? a distinct treatment for blocked-vs-deferred),
+not a defect with one right answer, and neither state is reachable from the default policy.
 
 ### `BlockComponent.focus(offset)` parks a caret without ending a live cross-block range
 

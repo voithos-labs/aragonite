@@ -53,6 +53,24 @@ test.describe('image rendering', () => {
 		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
 	});
 
+	// A response with no intrinsic size resolves as `load`, not `error` (measured: a
+	// zero-dimension SVG loads with naturalWidth 0, while a dead URL errors in ~60ms).
+	// Pre-fix only the error arm marked the widget broken, so such an image stayed 0×0
+	// with no placeholder until an unrelated rebuild ran the build-time probe — the
+	// placeholder arriving one render behind the failure. No edit, no mode flip: the
+	// class must land off the load alone.
+	test('an image that loads with no intrinsic size gets the placeholder with no other edit', async ({
+		page
+	}) => {
+		await editor.loadContent('![blank](/test-fixtures/unsized.svg)\n');
+		const widget = page.locator('[data-image-widget]').first();
+		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
+		// The placeholder is what makes the failure visible — a bare 0×0 widget is the
+		// symptom, so assert the box grew, not just the class.
+		const box = await widget.boundingBox();
+		expect(box?.height ?? 0).toBeGreaterThan(0);
+	});
+
 	// Pre-fix the inline-DOM rebuild on every keystroke produced a fresh
 	// <img> whose async `error` event re-applied `md-image-broken` only after
 	// a few ms; the new widget rendered briefly without the dashed-error

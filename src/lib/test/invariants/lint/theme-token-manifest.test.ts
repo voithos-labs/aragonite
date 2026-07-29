@@ -14,6 +14,11 @@
  * hand-kept mirror: the set-equality test below derives the published set from the
  * guide's own table, so a token added to or dropped from the docs fails here rather
  * than drifting unpinned (which is exactly how `--color-ui-faint` went unguarded).
+ *
+ * Declared-in-both is not the same as responding to the mode: a token can satisfy it
+ * with the SAME value twice, which is how `--color-ui-faint` shipped mode-blind. So
+ * the values are compared too, and a deliberate one-value token must say so in
+ * MODE_BLIND_BY_DESIGN rather than pass silently.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -38,6 +43,11 @@ const THEMED_TOKENS = [
 
 const MODE_INDEPENDENT_TOKENS = ['--font-editor', '--editor-font-size'];
 
+/** Themed tokens whose light value deliberately repeats the dark one, with the reason. */
+const MODE_BLIND_BY_DESIGN: Record<string, string> = {
+	'--color-accent': 'one brand accent, chosen to read on both palettes'
+};
+
 const LIGHT_SELECTOR = "[data-editor-theme='light']";
 
 function themeBlocks(): { base: string; light: string } {
@@ -48,6 +58,10 @@ function themeBlocks(): { base: string; light: string } {
 
 function declares(block: string, token: string): boolean {
 	return new RegExp(`${token}\\s*:`).test(block);
+}
+
+function declaredValue(block: string, token: string): string | null {
+	return block.match(new RegExp(`${token}\\s*:\\s*([^;]+);`))?.[1].trim() ?? null;
 }
 
 // ── The published manifest ──────────────────────────────────────────────────
@@ -81,6 +95,23 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 		expect(declares(base, token), `${token} missing from the dark base block`).toBe(true);
 	});
 
+	it.each(THEMED_TOKENS)('%s actually responds to the mode (or says why it does not)', (token) => {
+		const repeatsDarkValue = declaredValue(base, token) === declaredValue(light, token);
+		expect(
+			repeatsDarkValue ? token in MODE_BLIND_BY_DESIGN : true,
+			`${token} repeats its dark value in the light block — give it a light value or record it in MODE_BLIND_BY_DESIGN`
+		).toBe(true);
+	});
+
+	it('every MODE_BLIND_BY_DESIGN entry is a live one (no stale exemption)', () => {
+		for (const token of Object.keys(MODE_BLIND_BY_DESIGN)) {
+			expect(THEMED_TOKENS, `${token} is not a themed token`).toContain(token);
+			expect(declaredValue(base, token), `${token} now differs per mode — drop its exemption`).toBe(
+				declaredValue(light, token)
+			);
+		}
+	});
+
 	// Non-vacuity: the split must isolate two real blocks and the matcher must be
 	// able to say "no". Without this a broken split (empty light block) would pass
 	// every "both" assertion vacuously.
@@ -92,6 +123,9 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 		// A base-only token is absent from the light block — proves the split is real.
 		expect(declares(light, '--font-editor')).toBe(false);
 		expect(declares(base, '--not-a-real-token')).toBe(false);
+		// The value reader must distinguish two declarations of the same token.
+		expect(declaredValue(base, '--color-bg')).not.toBe(declaredValue(light, '--color-bg'));
+		expect(declaredValue(base, '--not-a-real-token')).toBeNull();
 	});
 });
 
