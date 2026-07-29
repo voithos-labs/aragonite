@@ -24,7 +24,8 @@ import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
 	createClipboardHandlers,
 	type ClipboardCaretIO,
-	type ClipboardHandlers
+	type ClipboardHandlers,
+	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
@@ -51,9 +52,8 @@ export interface TextClipboardDeps {
 	 *  on a non-editable surface, so the gate lives in the handlers. */
 	isReadOnly: () => boolean;
 	/** Fold a live source-reveal before a clipboard mutation, so cut/paste run against
-	 *  a CST consistent with the swapped DOM. Returns the committed caret, or null when
-	 *  no reveal was open. */
-	foldRevealBeforeMutation: () => number | null;
+	 *  a CST consistent with the swapped DOM. Null when no reveal was open. */
+	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline-widget source reveal is active on this block. */
 	isRevealing: () => boolean;
 	/** The block's live DOM read as raw text (widget-aware) — the reveal-aware copy

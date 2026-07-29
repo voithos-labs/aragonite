@@ -329,6 +329,23 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	return { crossBlock, sharedCtx, surface, caret, onInput, onCompositionStart, onCompositionEnd };
 }
 
+// ── Reveal fold ─────────────────────────────────────────────────────────────
+
+/**
+ * What folding a live source reveal hands the mutation that triggered it. A fold
+ * that persists an edit commits through `updateBlockContent`, and a commit that
+ * changes the block's KIND takes the structural path — one whose completion is a
+ * promise, not a fixed number of ticks. `settled` is that completion, so every
+ * mutation seam waits on the write itself rather than on a tick that happens to
+ * outlast it.
+ */
+export interface RevealFold {
+	/** Committed caret offset — where the folded edit left the caret. */
+	caret: number;
+	/** Resolves once the fold's write has landed and its render has flushed. */
+	settled: Promise<void>;
+}
+
 // ── Clipboard skeleton ──────────────────────────────────────────────────────
 
 /**
@@ -343,7 +360,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
  *
  * The preventDefault discipline, stated once here so no call site re-derives it:
  *  - Paste prevents before the first await, or the browser's native paste fires
- *    during the reveal-fold tick (or the cross-block await) and injects DOM the
+ *    while the reveal fold settles (or during the cross-block await) and injects DOM the
  *    CST never sees.
  *  - Cut prevents up front — every cut arm writes.
  *  - Copy prevents as it writes: a cell with no selection writes nothing and lets
@@ -371,9 +388,9 @@ export interface ClipboardSurfaceDeps {
 	 *  image-bearing paste on the text/plain path, exactly as before the hook. */
 	onPasteImage: PasteImageHook | undefined;
 	/** Fold a live inline-source reveal before a cut/paste mutates, so the mutation
-	 *  runs against a CST consistent with the swapped DOM; returns the committed
-	 *  caret, or null when nothing was revealed. Omit on a surface with no reveal. */
-	foldReveal?: () => number | null;
+	 *  runs against a CST consistent with the swapped DOM; null when nothing was
+	 *  revealed. Omit on a surface with no reveal. */
+	foldReveal?: () => RevealFold | null;
 	/** Pre-cross-block copy arm (selected-widget slice, intra-table rect). Returns
 	 *  true when it wrote the payload and the handler should stop; owns its own
 	 *  preventDefault. */
@@ -438,7 +455,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 			onCopy(e);
 			return;
 		}
-		if (deps.foldReveal && deps.foldReveal() !== null) await tick();
+		await deps.foldReveal?.()?.settled;
 		if (await deps.cutPreHook?.(e)) return;
 		if (await writeCrossBlockCut(e, crossDeps)) return;
 		await deps.cutTail(e);
@@ -447,20 +464,20 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	async function onPaste(e: ClipboardEvent): Promise<void> {
 		e.preventDefault();
 		if (deps.isReadOnly()) return;
-		// Both reads stay above the fold's tick — see the discipline above.
+		// Both reads stay above the fold's settle — see the discipline above.
 		const images = imageArm.filesOf(e.clipboardData);
-		const foldedCaret = deps.foldReveal?.() ?? null;
-		if (foldedCaret !== null) await tick();
+		const fold = deps.foldReveal?.() ?? null;
+		await fold?.settled;
 		if (images.length > 0) {
 			deps.stickyColumn.reset();
-			await pasteImages(deps, imageArm, e, images, foldedCaret);
+			await pasteImages(deps, imageArm, e, images, fold?.caret ?? null);
 			return;
 		}
 		if (await deps.crossBlock.handlePaste(e)) return;
 		deps.stickyColumn.reset();
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
-		await deps.pasteTail(e, pastedText, foldedCaret);
+		await deps.pasteTail(e, pastedText, fold?.caret ?? null);
 	}
 
 	return { onCopy, onCut, onPaste };

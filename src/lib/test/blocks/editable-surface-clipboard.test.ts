@@ -122,7 +122,7 @@ describe('clipboard skeleton — cut order', () => {
 			deps(log, {
 				foldReveal: () => {
 					log.push('fold');
-					return 3;
+					return { caret: 3, settled: Promise.resolve() };
 				}
 			})
 		).onCut(rec.e);
@@ -140,7 +140,7 @@ describe('clipboard skeleton — cut order', () => {
 				isReadOnly: () => true,
 				foldReveal: () => {
 					folded = true;
-					return 1;
+					return { caret: 1, settled: Promise.resolve() };
 				},
 				cutTail: () => void (cutRan = true)
 			})
@@ -189,7 +189,7 @@ describe('clipboard skeleton — paste order', () => {
 			deps(log, {
 				foldReveal: () => {
 					log.push('fold');
-					return 2;
+					return { caret: 2, settled: Promise.resolve() };
 				}
 			})
 		).onPaste(rec.e);

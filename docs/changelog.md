@@ -222,6 +222,18 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   than a split, and hopping would carry the ephemeral edit out of the surface that owns it, so a
   cell's Enter still commits and stays put.
 
+- **A mutation that folds a live reveal now waits for that fold's write, not for one tick.** The two
+  seams that fold before they mutate, the clipboard splice and the block command dispatch, each
+  waited exactly one `tick()`. That is sound while the committed text keeps the block's kind, since
+  the content write lands synchronously; when the commit CHANGES the kind it takes the structural
+  path, and a tick that outlasts it does so by accident of which promise chain registered first, not
+  by contract. The fold now returns the write's completion alongside the committed caret, and every
+  caller awaits it: cut, paste, the block command, and the click that reopens a reveal on a second
+  widget. Both seams moved together deliberately, since one of them holding a stronger definition of
+  "settled" than the other is worse than a shared limit. Nothing user-visible changes at today's
+  commit shapes; what changes is that the ordering survives an `afterTick` caret landing that is
+  itself async, which the commit ceremony already permits.
+
 - **A thematic break takes whole-block focus before it is deleted.** A caret-adjacent Backspace
   (or Delete from the block above) now focuses the rule, and only a second press removes it — the
   two-step the mermaid diagram has always had, and which the thematic break's own closure cells had

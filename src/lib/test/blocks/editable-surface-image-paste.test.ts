@@ -207,7 +207,13 @@ describe('image paste — where the markdown lands', () => {
 	// widget's element-level edge — so the committed caret has to carry the anchor.
 	it('after a reveal fold, the committed caret anchors the insertion', async () => {
 		const state: SurfaceState = { caret: null, el: document.createElement('div') };
-		const h = harness({ foldReveal: () => 3, onPasteImage: async () => '![[a.png]]' }, state);
+		const h = harness(
+			{
+				foldReveal: () => ({ caret: 3, settled: Promise.resolve() }),
+				onPasteImage: async () => '![[a.png]]'
+			},
+			state
+		);
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
 		expect(h.seated).toEqual([3]);
 		expect(h.folds).toEqual([3]);
