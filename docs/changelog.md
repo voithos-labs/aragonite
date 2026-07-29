@@ -4,6 +4,19 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **A host-mode editor gets native scroll anchoring back.** The root turns `overflow-anchor` off
+  because windowing corrects the scroll by hand (VR-2), and that opt-out excludes the editor's
+  whole subtree from the HOST's anchor candidates too. In host mode windowing never activates, so
+  neither mechanism held the line: with a page-scrolled journal shell scrolled deep into an entry,
+  the viewport contains nothing but editor content, the host has no anchor to pick, and an image
+  decoding in above the fold slid the reader ten blocks down the document — its whole height. The
+  fix is one declaration scoped to the mode, but the reason it took a task rather than a line is
+  the oracle: the pin available before this observed the computed style, i.e. that the declaration
+  parsed, which is not evidence that anchoring behaved. It now ships with an e2e that watches the
+  reader's own top block across the decode, on a new page-scrolled harness route, with a control
+  arm growing the identical image one box further out — so a red says the editor lost its anchor
+  rather than that the page never had one.
+
 - **Breaking, plugin surface: an inline rung that claims past its scan range now throws at the
   dispatch.** The scanner already refused a claim that started somewhere other than the cursor or
   failed to advance; it never checked the far end. A block's scan range is not always its raw — a

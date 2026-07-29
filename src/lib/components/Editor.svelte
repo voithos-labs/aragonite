@@ -1475,13 +1475,14 @@
 	/* Embedded flow mode: the root grows to its content and an ancestor on the host's
 	   page owns the scroll, so it drops both its scrollport and the standalone-widget
 	   chrome (frame, padding, min-height) that would box every entry of a journal.
-	   `overflow-anchor: none` is inherited from above deliberately: restoring native
-	   anchoring here would be a behavior change against an incident-backed rule (VR-2)
-	   with no test that observes anchoring, so the host keeps the editor's subtree out
-	   of its anchor candidates — a load-shift artifact the small-document bound makes
-	   minor. */
+	   Native anchoring comes back with the scrollport: the opt-out above exists because
+	   windowing corrects the scroll by hand (VR-2), and here windowing never activates,
+	   so nothing would hold the line. `none` excludes the whole subtree from the HOST's
+	   anchor candidates, so an image decoding in above the fold leaves the host with no
+	   anchor at all and the reader's place slides out from under them by its height. */
 	.editor[data-scroll-mode='host'] {
 		overflow-y: visible;
+		overflow-anchor: auto;
 		min-height: 0;
 		flex: none;
 		border: none;
