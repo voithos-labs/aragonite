@@ -383,33 +383,6 @@ math shipped — so this is a standing measurement gap, not a ladder regression.
 perf-harness pass next touches fixtures, or if a real workload holds a trigger-dense region under
 an installed rung.
 
-### A navigation click leaves focus where editor-global chords do not reach
-
-**Severity:** minor (a chord that does nothing; no corruption, and the next click restores it)
-**Files:** `src/lib/components/Editor.svelte` (the editor-root keydown effect — the global-chord arm
-gates on `active === root` or an unfocused document), `src/lib/plugins/toc/TocBlock.svelte` (entries
-are real `<button>`s, so activating one parks focus on the button)
-
-Clicking a toc entry leaves DOM focus on the entry `<button>`: inside the editor root, but neither
-the root itself nor a block. The root keydown effect's undo/redo + plugin-global arm deliberately
-fires only when NO element holds focus (the windowed-out-caret case), so it declines; no block
-handler runs either, since the button is not an editable surface. Ctrl+Z immediately after a
-navigation click therefore does nothing until the caret returns to the document.
-
-Latent until 0.9.36, when navigating into a collapsed container started committing an expansion:
-the gesture that makes the edit now leaves focus exactly where the undo for it cannot be typed.
-Reproduced in `details-reveal-expand.spec.ts`, whose undo case restores the caret first and says why.
-
-**Fix direction:** decide which focus states own the editor-global chords. Widening the arm to any
-non-editable element inside the root is the obvious move and the risky one: whole-block-focus
-surfaces (thematic break, a mermaid viewport) are also non-editable tabindex elements that run their
-own chord dispatch, so the widening has to prove it cannot double-fire, and the arm's containment
-guards exist because an unguarded version once let one Ctrl+Z revert two editors on a page.
-
-**Why deferred:** it is a focus-ownership decision across every whole-block surface, not a toc
-patch, and the workaround is the click a user makes anyway. Belongs with the anchor-ownership pass
-below, which is the other half of "who owns a navigation in flight".
-
 ### `selectionChange` fires on gestures that change no selection
 
 **Severity:** watch (noise on the highest-traffic path; every payload is correct)
@@ -434,55 +407,6 @@ cardinality changes on paths whose counts nothing currently pins.
 deliberately not bundled with it — no-op suppression takes a plain click with no prior cross-block
 selection from one state-channel emission to zero, which is a behavior change on the busiest path
 in the editor and wants its own red-first pins per entry path rather than a rider on a payload fix.
-
-### Reveal anchor is a single process-global slot with no per-claimant ownership
-
-**Severity:** watch (rare cross-claimant residual; no corruption, no strand within a block)
-**Files:** `src/lib/cursor/reveal-anchor.ts` (the single-target slot), `src/lib/plugins/toc/navigation-queue.ts`
-(the per-block narrowing), `src/lib/editor-rects.ts` (`scrollTo` set/clear)
-
-The reveal anchor holds one target with no per-call ownership. Two reveals racing within the settle
-window (~12 ticks) clash on the one slot: the later `set` overwrites it, and an earlier claimant's
-terminal `clear()` (a `!landed` or `'center'` scroll) can nuke a later claimant's pin. Per-block
-navigation serialization (`navigation-queue.ts`) narrows this to one claimant per block, but two
-DIFFERENT toc blocks — or a toc navigate and a search reveal — still share the slot. Repro shape: a
-rapid cross-block double-click driving two toc blocks' navigations inside the settle window.
-
-**Fix direction:** per-call anchor ownership (a claim token the `clear()` checks, so a stale
-claimant cannot clear a fresher pin), or seam-level serialization at `scrollTo` itself (one in-flight
-reveal per editor instance) instead of each caller serializing its own.
-
-**Second coarseness, same redesign:** `scrollTo` accepts any path, but the anchor it sets holds only
-the target's TOP-LEVEL ancestor (`use-container-windowing.svelte.ts` narrows to `target.path[0]`, and
-`list-windowing.svelte.ts`'s `correctAnchor` re-asserts a top-pin on that index). Inside the settle
-loop the per-tick `scrollIntoView` refine gets the last word, so a nested target resolves correctly —
-verified live: a `[[toc]]` inside a blockquote navigating to a nested heading in a 163-block windowed
-document lands it in view. But `'nearest'` deliberately KEEPS its anchor after resolving, and what
-survives holds the container, not the heading: a container taller than the viewport with an image
-decoding below it on a later measure pass would have the anchor re-assert the container's top and
-push the already-resolved nested target back out of view. Same fix (per-call ownership carrying the
-full target path, not a narrowed index), so it is folded here rather than filed apart.
-
-**One claimant has left, for a reason worth keeping:** `setSelection` no longer holds its pin past
-resolving (`Editor.svelte`, guarded by `selection-restore.spec.ts`'s hand-back scenario). A host
-restores a caret and then its own remembered scroll and then waits, so it never takes the
-user-intent turn that clears the slot — a kept pin sat armed until the next measure pass and threw
-the host's scroll away. Its release checks that the slot still holds the path it revealed, so it
-cannot clear a claimant on a DIFFERENT path; a same-path claimant that lands between scrollTo's synchronous arm and the post-await release can still lose its band (claimant identity and block mode are not compared); the terminal clears on the `'center'` and `!landed` arms still do
-not, and remain part of the shape above. Search keeps its durable band: a searching reader's next
-keystroke lands in the bar — inside the root — and releases it.
-
-**Coverage gap (partly closed):** `details-reveal-expand.spec.ts` now drives a nested `scrollTo`
-target for real — a toc click to a heading inside a collapsed `details` in a windowed document,
-asserting the nested block lands in view past the settle. What that spec does NOT reach is the
-residual above: its container is short, so the anchor's top-level narrowing never fights a nested
-target taller than the viewport, and nothing decodes late. The remaining gap is that shape
-specifically (tall container + a late image decode), not nested targets in general.
-
-**Why deferred:** honest-failing (the loser's target just isn't held — no crash, no corruption; the
-nested residual needs a tall container plus a late decode), and the ownership model wants a second
-real consumer navigating concurrently to shape it; designing per-call ownership against a single
-caller risks the wrong abstraction.
 
 ### A declined cross-block paste still leaves an undo entry behind
 

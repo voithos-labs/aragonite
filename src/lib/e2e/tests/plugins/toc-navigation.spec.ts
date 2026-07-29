@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
-import { PluginsPage } from './helpers';
+import { PluginsPage, activeBlockPath } from './helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
@@ -154,6 +154,22 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.waitForRenderFlush();
 
 		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		expect(errors).toEqual([]);
+	});
+
+	// A navigation lands the caret, so the editor's own chords reach the document
+	// straight afterwards instead of dying on the entry `<button>` that still had
+	// focus. Typing is the user-visible half of the same fact.
+	test('the caret lands in the target heading, so the next keystroke edits it', async ({
+		page
+	}) => {
+		const errors = capturePageErrors(page);
+
+		await editor.entry('Deep Target Heading').click();
+		await expect.poll(() => activeBlockPath(page)).toEqual([target]);
+
+		await page.keyboard.type('X');
+		expect(await editor.bridge.getSource()).toContain('X### Deep Target Heading');
 		expect(errors).toEqual([]);
 	});
 });

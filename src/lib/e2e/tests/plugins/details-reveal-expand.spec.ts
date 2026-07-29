@@ -114,10 +114,9 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		await editor.bridge.waitForSourceContains('<details open>');
 		await editor.waitForUndoBatchFlush();
 
-		// The click parked focus on the toc entry `<button>`, and the editor-root chord
-		// gate claims undo only for the root itself or an unfocused document — so put the
-		// caret back in the document first, the way a user reaching for Ctrl+Z does.
-		await editor.focusBlockAtPath([DETAILS_INDEX, 0], 0);
+		// Straight to Ctrl+Z, with no click to put the caret back first: the navigation
+		// lands it in the revealed heading, so the gesture that made the edit leaves
+		// focus where the undo for it can be typed.
 		await editor.undo();
 		await editor.waitForRenderFlush();
 

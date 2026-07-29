@@ -11,7 +11,7 @@
  */
 import { tick } from 'svelte';
 import type { BlockComponent } from './block-component';
-import type { RevealAnchorState } from './cursor/reveal-anchor';
+import type { RevealAnchorState, RevealClaim } from './cursor/reveal-anchor';
 
 export interface EditorRects {
 	/** The block's outermost box, or null when it isn't mounted. */
@@ -35,22 +35,31 @@ export interface EditorRects {
 	/**
 	 * Reveal (mount) the block at `path`, then scroll the viewport to it. `block`
 	 * defaults to `'nearest'` (bring minimally into view); `'center'` centers it.
+	 * `hold` (default true) keeps the reveal's pin after the call resolves, so a
+	 * later layout shift cannot push the target back out of view; pass false to
+	 * hand the viewport straight back, which is what a consumer restoring a caret
+	 * AND its own remembered scroll needs.
 	 *
 	 * Division of responsibility (the reveal anchor vs the scroll). A windowed-out
 	 * target past undecoded images would strand a plain `scrollIntoView` — the images
 	 * reserve height off-window and collapse on mount, so the document shrinks and the
-	 * browser clamps the scroll off the target. So `scrollTo` sets the reveal anchor
+	 * browser clamps the scroll off the target. So `scrollTo` claims the reveal anchor
 	 * (`cursor/reveal-anchor.ts`) at the requested `block`; the top-level windowing
 	 * scope's `correctAnchor` then re-asserts that placement on every post-mount measure
 	 * pass — mounting the target at the anchored position and holding it against the
 	 * shrink. The anchor is model-based, so it is exact enough for `'nearest'` (a
 	 * top-pin, where visibility is the whole contract) but only coarse for `'center'`;
 	 * `scrollTo` therefore refines `'center'` to exact placement with `scrollIntoView`
-	 * once the target is mounted, then releases the anchor (a persistent coarse pin
-	 * would drift the centered target). `'nearest'` keeps the anchor for durable
-	 * visibility, matching the search reveal band. The boolean resolves only after the
-	 * position settles, so a resolved `true` means the target is genuinely in view; a
-	 * target that never mounts resolves `false` and leaves no dangling anchor.
+	 * once the target is mounted, then releases its claim (a persistent coarse pin
+	 * would drift the centered target). `'nearest'` holds by default, matching the
+	 * search reveal band. The boolean resolves only after the position settles, so a
+	 * resolved `true` means the target is genuinely in view; a target that never
+	 * mounts resolves `false` and leaves no dangling anchor.
+	 *
+	 * A reveal superseded by a later one stops refining and reports honest
+	 * visibility — usually `false`, since the viewport now belongs to the newer
+	 * target. Two navigations racing therefore settle on the newer one instead of
+	 * fighting over the scroll for the rest of the older one's settle.
 	 *
 	 * Host-scroll mode drops the anchor half entirely — windowing never activates, so
 	 * there is nothing to hold against and no scrollport of our own to hold it in. The
@@ -58,7 +67,20 @@ export interface EditorRects {
 	 * mechanism, and visibility is judged against the window viewport intersected
 	 * with every ancestor that clips the editor.
 	 */
-	scrollTo(path: readonly number[], opts?: { block?: 'nearest' | 'center' }): Promise<boolean>;
+	scrollTo(
+		path: readonly number[],
+		opts?: { block?: 'nearest' | 'center'; hold?: boolean }
+	): Promise<boolean>;
+	/**
+	 * Navigate to `path`: reveal, scroll, and land the caret at the block's start.
+	 * What a navigation affordance (a table-of-contents entry, an outline click)
+	 * owes the user — after activating it the next keystroke, Ctrl+Z included,
+	 * addresses the document rather than the affordance's own button. Runs the same
+	 * restore road undo and the consumer `setSelection` door use, so a navigation
+	 * and a restore cannot diverge on how a target is resolved, clamped or revealed.
+	 * Resolves true when the caret landed.
+	 */
+	navigateTo(path: readonly number[]): Promise<boolean>;
 }
 
 // Post-mount measure passes settle within a few Svelte flushes (each re-asserts the
@@ -85,6 +107,10 @@ export function createEditorRects(deps: {
 	 *  editor's content. */
 	isHostChrome: (node: Node | null) => boolean;
 	revealAnchor: RevealAnchorState;
+	/** Land a caret at the start of `path` through the shared restore road. Injected
+	 *  because this surface owns geometry, not the selection model — and the road it
+	 *  runs re-enters `scrollTo` for the reveal half. */
+	landCaretAt: (path: number[]) => Promise<boolean>;
 }): EditorRects {
 	function isInView(el: HTMLElement, root: HTMLElement): boolean {
 		const br = el.getBoundingClientRect();
@@ -109,14 +135,21 @@ export function createEditorRects(deps: {
 	// block's height. So each tick refines the placement AFTER the flush, when DOM reads
 	// are exact and `scrollIntoView` therefore gets the last word over that pass's coarse
 	// anchor correction, and stops once the target stops moving (shrink done, the anchor
-	// and the refine agree). In a bare harness with no editor root there is no viewport to
-	// measure against, so presence is the read.
-	async function settleInView(path: number[], block: 'nearest' | 'center'): Promise<boolean> {
+	// and the refine agree). A superseded claim stops refining at once: the viewport
+	// belongs to the newer reveal, and two settle loops scrolling to different targets
+	// would fight for the rest of this one's window. In a bare harness with no editor
+	// root there is no viewport to measure against, so presence is the read.
+	async function settleInView(
+		path: number[],
+		block: 'nearest' | 'center',
+		claim: RevealClaim
+	): Promise<boolean> {
 		const root = deps.getEditorRoot();
 		if (!root) return deps.getBlockElByPath(path) != null;
 		let placedTop: number | null = null;
 		for (let i = 0; i < REVEAL_SETTLE_TICKS; i++) {
 			await tick();
+			if (!claim.isCurrent()) break;
 			const el = deps.getBlockElByPath(path);
 			if (!el) {
 				placedTop = null; // transiently unmounted mid re-slice — keep settling
@@ -167,21 +200,26 @@ export function createEditorRects(deps: {
 		async scrollTo(path, opts) {
 			const p = [...path];
 			const block = opts?.block ?? 'nearest';
-			// Set the anchor before the first await so it survives a clearing gesture that
-			// triggered this reveal (a Previous-match click's pointerdown clears, then this
-			// re-sets) — the seam that owns strand-resistance for every navigation reveal.
-			deps.revealAnchor.set(p, block);
+			// Claim before the first await so the pin survives a clearing gesture that
+			// triggered this reveal (a Previous-match click's pointerdown releases, then
+			// this re-claims) — the seam that owns strand-resistance for every navigation.
+			const claim = deps.revealAnchor.claim(p, block);
 			await deps.revealPath(p);
 			deps.getBlockElByPath(p)?.scrollIntoView({ block });
-			const landed = await settleInView(p, block);
+			const landed = await settleInView(p, block, claim);
 			// 'center' needs exact placement, which the model-based anchor holds only
 			// coarsely (it can lag the DOM by a boundary block); the settle refined it
-			// precisely via scrollIntoView, so release the anchor — otherwise its coarse
-			// correction on a later measure pass would drift the centered target. 'nearest'
-			// keeps the anchor for durable visibility (the search path), where the coarse
-			// top-pin IS the contract. A failed reveal always clears — no dangling pin.
-			if (block === 'center' || !landed) deps.revealAnchor.clear();
+			// precisely via scrollIntoView, so release — otherwise its coarse correction
+			// on a later measure pass would drift the centered target. 'nearest' holds by
+			// default, for durable visibility (the search band), where the coarse top-pin
+			// IS the contract. A failed reveal always releases — no dangling pin. Every
+			// arm goes through the claim, so a superseded reveal's release is a no-op
+			// rather than a fresher claimant's loss.
+			if (block === 'center' || !landed || opts?.hold === false) claim.release();
 			return landed;
+		},
+		navigateTo(path) {
+			return deps.landCaretAt([...path]);
 		}
 	};
 }

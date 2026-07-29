@@ -4,13 +4,19 @@ import {
 	EDITOR_SERVICES_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
+	type BlockElLookup,
 	type BlockMeasureChannel,
 	type EditorDoc,
 	type EditorServices,
 	type ParentScopeSink
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
-import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
+import type { RevealTarget } from '../cursor/reveal-anchor';
+import {
+	createListWindowing,
+	type ListWindowing,
+	type RevealAnchorPlacement
+} from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
 	/** Live read of this container's index in its PARENT scope, for the upward subtotal report. A getter (not a value) so reorders report under the current slot. Ignored at the root (no parent sink). */
@@ -30,6 +36,35 @@ export interface ContainerWindowingOpts {
 }
 
 /**
+ * Resolve the reveal target into the ROOT scope's coordinates. The model addresses
+ * top-level children only, so a nested target contributes its top-level ancestor's
+ * index plus the DOM-measured drop from that ancestor's top to the target — without
+ * it the pin re-asserts the CONTAINER's top and pushes an already-resolved nested
+ * target back out of view. Measured only while a reveal is in flight; with the slot
+ * empty this costs one null check on the measure path.
+ */
+function placementOf(
+	target: RevealTarget | null,
+	blockEl: BlockElLookup
+): RevealAnchorPlacement | null {
+	if (!target || target.path.length === 0) return null;
+	const shallow = { index: target.path[0], block: target.block, innerOffset: 0, height: null };
+	if (target.path.length === 1) return shallow;
+	const ancestorEl = blockEl([shallow.index]);
+	const targetEl = blockEl(target.path);
+	// An unmounted nested target (still windowed out, or inside a collapsed
+	// container) has no geometry yet: hold the ancestor until the settle mounts it.
+	if (!ancestorEl || !targetEl) return shallow;
+	const targetRect = targetEl.getBoundingClientRect();
+	return {
+		index: shallow.index,
+		block: target.block,
+		innerOffset: targetRect.top - ancestorEl.getBoundingClientRect().top,
+		height: targetRect.height
+	};
+}
+
+/**
  * One windowing wiring unit per BlockList-bearing OR direct-each container scope.
  * Reads the windowing contexts, builds `createListWindowing` with the shared
  * constants, and provides the subtotal sink (+ the leaf channel for hosted
@@ -42,7 +77,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		editorRoot: getEditorRoot,
 		focusedPath: getFocusPath,
 		widthVersion: getWidthVersion,
-		windowingEnabled
+		windowingEnabled,
+		blockElLookup
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
@@ -61,12 +97,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
 		getRevealAnchorTarget: claimsRevealAnchor
-			? () => {
-					const target = revealAnchor?.get() ?? null;
-					return target && target.path.length > 0
-						? { index: target.path[0], block: target.block }
-						: null;
-				}
+			? () => placementOf(revealAnchor?.get() ?? null, blockElLookup)
 			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		windowingEnabled,
