@@ -36,11 +36,15 @@ names the stranded range rather than only showing a wiped document.
 
 ## Gesture contracts
 
-Each row states both predictions; the pinned one is in bold. The build differs by
-outcome on purpose: a caret-pinned gesture builds with select-all, where the corruption
-is a one-char document and maximally far from its prediction; a range-pinned gesture
-builds a short two-leaf prose range, because there select-all's own prediction would BE
-the one-char document and all discriminating power is lost.
+Each row states both predictions; the pinned one is in bold. The build is chosen per
+gesture on purpose: a caret-pinned gesture prefers select-all, where the corruption is a
+one-char document and maximally far from its prediction; a range-pinned gesture must use
+a short two-leaf prose range, because there select-all's own prediction would BE the
+one-char document and all discriminating power is lost. `escape` is the one caret-pinned
+gesture on a prose range: it collapses to the range's anchor, and a select-all anchor is
+byte 0 of the document, where the keystroke demotes the first block's kind and enters the
+deferred lazy-continuation class (`docs/issues.md`) — a red for a reason this family is
+not about.
 
 | Gesture                  | Build       | If the range survived   | If the range ended                         |
 | ------------------------ | ----------- | ----------------------- | ------------------------------------------ |
@@ -49,7 +53,7 @@ the one-char document and all discriminating power is lost.
 | `dead-space-below-table` | prose range | **range span replaced** | key at a caret in the table                |
 | `image-click`            | select-all  | one-char document       | **the selected image block replaced**      |
 | `drag-handle-press`      | prose range | **range span replaced** | key at the caret the press left            |
-| `escape`                 | select-all  | one-char document       | **key at the range's anchor**              |
+| `escape`                 | prose range | range span replaced     | **key at the range's anchor**              |
 | `search-round-trip`      | prose range | **range span replaced** | key at the caret the close returned        |
 | `inline-reveal-click`    | select-all  | one-char document       | **no byte moves until the escape commits** |
 | `toc-entry-click`        | select-all  | one-char document       | **key at the heading it navigated to**     |
