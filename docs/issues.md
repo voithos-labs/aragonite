@@ -516,25 +516,6 @@ which also pins the window-viewport term of the reveal intersection — one fixt
 embedding before the scroll-host seam landed), and the fixture it needs is a route shape the flow
 harness does not have.
 
-### A host-mode editor has no scroll anchoring
-
-**Severity:** minor (accepted inside the small-document bound host mode is scoped to)
-**Files:** `src/lib/components/Editor.svelte` (`overflow-anchor: none`, the windowing-era opt-out),
-`src/lib/reactivity/list-windowing.svelte.ts` (the manual correction host mode disables)
-
-Self mode disables native scroll anchoring because windowing corrects the scroll by hand (VR-2).
-In host mode that manual correction lands on an element that is not scrolling, so neither
-mechanism holds the line: an image decoding in above the fold shifts the host's scroll under the
-reader.
-
-**Fix direction:** `[data-scroll-mode='host'] { overflow-anchor: auto }` — one declaration. It was
-implemented and reverted before hand-off because the only available pin asserts the computed
-style, i.e. that the declaration parsed, not that the anchoring behaved, and this is a behavior
-change against an incident-backed rule. Ship it with an e2e that observes the shift, or not at all.
-
-**Why deferred:** wants an oracle that watches the viewport move rather than a style assertion,
-and no embedder has reported the shift.
-
 ### A header resize landing inside a reveal double-applies its delta
 
 **Severity:** minor (the reveal lands off by the height change; no corruption, and the next scroll

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Editor, type PresentationMode } from '$lib';
+	import { Editor, type ImageLoadPolicy, type PresentationMode } from '$lib';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import { installTestProbes } from '../editor/test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
@@ -11,25 +11,29 @@
 	// question "what happens when the walk finds no scrollable ancestor at all"
 	// had no route to ask it on.
 
-	const ENTRY =
-		Array.from(
-			{ length: 160 },
-			(_, i) => `Paragraph ${i} — lorem ipsum dolor sit amet, consectetur adipiscing elit.`
-		).join('\n\n') + '\n';
-
-	// A late-sizing box ABOVE the editor: zero-height until the decode gives the
-	// image its intrinsic size, which is the image-decode stall in miniature. A
-	// SIBLING of the entry, never a wrapper — a geometry change on the anchor's own
-	// ancestor chain suppresses the browser's anchor adjustment for that frame, so a
-	// wrapper would manufacture a shift that says nothing about anchoring.
+	// 400x300 with no bytes to fetch, so the decode is fast and its intrinsic size
+	// is exact. Both late-sizing boxes on this route use it.
 	const LATE_IMAGE_SRC = `data:image/svg+xml,${encodeURIComponent(
 		"<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'></svg>"
 	)}`;
 
+	// The image-decode stall as DOCUMENT content: an image paragraph near the top,
+	// mounted under `imageLoadPolicy="placeholder"` (widget built, `src` unset, zero
+	// height) until the spec flips the policy. That is late-sizing content INSIDE the
+	// editor's subtree, which is the case the editor's own anchoring opt-out decides.
+	const IMAGE_BLOCK_INDEX = 6;
+	const ENTRY =
+		Array.from({ length: 160 }, (_, i) =>
+			i === IMAGE_BLOCK_INDEX
+				? `![late](${LATE_IMAGE_SRC})`
+				: `Paragraph ${i} — lorem ipsum dolor sit amet, consectetur adipiscing elit.`
+		).join('\n\n') + '\n';
+
 	let source = $state(ENTRY);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
-	let lateImageSrc = $state<string | undefined>(undefined);
+	let imageLoadPolicy = $state<ImageLoadPolicy>('placeholder');
+	let outerImageSrc = $state<string | undefined>(undefined);
 	let editor = $state<ReturnType<typeof Editor>>();
 
 	trackParityDocument(() => editor);
@@ -42,12 +46,15 @@
 			setKeybindings: (overrides) => (keybindings = overrides),
 			setPresentationMode: (mode) => (presentationMode = mode)
 		});
-		// Driven from the spec rather than a control in the page: any button that
-		// could be clicked would itself be a non-editor box in the viewport, and the
-		// oracle's premise is that nothing but editor content is in view.
+		// Driven from the spec rather than controls in the page: any button that could
+		// be clicked would itself be a non-editor box in the viewport, and the oracle's
+		// premise is that nothing but editor content is in view.
 		(window as unknown as { __pageScroll?: unknown }).__pageScroll = {
-			loadLateImage: () => {
-				lateImageSrc = LATE_IMAGE_SRC;
+			loadDocumentImage: () => {
+				imageLoadPolicy = 'auto';
+			},
+			loadOuterImage: () => {
+				outerImageSrc = LATE_IMAGE_SRC;
 			}
 		};
 	});
@@ -55,9 +62,18 @@
 
 <div class="page aragonite-editor-theme">
 	<div class="filler" data-testid="filler-top">Above the entry</div>
-	<img class="late-image" data-testid="late-image" src={lateImageSrc} alt="" />
+	<!-- The control arm's grower: the same late sizing OUTSIDE the entry, where the
+	     host's own box is still an anchor candidate. -->
+	<img class="late-image" data-testid="outer-image" src={outerImageSrc} alt="" />
 	<div class="entry" data-testid="entry">
-		<Editor bind:this={editor} {source} {keybindings} {presentationMode} scrollMode="host" />
+		<Editor
+			bind:this={editor}
+			{source}
+			{keybindings}
+			{presentationMode}
+			{imageLoadPolicy}
+			scrollMode="host"
+		/>
 	</div>
 	<div class="filler" data-testid="filler-bottom">Below the entry</div>
 </div>
