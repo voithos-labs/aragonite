@@ -90,9 +90,11 @@ function needsScan(raw: string, start: number, end: number): boolean {
 
 // Try a trigger's rungs in dispatch order: the first whose prefix matches at
 // `ctx.pos` and whose recognizer claims wins. The claim validation (a node must
-// start at the cursor and advance) lives here once — both the pre-switch
-// consultation and the `default` arm route through it. A decline leaves `ctx`
-// untouched, so a fall-through to a built-in case reads byte-identical bytes.
+// start at the cursor, advance, and stay inside the range) lives here once — both
+// the pre-switch consultation and the `default` arm route through it. A decline
+// leaves `ctx` untouched, so a fall-through to a built-in case reads byte-identical
+// bytes. The three checks sit on the CLAIM path, past the decline, so a rung that
+// declines pays none of them.
 function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
 	if (!rungs) return null;
 	const { raw, pos, end } = ctx;
@@ -105,6 +107,20 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 		}
 		if (node.end <= pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
+		}
+		// A block's scan range is not always its raw — a heading's excludes the closing
+		// `#` run, a table cell's the `|` — so a recognizer that searches the STRING
+		// rather than the range claims bytes the block still needs. The overrun left no
+		// trace: the node was appended and `ctx.pos` jumped past `ctx.end`, so the loop
+		// exited as if it had finished, with every later caret offset wrong and no byte
+		// moved. Half-open `[start, end)` — `end` IS the advance, so ending AT the range
+		// end is the ordinary case and only past it is a fault. Top-level only:
+		// descendants sit inside the claimed range by construction.
+		if (node.end > end) {
+			throw new Error(
+				`inline-syntax "${rung.prefix}" claimed [${node.start}, ${node.end}), past the scan ` +
+					`range end ${end} — a recognizer must bound its search by the \`end\` it is given`
+			);
 		}
 		stampClaim(node, rung);
 		return node;

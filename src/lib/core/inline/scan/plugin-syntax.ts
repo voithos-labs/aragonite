@@ -18,8 +18,12 @@ import { registerOnce } from '../../../schema/register-once';
 
 /**
  * Inspect `raw` at `pos` (the trigger) within `[pos, end)`. Return a node whose
- * `start === pos` and `end > pos` to claim `[start, end)` — `end` is the scan
- * advance — or `null` to leave the trigger as literal text.
+ * `start === pos` and `pos < node.end <= end` to claim `[start, node.end)` —
+ * `node.end` is the scan advance — or `null` to leave the trigger as literal text.
+ *
+ * `end` bounds the search, not just the answer: `raw` is the whole block, while the
+ * scan range may be a slice of it (a heading's content excludes its closing `#` run),
+ * so a terminator found past `end` has to decline. Claiming past it throws.
  */
 export type InlineSyntaxRecognizer = (raw: string, pos: number, end: number) => InlineNode | null;
 

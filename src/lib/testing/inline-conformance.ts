@@ -394,9 +394,12 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
  * The inline layer's own byte round-trip. `serialize(parse(s))` is raw-driven and
  * cannot see an inline rung at all, so the property that IS a rung's to break is the
  * scanner's contract: the nodes tile `[0, end)` with no gap and no overlap, and
- * concatenating their slices reproduces the scanned bytes. A rung whose claim runs
- * past `end`, or stops short of what it consumed, breaks the caret arithmetic of
- * every offset after it while the document round-trips perfectly.
+ * concatenating their slices reproduces the scanned bytes.
+ *
+ * The overrun itself is no longer asserted here — the dispatch throws on a claim past
+ * `end` (scan/index.ts), so it can never reach this walk. What the restricted-range
+ * drives above still buy is WHEN an author hears about it: against their own fixture,
+ * under a named cell, instead of at first render of a heading.
  */
 function assertScanTiles(raw: string, end: number): void {
 	const nodes = parseInline(raw, 0, end);
@@ -406,11 +409,6 @@ function assertScanTiles(raw: string, end: number): void {
 			node.start,
 			cursor,
 			`the scan of ${JSON.stringify(raw.slice(0, end))} tiles without a gap or overlap at ${cursor}`
-		);
-		assert(
-			node.end <= end,
-			`the "${node.kind}" claim in ${JSON.stringify(raw)} stops at the scan range end (${end}), ` +
-				`not at ${node.end} — it is reading bytes the block did not offer`
 		);
 		cursor = node.end;
 	}
