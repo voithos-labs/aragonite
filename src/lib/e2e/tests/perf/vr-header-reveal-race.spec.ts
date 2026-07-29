@@ -159,3 +159,60 @@ test('a header resize while a landed reveal still holds its pin does not double-
 	expect(Math.abs(afterTop - beforeTop)).toBeLessThanOrEqual(2);
 	expect(pageErrors).toEqual([]);
 });
+
+// ── The other side of the rule ──────────────────────────────────────────
+
+// Deferring to the anchor is only right where the anchor is actually holding the
+// position. A `'nearest'` reveal of an ALREADY-VISIBLE block is a no-op — the block
+// was in view, so nothing scrolled — yet the claim is held over a target sitting
+// mid-viewport. The anchor's placement for it is the top pin, so a writer that defers
+// by RE-PLACING turns a header resize into a scroll the reader never asked for.
+//
+// Under the watermark on purpose: a windowed document re-asserts on every measure pass,
+// so the target is already at the pin whenever the header resizes and the distinction is
+// invisible. With windowing inactive nothing re-asserts, and the header resize would be
+// the only re-placement trigger there is.
+const UNWINDOWED_PROSE = Array.from(
+	{ length: 60 },
+	(_, i) => `Paragraph ${i} of the header fixture.`
+).join('\n\n');
+
+test('a header resize compensates rather than re-places a reveal the anchor is not holding', async ({
+	page
+}) => {
+	const pageErrors = capturePageErrors(page);
+	const editor = new EditorPage(page);
+	await editor.goto('?header=on');
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
+	await editor.scrollEditorTo(300);
+	await editor.waitForRenderFlush();
+
+	const offsetInPort = (index: number) =>
+		page.evaluate((i) => {
+			const rect = (window as any).__test.rects.blockRect([i]) as DOMRect;
+			return rect.top - document.querySelector('.editor')!.getBoundingClientRect().top;
+		}, index);
+
+	// Vacuity: windowing really is inactive, and the target really is on screen already
+	// (so the reveal below moves nothing and the claim rides a mid-viewport block).
+	expect(await page.evaluate(() => document.querySelectorAll('.vr-spacer').length)).toBe(0);
+	const visibleTarget = 14;
+	const beforeReveal = await offsetInPort(visibleTarget);
+	expect(beforeReveal).toBeGreaterThan(100);
+
+	expect(
+		await page.evaluate((i) => (window as any).__test.rects.scrollTo([i]), visibleTarget)
+	).toBe(true);
+	await editor.waitForRenderFlush();
+	expect(Math.abs((await offsetInPort(visibleTarget)) - beforeReveal)).toBeLessThanOrEqual(1);
+
+	await page.locator('[data-testid="header-height-toggle"]').click();
+	await editor.waitForResizeObserverFlush();
+	await editor.waitForRenderFlush();
+
+	// The header compensation still owns this one: the reader keeps their place. A
+	// deferral that re-places instead of asking dragged the block to the top of the
+	// scrollport, ~263px of scroll nothing requested.
+	expect(Math.abs((await offsetInPort(visibleTarget)) - beforeReveal)).toBeLessThanOrEqual(2);
+	expect(pageErrors).toEqual([]);
+});
