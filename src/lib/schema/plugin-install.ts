@@ -42,6 +42,11 @@ export interface EditorContext<Options = unknown> {
 	readonly rects: EditorRects;
 	/** Getter-backed, live; the EFFECTIVE mode. Change signal: the `presentationModeChange` event. */
 	readonly presentationMode: PresentationMode;
+	/** Getter-backed, live; the editor's theme name as reflected to `data-editor-theme`
+	 *  (`'dark'`/`'light'` built in, or a consumer's own). Change signal: the
+	 *  `themeChange` event. Needed only by a plugin that PAINTS its own colors — a
+	 *  rendering engine emitting markup CSS tokens cannot reach. */
+	readonly theme: string;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────

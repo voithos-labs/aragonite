@@ -49,6 +49,11 @@ export interface InlineWidgetComponentProps {
 	 *  Always supplied by the editor's mount; optional so a bare harness can
 	 *  mount without it (absent reads as 'source'). */
 	getPresentationMode?: () => PresentationMode;
+	/** LIVE theme-name read (`data-editor-theme`), the mode read's sibling and a getter
+	 *  for the same reason. A widget whose body an ENGINE paints emits its own colors,
+	 *  which no stylesheet can reach — so it keys its render on this and re-renders on a
+	 *  flip. A widget styled with CSS tokens needs nothing here. Absent reads as 'dark'. */
+	getTheme?: () => string;
 	/** LIVE root-document read, a getter for the same reason as the mode: the pool
 	 *  keys on `${kind} ${source}`, so a widget whose derived value depends on the
 	 *  document (footnote numbering) survives edits elsewhere with no source change

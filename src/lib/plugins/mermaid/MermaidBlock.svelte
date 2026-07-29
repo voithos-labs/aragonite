@@ -29,7 +29,7 @@
 		return boxEl?.querySelector<HTMLElement>('.mermaid-viewport, .mermaid-surface') ?? null;
 	}
 
-	const { containerApi, updateOwnMetadata, handleKeydown, getPresentationMode } =
+	const { containerApi, updateOwnMetadata, handleKeydown, getPresentationMode, getTheme } =
 		createContainerBlock({
 			getNode: () => node,
 			getIndex: () => index,
@@ -86,9 +86,13 @@
 	let rendered = $state<MermaidRenderResult | null>(null);
 	$effect(() => {
 		const current = code;
+		// The engine writes colors INTO the SVG, so a theme flip cannot be absorbed by
+		// CSS — it has to redraw. Reading the theme here is what subscribes this effect
+		// to the flip; `renderMermaid` keys on it, so flipping back is a cache hit.
+		const theme = getTheme();
 		if (!hasMermaidRenderer()) return;
 		let stale = false;
-		void renderMermaid(current).then(async (result) => {
+		void renderMermaid(current, theme).then(async (result) => {
 			if (stale) return;
 			// A result swap can replace the focused surface element (error card →
 			// viewport once an edit fixes the code); hand focus to the new surface

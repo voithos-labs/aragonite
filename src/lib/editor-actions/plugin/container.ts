@@ -174,6 +174,13 @@ export interface ContainerBlock {
 	 * path when the factory is already in hand.
 	 */
 	getPresentationMode(): PresentationMode;
+	/**
+	 * The live editor theme name (`data-editor-theme`; `'dark'`/`'light'` built in, or
+	 * a consumer's own). Rides beside the mode read for a block whose body is painted
+	 * by an engine rather than styled by CSS — a diagram renderer emits its own colors,
+	 * so it must key its render on this and re-render when it changes.
+	 */
+	getTheme(): string;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -356,8 +363,11 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		events: editorEvents,
 		registryView
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, presentationMode: getPresentationMode } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		keybindingOverrides,
+		presentationMode: getPresentationMode,
+		theme: getTheme
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 
 	const listState = createBlockListState(deps.getNode);
@@ -562,5 +572,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		});
 	}
 
-	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown, getPresentationMode };
+	return {
+		blockListProps,
+		containerApi,
+		updateOwnMetadata,
+		handleKeydown,
+		getPresentationMode,
+		getTheme
+	};
 }

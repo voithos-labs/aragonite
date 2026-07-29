@@ -146,6 +146,9 @@ export interface SvelteWidgetPoolDeps {
 	 *  channel). Absent leaves the caller falling back to the raw span silently. */
 	reportError?: (error: unknown) => void;
 	getPresentationMode?: () => PresentationMode;
+	/** The editor's theme name — the mode read's sibling, for a widget whose body an
+	 *  engine paints (its own colors, unreachable from CSS) rather than CSS styles. */
+	getTheme?: () => string;
 	getDocument?: () => DocumentView | undefined;
 	getContentVersion?: () => number;
 }
@@ -163,7 +166,7 @@ export interface SvelteWidgetPoolDeps {
  * footnote-number derivation depends on the live document, unchanged in source).
  */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
-	const { reportError, getPresentationMode, getDocument, getContentVersion } = deps;
+	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion } = deps;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind);
@@ -176,7 +179,7 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetP
 			try {
 				const instance = mount(component, {
 					target: wrapper,
-					props: { inline, source, getPresentationMode, getDocument, getContentVersion }
+					props: { inline, source, getPresentationMode, getTheme, getDocument, getContentVersion }
 				});
 				return { wrapper, instance };
 			} catch (error) {

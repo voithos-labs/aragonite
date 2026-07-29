@@ -63,6 +63,10 @@ export interface EditorEventMap {
 	error: EditorError;
 	/** The EFFECTIVE mode after a `presentationMode` prop change (never fired at mount). */
 	presentationModeChange: PresentationMode;
+	/** The theme name after a `theme` prop change (never fired at mount). The mode
+	 *  event's sibling, for a plugin that paints its own colors and so cannot pick a
+	 *  theme change up from CSS. */
+	themeChange: string;
 }
 
 export interface EditorEvents {

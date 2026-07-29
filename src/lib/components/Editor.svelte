@@ -646,7 +646,8 @@
 		// The one injection point of the mode into the dispatch tiers: both chord
 		// dispatchers and the cross-block destructive branches read it back through
 		// the pluginEditor lookup they already thread.
-		getPresentationMode: () => effectiveMode
+		getPresentationMode: () => effectiveMode,
+		getTheme: () => theme
 	});
 
 	// The per-instance context lookup + command-error sink every dispatch tier that
@@ -776,6 +777,7 @@
 		// uses — both render sites read this one getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
+		theme: () => theme,
 		keybindingOverrides: () => overridesMap,
 		// An accessor, not the `onPasteImage,` shorthand: the shorthand captures the prop
 		// in the object literal, which svelte-check reports as `state_referenced_locally`,
@@ -809,6 +811,18 @@
 				active.blur();
 		}
 		events.emit('presentationModeChange', mode);
+	});
+
+	// A theme flip needs no fold: nothing about it can invalidate a live edit. It only
+	// has to be announced, for the plugins that PAINT their own colors and so cannot
+	// see the flip through CSS. Same never-at-mount contract as the mode event.
+	// svelte-ignore state_referenced_locally
+	let lastTheme = theme;
+	$effect(() => {
+		const next = theme;
+		if (next === lastTheme) return;
+		lastTheme = next;
+		events.emit('themeChange', next);
 	});
 
 	// Mirror SelectionState.isCrossBlock onto the editor root as

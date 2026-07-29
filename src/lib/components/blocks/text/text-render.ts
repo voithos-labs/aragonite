@@ -52,6 +52,10 @@ export interface TextRenderDeps {
 	/** Effective mode. Read inside the render pass on purpose: the read is the
 	 *  reactive dependency that re-renders every mounted block on a mode flip. */
 	get presentationMode(): PresentationMode;
+	/** The editor's theme name, forwarded to component widgets beside the mode. NOT a
+	 *  render-key term: the inline DOM this builds is themed by CSS, so only a widget
+	 *  whose engine paints its own colors reads it — live, inside its own derived. */
+	getTheme?: () => string;
 	/** Live root document, handed to component widgets whose derived value depends
 	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
 	 *  document across edits, never a mount-time snapshot. */
@@ -121,6 +125,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	const widgetPool = createSvelteWidgetPool({
 		reportError: deps.reportRenderError,
 		getPresentationMode: () => deps.presentationMode,
+		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion
 	});
