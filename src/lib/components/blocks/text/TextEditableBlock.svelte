@@ -488,8 +488,8 @@
 		// the caret where the user left it (not its usual trailing-edge landing): the
 		// committed text IS the DOM text the offset was measured against, so it carries
 		// over unchanged and the command acts where the user actually pressed.
-		widgetInteraction.foldRevealBeforeMutation(offset);
-		void tick().then(() => performBlockCommand(id, command.perform));
+		const fold = widgetInteraction.foldRevealBeforeMutation(offset);
+		void (fold?.settled ?? tick()).then(() => performBlockCommand(id, command.perform));
 		return true;
 	}
 

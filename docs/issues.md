@@ -428,33 +428,6 @@ whose commit never happened, and adding one is a change to the undo seam, not to
 enough that the wasted entry has never been observed, and inventing a snapshot-discard API for one
 caller would put a rollback door on the undo controller ahead of any second consumer for it.
 
-### A reveal fold whose commit changes the block's kind may not have settled when the mutation runs
-
-**Severity:** minor (unproven in practice; the window is one tick wide and needs a kind flip typed
-outside the revealed span while the reveal is open)
-**Files:** `src/lib/components/blocks/text/TextEditableBlock.svelte` (`runCommand` — the
-`void tick().then(...)` between the fold and the mutation),
-`src/lib/components/blocks/editable-surface.ts` (`onCut` / `onPaste` — the identical discipline),
-`src/lib/editor-actions/block-edit.ts` (`updateBlockContent`'s two paths)
-
-Both mutation seams that fold a live inline reveal — the clipboard splice and the block command
-dispatch — wait exactly one `tick()` before touching the CST. That is sound for the routine path:
-when the committed text keeps the block's kind, `updateBlockContent` mutates synchronously before
-it returns, so the tick only flushes the render. When the commit CHANGES the kind it takes the
-`scope.commit` structural path, which is genuinely async, and one tick is not a guarantee that it
-has landed. Reachable in principle because a reveal only swaps the widget's own span: the rest of
-the block stays natively editable, so a `# ` typed at the block start while math is revealed
-elsewhere in the same block makes the fold's commit a paragraph→heading flip.
-
-**Repro:** not constructed. Needs the kind-flipping edit and the command in one gesture stream.
-
-**Why deferred:** this is a property of the fold-then-mutate discipline, not of the command seam
-that adopted it — the clipboard seam has shipped the same one-tick wait since inline reveal landed,
-with its own pins. Tightening it means threading the commit's promise out through
-`foldRevealBeforeMutation` and awaiting it at both seams; doing that at one seam only would leave
-the two disagreeing about what "settled" means, which is worse than the shared limit. Fix both
-together, or neither.
-
 ### A dead-space click declines on surfaces that address something other than characters
 
 **Severity:** minor (a click that does nothing, on a narrow set of surfaces)

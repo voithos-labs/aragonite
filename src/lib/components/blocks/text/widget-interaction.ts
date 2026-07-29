@@ -36,6 +36,7 @@ import {
 	type RevealFoldReason
 } from '../../../debug/interaction-trace';
 import { assertInvariant } from '../../../invariants/assert';
+import type { RevealFold } from '../editable-surface';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import {
 	findWidgetNodeByStart,
@@ -111,9 +112,10 @@ export interface WidgetInteraction {
 	commitRevealOnBlur(): void;
 	/** Fold an active reveal before ANY mutation of the block — a clipboard splice, a
 	 *  block command — so the mutation runs against a CST that matches the swapped
-	 *  DOM. Returns the committed caret offset, or null if none was open. `caretAfter`
+	 *  DOM. Null if none was open; otherwise the committed caret and the write's
+	 *  completion, which the caller MUST await before it mutates. `caretAfter`
 	 *  overrides the default trailing-edge landing for a caller that owns the caret. */
-	foldRevealBeforeMutation(caretAfter?: number): number | null;
+	foldRevealBeforeMutation(caretAfter?: number): RevealFold | null;
 	/** While source is revealed, fold when the caret/selection escapes it but
 	 *  stays inside the block (blur owns the focus-leaving fold). */
 	foldRevealIfSelectionEscaped(): void;
@@ -289,7 +291,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function commitReveal(
 		reason: RevealFoldReason = 'commit',
 		caretOverride?: number
-	): number | null {
+	): RevealFold | null {
 		assertFoldTargetsActiveReveal('commitReveal');
 		if (!revealState) return null;
 		// Alias the record before any call: TS drops the null-narrowing of a
@@ -321,16 +323,24 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// focus-guarded, so a blur folds without yanking the caret back.
 		if (editedDisplay === originalDisplay) {
 			deps.setPendingCursor(caretAfter);
-			return caretAfter;
+			return { caret: caretAfter, settled: tick() };
 		}
-		void deps.blockEdit.updateBlockContent(
+		const write = deps.blockEdit.updateBlockContent(
 			deps.index,
 			editedDisplay + trailingLineEnding(deps.node.raw),
 			caretBefore,
 			caretAfter
 		);
 		deps.setPendingCursor(caretAfter, editedDisplay);
-		return caretAfter;
+		return { caret: caretAfter, settled: settleWrite(write) };
+	}
+
+	// "Settled" for every fold caller: the write has landed AND the render it
+	// forced has flushed. The routine (kind-held) content path resolves before any
+	// flush, so the tick is not redundant with the commit's own.
+	async function settleWrite(write: void | Promise<void>): Promise<void> {
+		await write;
+		await tick();
 	}
 
 	// Cancel: discard the ephemeral edit, imperatively rebuilding the original
@@ -475,8 +485,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			if (deps.readRawText() === active.originalDisplay) {
 				foldRevealNoEdit();
 			} else {
-				commitReveal();
-				await tick();
+				await commitReveal()?.settled;
 				if (revealedStart < targetStart) targetStart += deps.node.raw.length - rawBefore;
 			}
 		}
@@ -528,8 +537,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// edited DOM the CST hasn't seen, so mutating there corrupts. Fold first (as
 	// keydown/IME already gate the commit), returning the committed caret so the
 	// caller can land the paste past the widget instead of at offset 0 when the
-	// folded caret sits on an element-level edge.
-	function foldRevealBeforeMutation(caretAfter?: number): number | null {
+	// folded caret sits on an element-level edge, and the write's completion so it
+	// mutates against the landed CST rather than a tick that outlasts the write only
+	// by accident.
+	function foldRevealBeforeMutation(caretAfter?: number): RevealFold | null {
 		if (!revealState) return null;
 		return commitReveal('commit', caretAfter);
 	}
