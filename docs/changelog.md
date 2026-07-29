@@ -772,8 +772,10 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   caret-placing gesture — had never been built by any suite; both were found by reading code, and
   the lint minted from them can only see pointer handlers. The new detour family builds a real
   range, fires one interrupting gesture (dead-space click above prose and above a table, image
-  widget click, reorder-grip press, Escape, find-bar round trip, inline math reveal click, TOC
-  entry click), types one printable key, and asserts the resulting bytes. Each gesture is pinned to
+  widget click, reorder-grip press, Escape, find-bar round trip, inline and render-primary reveal
+  clicks, TOC entry click), types one printable key, and asserts the resulting bytes. The two
+  reveal doors are carried as separate gestures because only one of them owns the reset that was
+  missing, and a probe on the wrong one passes while the bug is live. Each gesture is pinned to
   ONE of two legal outcomes — the range survived and the key replaced it, or the range ended and
   the key landed where the gesture pointed — and the assertion is equality against that one. The
   distinction is the whole design: accepting either outcome would ship green for the exact bug,
