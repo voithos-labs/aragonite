@@ -24,6 +24,7 @@ export default tseslint.config(
 			'perf-results/',
 			'test-results/',
 			'simulation-captures/',
+			'.superpowers/',
 			'tmp/',
 			'static/',
 			'examples/'
