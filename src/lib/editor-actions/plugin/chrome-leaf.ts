@@ -97,7 +97,7 @@ export function registerChromeLeaf<
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a copy starting mid-chrome into the body drops the container wrapper (issues.md)'
+				via: 'byte-slice copy; a slice touching the chrome re-emits the container — a mid-chrome start reopens it around the collected body, a mid-chrome end yields a chrome-only container'
 			},
 			simOracle: {
 				mode: 'implemented',

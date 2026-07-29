@@ -109,7 +109,7 @@ export function registerDetailsKind(): void {
 			},
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a copy starting mid-summary into the body drops the container wrapper (issues.md)'
+				via: 'byte-slice copy; a slice touching the summary re-emits the details — a mid-summary start reopens it around the collected body, a mid-summary end yields a summary-only details'
 			},
 			simOracle: {
 				mode: 'implemented',

@@ -17,7 +17,7 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength, trailingLineEnding } from '../core/lines';
+import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import { charOffsetOf, cellIndexOf } from './primitives';
 import { replaceAtPath } from '../tree-operations/path-mutate';
@@ -38,12 +38,7 @@ import {
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
-import {
-	nearestChromeContainer,
-	isChromeChild,
-	terminateLine,
-	reparseWithFallback
-} from './range-delete-chrome';
+import { nearestChromeContainer, isChromeChild, reparseWithFallback } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

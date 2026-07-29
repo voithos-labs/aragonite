@@ -26,6 +26,16 @@ export function trailingLineEnding(raw: string): '\n' | '\r\n' {
 }
 
 /**
+ * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending
+ * (G4.20). A slice whose last line stays open swallows whatever text follows it
+ * when the bytes stand alone — a delete's surviving head, a clipboard fragment's
+ * container closer.
+ */
+export function terminateLine(text: string, sourceRaw: string): string {
+	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
+}
+
+/**
  * Normalize external text to LF. Paste entry points funnel through here so
  * Windows CRLF doesn't leak into notes and break byte-level cross-platform
  * consistency.

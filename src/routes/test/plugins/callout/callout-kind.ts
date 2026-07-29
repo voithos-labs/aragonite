@@ -133,7 +133,7 @@ export function registerCalloutKind(): void {
 			},
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a copy starting mid-title into the body drops the container wrapper (issues.md)'
+				via: 'byte-slice copy; a slice touching the title re-emits the callout — a mid-title start reopens it around the collected body, a mid-title end yields a title-only callout'
 			},
 			simOracle: {
 				mode: 'implemented',

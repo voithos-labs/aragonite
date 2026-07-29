@@ -13,7 +13,7 @@ import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
-import { displayLength, trailingLineEnding } from '../core/lines';
+import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathsEqual } from './path-math';
 import { replaceAtPath } from '../tree-operations/path-mutate';
@@ -191,11 +191,6 @@ export function lastChildDescendant(container: ChromeContainer, path: number[]):
 		node = children[path[i]];
 	}
 	return node;
-}
-
-/** A truncated slice standing alone mid-document must stay line-terminated. */
-export function terminateLine(text: string, sourceRaw: string): string {
-	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
 }
 
 /**
