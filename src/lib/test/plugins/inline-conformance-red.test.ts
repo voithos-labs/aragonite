@@ -211,18 +211,45 @@ describe('widget reds a claim that cannot stand on its own bytes', () => {
 
 // ── roundTrip ────────────────────────────────────────────────────────────────
 
+// A block's scan range is not always its whole raw — a heading's excludes a closing
+// `#` run, a table cell's excludes its `|`. A rung that reads the string instead of
+// the range swallows those bytes into its widget's source span, and every caret
+// offset after it is off by the difference with nothing moving in the document.
 describe('roundTrip reds a claim that reads past the range the block offered', () => {
-	// A block's scan range is not always its whole raw — a heading's excludes a
-	// closing `#` run, a table cell's excludes its `|`. A rung that searches the
-	// string instead of the range swallows those bytes into its widget's source span,
-	// and every caret offset after it is off by the difference.
-	it('fails when the claim runs past the scan end', () => {
+	/** Registers `@…@` with an `end`-unaware recognizer of the caller's shape. */
+	function registerOverrunningRung(
+		claimEnd: (raw: string, pos: number) => number | null
+	): PluginInlineKind {
 		const kind = declarePluginInlineKind(MARKER);
-		registerInlineSyntax('@', (raw, pos) => ({ kind, start: pos, end: raw.length }));
+		registerInlineSyntax('@', (raw, pos) => {
+			const end = claimEnd(raw, pos);
+			return end === null ? null : { kind, start: pos, end };
+		});
 		registerInlineWidgetKind(kind, {
 			isWidget: () => true,
 			buildWidget: (node) => mintWidgetShell('marker', node),
 			editing: { deleteGranularity: 'atomic' }
+		});
+		return kind;
+	}
+
+	// The grab-to-end shape: it stops at no terminator, so bytes carrying none of the
+	// author's grammar are enough to reach it.
+	it('fails a claim that runs to the end of the string', () => {
+		const kind = registerOverrunningRung((raw) => raw.length);
+		expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).toThrow(
+			/roundTrip: .*reading bytes the block did not offer/s
+		);
+	});
+
+	// The terminator-search shape, and the reason the range is also cut just past an
+	// opener: this rung stops at a real closer, so inert bytes never reach it. Only a
+	// tail carrying the author's OWN grammar puts a closer beyond `end` to find, and
+	// only the straddling cut guarantees an opener sits at the boundary to look from.
+	it('fails a terminator search with no `end` bound', () => {
+		const kind = registerOverrunningRung((raw, pos) => {
+			const close = raw.indexOf('@', pos + 1);
+			return close < 0 || close === pos + 1 ? null : close + 1;
 		});
 		expect(run({ ...markerProfile(kind), fixtures: ['@tag@'] })).toThrow(
 			/roundTrip: .*reading bytes the block did not offer/s

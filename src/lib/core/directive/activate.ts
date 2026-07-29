@@ -8,8 +8,10 @@
  * Call-based, not a module-load side effect: a consumer that never calls this
  * leaves `:::` and `:` unclaimed. Activate at startup, before the editor parses —
  * the opener must land before the grammar-consumed latch trips (G1.17), or an
- * already-parsed document would not re-parse. Every step guards its public probe,
- * so a second activation site (callout + route, or HMR) is a no-op.
+ * already-parsed document would not re-parse. A second activation site (callout +
+ * route, or HMR) is a no-op: every step guards on something the directive tier
+ * itself owns — its kinds, its opener, its inline kind — never on a shared
+ * resource another plugin could be holding.
  */
 
 import { registerDirectiveKinds, registerDirectiveTextKind, DIRECTIVE_TEXT } from './kinds';
@@ -19,11 +21,12 @@ import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
 
 export function activateDirectiveGrammar(): void {
-	// The whole activation is latched on the `directiveText` kind, read before the
-	// steps below declare it. The inline rung has no probe of its own that would do:
-	// `:` is a SHARED trigger (emoji registers on it at its own rung), so asking
-	// whether the trigger is taken answers for someone else's plugin and skips this
-	// recognizer — leaving the tier's kind and widget live with nothing to recognize.
+	// The three steps below each guard on their own registration; the inline rung has
+	// nothing of its own to probe, so it borrows the `directiveText` kind's latch —
+	// read HERE, before `registerDirectiveTextKind` sets it. It cannot ask whether `:`
+	// is taken: the trigger is SHARED (emoji registers on it at its own rung), so that
+	// question answers for someone else's plugin and skips this recognizer, leaving
+	// the tier's kind and widget live with nothing to recognize.
 	const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
 
 	registerDirectiveKinds();

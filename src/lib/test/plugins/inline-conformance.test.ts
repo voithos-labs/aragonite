@@ -144,11 +144,18 @@ describe('the enrolled rungs execute the cells their shape owns', () => {
 		runInlineKindConformance(profile).cells.find((c) => c.cell === cell)!;
 
 	it('drives the offset walk for a rung that builds its own island', () => {
-		expect(cellOf(emojiRung, 'widget').detail).toContain('offset-walk length');
+		const cell = cellOf(emojiRung, 'widget');
+		expect(cell.status).toBe('asserted');
+		expect(cell.detail).toContain('offset-walk length');
 	});
 
-	it('records the island half of a `component` widget as the render layer’s', () => {
-		expect(cellOf(footnoteRung, 'widget').detail).toContain('render layer');
+	// The island of a `component` kind is the editor's, so that half does not run —
+	// and the cell must SAY so. Reporting `asserted` over work it skipped is the
+	// silent skip the coverage vocabulary exists to refuse.
+	it('reports the island half of a `component` widget as a boundary', () => {
+		const cell = cellOf(footnoteRung, 'widget');
+		expect(cell.status).toBe('boundary');
+		expect(cell.detail).toContain('render layer');
 	});
 
 	it('checks the whole-delete bytes for an atomic-delete rung', () => {

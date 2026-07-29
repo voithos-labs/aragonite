@@ -140,6 +140,14 @@ export interface InlineConformanceReport {
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 /**
+ * What a cell's check reports back: a detail line for an executed cell, or an
+ * explicit status for a cell whose mechanism was out of headless reach. A check
+ * that skipped its work must say `boundary` — reporting `asserted` over a path
+ * where nothing ran is the silent skip the whole vocabulary exists to refuse.
+ */
+type CellOutcome = string | { status: 'asserted' | 'boundary'; detail: string };
+
+/**
  * Run every conformance cell for the registered rung the profile names. Resolves
  * with the coverage report when the asserted cells hold and the excused cells carry
  * a reason the kit cannot falsify; throws an `Error` naming every failed cell.
@@ -157,11 +165,16 @@ export function runInlineKindConformance(
 	const runCell = (
 		cell: InlineConformanceCell,
 		coverage: ConformanceCoverage,
-		assertion: () => string
+		assertion: () => CellOutcome
 	) => {
 		try {
 			if (coverage.mode === 'assert') {
-				cells.push({ cell, status: 'asserted', detail: assertion() });
+				const outcome = assertion();
+				cells.push(
+					typeof outcome === 'string'
+						? { cell, status: 'asserted', detail: outcome }
+						: { cell, ...outcome }
+				);
 			} else {
 				assertExemptionDocumented(coverage, `${prefix} ${cell}`);
 				falsifyExcuse(cell, profile, rung);
@@ -173,7 +186,7 @@ export function runInlineKindConformance(
 	};
 
 	runCell('claims', { mode: 'assert' }, () => checkClaimsItsFixtures(profile, rung));
-	runCell('roundTrip', { mode: 'assert' }, () => checkRoundTrip(profile));
+	runCell('roundTrip', { mode: 'assert' }, () => checkRoundTrip(profile, rung));
 	runCell('overlapDecline', profile.overlapDecline, () => checkOverlapDecline(profile, rung));
 	runCell('widget', profile.widget, () => checkWidgetAtomicity(profile, rung));
 	runCell('editingPolicy', profile.editingPolicy, () => checkEditingPolicy(profile, rung));
@@ -271,37 +284,44 @@ function mintedNodes(
 	return out;
 }
 
-/** The one node a fixture is expected to produce, or a failure naming the fixture. */
-function soleMintedNode(
+/**
+ * Every claim in a fixture, or a failure naming it. A fixture may carry more than one
+ * (`see [^a] and [^b]`), and every cell below walks all of them — a check that read
+ * only the first would leave the rest of an author's own fixture unexercised.
+ */
+function claimsIn(
 	fixture: string,
 	profile: InlineConformanceProfile,
 	rung: InlineRung
-): InlineNode {
+): InlineNode[] {
 	const minted = mintedNodes(fixture, profile, rung);
 	assert(
 		minted.length > 0,
 		`fixture ${JSON.stringify(fixture)} is not claimed by the "${rung.prefix}" rung — ` +
 			`the kit would enroll the rung without exercising it`
 	);
-	return minted[0];
+	return minted;
 }
 
 // ── claims ───────────────────────────────────────────────────────────────────
 
 function checkClaimsItsFixtures(profile: InlineConformanceProfile, rung: InlineRung): string {
+	let claims = 0;
 	for (const fixture of profile.fixtures) {
-		const node = soleMintedNode(fixture, profile, rung);
-		assert(node.end > node.start, `the claim over ${JSON.stringify(fixture)} advances`);
-		assert(
-			node.start >= 0 && node.end <= fixture.length,
-			`the claim over ${JSON.stringify(fixture)} stays inside the source`
-		);
-		assert(
-			fixture.startsWith(rung.prefix, node.start),
-			`the claim over ${JSON.stringify(fixture)} starts at the rung's own prefix`
-		);
+		for (const node of claimsIn(fixture, profile, rung)) {
+			assert(node.end > node.start, `the claim over ${JSON.stringify(fixture)} advances`);
+			assert(
+				node.start >= 0 && node.end <= fixture.length,
+				`the claim over ${JSON.stringify(fixture)} stays inside the source`
+			);
+			assert(
+				fixture.startsWith(rung.prefix, node.start),
+				`the claim over ${JSON.stringify(fixture)} starts at the rung's own prefix`
+			);
+			claims++;
+		}
 	}
-	return `${profile.fixtures.length} fixture(s) claimed`;
+	return `${claims} claim(s) across ${profile.fixtures.length} fixture(s)`;
 }
 
 // ── roundTrip ────────────────────────────────────────────────────────────────
@@ -330,16 +350,15 @@ function interleavings(fixture: string, trigger: string): string[] {
 const TAIL_FILLERS = ['z', 'q', 'k'];
 
 /**
- * Bytes standing in for what a block holds past its scan range — a heading's closing
- * `#` run, a table cell's `|`. Derived per rung rather than fixed so the tail can
- * never carry the author's own trigger: a probe about the RANGE must not have its
- * meaning depend on the grammar under test.
+ * Inert bytes past the scan range. Catches the rung that grabs to end-of-string:
+ * carrying none of the author's grammar, it can only be reached by a claim that
+ * stops at no terminator at all.
  */
-function outOfRangeTail(trigger: string): string {
+function inertTail(trigger: string): string {
 	return TAIL_FILLERS.find((c) => c !== trigger)!.repeat(4);
 }
 
-function checkRoundTrip(profile: InlineConformanceProfile): string {
+function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): string {
 	let count = 0;
 	for (const fixture of profile.fixtures) {
 		for (const source of interleavings(fixture, profile.trigger)) {
@@ -350,11 +369,26 @@ function checkRoundTrip(profile: InlineConformanceProfile): string {
 				`serialize(parse(source)) round-trips ${JSON.stringify(withEnding)}`
 			);
 			assertScanTiles(source, source.length);
-			// A block whose scan range stops short of its raw — a heading's content
-			// range excludes a closing `#` run, a table cell's excludes its `|`. A rung
-			// reading past `end` swallows bytes the block needs and the widget's
-			// data-source-* span then covers markup the widget does not stand for.
-			assertScanTiles(source + outOfRangeTail(profile.trigger), source.length);
+
+			// A block whose scan range stops short of its raw — a heading's content range
+			// excludes a closing `#` run, a table cell's excludes its `|`. Bytes past
+			// `end` are invisible to a range-correct rung whatever they spell, since
+			// declining a claim that would exceed `end` IS the contract, so none of these
+			// can red one. Three drives, because the ways to overrun differ:
+			//
+			//   inert tail        — a claim that stops at no terminator at all;
+			//   the fixture       — the author's own grammar past the boundary, which is
+			//                       what a terminator search reaches for;
+			//   opener straddling — the range cut just past a prefix whose closer lies
+			//                       beyond it. Deterministic where the plain fixture tail
+			//                       is not: whether that one presents an unterminated
+			//                       opener at the boundary depends on the author's fixtures.
+			assertScanTiles(source + inertTail(profile.trigger), source.length);
+			assertScanTiles(source + fixture, source.length);
+			assertScanTiles(
+				source + fixture,
+				source.length + Math.min(rung.prefix.length, fixture.length)
+			);
 			count++;
 		}
 	}
@@ -449,7 +483,9 @@ const NO_DOM =
 	'no DOM in this environment — the island half of the widget cell needs one; run this ' +
 	'suite under jsdom/happy-dom (Vitest: a `// @vitest-environment jsdom` docblock)';
 
-function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRung): string {
+const RECOGNITION_HALF = 'recognition + self-delimiting claim';
+
+function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRung): CellOutcome {
 	const kind = profile.kind;
 	assert(
 		kind !== undefined,
@@ -458,25 +494,34 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 	);
 
 	for (const fixture of profile.fixtures) {
-		const node = soleMintedNode(fixture, profile, rung);
-		assert(
-			isInlineWidget(node, fixture),
-			`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
-		);
-		assertSelfDelimiting(fixture, node, kind);
+		for (const node of claimsIn(fixture, profile, rung)) {
+			assert(
+				isInlineWidget(node, fixture),
+				`the "${kind}" node from ${JSON.stringify(fixture)} is a registered live widget`
+			);
+			assertSelfDelimiting(fixture, node, kind);
+		}
 	}
 
+	// Both early exits report BOUNDARY, not asserted: the island contract genuinely
+	// did not run, and a cell that says it passed over work it skipped is the silent
+	// skip this vocabulary exists to refuse.
 	if (getInlineWidgetComponent(kind) !== undefined) {
-		return (
-			'recognition + self-delimiting claim; the island wrapper of a `component` kind is minted ' +
-			'by the render layer, not by the plugin, so it is not the plugin’s to get wrong'
-		);
+		return {
+			status: 'boundary',
+			detail:
+				`${RECOGNITION_HALF} executed; the island wrapper of a \`component\` kind is minted by ` +
+				`the render layer, not by the plugin, so it is not the plugin’s to get wrong`
+		};
 	}
-	if (typeof document === 'undefined') return `recognition + self-delimiting claim — ${NO_DOM}`;
+	if (typeof document === 'undefined') {
+		return { status: 'boundary', detail: `${RECOGNITION_HALF} executed — ${NO_DOM}` };
+	}
 
 	for (const fixture of profile.fixtures) {
-		const node = soleMintedNode(fixture, profile, rung);
-		assertIslandContract(fixture, node, kind);
+		for (const node of claimsIn(fixture, profile, rung)) {
+			assertIslandContract(fixture, node, kind);
+		}
 		assertWalkLengthIsRawLength(fixture);
 	}
 	return 'recognition, self-delimiting claim, island contract, and offset-walk length';
@@ -563,13 +608,17 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung)
 
 	if (policy.deleteGranularity === 'atomic') {
 		for (const fixture of profile.fixtures) {
-			const node = soleMintedNode(fixture, profile, rung);
-			const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
-			assertIs(
-				serialize(parse(excised)),
-				excised,
-				`the one-press whole-delete of ${JSON.stringify(fixture)} leaves bytes that round-trip`
-			);
+			// One press deletes ONE widget, so each claim is excised on its own — a
+			// fixture carrying two produces two independent post-delete documents.
+			for (const node of claimsIn(fixture, profile, rung)) {
+				const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
+				assertIs(
+					serialize(parse(excised)),
+					excised,
+					`the one-press whole-delete of the claim at ${node.start} in ` +
+						`${JSON.stringify(fixture)} leaves bytes that round-trip`
+				);
+			}
 		}
 		return 'policy vocabulary + atomic whole-delete leaves round-tripping bytes';
 	}
