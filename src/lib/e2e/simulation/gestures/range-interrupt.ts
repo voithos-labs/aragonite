@@ -169,9 +169,6 @@ export async function rangeInterrupt(
 		else await commitRevealByEscape(ctx, before);
 	}
 	await settleTypedSource(ctx, predicted);
-	if (landing && landing.focus.path.length > 1) {
-		assertInsertionInsideBlock(ctx, gesture, before, predicted, spans[landing.focus.path[0]]);
-	}
 
 	await assertStructuralIntegrity(ctx);
 	await assertParseConvergence(ctx);
@@ -189,15 +186,17 @@ export async function rangeInterrupt(
  * a fixture that grows an image gains the widget probe without editing a list.
  */
 export async function availableRangeInterrupts(ctx: SimContext): Promise<RangeInterruptGesture[]> {
-	const shape = await ctx.page.evaluate(() => {
-		const doc = (window as any).__test.getDocument();
-		const kinds = doc.children.map((c: { kind: string }) => c.kind as string);
-		return {
-			lastKind: kinds[kinds.length - 1] ?? '',
-			lastRaw: (doc.children[doc.children.length - 1]?.raw ?? '') as string,
-			images: document.querySelectorAll('[data-image-widget]').length
-		};
-	});
+	const [shape, imageOnlyBlock] = await Promise.all([
+		ctx.page.evaluate(() => {
+			const children = (window as any).__test.getDocument().children as {
+				kind: string;
+				raw: string;
+			}[];
+			const last = children[children.length - 1];
+			return { lastKind: last?.kind ?? '', lastRaw: last?.raw ?? '' };
+		}),
+		ctx.page.evaluate(findImageOnlyBlock)
+	]);
 	const available: RangeInterruptGesture[] = ['dead-space-margin', 'drag-handle-press', 'escape'];
 	// The band below the last block clamps onto that block, so the click only lands a
 	// caret when the last block offers a character position: a rule has none, and an
@@ -205,9 +204,21 @@ export async function availableRangeInterrupts(ctx: SimContext): Promise<RangeIn
 	if (PROSE_KINDS.has(shape.lastKind) && !shape.lastRaw.trimStart().startsWith('![')) {
 		available.push('dead-space-below');
 	}
-	if (shape.images > 0) available.push('image-click');
+	// The widget click's prediction replaces the host block WHOLE, which is only what the
+	// editor does when the image is the block's entire content; an image sitting mid-prose
+	// would need a different prediction, so it is not offered rather than guessed at.
+	if (imageOnlyBlock >= 0) available.push('image-click');
 	available.push('search-round-trip');
 	return available;
+}
+
+/**
+ * Index of the first top-level block whose entire content is one image, or -1. Runs
+ * IN THE PAGE (`page.evaluate(findImageOnlyBlock)`), so it closes over nothing.
+ */
+function findImageOnlyBlock(): number {
+	const children = (window as any).__test.getDocument().children as { raw: string }[];
+	return children.findIndex((c) => /^!\[[^\]]*\]\([^)]*\)$/.test(c.raw.trim()));
 }
 
 const PROSE_KINDS = new Set(['paragraph', 'heading', 'setextHeading']);
@@ -301,26 +312,47 @@ async function clickBelowLastBlock(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
+/**
+ * Click the right margin beside the first PROSE block's opening line. The band clamp
+ * resolves to that block, so aiming at prose (rather than at whatever sits first) keeps
+ * the landing top-level, which is the coordinate space every prediction here works in.
+ */
 async function clickInRightMargin(ctx: SimContext): Promise<undefined> {
 	const root = await editorBox(ctx);
-	const top = await ctx.page.evaluate(() => {
-		const block = document.querySelector('[data-block-path]:not([data-block-path*=","])');
-		return (block as HTMLElement).getBoundingClientRect().top;
-	});
+	const index = await firstProseIndex(ctx);
+	const top = await ctx.page.evaluate((i) => {
+		const block = document.querySelector(`[data-block-path='${JSON.stringify([i])}']`);
+		if (!block) throw new Error(`no block host at index ${i}`);
+		return block.getBoundingClientRect().top;
+	}, index);
 	await ctx.page.mouse.click(root.right - 5, top + 6);
 	return undefined;
 }
 
+async function firstProseIndex(ctx: SimContext): Promise<number> {
+	const index = await ctx.page.evaluate(
+		(prose) => {
+			const children = (window as any).__test.getDocument().children as { kind: string }[];
+			return children.findIndex((c) => prose.includes(c.kind));
+		},
+		[...PROSE_KINDS]
+	);
+	if (index < 0) throw new Error(`[${ctx.label}] no top-level prose block to click beside`);
+	return index;
+}
+
+/**
+ * Click the image whose block holds nothing else, and report that block — the unit the
+ * click selects and the keystroke then replaces.
+ */
 async function clickImageWidget(ctx: SimContext): Promise<number> {
-	const widget = ctx.page.locator('[data-image-widget]').first();
+	const index = await ctx.page.evaluate(findImageOnlyBlock);
+	if (index < 0) throw new Error(`[${ctx.label}] no image-only block for the widget click`);
+	const widget = ctx.page
+		.locator(`[data-block-path='${JSON.stringify([index])}']`)
+		.locator('[data-image-widget]')
+		.first();
 	await widget.click();
-	const index = await ctx.page.evaluate(() => {
-		const host = document
-			.querySelector('[data-image-widget]')
-			?.closest('[data-block-path]:not([data-block-path*=","])');
-		return JSON.parse(host?.getAttribute('data-block-path') ?? '[-1]')[0] as number;
-	});
-	if (index < 0) throw new Error(`[${ctx.label}] the image widget has no top-level block host`);
 	return index;
 }
 
@@ -471,29 +503,6 @@ async function commitRevealByBlur(
 	await ctx.editor.bridge.waitForSourceWith((source, prior) => source !== prior, before);
 }
 
-/**
- * A caret that landed inside a container addresses its leaf's raw, a space the
- * top-level spans cannot convert; the exact prediction there is the single-char
- * insertion itself, pinned to the block the caret is in. `probeChar` picks a
- * character absent from the source, so the insertion index is unique.
- */
-function assertInsertionInsideBlock(
-	ctx: SimContext,
-	gesture: RangeInterruptGesture,
-	before: string,
-	after: string,
-	span: BlockSpan
-): void {
-	let at = 0;
-	while (at < before.length && before[at] === after[at]) at++;
-	if (at < span.start || at > span.end) {
-		throw new Error(
-			`[${ctx.label}] ${gesture} typed into a block the caret was not in: byte ${at} is ` +
-				`outside ${JSON.stringify(span)}`
-		);
-	}
-}
-
 // ── Predictions ─────────────────────────────────────────────────────────────
 
 interface BlockSpan {
@@ -530,11 +539,17 @@ function predict(args: PredictArgs): string {
 		}
 		default: {
 			if (!landing) throw new Error(`[${ctx.label}] ${gesture} left no selection to type into`);
-			// A nested landing has no top-level offset; assertInsertionInsideBlock carries
-			// the exact check there, and this fitted prediction keeps the settle honest.
+			// A caret inside a container addresses its LEAF's raw, and a container's raw is
+			// not the concatenation of its children (the markers are stripped), so there is
+			// no offset to convert. Every gesture here is chosen to land top-level; a nested
+			// landing means a fixture moved under the probe, and guessing a prediction for it
+			// would red on a correct editor. Fail loud instead.
 			if (landing.focus.path.length > 1) {
-				const at = spans[landing.focus.path[0]].start;
-				return splice(before, at, at, char);
+				throw new Error(
+					`[${ctx.label}] ${gesture} landed the caret inside a container ` +
+						`(${JSON.stringify(landing.focus.path)}); this family predicts top-level ` +
+						`landings only, so its target block needs re-choosing for this document.`
+				);
 			}
 			const at = absolute(spans, landing.focus);
 			return splice(before, at, at, char);

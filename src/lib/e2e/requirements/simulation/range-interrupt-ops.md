@@ -101,9 +101,14 @@ outcome, deliberately and in one line.
   the range. The one gesture in the family that takes the caret out of the editor
 - dead-space click below a table: declines, so the range survives and the key replaces
   it — today's contract, pinned so the change that lands a caret there is deliberate
-- a caret that lands inside a container addresses its leaf's raw, a space the top-level
-  spans cannot convert; there the exact check is that the single-character insertion
-  falls inside the top-level block the caret is in
+- a caret that lands inside a container addresses its leaf's raw, and a container's raw
+  is not the concatenation of its children, so no offset conversion exists. Every gesture
+  targets a top-level landing; a nested one means a fixture moved under the probe and
+  fails loud, rather than being given a guessed prediction that would red on a correct
+  editor
+- the image gesture is offered only where an image is a block's ENTIRE content, because
+  the whole-block replacement is what the editor does there; an image mid-prose needs a
+  different prediction and is declined rather than guessed at
 
 ## Error cases
 
