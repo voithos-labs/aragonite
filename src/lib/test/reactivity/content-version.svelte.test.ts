@@ -41,6 +41,17 @@ function quoteWith(raw: string): Document['children'][number] {
 	} as Document['children'][number];
 }
 
+// The one metadata array in the model (`cloneMetadata` names it), and its writers
+// set elements in place (tree-operations/table-mutations.ts).
+function tableWithAlignments(): Document['children'][number] {
+	return {
+		kind: 'table',
+		leadingTrivia: '',
+		raw: '| a |\n| --- |\n',
+		metadata: { alignments: ['none'] }
+	} as unknown as Document['children'][number];
+}
+
 function makeDoc(children: Document['children']): Document {
 	return { kind: 'document', prefix: '', children, suffix: '' };
 }
@@ -55,6 +66,10 @@ describe('content version — every byte-carrying move changes it', () => {
 			'metadata (a heading level, not a raw byte of its own)',
 			(doc) => void (doc.children[0].metadata = { level: 3 } as never)
 		],
+		[
+			'a metadata array element written in place (a table alignment)',
+			(doc) => void ((doc.children[2].metadata as { alignments: string[] }).alignments[0] = 'left')
+		],
 		['a container inner prefix', (doc) => void (doc.children[1].innerPrefix = ' ')],
 		['a children splice', (doc) => void doc.children.push(paragraph('added\n'))],
 		['a whole children replacement (the commit publish)', (doc) => void (doc.children = [])],
@@ -63,7 +78,9 @@ describe('content version — every byte-carrying move changes it', () => {
 
 	for (const [name, mutate] of mutations) {
 		it(`changes on ${name}`, () => {
-			const h = setup(() => makeDoc([paragraph('one\n'), quoteWith('two\n')]));
+			const h = setup(() =>
+				makeDoc([paragraph('one\n'), quoteWith('two\n'), tableWithAlignments()])
+			);
 			const before = h.version();
 			mutate(h.doc);
 			flushSync();
