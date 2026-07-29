@@ -108,7 +108,9 @@ test.describe('toc outline: click-to-navigate', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('navigates in reading mode (a navigation click is view-only)', async ({ page }) => {
+	test('navigates in reading mode, placing the selection with no editable target', async ({
+		page
+	}) => {
 		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await expect(page.locator(`[data-block-path='[${target}]']`)).toHaveCount(0);
@@ -117,6 +119,13 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.waitForRenderFlush();
 
 		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		// Reading mode turns contenteditable off, so no block can hold the caret as
+		// activeElement — the native range is the observable that the selection landed,
+		// and it is what makes the navigation's write the same write in both modes.
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [target], offset: 0 },
+			focus: { path: [target], offset: 0 }
+		});
 	});
 
 	// Entries are real `<button>`s: tab-focusable, activating on Enter/Space. Keyboard

@@ -56,10 +56,13 @@ export interface EditorRects {
 	 * resolved `true` means the target is genuinely in view; a target that never
 	 * mounts resolves `false` and leaves no dangling anchor.
 	 *
-	 * A reveal superseded by a later one stops refining and reports honest
+	 * A reveal SUPERSEDED by a later one stops refining and reports honest
 	 * visibility — usually `false`, since the viewport now belongs to the newer
-	 * target. Two navigations racing therefore settle on the newer one instead of
-	 * fighting over the scroll for the rest of the older one's settle.
+	 * target, though `true` when the newer reveal happens to leave this one visible.
+	 * Two navigations racing therefore settle on the newer one instead of fighting
+	 * over the scroll for the rest of the older one's settle. A user gesture during
+	 * the settle is NOT that case: it ends the pin, the refine continues, and the
+	 * boolean keeps meaning what it did before per-call claims existed.
 	 *
 	 * Host-scroll mode drops the anchor half entirely — windowing never activates, so
 	 * there is nothing to hold against and no scrollport of our own to hold it in. The
@@ -78,7 +81,8 @@ export interface EditorRects {
 	 * addresses the document rather than the affordance's own button. Runs the same
 	 * restore road undo and the consumer `setSelection` door use, so a navigation
 	 * and a restore cannot diverge on how a target is resolved, clamped or revealed.
-	 * Resolves true when the caret landed.
+	 * Resolves true when the caret landed AND the target settled into view; the
+	 * caret can land in a target the scroll could not settle, which reports false.
 	 */
 	navigateTo(path: readonly number[]): Promise<boolean>;
 }
@@ -135,9 +139,12 @@ export function createEditorRects(deps: {
 	// block's height. So each tick refines the placement AFTER the flush, when DOM reads
 	// are exact and `scrollIntoView` therefore gets the last word over that pass's coarse
 	// anchor correction, and stops once the target stops moving (shrink done, the anchor
-	// and the refine agree). A superseded claim stops refining at once: the viewport
+	// and the refine agree). A SUPERSEDED claim stops refining at once: the viewport
 	// belongs to the newer reveal, and two settle loops scrolling to different targets
-	// would fight for the rest of this one's window. In a bare harness with no editor
+	// would fight for the rest of this one's window. A claim that merely lost its pin to
+	// a user gesture keeps refining — the reader taking over ends the durable band, not
+	// the reveal they are waiting on, and bailing there would report a target that had
+	// not finished arriving as one that never would. In a bare harness with no editor
 	// root there is no viewport to measure against, so presence is the read.
 	async function settleInView(
 		path: number[],
@@ -149,7 +156,7 @@ export function createEditorRects(deps: {
 		let placedTop: number | null = null;
 		for (let i = 0; i < REVEAL_SETTLE_TICKS; i++) {
 			await tick();
-			if (!claim.isCurrent()) break;
+			if (claim.isSuperseded()) break;
 			const el = deps.getBlockElByPath(path);
 			if (!el) {
 				placedTop = null; // transiently unmounted mid re-slice — keep settling
@@ -205,7 +212,10 @@ export function createEditorRects(deps: {
 			// this re-claims) — the seam that owns strand-resistance for every navigation.
 			const claim = deps.revealAnchor.claim(p, block);
 			await deps.revealPath(p);
-			deps.getBlockElByPath(p)?.scrollIntoView({ block });
+			// Gated: a claim superseded during a long mount wait would otherwise resume
+			// and yank the viewport to its own target once, before the settle's first
+			// tick could bail it.
+			if (!claim.isSuperseded()) deps.getBlockElByPath(p)?.scrollIntoView({ block });
 			const landed = await settleInView(p, block, claim);
 			// 'center' needs exact placement, which the model-based anchor holds only
 			// coarsely (it can lag the DOM by a boundary block); the settle refined it

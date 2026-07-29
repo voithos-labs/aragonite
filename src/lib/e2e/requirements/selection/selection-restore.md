@@ -31,12 +31,22 @@ the scroll the host wrote last.
 - A block whose height settles asynchronously (a diagram, display math, an image decoding
   in) grows after the restore resolved: the scroll position the host wrote afterwards
   survives that measure pass
+- A user gesture (typing, clicking, scrolling) lands while a restore is still settling: the
+  restore keeps settling and its boolean is unaffected. Only a rival claim can change the
+  outcome, and the reader is not one — a host that branches on `false` must not be sent
+  down its fallback by ordinary interaction. Unit-pinned on the settle loop
+  (`test/cursor/editor-rects`), where the two losses of the pin are distinguishable
+  without a browser.
 
 ## Error cases
 
 - Anchor or focus path no longer addresses a block (snapshot taken, then a shorter
   document loaded): resolves `false`, never throws, and performs no side effect —
   no scroll movement, no focus steal, no selection state change
+- A LATER programmatic reveal is issued before the restore settles: that reveal owns the
+  viewport, so the restore stops competing for it and reports honest visibility — usually
+  `false`. **The caret is placed either way**, so this `false` means "the viewport is not
+  where I asked", not "nothing happened"
 
 ## Miss analysis
 
