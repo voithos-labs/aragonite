@@ -44,11 +44,12 @@ import {
  * click to land in a table, `dead-space-below-table` flips from `range` to `caret`
  * here, deliberately and in one line.
  *
- * The build differs by outcome for the same reason: a caret-pinned gesture builds
- * with select-all, where the corruption is a one-char document and maximally far
- * from the prediction; a range-pinned gesture builds a short prose range, because
+ * The build is chosen per gesture on the same reasoning: a caret-pinned gesture
+ * prefers select-all, where the corruption is a one-char document and maximally far
+ * from the prediction; a range-pinned gesture must use a short prose range, because
  * there select-all's prediction WOULD be the one-char document and all
- * discriminating power is lost.
+ * discriminating power is lost. A caret landing at byte 0 of the document is the one
+ * case that overrides the preference — see `escape`.
  */
 
 export type RangeInterruptGesture =
@@ -67,22 +68,30 @@ type Consumes = 'range' | 'caret' | 'block' | 'reveal';
 
 interface GestureSpec {
 	consumes: Consumes;
+	build: 'select-all' | 'prose-range';
 	/** Returns the top-level block index the gesture selected, for `consumes: 'block'`. */
 	act(ctx: SimContext): Promise<number | undefined>;
 }
 
 const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
-	'dead-space-below': { consumes: 'caret', act: clickBelowLastBlock },
+	'dead-space-below': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
 	// Today's contract: a table addresses cells, not characters, so the click declines
 	// and the range it found is the range it leaves. T22 flips this to `caret`.
-	'dead-space-below-table': { consumes: 'range', act: clickBelowLastBlock },
-	'dead-space-margin': { consumes: 'caret', act: clickInRightMargin },
-	'image-click': { consumes: 'block', act: clickImageWidget },
-	'drag-handle-press': { consumes: 'range', act: pressDragHandle },
-	escape: { consumes: 'caret', act: pressEscape },
-	'search-round-trip': { consumes: 'range', act: searchRoundTrip },
-	'inline-reveal-click': { consumes: 'reveal', act: clickInlineMathWidget },
-	'toc-entry-click': { consumes: 'caret', act: clickTocEntry }
+	'dead-space-below-table': { consumes: 'range', build: 'prose-range', act: clickBelowLastBlock },
+	'dead-space-margin': { consumes: 'caret', build: 'select-all', act: clickInRightMargin },
+	'image-click': { consumes: 'block', build: 'select-all', act: clickImageWidget },
+	'drag-handle-press': { consumes: 'range', build: 'prose-range', act: pressDragHandle },
+	// The one caret-pinned gesture on a prose range: Escape collapses to the range's
+	// ANCHOR, and a select-all anchor is byte 0 of the document. Typing there demotes the
+	// first block's kind, which — when the block below is tightly joined — enters the
+	// deferred lazy-continuation class in `docs/issues.md` and reds the convergence
+	// oracle for a reason this probe is not about. A prose-range anchor is interior.
+	escape: { consumes: 'caret', build: 'prose-range', act: pressEscape },
+	'search-round-trip': { consumes: 'range', build: 'prose-range', act: searchRoundTrip },
+	'inline-reveal-click': { consumes: 'reveal', build: 'select-all', act: clickInlineMathWidget },
+	// Navigation lands at the heading's offset 0, so the fixture keeps a blank line under
+	// that heading — the same lazy-continuation class Escape avoids by its build.
+	'toc-entry-click': { consumes: 'caret', build: 'select-all', act: clickTocEntry }
 };
 
 /** Union-derived manifest: a gesture cannot join the family without a spec or a probe. */
@@ -105,7 +114,7 @@ export async function rangeInterrupt(
 
 	await g.pause();
 	const range =
-		spec.consumes === 'range' ? await buildProseRange(ctx, g) : await buildSelectAll(ctx, g);
+		spec.build === 'prose-range' ? await buildProseRange(ctx, g) : await buildSelectAll(ctx, g);
 
 	const consumedBlock = await spec.act(ctx);
 	await ctx.editor.waitForRenderFlush();

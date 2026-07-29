@@ -119,9 +119,20 @@ split (blank before every successor) double-counts the deliberate `pressEnter`+`
 thematic-break cadence and broadens para→heading spacing. So this needs its own design pass
 with gesture re-choreography, decided against the merge/undo paths that read those bytes.
 
+**Second instance — a kind DEMOTION does not reflow the block below it.** Typing any character
+at raw offset 0 of a heading demotes it to a paragraph; when the block below was tightly joined
+(no blank-line separator, which is how a typed `heading`→`paragraph` cadence leaves it), that
+neighbour is now a lazy continuation of the demoted block and a reload shows one paragraph
+where the live tree holds two. Same class, a different producer: the split path mints a missing
+separator, this one invalidates an existing tight join by changing a kind. A fix would have to
+rescan forward from a block whose kind changed, which is the same design pass.
+
 **Why deferred:** byte round-trip holds and the live session is self-consistent; the
-divergence needs a save→reload boundary to observe. Not reachable by the current simulation
-notes (they type para→heading and list-exit→paragraph, not Enter-at-end-then-paragraph).
+divergence needs a save→reload boundary to observe. The simulation reaches the class as of the
+range-interrupt family (`e2e/simulation/gestures/range-interrupt.ts`) — a caret landing at
+offset 0 of a tightly-followed heading reds the parse-convergence oracle — so that family
+places its caret-pinned landings at interior offsets rather than manufacturing this class
+under a probe that is testing something else.
 
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 
