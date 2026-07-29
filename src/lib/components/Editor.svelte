@@ -1091,10 +1091,13 @@
 	// belongs to the host's page, where a growing entry reflows like any other content
 	// change and the editor has no business writing an ancestor's scroll position.
 	//
-	// A reveal in flight outranks this correction, and the delta is not the way to
-	// express it: the anchor's absolute position is derived from the list's live offset
-	// within the scroll content, which already includes the header's new height, so
-	// adding the delta on top double-counts it. Defer to that one writer instead.
+	// A reveal already HOLDING the scroll position outranks this correction, and the
+	// delta is not the way to express it: the anchor's absolute position is derived from
+	// the list's live offset within the scroll content, which already includes the
+	// header's new height, so adding the delta on top double-counts it. Ask rather than
+	// re-place — a claim the anchor is not holding (a `'nearest'` reveal of a block that
+	// was already in view scrolls nothing, and keeps its claim) still wants exactly this
+	// compensation, and re-placing it would scroll a reader who asked for nothing.
 	$effect(() => {
 		const el = headerEl;
 		const scrollEl = editorEl;
@@ -1109,7 +1112,7 @@
 			const delta = height - lastHeight;
 			lastHeight = height;
 			if (delta === 0 || scrollEl.scrollTop === 0) return;
-			if (!topWindowing.reassertReveal()) scrollEl.scrollTop += delta;
+			if (!topWindowing.revealHoldsScroll()) scrollEl.scrollTop += delta;
 		});
 		observer.observe(el);
 		return () => observer.disconnect();

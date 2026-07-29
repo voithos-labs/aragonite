@@ -92,13 +92,23 @@ export interface ListWindowing {
 	 *  O(1)-gate against the recorded height and re-measure (anchor-corrected) only on a
 	 *  genuine post-mount change, so the no-op mount resize on a fling costs no DOM read. */
 	measureChildOnResize(id: string, observedHeight: number): void;
-	/** Re-place the active reveal target and report whether it owned the write. The
-	 *  door for ANY other writer that would otherwise add a relative delta to the same
-	 *  scrollTop: while a reveal is in flight it derives an absolute position from live
-	 *  geometry, so a header that just changed height is already in it and a delta on
-	 *  top double-counts. Root scope only — a nested scope has no reveal target
-	 *  (`use-container-windowing`'s single-claimant wiring) and always answers false. */
-	reassertReveal(): boolean;
+	/**
+	 * True when the scroll position IS the active reveal target's requested placement —
+	 * the anchor's absolute write is in force. Asked by any other writer that would
+	 * otherwise add a relative delta to the same scrollTop: the anchor derives that
+	 * position from live geometry, so whatever moved is already in the number and a
+	 * delta on top double-counts it.
+	 *
+	 * A question, never a write. Answering by RE-PLACING would make the asker a
+	 * placement trigger: a `'nearest'` reveal of an already-visible block scrolls
+	 * nothing yet still holds its claim, and re-placing that would drag the reader to
+	 * the top pin on a resize they only wanted compensated. False here means "the
+	 * anchor is not holding this position" — including a claim it never placed and one
+	 * the browser clamped — and the relative correction stays correct in every such
+	 * case. Root scope only: a nested scope has no reveal target
+	 * (`use-container-windowing`'s single-claimant wiring) and always answers false.
+	 */
+	revealHoldsScroll(): boolean;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	revealChild(index: number): Promise<void>;
 	/** True iff `index` is in the CURRENT mounted window `[start, end)` (inactive ⇒ all
@@ -200,11 +210,13 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	 * can be in flight, and the structural one carried no reveal branch at all —
 	 * its rebuild dropped the pin.
 	 */
-	function placeRevealTarget(): boolean {
+	/** The scrollTop that puts the active reveal target at the placement it asked for,
+	 *  or null when no reveal is in flight (or its geometry isn't readable yet). */
+	function revealTargetScrollTop(): number | null {
 		const scrollEl = deps.getScrollEl();
 		const listEl = deps.getListEl();
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !scrollEl || !listEl) return false;
+		if (reveal == null || reveal.index >= model.size || !scrollEl || !listEl) return null;
 
 		const targetTop =
 			listTopWithinContent(scrollEl, listEl) + model.offsetOf(reveal.index) + reveal.innerOffset;
@@ -214,10 +226,16 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		// listEl geometry mid-mutate — pre-flush and collapsing — and would center off a
 		// transiently-tiny viewport. Model reads (offsetOf/heightOf) stay synchronous.
 		const targetHeight = reveal.height ?? model.heightOf(reveal.index);
-		scrollEl.scrollTop =
-			reveal.block === 'center'
-				? targetTop - Math.max(0, (scrollEl.clientHeight - targetHeight) / 2)
-				: targetTop;
+		return reveal.block === 'center'
+			? targetTop - Math.max(0, (scrollEl.clientHeight - targetHeight) / 2)
+			: targetTop;
+	}
+
+	function placeRevealTarget(): boolean {
+		const targetScrollTop = revealTargetScrollTop();
+		const scrollEl = deps.getScrollEl();
+		if (targetScrollTop === null || !scrollEl) return false;
+		scrollEl.scrollTop = targetScrollTop;
 		// A programmatic scrollTop write fires no `scroll` event, so the window's
 		// derived scrollTop would stay stale and never re-slice — leaving the target
 		// windowed OUT at the very position we just scrolled it to (revealChild syncs
@@ -479,8 +497,17 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		measureChildOnResize(id, observedHeight) {
 			if (shouldRemeasureOnResize(deps.oracle.measured(id), observedHeight)) measureOne(id);
 		},
-		reassertReveal() {
-			return placeRevealTarget();
+		revealHoldsScroll() {
+			const targetScrollTop = revealTargetScrollTop();
+			const scrollEl = deps.getScrollEl();
+			// Sub-pixel: the settle's own refinement lands within a fraction of a device
+			// pixel of the model-derived position, and a strict compare would read that
+			// as "not holding" and re-admit the delta.
+			return (
+				targetScrollTop !== null &&
+				!!scrollEl &&
+				Math.abs(scrollEl.scrollTop - targetScrollTop) <= 1
+			);
 		},
 		async revealChild(index) {
 			// A clamped-out body child can never mount — no scroll can reveal it, so

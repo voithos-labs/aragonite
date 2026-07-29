@@ -4,7 +4,7 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
-- **A reveal in flight is the only writer of the scroll position.** The reveal anchor re-asserts an
+- **A reveal HOLDING the scroll position is its only writer.** The reveal anchor re-asserts an
   ABSOLUTE position derived from the list's live offset within the scroll content, which already
   includes the header slot's current height; the slot's own resize observer adds a RELATIVE delta.
   Each is right on its own and they produce the same number — but for one resize, in that order,
@@ -13,9 +13,14 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   the scroll, that shift mounts a block, and the mount's measure pass re-asserts the anchor, which
   puts it back — so the landing is usually correct and the defect was invisible to every arm that
   measured where the target came to rest. It is invisible, not absent: the corrector runs only when
-  the slide happens to mount something. The observer now re-places through the anchor rather than
-  adding a delta, and its regression arm watches the writes rather than the resting place — once
-  one write has put the target where the reveal asked, no later write may take it away.
+  the slide happens to mount something. The observer now ASKS whether the anchor is holding the
+  position and skips its delta when it is. Asking, not re-placing, is the load-bearing half: a
+  `'nearest'` reveal of a block that was already in view scrolls nothing and still holds its claim,
+  so a writer that deferred by re-placing would drag that reader to the top pin on a resize they
+  only wanted compensated — which windowing hides, since a windowed document re-asserts on every
+  measure pass and the target is already at the pin. The regression arms watch the writes rather
+  than the resting place: once one write has put the target where the reveal asked, no later write
+  may take it away, and a claim the anchor is not holding still gets its compensation.
 
 - **A drag reaching the edge of the screen scrolls the page.** The autoscroll edge math compares
   the pointer against a scrollport's rect, and asked "what scrolls this editor" through a walk
