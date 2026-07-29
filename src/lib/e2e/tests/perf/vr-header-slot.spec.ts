@@ -2,7 +2,13 @@ import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
-import { FIXTURE_BYTES, progressiveScrollTo, spacerCount, topVisibleHostTop } from './vr-helpers';
+import {
+	FIXTURE_BYTES,
+	progressiveScrollTo,
+	spacerCount,
+	topVisibleHostTop,
+	UNWINDOWED_PROSE
+} from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // The `header` slot: host chrome mounted INSIDE the editor's scroll container,
@@ -18,9 +24,6 @@ const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
 // Enough to window several screens deep without paying the headline gate's
 // multi-MB load in every scroll case.
 const WINDOWED_BYTES = 500_000;
-const PROSE = Array.from({ length: 60 }, (_, i) => `Paragraph ${i} of the header fixture.`).join(
-	'\n\n'
-);
 
 const headerEl = (page: Page) => page.locator('[data-testid="harness-header"]');
 
@@ -50,7 +53,7 @@ test('the header mounts beside the block list, above the first block, and scroll
 	await expect(page.locator('.editor-header')).toHaveCount(0);
 
 	await editor.goto('?header=on');
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 
 	// Sibling, never a wrapper: the windowing scope resolves its list as a DIRECT
 	// child of the root (`:scope > .block-list`), which a wrapping header breaks.
@@ -126,7 +129,7 @@ test('a header height change while scrolled deep holds the first visible block i
 test('at the top of the document a header height change pushes content down', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 
 	const before = (await editor.getBlock(0).boundingBox())!;
 	await toggleHeaderHeight(editor); // 80 → 240
@@ -158,7 +161,7 @@ test('scrollTo lands block 0 in view with a header mounted', async ({ page }) =>
 test('a plain click on a link in the header follows it', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 
 	// Host chrome is not document content: the editor's modifier-click link policy
 	// (plain click edits, Mod-click activates) stops at the slot boundary. Without
@@ -172,7 +175,7 @@ test('a plain click on a link in the header follows it', async ({ page }) => {
 test('a text field in the header keeps its own Find chord', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 	const focusedTestId = () =>
 		page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
 
@@ -197,7 +200,7 @@ test('a text field in the header keeps its own Find chord', async ({ page }) => 
 test('a caret in the header is not reported as the document caret', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 	const caretRect = () =>
 		page.evaluate(() => (window as any).__test.rects.caretRect() as DOMRect | null);
 
@@ -217,7 +220,7 @@ test('a caret in the header is not reported as the document caret', async ({ pag
 test('switching to reading mode leaves a focused header field focused', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 
 	// Reading mode drops the editor's own caret — it has no business dropping the
 	// host's, which a mode toggle would do mid-edit.
@@ -233,7 +236,7 @@ test('switching to reading mode leaves a focused header field focused', async ({
 test('the find bar overlays the header at the top of the document', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = await gotoWithHeader(page);
-	await editor.loadContent(`${PROSE}\n`);
+	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 	await editor.focusBlockEnd(0);
 	await page.keyboard.press(`${primaryModifier}+f`);
 	await expect(page.locator('.search-bar')).toHaveCount(1);

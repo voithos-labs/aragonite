@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { progressiveScrollTo } from './vr-helpers';
+import { progressiveScrollTo, UNWINDOWED_PROSE } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Two writers of one scrollTop, colliding on purpose. The reveal anchor re-asserts an
@@ -172,10 +172,6 @@ test('a header resize while a landed reveal still holds its pin does not double-
 // so the target is already at the pin whenever the header resizes and the distinction is
 // invisible. With windowing inactive nothing re-asserts, and the header resize would be
 // the only re-placement trigger there is.
-const UNWINDOWED_PROSE = Array.from(
-	{ length: 60 },
-	(_, i) => `Paragraph ${i} of the header fixture.`
-).join('\n\n');
 
 test('a header resize compensates rather than re-places a reveal the anchor is not holding', async ({
 	page

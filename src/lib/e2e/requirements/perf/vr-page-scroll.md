@@ -7,8 +7,10 @@ this editor" gets no element for an answer, which is the axis this fixture exist
 exercise.
 
 Fixture: `/test/page-scroll` — one 160-block entry in host mode, 400px of filler above
-and below, and a zero-height `<img>` above the entry whose `src` the spec sets to give
-it an intrinsic size (the image-decode stall, on demand).
+and below, and two late-sizing growers of identical size for the anchoring arms (see
+`vr-page-scroll-anchor.md`): a document image block held at zero height by
+`imageLoadPolicy="placeholder"`, and a zero-height `<img>` outside the entry. Both gain
+their intrinsic size on demand from `window.__pageScroll`.
 
 ## Happy paths
 

@@ -26,9 +26,18 @@ const oracle: HeightOracle = {
 	clear: () => {}
 };
 
-function stubScrollEl(height: number) {
+/** `maxScrollTop` models the browser's own clamp, which a plain property cannot: a
+ *  scroll position past the content's end is silently refused, so a target beyond it is
+ *  one the anchor can never actually be holding. */
+function stubScrollEl(height: number, maxScrollTop = Infinity) {
+	let scrollTop = 0;
 	return {
-		scrollTop: 0,
+		get scrollTop() {
+			return scrollTop;
+		},
+		set scrollTop(v: number) {
+			scrollTop = Math.max(0, Math.min(v, maxScrollTop));
+		},
 		clientHeight: height,
 		clientWidth: 800,
 		getBoundingClientRect: () => ({ top: 0, height }),
@@ -39,13 +48,15 @@ function stubScrollEl(height: number) {
 
 /** The list scrolls WITH the content, so its viewport top moves by -scrollTop —
  *  without that, `listTopWithinContent` reads the scroll offset twice and the two
- *  anchor rules coincide in the stub while diverging in a browser. */
-function stubListEl(height: number, scrollEl: HTMLElement) {
+ *  anchor rules coincide in the stub while diverging in a browser. `headerHeight` is
+ *  content ABOVE the list inside the same scrollport (the header slot), which is what
+ *  `listTopWithinContent` resolves to. */
+function stubListEl(height: number, scrollEl: HTMLElement, headerHeight = 0) {
 	return {
 		scrollTop: 0,
 		clientHeight: height,
 		clientWidth: 800,
-		getBoundingClientRect: () => ({ top: -scrollEl.scrollTop, height }),
+		getBoundingClientRect: () => ({ top: headerHeight - scrollEl.scrollTop, height }),
 		addEventListener: () => {},
 		removeEventListener: () => {}
 	} as unknown as HTMLElement;
@@ -169,4 +180,89 @@ describe('list-windowing reveal anchor', () => {
 			cleanup();
 		});
 	}
+});
+
+// `revealHoldsScroll` is what a SECOND writer of the same scrollTop asks before adding a
+// relative delta. It is not "is a claim live" — that question is answerable `true` over a
+// target the anchor is not holding, and a writer that trusted it would re-place the reader
+// instead of compensating them. It is exactly "would `placeRevealTarget()` be a no-op
+// right now": same formula, and a ResizeObserver callback runs after layout, so whatever
+// just resized is already inside the number both sides compute.
+//
+// Every row below is deterministic here and two of them are unreachable from the e2e
+// harness — the observer never won the race in any trace, and the clamped case needs a
+// document shorter than its own reveal target. That gap is what let an authority-based
+// first fix ship green.
+describe('revealHoldsScroll — the orderings a second writer can land in', () => {
+	const HEADER_BEFORE = 80;
+	const HEADER_AFTER = 240;
+	const DELTA = HEADER_AFTER - HEADER_BEFORE;
+	// Offsets: b0@0 b1@10 b2@30 b3@60 b4@100 b5@150. The target is b4.
+	const TARGET_OFFSET = 100;
+	const HELD = HEADER_AFTER + TARGET_OFFSET;
+
+	function mount(maxScrollTop = Infinity) {
+		const children = [0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`));
+		const ids = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5'];
+		const scrollEl = stubScrollEl(500, maxScrollTop);
+		// Post-resize layout: the callback that asks this question runs after the header
+		// has already grown, so the taller header is what the predicate measures against.
+		const listEl = stubListEl(200, scrollEl, HEADER_AFTER);
+		let revealTarget: RevealAnchorPlacement | null = null;
+		const { windowing, cleanup } = mountScope(children, ids, scrollEl, listEl, () => revealTarget);
+		return {
+			windowing,
+			cleanup,
+			scrollEl,
+			claim: (t: RevealAnchorPlacement | null) => (revealTarget = t)
+		};
+	}
+
+	it('answers true only where the target already sits at its placement', () => {
+		const { windowing, cleanup, scrollEl, claim } = mount();
+		claim(topLevel(4));
+		scrollEl.scrollTop = HELD;
+		expect(windowing.revealHoldsScroll()).toBe(true);
+		cleanup();
+	});
+
+	it('answers false when the observer runs first, and the delta then lands on the target', () => {
+		const { windowing, cleanup, scrollEl, claim } = mount();
+		claim(topLevel(4));
+		// The anchor last placed against the SHORT header and has not re-placed yet.
+		scrollEl.scrollTop = HEADER_BEFORE + TARGET_OFFSET;
+		expect(windowing.revealHoldsScroll()).toBe(false);
+		// Which is the whole reason `false` is safe: the relative correction the caller
+		// falls back to is not merely harmless here, it is exact.
+		scrollEl.scrollTop += DELTA;
+		expect(scrollEl.scrollTop).toBe(HELD);
+		expect(windowing.revealHoldsScroll()).toBe(true);
+		cleanup();
+	});
+
+	it('answers false for a claim the anchor never placed', () => {
+		const { windowing, cleanup, scrollEl, claim } = mount();
+		// A `'nearest'` reveal of an already-visible block scrolls nothing, so the claim
+		// rides a target sitting mid-viewport rather than at its pin.
+		scrollEl.scrollTop = HELD - 263;
+		claim(topLevel(4));
+		expect(windowing.revealHoldsScroll()).toBe(false);
+		cleanup();
+	});
+
+	it('answers false when the placement is clamped beyond the scroll range', () => {
+		const { windowing, cleanup, scrollEl, claim } = mount(HELD - 40);
+		claim(topLevel(4));
+		scrollEl.scrollTop = HELD; // refused by the clamp
+		expect(scrollEl.scrollTop).toBe(HELD - 40);
+		expect(windowing.revealHoldsScroll()).toBe(false);
+		cleanup();
+	});
+
+	it('answers false with no reveal in flight', () => {
+		const { windowing, cleanup, scrollEl } = mount();
+		scrollEl.scrollTop = HELD;
+		expect(windowing.revealHoldsScroll()).toBe(false);
+		cleanup();
+	});
 });

@@ -9,6 +9,19 @@ import { EditorPage } from '../../editor-page';
 
 export const FIXTURE_BYTES = 2_000_000;
 
+/**
+ * A document that SCROLLS but does not window — its estimated total sits under the
+ * activation watermark, so every block mounts and no measure pass recurs after the
+ * first. The other branch of a hysteresis gate, and the one where two writers of one
+ * scrollTop stop agreeing: with windowing active the reveal anchor re-asserts on every
+ * measure pass, which makes a writer that re-places indistinguishable from one that
+ * compensates.
+ */
+export const UNWINDOWED_PROSE = Array.from(
+	{ length: 60 },
+	(_, i) => `Paragraph ${i} of the header fixture.`
+).join('\n\n');
+
 // ── Preconditions & counts ──────────────────────────────────────────
 
 export function cstBlockCount(page: Page): Promise<number> {
