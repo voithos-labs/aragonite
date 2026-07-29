@@ -99,8 +99,12 @@ const mathRung: InlineConformanceProfile = {
 describe('every bundled inline rung passes the conformance kit', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
-		activateDirectiveGrammar();
+		// Emoji BEFORE the directive activation on purpose: `:` is a shared trigger, and
+		// this is the order that used to leave the directive tier's recognizer
+		// unregistered. Enrolling the tier under it makes its `registration` cell a live
+		// guard rather than a restatement of the order that always worked.
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
+		activateDirectiveGrammar();
 	});
 
 	it.each([
@@ -128,8 +132,12 @@ describe('every bundled inline rung passes the conformance kit', () => {
 describe('the enrolled rungs execute the cells their shape owns', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
-		activateDirectiveGrammar();
+		// Emoji BEFORE the directive activation on purpose: `:` is a shared trigger, and
+		// this is the order that used to leave the directive tier's recognizer
+		// unregistered. Enrolling the tier under it makes its `registration` cell a live
+		// guard rather than a restatement of the order that always worked.
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
+		activateDirectiveGrammar();
 	});
 
 	const cellOf = (profile: InlineConformanceProfile, cell: string) =>

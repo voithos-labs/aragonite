@@ -327,9 +327,17 @@ function interleavings(fixture: string, trigger: string): string[] {
 	];
 }
 
-/** A tail the bounded scan must not read into — a heading's closing run, a table
- *  cell's `|`. The bytes are prose so no grammar reaches for them on their own. */
-const OUT_OF_RANGE_TAIL = ' tail';
+const TAIL_FILLERS = ['z', 'q', 'k'];
+
+/**
+ * Bytes standing in for what a block holds past its scan range — a heading's closing
+ * `#` run, a table cell's `|`. Derived per rung rather than fixed so the tail can
+ * never carry the author's own trigger: a probe about the RANGE must not have its
+ * meaning depend on the grammar under test.
+ */
+function outOfRangeTail(trigger: string): string {
+	return TAIL_FILLERS.find((c) => c !== trigger)!.repeat(4);
+}
 
 function checkRoundTrip(profile: InlineConformanceProfile): string {
 	let count = 0;
@@ -346,7 +354,7 @@ function checkRoundTrip(profile: InlineConformanceProfile): string {
 			// range excludes a closing `#` run, a table cell's excludes its `|`. A rung
 			// reading past `end` swallows bytes the block needs and the widget's
 			// data-source-* span then covers markup the widget does not stand for.
-			assertScanTiles(source + OUT_OF_RANGE_TAIL, source.length);
+			assertScanTiles(source + outOfRangeTail(profile.trigger), source.length);
 			count++;
 		}
 	}
