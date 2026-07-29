@@ -13,8 +13,8 @@
  * take the SCRIPT-scrollable predicate — an overlay must re-measure inside a
  * clipping box a user cannot wheel.
  *
- * Out of the editor (the host-scroll seam): `nearestUserScrollableAncestor`
- * answers autoscroll, `clippingAncestors` answers visibility.
+ * Out of the editor (the host-scroll seam): `userScrollportFor` answers autoscroll,
+ * `clippingAncestors` answers visibility.
  *
  * Not every walk in the codebase lives here yet: `selection/drag-pointer.ts` keeps
  * its own inner walk over the user-scrollable predicate. Sharing that predicate is
@@ -55,12 +55,22 @@ export function nearestScrollContainer(el: HTMLElement, stopAt: HTMLElement): HT
 	return null;
 }
 
+/** What a drag can autoscroll: an element, or the page's own viewport. */
+export type UserScrollport = HTMLElement | Window;
+
 /**
- * The ancestor a drag can autoscroll to bring more of `el` into reach, or null
- * when the page's own viewport is the scrollport. Used in host-scroll mode, where
- * the editor root no longer scrolls itself.
+ * What a drag autoscrolls to bring more of `el` into reach — the nearest
+ * user-scrollable ancestor, or the window when the page's own viewport is the
+ * scrollport. Used in host-scroll mode, where the editor root no longer scrolls
+ * itself.
+ *
+ * Total on purpose. It answered `null` for the page-scrolled case, which every
+ * caller spelled as an empty target list, so a journal shell that scrolled with its
+ * page had no autoscroll at all. `document.scrollingElement` is NOT the substitute
+ * an element-only answer wants: its rect is the document box, so a pointer at the
+ * bottom of the screen is nowhere near its bottom edge.
  */
-export function nearestUserScrollableAncestor(el: HTMLElement): HTMLElement | null {
+export function userScrollportFor(el: HTMLElement): UserScrollport {
 	let cur: HTMLElement | null = el.parentElement;
 	while (cur && !isPageBox(cur)) {
 		const cs = getComputedStyle(cur);
@@ -69,7 +79,7 @@ export function nearestUserScrollableAncestor(el: HTMLElement): HTMLElement | nu
 		}
 		cur = cur.parentElement;
 	}
-	return null;
+	return window;
 }
 
 /**

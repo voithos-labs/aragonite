@@ -4,6 +4,7 @@
  * after the pointer leaves the originating block.
  */
 
+import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
@@ -16,7 +17,9 @@ import { blockAtPoint } from './block-hit-test';
 
 export interface DragContext {
 	editorRoot: HTMLElement;
-	scrollContainer: HTMLElement;
+	/** What autoscrolls this drag — an element, or the window when the page's own
+	 *  viewport is the scrollport (`cursor/scroll-ancestors`). */
+	scrollContainer: UserScrollport;
 	selection: SelectionState;
 	getBlockElByPath: BlockElLookup;
 	/** Aborted on editor unmount; forwarded to the session's teardown. */
@@ -90,7 +93,7 @@ export function installDragListener(
 		},
 		autoScroll: {
 			getTargets: (clientX, clientY) => {
-				const targets: HTMLElement[] = [ctx.scrollContainer];
+				const targets: UserScrollport[] = [ctx.scrollContainer];
 				const t = document.elementFromPoint(clientX, clientY);
 				if (t instanceof HTMLElement) {
 					const inner = scrollableSelfOrAncestor(t);

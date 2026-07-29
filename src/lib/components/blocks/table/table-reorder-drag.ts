@@ -17,6 +17,7 @@
  * never reports a drag, so the grip's affordance menu still opens.
  */
 
+import type { UserScrollport } from '../../../cursor/scroll-ancestors';
 import { rowDropIndex, columnDropIndex } from './table-drop-target';
 import { createPointerDragSession, type PointerPosition } from '../../../selection/pointer-session';
 
@@ -27,7 +28,9 @@ const DRAG_THRESHOLD_PX = 4;
 
 /** Members every reorder-axis context shares; the row/column contexts extend it. */
 interface AxisReorderDragContext<TLine> {
-	getScrollContainer(): HTMLElement | null;
+	/** What the row/column drag autoscrolls to mount off-window rows: the editor's
+	 *  scrollport, which in host mode may be an ancestor or the window. */
+	getScrollContainer(): UserScrollport | null;
 	setLine(line: TLine | null): void;
 	/** Marks the gesture a drag (not a click) so the grip's menu stays closed. */
 	onDragRecognized(): void;

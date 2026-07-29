@@ -1,15 +1,42 @@
 /**
  * Pointer-edge autoscroll RAF loop, shared between cross-block drag and
  * intra-table drag. Caller supplies the live pointer and the list of scroll
- * targets to evaluate each frame; the loop scrolls any target whose rect is
+ * targets to evaluate each frame; the loop scrolls any target whose scrollport is
  * within `threshold` of the current pointer.
+ *
+ * A target may be the window (`cursor/scroll-ancestors`), and it answers the two
+ * halves from different places on purpose: the scrollport to measure is the
+ * viewport, while the box to write is `document.scrollingElement`. Substituting the
+ * scrolling element for both puts the document's own box — thousands of pixels tall
+ * — into the edge math, where the pointer never reaches an edge.
  */
+import type { UserScrollport } from '../cursor/scroll-ancestors';
 
 const DEFAULT_THRESHOLD = 30;
 
+/** The four edges the pointer is compared against. `getBoundingClientRect()` is one. */
+interface EdgeBox {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+}
+
+function scrollportOf(target: UserScrollport): EdgeBox {
+	if (target !== window) return (target as HTMLElement).getBoundingClientRect();
+	// clientWidth/clientHeight, not innerWidth/innerHeight: the viewport without its
+	// scrollbars, which is the box the pointer's edge band belongs to.
+	const doc = document.documentElement;
+	return { left: 0, top: 0, right: doc.clientWidth, bottom: doc.clientHeight };
+}
+
+function scrollerOf(target: UserScrollport): Element | null {
+	return target === window ? document.scrollingElement : (target as HTMLElement);
+}
+
 export interface AutoScrollDeps {
 	getPointer: () => { clientX: number; clientY: number } | null;
-	getTargets: (clientX: number, clientY: number) => HTMLElement[];
+	getTargets: (clientX: number, clientY: number) => UserScrollport[];
 	onScrolled?: () => void;
 	threshold?: number;
 	/**
@@ -30,16 +57,16 @@ export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
 	const axis = deps.axis ?? 'both';
 	let rafId: number | null = null;
 
-	function dxFor(rect: DOMRect, x: number): number {
+	function dxFor(port: EdgeBox, x: number): number {
 		if (axis === 'vertical') return 0;
-		if (x < rect.left + threshold) return -((rect.left + threshold - x) / 2);
-		if (x > rect.right - threshold) return (x - (rect.right - threshold)) / 2;
+		if (x < port.left + threshold) return -((port.left + threshold - x) / 2);
+		if (x > port.right - threshold) return (x - (port.right - threshold)) / 2;
 		return 0;
 	}
-	function dyFor(rect: DOMRect, y: number): number {
+	function dyFor(port: EdgeBox, y: number): number {
 		if (axis === 'horizontal') return 0;
-		if (y < rect.top + threshold) return -((rect.top + threshold - y) / 2);
-		if (y > rect.bottom - threshold) return (y - (rect.bottom - threshold)) / 2;
+		if (y < port.top + threshold) return -((port.top + threshold - y) / 2);
+		if (y > port.bottom - threshold) return (y - (port.bottom - threshold)) / 2;
 		return 0;
 	}
 
@@ -51,21 +78,23 @@ export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
 		}
 		let scrolled = false;
 		for (const t of deps.getTargets(p.clientX, p.clientY)) {
-			const rect = t.getBoundingClientRect();
-			const dx = dxFor(rect, p.clientX);
-			const dy = dyFor(rect, p.clientY);
+			const port = scrollportOf(t);
+			const dx = dxFor(port, p.clientX);
+			const dy = dyFor(port, p.clientY);
+			const scroller = scrollerOf(t);
+			if (!scroller) continue;
 			// Count only motion that actually moved the target: a target already at
 			// its scroll limit ignores the write, and marking it scrolled would spin
 			// the rAF loop while the pointer sits pinned in the edge band.
 			if (dx !== 0) {
-				const before = t.scrollLeft;
-				t.scrollLeft += dx;
-				if (t.scrollLeft !== before) scrolled = true;
+				const before = scroller.scrollLeft;
+				scroller.scrollLeft += dx;
+				if (scroller.scrollLeft !== before) scrolled = true;
 			}
 			if (dy !== 0) {
-				const before = t.scrollTop;
-				t.scrollTop += dy;
-				if (t.scrollTop !== before) scrolled = true;
+				const before = scroller.scrollTop;
+				scroller.scrollTop += dy;
+				if (scroller.scrollTop !== before) scrolled = true;
 			}
 		}
 		if (!scrolled) {
@@ -81,8 +110,8 @@ export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
 		const p = deps.getPointer();
 		if (!p) return;
 		const inAnyThreshold = deps.getTargets(p.clientX, p.clientY).some((t) => {
-			const rect = t.getBoundingClientRect();
-			return dxFor(rect, p.clientX) !== 0 || dyFor(rect, p.clientY) !== 0;
+			const port = scrollportOf(t);
+			return dxFor(port, p.clientX) !== 0 || dyFor(port, p.clientY) !== 0;
 		});
 		if (!inAnyThreshold) return;
 		rafId = requestAnimationFrame(step);

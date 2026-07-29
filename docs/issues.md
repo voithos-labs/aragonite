@@ -477,14 +477,16 @@ everywhere else, so the fix wants its own measured pass rather than a rider on t
 ### Reveal scrolls a hidden ancestor that a drag deliberately will not
 
 **Severity:** minor (two seams answer the same geometry question differently, on purpose)
-**Files:** `src/lib/cursor/scroll-ancestors.ts` (`nearestUserScrollableAncestor` excludes `hidden`;
-the clipping walk includes it)
+**Files:** `src/lib/cursor/scroll-ancestors.ts` (`userScrollportFor` excludes `hidden`; the
+clipping walk includes it)
 
 A fixed-height `overflow: hidden` ancestor is script-scrollable: `scrollIntoView` moves it, and
 reveal genuinely brings the block into view there — so `scrollTo` reporting `true` is honest. Drag
 autoscroll declines the same box, by convention rather than capability: a user cannot wheel a
-hidden box back, so a drag that scrolled it would strand content out of reach. The consequence for
-a host whose only bounding box is `hidden` is programmatic navigation without drag autoscroll.
+hidden box back, so a drag that scrolled it would strand content out of reach. It walks past it
+instead, to whatever scrolls outside — an outer scroller, else the page — so the consequence is
+narrow: a drag reaches an off-screen destination only as far as the boxes OUTSIDE the hidden one
+can carry it, and where none of them scrolls, the reveal path is the only way in.
 
 **Fix direction:** none wanted unless a real embedding asks. If it needs closing, the move is to
 let a drag scroll a hidden box only while the pointer is held — the window in which the user can
@@ -492,29 +494,6 @@ still undo the strand — rather than widening the predicate.
 
 **Why deferred:** a deliberate divergence, stated at the seam and in the consumer guide's host-CSS
 contract. Recorded so the next reader of that predicate does not "fix" the asymmetry.
-
-### A window-scrolled host embedding has no drag autoscroll
-
-**Severity:** minor (a drag toward the edge does nothing; reveal and keyboard reorder unaffected)
-**Files:** `src/lib/cursor/scroll-ancestors.ts` (the user-scrollable walk returns null when the
-page's own viewport is what scrolls), `src/lib/components/Editor.svelte` (the memoized resolution
-the four autoscroll consumers share)
-
-With `scrollMode='host'` and nothing scrollable between the editor and the document — the page
-itself scrolls — the autoscroll target list is empty, so dragging a block toward the edge of the
-screen scrolls nothing and cannot reach an off-screen destination. Reveal is unaffected: it falls
-back to the window viewport correctly.
-
-`document.scrollingElement` is the obvious target and the wrong one — its rect is the document
-box, not the viewport, so feeding it to the rect-based edge math misfires.
-
-**Fix direction:** a window-scrolled arm in the edge math that measures against the viewport rect
-and scrolls the window, rather than a target element. It wants a page-scrolled harness variant,
-which also pins the window-viewport term of the reveal intersection — one fixture closes both.
-
-**Why deferred:** strictly narrower than the state it replaced (autoscroll was dead in every host
-embedding before the scroll-host seam landed), and the fixture it needs is a route shape the flow
-harness does not have.
 
 ### A header resize landing inside a reveal double-applies its delta
 

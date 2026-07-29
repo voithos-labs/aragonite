@@ -9,6 +9,7 @@
  * off-window (spacer-region) targeting is a separate layer.
  */
 
+import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { ReorderAction } from './reorder-action';
 import { createPointerDragSession } from '../selection/pointer-session';
 import { readBlockPath } from '../selection/path-lookup';
@@ -21,9 +22,9 @@ export interface ReorderDragOverlay {
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
 	/** What autoscrolls when the drag reaches an edge: the root in self mode, the
-	 *  host's scroller in host mode (where the root doesn't scroll), null when
-	 *  nothing does. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
-	getScrollHost: () => HTMLElement | null;
+	 *  host's scroller in host mode (where the root doesn't scroll), the window when
+	 *  the page scrolls. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
+	getScrollHost: () => UserScrollport | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
 	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
