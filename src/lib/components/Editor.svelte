@@ -1090,6 +1090,11 @@
 	// expected reading, so nothing compensates there. Inert in host mode: that scroll
 	// belongs to the host's page, where a growing entry reflows like any other content
 	// change and the editor has no business writing an ancestor's scroll position.
+	//
+	// A reveal in flight outranks this correction, and the delta is not the way to
+	// express it: the anchor's absolute position is derived from the list's live offset
+	// within the scroll content, which already includes the header's new height, so
+	// adding the delta on top double-counts it. Defer to that one writer instead.
 	$effect(() => {
 		const el = headerEl;
 		const scrollEl = editorEl;
@@ -1103,7 +1108,8 @@
 			const height = box ? box.blockSize : el.getBoundingClientRect().height;
 			const delta = height - lastHeight;
 			lastHeight = height;
-			if (delta !== 0 && scrollEl.scrollTop > 0) scrollEl.scrollTop += delta;
+			if (delta === 0 || scrollEl.scrollTop === 0) return;
+			if (!topWindowing.reassertReveal()) scrollEl.scrollTop += delta;
 		});
 		observer.observe(el);
 		return () => observer.disconnect();

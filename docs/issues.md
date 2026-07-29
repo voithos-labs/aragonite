@@ -495,31 +495,6 @@ still undo the strand — rather than widening the predicate.
 **Why deferred:** a deliberate divergence, stated at the seam and in the consumer guide's host-CSS
 contract. Recorded so the next reader of that predicate does not "fix" the asymmetry.
 
-### A header resize landing inside a reveal double-applies its delta
-
-**Severity:** minor (the reveal lands off by the height change; no corruption, and the next scroll
-settles it)
-**Files:** `src/lib/components/Editor.svelte` (the header-slot resize observer — a **relative**
-`scrollTop += delta` write), `src/lib/reactivity/list-windowing.svelte.ts` (the reveal anchor's
-re-assert — an **absolute** `scrollTop` write)
-
-The two writers disagree about what they are correcting. The reveal anchor re-asserts an absolute
-scroll position derived from the list's live offset within the scroll content, a measure that
-already includes the header's current height. The header observer adds a relative delta. A header
-resize firing after a re-assert in the same frame therefore adds the delta on top of a position
-that already accounts for it, and the revealed block lands off by that much.
-
-**Repro:** not constructed. Needs a reveal in flight plus a header height change inside the same
-frame — set a `scrollTo` target, resize the slot in the same tick, assert the target's screen
-position.
-
-**Fix direction:** one writer, or an ordering. The header correction is only meaningful when no
-absolute write is pending, so the anchor's in-flight state is the natural gate; folding the header
-delta into the absolute recomputation the anchor already performs is the other shape.
-
-**Why deferred:** the frame ordering _is_ the defect, so a fix without a repro is a claim. Both
-writes are individually pinned; only their collision is not.
-
 ## Code structure
 
 ### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
