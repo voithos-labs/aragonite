@@ -4,6 +4,22 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Reading mode's line is bytes, not interactivity.** The standing product question was whether
+  reading mode should permit a curated set of edits (a live task checkbox, GitHub-style). The
+  answer is no — the mode writes no bytes, and that is now a contract rather than a v1
+  limitation. What the question was really about is a reader who cannot open a collapsed
+  `<details>` to read it, and that need never required an edit: the disclosure now flips VIEW
+  state there. The source stays byte-identical, no `edit` event fires, nothing reaches the undo
+  stack, and the flip is dropped on leaving the mode, where the document's own `open` is the only
+  truth again. A task checkbox stays inert precisely because toggling one WOULD rewrite the
+  document — the line is what an affordance writes, not whether it responds. Two halves make it
+  real rather than cosmetic: the reading handler is closed over a module with no commit door in
+  its dependencies, so that path cannot commit rather than declining to; and the EFFECTIVE state
+  feeds the container's collapse dep, so a transiently-opened section genuinely mounts and
+  measures its body instead of painting an open caret over an unmounted subtree. The collapse
+  cross-check gains its one carve-out, scoped to reading alone, since that is the only mode where
+  a view running ahead of the document is legitimate.
+
 - **The theme reaches content the editor does not style.** A stylesheet retheme everything the
   editor paints, which is why the theme had no seam beyond CSS — but an engine that emits markup
   carrying color literals is outside that reach: a drawn Mermaid SVG cannot be rethemed, only

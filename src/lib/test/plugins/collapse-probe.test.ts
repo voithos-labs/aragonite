@@ -75,7 +75,8 @@ describe('composeCollapseProbe', () => {
 
 		const probe = composeCollapseProbe(
 			() => false,
-			() => node
+			() => node,
+			() => 'source'
 		); // explicit disagrees
 
 		expect(probe()).toBe(false); // the explicit dep still wins the value
@@ -83,6 +84,47 @@ describe('composeCollapseProbe', () => {
 		expect(warnSpy.mock.calls[0][0]).toMatch(/plugin-container/);
 		expect(warnSpy.mock.calls[0][0]).toMatch(/disagrees/);
 		expect(warnSpy.mock.calls[0][0]).toMatch(/collapse-probe-container/);
+		warnSpy.mockRestore();
+	});
+
+	// Reading mode is the ONE place a view/document divergence is legitimate: a reader
+	// may open a collapsed container transiently, and that flip writes no bytes by
+	// construction. The cross-check has to allow it, or the affordance dev-warns on
+	// every read for as long as the reader leaves the section open.
+	it('allows a reading-mode view divergence without warning', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false });
+		const kind = registerCollapsible();
+		const node = containerNode(kind, false); // the document says collapsed
+
+		const probe = composeCollapseProbe(
+			() => false, // the reader transiently opened it
+			() => node,
+			() => 'reading'
+		);
+
+		expect(probe()).toBe(false);
+		expect(warnSpy).not.toHaveBeenCalled();
+		warnSpy.mockRestore();
+	});
+
+	// The carve-out is scoped to reading, not to "any mode with a getter": the live
+	// preview modes edit, so a divergence there is still the half-collapsed hybrid the
+	// cross-check exists to catch.
+	it('still warns in a live preview mode', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false });
+		const kind = registerCollapsible();
+		const node = containerNode(kind, false);
+
+		const probe = composeCollapseProbe(
+			() => false,
+			() => node,
+			() => 'preview-block'
+		);
+
+		expect(probe()).toBe(false);
+		expect(warnSpy).toHaveBeenCalledTimes(1);
 		warnSpy.mockRestore();
 	});
 });
