@@ -30,6 +30,13 @@ parallelize.
   undo restores the source byte-exact
 - seed-gated block merge: Backspace at the second block's start merges into (or exits)
   the first, the structural sweep holds, and the trailing undo restores byte-exact
+- seed-gated range interrupt: a live cross-block range is interrupted by one gesture
+  (dead-space click, reorder-grip press, Escape, find-bar round trip, image click — the
+  set is read off the live document, so a note without an image never draws that one),
+  then a single printable key must land on the outcome that gesture is pinned to. The
+  trailing undo restores byte-exact. Contracts and predictions live in
+  `range-interrupt-ops.md`; here the seed varies which gesture meets which mid-session
+  tree
 - isolation under parallelism: independent pages and rng instances per seed produce
   the same asserted source whether run serially or concurrently
 

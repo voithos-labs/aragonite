@@ -82,6 +82,7 @@ import {
 	typeOverSelection
 } from './gestures/cross-block';
 import { mergeBackspaceAtStart } from './gestures/merge';
+import { type RangeInterruptGesture, rangeInterrupt } from './gestures/range-interrupt';
 import {
 	backspaceThroughWidgetIsland,
 	edgeDeleteReplaceIsland,
@@ -542,6 +543,18 @@ export class Gestures {
 	 */
 	mergeBackspaceAtStart(targetPath: number[]): Promise<void> {
 		return mergeBackspaceAtStart(this.ctx, targetPath);
+	}
+
+	// ── Range interrupt ───────────────────────────────────────────────────────────
+
+	/**
+	 * Build a live cross-block range, fire `gesture` over it, type one printable key,
+	 * and assert the bytes against the outcome that gesture is pinned to — the
+	 * precondition that hid two whole-document losses. Nets to identity via a trailing
+	 * undo. See `gestures/range-interrupt.ts` for the outcome vocabulary.
+	 */
+	rangeInterrupt(gesture: RangeInterruptGesture): Promise<void> {
+		return rangeInterrupt(this.ctx, this, gesture);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────

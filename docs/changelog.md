@@ -767,6 +767,24 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   carries the range the paste was aimed at where there is one, and is **omitted** otherwise, rather
   than reporting `[]` — a path that would address the document root, which holds no caret.
 
+- **The simulation now treats select-all → gesture → keystroke as a first-class corruption probe.**
+  The precondition behind two whole-document losses — a live cross-block range in front of a
+  caret-placing gesture — had never been built by any suite; both were found by reading code, and
+  the lint minted from them can only see pointer handlers. The new detour family builds a real
+  range, fires one interrupting gesture (dead-space click above prose and above a table, image
+  widget click, reorder-grip press, Escape, find-bar round trip, inline math reveal click, TOC
+  entry click), types one printable key, and asserts the resulting bytes. Each gesture is pinned to
+  ONE of two legal outcomes — the range survived and the key replaced it, or the range ended and
+  the key landed where the gesture pointed — and the assertion is equality against that one. The
+  distinction is the whole design: accepting either outcome would ship green for the exact bug,
+  because a neutered reset makes the corrupt output identical to the outcome the gesture was not
+  pinned to, and reading the answer back off the live-range flag self-confirms for the same reason.
+  Contracts come from observing each gesture, not from the lint's classification, so the probes
+  cross-check it instead of mirroring it; a TOC entry lands its caret through the navigation API
+  rather than any pointer door, which that perimeter cannot see at all. Every gesture has a
+  deterministic probe keyed by the gesture union, and the family also rides two note sessions and
+  the multi-seed fuzz, where the seed picks which gesture meets which mid-session tree.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).
