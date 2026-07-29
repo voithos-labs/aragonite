@@ -783,27 +783,30 @@ grammar-threading gap.
 **Why deferred:** fold into the post-1.0 container editable-flag / opaque-write work (see
 "Container shim hardcodes the component `editable` flag").
 
-### Cross-block copy STARTING mid-chrome loses the container wrapper
+### A copy endpoint inside a NESTED container's body loses that container's wrapper
 
-**Severity:** minor (clipboard fidelity; container kind lost on paste)
+**Severity:** minor (clipboard fidelity; the inner container's kind flattens to prose on paste)
 **Files:** `src/lib/selection/clipboard-text.ts` (`collectCrossBlockText`)
 
-The closer-synthesis fix covers a copy whose END lands mid-chrome (title/summary): it
-synthesizes a chrome-only container and reparses to the same kind with an empty body. The
-mirror direction — a copy that STARTS mid-chrome and extends into the body (and possibly past
-the container) — is a distinct class the synthetic-chrome-only design cannot serve. The chrome
-tail emits wrapper-less and the selected body is collected flat, so no opener or closer wraps
-it. Repro: `collectCrossBlockText` from `:::note Ti|tle` into the body below yields
-`"tle\nBody1\n\nBody2\n\nBel"`, which reparses to three bare paragraphs — the `note` kind gone.
+The collection walk skips endpoint ancestors, so a container holding an endpoint never emits its
+own syntax. Four seams recover the shapes that matter: `promoteToContainer` (an endpoint at a
+full boundary takes the whole container), `soleChildContainerPrefix` (a strip container's sole
+child keeps its per-line marker), and the reserved-chrome pair (an END mid-chrome synthesizes a
+chrome-only container; a START mid-chrome reopens the container around the collected body and
+closes it where the walk leaves its subtree). What none covers is an endpoint landing inside a
+nested container that has body siblings. Repro: in `::::note Outer` holding `:::note Inner`, a
+copy from mid-`Outer`-title to mid-`I1` collects the inner's chrome and body bytes flat, so the
+inner reparses as prose inside the (correctly re-emitted) outer. Same shape start-side: a start
+inside a non-chrome body child emits no opener for the container it sits in, so a partial
+blockquote with two children loses its `>` prefixes.
 
-**Fix direction:** a chrome-only synthetic node is semantically wrong here (empty body would
-strand the selected body as top-level blocks after the container). Faithful bytes need the
-chrome tail emitted as the container opener AND a synthesized closer injected where the walk
-exits the container — a `collectCrossBlockText` structural change (container-exit tracking),
-not the bounded closer-synthesis the END case uses.
+**Fix direction:** generalize the chrome-start wrapper into endpoint-ancestor reconstruction.
+Every container strictly between the LCA and an endpoint re-emits its own wrapper (opener plus
+closer for `opaque`, per-line prefix for `strip`) around the fragment it holds, innermost first,
+so nesting depth stops being the thing that decides whether structure survives a copy.
 
-**Why deferred:** the END direction is the shipped, reachable-today gesture. Fold the START
-direction into the post-1.0 clipboard/hook generalization with the container-exit walk change.
+**Why deferred:** the reachable-today gestures (a single container, either endpoint) all round-
+trip. Fold the general case into the post-1.0 clipboard/hook generalization.
 
 ### Container components re-export the component surface member-by-member
 

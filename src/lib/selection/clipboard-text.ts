@@ -3,15 +3,15 @@
  */
 
 import type { SelectionPoint } from './primitives';
-import { makeBlockNode, metadataOf } from '../core/nodes';
+import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
-import { isStrictAncestorOf, pathsEqual, sharedPrefixLength } from './path-math';
+import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';
 import { cellRowCol } from '../cursor/coordinate-spaces';
-import { displayLength } from '../core/lines';
+import { displayLength, terminateLine } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
 import { isReservedChromeChild } from '../schema/reserved-chrome';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -30,6 +30,10 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
  * Leaf endpoints at full-boundary offsets promote to their deepest non-shared
  * container ancestor so structural formatting (list markers, blockquote
  * prefixes) is preserved.
+ *
+ * A start inside a container's reserved chrome buffers what the walk collects
+ * from inside that container and re-emits the container around it once, so the
+ * copy keeps its kind instead of flattening to a chrome tail plus a bare body.
  */
 export function collectCrossBlockText(
 	doc: DocumentView,
@@ -60,7 +64,8 @@ export function collectCrossBlockText(
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
 	let effectiveStartPath = start.path;
-	let startTail: string;
+	let chromeStart: ChromeStartContainer | null = null;
+	let startTail = '';
 	if (isBlockNode(startNode) && startNode.kind === 'table') {
 		const tableNode = startNode;
 		const colCount = metadataOf(tableNode, 'table').columnCount;
@@ -81,8 +86,13 @@ export function collectCrossBlockText(
 				startTail = startRaw.slice(startOffset);
 			}
 		} else if (startOffset > 0 && start.path.length > 1) {
-			const marker = soleChildContainerPrefix(doc, start.path, startRaw);
-			startTail = (marker ?? '') + startRaw.slice(startOffset);
+			// A chrome start emits nothing here: its wrapper needs the body it
+			// encloses, which only the walk below knows.
+			chromeStart = startChromeContainer(doc, start, startRaw, startOffset);
+			if (!chromeStart) {
+				const marker = soleChildContainerPrefix(doc, start.path, startRaw);
+				startTail = (marker ?? '') + startRaw.slice(startOffset);
+			}
 		} else {
 			startTail = startRaw.slice(startOffset);
 		}
@@ -116,6 +126,7 @@ export function collectCrossBlockText(
 	}
 
 	let middle = '';
+	let chromeBody = '';
 	const collectedContainers: number[][] = [];
 
 	for (const path of walkBetween(doc, effectiveStartPath, effectiveEndPath)) {
@@ -128,7 +139,11 @@ export function collectCrossBlockText(
 
 		const node = nodeAt(doc, path);
 		if (!node || !isBlockNode(node)) continue;
-		middle += node.leadingTrivia + node.raw;
+		if (chromeStart && pathHasPrefix(path, chromeStart.path)) {
+			chromeBody += node.leadingTrivia + node.raw;
+		} else {
+			middle += node.leadingTrivia + node.raw;
+		}
 
 		if (node.children && node.children.length > 0) {
 			collectedContainers.push(path);
@@ -142,6 +157,19 @@ export function collectCrossBlockText(
 		if (endNode && isBlockNode(endNode)) {
 			endLead = endNode.leadingTrivia;
 		}
+	}
+
+	if (chromeStart) {
+		// The container's subtree is one contiguous doc-order run, so an end inside it
+		// leaves `middle` empty and puts the end's own bytes inside the wrapper too.
+		const exited = !pathHasPrefix(effectiveEndPath, chromeStart.path);
+		const tail = endLead + endHead;
+		const wrapped = wrapChromeStartContainer(
+			chromeStart,
+			exited ? chromeBody : chromeBody + tail,
+			exited
+		);
+		return exited ? wrapped + middle + tail : wrapped;
 	}
 
 	return startTail + middle + endLead + endHead;
@@ -251,6 +279,92 @@ function endChromeContainerBytes(
 		]
 	});
 	rebuildRaw(synthetic);
+	return synthetic.raw;
+}
+
+interface ChromeStartContainer {
+	path: number[];
+	node: NodeView;
+	/** The chrome leaf from the start offset on — the truncated title/summary. */
+	chromeTail: string;
+	rebuildRaw: (node: CstNode) => void;
+}
+
+/**
+ * The container a copy STARTS inside the chrome of, when re-emitting its wrapper
+ * around the collected body is the faithful answer; null when it isn't.
+ *
+ * Gated on the `'opaque'` contract, not merely on the chrome declaration: an
+ * opaque container's syntax is an opener line plus a closer, so a truncated
+ * chrome is exactly an opener and the kind's rebuildRaw supplies the matching
+ * close. A `'strip'` container's syntax is a per-line prefix with nothing to
+ * close — `soleChildContainerPrefix` is that family's seam — and `'grid'`
+ * containers have no chrome and ride the table arm.
+ */
+function startChromeContainer(
+	doc: DocumentView,
+	start: SelectionPoint,
+	startRaw: string,
+	startOffset: number
+): ChromeStartContainer | null {
+	const containerPath = start.path.slice(0, -1);
+	const container = nodeAt(doc, containerPath);
+	if (!container || !isBlockNode(container)) return null;
+	if (!isReservedChromeChild(container, start.path[start.path.length - 1])) return null;
+
+	const descriptor = getBlockKindDescriptor(container.kind);
+	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
+	return {
+		path: containerPath,
+		node: container,
+		chromeTail: startRaw.slice(startOffset),
+		rebuildRaw: descriptor.rebuildRaw
+	};
+}
+
+/**
+ * Re-emit the container around `body` — the bytes the walk collected from inside
+ * it — with the truncated chrome back in the opener line. ONE rebuildRaw call
+ * over the real body, which is what makes the closer trustworthy: a directive
+ * fence widens when its body reproduces the terminator, and deriving opener and
+ * closer in the same call means they cannot disagree about the width. A closer
+ * emitted separately where the walk exits would have to re-derive it.
+ *
+ * `exited` means the walk left the container's subtree, i.e. its body was
+ * captured to the end — only then does the container's trailing inner trivia
+ * belong to the copy. Without that trivia a body stopping mid-line would run
+ * into the closer, so the slice is line-terminated instead.
+ *
+ * Metadata is shallow-copied for the reason `endChromeContainerBytes` copies it:
+ * rebuildRaw is plugin code, and nothing on this node may alias the live tree.
+ */
+function wrapChromeStartContainer(
+	start: ChromeStartContainer,
+	body: string,
+	exited: boolean
+): string {
+	const { node } = start;
+	const innerSuffix = exited ? (node.innerSuffix ?? '') : '';
+	const synthetic = makeBlockNode({
+		kind: node.kind,
+		leadingTrivia: '',
+		// The live raw, so the rebuild reads the authored closer line ending (G4.20).
+		raw: node.raw,
+		metadata: node.metadata ? cloneMetadata(node.metadata) : undefined,
+		innerPrefix: node.innerPrefix ?? '',
+		innerSuffix,
+		children: [
+			makeBlockNode({ kind: node.children![0].kind, leadingTrivia: '', raw: start.chromeTail }),
+			// One stand-in for the whole collected body: a rebuild serializes its
+			// children's bytes, so the kind is immaterial and only the bytes travel.
+			makeBlockNode({
+				kind: 'paragraph',
+				leadingTrivia: '',
+				raw: innerSuffix === '' && body !== '' ? terminateLine(body, node.raw) : body
+			})
+		]
+	});
+	start.rebuildRaw(synthetic);
 	return synthetic.raw;
 }
 
