@@ -255,6 +255,19 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 			/roundTrip: .*reading bytes the block did not offer/s
 		);
 	});
+
+	// The same overrun behind a fixture that carries prose before its claim. The cut
+	// has to LOCATE the opener rather than assume it at offset 0, or the range ends
+	// inside the leading prose and no rung is consulted at the boundary at all.
+	it('fails a terminator search behind a fixture with leading prose', () => {
+		const kind = registerOverrunningRung((raw, pos) => {
+			const close = raw.indexOf('@', pos + 1);
+			return close < 0 || close === pos + 1 ? null : close + 1;
+		});
+		expect(run({ ...markerProfile(kind), fixtures: ['ab @tag@ cd'] })).toThrow(
+			/roundTrip: .*reading bytes the block did not offer/s
+		);
+	});
 });
 
 // ── editingPolicy ────────────────────────────────────────────────────────────
