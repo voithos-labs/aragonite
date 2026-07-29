@@ -32,9 +32,9 @@ export type SelectionChangeEvent = EditorSelection | null;
 
 export interface EditorError {
 	/**
-	 * `clipboard` is a paste that consumed the gesture and inserted nothing —
-	 * the channel a host needs to release an asset `onPasteImage` already
-	 * imported for it.
+	 * `clipboard` is a failure on the paste route — a paste that consumed the
+	 * gesture and inserted nothing, or a host import hook that threw. The channel
+	 * a host needs to release an asset `onPasteImage` already imported for it.
 	 */
 	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard';
 	error: unknown;
@@ -42,7 +42,8 @@ export interface EditorError {
 	 * Origin-specific context: block path for render, op kind + event path for
 	 * commit, the block kind + command id (+ owning plugin, when recorded) for a
 	 * contained plugin block-command throw, the source name for a decoration
-	 * provide that threw, and the range start path for a declined clipboard paste.
+	 * provide that threw, and — when the paste was aimed at a range — its start
+	 * path for a clipboard failure.
 	 */
 	context?: {
 		path?: number[];
@@ -121,7 +122,11 @@ export function createEditorEvents(): EditorEvents {
 	return { on, emit };
 }
 
-// ── Command-error routing ──────────────────────────────────────────────────
+// ── Contained-failure routing ──────────────────────────────────────────────
+//
+// One envelope minter per origin that has more than one emission site. They live
+// here, not in the layers that decline, so the shell that owns the channel owns
+// the payload shape too.
 
 /**
  * Route a contained command throw to the `error` channel as an `origin: 'command'`
@@ -135,23 +140,6 @@ export function createEditorEvents(): EditorEvents {
  * that owner wins; a block command reports its `kind`, and the owner is resolved
  * by kind lookup. The direct `plugin` therefore never gets clobbered by a lookup.
  */
-/**
- * Announce a paste that consumed the gesture and inserted nothing. Both paste
- * entry paths — the cross-block route and the editor-root fallback — reach the
- * channel here, beside the command router, for the same reason: the envelope
- * lives with the shell that owns the channel, not with each declining branch.
- */
-export function emitClipboardDecline(
-	events: EditorEvents,
-	report: { path: number[]; message: string }
-): void {
-	events.emit('error', {
-		origin: 'clipboard',
-		error: new Error(report.message),
-		context: { path: report.path }
-	});
-}
-
 export function emitCommandError(
 	events: EditorEvents | undefined,
 	report: { kind?: AnyBlockKind; command: string; plugin?: string; error: unknown }
@@ -165,5 +153,27 @@ export function emitCommandError(
 			plugin:
 				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
 		}
+	});
+}
+
+/**
+ * Route a contained failure on the clipboard route to the `error` channel as an
+ * `origin: 'clipboard'` event. Two shapes reach it, and a host reads both for the
+ * same purpose — deciding whether an asset it imported for `onPasteImage` is now
+ * orphaned: a paste that consumed the gesture and inserted nothing, and a host
+ * import hook that threw while the rest of the paste still landed.
+ *
+ * `path` addresses the range the paste was aimed at and is OMITTED where there is
+ * none to name — an absent field is honest, while `[]` would report the document
+ * root, which holds no caret.
+ */
+export function emitClipboardError(
+	events: EditorEvents,
+	report: { error: unknown; path?: number[] }
+): void {
+	events.emit('error', {
+		origin: 'clipboard',
+		error: report.error,
+		...(report.path ? { context: { path: report.path } } : {})
 	});
 }

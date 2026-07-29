@@ -21,7 +21,7 @@ import { claimsBodyChord } from '../active-editor';
 import type { DocumentGetter, PasteImageHook } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
-import { emitClipboardDecline, type EditorEvents } from '../editor-events';
+import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { createImagePasteArm } from './paste-image-arm';
 import {
 	writeCrossBlockCopy,
@@ -104,6 +104,13 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 	 * straight to the cross-block arm discarded it for want of any `text/plain`.
 	 */
 	async function paste(event: ClipboardEvent): Promise<void> {
+		// Read the range NOW, synchronously with the event, while `claims` still
+		// guarantees a cross-block selection. Below the hook's await the only way to
+		// reach the decline is a selection that collapsed meanwhile, so a read there
+		// could only ever report nothing — the same read-before-the-collapse discipline
+		// the cross-block route states, applied to a seam that awaits a host instead of
+		// a delete.
+		const rangeStartPath = deps.selection.start?.path.slice();
 		const images = imageArm.filesOf(event.clipboardData);
 		if (images.length === 0) {
 			await deps.crossBlock.handlePaste(event);
@@ -115,12 +122,14 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		event.preventDefault();
 		const markdown = await imageArm.run(event, images);
 		if (markdown === null) return;
-		// `claims` required a cross-block selection, but the hook is awaited: a selection
-		// collapsed while the import was in flight leaves the root with an imported asset
-		// and no caret to put it at — the one landing this seam cannot supply.
-		emitClipboardDecline(deps.events, {
-			path: deps.selection.start?.path.slice() ?? [],
-			message: 'imported image had no insertion point at the editor root; nothing inserted'
+		// The selection collapsed while the import was in flight, leaving the root with
+		// an imported asset and no caret to put it at — the one landing this seam cannot
+		// supply, since it has no block surface to fall back to.
+		emitClipboardError(deps.events, {
+			error: new Error(
+				'imported image had no insertion point at the editor root; nothing inserted'
+			),
+			...(rangeStartPath ? { path: rangeStartPath } : {})
 		});
 	}
 }

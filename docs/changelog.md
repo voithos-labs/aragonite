@@ -598,6 +598,20 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   the surface skeleton states, so the browser's native paste cannot fire during an import and
   inject DOM the CST never sees.
 
+- **Every clipboard-route failure reports under `origin: 'clipboard'`, including the two that used
+  to say `command`.** Minting the new origin for the cross-block decline left the image arm's own
+  two failures — a host hook that threw, and an import that resolved after its block was gone —
+  filed under `command`, where a host filtering for the new origin would miss them. Since surfaces
+  are where most pastes land, that was the more commonly hit pair, which made the new origin unable
+  to do the one job it was minted for: telling a host that an asset it imported is now orphaned. All
+  four sites route through one envelope minter, and `clipboard` is documented as what it now covers
+  — a failure on the paste route, of which a paste that inserted nothing is one shape and a throwing
+  import hook is another. Taken in the same release the origin appears in, so no shipped meaning
+  changes: after the freeze this would be a breaking edit to a frozen union's semantics rather than
+  the completion of a new arm. `context.path` follows the same honesty rule as the origin: it
+  carries the range the paste was aimed at where there is one, and is **omitted** otherwise, rather
+  than reporting `[]` — a path that would address the document root, which holds no caret.
+
 Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
 restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
 identical at the batch base).

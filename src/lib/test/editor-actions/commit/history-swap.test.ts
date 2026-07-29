@@ -50,6 +50,34 @@ describe('history swap — a snapshot whose selection no longer resolves', () =>
 	});
 });
 
+// The undo swap shares the restore road with the consumer's setSelection door, so
+// it inherits the road's notification batch. Nothing else pins that it keeps doing
+// so rather than growing its own applier — which would re-open the stale emission
+// the batch closed, on the path the defect was first reported against.
+describe('history swap — the restored selection notifies once, after the placement', () => {
+	it('emits after the applier has looked for the block, not before', async () => {
+		const log: string[] = [];
+		const { deps } = makeEditorActionsDeps(
+			[makeNode('paragraph', 'aaa\n'), makeNode('paragraph', 'bbb\n')],
+			{ onSelectionChange: () => log.push('notify') }
+		);
+		deps.getBlockElByPath = () => {
+			log.push('place');
+			return null;
+		};
+		const history = createHistoryActions(deps, createUndoController(deps));
+		deps.undoManager.push({
+			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			blockIds: [...deps.blockIds],
+			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
+		});
+
+		await history.requestUndo();
+
+		expect(log).toEqual(['place', 'notify']);
+	});
+});
+
 // The swap must FLUSH the armed keystroke batch, not discard it: interrupt emits
 // the batch's pending `input` event (so edit-channel observers keep their
 // keystroke count — discarding dropped those bytes) AND clears the debounce

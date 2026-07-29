@@ -238,7 +238,7 @@ describe('image paste — declining and failing', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	it('a rejected import reports as origin `command` and its sibling still lands', async () => {
+	it('a rejected import reports as origin `clipboard` and its sibling still lands', async () => {
 		const boom = new Error('asset import failed');
 		const h = harness({
 			onPasteImage: async (image) => {
@@ -249,7 +249,7 @@ describe('image paste — declining and failing', () => {
 		await createClipboardHandlers(h.deps).onPaste(
 			pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
 		);
-		expect(h.errors).toEqual([{ origin: 'command', error: boom }]);
+		expect(h.errors).toEqual([{ origin: 'clipboard', error: boom }]);
 		expect(h.inserted).toEqual(['![[b.png]]']);
 	});
 

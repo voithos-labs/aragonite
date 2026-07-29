@@ -122,7 +122,7 @@ test.describe('image paste: host hook installed', () => {
 
 		await editor.bridge.waitForSourceContains('A![[two.png]]B');
 		expect(await page.evaluate(() => (window as any).__test.getCapturedErrors())).toContain(
-			'command'
+			'clipboard'
 		);
 
 		await page.keyboard.type('X');

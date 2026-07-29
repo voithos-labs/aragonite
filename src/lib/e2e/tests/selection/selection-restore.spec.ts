@@ -176,7 +176,12 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 				(window as any).__test.stopSelectionChangeCapture()
 			);
 
-			expect(emissions.length).toBeGreaterThan(0);
+			// Exactly two, and the number is the contract, not an accident: the state
+			// channel's batched flush plus the browser's own `selectionchange` bridge,
+			// which is the sole emitter for intra-block caret motion and so cannot be
+			// silenced. A third would mean a mutator escaped the restore's batch; a
+			// first would mean the bridge stopped seeing the placed range.
+			expect(emissions).toHaveLength(2);
 			for (const emission of emissions) expect(emission).toEqual(restored);
 		});
 	}

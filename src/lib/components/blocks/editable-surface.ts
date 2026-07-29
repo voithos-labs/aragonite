@@ -24,7 +24,7 @@ import type {
 	PluginEditorLookup,
 	PresentationModeGetter
 } from '../../editor-keys';
-import type { EditorEvents } from '../../editor-events';
+import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
@@ -493,8 +493,7 @@ async function pasteImages(
 	// surface tails would fall back to offset 0 — markdown at a position the user
 	// never pointed at. Decline, loudly.
 	if (!deps.caret.getEl()) {
-		deps.events.emit('error', {
-			origin: 'command',
+		emitClipboardError(deps.events, {
 			error: new Error('onPasteImage resolved after its block was gone; insertion declined')
 		});
 		return;

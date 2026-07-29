@@ -109,5 +109,9 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		expect(serialize(env.deps.doc)).not.toContain('DROPPED');
 		expect(env.errors.map((e) => e.origin)).toEqual(['clipboard']);
 		expect(String((env.errors[0].error as Error).message)).toContain('no caret');
+		// The range start, read before the delete collapsed the selection. A report that
+		// named nothing would leave a host unable to say WHERE the paste it must
+		// compensate for was aimed.
+		expect(env.errors[0].context?.path).toEqual([0]);
 	});
 });
