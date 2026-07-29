@@ -330,6 +330,16 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   max-of-counts tree, indifferent to how the run lengths are distributed. Bytes are unchanged;
   256 KB of the adversarial shape went from roughly 2.4 s to 53 ms.
 
+- **An emphasis-dense paragraph parses in linear time.** Resolving a delimiter pair spliced the
+  pair's interior out of a flat working-node list, costing one scan to locate each run node plus
+  one tail move per pair, so a block that is nothing but pairs cost `O(pairs^2)`: 96 KB took
+  137 ms, and 800 KB took 92 s, which is one ordinary paste and a reload to recover from. The
+  pairing algorithm was already the reference's amortized one, openers_bottom and all; what was
+  missing is the other list commonmark.js keeps linked, the inline nodes themselves. A pass now
+  takes a doubly-linked window over the working nodes its floor can reach and detaches each
+  interior by relinking two ends, so nothing in the pairing decision changed. Bytes are unchanged
+  and the conformance baseline did not move; 96 KB is now 16 ms and 800 KB 129 ms.
+
 - **The editable surfaces thread their instance grammar into cross-block join-paste.** The seam
   field was optional and none of the four production surfaces supplied it, so the join reparse always
   used the global grammar. It is now required-nullable, matching the dispatch tier it feeds: a

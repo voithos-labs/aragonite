@@ -1,10 +1,11 @@
 /**
  * Delimiter runs (`*` `_` `~`) and CommonMark §6.2 phase 2 matching — a
  * faithful port of commonmark.js 0.31.2 processEmphasis (openers_bottom,
- * odd-match on original run lengths, closer re-use) onto the flat working
- * node list. Delimiters hold their text node by identity so wrap splices
- * cannot invalidate them; per-pass liveness lives in a linked overlay over
- * stack indices, mirroring the reference's delimiter list surgery.
+ * odd-match on original run lengths, closer re-use). Both lists the reference
+ * keeps linked are linked here too, as overlays rather than pointers on the
+ * nodes: per-pass delimiter liveness over stack indices, and the working nodes
+ * a pass owns over a window into the flat list. Delimiters hold their text
+ * node by identity, so neither overlay can leave one pointing at the wrong run.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -118,6 +119,13 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 	if (top === floor) return;
 	const bottom = floor - 1; // sentinel index standing in for the reference's stack_bottom
 
+	const win = openNodeWindow(ctx, delimiters[floor].node);
+	const slotOf = mapDelimiterSlots(win, delimiters, floor, top);
+	if (slotOf === null) {
+		delimiters.length = floor;
+		return;
+	}
+
 	// Linked overlay over stack indices [floor, top): retired delimiters
 	// unlink in O(1) without splicing the shared stack (Bracket.delimiterFloor
 	// and openers_bottom hold positions into it).
@@ -171,7 +179,7 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 			continue;
 		}
 
-		wrapMatch(ctx, opener, closer);
+		wrapMatch(win, ctx.raw, opener, closer, slotOf[oi], slotOf[ci]);
 
 		// Delimiters between the pair moved inside the wrap: retire them.
 		next[oi] = ci;
@@ -185,6 +193,7 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 		// A closer with remaining length retries against earlier openers.
 	}
 
+	closeNodeWindow(ctx, win);
 	delimiters.length = floor;
 }
 
@@ -215,22 +224,33 @@ function tildeLengthsAgree(opener: Delimiter, closer: Delimiter): boolean {
 
 /**
  * Wrap the nodes between opener and closer: consume delimiters from the
- * facing ends of both runs, splice the interior into a new parent whose range
+ * facing ends of both runs, move the interior into a new parent whose range
  * includes the consumed markers, and drop run nodes that emptied.
  */
-function wrapMatch(ctx: ScanContext, opener: Delimiter, closer: Delimiter): void {
-	const { nodes, raw } = ctx;
+function wrapMatch(
+	win: NodeWindow,
+	raw: string,
+	opener: Delimiter,
+	closer: Delimiter,
+	openerSlot: number,
+	closerSlot: number
+): void {
 	const use = opener.length >= 2 && closer.length >= 2 ? 2 : 1;
 	const kind: InlineNode['kind'] =
 		opener.char === '~' ? 'strikethrough' : use === 2 ? 'strong' : 'emphasis';
 
-	const openerPos = nodes.indexOf(opener.node);
-	const closerPos = nodes.indexOf(closer.node, openerPos + 1);
+	const children: InlineNode[] = [];
+	for (let i = win.next[openerSlot]; i !== closerSlot && i !== NONE; i = win.next[i]) {
+		children.push(win.slot[i]);
+	}
+	win.next[openerSlot] = closerSlot;
+	win.prev[closerSlot] = openerSlot;
+
 	const wrapped: InlineNode = {
 		kind,
 		start: opener.node.end - use,
 		end: closer.node.start + use,
-		children: nodes.slice(openerPos + 1, closerPos)
+		children
 	};
 
 	opener.length -= use;
@@ -240,9 +260,102 @@ function wrapMatch(ctx: ScanContext, opener: Delimiter, closer: Delimiter): void
 	closer.node.start += use;
 	closer.node.text = raw.slice(closer.node.start, closer.node.end);
 
-	const replacement: InlineNode[] = [];
-	if (opener.length > 0) replacement.push(opener.node);
-	replacement.push(wrapped);
-	if (closer.length > 0) replacement.push(closer.node);
-	nodes.splice(openerPos, closerPos - openerPos + 1, ...replacement);
+	insertNodeAfter(win, openerSlot, wrapped);
+	if (opener.length === 0) unlinkNode(win, openerSlot);
+	if (closer.length === 0) unlinkNode(win, closerSlot);
+}
+
+// ── Working-node window ─────────────────────────────────────────────────────
+
+const NONE = -1;
+
+/**
+ * Doubly-linked view over the working nodes one pass owns — the reference's
+ * inline node list, scoped to the range a floor can reach and held beside the
+ * nodes instead of on them (an InlineNode is output, not scratch). A match
+ * detaches its interior by relinking two ends; the array it replaces paid a
+ * scan to locate each run node and a tail move to splice, which is what made a
+ * paragraph of nothing but pairs quadratic.
+ */
+interface NodeWindow {
+	/** Slot storage. Link order, not array order, is node order. */
+	slot: InlineNode[];
+	prev: number[];
+	next: number[];
+	head: number;
+	/** Where the window starts in ctx.nodes. */
+	base: number;
+}
+
+/**
+ * Take the window running from `first` to the end of the working list. Nodes
+ * before `first` are out of every reachable match's range, so leaving them in
+ * place is what keeps a bracket's recorded node position valid across a pass.
+ */
+function openNodeWindow(ctx: ScanContext, first: InlineNode): NodeWindow {
+	let base = ctx.nodes.length - 1;
+	while (base > 0 && ctx.nodes[base] !== first) base--;
+	const slot = ctx.nodes.slice(base);
+	const prev = new Array<number>(slot.length);
+	const next = new Array<number>(slot.length);
+	for (let i = 0; i < slot.length; i++) {
+		prev[i] = i - 1; // slot 0 lands on NONE
+		next[i] = i + 1 < slot.length ? i + 1 : NONE;
+	}
+	return { slot, prev, next, head: 0, base };
+}
+
+/** Write the window's link order back over the range it took. */
+function closeNodeWindow(ctx: ScanContext, win: NodeWindow): void {
+	const { nodes } = ctx;
+	nodes.length = win.base;
+	// One at a time: spreading a window this size dies on V8's argument limit,
+	// and that RangeError takes the block to the unhealable failed-block fallback.
+	for (let i = win.head; i !== NONE; i = win.next[i]) nodes.push(win.slot[i]);
+}
+
+function unlinkNode(win: NodeWindow, i: number): void {
+	const before = win.prev[i];
+	const after = win.next[i];
+	if (before === NONE) win.head = after;
+	else win.next[before] = after;
+	if (after !== NONE) win.prev[after] = before;
+}
+
+function insertNodeAfter(win: NodeWindow, at: number, node: InlineNode): void {
+	const i = win.slot.length;
+	win.slot.push(node);
+	const after = win.next[at];
+	win.prev[i] = at;
+	win.next[i] = after;
+	win.next[at] = i;
+	if (after !== NONE) win.prev[after] = i;
+}
+
+/**
+ * Each delimiter's slot in the window. Delimiters and the run nodes they hold
+ * are both in scan order, so one merge walk places them all.
+ *
+ * Null when a run node is missing from the window, which means the pass's own
+ * precondition — every live delimiter's node is still in the working list —
+ * has been broken upstream. The caller then drops the pass entirely: the runs
+ * stay the literal text they already are, where searching for a node that is
+ * not there would walk off the end of a linked list that has no end.
+ */
+function mapDelimiterSlots(
+	win: NodeWindow,
+	delimiters: Delimiter[],
+	floor: number,
+	top: number
+): number[] | null {
+	const slotOf = new Array<number>(top);
+	let s = 0;
+	for (let d = floor; d < top; d++) {
+		const node = delimiters[d].node;
+		while (s < win.slot.length && win.slot[s] !== node) s++;
+		if (s === win.slot.length) return null;
+		slotOf[d] = s;
+		s++;
+	}
+	return slotOf;
 }

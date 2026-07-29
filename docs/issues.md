@@ -165,34 +165,6 @@ mis-attributed cause is worse than the watch.
 **Why deferred:** one observation, no reproduction, and the reproduction attempt costs a real
 user profile. The Tauri example app the roadmap plans is where a clean profile is free.
 
-### Emphasis-dense giant paragraphs scan quadratically
-
-**Severity:** watch (adversarial shape inside the documented-transient giant-paragraph axis)
-**Files:** `src/lib/core/inline/scan/emphasis.ts` (`wrapMatch` — `nodes.indexOf` + splice)
-
-Measured (2026-07-21 elegance run): `'*a*'.repeat(N)` scans at 0.86ms/8.2ms/94ms for
-6KB/24KB/96KB single blocks — O(N^~2). Only reachable by pasting emphasis-dense
-content into ONE block, i.e. inside the axis `docs/design/performance.md` already
-documents as transient (any Enter splits it); at 24KB the cost still sits under the
-10MB keystroke ceiling.
-
-The 2026-07-21 entry called four sibling flood paths linear. Re-measured 2026-07-24,
-two of the four were wrong: backticks (growth exponent 0.01) and entities (0.91) are
-linear and stand; the autolink delimiter prune measured 2.00 and is now bounded (a
-lookup over the sorted, disjoint matches); the directive closer lookup measured 1.95
-and is now bounded too (a max-of-counts descent over the closer index, 0.9.36).
-
-**The deferral envelope is understated, not wrong.** Every measurement above stops at
-96 KB, where the cost is a stall. The 0.9.35 adversarial pass measured the same scan at
-roughly 53 s on an 800 KB single block, which is one ordinary paste and a reload to
-recover from. So the deferral stands on reachability (the shape needs emphasis-dense
-content pasted into ONE block, and any Enter splits it), not on the cost being small.
-
-**Why deferred:** the true fix is porting commonmark.js's linked delimiter list —
-med-high conformance-fidelity risk against a faithful port, for a shape the perf model
-already brackets. Re-open only if a real workload holds emphasis-dense multi-KB single
-blocks.
-
 ### The footnote definition scan models no lazy continuation
 
 **Severity:** minor (conformance divergence on an unindented non-blank line inside a definition;
