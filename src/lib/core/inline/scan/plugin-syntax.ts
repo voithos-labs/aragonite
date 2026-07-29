@@ -204,6 +204,16 @@ function upsertRung(registry: Map<string, InlineRung[]>, trigger: string, rung: 
 
 // ── Dispatch accessors ───────────────────────────────────────────────────────────
 
+/**
+ * Whether the built-in scanner claims `trigger` through a `case` arm. A rung on one
+ * is a prefix rung consulted BEFORE that arm, so it outranks a built-in construct
+ * wherever its prefix matches and owes the overlap a decline — which is why the
+ * inline conformance kit refuses such a rung an overlap exemption.
+ */
+export function isReservedInlineTrigger(trigger: string): boolean {
+	return BUILTIN_TRIGGERS.has(trigger);
+}
+
 /** Rungs for a trigger in dispatch order, reserved-aware. Empty when none. */
 export function getInlineRungs(trigger: string): readonly InlineRung[] {
 	const registry = BUILTIN_TRIGGERS.has(trigger) ? reservedRegistry : unreservedRegistry;

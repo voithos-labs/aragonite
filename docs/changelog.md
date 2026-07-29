@@ -4,6 +4,26 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Testing surface: `runInlineKindConformance` — the battery a registered inline rung is held
+  to.** Block kinds have had an executable closure matrix and containers their own kit; inline
+  rungs, where the limestone integration's defect density concentrated, had nothing. The kit drives
+  the seven things a rung can break without moving a byte: what it claims over the author's own
+  fixtures, that its claims tile the scan range the block offered rather than reading past it, that
+  it declines the grammar overlap its prefix shadows, that its widget is one atomic self-delimiting
+  unit whose island the caret walk measures as its source span, that its editing declaration is in
+  the vocabulary the caret-edge dispatch reads, that a rung minting a built-in kind carries the
+  `rewriteImage` hook and can reproduce its own input, and that the rung is registered where the
+  profile says it is. Every bundled rung is enrolled — footnotes' `[^`, emoji and the directive
+  text tier sharing `:`, inline math's `$`. The overlap cell is the one most authors have not
+  considered and is required rather than optional, on the `terminatorCollision` precedent: a rung
+  consulted ahead of a built-in case claims those bytes whether or not they spell something the
+  built-in owns, and a document that swallows `![[a]](u)` round-trips perfectly as a wiki embed
+  nobody wrote. A rung on a reserved trigger may not excuse it at all. Two rules keep the kit from
+  going hollow where an optional field would let it: fixtures are required and one the rung does
+  not claim fails enrollment instead of skipping it, and an excuse the kit can falsify it
+  falsifies — declaring the image-claim cell exempt while a fixture mints a stamped built-in is a
+  failure, not a waiver.
+
 - **A plugin that takes `:` first no longer kills the inline directive tier.** Directive
   activation latched its four steps on four different probes, and the inline recognizer's asked
   whether anything was registered on `:` rather than whether this activation had already run. `:`
