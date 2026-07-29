@@ -47,6 +47,28 @@ describe('emoji and the directive text tier coexist on `:`', () => {
 	});
 });
 
+// The order above is one of two a consumer can write. `emojiPlugin()` before the
+// plugin that activates directives (`admonitionsPlugin()` calls it) puts a rung on
+// `:` first, and the activation's inline step used to read "does anyone own `:`"
+// rather than "did I already register" — so it skipped its own recognizer and left
+// the directive tier dead while its kind and widget stayed live. Byte round-trip is
+// blind to it: the bytes stay literal prose either way.
+describe('the directive text tier survives a plugin that took `:` first', () => {
+	beforeEach(() => {
+		resetPluginPlatformForTests();
+		installPlugins([emojiPlugin()]);
+		activateDirectiveGrammar();
+	});
+
+	it('recognizes :name[label] with emoji already on the trigger', () => {
+		expect(scan(':name[label]')[0].kind).toBe(DIRECTIVE_TEXT);
+	});
+
+	it('leaves emoji claiming its own shortcodes', () => {
+		expect(scan(':smile:').find((n) => n.kind === EMOJI_KIND)).toBeDefined();
+	});
+});
+
 describe('resetPluginPlatformForTests reaches the emoji registration', () => {
 	it('clears the `:` rung so a re-install does not throw on a duplicate', () => {
 		resetPluginPlatformForTests();
