@@ -5,6 +5,7 @@ import { ExpectationTracker } from './expectation';
 import { attachErrorCollector } from './error-collector';
 import { Gestures } from './gestures';
 import { Recorder, runDirForSeed } from './recorder';
+import { availableRangeInterrupts } from './gestures/range-interrupt';
 import type { NoteFixture } from './notes/types';
 import {
 	type SimContext,
@@ -190,6 +191,24 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 	if (rng.chance(0.6)) {
 		await mergeUndoDetour(ctx, g);
 	}
+
+	// Appended last for the same reason as the pair above: every draw before it keeps
+	// its existing seed→detour mapping.
+	if (rng.chance(0.7)) {
+		await rangeInterruptDetour(ctx, g, rng);
+	}
+}
+
+/**
+ * Interrupt a live cross-block range with one gesture, then type a single key — the
+ * precondition behind two whole-document losses. The seed picks which gesture fires
+ * from the set this document can reach, so seeds spread across the interrupt surface;
+ * the gesture itself asserts its byte outcome and undoes back to identity.
+ */
+async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
+	const available = await availableRangeInterrupts(ctx);
+	if (available.length === 0) return;
+	await g.rangeInterrupt(rng.pick(available));
 }
 
 /**

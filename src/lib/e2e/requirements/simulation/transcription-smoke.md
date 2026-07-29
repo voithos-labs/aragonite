@@ -23,6 +23,10 @@ wall-time budget.
   value before the end-state oracle runs
 - empty baseline calibration: after clearing, the source is exactly `"\n"`;
   a different value stops the session loudly rather than masking the drift
+- seed-gated range interrupt: a live cross-block range meets one interrupting gesture
+  and a single printable key, which must land on that gesture's pinned outcome rather
+  than type-replacing the note away; the trailing undo restores byte-exact. Contracts
+  in `range-interrupt-ops.md`
 
 ## User interactions
 
