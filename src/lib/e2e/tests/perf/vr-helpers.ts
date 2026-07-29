@@ -53,6 +53,44 @@ export function topVisibleHostTop(
 	}, opts);
 }
 
+// ── Page-scrolled host embedding (`/test/page-scroll`) ──────────────
+
+/** The host shape where the walk finds nothing scrollable and the window's own
+ *  viewport is the scrollport. One editor, `scrollMode="host"`, the standard
+ *  `window.__test` bridge plus the fixture's late-image door. */
+export async function gotoPageScroll(page: Page): Promise<void> {
+	await page.goto('/test/page-scroll');
+	await page.waitForFunction(
+		() => (window as any).__test !== undefined && (window as any).__pageScroll !== undefined,
+		null,
+		{ timeout: 10_000 }
+	);
+}
+
+export async function scrollPageTo(page: Page, top: number): Promise<void> {
+	await page.evaluate((t) => window.scrollTo(0, t), top);
+	await page.evaluate(
+		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+	);
+}
+
+/** The first top-level block whose box reaches the WINDOW viewport's top edge —
+ *  what the reader of a page-scrolled embedding is looking at. Distinct from
+ *  `topVisibleHostTop`, which measures against the editor's own scrollport: in host
+ *  mode that box starts far above the viewport, so it always answers block 0. */
+export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | null> {
+	return page.evaluate(() => {
+		const hosts = Array.from(
+			document.querySelectorAll('.editor [data-block-path]:not([data-block-path*=","])')
+		) as HTMLElement[];
+		for (const host of hosts) {
+			const rect = host.getBoundingClientRect();
+			if (rect.bottom > 1) return { ref: host.getAttribute('data-block-path'), top: rect.top };
+		}
+		return null;
+	});
+}
+
 /**
  * Scroll from the top to `target` in ~0.6-viewport steps, flushing between, so the
  * window mounts and measures every block it passes over. A direct jump leaves the
