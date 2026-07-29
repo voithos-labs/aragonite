@@ -36,7 +36,14 @@ function touchChildren(children: readonly NodeView[]): void {
 		void node.raw;
 		void node.innerPrefix;
 		void node.innerSuffix;
-		if (node.metadata) for (const value of Object.values(node.metadata)) void value;
+		// Into arrays, not just at them: a table's `alignments` is written per element
+		// in place (tree-operations/table-mutations.ts), and that moves the delimiter
+		// row's bytes. `cloneMetadata` states the one-level-deep shape this relies on.
+		if (node.metadata) {
+			for (const value of Object.values(node.metadata)) {
+				if (Array.isArray(value)) for (const item of value) void item;
+			}
+		}
 		if (node.children) touchChildren(node.children);
 	}
 }

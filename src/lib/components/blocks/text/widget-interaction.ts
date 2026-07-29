@@ -338,8 +338,18 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// "Settled" for every fold caller: the write has landed AND the render it
 	// forced has flushed. The routine (kind-held) content path resolves before any
 	// flush, so the tick is not redundant with the commit's own.
+	//
+	// A rejection is absorbed, never forwarded: the commit ceremony reports its own
+	// failures on the error channel and rethrows only in DEV, and the seams voided
+	// this promise before they awaited it. Forwarding would make a DEV-only commit
+	// throw silently cancel the clipboard splice or block command the seam is
+	// holding open — a failure mode that exists in no other build.
 	async function settleWrite(write: void | Promise<void>): Promise<void> {
-		await write;
+		try {
+			await write;
+		} catch {
+			// reported at the commit seam
+		}
 		await tick();
 	}
 
