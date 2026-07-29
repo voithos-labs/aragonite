@@ -22,7 +22,7 @@ test.use({ viewport: { width: 1000, height: 700 } });
 
 const LATE_IMAGE_URL = 'https://e2e-deferred.test/late-growth.svg';
 const LATE_IMAGE_SVG =
-	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
+	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="1400">' +
 	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
 
 /** Hold the image response until the returned release is called, so its growth
@@ -68,10 +68,13 @@ function tallContainerDoc(): { md: string; targetPath: number[] } {
 }
 
 /**
- * `[[toc]]`, a deep TOP-LEVEL heading windowed out at load, the deferred image just
- * below it, then a tail. The racing case wants the nested question out of the way.
+ * `[[toc]]`, filler, the deferred image, then the TOP-LEVEL navigation target below
+ * it, then a tail. The image sits ABOVE the target on purpose: `'nearest'` lands a
+ * windowed-out target near the viewport BOTTOM, so the top-of-viewport block is a
+ * paragraph above the image — when the image decodes, the honest anchor holds that
+ * paragraph and the target is pushed off the bottom. Only a held pin re-asserts it.
  */
-function deepTargetDoc(): { md: string; targetPath: number[] } {
+function growthAboveDoc(): { md: string; targetPath: number[] } {
 	const parts = [
 		'[[toc]]',
 		'# Visible Heading',
@@ -80,9 +83,9 @@ function deepTargetDoc(): { md: string; targetPath: number[] } {
 			(_, i) => `Intro paragraph ${i} with enough words to fill a line.`
 		)
 	];
+	parts.push(`![late](${LATE_IMAGE_URL})`);
 	const targetIndex = parts.length;
 	parts.push('## Deep Target');
-	parts.push(`![late](${LATE_IMAGE_URL})`);
 	parts.push(
 		...Array.from({ length: 40 }, (_, i) => `Tail paragraph ${i} with enough words to fill a line.`)
 	);
@@ -147,12 +150,10 @@ test.describe('reveal anchor: the pin names the full target path', () => {
 });
 
 test.describe('reveal anchor: a stale claimant cannot release a fresher pin', () => {
-	test('a center reveal resolving inside a navigation settle leaves the navigation pinned', async ({
-		page
-	}) => {
+	test('a center reveal resolving inside a navigation settle strands nothing', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		const editor = new AnchorPage(page);
-		const { md, targetPath } = deepTargetDoc();
+		const { md, targetPath } = growthAboveDoc();
 
 		await editor.gotoPlugins('toc');
 		const releaseImage = await deferImage(page);
@@ -177,14 +178,16 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await expect.poll(() => blockInView(page, targetPath)).toBe(true);
 		await editor.waitForResizeObserverFlush();
 
-		// Whether the navigation still HOLDS the anchor is only observable through what
-		// the anchor does: scroll away without a user-intent gesture (a bare `scroll`
-		// never releases the pin — a programmatic correction fires one itself), then let
-		// a measure pass land. A held pin re-asserts the target; a released one does not.
-		await editor.scrollEditorTo(0);
+		// THIS is the assertion the race reddens: the undecoded image above the target
+		// keeps the document settling past the navigation's own resolve, and without the
+		// pin the stale claimant's release let go of, the target is already gone here.
+		expect(await blockInView(page, targetPath)).toBe(true);
+
+		// A second property, and not what the race turns on: the pin outlives the settle,
+		// so a decode landing afterwards re-asserts the target instead of shifting it.
 		const collapsedHeight = await imageHostHeight(page);
 		releaseImage();
-		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 50);
+		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 400);
 		await editor.waitForResizeObserverFlush();
 
 		expect(await blockInView(page, targetPath)).toBe(true);

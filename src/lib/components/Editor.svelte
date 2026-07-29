@@ -1248,9 +1248,12 @@
 	 * the undo swap and with plugin navigation, so a consumer's restore, a Ctrl+Z
 	 * restore and a table-of-contents click cannot diverge.
 	 *
-	 * Resolves false when the restore was superseded by a later reveal as well as when
-	 * the target could not be brought into view — in both cases the promise the door
-	 * makes (the focus block is in view) is one it did not keep.
+	 * The boolean is unchanged in meaning: true iff the selection was placed AND its
+	 * focus block is in view. A LATER programmatic reveal arriving before this one
+	 * settles is the one new way it can be false — that reveal owns the viewport, so
+	 * this restore stops competing for it and reports what is true. A user gesture
+	 * during the settle is deliberately not that case: the reader taking over ends the
+	 * reveal's durable pin, not the restore, which keeps settling as it always did.
 	 */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
 		return (await restoreThroughRevealRoad(selection, false)) === 'applied';

@@ -501,11 +501,45 @@ either way and only the caret's resting place is wrong.
 
 **Fix direction:** if a repro ever appears, the move is to let the landing check that its commit is
 still the newest entry before placing the caret — not to serialize commit resolution, which is a
-far larger change than the symptom warrants.
+far larger change than the symptom warrants. The reveal anchor's claim tokens are that shape one
+layer up (a landing asks whether its premise still holds before acting), but they cannot be reused
+here: undo's restore passes the MOUNT primitive, not `scrollTo`, precisely so a history swap does
+not move the viewport, so it mints no claim and a paste's claim never learns an undo happened.
+Closing this needs a monotonic stamp on the undo controller, not an anchor read.
 
 **Why deferred:** introduced knowingly with the VR-12 fix (the alternative was keeping a caret that
 is lost on every large paste), bounded to a caret position, and not constructible in a gate today.
 Recorded so the next reader of `landCaret` knows the window is known rather than unnoticed.
+
+### The reveal pin does not survive layout churn INSIDE the target's container
+
+**Severity:** watch (a resolved nested target pushed out of view; no corruption, no strand within
+the block)
+**Files:** `src/lib/reactivity/list-windowing.svelte.ts` (`setChildSubtotal` is deliberately
+correction-free), `src/lib/reactivity/use-container-windowing.svelte.ts` (the root scope is the only
+anchor claimant)
+
+The reveal anchor re-asserts its target on the root scope's own measure passes. A nested scope's
+growth reports upward through `setChildSubtotal`, which is correction-free by design — a deep leaf
+measurement must not cascade scrollTop fixes up the chain — so no `correctAnchor` runs and the pin
+is never consulted. An image decoding INSIDE the container holding a revealed nested target
+therefore pushes that target down by its full growth with nothing re-asserting it. Measured on a
+tall blockquote: the target moved from 664 to 2064 while `scrollTop` stayed at 839 across two
+ResizeObserver flushes.
+
+Pre-existing, not a regression: the same construction fails identically before per-call claims and
+the full-path pin, which closed the sibling case the ledger did name (churn BELOW the container,
+now gated by `perf/vr-reveal-anchor`).
+
+**Fix direction:** either let a nested scope's upward subtotal report run an anchor correction when
+a reveal claim is live (narrow: the claim is the gate, so the no-cascade rule holds for every other
+write), or let nested scopes claim the anchor for a target on their own path. The first is smaller
+and does not reopen the one-scrollTop contention the single-claimant rule exists to prevent.
+
+**Why deferred:** found while building the race e2e, on a shape no consumer has hit — it needs a
+container taller than the viewport, a revealed target inside it, and content above that target
+growing after the settle. The no-cascade rule it collides with is load-bearing for scroll stability
+everywhere else, so the fix wants its own measured pass rather than a rider on the ownership one.
 
 ### Reveal scrolls a hidden ancestor that a drag deliberately will not
 

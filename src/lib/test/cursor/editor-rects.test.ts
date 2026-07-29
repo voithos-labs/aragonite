@@ -46,6 +46,66 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 	return { rects, order, scrollIntoView, revealAnchor, landCaretAt };
 }
 
+// ── Settle-loop harness ─────────────────────────────────────────────────────
+// `makeRects` passes a null root, so `settleInView` returns on its first line and
+// its loop is unreachable. These give the loop a real root and scriptable element
+// positions: a path's script is [initialTop, ...topAfterEachScrollIntoView], which
+// models the reveal's first scroll landing short (heights are still estimates)
+// and the settle's refine correcting it. Visibility is `top < ROOT_BOTTOM`.
+const ROOT_BOTTOM = 100;
+const EL_HEIGHT = 20;
+
+function makeSettlingRects(scripts: Record<string, number[]>) {
+	const scrolls: string[] = [];
+	const revealAnchor = createRevealAnchorState();
+	const positions = new Map<string, { top: number; rest: number[] }>();
+	const els = new Map<string, HTMLElement>();
+	const harness = {
+		rects: null as unknown as ReturnType<typeof createEditorRects>,
+		revealAnchor,
+		/** Fires on the first scroll of the whole run — a reader taking over mid-reveal. */
+		onFirstScroll: undefined as (() => void) | undefined,
+		scrollCount: (path: number[]) => scrolls.filter((k) => k === JSON.stringify(path)).length
+	};
+
+	function elFor(path: number[]): HTMLElement {
+		const key = JSON.stringify(path);
+		let el = els.get(key);
+		if (!el) {
+			const [initial, ...rest] = scripts[key] ?? [0];
+			const at = { top: initial, rest };
+			positions.set(key, at);
+			el = document.createElement('div');
+			el.getBoundingClientRect = () => ({ top: at.top, bottom: at.top + EL_HEIGHT }) as DOMRect;
+			el.scrollIntoView = () => {
+				const first = scrolls.length === 0;
+				scrolls.push(key);
+				if (at.rest.length) at.top = at.rest.shift()!;
+				if (first) harness.onFirstScroll?.();
+			};
+			els.set(key, el);
+		}
+		return el;
+	}
+
+	const root = document.createElement('div');
+	root.getBoundingClientRect = () => ({ top: 0, bottom: ROOT_BOTTOM }) as DOMRect;
+
+	harness.rects = createEditorRects({
+		getBlockElByPath: elFor,
+		getBlockComponentByPath: () => null,
+		revealPath: async () => {},
+		getEditorRoot: () => root,
+		isHostScroll: () => false,
+		getClipBounds: () => [],
+		isCrossBlock: () => false,
+		isHostChrome: () => false,
+		revealAnchor,
+		landCaretAt: async () => true
+	});
+	return harness;
+}
+
 describe('EditorRects.scrollTo', () => {
 	it('claims the reveal anchor before revealing, then scrolls', async () => {
 		const { rects, order } = makeRects(document.createElement('div'));
@@ -120,6 +180,36 @@ describe('EditorRects.scrollTo — claim ownership', () => {
 		revealAnchor.releaseAll();
 		await pending;
 		expect(revealAnchor.get()).toBeNull();
+	});
+});
+
+// Who a claim's loss belongs to decides whether the settle keeps working. A rival
+// reveal owns the viewport, so the loser stops and reports what is true; a reader
+// taking over ends the durable pin only, and a restore that had not finished
+// arriving must not be reported as one that never would (a consumer branching on
+// the boolean re-places a fallback caret over a correctly-placed one).
+describe('EditorRects.scrollTo — the settle, and who may end it', () => {
+	it('a superseded reveal stops scrolling for its own target and reports it out of view', async () => {
+		const h = makeSettlingRects({ '[1]': [500, 0], '[2]': [500, 0] });
+		const stale = h.rects.scrollTo([1]);
+		const fresh = h.rects.scrollTo([2]);
+
+		expect(await stale).toBe(false);
+		expect(await fresh).toBe(true);
+		// Zero, not "fewer": the pre-settle scroll is claim-gated too, so a claimant
+		// superseded during its mount wait never yanks the viewport at all.
+		expect(h.scrollCount([1])).toBe(0);
+		expect(h.scrollCount([2])).toBeGreaterThan(0);
+	});
+
+	it('a user release mid-reveal leaves the settle running, so the target still lands in view', async () => {
+		// The first scroll lands short (script holds the target at 500) and the reader
+		// takes over exactly then; only the settle's refine brings it into view.
+		const h = makeSettlingRects({ '[1]': [500, 500, 0] });
+		h.onFirstScroll = () => h.revealAnchor.releaseAll();
+
+		expect(await h.rects.scrollTo([1])).toBe(true);
+		expect(h.revealAnchor.get()).toBeNull();
 	});
 });
 

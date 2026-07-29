@@ -49,15 +49,24 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   superseded reveal also stops refining, so two navigations racing settle on the newer target
   instead of fighting over the scroll for the rest of the older one's settle. The user still
   outranks every claimant — a keydown, pointerdown or wheel in the document releases the slot
-  whoever holds it. Second half of the same redesign: the pin names the FULL target path. It used
+  whoever holds it, and because that is the reader taking over rather than a rival reveal, it ends
+  the pin without ending the settle: an ordinary gesture during a reveal leaves its outcome exactly
+  as it was before claims existed. Second half of the same redesign: the pin names the FULL target path. It used
   to narrow to the top-level ancestor, which resolved correctly inside the settle loop but held
   the CONTAINER afterwards, so a container taller than the viewport plus a late image decode
   re-asserted the container's top and pushed the already-resolved nested target back out of view.
   `scrollTo` also grew a `hold` option: the consumer restore door passes `hold: false` and hands
   the viewport straight back (it was doing this by path comparison), while a navigation and the
-  search band hold by default. `setSelection` consequently resolves `false` for a restore a later
-  reveal superseded, alongside the two ways it already reported a target it could not bring into
-  view.
+  search band hold by default.
+
+  **Migration note for a host that branches on `setSelection`'s boolean.** Its meaning is unchanged
+  (placed AND in view), and the three `false` shapes are the same three. What is new is one more way
+  to reach the third: a later programmatic reveal — your own `scrollTo`/`navigateTo`, or the find
+  bar navigating — issued before a restore settles now takes the viewport, and the restore stops
+  competing for it. **The caret is placed in that shape**, as it already was in the other viewport
+  shape, so a fallback that re-places a default selection on `false` will discard a correctly
+  restored caret. Branch on it as "the viewport did not end up where I asked". An ordinary user
+  gesture during the settle is deliberately NOT this case and does not change the outcome.
 
 - **Plugin surface: `!` takes an inline prefix rung.** A registration on `!` carrying a `![[` prefix
   and a priority below `INLINE_PRIORITIES.builtin` now registers instead of throwing, so an

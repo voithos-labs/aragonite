@@ -20,19 +20,26 @@ and `test/cursor/editor-rects`; this file covers what a reader observes.
   arriving afterwards (an image below the container decoding late) leaves it in
   view. Pinning the container's top instead pushes the resolved target a
   container-height below the fold.
-- **The newer navigation keeps the pin:** when a `'center'` reveal — whose terminal
-  release is unconditional — resolves inside a navigation's settle window, the
-  navigation's pin survives it, so a later measure pass still re-asserts the
-  navigation's target rather than finding an empty slot.
+- **The newer navigation keeps the pin, and its target:** when a `'center'` reveal —
+  whose terminal release used to be unconditional — resolves inside a navigation's
+  settle window, the navigated target is still in view afterwards. With the pin
+  taken from under it, an undecoded image ABOVE the target keeps the document
+  settling past the navigation's own resolve and the target is already gone.
 
 ## Edge cases
 
-- The image sits BELOW the container on purpose: nothing above the viewport moves
-  when it decodes, so the honest top-of-viewport correction is a no-op and any
-  movement at all is the pin re-asserting.
-- A bare `scroll` never releases the pin (a programmatic anchor correction fires
-  one itself), so a programmatic scroll followed by a measure pass is the
-  observable for "the pin is still armed".
+- Where the deferred image sits decides what each case measures. BELOW the
+  container: nothing above the viewport moves when it decodes, so the honest
+  top-of-viewport correction is a no-op and any movement at all is the pin
+  re-asserting the wrong block. ABOVE the target: `'nearest'` lands the target near
+  the viewport bottom, so the honest anchor holds a paragraph above the image and
+  the target is pushed off the bottom — only a held pin re-asserts it.
+- The pin outlives the settle, so a decode landing after the navigation resolves
+  re-asserts the target rather than shifting it. Second property of the race case,
+  not what the race itself turns on.
+- **Not covered, and known:** churn INSIDE the target's own container. A nested
+  scope's upward subtotal report is correction-free by design, so the pin is never
+  consulted for it (`docs/issues.md`).
 
 ## Error cases
 
