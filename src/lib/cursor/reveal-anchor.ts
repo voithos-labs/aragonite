@@ -20,9 +20,10 @@
  * the document `releaseAll`s, so normal-scroll anchoring is untouched. NOT on
  * `scroll`, which a programmatic `correctAnchor` write itself fires.
  *
- * Losing the pin and being SUPERSEDED are deliberately different facts. Both end
- * the pin; only the second means another reveal now owns the viewport, and only
- * the second is a reason for a reveal in flight to stop trying.
+ * Losing the pin and being SUPERSEDED are deliberately different facts. Losing the
+ * pin says the slot is empty; being superseded says another reveal now owns the
+ * viewport, and only that is a reason for a reveal in flight to stop trying. The
+ * two are tracked separately because a reveal outlives the pin it lost.
  */
 export type RevealBlock = 'nearest' | 'center';
 
@@ -38,11 +39,13 @@ export interface RevealClaim {
 	 *  terminal release is a no-op. */
 	release(): void;
 	/**
-	 * True once a LATER claim took the slot — distinct from the user releasing it
-	 * and from this claim releasing itself, both of which leave the slot empty
-	 * without appointing a successor. Only a successor means "someone else owns
-	 * the viewport now"; a user release means the reader took over, which is not a
-	 * reason for a reveal in flight to abandon what it was asked to do.
+	 * True once a LATER claim was minted — whether or not that successor still holds
+	 * the slot, and whether or not this claim did when it was displaced. Distinct
+	 * from the user releasing the pin and from this claim releasing itself, both of
+	 * which leave the slot empty without appointing a successor. Only a successor
+	 * means "someone else owns the viewport now"; a user release means the reader
+	 * took over, which is not a reason for a reveal in flight to abandon what it was
+	 * asked to do.
 	 */
 	isSuperseded(): boolean;
 }
@@ -64,7 +67,14 @@ export function createRevealAnchorState(): RevealAnchorState {
 	type ClaimToken = { superseded: boolean };
 
 	let target: RevealTarget | null = null;
+	// Who holds the pin, and who claimed last. They diverge whenever the slot empties
+	// while a reveal is still running — a pointerdown releasing the pin does not end
+	// the reveal it interrupted — and supersession is a fact about REVEALS, so it is
+	// the last mint that a new claim supersedes, not the current holder. Reading the
+	// holder would let `claim → release → claim` leave the first reveal believing it
+	// still owns the viewport, and two settle loops would scroll against each other.
 	let owner: ClaimToken | null = null;
+	let lastMinted: ClaimToken | null = null;
 
 	function drop(): void {
 		owner = null;
@@ -75,7 +85,8 @@ export function createRevealAnchorState(): RevealAnchorState {
 		get: () => target,
 		claim(path, block = 'nearest') {
 			const token: ClaimToken = { superseded: false };
-			if (owner) owner.superseded = true;
+			if (lastMinted) lastMinted.superseded = true;
+			lastMinted = token;
 			owner = token;
 			target = { path: [...path], block };
 			return {
