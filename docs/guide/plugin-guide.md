@@ -895,6 +895,48 @@ Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is dec
 
 One companion worth asserting alongside it: `reversedAncestryLeavesRootStale(profile)` must be `true` for a container whose `rebuildRaw` reads only its direct children. It rebuilds outer-first on purpose and checks the root went **stale** — that is what proves your `ancestry` cell is testing something rather than passing by construction.
 
+### Conformance-testing an inline rung
+
+If your plugin registers inline syntax, `runInlineKindConformance` is the same idea one layer down: register the rung, then point the kit at its trigger and prefix and it drives the behaviors a rung can break without moving a byte.
+
+| Cell             | What it holds you to                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| `claims`         | Every fixture you supply is actually claimed by **your** rung                                      |
+| `roundTrip`      | Your fixtures and the kit's interleavings of them round-trip, and your claims tile the scan range  |
+| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it                   |
+| `widget`         | Your claimed bytes are one atomic unit, and your island carries the span the caret walk reads      |
+| `editingPolicy`  | Your widget's editing declaration is in the vocabulary the caret-edge dispatch actually reads      |
+| `imageClaim`     | A rung minting a built-in kind carries the `rewriteImage` hook the write paths need                |
+| `registration`   | Your rung is registered where you say, once, priced inside its tier, on a trigger the scan reaches |
+
+```
+import { runInlineKindConformance } from 'aragonite/testing';
+
+it('my rung conforms', () => {
+	runInlineKindConformance({
+		trigger: '!',
+		prefix: '![[',
+		kind: declaredPluginInlineKind(MY_KIND),
+		fixtures: ['![[cat.png]]', 'see ![[cat.png|300]] here'],
+		overlapFixtures: ['![[a]](https://x.dev)'],
+		overlapDecline: { mode: 'assert' },
+		widget: { mode: 'assert' },
+		editingPolicy: { mode: 'assert' },
+		imageClaim: { mode: 'exempt', reason: 'the rung mints only its own kind, which the scan leaves unstamped' }
+	});
+});
+```
+
+`fixtures` is required and non-empty, and a fixture your rung does not claim **fails** rather than being skipped: every cell below reads the node a fixture produces, so an unclaimed one would enroll your rung without testing it.
+
+**`overlapDecline` is the cell most rung authors have not considered, and it is required.** Registering on a reserved trigger (`[`, `!`, `*`, `` ` ``, …) puts your recognizer _ahead_ of the built-in case, so wherever your prefix matches you are claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a rung that claims every `![[…]]` takes it, and the document still round-trips — as a wiki embed nobody wrote. Supply the sources where your grammar and a built-in one collide; the kit consults your recognizer at every position the scanner would and requires a decline at each, which is exactly what leaves the built-in reading byte-identical bytes. A rung on a reserved trigger may not excuse this cell at all: the overlap exists by construction.
+
+The other three cells you declare, because only you know whether they have anything to bite on — but an excuse the kit can falsify, it falsifies. Declaring `imageClaim` exempt while a fixture mints a stamped built-in fails, as does excusing `widget` for a kind that _is_ a registered live widget. A reason is a claim about your rung, not a waiver.
+
+Two things worth knowing about `widget`. It asserts your claimed slice is **self-delimiting** — re-scanning it alone must re-form the same kind over the whole slice, because that slice is what `data-source-*` hands the clipboard and a source reveal. And where your kind builds its own island (`buildWidget`), it renders your fixture and measures the caret walk, which must equal the source length: a widget counts as its source span, never as what it draws, so an emoji showing one glyph for seven bytes still walks seven. A `component` kind's island is minted by the editor, not by you, so that half is recorded rather than asserted.
+
+Run it under a DOM (`// @vitest-environment jsdom` for Vitest). Without one the island half records itself as a boundary with the reason, and you lose the walk check.
+
 ## API reference
 
 Every `aragonite/plugin` export, grouped by job. Values are the calls you make; the accompanying types describe their inputs and outputs.

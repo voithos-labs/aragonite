@@ -5,8 +5,9 @@
 //      so a plugin's test suite can re-install a fresh copy per case; run in a
 //      real app it is corruption, so it throws unless a test environment is
 //      detected (see the guard below).
-//   2. The G4.3 container conformance kit — the harness a container author points
-//      at their own kind, re-exported from `testing/container-conformance.ts`.
+//   2. The conformance kits — the harnesses an author points at their own
+//      registration: the per-kind closure battery, the G4.3 container kit, and the
+//      inline-rung kit, each re-exported from its own module under `testing/`.
 //
 // Why (1) exists: the platform is register-once / throw-on-duplicate / no
 // unregister ("Registries are code, not state" — docs/contributing/culture.md). In-repo suites
@@ -102,3 +103,15 @@ export type {
 	KindConformanceProfile,
 	KindConformanceReport
 } from './testing/kind-conformance';
+
+// ── Inline-rung conformance kit ──────────────────────────────────────────────
+// The behavioral battery a registered inline rung is held to: what it claims, what
+// it declines, and whether its widget is one atomic unit.
+
+export { runInlineKindConformance } from './testing/inline-conformance';
+export type {
+	InlineCellReport,
+	InlineConformanceCell,
+	InlineConformanceProfile,
+	InlineConformanceReport
+} from './testing/inline-conformance';
