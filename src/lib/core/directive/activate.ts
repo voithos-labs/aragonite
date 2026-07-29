@@ -14,16 +14,23 @@
 
 import { registerDirectiveKinds, registerDirectiveTextKind, DIRECTIVE_TEXT } from './kinds';
 import { registerDirectiveOpeners } from './container-opener';
-import { declaredPluginInlineKind } from '../../schema/plugin-kind';
-import { getInlineRungs, registerInlineSyntax } from '../inline/scan/plugin-syntax';
+import { declaredPluginInlineKind, isInlineKindDeclared } from '../../schema/plugin-kind';
+import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
 
 export function activateDirectiveGrammar(): void {
+	// The whole activation is latched on the `directiveText` kind, read before the
+	// steps below declare it. The inline rung has no probe of its own that would do:
+	// `:` is a SHARED trigger (emoji registers on it at its own rung), so asking
+	// whether the trigger is taken answers for someone else's plugin and skips this
+	// recognizer — leaving the tier's kind and widget live with nothing to recognize.
+	const alreadyActive = isInlineKindDeclared(DIRECTIVE_TEXT);
+
 	registerDirectiveKinds();
 	registerDirectiveOpeners();
 	registerDirectiveTextKind();
 
-	if (getInlineRungs(':').length === 0) {
+	if (!alreadyActive) {
 		const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
 		registerInlineSyntax(':', (raw, pos, end) => recognizeTextDirective(raw, pos, end, kind));
 	}

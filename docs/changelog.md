@@ -4,6 +4,16 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **A plugin that takes `:` first no longer kills the inline directive tier.** Directive
+  activation latched its four steps on four different probes, and the inline recognizer's asked
+  whether anything was registered on `:` rather than whether this activation had already run. `:`
+  is a shared trigger — emoji rides it on its own rung — so installing `emojiPlugin()` ahead of any
+  plugin that activates directives (`admonitionsPlugin()` does) answered yes for somebody else and
+  skipped the recognizer, leaving `directiveText` declared and its widget registered with nothing
+  to recognize: `:name[label]` stayed literal prose. Invisible to byte round-trip, which is what
+  kept it in for a release — the bytes are unchanged either way, the tier simply is not there. All
+  four steps now read one latch, the `directiveText` kind, sampled before any of them declares it.
+
 - **Breaking, plugin surface: a block opener returns a consumed-lines count, not a resume
   index.** `tryOpen` now returns `{ node, consumed }` where `consumed` is the number of lines the
   opener claimed starting at `ctx.index`, and the parser advances by that delta; the shape is named
