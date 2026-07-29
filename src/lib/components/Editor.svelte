@@ -29,6 +29,7 @@
 	import { clippingAncestors, nearestUserScrollableAncestor } from '../cursor/scroll-ancestors';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
+	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
@@ -588,6 +589,13 @@
 	// Reactive getter: block components call this at keystroke time to read
 	// the latest doc, not the snapshot captured when they mounted.
 	const getDoc: DocumentGetter = () => doc;
+
+	// The byte-level twin of the edit epoch, on the render path's cadence rather
+	// than the edit event's: a keystroke changes this immediately, while `editEpoch`
+	// waits for the typing batch to flush. An inline widget derives at render
+	// cadence, so it needs this one; a decoration source runs from `provide`, which
+	// the epoch already drives. Lazy: nothing computes until a reader asks.
+	const contentVersion = createContentVersion(getDoc);
 
 	// Per-instance decoration engine. Ahead of the plugin contexts (not beside
 	// searchState) because the plugin door hands its registry into
@@ -1160,6 +1168,7 @@
 	// windowing hook below both read it back through getContext.
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
+		contentVersion,
 		linkRef: {
 			get current(): LinkReferenceResolver {
 				return currentResolver;

@@ -121,6 +121,7 @@
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
+		contentVersion: getContentVersion,
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
@@ -414,6 +415,7 @@
 		},
 		resolveLinkUrl,
 		getDocument: () => getDoc(),
+		getContentVersion,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},

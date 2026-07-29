@@ -178,6 +178,11 @@ export interface EditorPolicies {
 export const EDITOR_DOC_KEY = Symbol('editor-doc');
 export interface EditorDoc {
 	doc: DocumentGetter;
+	/** Changes whenever the document's bytes change, stable otherwise — the only
+	 *  sound memo key for a derivation over the document, whose `$state` proxy is
+	 *  mutated in place and so never changes identity. Lazy: reading it is what
+	 *  makes the editor compute it. */
+	contentVersion: () => number;
 	linkRef: LinkReferenceResolverRef;
 	/** Resolves a plugin's per-instance EditorContext — the one identity onEditor
 	 *  callbacks, global-command handlers, and BlockCommandContext.editor share. */

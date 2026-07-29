@@ -118,6 +118,7 @@
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
+		contentVersion: getContentVersion,
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
@@ -356,6 +357,7 @@
 			return presentationMode;
 		},
 		getDocument: () => getDoc(),
+		getContentVersion,
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},

@@ -55,6 +55,16 @@ export interface InlineWidgetComponentProps {
 	 *  — a frozen snapshot would go stale. Supplied by the editor's render surfaces;
 	 *  optional so a bare harness can mount without it. */
 	getDocument?: () => DocumentView | undefined;
+	/**
+	 * LIVE content version: a number that changes whenever the document's bytes do,
+	 * on the render path's cadence. It is the memo key for a derivation over the
+	 * whole document — the `$state` document is mutated in place, so its identity
+	 * never changes and an identity-keyed memo would hit forever on stale data.
+	 * Read it INSIDE the widget's `$derived`; that read is what subscribes the
+	 * widget to edits anywhere. Optional so a bare harness can mount without it
+	 * (absent means "no shared memo", not "nothing changed").
+	 */
+	getContentVersion?: () => number;
 }
 
 /**

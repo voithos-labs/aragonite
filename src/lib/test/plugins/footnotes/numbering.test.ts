@@ -4,7 +4,8 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
-	collectFootnoteReferences
+	collectFootnoteReferences,
+	footnoteNumbersFor
 } from '$lib/plugins/footnotes';
 
 describe('footnote numbering (derived, first-reference order)', () => {
@@ -74,5 +75,41 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(numbers.get('x')).toBeUndefined();
 		expect(numbers.get('y')).toBe(1);
 		expect(numbers.size).toBe(1);
+	});
+});
+
+// Every mounted reference widget derives its own number, so the walk above is
+// shared per flush through this memo. Its key must include the content version:
+// the editor's document is mutated IN PLACE, so keying on the document alone hits
+// forever and freezes the numbering at whatever the first widget saw.
+describe('footnote numbering — the shared per-version walk', () => {
+	beforeEach(() => {
+		resetPluginPlatformForTests();
+		installPlugins([footnotesPlugin()]);
+	});
+
+	it('hands every reader of one version the same map', () => {
+		const doc = parse('Body has [^a] and [^b].\n');
+		expect(footnoteNumbersFor(doc, 7)).toBe(footnoteNumbersFor(doc, 7));
+	});
+
+	it('re-walks the SAME document object once its version moves (the in-place edit)', () => {
+		const doc = parse('Body has [^a].\n');
+		expect(footnoteNumbersFor(doc, 1).get('a')).toBe(1);
+
+		// Exactly what routine typing does: the block's raw is rewritten in place, so
+		// the document's identity is unchanged and only the version says so.
+		doc.children[0].raw = 'Now [^z] then [^a].\n';
+		const renumbered = footnoteNumbersFor(doc, 2);
+		expect(renumbered.get('z')).toBe(1);
+		expect(renumbered.get('a')).toBe(2);
+	});
+
+	it('keys per document, so two editors on one page do not share a version space', () => {
+		const first = parse('First has [^a].\n');
+		const second = parse('Second has [^b].\n');
+		expect(footnoteNumbersFor(first, 3).get('a')).toBe(1);
+		expect(footnoteNumbersFor(second, 3).get('a')).toBeUndefined();
+		expect(footnoteNumbersFor(second, 3).get('b')).toBe(1);
 	});
 });

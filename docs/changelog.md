@@ -222,6 +222,25 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   than a split, and hopping would carry the ephemeral edit out of the surface that owns it, so a
   cell's Enter still commits and stays put.
 
+- **Plugin surface: `getContentVersion`, the memo key for a widget that derives from the whole
+  document.** An inline widget component is mounted with three live getters beside its frozen
+  `{ inline, source }` snapshot, and this is the third. It is a number that changes whenever the
+  document's serialized bytes change and is stable otherwise, which is the thing the surface had no
+  way to express: the editor's document is mutated in place, so its object identity survives every
+  edit, and a memo keyed on the document itself hits forever and hands back a stale answer. Footnote
+  numbering is the shipped consumer and the reason. Each mounted `[^label]` widget derived its own
+  number by walking every prose leaf, so a flush cost O(widgets × leaves); it now reads the version
+  inside its derived, where the single read is both the reactive subscription that keeps the live
+  renumber and the key that collapses the flush to one shared walk. Measured per flush: a
+  40-paragraph document with 20 references goes from 4.2 ms to 0.41 ms, and a 200-reference dense
+  shape from 38.2 ms to 0.27 ms, the superlinear curve flattened. The version is deliberately NOT
+  the decoration engine's `editEpoch`, and the two now state which is which: the version moves at
+  render cadence, so a keystroke changes it immediately, while the epoch moves at edit-event
+  cadence and is debounced while a typing batch is open. A widget renders mid-burst and needs the
+  first; a decoration source runs only from `provide`, which the epoch already drives. Lazily
+  computed, so a document nothing memoizes against pays nothing; optional, so a bare harness mount
+  still renders (walking unshared, which is correct and merely uncached).
+
 - **A mutation that folds a live reveal now waits for that fold's write, not for one tick.** The two
   seams that fold before they mutate, the clipboard splice and the block command dispatch, each
   waited exactly one `tick()`. That is sound while the committed text keeps the block's kind, since
