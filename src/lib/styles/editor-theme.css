@@ -45,7 +45,11 @@
 	--color-ui-dulled: #afb1b3;
 	--color-accent: #567b67;
 	--color-danger: #e06c75;
-	--color-ui-faint: rgba(100, 150, 255, 0.14);
+	/* Hover veil over an ALREADY-elevated surface (the table action menu's rows), so
+	   it cannot reuse --color-bg-secondary, which is measured against the base bg.
+	   Neutral like its sibling chrome tokens, and it flips polarity with the mode:
+	   a light veil on dark, a dark veil on light. */
+	--color-ui-faint: rgba(255, 255, 255, 0.07);
 
 	/* Markdown syntax semantic tokens — override points for the constructs the
 	   structural rules color (headings, emphasis, links, quote bar, inline code,
@@ -129,7 +133,7 @@
 	--color-ui-dulled: #8c959f;
 	--color-accent: #567b67;
 	--color-danger: #cf222e;
-	--color-ui-faint: rgba(100, 150, 255, 0.14);
+	--color-ui-faint: rgba(0, 0, 0, 0.06);
 
 	/* --syntax-* tokens are mode-independent (see the base block) — no light overrides. */
 

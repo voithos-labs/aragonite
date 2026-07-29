@@ -230,7 +230,7 @@
 		cursor: pointer;
 	}
 	.table-action-menu-item:hover:not(:disabled) {
-		background: var(--color-ui-faint, rgba(100, 150, 255, 0.14));
+		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
 	}
 	.table-action-menu-item:disabled {
 		opacity: 0.4;
@@ -261,7 +261,7 @@
 		cursor: pointer;
 	}
 	.alignment-segment:hover {
-		background: var(--color-ui-faint, rgba(100, 150, 255, 0.14));
+		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
 	}
 	.alignment-segment.active {
 		color: var(--color-accent, #567b67);

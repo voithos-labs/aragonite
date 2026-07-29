@@ -87,24 +87,33 @@ export function buildImageWidget(
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
+	const markBroken = (): void => {
+		opts.brokenUrlCache.add(resolvedUrl);
+		widget.classList.add('md-image-broken');
+	};
+	// Broken means the request finished and produced nothing to lay out. Completion is
+	// established per site: here the request may still be in flight, so `complete`
+	// gates it; inside the load listener it is finished by definition.
+	const hasNoIntrinsicSize = (): boolean => img.naturalWidth === 0;
 	// Only an image we actually loaded can be broken. A blocked/placeholder
 	// widget leaves src unset, and an unset <img> reports complete && naturalWidth
 	// === 0 in a real browser — without this guard those would render as broken.
-	if (
-		img.src &&
-		(opts.brokenUrlCache.has(resolvedUrl) || (img.complete && img.naturalWidth === 0))
-	) {
-		widget.classList.add('md-image-broken');
+	if (img.src && (opts.brokenUrlCache.has(resolvedUrl) || (img.complete && hasNoIntrinsicSize()))) {
+		markBroken();
 	}
-	img.addEventListener('error', () => {
-		opts.brokenUrlCache.add(resolvedUrl);
-		widget.classList.add('md-image-broken');
-	});
+	img.addEventListener('error', markBroken);
+	// A load event is not proof of success: a 200 the decoder cannot size (empty or
+	// truncated body, an SVG with no intrinsic dimensions) resolves as `load` with
+	// naturalWidth 0. The build-time probe above already reads that state as broken,
+	// so this arm must too — deciding it only on the next rebuild is what made the
+	// placeholder arrive one render behind the failure.
 	img.addEventListener('load', () => {
-		if (img.naturalWidth > 0) {
-			opts.brokenUrlCache.delete(resolvedUrl);
-			widget.classList.remove('md-image-broken');
+		if (hasNoIntrinsicSize()) {
+			markBroken();
+			return;
 		}
+		opts.brokenUrlCache.delete(resolvedUrl);
+		widget.classList.remove('md-image-broken');
 	});
 	widget.appendChild(img);
 
