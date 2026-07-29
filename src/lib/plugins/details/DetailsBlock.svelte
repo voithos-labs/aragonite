@@ -1,9 +1,11 @@
 <script lang="ts">
 	// The `<details>` collapsible on `createContainerBlock` — the same public seam
 	// the callout uses, plus a disclosure toggle. Collapse-ness has ONE definition:
-	// the descriptor's `reservedChrome.isCollapsed` probe. The factory derives its
-	// window/focus clamp from that probe, so this component threads no collapse dep;
-	// it reads `isCollapsedContainer` only for its own disclosure UI.
+	// the descriptor's `reservedChrome.isCollapsed` probe, read here through
+	// `isCollapsedContainer`. The one thing layered over it is the reader's transient
+	// disclosure, and it is layered by handing the factory the EFFECTIVE state as its
+	// `isCollapsed` dep — so the window clamp, the focus clamp and the rendered caret
+	// all see one answer rather than the view and the model disagreeing.
 	import {
 		BlockList,
 		createContainerBlock,
@@ -11,26 +13,37 @@
 		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
+	import { createReaderDisclosure } from './details-disclosure.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	const open = $derived(!isCollapsedContainer(node));
+	const documentOpen = $derived(!isCollapsedContainer(node));
 
 	const { blockListProps, containerApi, updateOwnMetadata, getPresentationMode } =
 		createContainerBlock({
 			getNode: () => node,
 			getIndex: () => index,
 			getPath: () => myPath,
-			getBoxEl: () => boxEl
+			getBoxEl: () => boxEl,
+			// The effective state, so a transiently-opened section actually MOUNTS and
+			// measures its body. Nothing else needs teaching: every collapse consumer
+			// reads the clamp the factory derives from this.
+			isCollapsed: () => !open
 		});
 
-	function toggle() {
-		// The disclosure commits an `open` metadata edit (the source bytes change),
-		// so reading mode makes it inert like the task checkbox — read off the
-		// container factory's mode getter.
-		if (getPresentationMode() === 'reading') return;
+	const reading = $derived(getPresentationMode() === 'reading');
+	const reader = createReaderDisclosure({ isDocumentOpen: () => documentOpen });
+	// Leaving reading mode discards the reader's flip: outside that mode the bytes are
+	// editable again, and a view state the bytes disagree with would be a live lie.
+	$effect(() => {
+		if (!reading) reader.reset();
+	});
+	const open = $derived(reading ? reader.open : documentOpen);
+
+	/** Flip the document's own `open`, as one undoable metadata edit. */
+	function commitDisclosure() {
 		const isOpen = open;
 		// Collapsing while the caret sits in a body child orphans it — the clamp
 		// unmounts the body and kills the window pin — so move it to the summary in
@@ -40,6 +53,12 @@
 		const caretInBody = pos != null && pos.path[0] >= 1;
 		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
 	}
+
+	// Reading mode writes no bytes, so it gets the disclosure that CANNOT: the
+	// reader's handler is closed over a module with no commit door in scope, rather
+	// than over a commit it declines to call. One mode read, at the one site that
+	// chooses — the toggle keeps working for a reader either way.
+	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
@@ -79,7 +98,7 @@
 		aria-expanded={open}
 		aria-label="Toggle details"
 		onmousedown={(e) => e.preventDefault()}
-		onclick={toggle}
+		onclick={onToggle}
 	></button>
 	<BlockList {...blockListProps} />
 </div>

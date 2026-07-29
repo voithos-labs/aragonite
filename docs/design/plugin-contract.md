@@ -188,7 +188,9 @@ Context-dependent kinds (no standalone recognizer — kept through edits); an op
 3. `EditorContext.presentationMode` (live getter) plus the `presentationModeChange` event;
 4. the leaf and widget tiers — `EditableLeaf.getPresentationMode()`, the live `getPresentationMode` getter mounted beside an inline-widget component's frozen snapshot, and `InlineWidgetEditingContext.presentationMode`.
 
-Reading mode's read-only enforcement lives at the platform's own seams — both chord dispatchers dead-key, the editable-leaf never reveals or commits, the container factory's whole-block edit branches gate — so a plugin inherits inertness without mode code; it reads the mode only for its own edit affordances and mode-dependent rendering (plugin-guide § Presentation modes is the authored contract statement).
+The editor's THEME travels the same four doors (`EditorContext.theme` plus a `themeChange` event, the container and leaf factories' `getTheme()`, the inline-widget `getTheme` prop). It exists for the one thing CSS cannot reach: content whose colors a rendering engine paints into its own markup, which must be redrawn rather than restyled.
+
+Reading mode's read-only enforcement lives at the platform's own seams — both chord dispatchers dead-key, the editable-leaf never reveals or commits, the container factory's whole-block edit branches gate — so a plugin inherits inertness without mode code; it reads the mode only for its own edit affordances and mode-dependent rendering (plugin-guide § Presentation modes is the authored contract statement). The contract is that the mode writes no BYTES, not that nothing responds: a view-only affordance may stay live there (the bundled details disclosure), which the platform supports by taking the effective collapse state as a dep rather than by relaxing any gate.
 
 ### Paste transforms
 

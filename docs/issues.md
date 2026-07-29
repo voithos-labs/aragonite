@@ -72,25 +72,6 @@ drag-selection all have to agree on a caret that skips two lines. The same quest
 any block whose rendering has non-editable structural lines, so it is worth deciding once for
 that class rather than for code alone.
 
-### Interactive reading mode (live task checkboxes) — deferred product question
-
-**Severity:** minor (product decision, not a defect)
-**Files:** `src/lib/components/blocks/list/ListItemBlock.svelte` (`toggleTask` gate),
-`src/lib/styles/editor.css` (reading-mode checkbox `pointer-events: none`),
-`src/lib/plugins/details/DetailsBlock.svelte` (the same class: the disclosure toggle)
-
-Reading mode v1 is fully inert: task checkboxes render but do not toggle, and the details
-disclosure (which commits an `open` metadata edit) is likewise gated. A rendered document
-(GitHub, Obsidian reading view) keeps some of these live — whether reading mode should allow
-a curated set of interactive edits is a product question, not a gating bug.
-
-**Why deferred:** the original anchor (the presentation-modes milestone's later rungs) shipped
-in 0.9.26 with reading mode fully inert, so the decision is now a standing product question,
-re-anchored to the 1.1 shell integration. Inert-at-freeze is also the safe ordering: ungating
-a curated interaction set later is additive, while shipping interactivity now and re-gating it
-after 1.0 would be a breaking change, and reading-mode inertness is lint-enforced (G4.19),
-an invariant worth keeping whole until the shell decides which interactions survive.
-
 ### Enter-at-end can produce a live block pair that reparses as one paragraph
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)

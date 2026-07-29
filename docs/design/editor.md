@@ -563,7 +563,7 @@ Further seams don't add a kind:
 - **Height-oracle estimate** — a kind declares an optional O(1) `estimateHeight` the windowing model consults before its built-in default.
 - **Decorations** — a pure `doc → Decoration[]` source (mark, widget, replace, block), registered per instance, memoized per edit and painted by the shared overlay over content the plugin does not own. Never enters the CST; search is its first client (§ 10).
 - **Rects** — viewport-space geometry (`editor.rects`, or `getRects()` for a consumer): a block's box, an inline range's rects, the partial-rect split — what a suggest popup or selection toolbar anchors to.
-- **Presentation mode** — every plugin tier reads the effective mode (`EditorContext.presentationMode` plus the `presentationModeChange` event; leaf and inline-widget getters), so an extension renders correctly under reading and preview (§ 4).
+- **Presentation mode and theme** — every plugin tier reads the effective mode (`EditorContext.presentationMode` plus the `presentationModeChange` event; leaf and inline-widget getters), so an extension renders correctly under reading and preview (§ 4). The theme name rides the same doors, for content whose colors an engine paints into its own markup and CSS therefore cannot reach.
 - **Diagnostics** — the consumer field-report door: `getDiagnostics()` arms the interaction trace and serializes an attachable report. Plugins never bind it.
 
 The rule that keeps all of this honest is the one from § 1. A plugin kind that reconstructs its bytes from its parsed structure instead of slicing them out of `raw` will round-trip _almost_ correctly, and you will find out which documents it corrupts later, from a user.

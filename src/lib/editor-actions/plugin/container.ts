@@ -98,8 +98,9 @@ export interface ContainerBlockDeps {
 	 * children genuinely unmount. Optional: a container that declares
 	 * `reservedChrome.isCollapsed` needs no dep — the factory derives the clamp
 	 * from that one probe. Supply it only as an escape hatch (dev-warns when it
-	 * disagrees with the declared probe). Read live so a toggle or its undo
-	 * re-renders reactively.
+	 * disagrees with the declared probe, except in reading mode, where a view-only
+	 * disclosure is legitimate — the bundled details is the shipped case). Read live
+	 * so a toggle or its undo re-renders reactively.
 	 */
 	isCollapsed?: () => boolean;
 	/**
@@ -211,15 +212,27 @@ export interface ContainerBlock {
  * probe needn't also thread a dep. An explicit dep stays an escape hatch; in dev
  * it's cross-checked against the probe so a half-collapsed hybrid (model says
  * collapsed, view stays open, or vice versa) is loud, not silent.
+ *
+ * Reading mode is the one exception, and it is the exception because it is the one
+ * mode that cannot write: a reader opening a collapsed container there flips VIEW
+ * state, so the dep is deliberately ahead of the document and the cross-check would
+ * fire on every read for as long as the section stays open. The carve-out is scoped
+ * to `reading` alone — the live-preview modes edit, so a divergence in those is still
+ * the hybrid this guard exists to catch.
  */
 export function composeCollapseProbe(
 	explicit: (() => boolean) | undefined,
-	getNode: () => NodeView
+	getNode: () => NodeView,
+	getPresentationMode?: () => PresentationMode
 ): () => boolean {
 	if (!explicit) return () => isCollapsedContainer(getNode());
 	return () => {
 		const value = explicit();
-		if (import.meta.env.DEV && value !== isCollapsedContainer(getNode())) {
+		if (
+			import.meta.env.DEV &&
+			value !== isCollapsedContainer(getNode()) &&
+			!isReadingMode(getPresentationMode)
+		) {
 			devWarn(
 				'plugin-container',
 				`isCollapsed dep disagrees with the declared reservedChrome.isCollapsed probe for kind "${getNode().kind}"`
@@ -387,7 +400,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		}
 	};
 
-	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
+	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
 
 	const blockquoteOverrides = createBlockquoteOverrides({
 		scope,
