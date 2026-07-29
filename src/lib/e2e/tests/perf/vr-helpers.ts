@@ -1,11 +1,12 @@
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-// Shared probes for the virtual-rendering (top-level windowing) e2e suites. Every
-// fixture in these suites clears the editor's height watermark, so only a window of
-// blocks mounts and the off-window reveal path runs for real. Honest assertions
-// only — a reveal that doesn't land the caret is a VR bug to report, not an
-// assertion to soften.
+// Shared probes for the virtual-rendering (top-level windowing) e2e suites. Most
+// fixtures here clear the editor's height watermark, so only a window of blocks mounts
+// and the off-window reveal path runs for real; `UNWINDOWED_PROSE` is the deliberate
+// exception, for contracts whose two writers only diverge on the inactive branch.
+// Honest assertions only — a reveal that doesn't land the caret is a VR bug to report,
+// not an assertion to soften.
 
 export const FIXTURE_BYTES = 2_000_000;
 
