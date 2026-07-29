@@ -33,7 +33,13 @@ function harness(options: HarnessOptions = {}) {
 	const crossBlock = {
 		handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
 			pasted.push(replacement);
-			return options.crossBlockClaims ?? true;
+			if (options.crossBlockClaims ?? true) return true;
+			// Faithful to the only way the real seam declines: it re-reads the selection
+			// and finds it no longer cross-block. A stub that returned false with the
+			// range still standing would let a decline-time read of `selection.start`
+			// look correct, which is precisely the bug the path pin exists to catch.
+			selection.collapse();
+			return false;
 		},
 		performCrossBlockDeleteFromEvent: deleted
 	} as unknown as CrossBlockHandlers;
