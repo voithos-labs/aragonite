@@ -24,6 +24,41 @@ describe('renderMermaid memoization', () => {
 		expect(renderer).toHaveBeenCalledTimes(2);
 	});
 
+	// The engine paints its own colors into the SVG, so a diagram already drawn for
+	// one theme is not reusable under another: the theme has to be part of the memo
+	// key, or a theme flip resolves to the cached wrong-palette SVG forever.
+	it('keys on the theme as well as the code, and hands the renderer the theme', async () => {
+		const renderer = vi.fn(async (code: string, _id: string, ctx?: { theme: string }) => {
+			return `<svg data-theme="${ctx?.theme}">${code}</svg>`;
+		});
+		setMermaidRenderer(renderer);
+
+		const dark = await renderMermaid('graph TD', 'dark');
+		expect(dark.svg).toBe('<svg data-theme="dark">graph TD</svg>');
+		expect(await renderMermaid('graph TD', 'dark')).toBe(dark);
+		expect(renderer).toHaveBeenCalledTimes(1);
+
+		const light = await renderMermaid('graph TD', 'light');
+		expect(light.svg).toBe('<svg data-theme="light">graph TD</svg>');
+		expect(renderer).toHaveBeenCalledTimes(2);
+
+		// Back to the first theme: the earlier render is still cached under its key.
+		await renderMermaid('graph TD', 'dark');
+		expect(renderer).toHaveBeenCalledTimes(2);
+	});
+
+	// The key is composed, so two (theme, code) pairs must not be able to collide by
+	// concatenation — a separator-less key would make theme 'a' + code 'b' the same
+	// entry as theme 'ab' + code ''.
+	it('cannot collide two theme/code pairs into one entry', async () => {
+		const renderer = vi.fn(async (code: string) => `<svg>${code}</svg>`);
+		setMermaidRenderer(renderer);
+
+		await renderMermaid('b', 'a');
+		await renderMermaid('', 'ab');
+		expect(renderer).toHaveBeenCalledTimes(2);
+	});
+
 	it('resolves a renderer failure to a legible error and caches it like a success', async () => {
 		const renderer = vi.fn(async () => {
 			throw new Error('No diagram type detected');

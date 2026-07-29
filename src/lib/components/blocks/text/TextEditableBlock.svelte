@@ -113,6 +113,7 @@
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
 		presentationMode: getPresentationMode,
+		theme: getTheme,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
@@ -356,6 +357,7 @@
 		get presentationMode() {
 			return presentationMode;
 		},
+		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
 		get linkResolver(): LinkReferenceResolver | undefined {

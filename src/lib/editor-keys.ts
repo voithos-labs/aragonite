@@ -53,6 +53,9 @@ export interface PastedImage {
  *  to skip that image. Called once per image file, in clipboard order. */
 export type PasteImageHook = (image: PastedImage) => Promise<string | null>;
 export type PresentationModeGetter = () => PresentationMode;
+/** The editor's theme name, as reflected to `data-editor-theme`. An open string:
+ *  built-ins are `'dark'`/`'light'`, and a consumer may name its own. */
+export type ThemeGetter = () => string;
 export type PluginEditorLookup = (pluginName: string) => EditorContext;
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
 export type DocumentGetter = () => Document;
@@ -151,8 +154,8 @@ export interface EditorServices {
 }
 
 /** Host-supplied render/behavior policies: URL resolution, load and drag-handle
- *  gates, presentation mode, keybinding overrides, and the broken-image cache.
- *  The getter members read live editor state on each call. */
+ *  gates, presentation mode and theme, keybinding overrides, and the broken-image
+ *  cache. The getter members read live editor state on each call. */
 export const EDITOR_POLICIES_KEY = Symbol('editor-policies');
 export interface EditorPolicies {
 	resolveImageUrl: ResolveImageUrl;
@@ -162,6 +165,10 @@ export interface EditorPolicies {
 	 *  False hides it; keyboard reorder stays available regardless. */
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
+	/** Rides beside the mode because it answers the same question for a renderer that
+	 *  paints rather than styles: a plugin engine emitting its own colored markup
+	 *  (a diagram SVG) cannot pick them up from CSS, so it needs the name. */
+	theme: ThemeGetter;
 	keybindingOverrides: KeybindingOverridesGetter;
 	/** Set-once host import hook for image-bearing pastes. Required-nullable: a
 	 *  mount must answer, and `undefined` leaves such a paste on the text/plain

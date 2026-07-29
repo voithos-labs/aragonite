@@ -4,6 +4,21 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **The theme reaches content the editor does not style.** A stylesheet retheme everything the
+  editor paints, which is why the theme had no seam beyond CSS — but an engine that emits markup
+  carrying color literals is outside that reach: a drawn Mermaid SVG cannot be rethemed, only
+  redrawn. The theme now rides the four doors the presentation mode already rode (the container
+  and leaf factories, the inline-widget props, `EditorContext`, plus a `themeChange` event), so
+  "the theme rides exactly where the mode rides" is one statable rule rather than four
+  half-answers. Mermaid consumes it end to end: the injected renderer takes a theme term, the
+  render memo keys `theme\0code` — so a flip misses and a flip BACK is still a hit, where a
+  cache reset would have thrown away work the user is about to ask for again — and the block
+  reads the theme inside its render effect, which is the half that makes every mounted diagram
+  redraw rather than just the next one to change. The engine adapter re-initializes per theme
+  and serializes its renders, because mermaid's config is process-global and v11's `render`
+  takes none: a `%%{init}%%` prepend would have avoided the global write and corrupted every
+  diagram carrying YAML front matter, which must start at byte 0.
+
 - **A load is not proof an image loaded.** The broken-image placeholder was decided by two
   predicates that disagreed: the build-time probe called a finished-but-unsized request broken,
   while the `load` listener could only ever CLEAR the class. So a response that resolves as

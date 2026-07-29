@@ -146,6 +146,13 @@ export interface EditableLeaf {
 	 */
 	getPresentationMode(): PresentationMode;
 
+	/**
+	 * The live editor theme name (`data-editor-theme`). The container tier's sibling
+	 * read: a leaf whose rendered half comes from an engine rather than from CSS (a
+	 * math or diagram renderer that emits its own colors) keys its render on this.
+	 */
+	getTheme(): string;
+
 	// ── BlockComponent surface (mode-guarded; re-export as one-liners) ────────
 	focus(offset: number): void;
 	focusAtColumn(x: number, from: StickyColumnDirection): void;
@@ -239,6 +246,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const {
 		keybindingOverrides,
 		presentationMode: getPresentationModeCtx,
+		theme: getThemeCtx,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
@@ -250,6 +258,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		pluginEditor
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
+	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	const isReading = () => getPresentationMode() === 'reading';
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
@@ -608,6 +617,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		surfaceProps,
 
 		getPresentationMode,
+		getTheme,
 
 		focus,
 		focusAtColumn,

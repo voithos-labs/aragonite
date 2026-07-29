@@ -85,6 +85,7 @@ function stubbedPolicies(): EditorPolicies {
 		imageLoadPolicy: () => 'auto',
 		blockDragHandles: () => false,
 		presentationMode: () => 'source',
+		theme: () => 'dark',
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,
 		brokenImageUrls: new Set<string>()

@@ -14,7 +14,20 @@
 
 import { createBoundedMemo } from '$lib/plugin';
 
-export type MermaidRenderer = (code: string, id: string) => Promise<string /* svg */>;
+/** What the editor knows at render time that the diagram text does not carry. */
+export interface MermaidRenderContext {
+	/** The editor's theme name (`data-editor-theme`; `'dark'`/`'light'` built in, or a
+	 *  consumer's own). The engine paints colors INTO the SVG, so a stylesheet cannot
+	 *  retheme a drawn diagram — the renderer has to draw for the theme. */
+	theme: string;
+}
+
+/** Third parameter, so an existing `(code, id) => …` renderer stays assignable. */
+export type MermaidRenderer = (
+	code: string,
+	id: string,
+	context: MermaidRenderContext
+) => Promise<string /* svg */>;
 
 export interface MermaidRenderResult {
 	svg?: string;
@@ -43,17 +56,21 @@ export function hasMermaidRenderer(): boolean {
 }
 
 /**
- * Memoized per code text — re-renders of unchanged code do zero engine work. An
- * SVG string needs no per-caller clone (unlike the math renderer's DOM node), so
- * the bare `createBoundedMemo` value is the render promise. A parse failure
- * resolves to a legible `error`, never a throw, and is cached like a success
- * (same code, same failure).
+ * Memoized per (theme, code) — re-renders of unchanged code in an unchanged theme do
+ * zero engine work, while a theme flip misses and redraws. The theme belongs in the
+ * KEY rather than in a cache reset: flipping back is then a hit, and no stylesheet
+ * could fix a diagram drawn for the other palette (the engine writes colors into the
+ * SVG). An SVG string needs no per-caller clone (unlike the math renderer's DOM
+ * node), so the bare `createBoundedMemo` value is the render promise. A parse failure
+ * resolves to a legible `error`, never a throw, and is cached like a success (same
+ * code, same failure).
  */
-export function renderMermaid(code: string): Promise<MermaidRenderResult> {
-	return memo(code, () => {
+export function renderMermaid(code: string, theme = 'dark'): Promise<MermaidRenderResult> {
+	// NUL-joined so no (theme, code) pair can concatenate into another's key.
+	return memo(`${theme}\0${code}`, () => {
 		const renderer = activeRenderer;
 		return renderer
-			? renderer(code, `aragonite-mermaid-${renderSeq++}`).then(
+			? renderer(code, `aragonite-mermaid-${renderSeq++}`, { theme }).then(
 					(svg) => ({ svg }),
 					(reason) => ({ error: reason instanceof Error ? reason.message : String(reason) })
 				)

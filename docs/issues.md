@@ -797,13 +797,6 @@ listItem in the same pass, since both inherit the same prefix-forward machinery.
 footnote shape never produces; the Enter-at-end fix is the same deferred splitNode design pass its
 top-level sibling entry already owns.
 
-### Mermaid diagrams have no theme seam
-
-**Severity:** minor (visual; light-palette diagrams in dark themes)
-**Files:** `src/lib/plugins/mermaid/renderer.ts` (`loadMermaid()` memoizes `initialize` process-once), `src/lib/plugins/mermaid/MermaidBlock.svelte` (render memo keyed on code text only; the `$effect` reads only `code`)
-
-A consumer cannot recolor diagrams for its theme: a renderer config option alone would not help, because already-drawn diagrams never re-render on a theme change — the memo key carries no theme term and the effect subscribes to none. The seam is a theme term in the memo key plus a re-initialize path (or per-render config). Found by limestone's visual pass; its interim state is light diagrams in dark themes, accepted and recorded consumer-side.
-
 ### A deferred or blocked image widget has no placeholder styling
 
 **Severity:** nit (visual; an unloaded image occupies 0×0 instead of reserving space)

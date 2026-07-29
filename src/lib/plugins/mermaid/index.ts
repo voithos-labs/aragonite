@@ -3,4 +3,4 @@
 // lives at the `/renderer` subpath), so importing this pulls no rendering engine.
 export { mermaidPlugin } from './register';
 export { MERMAID } from './mermaid-kind';
-export type { MermaidRenderer } from './mermaid-renderer';
+export type { MermaidRenderer, MermaidRenderContext } from './mermaid-renderer';

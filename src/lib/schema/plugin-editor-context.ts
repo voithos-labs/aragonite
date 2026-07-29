@@ -34,6 +34,7 @@ export function createEditorPluginContexts(deps: {
 	decorations: DecorationRegistry;
 	rects: EditorRects;
 	getPresentationMode: () => PresentationMode;
+	getTheme: () => string;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -53,6 +54,9 @@ export function createEditorPluginContexts(deps: {
 				rects: deps.rects,
 				get presentationMode() {
 					return deps.getPresentationMode();
+				},
+				get theme() {
+					return deps.getTheme();
 				}
 			};
 			contexts.set(pluginName, ctx);

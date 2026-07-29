@@ -253,6 +253,11 @@
 	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
+	// Seeds whose batteries drive a real mode flip / theme flip through the header
+	// controls. Gated per seed so a sibling battery's DOM carries no extra chrome.
+	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
+	const THEME_TOGGLE_SEEDS = ['mermaid'];
+	let theme = $state<'dark' | 'light'>('dark');
 	let editor = $state<ReturnType<typeof Editor>>();
 
 	trackParityDocument(() => editor);
@@ -313,7 +318,7 @@
 			</button>
 		</div>
 	{/if}
-	{#if data.seed === 'mathblock'}
+	{#if MODE_TOGGLE_SEEDS.includes(data.seed ?? '')}
 		<div class="harness-controls">
 			<!-- onmousedown preventDefault keeps editor focus: a flip while a render-primary
 			     reveal is open must commit through the blur-class mode effect (mode already
@@ -327,7 +332,18 @@
 			</button>
 		</div>
 	{/if}
-	<Editor bind:this={editor} {source} {keybindings} {plugins} {presentationMode} />
+	{#if THEME_TOGGLE_SEEDS.includes(data.seed ?? '')}
+		<div class="harness-controls">
+			<button
+				data-testid="theme-toggle"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => (theme = theme === 'dark' ? 'light' : 'dark')}
+			>
+				{theme === 'dark' ? 'Light theme' : 'Dark theme'}
+			</button>
+		</div>
+	{/if}
+	<Editor bind:this={editor} {source} {keybindings} {plugins} {presentationMode} {theme} />
 </div>
 
 <style>
