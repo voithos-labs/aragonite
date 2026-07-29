@@ -1,24 +1,21 @@
 import type { Page } from '@playwright/test';
-import { test, expect } from '../../fixtures';
+import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
-import {
-	RANGE_INTERRUPT_GESTURES,
-	type RangeInterruptGesture
-} from '../../simulation/gestures/range-interrupt';
+import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
 
 // Deterministic reachability for the select-all → gesture → keystroke family: every
 // gesture fires once here over a document shaped to reach it, so coverage never
 // depends on which seed drew what. The note sessions add the fuzz dimension — a
 // gesture landing mid-session against whatever tree the build produced.
 //
-// PROBES is keyed by the gesture union, so a gesture joining the family without a
-// probe is a `npm run check` error rather than a silent hole; the closing test pins
-// the same fact at runtime for a reader who only runs the suite.
+// PROBES is keyed by the gesture union, so a gesture joining the family without a probe
+// is a `npm run check` error rather than a silent hole. That is the whole enforcement — a
+// runtime assertion over the same two typed records could never fail.
 //
 // See requirements/simulation/range-interrupt-ops.md for each gesture's two
 // predictions and the one it is pinned to.
@@ -29,6 +26,10 @@ const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sa
 const TABLE_TAIL_DOC = 'lead para\n\nmiddle para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
 const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph.\n';
+// The blank line under `# Overview` is load-bearing, not formatting: the TOC entry lands
+// its caret at that heading's offset 0, where the key demotes it to a paragraph. Tighten
+// the gap and the block below becomes a lazy continuation on reparse, reddening the
+// convergence oracle over the deferred class in `docs/issues.md` — nothing this probe tests.
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
 
 interface Probe {
@@ -169,9 +170,5 @@ test.describe('range-interrupt simulation', () => {
 				await runProbe(page, editor, gesture, probe);
 			});
 		}
-	});
-
-	test('every gesture in the family has a probe', () => {
-		expect(Object.keys(PROBES).sort()).toEqual([...RANGE_INTERRUPT_GESTURES].sort());
 	});
 });

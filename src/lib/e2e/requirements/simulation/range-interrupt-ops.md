@@ -140,4 +140,8 @@ outcome, deliberately and in one line.
 ## Coverage
 
 - every member of the gesture union has a probe: the probe table is keyed by the union,
-  so a new gesture without one is a type error, and a runtime test pins the same fact
+  so a new gesture without one is a type error rather than a silent hole
+- range endpoints and blur targets are chosen from PROSE leaves only. A render-primary
+  leaf would reveal its source instead of anchoring a range (and would swallow the blur
+  that is meant to commit an open reveal); a fenced leaf's markers would make the
+  collapse something other than the byte splice the `range` prediction assumes
