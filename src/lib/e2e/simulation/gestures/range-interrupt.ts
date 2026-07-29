@@ -1,5 +1,6 @@
 import type { Gestures } from '../gestures';
 import { primaryModifier } from '../../platform';
+import { clickInlineWidget } from './math';
 import {
 	type SimContext,
 	assertParseConvergence,
@@ -108,13 +109,11 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 		build: 'select-all',
 		act: clickBlockMathRender
 	},
-	// Navigation lands at the heading's offset 0, so the fixture keeps a blank line under
-	// that heading — the same lazy-continuation class Escape avoids by its build.
+	// Navigation lands at the target heading's offset 0, which demotes it — so the document
+	// under this gesture owes a blank line there. That constraint is written at the fixture
+	// that owes it, not here.
 	'toc-entry-click': { consumes: 'caret', build: 'select-all', act: clickTocEntry }
 };
-
-/** Union-derived manifest: a gesture cannot join the family without a spec or a probe. */
-export const RANGE_INTERRUPT_GESTURES = Object.keys(SPECS) as RangeInterruptGesture[];
 
 /**
  * Build the range, fire the gesture, type one key, and assert the bytes against the
@@ -235,9 +234,9 @@ interface BuiltRange {
 }
 
 /**
- * Escalate a caret in the first leaf block to the whole document. The double Ctrl+A
- * needs a caret to escalate FROM, and the leaf is the one block guaranteed not to
- * reveal a render-primary source under it.
+ * Escalate a caret in the first prose leaf to the whole document. The double Ctrl+A
+ * needs a caret to escalate FROM, and a prose leaf is the one block that cannot reveal
+ * a render-primary source under it.
  */
 async function buildSelectAll(ctx: SimContext, g: Gestures): Promise<BuiltRange> {
 	const leaves = await topLevelLeaves(ctx);
@@ -247,37 +246,48 @@ async function buildSelectAll(ctx: SimContext, g: Gestures): Promise<BuiltRange>
 }
 
 /**
- * Shift+Click a range between the first two top-level LEAF blocks. Leaf endpoints
- * past their markers keep the collapse a pure byte splice — the anchor block's marker
- * survives in the head, the focus block's is inside the removed span — which is what
- * lets the `range` prediction be exact without modelling merge rules.
+ * Shift+Click a range between the first two top-level PROSE leaves. Prose endpoints past
+ * their markers keep the collapse a pure byte splice — the anchor block's marker survives
+ * in the head, the focus block's is inside the removed span — which is what lets the
+ * `range` prediction be exact without modelling merge rules.
  */
 async function buildProseRange(ctx: SimContext, g: Gestures): Promise<BuiltRange> {
 	const leaves = await topLevelLeaves(ctx);
 	if (leaves.length < 2) {
-		throw new Error(`[${ctx.label}] range-interrupt needs two top-level leaf blocks to span`);
+		throw new Error(`[${ctx.label}] range-interrupt needs two top-level prose leaves to span`);
 	}
 	await ctx.editor.focusBlockAtPath([leaves[0]], 2);
 	await g.shiftClickAcross([leaves[1]], 2);
 	return readRange(ctx, 'prose-range');
 }
 
-/** Top-level blocks with no children and enough content for an interior offset. */
+/**
+ * Top-level PROSE leaves with enough content for an interior offset. The kind filter is
+ * load-bearing three times over, not decoration: a caret parked in a render-primary leaf
+ * reveals its source instead of anchoring a range, a fenced leaf's markers make a
+ * cross-block collapse something other than a byte splice, and the blur that commits a
+ * reveal must land somewhere that does not open a second one. A childless-and-long-enough
+ * filter admits `$$x^2$$` and a code fence to all three.
+ */
 async function topLevelLeaves(ctx: SimContext): Promise<number[]> {
-	const leaves = await ctx.page.evaluate(() => {
-		const children = (window as any).__test.getDocument().children as {
-			raw: string;
-			children?: unknown[];
-		}[];
-		const out: number[] = [];
-		children.forEach((c, i) => {
-			const isLeaf = !Array.isArray(c.children) || c.children.length === 0;
-			if (isLeaf && c.raw.trim().length >= 6) out.push(i);
-		});
-		return out;
-	});
+	const leaves = await ctx.page.evaluate(
+		(prose) => {
+			const children = (window as any).__test.getDocument().children as {
+				kind: string;
+				raw: string;
+				children?: unknown[];
+			}[];
+			const out: number[] = [];
+			children.forEach((c, i) => {
+				const isLeaf = !Array.isArray(c.children) || c.children.length === 0;
+				if (isLeaf && prose.includes(c.kind) && c.raw.trim().length >= 6) out.push(i);
+			});
+			return out;
+		},
+		[...PROSE_KINDS]
+	);
 	if (leaves.length === 0) {
-		throw new Error(`[${ctx.label}] range-interrupt found no top-level leaf block to start from`);
+		throw new Error(`[${ctx.label}] range-interrupt found no top-level prose leaf to start from`);
 	}
 	return leaves;
 }
@@ -319,7 +329,7 @@ async function clickBelowLastBlock(ctx: SimContext): Promise<undefined> {
  */
 async function clickInRightMargin(ctx: SimContext): Promise<undefined> {
 	const root = await editorBox(ctx);
-	const index = await firstProseIndex(ctx);
+	const index = (await topLevelLeaves(ctx))[0];
 	const top = await ctx.page.evaluate((i) => {
 		const block = document.querySelector(`[data-block-path='${JSON.stringify([i])}']`);
 		if (!block) throw new Error(`no block host at index ${i}`);
@@ -327,18 +337,6 @@ async function clickInRightMargin(ctx: SimContext): Promise<undefined> {
 	}, index);
 	await ctx.page.mouse.click(root.right - 5, top + 6);
 	return undefined;
-}
-
-async function firstProseIndex(ctx: SimContext): Promise<number> {
-	const index = await ctx.page.evaluate(
-		(prose) => {
-			const children = (window as any).__test.getDocument().children as { kind: string }[];
-			return children.findIndex((c) => prose.includes(c.kind));
-		},
-		[...PROSE_KINDS]
-	);
-	if (index < 0) throw new Error(`[${ctx.label}] no top-level prose block to click beside`);
-	return index;
 }
 
 /**
@@ -396,19 +394,9 @@ async function searchRoundTrip(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
-/**
- * Click the rendered inline math island to reveal its `$…$` source. Aims at the
- * painted `.katex-html` glyphs rather than the island center, where the clipped
- * `.katex-mathml` half degenerates a center click to a corner outside the hit-test
- * (the same trap `gestures/math.ts` documents).
- */
+/** Click the rendered inline math island to reveal its `$…$` source. */
 async function clickInlineMathWidget(ctx: SimContext): Promise<undefined> {
-	const widget = ctx.page.locator('.math-inline-widget').first();
-	const glyphs = widget.locator('.katex-html');
-	const target = (await glyphs.count()) > 0 ? glyphs.first() : widget;
-	const box = await target.boundingBox();
-	if (!box) throw new Error(`[${ctx.label}] the inline math island has no bounding box`);
-	await target.click({ position: { x: box.width / 2, y: box.height / 2 } });
+	await clickInlineWidget(ctx.page, 0);
 	await ctx.page.locator('.math-inline-widget').first().waitFor({ state: 'detached' });
 	return undefined;
 }
@@ -531,13 +519,23 @@ function predict(args: PredictArgs): string {
 			return splice(before, Math.min(a, b), Math.max(a, b), char);
 		}
 		case 'block': {
-			const span = spans[consumedBlock!];
+			if (consumedBlock === undefined) {
+				throw new Error(
+					`[${ctx.label}] ${gesture} is pinned to a whole-block outcome but its act named ` +
+						`no block, so there is nothing to predict the key replacing.`
+				);
+			}
+			const span = spans[consumedBlock];
 			// The block's trailing newline is separator, not content: replacing the block
 			// keeps the document's line structure.
 			const end = span.end - (before.slice(span.start, span.end).match(/\n+$/)?.[0].length ?? 0);
 			return splice(before, span.start, end, char);
 		}
-		default: {
+		// The three range-ended landings share one arithmetic: the key goes in at the caret
+		// the gesture left. A reveal only defers WHEN those bytes appear, not where.
+		case 'caret':
+		case 'reveal-escape':
+		case 'reveal-blur': {
 			if (!landing) throw new Error(`[${ctx.label}] ${gesture} left no selection to type into`);
 			// A caret inside a container addresses its LEAF's raw, and a container's raw is
 			// not the concatenation of its children (the markers are stripped), so there is

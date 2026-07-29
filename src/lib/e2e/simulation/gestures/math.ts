@@ -47,7 +47,7 @@ async function blockRaw(ctx: SimContext, index: number): Promise<string> {
 // that point to a corner outside the island and silently misses the reveal
 // hit-test — the same trap the plugin e2e's `clickWidgetCenter` documents. Aim at
 // the painted `.katex-html` glyphs, falling back to the island's own box.
-async function clickInlineWidget(page: Page, nth: number): Promise<void> {
+export async function clickInlineWidget(page: Page, nth: number): Promise<void> {
 	const widget = page.locator(INLINE_WIDGET).nth(nth);
 	const glyphs = widget.locator('.katex-html');
 	const target = (await glyphs.count()) > 0 ? glyphs.first() : widget;
