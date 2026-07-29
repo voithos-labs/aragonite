@@ -30,7 +30,7 @@ export interface ScanContext {
 export interface Delimiter {
 	/**
 	 * The text node holding the run's bytes, by identity: processEmphasis
-	 * splices `nodes` when it wraps a match, so a position would go stale
+	 * reorders `nodes` when it wraps a match, so a position would go stale
 	 * where an object reference cannot.
 	 */
 	node: InlineNode;
