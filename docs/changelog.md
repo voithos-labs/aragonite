@@ -28,25 +28,14 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   round-trip, so an optional cell would have been left undeclared by exactly the containers that
   need it.
 
-- **A copy starting inside a container's title keeps the container.** Selecting from mid-title
-  (or mid-`<summary>`) down into the body used to yield the title's tail with no syntax around
-  it and the body flat beneath, so `:::note Ti|tle` through the body pasted back as three bare
-  paragraphs with the callout gone. The chrome tail is now re-emitted as the container's own
-  opener, and the container closes where the collection walk leaves its subtree: past the
-  container the copy carries the whole body and the container's trailing blank line, and stopping
-  inside the body closes right after the truncated fragment. The wrapper comes from one
-  `rebuildRaw` call over the real collected body, which is what makes the closer trustworthy: a
-  directive fence widens when its body reproduces the terminator, and deriving opener and closer
-  in the same call means they cannot disagree about the width (a nested `::::note` closes with
-  four colons, not the three a constant would have emitted, which would have closed the outer at
-  the inner's closer line). The line ending comes off the live container, so a CRLF-authored
-  callout stays CRLF. Nesting composes: a start in the outer title with an end in an inner title
-  emits both containers, the inner nested and closed inside the outer, and a start in an INNER
-  title running past its parent closes only the container the start opened, never a stray closer
-  for one the copy never opened. Closer synthesis is gated on the `opaque` container contract,
-  since a strip container's syntax is a per-line prefix with nothing to close; that family keeps
-  its marker-recovery seam. `terminateLine` moved to `core/lines.ts`, where the clipboard path
-  can reach it without pulling the range-delete graph into the published testing bundle.
+- **A copy starting inside a container's title keeps the container.** Selecting from mid-title (or
+  mid-`<summary>`) down into the body yielded the title's tail with no syntax around it and the
+  body flat beneath, so `:::note Ti|tle` through the body pasted back as three bare paragraphs
+  with the callout gone. The chrome tail is now re-emitted as the container's own opener and the
+  container closes where the collection walk leaves its subtree. The wrapper comes from one
+  `rebuildRaw` call over the collected body, so opener and closer cannot disagree about a fence
+  width the body escalated, and the line ending comes off the live container. Nesting composes:
+  only the container a start actually opened ever closes.
 
 - **Plugin surface: `rects.navigateTo(path)` — a navigation that lands the caret.** The rect
   surface's `scrollTo` brings a block into view and leaves focus wherever the gesture put it,

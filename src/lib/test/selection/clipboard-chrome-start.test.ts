@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { getPluginMetadata, type CstNode } from '../../core/nodes';
+import { getPluginMetadata, type AnyBlockKind, type CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { augmentBlockKind } from '../../schema/block-kind-descriptor';
+import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
+import {
+	NOTE,
+	registerCalloutKind,
+	rebuildCalloutRaw
+} from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
@@ -69,6 +75,9 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
 
 		expect(text).toBe(':::note tle\r\n\r\nBody\r\n\r\n:::\r\n\r\nBel');
+		const reparsed = parse(text);
+		expect(reparsed.children.map((c) => c.kind)).toEqual(['note', 'paragraph']);
+		expect(bodies(reparsed.children[0])).toEqual(['Body']);
 	});
 
 	it('rebuilds a details from its summary tail, open flag preserved', () => {
@@ -134,7 +143,14 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const text = collectCrossBlockText(doc, point([0, 2, 0], 2), point([1], 3));
 
 			expect(text).toBe(':::note ner\n\nI1\n\n:::\n\nO2\n\nBel');
-			expect(parse(text).children.map((c) => c.kind)).toEqual(['note', 'paragraph', 'paragraph']);
+			const reparsed = parse(text);
+			expect(reparsed.children.map((c) => c.kind)).toEqual(['note', 'paragraph', 'paragraph']);
+			expect(title(reparsed.children[0])).toBe('ner');
+			expect(bodies(reparsed.children[0])).toEqual(['I1']);
+			expect(reparsed.children.slice(1).map((c) => trimTrailingLineEnding(c.raw))).toEqual([
+				'O2',
+				'Bel'
+			]);
 		});
 
 		// Residue (issues.md): an end inside a nested container's BODY skips that
@@ -149,5 +165,56 @@ describe('cross-block copy starting in reserved chrome', () => {
 			expect(title(outer)).toBe('ter');
 			expect(bodies(outer)).toEqual(['O1\nInner\nI']);
 		});
+	});
+
+	// The property the buffer-and-wrap design exists to guarantee. `colonCount` stays
+	// 4 in metadata while the live fence widened to 5, so a wrapper that read the
+	// fence from metadata alone would close the container at its own body line and
+	// eject everything below it. Cell adopted from the task-8 review.
+	it('widens opener and closer together when the body forces fence escalation', () => {
+		const doc = parse('::::note Title\n\n:::\n\n::::\n\nBelow\n');
+		doc.children[0].children![1].raw = '::::\n';
+		rebuildCalloutRaw(doc.children[0]);
+
+		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
+
+		expect(text.startsWith(':::::note tle\n')).toBe(true);
+		const reparsed = parse(text);
+		expect(reparsed.children.map((c) => c.kind)).toEqual(['note', 'paragraph']);
+		expect(bodies(reparsed.children[0])).toEqual(['::::']);
+	});
+
+	// Where the grid and chrome arms actually meet: a sub-table emitted by the table
+	// end arm flows into the wrapper as ordinary body bytes.
+	it('wraps a sub-table emitted by a mid-table end endpoint', () => {
+		const doc = parse(
+			':::note Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\n:::\n\nBelow\n'
+		);
+		const text = collectCrossBlockText(doc, point([0, 0], 2), {
+			path: [0, 1],
+			offset: 2,
+			cellCoordinate: true
+		});
+
+		const note = parse(text).children[0];
+		expect(note.kind).toBe('note');
+		expect(title(note)).toBe('tle');
+		expect(note.children!.map((c) => c.kind)).toEqual(['note-title', 'table']);
+		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+	});
+
+	// A container declaring reservedChrome on a `strip` contract has no closer to
+	// synthesize — its syntax is a per-line prefix — so BOTH chrome paths must
+	// decline, or they emit a wrapper the kind never opens. Unreachable until a
+	// plugin ships that shape, which is why the gate is a guard rather than a note.
+	it('declines wrapper synthesis on both endpoints for a strip-contract container', () => {
+		const doc = parse('Above\n\n:::note Title\n\nBody\n\n:::\n\nBelow\n');
+		augmentBlockKind(NOTE as AnyBlockKind, {
+			container: { contract: 'strip', rebuildRaw: rebuildBlockquoteRaw }
+		});
+
+		// Pre-guard the end arm emitted "ove\n> Tit" — a blockquote wrapper on a note.
+		expect(collectCrossBlockText(doc, point([0], 2), point([1, 0], 3))).toBe('ove\nTit');
+		expect(collectCrossBlockText(doc, point([1, 0], 2), point([2], 3))).toBe('tle\nBody\n\nBel');
 	});
 });
