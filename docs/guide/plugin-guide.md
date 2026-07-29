@@ -74,7 +74,7 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 | `events`      | The subscribe-only event view — `events.on('edit', …)` returns a disposer                   |
 | `options`     | The options this editor passed, typed when you write `definePlugin<Options>` (see below)    |
 | `decorations` | This editor's decoration registry — register a source ([Decorations](#decorations))         |
-| `rects`       | This editor's viewport-space geometry — block box, range rects, caret, reveal, scrollTo     |
+| `rects`       | This editor's viewport-space geometry — block box, range rects, caret, reveal, navigation   |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is **synchronous-only** — call `onEditor` from `setup`, not from a later callback.
 
@@ -557,7 +557,7 @@ A block component gets its own node — but a table-of-contents block needs the 
 
 `document` is a **`DocumentView`** — read-only by type ([Views](#views)); deriving from it is the whole point, and mutation stays a commit-ceremony concern.
 
-A block that needs to _navigate_ to what it read — a table-of-contents entry scrolling to its heading — receives the owning instance's rect surface as **`BlockComponentProps.rects`**, the same object `EditorContext.rects` hands your per-instance callback. So `rects.scrollTo(path)` works from inside a block without reaching for an editor context a component does not have, and the navigation shares the editor's one reveal-and-scroll seam rather than a second copy of the rule. Navigating is view-only, so it stays legal in reading mode; the bundled **toc** plugin is this recipe and that call end to end.
+A block that needs to _navigate_ to what it read — a table-of-contents entry jumping to its heading — receives the owning instance's rect surface as **`BlockComponentProps.rects`**, the same object `EditorContext.rects` hands your per-instance callback. So `rects.navigateTo(path)` works from inside a block without reaching for an editor context a component does not have, and the navigation shares the editor's one reveal-and-place seam rather than a second copy of the rule. `navigateTo` lands the caret at the target as well as scrolling to it: an affordance that only scrolled would leave focus on its own button, where the editor's chords do not reach and an undo typed right after the jump does nothing. Use `scrollTo(path)` where the viewport should move but the selection should not. Navigation mutates no bytes, so it stays legal in reading mode, which simply has no editable target to focus; the bundled **toc** plugin is this recipe end to end.
 
 ## What an opener returns
 
@@ -1077,9 +1077,9 @@ View-only annotations layered over the rendered document — never part of the C
 
 Viewport-space geometry over the rendered document, reached through `editor.rects` (your `onEditor` context).
 
-| Export        | Role                                                                                                                                                                                              |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EditorRects` | The `editor.rects` surface — a block's box, an inline range's rects, the native caret, a reveal that mounts a windowed-out block, and a scrollTo that mounts then scrolls the viewport to a block |
+| Export        | Role                                                                                                                                                                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EditorRects` | The `editor.rects` surface — a block's box, an inline range's rects, the native caret, a reveal that mounts a windowed-out block, a scrollTo that mounts then scrolls the viewport to a block, and a navigateTo that also lands the caret there |
 
 **Selection geometry** _(pre-freeze / unstable)_
 

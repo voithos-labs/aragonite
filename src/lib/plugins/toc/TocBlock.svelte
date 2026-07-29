@@ -51,10 +51,12 @@
 	// projection is synchronous and uncached, so the derived stays reactive-safe.
 	const headings = $derived(collectHeadings(document, maxDepth));
 
-	// Serialize navigation per block (see `navigation-queue.ts` for why). No rect
-	// surface (a bare harness) → `scrollTo` resolves immediately, so entries are inert.
+	// Serialize navigation per block (see `navigation-queue.ts` for why). `navigateTo`
+	// lands the caret at the heading as well as scrolling to it, so the entry button
+	// does not keep focus where the editor's own chords cannot reach it. No rect
+	// surface (a bare harness) → it resolves immediately, so entries are inert.
 	const navigation = createNavigationQueue({
-		scrollTo: (path) => rects?.scrollTo(path) ?? Promise.resolve()
+		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve()
 	});
 
 	// Suppress the leaf's reveal-on-pointerdown so an entry activation navigates instead

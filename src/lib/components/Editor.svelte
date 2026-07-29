@@ -69,7 +69,7 @@
 		interactionTraceSnapshot
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
-	import { restoreSelection } from '../selection/selection-restore';
+	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
 	import { readBlockPath } from '../selection/path-lookup';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { isPreviewMode } from '../presentation-mode';
@@ -415,18 +415,19 @@
 		);
 	});
 
-	// Clear the reveal anchor on the next user-intent gesture in the document, so it
+	// Release the reveal anchor on the next user-intent gesture in the document, so it
 	// holds the target only through the post-reveal settle and yields the moment the
-	// user takes over. NOT on `scroll` — a programmatic correctAnchor scrollTop write
-	// itself fires `scroll` and would self-clear the anchor mid-settle.
+	// user takes over — outranking every claimant, unlike a claimant's own release.
+	// NOT on `scroll`: a programmatic correctAnchor scrollTop write itself fires
+	// `scroll` and would self-release the anchor mid-settle.
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
-		const clear = () => revealAnchor.clear();
+		const release = () => revealAnchor.releaseAll();
 		return removeAll(
-			onRoot(root, 'keydown', clear),
-			onRoot(root, 'pointerdown', clear),
-			onRoot(root, 'wheel', clear, { passive: true })
+			onRoot(root, 'keydown', release),
+			onRoot(root, 'pointerdown', release),
+			onRoot(root, 'wheel', release, { passive: true })
 		);
 	});
 
@@ -610,7 +611,12 @@
 		getClipBounds,
 		isCrossBlock: () => selectionState.isCrossBlock,
 		isHostChrome,
-		revealAnchor
+		revealAnchor,
+		// A navigation holds its pin (unlike the consumer restore door) — nothing
+		// follows it that would want the viewport back, and the band should outlive a
+		// late decode. Defined here, not in the rect surface: the restore road is the
+		// editor's, and this keeps the two doors one implementation apart.
+		landCaretAt: async (path) => (await restoreThroughRevealRoad(caretAt(path), true)) === 'applied'
 	});
 
 	// Per-instance plugin contexts. Placed after getDoc (not beside `events`) so it
@@ -1207,46 +1213,47 @@
 	}
 
 	/**
-	 * Restore a snapshot from {@link getSelection}. Shares the whole restore road
-	 * with the undo swap — resolve + clamp, reveal, place — so a consumer's
-	 * restore and a Ctrl+Z restore cannot diverge.
+	 * The one restore road: resolve + clamp, reveal through the SCROLLING primitive,
+	 * place. The mount primitive is not enough for a door that promises a focus block
+	 * IN VIEW — it returns without scrolling for a target that is already mounted, and
+	 * top-level overscan keeps blocks mounted well past the fold.
 	 *
-	 * Resolving hands the viewport back. `scrollTo`'s `'nearest'` keeps its reveal
-	 * anchor on purpose — a durable band is what search wants, and a searching
-	 * reader's next keystroke lands in the bar (inside the root) and releases it.
-	 * A restoring HOST never takes that turn: it restores a caret, then its own
-	 * remembered scroll, and then waits for the reader — so a kept pin sits armed
-	 * and the first post-mount measure pass (a diagram, display math or an image
-	 * settling in) re-asserts the caret block's top over the scroll the host just
-	 * wrote. Nothing public could release it, since only a user-intent gesture in
-	 * the document clears the slot. So this door releases on the way out.
+	 * `hold` decides whether the reveal's pin outlives the call. A navigation holds:
+	 * the user asked to be here, and the band should survive a late image decode. A
+	 * consumer restore hands the viewport back instead — it restores a caret, then its
+	 * own remembered scroll, and then waits for the reader, so a kept pin would sit
+	 * armed and the first post-mount measure pass (a diagram, display math or an image
+	 * settling in) would re-assert the caret block's top over the scroll the host just
+	 * wrote. Nothing public could release it: only a user-intent gesture in the
+	 * document releases the slot, and a waiting host takes no such turn.
 	 */
-	export async function setSelection(selection: EditorSelection): Promise<boolean> {
-		// The path the reveal was actually asked for — `restoreSelection` reveals the
-		// cell's deep path for a table endpoint, not `selection.focus.path`.
-		let revealed: number[] | null = null;
-		const outcome = await restoreSelection(selection, {
+	function restoreThroughRevealRoad(
+		selection: EditorSelection,
+		hold: boolean
+	): Promise<SelectionRestoreOutcome> {
+		return restoreSelection(selection, {
 			getDoc,
 			selectionState,
 			getBlockElByPath,
-			// The published contract is that a `true` focus block is IN VIEW, so the
-			// restore settles through the scrolling primitive. The mount primitive is
-			// not enough: it returns without scrolling for a target that is already
-			// mounted, and top-level overscan keeps blocks mounted well past the fold.
-			revealTarget: (path) => {
-				revealed = path;
-				return rects.scrollTo(path, { block: 'nearest' });
-			}
+			revealTarget: (path) => rects.scrollTo(path, { block: 'nearest', hold })
 		});
-		// Only OUR pin. The slot holds one target with no per-claimant ownership
-		// (docs/issues.md), so a blind clear would let this restore nuke a reveal
-		// armed after it — a search jump that landed while the settle was running.
-		if (samePath(revealAnchor.get()?.path, revealed)) revealAnchor.clear();
-		return outcome === 'applied';
 	}
 
-	function samePath(a: readonly number[] | undefined, b: readonly number[] | null): boolean {
-		return !!a && !!b && a.length === b.length && a.every((n, i) => n === b[i]);
+	function caretAt(path: number[]): EditorSelection {
+		return { anchor: { path, offset: 0 }, focus: { path, offset: 0 } };
+	}
+
+	/**
+	 * Restore a snapshot from {@link getSelection}. Shares the whole restore road with
+	 * the undo swap and with plugin navigation, so a consumer's restore, a Ctrl+Z
+	 * restore and a table-of-contents click cannot diverge.
+	 *
+	 * Resolves false when the restore was superseded by a later reveal as well as when
+	 * the target could not be brought into view — in both cases the promise the door
+	 * makes (the focus block is in view) is one it did not keep.
+	 */
+	export async function setSelection(selection: EditorSelection): Promise<boolean> {
+		return (await restoreThroughRevealRoad(selection, false)) === 'applied';
 	}
 
 	export function getEvents(): EditorEvents {

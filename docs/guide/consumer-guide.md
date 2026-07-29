@@ -433,25 +433,27 @@ Two read/annotate surfaces for building chrome _around_ the document — toolbar
 
 **`getRects()`** answers "where is that, on screen?" in viewport coordinates:
 
-| Method                         | Returns                                                                                              |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                            |
-| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table    |
-| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)              |
-| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists            |
-| `scrollTo(path, opts?)`        | Mounts the block, then scrolls the viewport to it (`opts.block`: `'nearest'` default, or `'center'`) |
+| Method                         | Returns                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `blockRect(path)`              | The block's bounding box, or `null` when it isn't mounted                                                                                        |
+| `rangeRects(path, start, end)` | The rects covering an inline range — one per visual line on wrapped text, one per cell on a table                                                |
+| `caretRect()`                  | The live native caret, or `null` (including whenever a cross-block selection is active)                                                          |
+| `reveal(path)`                 | Mounts a block the virtual window has unmounted, resolving `true` once its element exists                                                        |
+| `scrollTo(path, opts?)`        | Mounts the block, then scrolls the viewport to it (`opts.block`: `'nearest'` default, or `'center'`; `opts.hold`: keep holding it, default true) |
+| `navigateTo(path)`             | The same, plus lands the caret at the block's start — what a navigation affordance owes the user                                                 |
 
 Offsets are raw offsets into the block (dimmed markers included) on text surfaces, and cell indices on tables. `rangeRects` accepts the exported `SELECTION_END` sentinel as `end`, meaning "through the block's last measurable position".
 
 ### Recipe: navigating to a block
 
-`getRects().scrollTo(path, opts)` is the programmatic navigation door — jump to a heading, an outline entry, a cross-reference target. Three things to know:
+`getRects().navigateTo(path)` is the programmatic navigation door — jump to a heading, an outline entry, a cross-reference target. `scrollTo(path, opts)` is the same reveal-and-scroll without the caret landing, for moving the viewport without moving the selection (the built-in search reveal is exactly that call). Four things to know:
 
-- **It mounts first.** A block the virtual window has unmounted has no element to scroll to, so `scrollTo` reveals it and then scrolls. `reveal(path)` is that same mount without the scroll, for measuring something offscreen.
+- **It mounts first.** A block the virtual window has unmounted has no element to scroll to, so the reveal mounts it and then scrolls. `reveal(path)` is that same mount without the scroll, for measuring something offscreen.
 - **The boolean is honest.** It resolves only after the position settles, so `true` means the block is genuinely in view — not merely that the call ran. A target that cannot mount (one inside a collapsed `<details>` or admonition, say) resolves `false` and leaves nothing pinned.
-- **`'nearest'` holds, `'center'` places.** The default `'nearest'` keeps the target visible through the reflow a mount triggers (images decoding above it collapse the document height), which is why the built-in search reveal uses it. `'center'` places the block precisely once the scroll settles, and stops holding it after.
+- **`'nearest'` holds, `'center'` places.** The default `'nearest'` keeps the target visible through the reflow a mount triggers (images decoding above it collapse the document height). `'center'` places the block precisely once the scroll settles, and stops holding it after. Pass `hold: false` to hand the viewport straight back — what a restore that writes its own remembered scroll position afterwards wants.
+- **Land the caret if a user asked to go there.** A navigation affordance that only scrolls leaves focus on whatever the user clicked, where the editor's chords do not reach: an undo typed right after the jump does nothing. `navigateTo` places the caret at the target through the same restore road `setSelection` and undo use, which is why it is a distinct call rather than a flag.
 
-Paths are child indices into the document tree, so resolve one by walking `parse(getSource())` — filter for `heading` and `setextHeading`, recursing into container children so headings inside blockquotes and lists are reachable too. The bundled toc plugin does exactly that walk over its live document, and clicking one of its entries is a `scrollTo` call.
+Paths are child indices into the document tree, so resolve one by walking `parse(getSource())` — filter for `heading` and `setextHeading`, recursing into container children so headings inside blockquotes and lists are reachable too. The bundled toc plugin does exactly that walk over its live document, and clicking one of its entries is a `navigateTo` call.
 
 ### Recipe: a selection toolbar
 

@@ -28,6 +28,37 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   round-trip, so an optional cell would have been left undeclared by exactly the containers that
   need it.
 
+- **Plugin surface: `rects.navigateTo(path)` — a navigation that lands the caret.** The rect
+  surface's `scrollTo` brings a block into view and leaves focus wherever the gesture put it,
+  which for a table-of-contents entry is the entry's own `<button>`: inside the editor, on no
+  block, and so outside the reach of the editor's own chords. A Ctrl+Z immediately after a
+  navigation click did nothing — which stopped being cosmetic when navigating into a collapsed
+  container started committing an expansion, since the gesture that made the edit left focus
+  where the undo for it could not be typed. `navigateTo` reveals, scrolls, AND places the caret
+  at the target, through the same restore road undo and `setSelection` use, so a navigation and
+  a restore cannot diverge on how a target is resolved, clamped or revealed. The bundled `[[toc]]`
+  block navigates through it; the workaround its spec documented (put the caret back first, then
+  press Ctrl+Z) is deleted, and the spec now types the chord straight after the click.
+
+- **The reveal anchor takes per-call ownership, and pins the full target path.** The anchor is one
+  slot holding the block a reveal is fighting to keep on screen, and two claimants inside its
+  settle window used to clash on it: an earlier reveal's terminal release — a `'center'` refine, a
+  failed mount, a consumer restore handing the viewport back — could drop a pin claimed after it,
+  and only one of the three release arms checked (by path, so a same-path claimant lost its band
+  anyway). `scrollTo` now mints a claim: a claimant may release only the pin it still holds, and a
+  superseded reveal also stops refining, so two navigations racing settle on the newer target
+  instead of fighting over the scroll for the rest of the older one's settle. The user still
+  outranks every claimant — a keydown, pointerdown or wheel in the document releases the slot
+  whoever holds it. Second half of the same redesign: the pin names the FULL target path. It used
+  to narrow to the top-level ancestor, which resolved correctly inside the settle loop but held
+  the CONTAINER afterwards, so a container taller than the viewport plus a late image decode
+  re-asserted the container's top and pushed the already-resolved nested target back out of view.
+  `scrollTo` also grew a `hold` option: the consumer restore door passes `hold: false` and hands
+  the viewport straight back (it was doing this by path comparison), while a navigation and the
+  search band hold by default. `setSelection` consequently resolves `false` for a restore a later
+  reveal superseded, alongside the two ways it already reported a target it could not bring into
+  view.
+
 - **Plugin surface: `!` takes an inline prefix rung.** A registration on `!` carrying a `![[` prefix
   and a priority below `INLINE_PRIORITIES.builtin` now registers instead of throwing, so an
   Obsidian-style `![[embed]]` can be a real inline kind — recognized, rendered, caret-addressable —

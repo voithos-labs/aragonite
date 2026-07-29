@@ -7,10 +7,13 @@
 // and dragged the revealed block off screen.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
-import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
+import {
+	createListWindowing,
+	type ListWindowing,
+	type RevealAnchorPlacement
+} from '../../reactivity/list-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
 import type { CstNode } from '../../core/nodes';
-import type { RevealBlock } from '../../cursor/reveal-anchor';
 
 const HEIGHTS: Record<string, number> = { b0: 10, b1: 20, b2: 30, b3: 40, b4: 50, b5: 60 };
 
@@ -50,6 +53,44 @@ function stubListEl(height: number, scrollEl: HTMLElement) {
 
 const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
+const topLevel = (index: number): RevealAnchorPlacement => ({
+	index,
+	block: 'nearest',
+	innerOffset: 0,
+	height: null
+});
+
+/** Mount a root scope over six blocks with heights b0..b5 = 10..60. */
+function mountScope(
+	children: CstNode[],
+	ids: string[],
+	scrollEl: HTMLElement,
+	listEl: HTMLElement,
+	getRevealAnchorTarget: () => RevealAnchorPlacement | null
+): { windowing: ListWindowing; cleanup: () => void } {
+	let windowing!: ListWindowing;
+	const cleanup = $effect.root(() => {
+		windowing = createListWindowing({
+			oracle,
+			getChildren: () => children,
+			getChildIds: () => ids,
+			getListEl: () => listEl,
+			getScrollEl: () => scrollEl,
+			getFocusPath: () => null,
+			getRevealAnchorTarget,
+			getWidthVersion: () => 0,
+			windowingEnabled: () => true,
+			getParentPath: () => [],
+			overscan: 2,
+			pinExtensionCap: 100,
+			activateAbovePx: 1000,
+			deactivateBelowPx: 800
+		});
+	});
+	flushSync();
+	return { windowing, cleanup };
+}
+
 describe('list-windowing reveal anchor', () => {
 	it('re-asserts the reveal target through a structural rebuild', async () => {
 		const children = $state(
@@ -61,34 +102,15 @@ describe('list-windowing reveal anchor', () => {
 		const ids = $state(['b0', 'b1', 'b2', 'b3', 'b4', 'b5']);
 		const scrollEl = stubScrollEl(500);
 		const listEl = stubListEl(200, scrollEl);
-		let revealTarget: { index: number; block: RevealBlock } | null = null;
+		let revealTarget: RevealAnchorPlacement | null = null;
 
-		let windowing!: ListWindowing;
-		const cleanup = $effect.root(() => {
-			windowing = createListWindowing({
-				oracle,
-				getChildren: () => children,
-				getChildIds: () => ids,
-				getListEl: () => listEl,
-				getScrollEl: () => scrollEl,
-				getFocusPath: () => null,
-				getRevealAnchorTarget: () => revealTarget,
-				getWidthVersion: () => 0,
-				windowingEnabled: () => true,
-				getParentPath: () => [],
-				overscan: 2,
-				pinExtensionCap: 100,
-				activateAbovePx: 1000,
-				deactivateBelowPx: 800
-			});
-		});
-		flushSync();
+		const { windowing, cleanup } = mountScope(children, ids, scrollEl, listEl, () => revealTarget);
 
 		// Offsets: b0@0 b1@10 b2@30 b3@60 b4@100 b5@150. Park b1 at the viewport top,
 		// so the top-of-viewport anchor is NOT the reveal target.
 		await windowing.revealChild(1);
 		expect(scrollEl.scrollTop).toBe(10);
-		revealTarget = { index: 5, block: 'nearest' };
+		revealTarget = topLevel(5);
 
 		// Delete b3 — BETWEEN the anchor and the target. The anchor's own offset is
 		// unchanged, so the stable-id rule corrects by zero and holds b1 in place
@@ -96,10 +118,55 @@ describe('list-windowing reveal anchor', () => {
 		// re-asserts the target instead: b5 now sits at 110.
 		children.splice(3, 1);
 		ids.splice(3, 1);
-		revealTarget = { index: 4, block: 'nearest' };
+		revealTarget = topLevel(4);
 		flushSync();
 
 		expect(scrollEl.scrollTop).toBe(110);
 		cleanup();
 	});
+
+	// A target nested inside a container is not the container: re-asserting the
+	// ancestor's top pushes the resolved target a container-height out of view on the
+	// next measure pass, which is what the top-level narrowing used to do. Same
+	// structural trigger as above — what differs is where the pin lands.
+	const NESTED = { innerOffset: 35, height: 8 };
+	const NESTED_CASES: Array<[RevealAnchorPlacement['block'], number, number]> = [
+		// b5 lands at 110 after the delete; the target sits 35px into it.
+		['nearest', 500, 145],
+		// Centred on the TARGET's box: the ancestor's model height (60) would place it 26px off.
+		['center', 100, 145 - (100 - NESTED.height) / 2]
+	];
+	for (const [block, viewport, expected] of NESTED_CASES) {
+		it(`re-asserts a nested '${block}' target at its own position inside the ancestor`, async () => {
+			const children = $state(
+				[0, 1, 2, 3, 4, 5].map((i) =>
+					makePara(`p${i}
+`)
+				)
+			);
+			const ids = $state(['b0', 'b1', 'b2', 'b3', 'b4', 'b5']);
+			const scrollEl = stubScrollEl(viewport);
+			const listEl = stubListEl(80, scrollEl);
+			let revealTarget: RevealAnchorPlacement | null = null;
+
+			const { windowing, cleanup } = mountScope(
+				children,
+				ids,
+				scrollEl,
+				listEl,
+				() => revealTarget
+			);
+
+			await windowing.revealChild(1);
+			expect(scrollEl.scrollTop).toBe(10);
+
+			children.splice(3, 1);
+			ids.splice(3, 1);
+			revealTarget = { index: 4, block, ...NESTED };
+			flushSync();
+
+			expect(scrollEl.scrollTop).toBe(expected);
+			cleanup();
+		});
+	}
 });

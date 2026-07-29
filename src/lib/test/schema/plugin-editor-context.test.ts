@@ -19,7 +19,8 @@ const noopRects: EditorRects = {
 	rangeRects: () => [],
 	caretRect: () => null,
 	reveal: async () => false,
-	scrollTo: async () => false
+	scrollTo: async () => false,
+	navigateTo: async () => false
 };
 const deps = (doc: { children: unknown[] }) => ({
 	editorId: 'ed-1',
@@ -178,7 +179,8 @@ describe('createEditorPluginContexts', () => {
 			rangeRects: () => [],
 			caretRect: () => null,
 			reveal: async () => true,
-			scrollTo: async () => true
+			scrollTo: async () => true,
+			navigateTo: async () => true
 		};
 		let received: EditorRects | undefined;
 		installPlugins([
