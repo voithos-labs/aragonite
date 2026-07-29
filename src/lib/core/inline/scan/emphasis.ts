@@ -9,6 +9,7 @@
  */
 
 import type { InlineNode } from '../../nodes';
+import { assertInvariant } from '../../../invariants/assert';
 import { appendNode, type Delimiter, type ScanContext } from './scan-state';
 
 // ── Flanking classification (§6.2 phase 1) ──────────────────────────────────
@@ -122,6 +123,17 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 	const win = openNodeWindow(ctx, delimiters[floor].node);
 	const slotOf = mapDelimiterSlots(win, delimiters, floor, top);
 	if (slotOf === null) {
+		// Dropping the pass costs every pair in it, and the runs left behind are
+		// valid literal text, so the loss is invisible without a channel: warn
+		// rather than throw, because the state is currently unreachable and a
+		// false positive must not take a real editor's block to the fallback.
+		assertInvariant('emphasis-run-node-live', () => ({
+			code: 'emphasis-run-node-missing',
+			message:
+				'a live delimiter run node was not in the working node list, so the emphasis pass ' +
+				'for this range was dropped and its pairs will not form',
+			detail: { floor, top, windowSize: win.slot.length }
+		}));
 		delimiters.length = floor;
 		return;
 	}
@@ -239,6 +251,10 @@ function wrapMatch(
 	const kind: InlineNode['kind'] =
 		opener.char === '~' ? 'strikethrough' : use === 2 ? 'strong' : 'emphasis';
 
+	// The NONE arm bounds this walk, nothing more: the relink below still runs,
+	// and pointing it at a closer the opener cannot reach would cycle the list
+	// that closeNodeWindow walks. What rules that out is the caller's contract —
+	// slots ascend with scan order and every relink skips forward — not this arm.
 	const children: InlineNode[] = [];
 	for (let i = win.next[openerSlot]; i !== closerSlot && i !== NONE; i = win.next[i]) {
 		children.push(win.slot[i]);
