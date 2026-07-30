@@ -80,6 +80,14 @@ export interface BlockEditActions {
 		postEditFocusOffset?: number
 	): void | Promise<void>;
 	/**
+	 * Where a caret at `offset` lands once this scope has committed `text` — the
+	 * image of a container's `bodyWrite` rewrite, so a surface whose committed
+	 * bytes differ from its DOM can seat the caret on the bytes rather than on
+	 * what was typed. Identity when the scope rewrites nothing. Absent on scopes
+	 * with no container to answer for (the document root).
+	 */
+	mapCommittedOffset?(text: string, offset: number): number;
+	/**
 	 * Mutate block metadata without touching raw. For adornments that express
 	 * state as metadata rather than raw syntax (task checkboxes, etc.) — NOT
 	 * for raw-driven metadata like heading level (change via updateBlockContent).

@@ -5,7 +5,7 @@
  */
 
 import { updateNodeContent, focusTargetInReplacement } from '../tree-operations';
-import { makeBlockNode } from '../core/nodes';
+import { makeBlockNode, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { readBlockPath } from '../selection/path-lookup';
@@ -22,14 +22,18 @@ import type { CommitScope } from './block-edit-scope';
 export function previewContentReparse(
 	node: NodeView,
 	text: string,
-	grammar: Parameters<typeof updateNodeContent>[3]
+	grammar: Parameters<typeof updateNodeContent>[3],
+	ownerKind?: AnyBlockKind
 ): StructuralChange {
 	const probe = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	return updateNodeContent({ children: [probe] }, 0, text, grammar);
+	// The owner rides along or the probe answers about different bytes than the
+	// commit writes: a body-write escape can turn what looks like a kind change
+	// into a same-kind edit, and the branch this picks is not re-decided later.
+	return updateNodeContent({ children: [probe], ownerKind }, 0, text, grammar);
 }
 
 // ── Post-replacement focus ───────────────────────────────────────────────────

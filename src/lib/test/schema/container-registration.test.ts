@@ -129,4 +129,15 @@ describe('augment merges a partial container group', () => {
 		augmentBlockKind(kind, { container: { rebuildRaw: undefined } });
 		expect(tryGetBlockKindDescriptor(kind)?.rebuildRaw).toBe(rebuildRaw);
 	});
+
+	// The merge reads the group generically. A hand-kept field list silently
+	// swallowed whichever group field it had not caught up with — the augment
+	// succeeded and the descriptor kept the old value, with nothing to catch it.
+	it('carries every group field, including the newest one', () => {
+		const { kind } = registerContainer('aug-every-field');
+		const bodyWrite = { normalize: (raw: string) => raw, mapOffset: (_r: string, o: number) => o };
+		augmentBlockKind(kind, { container: { bodyWrite } });
+
+		expect(tryGetBlockKindDescriptor(kind)?.bodyWrite).toBe(bodyWrite);
+	});
 });

@@ -219,6 +219,35 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	// The terminator has no fence length to escalate, so the commit path escapes it
+	// instead: the bytes that land are `&lt;/details>`, which reads as the literal
+	// tag in the editor and on GitHub while closing neither.
+	test('typing the terminator into the body escapes it, keeping the container whole', async ({
+		page
+	}) => {
+		await editor.loadContent(OPEN);
+		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
+		await page.keyboard.press('Enter');
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 2]);
+
+		await editor.typeSlowly('</details>');
+		await editor.bridge.waitForSourceContains('&lt;/details>');
+
+		// Still ONE details holding the typed line, and the line is still prose —
+		// the escape runs ahead of the reparse that picks the kind.
+		const d = await readDetails(page, 0);
+		expect(d.kind).toBe('details');
+		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
+		expect(await page.locator('.details-block .block-host').last().innerText()).toBe('</details>');
+
+		// The caret stays in the block it was typed into. Its exact offset is NOT
+		// pinned here: the escape's caret image is exact in raw space (unit-pinned on
+		// `mapCommittedOffset`), but the restore lands short for a block that gains
+		// an atomic widget within the same commit — a cursor-core seam, ledgered.
+		expect(await activeBlockPath(page)).toEqual([0, 2]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('a cross-block copy ending mid-summary pastes back as a real details, open flag intact', async ({
 		page
 	}) => {

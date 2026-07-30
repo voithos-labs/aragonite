@@ -4,6 +4,29 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Typing `</details>` inside a `<details>` no longer destroys it.** The terminator is a fixed
+  token with no fence length to escalate, so the `:::` containers' escalation fix was unavailable
+  and the container silently stopped containing its own body on reload. A container kind can now
+  declare `bodyWrite` — a rule making text legal as a CHILD's raw, the ancestor-side counterpart of
+  `normalizeRawWrite` — and the tree-op write sinks apply it to bytes destined for the body. Details
+  escapes the offending line's `<` to `&lt;`, which reads as the literal tag in the editor and on
+  GitHub alike while closing neither. The placement is what makes it work where the rebuild seam
+  could not: escaping ahead of the reparse means the kind a write lands on is the kind its committed
+  bytes describe, and the container's raw never disagrees with its children. Typing and split go
+  through those sinks; paste, move and search-replace do not yet, and keep the ledger entry.
+
+- **Plugin/testing surface: the container conformance kit's `terminatorCollision` cell writes
+  through `bodyWrite`.** The cell's fixture `bodyRaw` now names the bytes a USER produces rather
+  than the bytes that reach the tree, so a container answers for the repair it actually ships —
+  escaping at the sink, or growing its own fence at rebuild. A kind declaring no rule writes
+  verbatim exactly as before, so existing profiles are unaffected; the details profile flips from
+  `exempt` to `asserted`.
+
+- **Plugin surface: augmenting a container carries every group field.** `augmentBlockKind` merged
+  the container group through a hand-kept field list, so a group field the list had not caught up
+  with was silently dropped — the augment succeeded and the descriptor kept its old value. The merge
+  now reads the group generically.
+
 - **Enter separates, so what you split stays split on reload.** Splitting a paragraph left the two
   halves joined by a single newline, which GFM lazy continuation folds back into one paragraph — the
   session showed two blocks and the saved file held one. The split now gives the second half a

@@ -115,6 +115,11 @@ export function createNestedBlockEdit(
 			core.replaceBlock(innerIndex, replacement, focus, options),
 
 		// ── In-place leaf edits (per-level) ────────────────────────────────────
+		mapCommittedOffset(text, offset) {
+			const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
+			return bodyWrite ? bodyWrite.mapOffset(text, offset) : offset;
+		},
+
 		async updateBlockContent(
 			innerIndex: number,
 			text: string,
@@ -123,7 +128,12 @@ export function createNestedBlockEdit(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
-			const preview = previewContentReparse(deps.node.children[innerIndex], text, deps.grammar);
+			const preview = previewContentReparse(
+				deps.node.children[innerIndex],
+				text,
+				deps.grammar,
+				deps.node.kind
+			);
 
 			const leafPath = extendDocPath(deps.path, innerIndex);
 
@@ -137,7 +147,12 @@ export function createNestedBlockEdit(
 					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						change = performUpdate({ children: scope.children }, innerIndex, text, deps.grammar);
+						change = performUpdate(
+							{ children: scope.children, ownerKind: scope.node.kind },
+							innerIndex,
+							text,
+							deps.grammar
+						);
 						stampStructuralChange(scope.children, change, scope.sharing);
 						return change;
 					},
@@ -171,7 +186,12 @@ export function createNestedBlockEdit(
 				);
 				const ownedContainer = chain[leafPath.length - 2];
 				if (!ownedContainer?.children) return;
-				performUpdate({ children: ownedContainer.children }, innerIndex, text, deps.grammar);
+				performUpdate(
+					{ children: ownedContainer.children, ownerKind: ownedContainer.kind },
+					innerIndex,
+					text,
+					deps.grammar
+				);
 				// listItem's taskItem metadata is extracted at parse time from the
 				// first stripped line; live typing into the inner paragraph would
 				// otherwise leave metadata frozen while serialized source drifts.
