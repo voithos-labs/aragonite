@@ -425,30 +425,6 @@ whose commit never happened, and adding one is a change to the undo seam, not to
 enough that the wasted entry has never been observed, and inventing a snapshot-discard API for one
 caller would put a rollback door on the undo controller ahead of any second consumer for it.
 
-### A dead-space click declines on surfaces that address something other than characters
-
-**Severity:** minor (a click that does nothing, on a narrow set of surfaces)
-**Files:** `src/lib/selection/dead-space-caret.ts` (the `foreignDragHitTest` and
-`contenteditable="true"` gates in `createDeadSpaceCaret`'s `handleClick`)
-
-A click in the editor's padding, or below the last block, places the caret at the nearest text.
-Two families decline instead. A **table** carries `foreignDragHitTest` because its offset is a
-row-major cell index, not a character position, so "the end of that line" names a cell and the
-gesture has no unambiguous landing. A **non-editable leaf** (thematic break, a rendered diagram,
-an image block) has no character position at all; declining is deliberate there rather than
-handing the block the whole-block focus a click ON it means, which would arm the next Backspace
-against a block the user only clicked near.
-
-**Repro:** put a table last in the document and click below it; nothing the editor did happens
-(the browser's own click handling still places a caret in the nearest cell, so the decline is
-not separately visible).
-
-**Why deferred:** the table case needs a decision, not code — either the table kind grows a
-"nearest cell to this point" contract distinct from its drag hit test, or the gesture means
-"caret at the end of the last cell" regardless of x. Both are table-cell caret work, and picking
-one on the way past would set the precedent for every future kind with internal addressing. The
-non-editable case is not deferred at all: declining is the answer.
-
 ## Virtual rendering
 
 ### Undo issued inside a paste's in-flight reveal lands the caret on restored content

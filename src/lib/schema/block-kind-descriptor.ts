@@ -198,6 +198,28 @@ export interface BlockKindDescriptor {
 	 * layer keeps no downstream component import.
 	 */
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
+	/**
+	 * Translate a point inside this block's box into a caret landing expressed in
+	 * the kind's own internal addressing: a path of child indices from this block
+	 * plus the within-leaf offset, placed through `focusByPath`. Opt-in, and the
+	 * only thing that lets a coordinate-addressed kind answer a caret-placing
+	 * gesture aimed at its box (the dead-space click) instead of declining — a
+	 * table's block-level offset is a row-major cellIdx, which names a cell rather
+	 * than a character position.
+	 *
+	 * TOTAL within the box, which is what makes it a separate declaration from
+	 * {@link foreignDragHitTest} rather than a second return shape for it: the
+	 * point arrives already clamped into the box, so a y in internal chrome must
+	 * still answer, and the impl snaps to the NEAREST addressable leaf. A drag's
+	 * hit test must do the opposite and decline off-cell, or a pointer crossing a
+	 * gutter would jump the selection. Patched in from
+	 * `components/built-in-blocks.ts`, like its drag sibling.
+	 */
+	caretTargetAtPoint?: (
+		blockEl: HTMLElement,
+		clientX: number,
+		clientY: number
+	) => { path: number[]; offset: number } | null;
 	/** O(1) content-height estimate in px for virtual rendering — no subtree walk.
 	 *  The oracle adds block chrome; the measured cache still supersedes. */
 	estimateHeight?: (node: NodeView, env: { width: number }) => number;
