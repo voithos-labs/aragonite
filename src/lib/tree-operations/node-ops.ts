@@ -108,10 +108,15 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
  * keeps that whole suffix on the first half — a plain cut would strand the
  * underline below, where it reparses as junk and demotes the heading.
  *
+ * The second half opens with a blank-line separator when the first half would
+ * otherwise absorb it ({@link absorbsNextProseLine}). Without one, splitting a
+ * paragraph produces a single-newline join that GFM lazy continuation folds back
+ * into ONE paragraph on reload, so the saved file disagrees with the two blocks
+ * the session showed.
+ *
  * At `offset === 0` the leading half is `'\n'` — an empty paragraph that
- * collapses into trivia on `parse(serialize(...))`. The live-vs-reparse shape
- * difference is a tolerated transient state (Enter-at-end produces the same
- * one); serialize stays byte-stable on the actual source.
+ * collapses into trivia on `parse(serialize(...))`, and a tolerated transient
+ * shape difference; it absorbs nothing, so no separator is minted there.
  */
 export function splitNode(
 	parent: NodeParent,
@@ -145,11 +150,34 @@ export function splitNode(
 		secondRaw += lineEnding;
 	}
 
+	const separator = absorbsNextProseLine(firstRaw, lineEnding) ? lineEnding : '';
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
-	const secondNode = reparseAsNode(secondRaw, '');
+	const secondNode = reparseAsNode(secondRaw, separator);
 
 	parent.children.splice(blockIndex, 1, firstNode, secondNode);
 	return replacePreservingFirst(blockIndex, 1, 2);
+}
+
+// Prose no opener may claim: the probe has to be the maximally-continuable line,
+// or the predicate would under-report absorption for the kind that claims it.
+const NEXT_PROSE_LINE = 'x';
+
+/**
+ * Would a following prose line join `raw` rather than open its own block? True of
+ * a still-open paragraph (GFM lazy continuation) and of a list whose last item
+ * paragraph is open; false of anything that closes on its own line. Asked of the
+ * parser rather than of a kind list, so a kind registered later is covered the day
+ * it registers, and an over-report only widens spacing where a reload would have
+ * merged.
+ *
+ * A fence declines even though an unclosed one does absorb: the separator would
+ * land INSIDE the code body. No gesture reaches a fence here today (CodeBlock owns
+ * its Enter), and corrupting a body would be worse than the divergence.
+ */
+function absorbsNextProseLine(raw: string, lineEnding: string): boolean {
+	const alone = parse(raw).children;
+	if (alone[alone.length - 1]?.kind === 'fencedCode') return false;
+	return parse(raw + NEXT_PROSE_LINE + lineEnding).children.length <= alone.length;
 }
 
 /**

@@ -48,19 +48,11 @@ describe('splitNode', () => {
 		expect(doc.children[1].raw).toBe('\n');
 	});
 
-	it('second block has empty leading trivia (no blank line)', () => {
-		const source = 'Hello World\n';
-		const doc = parse(source);
-		splitNode(doc, 0, 5);
-		expect(doc.children[1].leadingTrivia).toBe('');
-	});
-
 	it('preserves leading trivia on the first block when splitting a non-first block', () => {
 		const source = 'First\n\nSecond\n';
 		const doc = parse(source);
 		splitNode(doc, 1, 3);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
-		expect(doc.children[2].leadingTrivia).toBe('');
 	});
 
 	it('handles multi-line paragraph split', () => {
@@ -77,7 +69,7 @@ describe('splitNode', () => {
 		const doc = parse(source);
 		splitNode(doc, 0, 5);
 		const result = serialize(doc);
-		expect(result).toBe('Hello\n World\n');
+		expect(result).toBe('Hello\n\n World\n');
 	});
 
 	it('handles CRLF line endings correctly', () => {
@@ -95,7 +87,7 @@ describe('splitNode edge cases', () => {
 		const doc = parse(source);
 		splitNode(doc, 0, 5);
 		expect(doc.children).toHaveLength(2);
-		expect(serialize(doc)).toBe('Hello\n World\n');
+		expect(serialize(doc)).toBe('Hello\n\n World\n');
 	});
 
 	it('split at offset beyond raw length produces empty second block', () => {

@@ -72,48 +72,43 @@ drag-selection all have to agree on a caret that skips two lines. The same quest
 any block whose rendering has non-editable structural lines, so it is worth deciding once for
 that class rather than for code alone.
 
-### Enter-at-end can produce a live block pair that reparses as one paragraph
+### A mutation can invalidate an existing tight join, leaving two blocks that reparse as one
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)
-**Files:** `src/lib/tree-operations/node-ops.ts` (`splitNode` — the second half is minted
-with empty `leadingTrivia` and no blank-line separator), `src/lib/core/serializer.ts`
-(composition: `prefix + Σ(leadingTrivia + raw) + suffix` faithfully emits the missing gap)
+**Files:** `src/lib/tree-operations/node-ops.ts` (`deleteNode`, `updateNodeContent`'s
+kind-change arm), `src/lib/tree-operations/reorder.ts`
 
-Enter at the end of a paragraph splits `Hello world\n` into a first block ending in a single
-newline and an empty second block (`raw: '\n'`, `leadingTrivia: ''`) — while the second block
-is empty its bare newline reads as the blank-line separator, but typing `x` into it rewrites
-that raw to `x\n`, and the document now serializes to `Hello world\nx\n`. That is a
-single-newline join: GFM lazy continuation reparses it as ONE two-line paragraph, so
-split-then-save-then-reload merges what the live session showed as two blocks. Byte
-round-trip (`serialize(parse(s)) === s`) holds throughout — the divergence is
+Two adjacent siblings whose first is a still-open paragraph and whose second does not
+interrupt one serialize to a single-newline join, which GFM lazy continuation reparses as ONE
+paragraph. Byte round-trip (`serialize(parse(s)) === s`) holds throughout — the divergence is
 `parse(serialize(liveTree))` disagreeing with the live tree's structure, which the round-trip
-oracles cannot see.
+oracles cannot see and `parseConverges` can.
 
-**Fix direction:** the sibling list-exit path solved its instance of this class by minting a
-uniform blank-line separator at the exit gesture. The splitNode instance cannot reuse that
-shape as-is: the separator would have to be minted before the successor kind is known (Enter
-precedes typing), and the successor kind decides whether one is needed — only a paragraph
-lazy-merges, a heading/list/blockquote never does. A kind-dependent separator is impossible
-because the simulation's `ExpectationTracker` is model-free (it predicts only char insertion
-and resyncs on structural gestures), so the trivia cannot change mid-typing. A uniform mint at
-split (blank before every successor) double-counts the deliberate `pressEnter`+`softEnter`
-thematic-break cadence and broadens para→heading spacing. So this needs its own design pass
-with gesture re-choreography, decided against the merge/undo paths that read those bytes.
+The producer that MINTED such a pair closed in 0.9.36: `splitNode` now gives the second half a
+blank-line separator whenever the first half would absorb a following prose line, asked of the
+parser rather than of a kind list. Three producers remain, and they share a shape the split
+producer did not: each **invalidates a tight join that was already correct**, so no mint site
+can see it.
 
-**Second instance — a kind DEMOTION does not reflow the block below it.** Typing any character
-at raw offset 0 of a heading demotes it to a paragraph; when the block below was tightly joined
-(no blank-line separator, which is how a typed `heading`→`paragraph` cadence leaves it), that
-neighbour is now a lazy continuation of the demoted block and a reload shows one paragraph
-where the live tree holds two. Same class, a different producer: the split path mints a missing
-separator, this one invalidates an existing tight join by changing a kind. A fix would have to
-rescan forward from a block whose kind changed, which is the same design pass.
+- **A kind demotion does not reflow the block below.** Typing any character at raw offset 0 of
+  a heading demotes it to a paragraph, and a tightly-joined neighbour below becomes a lazy
+  continuation. Reached by the simulation's range-interrupt family, which is why that family
+  places its caret-pinned landings at interior offsets rather than manufacturing this class
+  under a probe testing something else.
+- **Deleting the block between two paragraphs.** `parse('a\n# h\nb\n')` then `deleteNode` at
+  index 1 leaves `a\nb\n`: two live children, one reparsed.
+- **Reordering an interrupter out from between two paragraphs.** Same document,
+  `reorderChildren(children, 1, 2)`: three live children, two reparsed.
+
+**Fix direction:** separator normalization at the commit funnel, over the sibling range a
+change touched, reusing the split predicate. Two costs to weigh first, both real. The demotion
+producer fires on a SINGLE printable character, so a keystroke the model-free
+`ExpectationTracker` predicts becomes a conditional resync point — a simulation
+re-choreography, not a ride-along. And a funnel sees blocks the user did not touch, so minting
+into them is a wider promise than minting at a site already producing new bytes.
 
 **Why deferred:** byte round-trip holds and the live session is self-consistent; the
-divergence needs a save→reload boundary to observe. The simulation reaches the class as of the
-range-interrupt family (`e2e/simulation/gestures/range-interrupt.ts`) — a caret landing at
-offset 0 of a tightly-followed heading reds the parse-convergence oracle — so that family
-places its caret-pinned landings at interior offsets rather than manufacturing this class
-under a probe that is testing something else.
+divergence needs a save→reload boundary to observe.
 
 ### Nested structural content commit seeds its undo snapshot differently from the top-level path
 
@@ -747,25 +742,16 @@ multi-child container), so it moves existing byte expectations across the clipbo
 than adding to them. Fold it into the post-1.0 clipboard/hook generalization, where those
 expectations are being revisited anyway.
 
-### Footnote definition body ergonomics: Enter-at-end and non-prose-first-child residuals
+### Footnote definition body ergonomics: the non-prose first child omits the ambient marker
 
-**Severity:** minor (edge ergonomics; byte round-trip and the common `[^label]: <prose>` shape hold)
-**Files:** `src/lib/plugins/footnotes/footnote-definition.ts` (`scanDefinitionEnd`, `rebuildFootnoteDefRaw`),
-`src/lib/plugins/footnotes/FootnoteDefinition.svelte` (the ambient marker forward)
+**Severity:** nit (edge ergonomics; byte round-trip and the common `[^label]: <prose>` shape hold)
+**Files:** `src/lib/plugins/footnotes/FootnoteDefinition.svelte` (the ambient marker forward)
 
 The footnote-def is a strip container whose body is real child blocks, and Enter/split inside the body
 inherits the shared blockquote split override (`createContainerBlock` always wires
-`createBlockquoteOverrides`). The `footnote-ops` simulation now pins that a mid-child split grows the
-container's children and never the document root (the boundary the Task 2 review flagged untested). Two
-edges remain:
+`createBlockquoteOverrides`). The `footnote-ops` simulation pins that a mid-child split grows the
+container's children and never the document root. One edge remains:
 
-- **Enter at the end of the last body child** mints a trailing empty child, and a footnote-def's empty
-  continuation line carries no four-space indent, so `scanDefinitionEnd` drops it as a document blank on
-  reparse, and the live two-child tree then diverges from its one-child reparse. This is the documented
-  Enter-at-end split class (see "Enter-at-end can produce a live block pair…") reaching inside the strip
-  container: the split mints a single-newline, indent-free successor the reparse does not honor. The sim
-  splits mid-child to pin the in-container boundary without tripping it, so the end-split sub-case is
-  unpinned.
 - **A non-prose first child omits the ambient marker.** Only `TextEditableBlock` (which paints the marker)
   and `ListItemBlock` (which re-forwards it) consume the `ambientPrefix` prop, so a degenerate definition
   whose first child is a list or code block (`[^a]:\n    - item`) forwards `[^a]: ` to a child that ignores
@@ -773,13 +759,11 @@ edges remain:
   shared with listItem, not a footnote-introduced one; GFM footnote definitions are effectively always
   `[^label]: <prose>`, so the edge needs a constructed input.
 
-**Fix direction:** the Enter-at-end edge folds into the deferred splitNode separator design (a kind-aware
-blank-line separator at the split choke point); the marker edge, if ever tightened, should tighten for
-listItem in the same pass, since both inherit the same prefix-forward machinery.
+**Fix direction:** if ever tightened, tighten for listItem in the same pass — both inherit the same
+prefix-forward machinery.
 
-**Why deferred:** byte round-trip holds throughout, and both edges need a constructed input the common
-footnote shape never produces; the Enter-at-end fix is the same deferred splitNode design pass its
-top-level sibling entry already owns.
+**Why deferred:** byte round-trip holds, and the edge needs a constructed input the common footnote
+shape never produces.
 
 ### An image that has not loaded reserves no space
 

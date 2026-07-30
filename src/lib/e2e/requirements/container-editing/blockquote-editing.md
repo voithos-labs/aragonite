@@ -10,4 +10,4 @@ Plain content editing inside blockquotes — typing, multi-paragraph round-trip,
 
 ## Edge cases
 
-- blockquote double-Enter exit keeps caret visible: Enter to create empty line, Enter again exits blockquote with cursor in a usable block (regression: caret disappeared)
+- blockquote double-Enter exit keeps caret visible: Enter adds the separator `>` line plus the empty `>` line, Enter again exits the blockquote with the cursor in a usable block (regression: caret disappeared)

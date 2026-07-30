@@ -11,9 +11,8 @@ import type { NoteFixture } from './types';
  * so the whole note is HOLD: end-state equality stays a primary oracle. Headings
  * are ATX only; the lists use single-level bullets and ordered items.
  *
- * The hard break is a paragraph-internal `\` + Enter: the trailing backslash plus
- * the structural Enter keeps both lines in one paragraph (`a\\\nb`), so the build
- * types the first line ending in `\`, presses Enter, and types the continuation.
+ * The hard break closes the note because `hardBreakAt` reaches back into typed
+ * text and leaves the caret mid-block, which nothing may type after.
  */
 export const FEATURE_TOUR_NOTE: NoteFixture = {
 	name: 'feature-tour-note',
@@ -62,14 +61,6 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		await g.pressEnter();
 		await g.checkpoint('entities', 'paragraph');
 
-		await g.typeText('## A hard break');
-		await g.pressEnter();
-		await g.typeText('First half of the thought,\\');
-		await g.pressEnter();
-		await g.typeText('and the second half on its own visible line.');
-		await g.pressEnter();
-		await g.checkpoint('hard-break', 'paragraph');
-
 		await g.typeText('## Quick lists');
 		await g.pressEnter();
 		await g.typeText('- **Skim** the headings first');
@@ -91,7 +82,14 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		await g.pressEnter();
 		await g.softEnter();
 		await g.typeText('That closes the tour.');
+		await g.pressEnter();
 		await g.checkpoint('ordered', 'list');
+
+		await g.typeText('## A hard break');
+		await g.pressEnter();
+		await g.typeText('First half of the thought,and the second half on its own visible line.');
+		await g.hardBreakAt([17], 'First half of the thought,'.length);
+		await g.checkpoint('hard-break', 'paragraph');
 	},
 	landmarks: [
 		'Inline Feature Tour',
@@ -103,34 +101,44 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		'team@example.com',
 		'Entities and escapes',
 		'&copy; 2026',
-		'A hard break',
-		'second half on its own visible line',
 		'Quick lists',
 		'Reading order',
-		'That closes the tour'
+		'That closes the tour',
+		'A hard break',
+		'second half on its own visible line'
 	],
 	expectedMarkdown:
 		'# Inline Feature Tour\n' +
 		'This tour walks through **bold**, *italic*, and ***bold-italic*** text, plus `inline code` and an [opening link](https://example.com/start).\n' +
+		'\n' +
 		'## Emphasis and code\n' +
 		'Mix **strong claims** with *soft asides*; combine them as ***both at once*** when a point needs weight.\n' +
+		'\n' +
 		'Call `render()` then `commit()`, and cross out ~~the deprecated path~~ or ~the single flag~ so readers skip it.\n' +
+		'\n' +
 		'## Links and autolinks\n' +
 		'See the [guide](https://example.com/guide) and the [API notes](https://example.com/api) for details.\n' +
+		'\n' +
 		'Bare links autolink too: visit https://example.com/raw or email us at team@example.com directly.\n' +
+		'\n' +
 		'## Entities and escapes\n' +
 		'Footer reads &copy; 2026 &mdash; all rights reserved, and the contraction it&#39;s renders cleanly.\n' +
+		'\n' +
 		'To show literal markup, escape it: \\*not italic\\*, \\[not a link\\], and a backtick \\` stays plain.\n' +
-		'## A hard break\n' +
-		'First half of the thought,\\\n' +
-		'and the second half on its own visible line.\n' +
+		'\n' +
 		'## Quick lists\n' +
 		'- **Skim** the headings first\n' +
 		'- Read the *examples* next\n' +
 		'- Try the `snippets` last\n' +
+		'\n' +
 		'## Reading order\n' +
 		'1. Open the [guide](https://example.com/guide)\n' +
 		'2. Run every code sample once\n' +
 		'3. Note anything ~~unclear~~ confusing\n' +
-		'That closes the tour.\n'
+		'\n' +
+		'That closes the tour.\n' +
+		'\n' +
+		'## A hard break\n' +
+		'First half of the thought,\\\n' +
+		'and the second half on its own visible line.\n'
 };

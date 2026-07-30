@@ -37,6 +37,7 @@ export const SMOKE_NOTE: NoteFixture = {
 	],
 	expectedMarkdown:
 		'Photosynthesis converts light energy into chemical energy.\n' +
+		'\n' +
 		'## Key players\n' +
 		'- Chloroplasts capture light\n' +
 		'- Water splits into oxygen\n' +

@@ -4,6 +4,24 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Enter separates, so what you split stays split on reload.** Splitting a paragraph left the two
+  halves joined by a single newline, which GFM lazy continuation folds back into one paragraph — the
+  session showed two blocks and the saved file held one. The split now gives the second half a
+  blank-line separator whenever the first half would absorb a following prose line. That question is
+  asked of the parser, not of a kind list, so a heading, thematic break or setext heading (each closed
+  by its own line) still joins tightly and a kind registered later is covered the day it registers. It
+  reaches every split: top level, inside a blockquote or a list item, and inside a footnote definition,
+  because each container's raw rebuild already re-prefixes a blank line correctly. Two capture
+  sessions of the note simulation had been failing the parse-convergence oracle on exactly this and now
+  pass. Three producers of the same divergence remain, all of them mutations that invalidate a tight
+  join instead of minting one (a kind demotion, a delete between two paragraphs, a reorder); they keep
+  the ledger entry.
+
+- **Behavior change: a trailing backslash then Enter is now two paragraphs, not a hard break.** Enter
+  splits everywhere else in the editor, and it separates now, so it can no longer leave a soft join
+  behind. `Shift+Enter` (`block.hardBreak`) is the gesture that authors a hard break, and it carries
+  the whole idiom: it inserts the backslash and the line ending together, inside the paragraph.
+
 - **BREAKING (plugin authors): a container block publishes ONE instance export.** `export
 { containerApi }` replaces the twelve `export const` forwards plus the `satisfies` completeness
   block every container carried, roughly fourteen lines down to one, and BlockHost resolves the two

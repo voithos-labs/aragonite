@@ -25,8 +25,11 @@ describe('blockquote Enter override', () => {
 	it('exits the quote on a second Enter, dropping the empty line it made', async () => {
 		mounted = mountEditor({ source: '> alpha\n' });
 
+		// Two `>` lines, not one: the split's blank-line separator plus the empty
+		// paragraph it made. Without the separator a line typed there would lazily
+		// continue `alpha` on reload.
 		await pressKeyAt(mounted, [0, 0], 5, ENTER);
-		expect(mounted.source()).toBe('> alpha\n>\n');
+		expect(mounted.source()).toBe('> alpha\n>\n>\n');
 
 		await pressKeyAt(mounted, [0, 1], 0, ENTER);
 
@@ -41,6 +44,6 @@ describe('blockquote Enter override', () => {
 
 		await pressKeyAt(mounted, [0, 0], 5, ENTER);
 
-		expect(mounted.source()).toBe('> alpha\n>\n>\n> beta\n');
+		expect(mounted.source()).toBe('> alpha\n>\n>\n>\n> beta\n');
 	});
 });

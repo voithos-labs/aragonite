@@ -10,6 +10,7 @@ import {
 } from './gestures/selection';
 import {
 	continueQuote,
+	hardBreakAt,
 	indent,
 	indentEmptyItem,
 	nestQuote,
@@ -228,6 +229,10 @@ export class Gestures {
 
 	softEnter(): Promise<void> {
 		return softEnter(this.ctx);
+	}
+
+	hardBreakAt(blockPath: number[], offset: number): Promise<void> {
+		return hardBreakAt(this.ctx, blockPath, offset);
 	}
 
 	indent(): Promise<void> {

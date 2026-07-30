@@ -75,9 +75,10 @@ export const BIOLOGY_NOTE: NoteFixture = {
 
 		await g.typeText('Summary follows the divider.');
 		await g.pressEnter();
-		await g.softEnter();
 		await g.typeText('---');
 		await g.pressEnter();
+		// A thematic break closes on its own line, so Enter after it mints no
+		// separator; this second press supplies the blank the break wants below it.
 		await g.softEnter();
 
 		await g.insertImage('chloroplast diagram', '/test-fixtures/sample.png');
@@ -101,6 +102,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Cell Division and Photosynthesis\n' +
 		'These notes pair **cell division** with *photosynthesis*; run `mitosis()` and skim the [syllabus](https://bio.example/syllabus).\n' +
+		'\n' +
 		'## Mitosis phases\n' +
 		'- Prophase condenses the chromosomes\n' +
 		'  - Spindle fibers attach at the centromere\n' +

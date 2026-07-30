@@ -70,6 +70,7 @@ export const README_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Limestone CLI\n' +
 		'A local-first notes tool. See the [docs](https://example.com/docs) to start.\n' +
+		'\n' +
 		'## Quick start\n' +
 		'1. Clone the repo\n' +
 		'2. Install with `npm install`\n' +
