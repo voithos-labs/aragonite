@@ -55,9 +55,9 @@ rung-free editor route, so the artifact carries both numbers and their delta.
 - colon-dense under emoji (`?seed=emoji`): colons that mostly decline (`Note:`,
   `ns::method`, clock times) plus one real shortcode per paragraph, since the rung's
   cost is dominated by attempts that fail.
-- dollar-dense under latex (base plugins): shell-documentation prose, `$HOME $PATH
-  $USER`, with one real math span in the first paragraph, which is also the row's proof
-  the rung is live.
+- dollar-dense under latex (base plugins): shell-documentation prose (the
+  `$HOME`/`$PATH`/`$USER` shape) with one real math span in the first paragraph, which
+  is also the row's proof the rung is live.
 - plain-prose under an installed unreserved rung (`?seed=emoji`): ordinary prose with
   no trigger in it at all. `:` is held out of `SPECIAL_CHARS`, so registering emoji
   turns on `needsScan`'s per-character probe for the whole document — the bail cost
