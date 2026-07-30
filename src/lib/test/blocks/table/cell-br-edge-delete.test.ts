@@ -12,64 +12,14 @@
 // the whole point of the fix, and a policy that deleted on arrows too would pass any
 // test written for the destructive half alone.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync, tick } from 'svelte';
-import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { CstNode } from '$lib/core/nodes';
-import type { EditorServices } from '$lib/editor-keys';
-import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
-
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+import { tick } from 'svelte';
+import { mountCell } from './mount-cell';
 
 // `<br>` at raw [4,8) with text on both sides, so both its edges are mid-cell — at a
 // cell's text boundaries the navigation plan owns the key and never reaches here.
 const CELL = 'Left<br>Right';
 const BR_START = 4;
 const BR_END = 8;
-
-function mountCell(raw: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	const blockEdit = makeStubBlockEdit();
-	const context = editorMountContext({
-		blockEdit,
-		doc: { doc: () => ({ kind: 'document', prefix: '', children: [node], suffix: '' }) },
-		services: {
-			decorations: noIslands,
-			widgetSelection: createWidgetSelectionState({ onSelect: () => {} })
-		}
-	});
-	context.set(TABLE_CONTEXT_KEY, {
-		notifyCellFocused: vi.fn(),
-		notifyCellBlurred: vi.fn(),
-		focusCell: vi.fn(),
-		setStickyColumn: vi.fn()
-	});
-	const refs: (BlockComponent | undefined)[] = [];
-	const instance = mount(TableCellBlock, {
-		target,
-		props: {
-			node,
-			index: 0,
-			myPath: [0, 1, 0],
-			rowIdx: 1,
-			colIdx: 0,
-			columnCount: 2,
-			rowCount: 2,
-			setRef: (i: number, r: BlockComponent | undefined) => {
-				refs[i] = r;
-			},
-			getRef: (i: number) => refs[i]
-		},
-		context
-	});
-	flushSync();
-	return { instance, el: target.querySelector('.table-cell') as HTMLElement, blockEdit };
-}
 
 function press(el: HTMLElement, key: string): void {
 	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
@@ -81,7 +31,7 @@ async function settle(): Promise<void> {
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 });
 
