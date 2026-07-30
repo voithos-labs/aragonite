@@ -64,8 +64,11 @@ export function hasMermaidRenderer(): boolean {
  * node), so the bare `createBoundedMemo` value is the render promise. A parse failure
  * resolves to a legible `error`, never a throw, and is cached like a success (same
  * code, same failure).
+ *
+ * `theme` is required, not defaulted: a silent fallback on the one function whose whole
+ * premise is that the theme is a render input would let a caller forget it and compile.
  */
-export function renderMermaid(code: string, theme = 'dark'): Promise<MermaidRenderResult> {
+export function renderMermaid(code: string, theme: string): Promise<MermaidRenderResult> {
 	// NUL-joined so no (theme, code) pair can concatenate into another's key.
 	return memo(`${theme}\0${code}`, () => {
 		const renderer = activeRenderer;
