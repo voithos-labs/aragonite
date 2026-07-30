@@ -215,7 +215,12 @@
 		getTextLen: () => liveDisplayLength(),
 		readText: () => readRawText(),
 		commitInput: (text, preEdit, saved) => {
-			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit, saved);
+			const committed = text + trailingLineEnding(node.raw);
+			void blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			// An enclosing container may rewrite these bytes on the way in (a details
+			// escaping a typed `</details>`), so the caret restore reads the image of
+			// the write instead of the DOM offset the keystroke produced.
+			return blockEdit.mapCommittedOffset?.(committed, saved);
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();

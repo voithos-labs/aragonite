@@ -117,6 +117,33 @@ export interface BlockKindDescriptor {
 	 */
 	normalizeRawWrite?: (raw: string) => string;
 	/**
+	 * Make text legal as a CHILD's raw inside this container's body (container
+	 * kinds only). The ancestor-side counterpart of `normalizeRawWrite`: that one
+	 * is a kind's rule about its own bytes, this one is a container's rule about
+	 * its descendants' — a container that joins its children between an opener and
+	 * a FIXED terminator (`</details>`, with no fence length to escalate) gives
+	 * those bytes grammatical meaning, so a body write reproducing the terminator
+	 * truncates the container instead of adding text.
+	 *
+	 * Applied at the tree-op write sinks, upstream of the reparse that derives the
+	 * child's kind. That placement is load-bearing, not incidental: the escape
+	 * changes what the bytes parse to (a bare `</details>` is an htmlBlock, an
+	 * escaped one a paragraph), so anything downstream of the reparse leaves
+	 * `kind` disagreeing with `parse(raw)`. Escaping at the container REBUILD
+	 * instead is the other dead end — it diverges the container's raw from its
+	 * live children, which is what G1.12 fires on.
+	 *
+	 * `normalize` must be idempotent and LINE-LOCAL: it may read the whole raw to
+	 * decide WHICH lines to rewrite (a stray opener is only stray given lookahead),
+	 * but never moves bytes across a line boundary. `mapOffset` is its exact caret
+	 * image; the pair ships as one object so a transform cannot be declared without
+	 * the map that keeps carets on it. Absent = the body takes bytes as given.
+	 */
+	bodyWrite?: {
+		normalize: (raw: string) => string;
+		mapOffset: (raw: string, offset: number) => number;
+	};
+	/**
 	 * Declares child index 0 of this container as a reserved chrome leaf of the
 	 * given kind (a title/summary whose bytes live in the container's own raw —
 	 * e.g. the callout opener line). The machinery enforces: always present,
@@ -243,6 +270,7 @@ export interface ContainerDescriptorGroup {
 	containerPaste?: BlockKindDescriptor['containerPaste'];
 	unwrapRole?: UnwrapRole;
 	reorderChildren?: ReorderChildrenRole;
+	bodyWrite?: BlockKindDescriptor['bodyWrite'];
 }
 
 // One source for both the type-level Omit and the runtime strip: excess-property
@@ -255,7 +283,8 @@ const CONTAINER_ONLY_KEYS = [
 	'reservedChrome',
 	'containerPaste',
 	'unwrapRole',
-	'reorderChildren'
+	'reorderChildren',
+	'bodyWrite'
 ] as const;
 type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
 
@@ -337,14 +366,16 @@ function mergeBlockKindFields(
 				`${entry}: cannot augment "${kind}" with container fields — it was registered as a leaf`
 			);
 		}
-		// Merge, never unset: `??` keeps an explicitly-undefined group field from
-		// breaking the contract/rebuild pairing the registration shape guarantees.
-		next.containerContract = container.contract ?? existing.containerContract;
-		next.rebuildRaw = container.rebuildRaw ?? existing.rebuildRaw;
-		next.reservedChrome = container.reservedChrome ?? existing.reservedChrome;
-		next.containerPaste = container.containerPaste ?? existing.containerPaste;
-		next.unwrapRole = container.unwrapRole ?? existing.unwrapRole;
-		next.reorderChildren = container.reorderChildren ?? existing.reorderChildren;
+		// Merge, never unset: skipping undefined keeps an explicitly-undefined group
+		// field from breaking the contract/rebuild pairing the registration shape
+		// guarantees. Keyed off the group rather than a hand-kept field list, which
+		// silently swallowed any group field the list had not caught up with.
+		const { contract, ...group } = container;
+		next.containerContract = contract ?? existing.containerContract;
+		Object.assign(
+			next,
+			Object.fromEntries(Object.entries(group).filter(([, value]) => value !== undefined))
+		);
 	}
 	registry.set(kind, next);
 	enqueueRegistrationCheck(kind);

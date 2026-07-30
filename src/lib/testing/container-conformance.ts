@@ -136,7 +136,9 @@ export interface ContainerConformanceProfile {
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
-	/** Required when `terminatorCollision` asserts. */
+	/** Required when `terminatorCollision` asserts. `bodyRaw` is written through the
+	 *  kind's `bodyWrite` rule, so it names the bytes a USER produces, not the bytes
+	 *  that reach the tree. */
 	terminatorCollisionFixture?: TerminatorCollisionFixture;
 	localIndex: ConformanceCoverage;
 	ancestry: ConformanceCoverage;
@@ -573,11 +575,18 @@ export async function checkFocusBubbleTermination(
 // ── (f) terminator collision ─────────────────────────────────────────────────
 
 /**
- * Write a terminator-shaped line into the container's last child, rebuild, and
- * require the live tree to still converge with a fresh parse of its own bytes.
- * Convergence — not a byte round-trip — is the oracle: `serialize(parse(s)) === s`
- * holds throughout a collision (the raw is emitted verbatim either way), while the
- * container silently stops containing what the live tree says it holds.
+ * Write a terminator-shaped line into the container's last child THROUGH the
+ * kind's declared body-write rule, rebuild, and require the live tree to still
+ * converge with a fresh parse of its own bytes. Convergence — not a byte
+ * round-trip — is the oracle: `serialize(parse(s)) === s` holds throughout a
+ * collision (the raw is emitted verbatim either way), while the container
+ * silently stops containing what the live tree says it holds.
+ *
+ * The write goes through `bodyWrite` because that is the door the commit path
+ * uses; a container repairs this collision either by escaping the bytes there
+ * (details) or by growing its own fence around them at rebuild (the `:::`
+ * directives). A kind declaring no rule writes verbatim and answers for what its
+ * rebuild alone can do.
  */
 export function checkTerminatorCollision(
 	kind: AnyBlockKind,
@@ -593,7 +602,10 @@ export function checkTerminatorCollision(
 	const children = node.children ?? [];
 	assert(children.length > 0, 'the fixture node has a body child to overwrite');
 
-	children[children.length - 1].raw = fixture.bodyRaw;
+	const bodyWrite = getBlockKindDescriptor(kind).bodyWrite;
+	children[children.length - 1].raw = bodyWrite
+		? bodyWrite.normalize(fixture.bodyRaw)
+		: fixture.bodyRaw;
 	rebuildContainerRawIfContainer(node);
 
 	assertParseConverged(doc, `${kind} survives a body line reproducing its terminator`);

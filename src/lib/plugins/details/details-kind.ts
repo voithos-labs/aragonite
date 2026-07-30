@@ -57,6 +57,79 @@ export interface DetailsMetadata {
 }
 
 /**
+ * The fence-aware tag classifier the recognizer and the body-write escape share.
+ * A `<details>` or `</details>` inside a fenced code block is content, not
+ * chrome — counting it in one pass and not the other is what would let the escape
+ * rewrite a code sample, or the scan mistake one for the closer. Stateful across
+ * a run of lines because the fence itself is.
+ */
+function createDetailsTagScanner(): (text: string) => 'open' | 'close' | 'other' {
+	let fence: { marker: '`' | '~'; length: number } | null = null;
+	return (text) => {
+		if (fence) {
+			if (matchFenceClose(text, fence.marker, fence.length)) fence = null;
+			return 'other';
+		}
+		const opened = matchFenceOpen(text);
+		if (opened) {
+			fence = { marker: opened.marker, length: opened.length };
+			return 'other';
+		}
+		if (OPEN_LINE.test(text)) return 'open';
+		if (CLOSE_LINE.test(text)) return 'close';
+		return 'other';
+	};
+}
+
+/**
+ * Offsets of the `<` on every line of `raw` that would break an enclosing
+ * details: a closer with no opener of its own to match, or an opener still
+ * unmatched when the walk ends. Depth-counted rather than line-matched, so a
+ * balanced nested pair — a real nested details, or one inside an html child —
+ * is left alone.
+ */
+function strayTagLineStarts(raw: string): number[] {
+	const classify = createDetailsTagScanner();
+	const openStarts: number[] = [];
+	const strayCloses: number[] = [];
+	let pos = 0;
+	while (pos < raw.length) {
+		const nl = raw.indexOf('\n', pos);
+		const lineEnd = nl < 0 ? raw.length : nl + 1;
+		const tag = classify(trimTrailingLineEnding(raw.slice(pos, lineEnd)));
+		if (tag === 'open') openStarts.push(pos);
+		else if (tag === 'close' && openStarts.pop() === undefined) strayCloses.push(pos);
+		pos = lineEnd;
+	}
+	return [...strayCloses, ...openStarts].sort((a, b) => a - b);
+}
+
+/** The entity form of `<`: renders as the literal glyph in a paragraph, inside an
+ *  html block's passthrough, and on GitHub alike, while matching neither tag line. */
+const ESCAPED_LT = '&lt;';
+
+/** Body bytes made legal inside a details: every stray tag line's `<` escaped. */
+function escapeStrayDetailsTags(raw: string): string {
+	const starts = strayTagLineStarts(raw);
+	if (starts.length === 0) return raw;
+
+	let out = '';
+	let cursor = 0;
+	for (const start of starts) {
+		out += raw.slice(cursor, start) + ESCAPED_LT;
+		cursor = start + 1;
+	}
+	return out + raw.slice(cursor);
+}
+
+/** {@link escapeStrayDetailsTags}'s caret image: each escape ahead of the caret
+ *  pushes it by the entity's growth. */
+function mapStrayEscapeOffset(raw: string, offset: number): number {
+	const grown = ESCAPED_LT.length - 1;
+	return strayTagLineStarts(raw).reduce((at, start) => (start < offset ? at + grown : at), offset);
+}
+
+/**
  * Reconstruct `raw` from children after a structural edit. Child 0 is the summary
  * (emitted into the `<summary>` header line); children 1+ are the body. Mirrors
  * `rebuildCalloutRaw`: the two header lines plus the trailing close are the
@@ -93,7 +166,11 @@ export function registerDetailsKind(): void {
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
 				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child',
+				middleChildBackspace: 'default-merge'
+			},
+			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
 		},
 		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
 		closure: containerClosure({
@@ -137,26 +214,14 @@ export function registerDetailsKind(): void {
 			if (!summaryMatch) return null;
 
 			// Depth-counted scan to the matching close; nested details recurse via parse.
-			// Fence-aware: a `</details>` inside a fenced code block is body content, not
-			// the closer, and a fenced `<details>` must not inflate depth (the parser's own
-			// fence matchers, so body recognition stays consistent with how the body reparses).
 			let depth = 1;
 			let closeIdx = -1;
-			let fence: { marker: '`' | '~'; length: number } | null = null;
+			const classify = createDetailsTagScanner();
 			for (let i = summaryIdx + 1; i < ctx.end; i++) {
-				const t = ctx.lines[i].text;
-				if (fence) {
-					if (matchFenceClose(t, fence.marker, fence.length)) fence = null;
-					continue;
-				}
-				const opened = matchFenceOpen(t);
-				if (opened) {
-					fence = { marker: opened.marker, length: opened.length };
-					continue;
-				}
-				if (OPEN_LINE.test(t)) {
+				const tag = classify(ctx.lines[i].text);
+				if (tag === 'open') {
 					depth++;
-				} else if (CLOSE_LINE.test(t)) {
+				} else if (tag === 'close') {
 					depth--;
 					if (depth === 0) {
 						closeIdx = i;

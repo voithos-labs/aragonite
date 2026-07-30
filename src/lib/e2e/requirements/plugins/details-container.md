@@ -28,6 +28,7 @@ the serialized bytes, and the mounted block-host count.
 - Backspace below a collapsed details: the cross-boundary merge walk stops at the summary chrome — the source stays byte-identical, nothing enters the hidden body, the block below stays visible, and the caret lands at the summary's END (typing appends after the summary text)
 - Backspace below an OPEN details merges normally: the block below joins the last body child at the join point (the collapse probe never fires on an open container)
 - cross-block copy ending mid-summary: drag-selecting from the prose above into the middle of the summary and copying synthesizes closer bytes — pasting below yields a second `details` carrying the truncated summary and the live open flag
+- typing the terminator into a body child: typing `</details>` in a body paragraph commits as `&lt;/details>`, so the container survives, the block stays a paragraph, the line still reads `</details>` on screen, and the caret stays in that block
 
 ## User interactions
 

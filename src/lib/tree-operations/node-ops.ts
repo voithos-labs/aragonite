@@ -45,7 +45,21 @@ import { replacePreservingFirst, type StructuralChange } from './structural-chan
 
 // ── Types ──
 
-export type NodeParent = { children: CstNode[] };
+/**
+ * A children array plus, when the caller knows it, the container that owns it.
+ * `ownerKind` is what lets the write sinks read the container's `bodyWrite` rule
+ * — bytes destined for a body have to satisfy the enclosing grammar, and a bare
+ * children array cannot say which grammar that is. Absent = the document root,
+ * or a detached array with no container to answer for.
+ */
+export type NodeParent = { children: CstNode[]; ownerKind?: AnyBlockKind };
+
+/** Text made legal as a child's raw inside `parent`, per the owner's body-write rule. */
+function forBody(parent: NodeParent, raw: string): string {
+	const owner =
+		parent.ownerKind === undefined ? undefined : tryGetBlockKindDescriptor(parent.ownerKind);
+	return owner?.bodyWrite?.normalize(raw) ?? raw;
+}
 
 // ── Node minting ──
 
@@ -139,8 +153,12 @@ export function splitNode(
 	const lineEnding = trailingLineEnding(rawText);
 
 	const suffixSplit = structuralSuffixSplit(descriptor, node, offset);
-	let firstRaw = suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, offset);
-	let secondRaw = suffixSplit ? suffixSplit.secondRaw : rawText.slice(offset);
+	// Both halves, because both have a reachable collision: cutting `foo</details>`
+	// after `foo` leaves the tag alone on the second half, and cutting
+	// `</details>foo` before `foo` promotes the first half to a bare terminator
+	// (the anchored recognizer spared it only while the trailing text was there).
+	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, offset));
+	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(offset));
 
 	if (!firstRaw.endsWith('\n')) {
 		firstRaw += lineEnding;
@@ -355,12 +373,16 @@ export function deleteNode(
 export function updateNodeContent(
 	parent: NodeParent,
 	blockIndex: number,
-	newText: string,
+	text: string,
 	grammar?: GrammarView
 ): StructuralChange {
 	const node = parent.children[blockIndex];
 	const oldKind = node.kind;
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
+	// Ahead of every reparse below, so the kind a write lands on is the kind its
+	// committed bytes describe rather than the kind the pre-escape text would have
+	// parsed to (see `bodyWrite`).
+	const newText = forBody(parent, text);
 
 	// A context-dependent kind (tableCell, plugin chrome) has no standalone
 	// recognizer, so reparsing would downgrade it. Its container's rebuildRaw

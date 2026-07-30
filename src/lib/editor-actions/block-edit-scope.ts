@@ -12,7 +12,7 @@
 
 import type { OpDescriptor } from '../schema/operations';
 import type { CommitAfterTick } from '../action-contracts';
-import type { CstNode } from '../core/nodes';
+import type { AnyBlockKind, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
@@ -29,6 +29,9 @@ import type { BlockListState } from '../reactivity/block-list-state.svelte';
 export interface MutationView {
 	children: CstNode[];
 	sharing: SharingState;
+	/** The container these children belong to, for mutations whose bytes must satisfy
+	 *  its grammar (`bodyWrite`). Absent at the document root. */
+	ownerKind?: AnyBlockKind;
 	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
 	grammar?: GrammarView;
 	/** Copy-out-of-sharing the child at `i` before an in-place write; returns the owned node. */
@@ -129,6 +132,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 					mutate({
 						children: scope.children,
 						sharing: scope.sharing,
+						ownerKind: scope.node.kind,
 						grammar: deps.grammar,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),

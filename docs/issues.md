@@ -672,32 +672,54 @@ mode flip must rebuild a cell's inline DOM the way it rebuilds a prose block's.
 adding the terms now would ship two unused getters plus a new render-key segment on the
 keystroke path, unexercised by any consumer.
 
-### A details body line reproducing `</details>` destroys the container, and no rebuild can repair it
+### A details body reaching `</details>` through a door the escape does not cover
 
-**Severity:** important (container destruction on reload; guarded, not silent)
-**Files:** `src/lib/plugins/details/details-kind.ts` (the opaque rebuild),
-`src/lib/invariants/node-shape.ts` (G1.12, which now covers the directive/details tier),
-`src/lib/test/plugins/details/terminator-collision.test.ts` (the floor pins)
+**Severity:** minor (container destruction on reload, via the uncovered doors only; guarded)
+**Files:** `src/lib/tree-operations/node-ops.ts` (the covered sinks),
+`src/lib/tree-operations/paste/` (the largest open door), `src/lib/editor-actions/search-replace.ts`
 
-`</details>` is a fixed terminator with no fence length to escalate, so a body line reproducing
-it is unrepresentable: every byte sequence containing that literal line closes the element, in
-aragonite and on GitHub alike. The 2026-07-25 escalation pass proved repair is not available at
-the rebuild seam: escaping the child's bytes on the way out diverges the container's raw from
-its live children, which is exactly the staleness G1.12 exists to fire on. The `:::` containers
-got the fence-escalation fix; this kind structurally cannot.
+The commit-path escape seam shipped: a container declares `bodyWrite`, and the tree-op write
+sinks run a child's bytes through it ahead of the reparse that picks the child's kind, so a typed
+`</details>` lands as `&lt;/details>` — the container survives, and the escaped form renders as
+the literal tag in aragonite and on GitHub alike. Typing and split go through those sinks.
 
-**Guarded floor (pinned by five tests):** the collision is reachable through the real commit
-path, bytes still round-trip, and G1.12 catches the live-tree-versus-reparse divergence, so the
-dev channel and the e2e invariant watcher see it rather than the document corrupting silently.
-On reload the container is gone and its tail re-parses as siblings.
+Three doors do NOT: **paste** into a body (the realistic one — copying an example off GitHub),
+block **move/reorder** into a body, and **search-replace** substitution inside a body child. Each
+mints or rewrites child bytes outside `updateNodeContent`/`splitNode`, so the collision is still
+reachable through them, with G1.12 as the same guarded floor as before.
 
-**Fix direction:** a commit-path escape seam: the kind translates the offending body edit at
-commit time (escape or transform the typed `</details>` before bytes land), the same seam the
-opaque-write / kind-aware replace work needs. Decide the byte policy there, not in `rebuildRaw`.
+**Fix direction:** widen the same capability to those doors. Paste is the one that matters and is
+not a line-level addition — `tree-operations/paste/` is a subsystem with its own dispatch and
+container surfaces, and the escape has to land at each strategy's text→nodes moment. Move/reorder
+and search-replace are smaller and can ride behind it.
 
-**Why deferred:** the rebuild-side fix is proven impossible, the commit-path seam is a design
-pass shared with the post-1.0 opaque-write work, and the floor is honest (loud in dev, byte
-round-trip intact).
+**Why deferred:** the seam and its byte policy exist and are pinned; what remains is per-door
+plumbing whose cost is concentrated in paste, and the uncovered doors sit exactly where the floor
+already was.
+
+### A caret restored into a block that grows an atomic widget mid-commit lands short
+
+**Severity:** minor (caret placement only; bytes and structure correct)
+**Files:** `src/lib/cursor/widget-offset.ts` (`createRangeAtDomTextOffsets` /
+`findDomTextOffsetTarget`), `src/lib/ambient/ambient-cursor.ts` (`setRaw`)
+
+**Repro:** in a details body, type `</details>` into a paragraph. The commit escapes it to
+`&lt;/details>`, which renders `&lt;` as an atomic entity widget — a widget the block did not
+have one keystroke earlier. The caret should land at raw 13 (after the `>`); it lands at raw 10,
+three units short, inside the word.
+
+Measured, not inferred: the pending-cursor trace records `set 13` then `consume 13, applied` with
+the widget already in the DOM and the escaped raw in the node, so the seam hands the restore the
+right raw offset and the restore runs. The loss is downstream, in the raw→DOM walk — whose own
+contract says widgets count by RAW length, which would put 13 at the line's end.
+
+**Fix direction:** treat as a cursor-core defect and run it under systematic-debugging; the
+narrow question is what the walk does with an offset at the container's one-past-end position
+when a widget's walk length exceeds its rendered text.
+
+**Why deferred:** it is the first case of a commit ADDING a widget to the block being typed in,
+so nothing else exercises it; the blast radius of the walk is every caret in the editor, and the
+byte seam that surfaced it is independently correct.
 
 ### Search replace skips matches inside childless opaque containers
 
@@ -716,9 +738,12 @@ accepted for `fencedCode` leaves, but surprising to apply silently to a plugin's
 
 **Fix direction:** a kind-aware write path — the kind translates a raw-range edit into a metadata
 update (for mermaid, a `code` rewrite) and the ceremony rebuilds `raw` from it, so a replacement
-can never flip the kind. `buildSubtree` now reparses through the instance grammar
-(`parse(child.raw, { grammar })`), so a future kind-aware fix no longer inherits a
-grammar-threading gap.
+can never flip the kind. The mould now exists: `bodyWrite` is a per-kind descriptor capability
+applied at a write sink, and this entry wants the same shape aimed at a different subject — the
+node's OWN raw rather than a descendant's, returning a patch rather than transformed bytes, so it
+is a sibling capability and not a use of that one. `buildSubtree` now reparses through the
+instance grammar (`parse(child.raw, { grammar })`), so a future kind-aware fix no longer inherits
+a grammar-threading gap.
 
 **Why deferred:** fold into the post-1.0 container editable-flag / opaque-write work (see
 "Container shim hardcodes the component `editable` flag").
