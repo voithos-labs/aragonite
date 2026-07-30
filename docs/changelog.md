@@ -11,22 +11,27 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   stores a ref. Every consumer of that ref reads the resolved surface: `publishRefSlot` into the
   parent's `innerBlockRefs`, both overlays, the focus/reveal/caret-at-point walks. Eleven containers
   migrated (four built-ins, four bundled plugins, the harness callout, the consumer example's callout
-  and dev-guard probe); a container that forgets the export now fails `npm run check` at its
-  `registerBlockComponent` call, because the component registry types a block's exports as exactly
-  those two shapes. That type is the rung the retired per-member forwards were reaching for: the
-  earlier `satisfies` guard caught a member dropped from a hand-written block, and there is no
-  hand-written block left to drop one from.
+  and dev-guard probe); a container that forgets the export, or publishes a leaf-grade one, now fails
+  `npm run check` at the call that registers its component, because the registry types a block's
+  exports as exactly those two shapes and the container arm requires the descent verbs. That type is
+  the rung the retired per-member forwards were reaching for, and it reaches further: the old
+  `satisfies` guard covered a member dropped from a hand-written forward block, while this covers any
+  container an author registers, hand-rolled surfaces included.
 
   Two latent defects fell out of the migration. `SelectionOverlay` decided who paints a container's
   selection rects by testing whether the ref carried `measurePartialRects` at all, which discriminated
   only because a strip container happened not to forward that member; once every container publishes
   the shim's whole surface it stopped discriminating, and a blockquote or list inside a cross-block
-  range would have washed its own box on top of its children's rects. It now reads the same
-  `!hasChildHosts` predicate its `DecorationOverlay` sibling already did. `hasChildHosts` itself was
-  wrong for a grid, whose rows render inside its own component rather than through BlockHost: it
-  answered true off child COUNT, and only the presence test above kept the table painting. Both are
-  pinned by a routing suite that mounts the host over a real container, leaf and grid under one live
-  range. The G2.12 lint moved with the migration rather than losing coverage: its park-forward
+  range would have washed its own box on top of its children's rects. The decision now keys on the
+  declared fact it always meant, and it is made ONCE, at BlockHost, and handed to both overlays,
+  which had been holding the same conjunction character-for-character — the drift that let the two
+  disagree in the first place. Its child-hosts term was also wrong for a grid, whose rows render
+  inside its own component rather than through BlockHost: it answered true off child COUNT, and only
+  the presence test above kept the table painting. The pre-existing e2e specs owned both cases end to
+  end (`selection/overlay`, `plugins/mermaid-selection-overlay`, three table selection specs, against
+  a written requirement), and reproduce both under mutation; what is new is a jsdom routing suite that
+  contrasts container, leaf and grid under one live range in seconds rather than in a browser project.
+  The G2.12 lint moved with the migration rather than losing coverage: its park-forward
   pairing arm is leaf-scoped now, and a new arm requires every container-seam call site to publish
   `containerApi` (the export keyword included), which is what still covers `listItem`, the one
   container with no component-registry entry to type-check. It found an eleventh container the

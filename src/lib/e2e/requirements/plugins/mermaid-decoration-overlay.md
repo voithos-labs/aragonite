@@ -3,7 +3,7 @@
 A container with NO child block-hosts (a render-primary plugin block like mermaid) has no
 children to paint a decoration mark, so the block paints the mark on itself — measuring the
 whole box through the container shim's `measurePartialRects`. This is the SelectionOverlay
-`hasChildHosts` precedent applied to decorations. Lives in the plugins project because only
+`delegatesPainting` precedent applied to decorations. Lives in the plugins project because only
 plugin kinds produce childless opaque containers.
 
 ## Happy paths

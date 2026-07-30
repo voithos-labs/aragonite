@@ -253,15 +253,41 @@ export interface BlockComponent {
 // ── Published instance surface ─────────────────────────────────────────────
 
 /**
+ * The surface with every member a container owes promoted to required. A caret
+ * entering a container has to descend, so the descent verbs are not "implement if
+ * you can" the way a leaf's optionals are. `createContainerBlockComponent` returns
+ * this; a hand-rolled container annotates its own export with it.
+ */
+export type ContainerBlockComponent = BlockComponent &
+	Required<
+		Pick<
+			BlockComponent,
+			| 'getCursorPosition'
+			| 'focusByPath'
+			| 'getBlockComponentByPath'
+			| 'revealByPath'
+			| 'focusAtColumn'
+			| 'isVerticallyTransparent'
+			| 'enterEdgeWidget'
+			| 'parkCaret'
+		>
+	>;
+
+/**
  * What a mounted block component publishes through `bind:this`. A leaf publishes
  * the surface itself. A container publishes it under ONE well-known export:
  * Svelte 5 instance exports are individual top-level declarations with no spread,
  * and re-exporting a dozen members by hand let four blocks silently drop one.
  *
- * The union is the enforcement. A container that publishes neither shape is a
- * `defineBlockComponent` type error at its registration site.
+ * The union is the enforcement, and the container arm is `ContainerBlockComponent`
+ * rather than `BlockComponent` so it carries the completeness the retired
+ * per-member `satisfies` guard used to: a container publishing a leaf-grade
+ * `containerApi` is a `defineBlockComponent` type error at its registration site,
+ * exactly as one publishing nothing is.
  */
-export type BlockComponentExports = BlockComponent | { readonly containerApi: BlockComponent };
+export type BlockComponentExports =
+	| BlockComponent
+	| { readonly containerApi: ContainerBlockComponent };
 
 /**
  * The `BlockComponent` behind a published instance — the one point that knows a

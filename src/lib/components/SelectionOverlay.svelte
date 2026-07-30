@@ -21,18 +21,18 @@
 		path,
 		blockRef,
 		blockEl,
-		isContainer = false,
-		hasChildHosts = false
+		delegatesPainting = false,
+		containerPaintsRects = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
-		/** Container blocks skip overlays — their children paint their own. */
-		isContainer?: boolean;
-		/** False for a childless container (render-primary plugin block): no child
-		 *  block-hosts exist to paint, so this block takes the full-block overlay
-		 *  itself, like a non-text leaf. */
-		hasChildHosts?: boolean;
+		/** This container's children paint their own overlays, so it paints none. */
+		delegatesPainting?: boolean;
+		/** This container measures its own rects (a grid's cells, a childless
+		 *  render-primary box) instead of delegating. Both are decided at BlockHost,
+		 *  which hands the same pair to DecorationOverlay. */
+		containerPaintsRects?: boolean;
 	} = $props();
 
 	// Optional, like every context BlockHost itself reads: a bare mount (unit
@@ -43,19 +43,8 @@
 	const getEditorRoot = editorDoc?.editorRoot;
 	const getDoc = editorDoc?.doc;
 
-	// A container with no child hosts to delegate to (a grid, whose rows render
-	// inside its own component; a childless render-primary block) paints its own
-	// rects here, when its surface can measure a range. Presence of
-	// `measurePartialRects` alone is NOT the test: the container shim supplies it to
-	// every container, so keying on it would hand a child-bearing container the
-	// full-block overlay on top of its children's. Same predicate as
-	// DecorationOverlay's `containerPaintsSelf`.
-	const containerPaintsRects = $derived(
-		isContainer && !hasChildHosts && !!blockRef?.measurePartialRects
-	);
-
 	const classification = $derived.by<BlockSelectionClass>(() => {
-		if (isContainer && !containerPaintsRects && hasChildHosts) return 'outside';
+		if (delegatesPainting) return 'outside';
 		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}

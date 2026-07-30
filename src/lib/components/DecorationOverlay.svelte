@@ -16,7 +16,7 @@
 		blockRef,
 		blockEl,
 		isContainer = false,
-		hasChildHosts = false
+		containerPaintsRects = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
@@ -24,10 +24,9 @@
 		/** Containers paint nothing — children self-paint — EXCEPT grid surfaces
 		 *  (table) whose cells aren't BlockHosted; those paint whole-cell marks. */
 		isContainer?: boolean;
-		/** False for a childless container (render-primary plugin block): no child
-		 *  block-hosts exist to paint, so the block takes the mark overlay itself
-		 *  (SelectionOverlay carries the same route). */
-		hasChildHosts?: boolean;
+		/** This container measures its own rects instead of delegating, decided at
+		 *  BlockHost, which hands the same value to SelectionOverlay. */
+		containerPaintsRects?: boolean;
 	} = $props();
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
@@ -50,11 +49,6 @@
 	// A grid container (table) supplies cellRect, so its descendant cell marks —
 	// which never get their own BlockHost overlay — paint as whole cells here.
 	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
-	// A childless container has no child hosts to delegate to; when its shim can
-	// measure a range (opaque single-unit) it paints the mark on itself.
-	const containerPaintsSelf = $derived(
-		isContainer && !hasChildHosts && !!blockRef?.measurePartialRects
-	);
 
 	interface Painted {
 		left: number;
@@ -83,7 +77,7 @@
 			rects = [];
 			return;
 		}
-		if (isContainer && !containerPaintsCells && !containerPaintsSelf) {
+		if (isContainer && !containerPaintsCells && !containerPaintsRects) {
 			rects = [];
 			return;
 		}

@@ -24,14 +24,24 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-/** Mount one overlay with NO editor context, over a detached block element. */
+/** Mount one overlay with NO editor context, over a detached block element. The
+ *  painting-ownership props differ per overlay (BlockHost decides both and hands each
+ *  what it reads), so both names ride every mount; a component ignores the one it
+ *  does not declare. */
 function mountBare(overlay: Component<never>, isContainer: boolean): HTMLElement {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
 	const blockEl = document.createElement('div');
 	const instance = mount(overlay as Component<Record<string, unknown>>, {
 		target,
-		props: { path: [0], blockRef: undefined, blockEl, isContainer, hasChildHosts: false },
+		props: {
+			path: [0],
+			blockRef: undefined,
+			blockEl,
+			isContainer,
+			delegatesPainting: false,
+			containerPaintsRects: false
+		},
 		context: new Map()
 	});
 	flushSync();
