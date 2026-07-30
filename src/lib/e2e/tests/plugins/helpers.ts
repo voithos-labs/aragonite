@@ -1,11 +1,10 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-// Shared probe surface for the plugin e2e specs (callout, directive, latex,
-// details, reserved-chrome, admonitions). Every gate reads the CST/selection by
-// path through `window.__test` — the chained block locator is too slow at scale.
-// `gotoPlugins(seed?)` loads the `/test/plugins` harness on the named seed; the
-// read helpers snapshot either one container node or the document root.
+// Shared probe surface for every spec driving the `/test/plugins` harness. Reads go
+// through `window.__test` by path — the chained block locator is too slow at scale.
+// `gotoPlugins(seed?)` loads the harness on the named seed; the read helpers snapshot
+// either one container node or the document root.
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
