@@ -22,6 +22,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    **overridable-history-seam joint design** (§ Downstream boundary — the integration is named as
    the design table, and the table has not convened); and landing whatever the consumer's
    remaining manual passes (journal surface, real-webview gestures) surface before the freeze.
+
 2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
@@ -353,3 +354,15 @@ design decision the editor and its first consumer must make together). Working d
 shape is an **overridable history seam** — the undo/redo module behind an interface a consumer
 can replace — decided at the limestone integration, scheduled deliberately rather than ambient
 (the longer the decision floats, the more code accretes against the snapshot shape).
+
+A second named joint decision: **host-scrollport windowing (the journal shape).** Windowing is
+deliberately inactive in host-scroll mode today; the height model reads its viewport and offset
+from the editor root, which a page-scrolled shell never scrolls. The port is characterized: a
+scrollport abstraction supplying rect, offset, writer, change signal, and content width, which
+converges on the `UserScrollport` resolution the autoscroll seam already owns. A
+single-editor-per-scrollport version is mechanical plus one stated trade (native scroll
+anchoring and windowing's manual correction cannot coexist on one editor, so the mode drives
+the declaration). The open design, and the journal's actual shape, is N editors sharing one
+scrollport: N windowing roots correcting one scroll offset needs a coordinator that owns the
+write. Sequenced after the owner exercises the real journal surface; the coordinator is decided
+jointly with the consumer, not sketched ahead of it.
