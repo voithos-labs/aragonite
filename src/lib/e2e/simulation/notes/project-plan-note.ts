@@ -17,9 +17,10 @@ import type { NoteFixture } from './types';
  *
  * Indenting under an ordered item inherits the ordered type, so the nested
  * sub-items are ordered, not bullets — typing a `- ` marker into an ordered item
- * doesn't convert it (it stays literal text). The blockquote is multi-line
- * single-paragraph via `continueQuote`; a true multi-paragraph blockquote
- * (`> p1\n>\n> p2`) isn't reachable by typing.
+ * doesn't convert it (it stays literal text). `continueQuote` builds a true
+ * multi-paragraph blockquote (`> p1\n>\n> p2`): Enter inside a quote separates,
+ * like Enter everywhere else, so a multi-line single paragraph is a `hardBreakAt`
+ * shape rather than an Enter one.
  */
 export const PROJECT_PLAN_NOTE: NoteFixture = {
 	name: 'project-plan-note',
@@ -86,7 +87,6 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 
 		await g.typeText('Reference architecture below.');
 		await g.pressEnter();
-		await g.softEnter();
 		await g.insertImage('architecture diagram', '/test-fixtures/sample.png');
 		await g.resizeImage('left', 2);
 		await g.checkpoint('image', 'image');
@@ -116,6 +116,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Q3 Editor Project Plan\n' +
 		'Scope, milestones, and open risks for the next quarter.\n' +
+		'\n' +
 		'## Workstreams\n' +
 		'- Parser hardening\n' +
 		'  - Fuzz the block scanner\n' +
@@ -132,6 +133,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		'- [ ] Tag the release branch\n' +
 		'\n' +
 		'> Risk: the nested-list rewrite touches selection,\n' +
+		'>\n' +
 		'> so we sequence it after the schema seam lands.\n' +
 		'\n' +
 		'## Build snippet\n' +

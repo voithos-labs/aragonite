@@ -27,6 +27,26 @@ export async function softEnter(ctx: SimContext): Promise<void> {
 }
 
 /**
+ * Click into the block at `blockPath` at `offset`, then Shift+Enter: a hard line
+ * break INSIDE that paragraph. The only gesture that authors `a\` + newline + `b`
+ * — plain Enter splits into two blocks and separates them with a blank line.
+ *
+ * It has to reach BACKWARD into already-typed text. Shift+Enter at end-of-block
+ * makes the inserted ending the block's trailing one, leaving a bare backslash with
+ * the caret still on that line, so a forward-only cadence cannot produce the shape.
+ * The caret is left mid-block, which the tracker's document-end model cannot type
+ * against: use this as a note's LAST build gesture.
+ */
+export async function hardBreakAt(
+	ctx: SimContext,
+	blockPath: number[],
+	offset: number
+): Promise<void> {
+	await ctx.editor.clickBlockAtPath(blockPath, offset);
+	await actThenResync(ctx, () => ctx.page.keyboard.press('Shift+Enter'));
+}
+
+/**
  * Tab to nest the current item one level deeper. The editor drops the caret to
  * column 0 of the re-nested item, so this restores it to end-of-line afterward —
  * an item the user just indented is one they're still writing, and a stranded

@@ -48,7 +48,8 @@ test.describe('blockquote editing', () => {
 		await editables.last().click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceMatches(/> Line two\.\n>\n$/);
+		// The split's blank-line separator plus the empty paragraph it made.
+		await editor.bridge.waitForSourceMatches(/> Line two\.\n>\n>\n$/);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/> Line two\.\n\n/);
 		await editor.typeText('After quote');

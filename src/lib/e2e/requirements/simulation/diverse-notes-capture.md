@@ -41,12 +41,16 @@ visual review.
 
 ## Edge cases
 
-- hard line break round-trips: a paragraph line ending in `\` then Enter then a
-  continuation line stays one paragraph (`a\\\nb`) and re-serializes to itself
+- hard line break round-trips: Shift+Enter inside already-typed text stays one
+  paragraph (`a\\\nb`) and re-serializes to itself. It closes the feature-tour note:
+  the gesture reaches backward into typed text and leaves the caret mid-block, and
+  Enter at the block end would leave the backslash trailing rather than break the line
+- Enter separates: a paragraph split leaves a blank line between the halves, so the
+  built source reparses to the same block structure the session shows
 - HTML entities and backslash escapes survive verbatim — the live parser styles
   them but the source bytes are unchanged on round-trip
-- multi-line blockquote continuation: a single Enter inside a quote adds a `> `
-  continuation line in the same paragraph rather than splitting a new block
+- multi-paragraph blockquote: a single Enter inside a quote adds a `>` blank line
+  and starts a second quoted paragraph
 - nested-list cadence: an item is typed at its creation level then indented, and
   the empty trailing item is outdented back to top level before the next item is
   typed
@@ -64,7 +68,7 @@ visual review.
 - typing uses per-character keyboard events; structure markers (`#`, `-`, `1.`,
   `**`, `*`, `` ` ``, `~~`, `[`, `>`, ` ``` `) are typed literally and the live
   parser forms the styled spans and blocks
-- list nesting uses real Tab / Shift+Tab; the multi-line blockquote uses a real
+- list nesting uses real Tab / Shift+Tab; the multi-paragraph blockquote uses a real
   Enter-then-type continuation; the image uses a real widget click then Shift+Arrow
   resize
 - jump back to edit an earlier section: a real pointer click repositions into the
