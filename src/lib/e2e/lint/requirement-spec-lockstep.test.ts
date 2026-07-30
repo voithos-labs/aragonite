@@ -87,7 +87,7 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'perf/typing-latency.perf.spec.ts',
 		reason:
-			'five parametrized loops run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the rung rows and their confound) rather than scenarios'
+			'five test calls, three of them parametrized loops, run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the rung rows and their confound) rather than scenarios'
 	},
 	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',
@@ -286,9 +286,11 @@ export interface AllowlistAudit {
  * a file entry sitting under a directory entry never wins that lookup, so it read as
  * "no longer diverges" while diverging. Each condition now names itself.
  *
- * Shadowing is decided by position, not by set inclusion alone, because two entries
- * covering the same spec each subsume the other and would both report. The lookup
- * returns the FIRST match, so the entry whose reason is never read is the later one.
+ * Shadowing is decided by position, not by set inclusion alone: two entries covering
+ * the same specs each subsume the other, so inclusion reports both and names no entry
+ * to delete. Position is an arbitrary but deterministic tie-break: the later entry is
+ * the one reported, so acting on the report leaves the earlier one still covering every
+ * spec it named.
  */
 export function auditAllowlist(
 	entries: readonly InflationException[],
