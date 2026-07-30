@@ -56,10 +56,37 @@ there is no closer to disagree with. A LITERAL write is the exception the paste
 contract already made: pasted bytes are content, so an open fence grows its opener
 rather than letting a pasted run terminate the block.
 
+## One door, not a rule per gesture
+
+The reconciliation runs inside the block's single display-commit funnel
+(`commitDisplay`, pinned by G4.24), not at the gestures that write. That matters
+because a gesture can put an existing body run into terminator position without
+adding a character: Enter splitting a line around a mid-line run, or Shift+Tab
+dedenting a four-space-indented run to column 0. Both were reachable while the rule
+sat at two of the block's ten commit sites, and both reproduce the same corruption.
+
+## Known limits
+
+- **The reconciliation is silent.** A consumer sees the reconciled bytes (the CST is
+  the source of truth, and the edit event carries the commit), but nothing announces
+  that they differ from what was typed or pasted — an embedding app cannot surface
+  "we dropped a character your fence could not hold". An event for it is a
+  freeze-surface decision, not this rule's to make.
+- **Write routes outside this surface do not cross the funnel.** Find-and-replace
+  writes a leaf's raw through the kind descriptor's `normalizeRawWrite`, which
+  `fencedCode` does not declare, so a replacement that lands a closer run on a body
+  line still splits the block. Tracked as its own defect.
+
 ## Happy paths
 
 - a fence run typed on a body line grows both fence runs; the block stays one code
   block and the heading below it stays its own block
+- Enter splitting a body line around a mid-line run grows the fence rather than
+  splitting the block
+- Shift+Tab dedenting a four-space-indented run to column 0 does the same
+- closing a fence by typing its own closer still works: ` ``` `, Enter, code, Enter,
+  ` ``` ` yields one closed block (the escalation is scoped to a closed fence
+  precisely so this authoring gesture survives)
 - a fence run pasted on a body line does the same (the rule moved to the shared seam,
   so paste keeps the behavior it always had)
 - a tilde run typed on a tilde fence's body line grows that fence

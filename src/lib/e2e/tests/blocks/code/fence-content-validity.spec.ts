@@ -59,6 +59,67 @@ test.describe('code block — content the fence cannot hold', () => {
 	});
 });
 
+// A run already sitting in the body as ordinary content — mid-line, or indented past
+// the closer limit — is safe until a gesture MOVES it into terminator position. Those
+// gestures rewrite the display without adding a character, which is why they reach the
+// same corruption through a different door.
+test.describe('code block — gestures that make an existing run a terminator', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('Enter splitting a body line around a mid-line run grows the fence', async () => {
+		await editor.loadContent('```js\nx```\n```\n\n# Heading\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlock(0, 7); // between "x" and the run
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('````');
+
+		expect(await editor.bridge.getSource()).toBe('````js\nx\n```\n````\n\n# Heading\n');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+	});
+
+	test('Shift+Tab dedenting an indented run into column 0 grows the fence', async () => {
+		await editor.loadContent('```js\n    ```\n```\n\n# Heading\n');
+		await editor.getBlock(0).click();
+		await editor.focusBlock(0, 14); // on the indented run
+		await editor.page.keyboard.press('Shift+Tab');
+		await editor.bridge.waitForSourceContains('````');
+
+		expect(await editor.bridge.getSource()).toBe('````js\n```\n````\n\n# Heading\n');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+	});
+});
+
+// The escalation is scoped to a CLOSED fence so that this stays possible: closing a
+// block by typing its own closer is authoring, not a collision.
+test.describe('code block — closing a fence by typing it', () => {
+	test('type ```, Enter, code, Enter, ``` yields one closed block', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('\n');
+		await editor.focusBlockStart(0);
+		await editor.typeSlowly('```');
+		await editor.bridge.waitForSourceContains('```');
+
+		await editor.page.keyboard.press('Enter');
+		await editor.typeText('code');
+		await editor.page.keyboard.press('Enter');
+		await editor.typeText('```');
+		await editor.bridge.waitForSourceContains('code');
+
+		// The fixture's own blank line survives as the block's leading trivia.
+		expect(await editor.bridge.getSource()).toBe('\n```\ncode\n```\n');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+	});
+});
+
 test.describe('code block — the tilde twin', () => {
 	let editor: EditorPage;
 

@@ -1141,11 +1141,16 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   without it, and a tilde fence stays the escape hatch for an author who needs one. Converting the
   author's chosen markers to tildes would make the character representable and is a bigger surprise
   than dropping it. Both rules leave an UNCLOSED fence alone, where typing a closer is how a block
-  gets closed by hand.
+  gets closed by hand. The reconciliation sits inside the block's single display-commit funnel
+  rather than at the gestures that write, because a gesture can move an existing body run into
+  terminator position without adding a character: Enter splitting a line around a mid-line run, and
+  Shift+Tab dedenting a four-space-indented one to column 0, each split the block while the rule
+  sat at two of ten commit sites. One door now, pinned by G4.24 against an eleventh.
 
-Ship gates: unit 5889, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
+Ship gates: unit 5913, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
-container-head rows plus the row-shape verification at the batch base).
+container-head rows plus the row-shape verification at the batch base). The e2e figure is the
+last full battery's; the unit figure is current.
 
 ### 0.9.35: the navigation API + toc v2
 
