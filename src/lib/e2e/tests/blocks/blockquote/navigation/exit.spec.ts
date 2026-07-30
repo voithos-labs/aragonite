@@ -13,8 +13,6 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.goto();
 	});
 
-	// Two consecutive inner paragraphs with no blank `>` separator is a transient
-	// CST state CommonMark won't load directly, so build it via real Enter splits.
 	test('top-level quote exit leaves no stranded empty marker', async () => {
 		await editor.loadContent('\n');
 		await editor.clickBlock(0);
@@ -33,7 +31,9 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> first');
 		expect(source).toContain('> second');
-		expect(source).not.toMatch(/^>\s*$/m);
+		// A bare `>` BETWEEN quoted lines is the paragraph separator Enter mints;
+		// the stranded marker this guards is one the quote ends on.
+		expect(source).not.toMatch(/^>[ \t]*\n(?!>)/m);
 		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
 	});
 

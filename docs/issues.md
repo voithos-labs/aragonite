@@ -72,6 +72,25 @@ drag-selection all have to agree on a caret that skips two lines. The same quest
 any block whose rendering has non-editable structural lines, so it is worth deciding once for
 that class rather than for code alone.
 
+### A pasted blank line becomes a block; a typed or loaded one stays trivia
+
+**Severity:** minor (a paste renders one block wider than the same bytes reach any other way)
+**Files:** `src/lib/tree-operations/paste/strategy.ts` (blank-line materialization)
+
+A structural paste turns each blank-line separator on the clipboard into an explicit
+empty-paragraph block, so `one\n\ntwo` pastes as three blocks. The parser folds that blank into
+the next block's trivia, so LOADING the same bytes gives two, and since Enter separates
+(0.9.36) typing them gives two as well. Materialization was added to match the pre-0.9.36 typed
+shape, where reaching `one\n\ntwo` needed two Enters; that cadence now produces `one\n\n\ntwo`,
+so the shape it was matching has moved and paste is the only path left that disagrees.
+
+**Fix direction:** drop the materialization and let a pasted blank line be trivia, as it is
+everywhere else. The cost is byte and DOM expectations across the clipboard suites rather than
+new ones, which is the same reason the neighbouring clipboard entries defer.
+
+**Why deferred:** surfaced by the Enter-separates fix, which did not create it; three paths
+have to agree and only one of them is paste's to decide.
+
 ### A mutation can invalidate an existing tight join, leaving two blocks that reparse as one
 
 **Severity:** minor (live-tree vs reload divergence; byte round-trip unaffected)

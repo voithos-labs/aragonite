@@ -152,9 +152,9 @@ test.describe('ghost-text dogfood', () => {
 
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('x');
-		// The split-trivia shape ("\nx" with no blank line) is the plain editor's
-		// own Enter-at-end result, verified ghost-free; this pins that the ghost
-		// island changes none of those bytes and the empty block still takes input.
-		expect(await editor.bridge.getSource()).toBe('Hello world\nx\n\nSecond paragraph\n');
+		// The split-trivia shape is the plain editor's own Enter result, verified
+		// ghost-free; this pins that the ghost island changes none of those bytes
+		// and the empty block still takes input.
+		expect(await editor.bridge.getSource()).toBe('Hello world\n\nx\n\nSecond paragraph\n');
 	});
 });
