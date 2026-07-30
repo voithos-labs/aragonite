@@ -307,7 +307,7 @@ Host-surface parity holds across the two inline-widget capabilities that once la
 
 The boundary, condensed; the invariant catalog (`docs/design/invariants.md`) is the enforcement record.
 
-A plugin **may**: register kinds/components/openers (once — duplicates throw); declare `rebuildRaw` and have the commit ceremony invoke it; build containers and chrome through the factories; store primitive per-node metadata; commit metadata through the sanctioned update path; mint its own block-commands and contribute per-kind keymaps over the command vocabulary; render as an unknown kind and degrade safely.
+A plugin **may**: register kinds/components/openers (once — duplicates throw); declare `rebuildRaw` and have the commit ceremony invoke it; declare `bodyWrite` and have the write sinks make its body's bytes legal before they land; build containers and chrome through the factories; store primitive per-node metadata; commit metadata through the sanctioned update path; mint its own block-commands and contribute per-kind keymaps over the command vocabulary; render as an unknown kind and degrade safely.
 
 A plugin **may not**: treat its DOM as authoritative or mutate the tree from the view layer (type-enforced since the readonly views: plugin-visible node types are deep-readonly on bytes; boundary events flow up; the CST wins); write bytes through node references captured before a commit (copy-on-write); pass reactive CST state by value across module boundaries (getters only); invent merge-role/unwrap/container-contract values (closed enums); silently override a built-in or another plugin's registration.
 
@@ -322,6 +322,7 @@ The rule: a surface that **reads** hands out a view (`NodeView` / `DocumentView`
 | Command / widget-editing contexts (`BlockCommandContext.node`, `InlineWidgetEditingContext.node`), `getPluginMetadata` | view    |
 | `parse` result, opener / directive-factory products, `chromeChild`                                                     | mutable |
 | Write hooks (`rebuildRaw`, `setPluginMetadata`) — the ceremony hands them owned nodes                                  | mutable |
+| Byte rules (`normalizeRawWrite`, `bodyWrite`) — text in, text out; they see no node at all                             | strings |
 
 Most of the boundary is enforced by **shape** (the factories never expose raw context keys or mutation handles) and the rest by **dev-mode invariants** that tree-shake out of production — so plugin development against a production build gets no signal. **Develop plugins against a dev build.**
 

@@ -140,6 +140,14 @@ export { isBlankLine } from './core/parser';
 export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
 export type { FenceOpen } from './core/parsers/fenced-code';
 
+// ── HTML tag-line grammar (pre-freeze: refined against the details reference plugin) ──
+// CommonMark's type-6 tag-line shape for one tag name. A container whose terminator
+// IS an html tag line asks this rather than its own spelling: what closes such a
+// container in a browser is everything the spec passes through raw (indented,
+// upper-cased, trailing-space forms included), which is looser than any canonical
+// form a rebuild emits.
+export { htmlBlockTagLineMatcher } from './core/parsers/html-block';
+
 // ── Blockquote grammar (pre-freeze: refined against the alert-claiming reference plugin) ──
 // The built-in blockquote extent scanner, so a plugin claiming a blockquote-shaped
 // construct (`> [!NOTE]` GitHub alerts) reuses the CommonMark §5.1 lazy-continuation

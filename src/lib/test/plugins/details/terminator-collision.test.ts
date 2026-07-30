@@ -16,6 +16,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { splitNode } from '$lib/tree-operations/node-ops';
 
 /**
@@ -110,9 +111,31 @@ describe('details terminator collision through the real commit path', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
+	// What closes the element is whatever CommonMark hands to raw-HTML passthrough,
+	// which is looser than the container's own canonical recognizer. Each of these
+	// reloads intact in aragonite — its recognizer never sees them — and closes the
+	// element on GitHub, so the escape answers to the SPEC's tag-line shape.
+	const passthroughVariants = [
+		[' </details>', ' &lt;/details>'],
+		['   </details>', '   &lt;/details>'],
+		['</DETAILS>', '&lt;/DETAILS>'],
+		['<details >', '&lt;details >'],
+		// Not forward-typeable (the `>` escapes first) but reachable by paste or edit.
+		['</details> ', '&lt;/details> ']
+	] as const;
+
+	it.each(passthroughVariants)('escapes the passthrough variant %j', async (typed, escaped) => {
+		const h = mountDetails(OPEN_DETAILS);
+		await h.bundle.blockEdit.updateBlockContent(1, `${typed}\n`, 0);
+
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe(`${escaped}\n`);
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
+	});
+
 	// A balanced nested pair inside one htmlBlock child is legal markup the
 	// container's depth scan already handles. Escaping it would rewrite the user's
-	// HTML, which is why the rule is the recognizer's own scan and not a line match.
+	// HTML, which is why the rule is a depth scan and not a line match.
 	it('declines to escape a balanced nested pair inside an html child', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		const nested = '<div>\n<details>\n<summary>x</summary>\n</details>\n</div>\n';
@@ -175,17 +198,70 @@ describe('details terminator escape caret image', () => {
 		expect(h.bundle.blockEdit.mapCommittedOffset?.('&lt;/details>\n', 13)).toBe(13);
 	});
 
-	// The keystroke that completes the tag is a KIND CHANGE, not routine typing:
-	// `</details` alone is already a type-6 html opener, so the block is an
-	// htmlBlock until the `>` escapes it back to prose. Both commit doors must map
-	// the caret; the landing itself is pinned end-to-end in the details e2e, which
-	// is the only place the component measures a pre-escape DOM for real.
-	it('escapes the completing keystroke even though it arrives as a kind change', async () => {
-		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, '</details\n', 0);
-		expect(h.deps.doc.children[0].children?.[1].kind).toBe('htmlBlock');
+	// The contract names `normalize` as the idempotent member; assert it directly
+	// rather than through its caret image, which shares the same scan.
+	it('normalize is idempotent over every shape the escape touches', () => {
+		const normalize = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!.normalize;
+		const inputs = [
+			'</details>\n',
+			'<details>\n',
+			' </details>\r\n',
+			'</DETAILS>',
+			'</details>\n<details>\n',
+			'```\n</details>\n```\n',
+			'<div>\n<details>\n</details>\n</div>\n'
+		];
 
-		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 9, 10);
+		for (const input of inputs) {
+			const once = normalize(input);
+			expect(normalize(once)).toBe(once);
+		}
+	});
+
+	// A caret is mapped through the same escape that moved the bytes, so folding the
+	// entities back must reproduce the prefix the user had. Checked at every offset:
+	// a per-line predicate with multi-byte insertions is exactly where an off-by-one
+	// hides from a hand-picked case.
+	it('mapOffset is the exact image of normalize at every offset', () => {
+		const bodyWrite = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!;
+		const inputs = ['</details>\n', ' </details>\nx\n', '</details>\n<details>\n', 'plain\n'];
+
+		for (const raw of inputs) {
+			for (let offset = 0; offset <= raw.length; offset++) {
+				const mapped = bodyWrite.normalize(raw).slice(0, bodyWrite.mapOffset(raw, offset));
+				expect(mapped.replaceAll('&lt;', '<')).toBe(raw.slice(0, offset));
+			}
+		}
+	});
+
+	// Every prefix of the tag, keystroke by keystroke. `</details` — no `>` yet — is
+	// ALREADY a type-6 line (the shape's tail admits end-of-line), and a browser
+	// left holding it swallows what follows until it finds a `>`. Escaping from that
+	// keystroke on also means the block never oscillates through htmlBlock: the kind
+	// stays prose the whole way, so no intermediate state is a kind change.
+	it('escapes from the first keystroke the spec would pass through, never oscillating', async () => {
+		const h = mountDetails(OPEN_DETAILS);
+		const typed = '</details>';
+		const kinds: string[] = [];
+
+		for (let i = 1; i <= typed.length; i++) {
+			await h.bundle.blockEdit.updateBlockContent(1, `${typed.slice(0, i)}\n`, i - 1, i);
+			kinds.push(h.deps.doc.children[0].children?.[1].kind ?? '?');
+		}
+
+		expect(new Set(kinds)).toEqual(new Set(['paragraph']));
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+	});
+
+	// The structural door: a commit whose kind genuinely changes still escapes. Its
+	// caret mapping is pinned end-to-end in the details e2e — the unit harness mounts
+	// no refs, so no focus landing is observable here.
+	it('escapes on a kind-changing commit, the structural door', async () => {
+		const h = mountDetails('<details>\n<summary>T</summary>\n\n```\nx\n```\n\n</details>\n');
+		expect(h.deps.doc.children[0].children?.[1].kind).toBe('fencedCode');
+
+		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0, 10);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
 		expect(h.deps.doc.children[0].children?.[1].kind).toBe('paragraph');
