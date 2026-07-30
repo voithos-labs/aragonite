@@ -54,17 +54,9 @@ test.describe('footnote-ops simulation', () => {
 		const ctx: SimContext = { page, editor, tracker, errors, label: 'footnote-ops' };
 		const g = new Gestures(ctx, makeRng(1));
 
-		// The core structural oracles run at every checkpoint; convergence (live CST vs a
-		// reparse of its serialization) runs alongside them EXCEPT where an Enter-split has
-		// left a paragraph pair joined by a single newline — that pair lazily reparses as one
-		// paragraph (the documented splitNode divergence, `docs/issues.md`), a platform split
-		// defect, not a footnote one, so its waiver is per-checkpoint here exactly as it is
-		// across the sim's note fixtures. `math-ops`/`directive-ops` sidestep it by never
-		// running convergence after their own splits; this session runs it wherever the tree
-		// is not mid-split, so the reference tier and the definition formation stay covered.
-		const checkOracles = async (label: string, convergent = true) => {
+		const checkOracles = async (label: string) => {
 			await assertCoreOracles(ctx, label);
-			if (convergent) await assertParseConvergence(ctx);
+			await assertParseConvergence(ctx);
 		};
 		await checkOracles('loaded');
 
@@ -95,8 +87,6 @@ test.describe('footnote-ops simulation', () => {
 		await checkOracles('reference-deleted');
 
 		// ── Definition tier: form one from scratch, split its body, edit, exit ──────
-		// Formed over the blank-line-separated draft paragraph at the tail, not a paragraph
-		// split off by Enter — see the gesture's note on the interruptsParagraph divergence.
 		const defIndex = (await editor.bridge.getBlockCount()) - 1;
 		await g.typeFootnoteDefinition(defIndex, 'b', 'A second note.');
 		expect(await editor.bridge.getBlockKind(defIndex)).toBe('footnote-def');
@@ -105,27 +95,25 @@ test.describe('footnote-ops simulation', () => {
 
 		// Enter mid-body splits the child into two body children — the split must grow the
 		// container's children, never the document root (the Task 2 boundary; the gesture
-		// asserts root-stability internally and throws on an escape). Convergence is waived
-		// while the split pair is single-newline-joined (see the checkOracles note).
+		// asserts root-stability internally and throws on an escape).
 		await g.splitFootnoteDefinitionBody([defIndex, 0]);
-		await checkOracles('definition-body-split', false);
+		await checkOracles('definition-body-split');
 
 		// Edit the split continuation child; the container rebuilds its own raw around it.
 		await g.editContainerBody([defIndex, 1], 'Continued note.');
 		expect(await editor.bridge.getSource()).toContain('Continued note.');
-		await checkOracles('definition-body-continued', false);
+		await checkOracles('definition-body-continued');
 
 		// Backspace at the definition's first body child start delegates upward
 		// (not-mergeable) — byte-identical, never an unwrap into loose paragraphs.
 		await g.footnoteDefinitionExitBackspace([defIndex, 0]);
-		await checkOracles('definition-exit-backspace', false);
+		await checkOracles('definition-exit-backspace');
 
 		// ── Undo unwind across the definition edits and the reference delete ────────
 		await g.pause();
 		await g.undo();
-		await checkOracles('undo-continuation', false);
+		await checkOracles('undo-continuation');
 
-		// Undoing the split restores the single-child body, so convergence holds again.
 		await g.undo();
 		await checkOracles('undo-split');
 

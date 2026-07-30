@@ -49,10 +49,10 @@ test.describe('plugin container: :::note callout editability', () => {
 		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
 		// The callout's own raw was rebuilt from ALL children — the title reaches the
 		// opener line and 'two' the body only if rebuildCalloutRaw ran (a stale raw
-		// would still read ':::note Title\nFirst\n:::'). The lazy-continuation shape
-		// (single \n between the body paragraphs) matches blockquote split-at-end.
-		expect(afterSplitTyping.raw).toBe(':::note Title\nFirst one\ntwo\n:::\n');
-		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst one\ntwo\n:::\n');
+		// would still read ':::note Title\nFirst\n:::'). The blank line between the
+		// body paragraphs is the split's separator, re-emitted by that same rebuild.
+		expect(afterSplitTyping.raw).toBe(':::note Title\nFirst one\n\ntwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst one\n\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 

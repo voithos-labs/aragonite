@@ -20,12 +20,7 @@ const REF = '.footnote-ref';
 /**
  * Turn the whole prose paragraph at `targetIndex` into a footnote-def strip container: select
  * its line and type `[^label]: body` over it, forming the container with one paragraph child
- * on the reparse. Marker formation from live typing. It enters over a blank-line-separated
- * paragraph rather than a paragraph split off by Enter: an Enter-split successor carries only
- * a single-newline separator, and a footnote-def is `interruptsParagraph: false`, so its line
- * would lazily merge back into the block above on reparse (the documented Enter-at-end
- * divergence, `docs/issues.md`) — a general split defect, not a footnote one, that convergence
- * would flag here.
+ * on the reparse. Marker formation from live typing.
  *
  * Typed PER KEYSTROKE, which routes the line through a transient inline reference widget: the
  * `[^label]` prefix mounts one on its closing `]`, and the `: ` plus body are typed against
@@ -64,13 +59,6 @@ export async function typeFootnoteDefinition(
  * the container's own children and never the document root — the boundary Task 2's review
  * flagged untested. Asserts the parent container grew by one child and the root count held,
  * failing loud if the split escaped to the root.
- *
- * Splits mid-child, not at the child's end, deliberately: an end-split mints a trailing EMPTY
- * body child, and a footnote-def's empty continuation line carries no four-space indent, so
- * `scanDefinitionEnd` drops it as a document blank on reparse — the live two-child tree then
- * diverges from its one-child reparse (the Enter-at-end class inside the strip container,
- * `docs/issues.md`). Two non-empty children round-trip, so the mid-split pins the in-container
- * boundary without tripping that documented split defect.
  */
 export async function splitFootnoteDefinitionBody(
 	ctx: SimContext,

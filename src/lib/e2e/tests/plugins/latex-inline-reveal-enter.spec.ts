@@ -48,7 +48,7 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForBlockCount(2);
-		expect(await editor.bridge.getSource()).toBe('$x^2\n\n');
+		expect(await editor.bridge.getSource()).toBe('$x^2\n\n\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -59,12 +59,12 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 		await expect(editor.getBlock(0)).toHaveText('$x^q2$ tail');
 
 		// The split lands where the caret is, and the ephemeral edit reaches the CST
-		// rather than being discarded by the structural op. Two paragraphs with a
-		// single separating newline is the editor's ordinary mid-paragraph split shape
-		// (a plain `abcdef` split at 3 serializes the same way), not a reveal artifact.
+		// rather than being discarded by the structural op. Two blank-line-separated
+		// paragraphs is the editor's ordinary mid-paragraph split shape (a plain
+		// `abcdef` split at 3 serializes the same way), not a reveal artifact.
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForBlockCount(2);
-		expect(await editor.bridge.getSource()).toBe('$x^q\n2$ tail\n');
+		expect(await editor.bridge.getSource()).toBe('$x^q\n\n2$ tail\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });

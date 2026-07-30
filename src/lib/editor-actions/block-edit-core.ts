@@ -53,10 +53,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	return {
 		async split(i, offset) {
 			// Offset 0 is not special: empty block above, content below, caret
-			// staying on the content — the leading empty half collapsing to trivia
-			// on reparse is the same tolerated live state Enter-at-end produces.
-			// A trivia-bump short-circuit here once made Enter at block start an
-			// invisible no-op.
+			// staying on the content, and no separator (the empty half absorbs
+			// nothing). A trivia-bump short-circuit here once made Enter at block
+			// start an invisible no-op.
 			await scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
