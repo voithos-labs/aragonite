@@ -55,7 +55,7 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 	},
 	'dead-space-below-table': {
 		route: 'editor',
-		title: 'a click below a table declines and leaves the range to the keystroke',
+		title: 'a click below a table ends the range and types in the cell it landed in',
 		doc: TABLE_TAIL_DOC,
 		ready: '.table-block'
 	},

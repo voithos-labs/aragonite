@@ -50,7 +50,7 @@ not about.
 | ------------------------ | ----------- | ----------------------- | ------------------------------------------ |
 | `dead-space-below`       | select-all  | one-char document       | **key at the caret in the last block**     |
 | `dead-space-margin`      | select-all  | one-char document       | **key at the caret at that line's end**    |
-| `dead-space-below-table` | prose range | **range span replaced** | key at a caret in the table                |
+| `dead-space-below-table` | select-all  | one-char document       | **key at the caret in the nearest cell**   |
 | `image-click`            | select-all  | one-char document       | **the selected image block replaced**      |
 | `drag-handle-press`      | prose range | **range span replaced** | key at the caret the press left            |
 | `escape`                 | prose range | range span replaced     | **key at the range's anchor**              |
@@ -61,9 +61,23 @@ not about.
 
 Contracts come from observation of each gesture over a live range, not from the lint's
 caret/non-caret classification — pinning to that would make this suite a mirror of the
-thing it cross-checks. `dead-space-below-table` is today's decline (a table addresses
-cells, not characters); teaching that click to land in a table flips its row to a caret
-outcome, deliberately and in one line.
+thing it cross-checks.
+
+`dead-space-below-table` is the row that has already flipped, and it is worth reading as
+the pattern. It was written against a decline: a table addressed cells rather than
+characters, so the click had no unambiguous landing and left the range for the keystroke
+to replace. At 0.9.36 the table gained a nearest-cell caret target, so the gesture stopped
+being ambiguous — it now ends the range and lands at the end of the geometrically nearest
+cell of the last row, and the key inserts exactly there. **One legal outcome, not two.**
+The decline is no longer a permitted answer for this gesture, so a run that produces it
+is a failure rather than the other half of a pair; the row's build moved to select-all to
+match, which is what puts the disaster (a one-char document) maximally far from the
+prediction.
+
+Its landing is the family's only NESTED caret. The prediction reaches it because a grid's
+leaf bytes are contiguous inside its ancestors' raw — a cell's raw sits verbatim inside
+its row's, the row's inside the table's — which is exactly the property a strip container
+lacks, and the resolver reports null rather than guessing when it does not hold.
 
 ## Happy paths
 
