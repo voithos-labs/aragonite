@@ -372,6 +372,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const {
 		controller,
 		stickyColumn,
+		selection,
 		reorder,
 		events: editorEvents,
 		registryView
@@ -474,6 +475,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	});
 
 	const containerApi = createContainerBlockComponent({
+		selection,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},

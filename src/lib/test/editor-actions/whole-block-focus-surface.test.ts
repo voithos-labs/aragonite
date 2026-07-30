@@ -7,6 +7,7 @@ import {
 	createContainerBlockComponent
 } from '$lib/editor-actions/container-block-component';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 
 // The class guard behind whole-block focus: a kind whose declared focus element
 // is absent (a render-error/loading state the plugin forgot to cover) must
@@ -80,6 +81,7 @@ describe('composeWholeBlockFocusSurface', () => {
 describe('container shim through a composed fallback surface', () => {
 	function shim(boxEl: HTMLElement) {
 		return createContainerBlockComponent({
+			selection: createSelectionState(),
 			get innerBlockRefs() {
 				return [];
 			},

@@ -31,6 +31,7 @@
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
+	export const parkCaret = containerApi.parkCaret;
 	export const getCursorOffset = containerApi.getCursorOffset;
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
@@ -46,6 +47,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		getCursorPosition,
 		focusByPath,

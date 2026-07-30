@@ -4,6 +4,29 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **Breaking, plugin surface: `BlockComponent.focus` ends a live cross-block range; the park
+  behavior moves to `parkCaret`.** One verb carried two meanings — the selection-extend paths need
+  a caret parked WITHOUT ending the range they are still growing, while every other placement must
+  end it or the next keystroke type-replaces the document. Two whole-document data losses were the
+  cost of that ambiguity, both pointer gestures that placed a caret and left the range painted.
+  Migration is one line per block: forward `parkCaret` beside `focus` from whichever factory
+  surface you already re-export (`containerApi`, the `createEditableLeaf` return, the shared
+  editable surface). `focus` keeps its name and signature and is now the safe default, so a caller
+  that does nothing inherits the range-ending; `parkCaret` is optional on the contract, and a block
+  that omits it costs an extend nothing but the parked caret, since focus falls to the editor root
+  whose listener routes the next cross-block keystroke anyway. Every implementation mints `focus`
+  from one door (`placeCaret` over its own park primitive) so the range-ending is batched with the
+  landing — unbatched, the `selectionChange` it fires would report the caret the landing is about
+  to move. The single migrated caller is the cross-block dispatcher's `revealActiveEndpoint`, and
+  the three extend behaviors that redded when the clear was seated in one verb —
+  `extend-offwindow-endpoint`, `keyboard/vertical-skip`,
+  `cross-block-delete-container-survivor-caret` — now ride the park verb and stay green. G2.12 is
+  reworked around what is left un-funnelable: NATIVE caret placement (a click's own default moves
+  the caret with no call to sit in front of), the park verb's caller allowlist, and the park verb's
+  presence on every block forwarding a shared caret seam — the third arm found four blocks whose
+  first-pass forward was missed, which is precisely the silent degradation an optional member
+  invites. Taken pre-freeze deliberately: after 1.0 the same split costs an ecosystem migration.
+
 - **What an installed inline rung costs, measured instead of assumed.** Every standing perf
   ceiling measures an EMPTY inline registry, because the harness route installs no plugins, so no
   row had ever seen the consultation a registered rung adds. Four report-only rows now load a

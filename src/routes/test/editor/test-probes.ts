@@ -657,15 +657,23 @@ export function installTestProbes({
 		},
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**
-		 * Call `BlockComponent.focus` the way a plugin-authored container holding
-		 * its children's refs does — the public door (`BlockComponent` is an
-		 * exported type) that no gesture-level spec can reach, since every
-		 * built-in caret placement goes through a pointer or keyboard path first.
+		 * Call each caret door the way a plugin-authored container holding its
+		 * children's refs does — the public doors (`BlockComponent` is an exported
+		 * type) that no gesture-level spec can reach, since every built-in caret
+		 * placement goes through a pointer or keyboard path first. `parkCaret` is
+		 * optional on the contract, so its probe reports false when the block
+		 * omitted it rather than silently falling back to the clearing verb.
 		 */
 		focusBlockComponent: (path: number[], offset: number): boolean => {
 			const block = editor.__test.getBlockComponent(path);
 			if (!block) return false;
 			block.focus(offset);
+			return true;
+		},
+		parkCaretInBlockComponent: (path: number[], offset: number): boolean => {
+			const block = editor.__test.getBlockComponent(path);
+			if (!block?.parkCaret) return false;
+			block.parkCaret(offset);
 			return true;
 		},
 		/**

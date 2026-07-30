@@ -17,6 +17,8 @@ import type { BlockEditActions, FocusActions } from '../action-contracts';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { SelectionState } from '../selection/selection-state.svelte';
+import { placeCaret } from '../selection/caret-doors';
 import { devWarn } from '../dev-warn';
 
 // ── Whole-block focus surface ───────────────────────────────────────────────
@@ -159,6 +161,10 @@ async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Pro
 }
 
 export interface ContainerBlockComponentDeps {
+	/** Ends a live cross-block range when the shim's `focus` lands a caret — the one
+	 *  thing the walk into children cannot borrow from a child, since a whole-block
+	 *  landing never reaches one. */
+	readonly selection: SelectionState;
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	readonly nodeChildrenLength: number;
 	/** The container's CST node, for the pure-data transparency test — works
@@ -209,36 +215,44 @@ export type ContainerBlockComponent = BlockComponent &
 			| 'focusAtColumn'
 			| 'isVerticallyTransparent'
 			| 'enterEdgeWidget'
+			| 'parkCaret'
 		>
 	>;
 
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
 ): ContainerBlockComponent {
+	// The park half of the caret door; `focus` is this plus the range-ending. The
+	// walk lands through the child's PARK door, so a child that omits it simply
+	// isn't parked (see BlockComponent.parkCaret) rather than silently ending the
+	// extend's range through the safe verb.
+	function parkCaret(offset: number): void {
+		// Whole-block focus: any caret entry lands on the block itself, the
+		// element offset carries no meaning (ThematicBreak's model).
+		const focusEl = deps.getFocusEl?.();
+		if (focusEl) {
+			focusWholeBlockEl(focusEl);
+			return;
+		}
+		if (deps.nodeChildrenLength === 0) return;
+		// Collapsed: only child 0 (the chrome row) is mounted, so a walk-in from
+		// below — which targets the last child — clamps to it rather than no-oping
+		// on the unmounted ref.
+		const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
+		if (offset === FOCUS_LAST_START) {
+			deps.innerBlockRefs[last]?.parkCaret?.(FOCUS_LAST_START);
+		} else if (offset === 0) {
+			deps.innerBlockRefs[0]?.parkCaret?.(0);
+		} else {
+			deps.innerBlockRefs[last]?.parkCaret?.(CURSOR_END);
+		}
+	}
+
 	return {
 		editable: true,
 		focusable: true,
-		focus(offset: number) {
-			// Whole-block focus: any caret entry lands on the block itself, the
-			// element offset carries no meaning (ThematicBreak's model).
-			const focusEl = deps.getFocusEl?.();
-			if (focusEl) {
-				focusWholeBlockEl(focusEl);
-				return;
-			}
-			if (deps.nodeChildrenLength === 0) return;
-			// Collapsed: only child 0 (the chrome row) is mounted, so a walk-in from
-			// below — which targets the last child — clamps to it rather than no-oping
-			// on the unmounted ref.
-			const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
-			if (offset === FOCUS_LAST_START) {
-				deps.innerBlockRefs[last]?.focus(FOCUS_LAST_START);
-			} else if (offset === 0) {
-				deps.innerBlockRefs[0]?.focus(0);
-			} else {
-				deps.innerBlockRefs[last]?.focus(CURSOR_END);
-			}
-		},
+		focus: placeCaret(deps.selection, parkCaret),
+		parkCaret,
 		getCursorOffset() {
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) return focusEl.contains(document.activeElement) ? 0 : null;

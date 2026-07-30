@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode } from '$lib/core/nodes';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 
 // The reveal seam's expansion decision: a reveal aimed at a body child of a COLLAPSED
 // container opens its expand door first, so the descent below runs against the
@@ -34,6 +35,7 @@ function shim(over: {
 	expandCollapsed?: () => Promise<boolean>;
 }): BlockComponent {
 	return createContainerBlockComponent({
+		selection: createSelectionState(),
 		get innerBlockRefs() {
 			return over.refs;
 		},

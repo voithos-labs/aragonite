@@ -891,17 +891,3 @@ the declared `|WxH` box? a click-to-load affordance for the deferred policy? dis
 for blocked, deferred, and merely-slow?), not a defect with one right answer. The in-flight case
 is also the one every browser shares for a dimensionless `<img>`, so a fix here is aspect-ratio
 reservation, not a bug fix.
-
-### `BlockComponent.focus(offset)` parks a caret without ending a live cross-block range
-
-**Severity:** important (public-contract footgun; the fix is breaking) · **Target: the 1.0 freeze decision**
-**Files:** `src/lib/block-component.ts` (the public export), `src/lib/components/blocks/editable-surface.ts` (the park primitive)
-
-`focus(offset)` is one verb with two meanings: the extend paths need park-without-clearing (seating a
-clear there reds three real behaviors — measured, not assumed), while every user-facing caret
-placement must end a live range or the next keystroke type-replaces the document (two such data
-losses were found and fixed in 0.9.36's manual wave). The door is documented as a park primitive
-naming `setSelection` as the range-ending door, both halves pinned (`public-caret-doors.spec.ts`),
-and G2.12 fails new pointer gestures at birth. The proper fix — splitting `focus` into two verbs —
-is a breaking change on the frozen public contract and must be on the table at the 1.0 freeze,
-not after it.

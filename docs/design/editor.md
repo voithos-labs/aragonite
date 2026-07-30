@@ -118,6 +118,8 @@ Every block component exposes a common shape. Four members are required: `focus(
 
 Everything else is optional, and a block implements what its surface can honestly answer — selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`), path descent for nested surfaces, command dispatch (`runCommand`). `block-component.ts` is authoritative; each member's docstring states its contract.
 
+Caret placement is two verbs, not one. `focus` places a caret and ends any live cross-block range — the safe default, because a caret that lands inside a range left live is content the next keystroke type-replaces. The optional `parkCaret` is the same landing WITHOUT the range-ending, for the selection-extend paths only: the cross-block dispatcher parks a caret in an endpoint it has just revealed while the extend is still growing the range. G2.12 guards which callers may reach the second verb.
+
 ## 5. Schema — the per-kind metadata layer
 
 Cross-cutting block-kind metadata lives in `src/lib/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither, because otherwise the layer DAG cycles. It is not the only thing those two share (`core/` and `perf/` are in that intersection too), but it is the one carrying kind vocabulary, which is why a cross-cutting block-kind fact belongs here.
@@ -216,7 +218,7 @@ The block–editor interface rides three named facets — editor services, host 
 
 ### Downward: editor → block
 
-The editor reaches down only for focus, via component refs. After a structural mutation and `await tick()`, it calls `focus(offset)` on the target block.
+The editor reaches down only for focus, via component refs. After a structural mutation and `await tick()`, it calls `focus(offset)` on the target block — the range-ending verb, so a landing after a cross-block op cannot leave the old range painted.
 
 ### Structural operations
 

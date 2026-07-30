@@ -136,6 +136,10 @@
 		cellsState.innerBlockRefs[0]?.focus(0);
 	}
 
+	export function parkCaret(_offset: number): void {
+		cellsState.innerBlockRefs[0]?.parkCaret?.(0);
+	}
+
 	export function getCursorOffset(): number | null {
 		return null;
 	}
@@ -168,6 +172,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		getCursorPosition,
 		focusByPath,
@@ -180,6 +185,7 @@
 			editable,
 			focusable,
 			focus,
+			parkCaret,
 			getCursorOffset,
 			getCursorPosition,
 			focusByPath,

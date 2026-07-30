@@ -94,21 +94,32 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Park the caret at `offset`, focusing the surface. Two sentinels arrive
+	 * Place the caret at `offset`, focusing the surface, and end any live
+	 * cross-block range so the new caret owns the selection. Two sentinels arrive
 	 * through this same `number`: `CURSOR_END` (past any length, meaning end of
 	 * content) and `FOCUS_LAST_START` (`-1`, which a leaf clamps to 0 and a
 	 * container cascades into its last child). An out-of-range offset must clamp,
 	 * never throw. A raw DOM seek on `-1` raises IndexSizeError and loses the caret.
 	 *
-	 * Park, not select: this does NOT end a live cross-block range, because the
-	 * cross-block dispatcher parks its own dispatch caret through this same call
-	 * while an extend is still growing one. A caller moving the caret because the
-	 * USER acted wants the editor's `setSelection` instead, which states a new
-	 * selection and ends the old one. Calling this with a range live leaves it
-	 * painted, and the next keystroke will replace all of it. Both behaviours are
-	 * pinned by `e2e/tests/selection/public-caret-doors.spec.ts`.
+	 * The safe default, and the door to reach for: a caret that lands inside a
+	 * range left live is a document the next keystroke type-replaces. Implement it
+	 * by minting `selection/caret-doors.ts`' `placeCaret` over {@link parkCaret},
+	 * never by hand — the range-ending has to be batched with the landing or a
+	 * `selectionChange` subscriber reads back the outgoing caret.
 	 */
 	focus(offset: number): void;
+	/**
+	 * `focus` WITHOUT the range-ending: seat the caret and touch nothing else.
+	 *
+	 * For selection-extend paths only. The cross-block dispatcher parks a caret in
+	 * an endpoint it has just revealed so the next keystroke stays routed, while the
+	 * extend is still growing the range that a `focus` would cancel. Any other
+	 * caller wants `focus`. Omitting it costs an extend nothing but the parked
+	 * caret: focus falls to the editor root, whose document-level listener routes
+	 * the next cross-block keystroke anyway. Both doors are pinned by
+	 * `e2e/tests/selection/public-caret-doors.spec.ts`; G2.12 guards the callers.
+	 */
+	parkCaret?(offset: number): void;
 	/**
 	 * Caret position as a raw offset into this block's own bytes: ambient markers
 	 * excluded, a widget counted as the source bytes it stands for. `null` means

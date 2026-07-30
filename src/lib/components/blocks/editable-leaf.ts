@@ -58,6 +58,7 @@ import {
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
+import { placeCaret } from '../../selection/caret-doors';
 import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
@@ -155,6 +156,7 @@ export interface EditableLeaf {
 
 	// ── BlockComponent surface (mode-guarded; re-export as one-liners) ────────
 	focus(offset: number): void;
+	parkCaret(offset: number): void;
 	focusAtColumn(x: number, from: StickyColumnDirection): void;
 	getCursorOffset(): number | null;
 	getSelectedText(): string;
@@ -392,7 +394,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── BlockComponent surface ─────────────────────────────────────────────────
 
-	function focus(offset: number): void {
+	function parkCaret(offset: number): void {
 		if (mode === 'render-primary') {
 			// Reading mode: a rendered view has no source to reveal; focus is a no-op
 			// and block-level traversal passes over.
@@ -400,8 +402,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			void revealKernel.reveal(offset);
 			return;
 		}
-		surface.focus(offset);
+		surface.parkCaret(offset);
 	}
+
+	const focus = placeCaret(selection, parkCaret);
 
 	// Sticky-column entry: mount the source, then land at the column nearest x
 	// on the first/last visual line — the code-block traversal contract.
@@ -620,6 +624,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getTheme,
 
 		focus,
+		parkCaret,
 		focusAtColumn,
 		getCursorOffset: () => (isRevealed() ? surface.getCursorOffset() : null),
 		getSelectedText: () => (isRevealed() ? surface.getSelectedText() : ''),
