@@ -23,7 +23,7 @@ import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import BlockquoteBlock from '$lib/components/blocks/BlockquoteBlock.svelte';
 import { parse } from '$lib/core/parser';
-import { containerMountContext } from '../container-mount';
+import { editorMountContext } from '../../harness/mount-context';
 import { installLayoutStubs } from '../editor-mount';
 
 beforeAll(installLayoutStubs);
@@ -35,7 +35,8 @@ function mountQuote(source: string, dragHandles = false) {
 	const instance = mount(BlockquoteBlock, {
 		target,
 		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: containerMountContext(() => doc, {
+		context: editorMountContext({
+			doc: { doc: () => doc },
 			policies: { blockDragHandles: () => dragHandles }
 		})
 	});
