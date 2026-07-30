@@ -1,8 +1,5 @@
 <script lang="ts">
-	import {
-		createContainerBlock,
-		type ContainerBlockComponent
-	} from '../../editor-actions/plugin/container';
+	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import type { NodeView } from '../../core/node-views';
 	import BlockList from '../BlockList.svelte';
 
@@ -21,35 +18,7 @@
 		getBoxEl: () => boxEl
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-	// Completeness guard: `bind:this` reads each instance export individually, so a
-	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
-	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>

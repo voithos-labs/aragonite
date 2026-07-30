@@ -4,7 +4,7 @@
 	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
 	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
 	// (a document should feel like a document, not a pile of blocks).
-	import { BlockList, createContainerBlock, type ContainerBlockComponent } from '$lib/plugin';
+	import { BlockList, createContainerBlock } from '$lib/plugin';
 	import type { NodeView } from '$lib/core/node-views';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -28,35 +28,7 @@
 		getBoxEl: () => boxEl
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-	// Completeness guard: `bind:this` reads each instance export individually, so a
-	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
-	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

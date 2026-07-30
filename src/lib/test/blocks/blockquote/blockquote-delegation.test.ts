@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 //
-// BlockquoteBlock is 63 lines of pure wiring: it owns no keymap, no chrome and no
-// state, and forwards its entire BlockComponent surface from `createContainerBlock`.
-// Every one of its behaviors is therefore a delegation, and a delegation that stops
-// delegating is invisible until a user hits it. `containerApi` — the surface BlockHost
-// and every focus walk read through — has no test anywhere in the repo.
+// BlockquoteBlock is pure wiring: it owns no keymap, no chrome and no state, and
+// publishes its entire BlockComponent surface from `createContainerBlock` as one
+// `containerApi` export. Every one of its behaviors is therefore a delegation, and a
+// delegation that stops delegating is invisible until a user hits it. `containerApi` —
+// the surface BlockHost normalizes to and every focus walk reads through — has no test
+// anywhere in the repo.
 //
 // These mount the real component over a real CST and assert the delegation ARRIVES:
 // children rendered by the inner BlockList, refs published back into the container's
@@ -61,23 +62,23 @@ describe('blockquote delegates to its inner BlockList', () => {
 	it('resolves the addressed child, not merely the first one', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n');
 
-		const first = mounted.instance.getBlockComponentByPath([0]);
-		const second = mounted.instance.getBlockComponentByPath([1]);
+		const first = mounted.instance.containerApi.getBlockComponentByPath([0]);
+		const second = mounted.instance.containerApi.getBlockComponentByPath([1]);
 
 		expect(first?.editable).toBe(true);
 		expect(second).not.toBe(first);
-		expect(mounted.instance.getBlockComponentByPath([2])).toBeNull();
+		expect(mounted.instance.containerApi.getBlockComponentByPath([2])).toBeNull();
 	});
 
 	it('lands focus in the first child when the container is focused', () => {
 		mounted = mountQuote('> alpha\n>\n> beta\n');
 
-		mounted.instance.focus(0);
+		mounted.instance.containerApi.focus(0);
 
 		expect(document.activeElement).toBe(
 			mounted.target.querySelector('.block-host [contenteditable]')
 		);
-		expect(mounted.instance.getCursorOffset()).toBe(0);
+		expect(mounted.instance.containerApi.getCursorOffset()).toBe(0);
 	});
 
 	// The container seam defaults `reorderable` to false (opaque plugin containers are

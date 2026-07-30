@@ -43,9 +43,16 @@
 	const getEditorRoot = editorDoc?.editorRoot;
 	const getDoc = editorDoc?.doc;
 
-	// Containers that supply their own measurePartialRects (table) paint cell
-	// rects from this overlay; their children don't render BlockHost wrappers.
-	const containerPaintsRects = $derived(isContainer && !!blockRef?.measurePartialRects);
+	// A container with no child hosts to delegate to (a grid, whose rows render
+	// inside its own component; a childless render-primary block) paints its own
+	// rects here, when its surface can measure a range. Presence of
+	// `measurePartialRects` alone is NOT the test: the container shim supplies it to
+	// every container, so keying on it would hand a child-bearing container the
+	// full-block overlay on top of its children's. Same predicate as
+	// DecorationOverlay's `containerPaintsSelf`.
+	const containerPaintsRects = $derived(
+		isContainer && !hasChildHosts && !!blockRef?.measurePartialRects
+	);
 
 	const classification = $derived.by<BlockSelectionClass>(() => {
 		if (isContainer && !containerPaintsRects && hasChildHosts) return 'outside';

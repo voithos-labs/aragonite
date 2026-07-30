@@ -349,12 +349,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 ```svelte
 <!-- NoteBlock.svelte -->
 <script lang="ts">
-	import {
-		BlockList,
-		createContainerBlock,
-		type ContainerBlockComponent,
-		type NodeView
-	} from 'aragonite/plugin';
+	import { BlockList, createContainerBlock, type NodeView } from 'aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
@@ -366,34 +361,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 		getBoxEl: () => boxEl
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-
-	// A forgotten member becomes a compile error, not a runtime focus bug.
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -415,7 +383,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 
 Three rules for that file, each earned the hard way:
 
-- **The re-export block is verbatim.** `bind:this` reads each instance export _individually_, so the block can't be spread or collapsed. It is the same in every container block. End it with the `satisfies ContainerBlockComponent` line: a member you forget to forward becomes a `npm run check` error instead of a focus bug that only surfaces at runtime. Forward `parkCaret` beside `focus`: the two are one door in two halves — `focus` places a caret and ends any live cross-block selection, `parkCaret` places it without ending one, and the editor's selection-extend paths reach for the second.
+- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container ref through it. The name is fixed: the component registry types a block's exports as either a leaf surface or a container's `containerApi`, so omitting it fails `npm run check` at your `registerBlockComponent` call rather than at runtime. If you build the surface by hand instead of taking the factory's, annotate the export (`export const containerApi = { … } satisfies ContainerBlockComponent`) and supply both caret verbs: `focus` places a caret and ends any live cross-block selection, `parkCaret` places it without ending one, and the editor's selection-extend paths reach for the second.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read — `var(--color-ui-muted, #a4a4a4)` — so the block still renders outside `.editor` scope. Match that fallback to the token's **dark base** value; dark is the base. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 

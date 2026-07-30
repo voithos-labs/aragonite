@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type { AmbientPrefix, BlockComponent } from '../block-component';
+	import {
+		resolveBlockSurface,
+		type AmbientPrefix,
+		type BlockComponent,
+		type BlockComponentExports
+	} from '../block-component';
 	import type { NodeView } from '../core/node-views';
 	import type { BlockDecoration } from '../decorations/types';
 	import { mountDecorationWidget } from '../decorations/widget-dom';
@@ -74,13 +79,22 @@
 		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
 	);
 
-	let isContainer = $derived(registryView.descriptor(node.kind).isContainer);
-	// A childless container (render-primary plugin block) mounts no child hosts,
-	// so overlay painting can't be delegated downward — see SelectionOverlay.
-	let hasChildHosts = $derived(isContainer && (node.children?.length ?? 0) > 0);
+	let descriptor = $derived(registryView.descriptor(node.kind));
+	let isContainer = $derived(descriptor.isContainer);
+	// Overlay painting is delegated downward only where child hosts exist to paint.
+	// A childless container (render-primary plugin block) has none; neither does a
+	// GRID, whose rows and cells render inside its own component rather than through
+	// BlockHost — see SelectionOverlay and DecorationOverlay.
+	let hasChildHosts = $derived(
+		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'
+	);
 
 	let hostEl: HTMLElement | null = $state(null);
-	let ref: BlockComponent | undefined = $state();
+	// `bind:this` publishes the instance; the surface behind it is what every
+	// consumer of this host's ref reads. Normalizing here is what lets a container
+	// publish one export instead of re-declaring a dozen.
+	let instance: BlockComponentExports | undefined = $state();
+	let ref: BlockComponent | undefined = $derived(resolveBlockSurface(instance));
 
 	let entry = $derived(registryView.component(node.kind));
 
@@ -119,6 +133,16 @@
 	$effect(() => {
 		if (!setRef || !getRef) return;
 		return publishRefSlot(index, ref, setRef, getRef);
+	});
+
+	// A mounted component whose published surface has no `focus` published neither
+	// sanctioned shape — for a container, the missing `containerApi` export. The type
+	// catches it at `defineBlockComponent`; this catches the registration that reached
+	// the registry through a cast, which downstream would read only as a block whose
+	// caret never lands.
+	$effect(() => {
+		if (ref && typeof ref.focus !== 'function')
+			devWarn('block-host', 'component published no BlockComponent surface', node.kind);
 	});
 
 	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
@@ -245,7 +269,7 @@
 				{ambientPrefix}
 				document={getDoc?.()}
 				{rects}
-				bind:this={ref}
+				bind:this={instance}
 				{...entry.extraProps?.(node) ?? {}}
 			/>
 		{:else}
@@ -256,7 +280,7 @@
 				{ambientPrefix}
 				document={getDoc?.()}
 				{rects}
-				bind:this={ref}
+				bind:this={instance}
 				blockClass="raw-block"
 			/>
 		{/if}

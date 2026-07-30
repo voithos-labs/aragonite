@@ -4,13 +4,7 @@
 	// the `[^label]: ` marker is contributed to the first child as a dimmed, read-only
 	// prefix (the listItem `- ` model), so the definition's body edits like ordinary
 	// prose while its marker stays source-faithful chrome.
-	import {
-		BlockList,
-		createContainerBlock,
-		getPluginMetadata,
-		type ContainerBlockComponent,
-		type NodeView
-	} from '$lib/plugin';
+	import { BlockList, createContainerBlock, getPluginMetadata, type NodeView } from '$lib/plugin';
 	import type { FootnoteDefMetadata } from './footnote-definition';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -27,35 +21,7 @@
 		getAmbientPrefix: () => `[^${label}]: `
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-
-	// Completeness guard: `bind:this` reads each export individually, so a new
-	// ContainerBlockComponent member left un-forwarded above fails `npm run check` here.
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <div class="footnote-def" data-footnote-label={label} bind:this={boxEl}>
