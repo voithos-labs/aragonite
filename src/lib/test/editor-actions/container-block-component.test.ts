@@ -48,25 +48,22 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
-	// The walk lands through the child's PARK door either way: the container's own
-	// `focus` has already ended the range, and reaching for the child's `focus`
-	// would end it a second time — which is exactly what an extend cannot afford.
 	it('focus(0) targets the first child ref', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(0);
-		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
+		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
 	it('focus(FOCUS_LAST_START) cascades to the last child', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(FOCUS_LAST_START);
-		expect(refs[1].parkCaret).toHaveBeenCalledWith(FOCUS_LAST_START);
+		expect(refs[1].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
 	});
 
 	it('focus(<other offset>) targets the last child with CURSOR_END', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(3);
-		expect(refs[1].parkCaret).toHaveBeenCalledWith(CURSOR_END);
+		expect(refs[1].focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
 	it('focus is a no-op when no children', () => {
@@ -94,15 +91,15 @@ describe('createContainerBlockComponent', () => {
 	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
 		const refs = [makeRef(), makeRef()];
 		collapsedContainer(refs).focus(FOCUS_LAST_START);
-		expect(refs[0].parkCaret).toHaveBeenCalledWith(FOCUS_LAST_START);
-		expect(refs[1].parkCaret).not.toHaveBeenCalled();
+		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
+		expect(refs[1].focus).not.toHaveBeenCalled();
 	});
 
 	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
 		const refs = [makeRef(), makeRef()];
 		collapsedContainer(refs).focus(3);
-		expect(refs[0].parkCaret).toHaveBeenCalledWith(CURSOR_END);
-		expect(refs[1].parkCaret).not.toHaveBeenCalled();
+		expect(refs[0].focus).toHaveBeenCalledWith(CURSOR_END);
+		expect(refs[1].focus).not.toHaveBeenCalled();
 	});
 
 	it('focusAtColumn is a no-op when no children', () => {
@@ -186,7 +183,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		api.focus(0);
 
 		expect(selection.isCrossBlock).toBe(false);
-		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
+		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
 	it('parkCaret leaves it live — the extend paths depend on that', () => {
@@ -209,6 +206,20 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 
 		expect(bare.focus).not.toHaveBeenCalled();
 		expect(selection.isCrossBlock).toBe(true);
+	});
+
+	// …but the SAFE verb must still place a caret in that child. `parkCaret` is
+	// optional on the contract precisely so an external leaf may omit it, and the
+	// documented cost of omitting it is a missed PARK — never a stranded caret on an
+	// ordinary focus walk, which is every ArrowDown into a container.
+	it('focus lands in a child without the park door, through its focus', () => {
+		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
+		const { selection, api } = withRange([bare]);
+
+		api.focus(0);
+
+		expect(bare.focus).toHaveBeenCalledWith(0);
+		expect(selection.isCrossBlock).toBe(false);
 	});
 });
 
