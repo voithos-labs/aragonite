@@ -53,7 +53,7 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   at the end of a paragraph the inserted ending becomes the block's own, so it leaves a trailing
   backslash and the caret stays on that line until a following line exists.
 
-- **BREAKING (plugin authors): a container block publishes ONE instance export.** `export
+- **Breaking, plugin surface: a container block publishes ONE instance export.** `export
 { containerApi }` replaces the twelve `export const` forwards plus the `satisfies` completeness
   block every container carried, roughly fourteen lines down to one, and BlockHost resolves the two
   publication shapes (a leaf's own surface, a container's `containerApi`) at the single point it
@@ -862,10 +862,12 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   container is descended into for free and the end-of-document gesture is just the same clamp
   aimed at a trailing corner. Clicks that land on anything the editor renders — a block, a
   handle, an overlay, the host's header slot — are untouched, because the claim is on the
-  event's target being the root itself. Two families decline rather than guess: a table, whose
+  event's target being the root itself. Two families declined rather than guess: a table, whose
   offset is a cell index and so has no "end of that line", and a non-editable leaf like a
   thematic break, which would otherwise take the whole-block focus a click ON it means and arm
-  the next Backspace against a block the user only clicked near. Both are in `docs/issues.md`.
+  the next Backspace against a block the user only clicked near. The table half is closed later
+  in this same release, by a kind declaring `caretTargetAtPoint`; the leaf's decline is the
+  answer rather than a gap, and is recorded at the seam and in its requirement.
   A drag-select that ends in the margin keeps its selection.
 
 - **A reveal click on a rendered block no longer leaves the whole document armed for
@@ -880,11 +882,13 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   for the new guard below rather than by a report, which is the entry set's whole point: the rule
   that a caret-placing gesture ends a live range is carried by each gesture, and
   `invariants/lint/caret-gesture-range-reset` now makes a gesture that joins the set declare
-  which door it uses — or say what it does instead of placing a caret. The rule cannot be seated
-  in a funnel, and that is measured rather than assumed: `BlockComponent.focus` is the obvious
-  candidate and is the same call the cross-block dispatcher parks its own caret with mid-extend,
-  so a clear seated there reds three extend specs. `focus` is therefore documented as a park
-  primitive; the consumer door that ends a range is `setSelection`, and both halves are pinned.
+  which door it uses — or say what it does instead of placing a caret. That the rule could not be
+  seated in one verb was measured rather than assumed: `BlockComponent.focus` was the obvious
+  candidate and was the same call the cross-block dispatcher parked its own caret with mid-extend,
+  so a clear seated there redded three extend specs. That measurement is what forced the verb
+  split above (`focus` ends the range, `parkCaret` carries the extend paths), so the funnel
+  exists now, and G2.12 is what still covers the gestures no verb can reach. The consumer-facing
+  door that ends a range is `setSelection`.
 
 - **A ranged edit spanning a fence line stops corrupting the fence.** Select from a fenced code
   block's last body line through its closer, press Backspace, and the committed block was an

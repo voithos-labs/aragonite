@@ -2,7 +2,9 @@
 
 Log of known editor issues. Each entry carries severity, affected files, a description,
 reproduction (where relevant), and either a **Target** version (if scheduled via the roadmap)
-or a **Why deferred** rationale (if not). Remove entries when shipped.
+or a **Why deferred** rationale (if not). Remove entries when shipped. Reconcile an entry
+against the commits that resolve it, never against its own prose: a premise expires without a
+word of the entry changing, so work landed elsewhere closes entries nobody edited.
 
 ## Core editing
 
@@ -145,7 +147,8 @@ the post-change coordinate and the top-level divergence want a joint look.
 
 **Why deferred:** post-edit-caret-versus-pre-edit-tree selection semantics touch the debounce
 seam and both content-commit factories together — a careful reconciliation, not a spot change.
-Fold into the history-seam pass (limestone internal integration).
+Fold into the overridable-history-seam design, which the roadmap still carries as a joint
+decision with the first consumer: the integration has run, that design table has not convened.
 
 ### `navigator.clipboard.readText()` did not settle on its first use under wry
 
@@ -251,7 +254,8 @@ cmark-exact)
 `isValidLeadingBoundary`), `src/lib/core/url-policy.ts` (`ALLOWED_HREF_SCHEMES`)
 
 Two halves, deliberately in one entry: the email form should be decided once, and written as a flat
-list of five divergences it reads as a bug backlog and invites someone to "fix" a design decision.
+list of five divergences it would read as a bug backlog and invite someone to "fix" a design
+decision.
 
 **Half one — deliberate, revisit only on a policy change.** aragonite applies §6.9's leading-boundary
 rule ("at the beginning of a line, after whitespace, or any of the delimiting characters `*`, `_`,
