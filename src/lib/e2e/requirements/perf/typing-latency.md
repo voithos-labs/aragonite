@@ -38,6 +38,37 @@ block 0's raw length, since the ancestry rebuild propagates the typed character 
 the root container. A leaf the nested windowing left off-window fails the row via a
 mounted check rather than recording a bogus latency.
 
+## Installed inline rungs (report-only)
+
+Four rows measuring what a REGISTERED inline rung costs, which no standing row can see:
+the editor route installs no plugins, so every ceiling is an empty-registry number.
+Report-only, no gate, no baseline judgment. Each row loads its fixture twice at 100KB,
+30 keystrokes: once on `/test/plugins` where the rung is installed, once on the
+rung-free editor route, so the artifact carries both numbers and their delta.
+
+- bracket-dense under footnotes (`?seed=footnotes`): every paragraph carries inline
+  links plus a `[^label]` reference, so each `[` in a scanned range pays the rung's
+  prefix consultation. This row measures TWO mechanisms on one fixture — the second is
+  the mounted reference's number, which re-derives from a walk over the whole document
+  on every content version. A row that mounted no reference widget fails rather than
+  reporting one mechanism as two.
+- colon-dense under emoji (`?seed=emoji`): colons that mostly decline (`Note:`,
+  `ns::method`, clock times) plus one real shortcode per paragraph, since the rung's
+  cost is dominated by attempts that fail.
+- dollar-dense under latex (base plugins): shell-documentation prose, `$HOME $PATH
+  $USER`, with one real math span in the first paragraph, which is also the row's proof
+  the rung is live.
+- plain-prose under an installed unreserved rung (`?seed=emoji`): ordinary prose with
+  no trigger in it at all. `:` is held out of `SPECIAL_CHARS`, so registering emoji
+  turns on `needsScan`'s per-character probe for the whole document — the bail cost
+  the standing ceilings are blindest to. Its rung liveness comes from a `:tada:` probe
+  document loaded before the fixture, since plain prose mints no widget.
+
+**Confound, recorded because no route here is a clean control:** `/test/plugins`
+installs eight base plugins, two of which derive over the whole document, so a route
+delta bounds an installed rung's cost from ABOVE and is not attributable to the rung
+alone. Building a rung-only route was rejected as out of proportion to a report row.
+
 ## Sizes
 
 All shapes run at 100KB / 1MB / 10MB — nothing is capped. The giant-single

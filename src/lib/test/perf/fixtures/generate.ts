@@ -78,6 +78,49 @@ export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 
 	return content + '\n';
 }
 
+export const TRIGGER_DENSE_KINDS = ['bracket-footnote', 'colon', 'dollar'] as const;
+export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
+
+/**
+ * Prose dense in one INLINE TRIGGER, for the report-only rows that measure what an
+ * installed inline rung costs. Deliberately not a `FIXTURE_SHAPES` entry (the
+ * {@link generateDeepNested} precedent): those sweep into every gated row, and these
+ * shapes gate nothing — a rung's cost is a plugin's business, not a ceiling the
+ * editor owes.
+ *
+ * - `bracket-footnote` — every paragraph carries inline links, a shortcut reference
+ *   and a `[^label]` footnote reference, so each `[` in a scanned range pays the
+ *   footnotes rung's prefix consultation. It carries a SECOND, unrelated cost by
+ *   design: a mounted reference re-derives its number from a walk over the whole
+ *   document on every content version, so this one fixture measures the scanner
+ *   consultation and the mounted derivation together. No definitions — numbering is
+ *   by first-reference order, so the widget renders a number without them, while
+ *   `[^label]:` lines would parse as link reference definitions on the rung-free
+ *   control route and measure a different document there.
+ * - `colon` — shell/API prose whose colons mostly DECLINE (`Note:`, `ns::method`,
+ *   clock times) plus one real shortcode per paragraph, since the emoji rung's cost
+ *   is dominated by attempts that fail.
+ * - `dollar` — shell-documentation prose (`$HOME $PATH $USER`), the issues.md
+ *   example, plus one real math span in the first paragraph only: enough to prove the
+ *   latex rung is live on the route, without making the row measure KaTeX renders.
+ */
+export function generateTriggerDense(
+	kind: TriggerDenseKind,
+	targetBytes: number,
+	seed = 42
+): string {
+	const rand = mulberry32(seed);
+	const chunks: string[] = [];
+	let size = 0;
+	let i = 0;
+	while (size < targetBytes) {
+		const chunk = TRIGGER_DENSE_BUILDERS[kind](rand, i++);
+		chunks.push(chunk);
+		size += chunk.length;
+	}
+	return chunks.join('');
+}
+
 /**
  * Path to the deepest (typeable) leaf of a `generateDeepNested(depth, …)` doc.
  * Each level descends to its spine child: a blockquote's is the second child
@@ -147,6 +190,25 @@ function words(rand: () => number, n: number): string {
 	for (let i = 0; i < n; i++) out.push(WORDS[Math.floor(rand() * WORDS.length)]);
 	return out.join(' ');
 }
+
+const SHORTCODES = ['tada', 'rocket', 'bug', 'book', 'warning', 'smile'];
+
+const TRIGGER_DENSE_BUILDERS: Record<TriggerDenseKind, (rand: () => number, i: number) => string> =
+	{
+		'bracket-footnote': (rand, i) =>
+			`${words(rand, 8)} [${words(rand, 2)}](https://example.com/${i}) ${words(rand, 5)}[^fn-${i}] ` +
+			`${words(rand, 6)} [${words(rand, 2)}][ref-${i}] ${words(rand, 5)}.\n\n`,
+
+		colon: (rand, i) =>
+			`${words(rand, 1)}: ${words(rand, 6)} ${words(rand, 1)}::${words(rand, 1)} ` +
+			`at 1${i % 10}:${(i * 7) % 60} ${words(rand, 5)} :${SHORTCODES[i % SHORTCODES.length]}: ` +
+			`${words(rand, 5)}.\n\n`,
+
+		dollar: (rand, i) =>
+			`${words(rand, 6)} $HOME $PATH $USER ${words(rand, 5)} $${i} ${words(rand, 6)}` +
+			(i === 0 ? ' $a + b$' : '') +
+			` ${words(rand, 5)}.\n\n`
+	};
 
 const BUILDERS: Record<FixtureShape, (rand: () => number, i: number) => string> = {
 	'flat-prose': (rand) =>

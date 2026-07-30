@@ -1,10 +1,18 @@
 import { test, expect } from '../../fixtures';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
-import { FIXTURE_SHAPES, type FixtureShape } from '../../../test/perf/fixtures/generate';
+import { PluginsPage } from '../plugins/helpers';
+import {
+	FIXTURE_SHAPES,
+	generateFixture,
+	generateTriggerDense,
+	type FixtureShape,
+	type TriggerDenseKind
+} from '../../../test/perf/fixtures/generate';
 import {
 	measureContainerHeadTyping,
 	measureDeepNestedTyping,
+	measureTypingIntoDocument,
 	measureTypingLatency
 } from './latency-harness';
 
@@ -128,6 +136,128 @@ test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async (
 		note: DEV_CAVEAT
 	});
 	expect(m.samples).toHaveLength(30);
+});
+
+// ── Installed inline rungs (report-only) ────────────────────────────────────
+
+// The standing ceilings measure an EMPTY inline registry: no bundled plugin is
+// installed on the editor route, so no row sees what a registered rung costs. Three
+// bundled rungs ship on the two shapes — footnotes' reserved `[^` prefix, emoji's
+// and latex's unreserved `:`/`$` — and each pays a per-occurrence consultation
+// inside ranges `needsScan` admits. The unreserved shape also flips `needsScan`'s
+// per-character probe on for the whole document, so PLAIN PROSE gets more expensive
+// once any unreserved rung is installed: the row the standing gate is blindest to.
+//
+// Each row measures the trigger-dense (or plain) fixture twice: once on the plugins
+// route where the rung is installed, once on the rung-free editor route, so the
+// delta rides in the artifact instead of a claim.
+//
+// CONFOUND, stated because no route here is a clean control: `/test/plugins` installs
+// eight base plugins (callout, details, latex, admonitions, mermaid, memo, doc-stats,
+// toc), two of which derive over the whole document. So a route delta bounds the
+// installed-rung cost from ABOVE and is not attributable to the rung alone. Report
+// the numbers; do not read "the bail probe costs X" off a route delta.
+const RUNG_BYTES = 100_000;
+const RUNG_KEYSTROKES = 30;
+
+interface RungRow {
+	row: string;
+	// The trigger-dense fixture, or the plain-prose shape for the bail-probe row.
+	fixture: TriggerDenseKind | 'flat-prose';
+	// `?seed=` on the plugins route; latex rides the base set, so its row needs none.
+	seed?: string;
+	// A widget the rung mints on the loaded document, proving the rung is live.
+	requireWidget?: string;
+	// Loaded before the fixture when the fixture itself mints no widget — the only
+	// liveness evidence the plain-prose row can carry.
+	probeDocument?: { source: string; widget: string };
+}
+
+const RUNG_ROWS: RungRow[] = [
+	{
+		// Two mechanisms, one fixture: the `[^` prefix consultation on every `[`, and
+		// the mounted reference's number, which re-derives from a walk over the whole
+		// document on every content version (the third non-viewport axis in
+		// docs/design/performance.md). The widget count in the artifact is what says
+		// the second mechanism was live.
+		row: 'bracket-dense-footnotes',
+		fixture: 'bracket-footnote',
+		seed: 'footnotes',
+		requireWidget: 'sup.footnote-ref'
+	},
+	{
+		row: 'colon-dense-emoji',
+		fixture: 'colon',
+		seed: 'emoji',
+		requireWidget: '.md-emoji-widget'
+	},
+	{
+		row: 'dollar-dense-latex',
+		fixture: 'dollar',
+		requireWidget: '.math-inline-widget'
+	},
+	{
+		// The bail-probe row: ordinary prose with no trigger in it at all, under an
+		// installed unreserved rung. `:` is held out of SPECIAL_CHARS, so registering
+		// emoji turns on a per-character map lookup before the fast bail decides.
+		row: 'plain-prose-bail-emoji',
+		fixture: 'flat-prose',
+		seed: 'emoji',
+		probeDocument: { source: 'probe :tada: line\n', widget: '.md-emoji-widget' }
+	}
+];
+
+function rungFixture(fixture: RungRow['fixture']): string {
+	return fixture === 'flat-prose'
+		? generateFixture('flat-prose', RUNG_BYTES)
+		: generateTriggerDense(fixture, RUNG_BYTES);
+}
+
+test.describe('typing latency — installed inline rungs', () => {
+	for (const { row, fixture, seed, requireWidget, probeDocument } of RUNG_ROWS) {
+		test(`${row} 100KB`, async ({ page }) => {
+			const document = rungFixture(fixture);
+
+			const plugins = new PluginsPage(page);
+			await plugins.gotoPlugins(seed);
+			if (probeDocument) {
+				await plugins.loadContent(probeDocument.source);
+				expect(
+					await page.locator(probeDocument.widget).count(),
+					`the rung is not live on this route — ${probeDocument.widget} never mounted`
+				).toBeGreaterThan(0);
+			}
+			const rung = await measureTypingIntoDocument(
+				page,
+				plugins,
+				document,
+				RUNG_KEYSTROKES,
+				requireWidget
+			);
+
+			const control = new EditorPage(page);
+			await control.goto();
+			const rungFree = await measureTypingIntoDocument(page, control, document, RUNG_KEYSTROKES);
+
+			writeResult(`rung-${row}`, '100KB', {
+				row,
+				fixture,
+				seed: seed ?? '(base plugins only)',
+				bytes: RUNG_BYTES,
+				keystrokes: RUNG_KEYSTROKES,
+				mountedWidgets: rung.mountedWidgets ?? 0,
+				rungLoadMs: round(rung.loadMs),
+				rungP50Ms: round(rung.p50Ms),
+				rungP95Ms: round(rung.p95Ms),
+				rungFreeLoadMs: round(rungFree.loadMs),
+				rungFreeP50Ms: round(rungFree.p50Ms),
+				rungFreeP95Ms: round(rungFree.p95Ms),
+				note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the rung's cost from above`
+			});
+			expect(rung.samples).toHaveLength(RUNG_KEYSTROKES);
+			expect(rungFree.samples).toHaveLength(RUNG_KEYSTROKES);
+		});
+	}
 });
 
 // ── Bridge sanity ───────────────────────────────────────────────────────────
