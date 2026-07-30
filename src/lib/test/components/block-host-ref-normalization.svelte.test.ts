@@ -11,7 +11,7 @@
 // here — so the resolution is asserted at the slot, over a REAL container.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { resolveBlockSurface } from '$lib/block-component';
+import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
 import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -41,11 +41,24 @@ afterEach(async () => {
 
 describe('resolveBlockSurface', () => {
 	const leaf = { focus() {}, getCursorOffset: () => null, editable: true, focusable: true };
+	// Container-GRADE, not merely present: the union's container arm requires the
+	// descent verbs, so a leaf-shaped `containerApi` does not type-check here either.
+	const container: ContainerBlockComponent = {
+		...leaf,
+		parkCaret: () => {},
+		getCursorPosition: () => null,
+		focusByPath: () => {},
+		getBlockComponentByPath: () => null,
+		revealByPath: async () => null,
+		focusAtColumn: () => {},
+		isVerticallyTransparent: () => false,
+		enterEdgeWidget: () => false
+	};
 
 	it('unwraps a container instance to the surface it published', () => {
 		// By identity, not by shape: `publishRefSlot` clears a slot only while it still
 		// holds the ref it wrote, so a wrapper minted per read would stomp a neighbour's.
-		expect(resolveBlockSurface({ containerApi: leaf })).toBe(leaf);
+		expect(resolveBlockSurface({ containerApi: container })).toBe(container);
 	});
 
 	it('passes a leaf instance through, by identity', () => {

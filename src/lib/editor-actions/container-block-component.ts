@@ -4,6 +4,7 @@ import {
 	CURSOR_END,
 	FOCUS_LAST_START,
 	type BlockComponent,
+	type ContainerBlockComponent,
 	type StickyColumnDirection
 } from '../block-component';
 import {
@@ -198,27 +199,6 @@ export interface ContainerBlockComponentDeps {
 	readonly getBoxEl?: () => HTMLElement | null | undefined;
 }
 
-/**
- * The container shim's surface, with the members it always supplies promoted to
- * required — so a container host re-exports them for BlockHost without a
- * per-member non-null assertion. Re-exported under this name from the plugin
- * container seam.
- */
-export type ContainerBlockComponent = BlockComponent &
-	Required<
-		Pick<
-			BlockComponent,
-			| 'getCursorPosition'
-			| 'focusByPath'
-			| 'getBlockComponentByPath'
-			| 'revealByPath'
-			| 'focusAtColumn'
-			| 'isVerticallyTransparent'
-			| 'enterEdgeWidget'
-			| 'parkCaret'
-		>
-	>;
-
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
 ): ContainerBlockComponent {
@@ -341,7 +321,7 @@ export function createContainerBlockComponent(
 			// Opaque single-unit: a childless container has no children to delegate
 			// to, so any non-empty range paints the whole box; a child-bearing
 			// container returns nothing — its children self-paint through their own
-			// hosts, and the overlay routes to them on `hasChildHosts`.
+			// hosts, and the overlay routes to them on `delegatesPainting`.
 			if (deps.nodeChildrenLength > 0) return [];
 			const box = deps.getBoxEl?.();
 			if (!box || end <= start) return [];

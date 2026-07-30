@@ -81,11 +81,16 @@
 
 	let descriptor = $derived(registryView.descriptor(node.kind));
 	let isContainer = $derived(descriptor.isContainer);
-	// Overlay painting is delegated downward only where child hosts exist to paint.
-	// A childless container (render-primary plugin block) has none; neither does a
-	// GRID, whose rows and cells render inside its own component rather than through
-	// BlockHost — see SelectionOverlay and DecorationOverlay.
-	let hasChildHosts = $derived(
+	// Who paints this block's selection/decoration rects, decided ONCE here and handed
+	// to both overlays. They held the same conjunction character-for-character, each
+	// commenting that the other was the reason it was right, and drifting apart is
+	// exactly how a child-bearing container came to paint over its own children.
+	//
+	// A container delegates downward when its children have hosts of their own to paint
+	// through. A childless container (a render-primary plugin block) has none, and
+	// neither does a GRID, whose rows and cells render inside its own component rather
+	// than through BlockHost.
+	let delegatesPainting = $derived(
 		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'
 	);
 
@@ -95,6 +100,14 @@
 	// publish one export instead of re-declaring a dozen.
 	let instance: BlockComponentExports | undefined = $state();
 	let ref: BlockComponent | undefined = $derived(resolveBlockSurface(instance));
+
+	// A container that delegates nothing paints its own rects, when its surface can
+	// measure a range. Presence of `measurePartialRects` is NOT the discriminator: the
+	// container shim supplies it to every container, so it only guards a hand-rolled
+	// container that omits the optional member.
+	let containerPaintsRects = $derived(
+		isContainer && !delegatesPainting && !!ref?.measurePartialRects
+	);
 
 	let entry = $derived(registryView.component(node.kind));
 
@@ -295,8 +308,20 @@
 	<!-- hostEl is null until mount; safe because SelectionState is only
 		 populated by user gesture, never synchronously during structural
 		 mount. The overlay's $effect guards on !blockEl. -->
-	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
-	<DecorationOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
+	<SelectionOverlay
+		path={myPath}
+		blockRef={ref}
+		blockEl={hostEl}
+		{delegatesPainting}
+		{containerPaintsRects}
+	/>
+	<DecorationOverlay
+		path={myPath}
+		blockRef={ref}
+		blockEl={hostEl}
+		{isContainer}
+		{containerPaintsRects}
+	/>
 	<!-- Rendered LAST so the block-el lookup (`:scope >` excluding overlays and
 		 decoration badges) still resolves the block content as its first match. -->
 	{#if reorderable && dragHandles}

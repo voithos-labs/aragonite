@@ -25,7 +25,7 @@ import type {
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { AmbientPrefix, BlockComponent } from '../../block-component';
+import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -53,8 +53,7 @@ import {
 	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
 	handleWholeBlockKeys,
-	isEditableEventTarget,
-	type ContainerBlockComponent
+	isEditableEventTarget
 } from '../container-block-component';
 import {
 	createStandardNestedActions,
@@ -158,9 +157,9 @@ type _ContractCovers =
 		: never;
 const _conforms: [_BlockListAccepts, _ContractCovers] = [true, true];
 
-// `ContainerBlockComponent` is defined at the shim (`container-block-component`),
-// which now types every container member as required, and re-exported here so the
-// plugin barrel surfaces it from the container seam.
+// `ContainerBlockComponent` is pure `BlockComponent` algebra, so it lives beside
+// that contract; it is re-exported here so the plugin barrel surfaces it from the
+// container seam an author actually calls.
 export type { ContainerBlockComponent };
 
 export interface ContainerBlock {

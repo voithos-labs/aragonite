@@ -302,7 +302,7 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 // the seam the search/decoration overlays' childless-container route measures
 // through. A childless container paints its whole box for any non-empty range;
 // a child-bearing container returns nothing (its children self-paint), and the
-// overlay never even asks — it gates on hasChildHosts, not on this return.
+// overlay never even asks — it gates on delegatesPainting, not on this return.
 describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;
