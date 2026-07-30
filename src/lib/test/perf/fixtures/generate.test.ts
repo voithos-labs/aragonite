@@ -6,7 +6,9 @@ import { docByteLength } from '../../../perf/instruments';
 import { containerRawBytes } from '../container-raw-bytes';
 import {
 	FIXTURE_SHAPES,
+	TRIGGER_DENSE_KINDS,
 	generateFixture,
+	generateTriggerDense,
 	generateUniformBlocks,
 	generateDeepNested,
 	deepNestedLeafPath
@@ -214,6 +216,59 @@ describe('generateUniformBlocks', () => {
 		expect(parse(small).children).toHaveLength(10);
 		expect(parse(large).children).toHaveLength(10);
 		expect(large.length).toBeGreaterThan(small.length * 5);
+	});
+});
+
+describe('generateTriggerDense', () => {
+	for (const kind of TRIGGER_DENSE_KINDS) {
+		it(`${kind}: deterministic for same seed, different for another`, () => {
+			expect(generateTriggerDense(kind, 20_000, 7)).toBe(generateTriggerDense(kind, 20_000, 7));
+			expect(generateTriggerDense(kind, 20_000, 7)).not.toBe(generateTriggerDense(kind, 20_000, 8));
+		});
+
+		it(`${kind}: round-trips losslessly`, () => {
+			const src = generateTriggerDense(kind, 20_000, 7);
+			expect(serialize(parse(src))).toBe(src);
+		});
+
+		// The rows measure a per-trigger cost, so a fixture must actually be dense in
+		// its trigger — and every paragraph must carry one, since only the viewport
+		// slice mounts and the caret block is block 0.
+		it(`${kind}: every paragraph carries the trigger`, () => {
+			const doc = parse(generateTriggerDense(kind, 20_000, 7));
+			const trigger = { 'bracket-footnote': '[', colon: ':', dollar: '$' }[kind];
+			expect(doc.children.length).toBeGreaterThan(20);
+			expect(doc.children.every((block) => block.raw.includes(trigger))).toBe(true);
+		});
+	}
+
+	// The T7 mechanism: a mounted reference re-derives from a whole-document walk, so
+	// the fixture's FIRST block must carry a reference — that is the block the caret
+	// types into and the one guaranteed mounted at scrollTop 0.
+	it('bracket-footnote: block 0 carries a footnote reference and bracket density', () => {
+		const doc = parse(generateTriggerDense('bracket-footnote', 20_000, 7));
+		expect(doc.children[0].raw).toContain('[^fn-0]');
+		expect(doc.children[0].raw.split('[').length - 1).toBeGreaterThanOrEqual(3);
+	});
+
+	// No definitions: numbering is by first-reference order, and `[^label]:` lines
+	// would parse as link reference definitions on the rung-free control route.
+	it('bracket-footnote: carries no footnote definitions', () => {
+		expect(generateTriggerDense('bracket-footnote', 20_000, 7)).not.toMatch(/^\[\^/m);
+	});
+
+	it('dollar: one real math span, in the first paragraph only', () => {
+		const md = generateTriggerDense('dollar', 20_000, 7);
+		expect(md.split('$a + b$')).toHaveLength(2);
+		expect(parse(md).children[0].raw).toContain('$a + b$');
+	});
+
+	it('exact output pinned', () => {
+		expect(generateTriggerDense('bracket-footnote', 120, 7)).toMatchInlineSnapshot(`
+			"alpha alpha papa lima india golf hotel delta [india lima](https://example.com/0) echo charlie mike india delta[^fn-0] foxtrot echo india echo papa delta [oscar delta][ref-0] charlie charlie echo india mike.
+
+			"
+		`);
 	});
 });
 

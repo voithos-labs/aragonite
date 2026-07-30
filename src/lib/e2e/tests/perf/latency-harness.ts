@@ -90,23 +90,29 @@ export function percentileMs(samples: number[], p: number): number {
 	return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
 }
 
+export interface DocumentTypingMeasurement extends LatencyMeasurement {
+	/** Widgets matching a row's `requireWidget`, counted on the loaded document. */
+	mountedWidgets?: number;
+}
+
 /**
- * Load a generated fixture, then type `keystrokes` single characters into it,
- * timing each one (keystroke start → the +1-length commit settling). Returns
- * the load wall-time and the per-keystroke p50/p95.
+ * Load a document into the ALREADY-NAVIGATED page, then type `keystrokes` single
+ * characters at the end of block 0, timing each one (keystroke start → the
+ * +1-length commit settling). The one definition of the measurement every row
+ * shares: the caller owns navigation, so a row on the plugins route (an installed
+ * inline rung) and a row on the editor route measure identically.
+ *
+ * `requireWidget` asserts a rung is genuinely live before the timing loop — without
+ * it, a row whose plugin silently stopped installing reports the rung-free number as
+ * the rung's.
  */
-export async function measureTypingLatency(
+export async function measureTypingIntoDocument(
 	page: Page,
 	editor: EditorPage,
-	shape: FixtureShape,
-	bytes: number,
-	keystrokes: number
-): Promise<LatencyMeasurement> {
-	await editor.goto();
-	const fixture = NEEDS_PROSE_TARGET.has(shape)
-		? PROSE_TARGET + '\n' + generateFixture(shape, bytes)
-		: generateFixture(shape, bytes);
-
+	fixture: string,
+	keystrokes: number,
+	requireWidget?: string
+): Promise<DocumentTypingMeasurement> {
 	const loadStart = performance.now();
 	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
 	// serialize() may trim trailing whitespace, so settle on the trimmed length;
@@ -114,6 +120,16 @@ export async function measureTypingLatency(
 	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
 	await editor.waitForRenderFlush();
 	const loadMs = performance.now() - loadStart;
+
+	// Counted on the loaded document, before typing: the mounted set is what a
+	// per-keystroke derivation runs against, so a row that measured zero widgets
+	// measured the wrong mechanism.
+	let mountedWidgets: number | undefined;
+	if (requireWidget !== undefined) {
+		mountedWidgets = await page.locator(requireWidget).count();
+		if (mountedWidgets === 0)
+			throw new Error(`no ${requireWidget} mounted — the rung is not live on this route`);
+	}
 
 	const targetBlock = 0;
 	await editor.focusBlockEnd(targetBlock);
@@ -142,8 +158,26 @@ export async function measureTypingLatency(
 		loadMs,
 		samples,
 		p50Ms: percentileMs(samples, 50),
-		p95Ms: percentileMs(samples, 95)
+		p95Ms: percentileMs(samples, 95),
+		mountedWidgets
 	};
+}
+
+/**
+ * Load a generated fixture on the standard editor route and time typing into it.
+ */
+export async function measureTypingLatency(
+	page: Page,
+	editor: EditorPage,
+	shape: FixtureShape,
+	bytes: number,
+	keystrokes: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const fixture = NEEDS_PROSE_TARGET.has(shape)
+		? PROSE_TARGET + '\n' + generateFixture(shape, bytes)
+		: generateFixture(shape, bytes);
+	return measureTypingIntoDocument(page, editor, fixture, keystrokes);
 }
 
 /**
