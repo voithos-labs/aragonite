@@ -108,15 +108,15 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
  * keeps that whole suffix on the first half — a plain cut would strand the
  * underline below, where it reparses as junk and demotes the heading.
  *
- * The second half opens with a blank-line separator when the first half would
- * otherwise absorb it ({@link absorbsNextProseLine}). Without one, splitting a
+ * The second half opens with a blank-line separator wherever one would do
+ * structural work ({@link separatorSplitsOffNextLine}). Without it, splitting a
  * paragraph produces a single-newline join that GFM lazy continuation folds back
  * into ONE paragraph on reload, so the saved file disagrees with the two blocks
  * the session showed.
  *
  * At `offset === 0` the leading half is `'\n'` — an empty paragraph that
  * collapses into trivia on `parse(serialize(...))`, and a tolerated transient
- * shape difference; it absorbs nothing, so no separator is minted there.
+ * shape difference; a blank does nothing there, so none is minted.
  */
 export function splitNode(
 	parent: NodeParent,
@@ -150,7 +150,7 @@ export function splitNode(
 		secondRaw += lineEnding;
 	}
 
-	const separator = absorbsNextProseLine(firstRaw, lineEnding) ? lineEnding : '';
+	const separator = separatorSplitsOffNextLine(firstRaw, lineEnding) ? lineEnding : '';
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
 	const secondNode = reparseAsNode(secondRaw, separator);
 
@@ -158,26 +158,40 @@ export function splitNode(
 	return replacePreservingFirst(blockIndex, 1, 2);
 }
 
-// Prose no opener may claim: the probe has to be the maximally-continuable line,
-// or the predicate would under-report absorption for the kind that claims it.
-const NEXT_PROSE_LINE = 'x';
+/**
+ * The stand-in for whatever the user types into the second half. It has to be the
+ * maximally-continuable line, so the predicate answers for the WORST case rather
+ * than for one construct: a line some opener claims would report "the separator
+ * does nothing" and lose the mint for every paragraph. Openers are arbitrary code,
+ * so no line is unclaimable by construction — {@link probeLineOpensAsProse} is the
+ * runtime check, asserted in DEV and pinned by `split-separator.test.ts`.
+ */
+export const NEXT_PROSE_LINE = 'x';
+
+/** Whether the ambient grammar still leaves {@link NEXT_PROSE_LINE} an ordinary paragraph. */
+export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
+	return lineOpensAs(NEXT_PROSE_LINE, grammar) === 'paragraph';
+}
 
 /**
- * Would a following prose line join `raw` rather than open its own block? True of
- * a still-open paragraph (GFM lazy continuation) and of a list whose last item
- * paragraph is open; false of anything that closes on its own line. Asked of the
- * parser rather than of a kind list, so a kind registered later is covered the day
- * it registers, and an over-report only widens spacing where a reload would have
- * merged.
+ * Would a blank line between `raw` and the line after it split off a second block?
+ * That is the question the mint turns on, and asking it directly rather than asking
+ * whether the tight join merges is what keeps the predicate free of a kind list: a
+ * construct whose body swallows both forms alike (an unclosed fence, an HTML block
+ * of types 1-5) answers no on its own, so the separator never lands inside a body.
  *
- * A fence declines even though an unclosed one does absorb: the separator would
- * land INSIDE the code body. No gesture reaches a fence here today (CodeBlock owns
- * its Enter), and corrupting a body would be worse than the divergence.
+ * Over-reporting is impossible here and under-reporting only widens spacing, so the
+ * failure mode of a wrong answer is cosmetic rather than a reload divergence.
  */
-function absorbsNextProseLine(raw: string, lineEnding: string): boolean {
-	const alone = parse(raw).children;
-	if (alone[alone.length - 1]?.kind === 'fencedCode') return false;
-	return parse(raw + NEXT_PROSE_LINE + lineEnding).children.length <= alone.length;
+function separatorSplitsOffNextLine(raw: string, lineEnding: string): boolean {
+	if (import.meta.env.DEV && !probeLineOpensAsProse()) {
+		devWarn(
+			'tree-ops',
+			`a registered opener claims ${JSON.stringify(NEXT_PROSE_LINE)}, so the split-separator probe no longer stands in for prose`
+		);
+	}
+	const probe = NEXT_PROSE_LINE + lineEnding;
+	return parse(raw + lineEnding + probe).children.length > parse(raw + probe).children.length;
 }
 
 /**

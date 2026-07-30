@@ -116,6 +116,8 @@ export interface GestureOpts {
 export class Gestures {
 	private readonly typoRate: number;
 	private readonly onCheckpoint?: (label: string, gesture: string) => Promise<void>;
+	/** Set by a gesture that parks the caret away from the document end (see `hardBreakAt`). */
+	private caretParkedMidBlock = false;
 
 	constructor(
 		private readonly ctx: SimContext,
@@ -140,6 +142,16 @@ export class Gestures {
 
 	async typeText(text: string): Promise<void> {
 		const { editor, tracker } = this.ctx;
+		// The tracker predicts insertion at the document end, so typing after a gesture
+		// that parked the caret elsewhere would report a source mismatch naming the
+		// wrong culprit. Fail at the real cause instead.
+		if (this.caretParkedMidBlock) {
+			throw new Error(
+				`[${this.ctx.label}] typeText after hardBreakAt: the caret is parked mid-block, ` +
+					`which the tracker's document-end model cannot predict. hardBreakAt must be a ` +
+					`note's last build gesture.`
+			);
+		}
 		for (const ch of text) {
 			if (this.typoRate > 0 && isLetter(ch) && this.rng.chance(this.typoRate)) {
 				await this.injectCancellingTypo(ch);
@@ -231,8 +243,9 @@ export class Gestures {
 		return softEnter(this.ctx);
 	}
 
-	hardBreakAt(blockPath: number[], offset: number): Promise<void> {
-		return hardBreakAt(this.ctx, blockPath, offset);
+	async hardBreakAt(blockPath: number[], offset: number): Promise<void> {
+		await hardBreakAt(this.ctx, blockPath, offset);
+		this.caretParkedMidBlock = true;
 	}
 
 	indent(): Promise<void> {

@@ -110,7 +110,8 @@ producer did not: each **invalidates a tight join that was already correct**, so
 can see it.
 
 - **A kind demotion does not reflow the block below.** Typing any character at raw offset 0 of
-  a heading demotes it to a paragraph, and a tightly-joined neighbour below becomes a lazy
+  a heading demotes it to a paragraph — as does deleting its `#`, the same `updateNodeContent`
+  arm from the other side — and a tightly-joined neighbour below becomes a lazy
   continuation. Reached by the simulation's range-interrupt family, which is why that family
   places its caret-pinned landings at interior offsets rather than manufacturing this class
   under a probe testing something else.

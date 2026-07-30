@@ -44,7 +44,8 @@ visual review.
 - hard line break round-trips: Shift+Enter inside already-typed text stays one
   paragraph (`a\\\nb`) and re-serializes to itself. It closes the feature-tour note:
   the gesture reaches backward into typed text and leaves the caret mid-block, and
-  Enter at the block end would leave the backslash trailing rather than break the line
+  Shift+Enter at the block end would leave the backslash trailing rather than break
+  the line
 - Enter separates: a paragraph split leaves a blank line between the halves, so the
   built source reparses to the same block structure the session shows
 - HTML entities and backslash escapes survive verbatim — the live parser styles
