@@ -325,6 +325,7 @@
 	export const focusable = true;
 
 	export const focus = editableSurface.surface.focus;
+	export const parkCaret = editableSurface.surface.parkCaret;
 	export const focusAtColumn = editableSurface.surface.focusAtColumn;
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;
 	export const getSelectedText = editableSurface.surface.getSelectedText;
@@ -381,7 +382,14 @@
 		return true;
 	}
 
-	void ({ editable, focusable, focus, getCursorOffset, focusAtColumn } satisfies BlockComponent);
+	void ({
+		editable,
+		focusable,
+		focus,
+		parkCaret,
+		getCursorOffset,
+		focusAtColumn
+	} satisfies BlockComponent);
 
 	$effect(() => {
 		if (!setRef || !getRef) return;
@@ -389,6 +397,7 @@
 			editable,
 			focusable,
 			focus,
+			parkCaret,
 			getCursorOffset,
 			focusAtColumn,
 			getSelectedText,

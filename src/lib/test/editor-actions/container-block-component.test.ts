@@ -2,11 +2,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
 function makeRef(): BlockComponent {
 	return {
 		focus: vi.fn(),
+		parkCaret: vi.fn(),
 		focusByPath: vi.fn(),
 		focusAtColumn: vi.fn(),
 		getCursorOffset: vi.fn(() => null),
@@ -26,6 +28,7 @@ function listNode(childCount: number): CstNode {
 
 function container(refs: BlockComponent[]): BlockComponent {
 	return createContainerBlockComponent({
+		selection: createSelectionState(),
 		get innerBlockRefs() {
 			return refs;
 		},
@@ -45,22 +48,25 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
+	// The walk lands through the child's PARK door either way: the container's own
+	// `focus` has already ended the range, and reaching for the child's `focus`
+	// would end it a second time — which is exactly what an extend cannot afford.
 	it('focus(0) targets the first child ref', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(0);
-		expect(refs[0].focus).toHaveBeenCalledWith(0);
+		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
 	});
 
 	it('focus(FOCUS_LAST_START) cascades to the last child', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(FOCUS_LAST_START);
-		expect(refs[1].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
+		expect(refs[1].parkCaret).toHaveBeenCalledWith(FOCUS_LAST_START);
 	});
 
 	it('focus(<other offset>) targets the last child with CURSOR_END', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(3);
-		expect(refs[1].focus).toHaveBeenCalledWith(CURSOR_END);
+		expect(refs[1].parkCaret).toHaveBeenCalledWith(CURSOR_END);
 	});
 
 	it('focus is a no-op when no children', () => {
@@ -71,6 +77,7 @@ describe('createContainerBlockComponent', () => {
 	// the last child) must land on the summary (child 0), never the absent last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
 		return createContainerBlockComponent({
+			selection: createSelectionState(),
 			get innerBlockRefs() {
 				return refs;
 			},
@@ -87,15 +94,15 @@ describe('createContainerBlockComponent', () => {
 	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
 		const refs = [makeRef(), makeRef()];
 		collapsedContainer(refs).focus(FOCUS_LAST_START);
-		expect(refs[0].focus).toHaveBeenCalledWith(FOCUS_LAST_START);
-		expect(refs[1].focus).not.toHaveBeenCalled();
+		expect(refs[0].parkCaret).toHaveBeenCalledWith(FOCUS_LAST_START);
+		expect(refs[1].parkCaret).not.toHaveBeenCalled();
 	});
 
 	it('collapsed: focus(<other offset>) clamps CURSOR_END to child 0', () => {
 		const refs = [makeRef(), makeRef()];
 		collapsedContainer(refs).focus(3);
-		expect(refs[0].focus).toHaveBeenCalledWith(CURSOR_END);
-		expect(refs[1].focus).not.toHaveBeenCalled();
+		expect(refs[0].parkCaret).toHaveBeenCalledWith(CURSOR_END);
+		expect(refs[1].parkCaret).not.toHaveBeenCalled();
 	});
 
 	it('focusAtColumn is a no-op when no children', () => {
@@ -132,6 +139,7 @@ describe('createContainerBlockComponent', () => {
 			]
 		};
 		const c = createContainerBlockComponent({
+			selection: createSelectionState(),
 			get innerBlockRefs() {
 				return [];
 			},
@@ -150,6 +158,60 @@ describe('createContainerBlockComponent', () => {
 	});
 });
 
+// The container shim is a caret door like any leaf: `focus` ends a live cross-block
+// range so the next keystroke can't type-replace the document, `parkCaret` doesn't.
+describe('createContainerBlockComponent — the two caret doors', () => {
+	function withRange(refs: BlockComponent[]) {
+		const selection = createSelectionState();
+		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [4], offset: 2 });
+		const api = createContainerBlockComponent({
+			selection,
+			get innerBlockRefs() {
+				return refs;
+			},
+			get nodeChildrenLength() {
+				return refs.length;
+			},
+			get node() {
+				return listNode(refs.length);
+			}
+		});
+		return { selection, api };
+	}
+
+	it('focus ends a live cross-block range', () => {
+		const refs = [makeRef(), makeRef()];
+		const { selection, api } = withRange(refs);
+
+		api.focus(0);
+
+		expect(selection.isCrossBlock).toBe(false);
+		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
+	});
+
+	it('parkCaret leaves it live — the extend paths depend on that', () => {
+		const refs = [makeRef(), makeRef()];
+		const { selection, api } = withRange(refs);
+
+		api.parkCaret?.(0);
+
+		expect(selection.isCrossBlock).toBe(true);
+		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
+	});
+
+	// A child that never forwarded the park door is not parked; the extend's range
+	// survives, which is the half that matters (BlockComponent.parkCaret).
+	it('a child without the park door is skipped, not landed through focus', () => {
+		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
+		const { selection, api } = withRange([bare]);
+
+		api.parkCaret?.(0);
+
+		expect(bare.focus).not.toHaveBeenCalled();
+		expect(selection.isCrossBlock).toBe(true);
+	});
+});
+
 // Whole-block focus (opaque childless plugin block, e.g. mermaid): when a focus
 // element getter is supplied, caret entry lands on that element instead of walking
 // absent children, and the cursor offset reads 0 only while it (or a descendant)
@@ -157,6 +219,7 @@ describe('createContainerBlockComponent', () => {
 describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
 	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
 		return createContainerBlockComponent({
+			selection: createSelectionState(),
 			get innerBlockRefs() {
 				return refs;
 			},
@@ -188,6 +251,7 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 		wholeBlock(el, [child]).focus(0);
 		expect(document.activeElement).toBe(el);
 		expect(child.focus).not.toHaveBeenCalled();
+		expect(child.parkCaret).not.toHaveBeenCalled();
 	});
 
 	it('focusAtColumn() also lands on the focus element (vertical entry)', () => {
@@ -237,6 +301,7 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 		getBoxEl?: () => HTMLElement | null | undefined;
 	}): BlockComponent {
 		return createContainerBlockComponent({
+			selection: createSelectionState(),
 			get innerBlockRefs() {
 				return [];
 			},

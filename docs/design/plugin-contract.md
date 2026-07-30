@@ -136,6 +136,8 @@ _Freeze litmus._ The unit's frozen shape must leave additive room for (a) a per-
 
 Kind declaration (plus `declaredPluginKind`, the checked accessor that recovers a declared brand in another module without a cast); descriptor, component, and opener registration; `defineBlockComponent`, which types a Svelte component as a `BlockComponent` without an `as unknown as` cast; idempotent-registration probes for all three registries; and typed per-node plugin metadata (`setPluginMetadata` / `getPluginMetadata`), which stores a plugin kind's own shape without casting through the built-in metadata union.
 
+On `BlockComponent` itself, caret placement is two verbs. `focus` places a caret AND ends any live cross-block range — the safe default, and the one an author reaches for by writing nothing special. `parkCaret` is optional and does the same landing without the range-ending, for the editor's selection-extend paths; a block built on either factory gets both from the surface it re-exports, and G2.12 guards which callers may reach the second. The asymmetry is deliberate: one verb carrying both meanings cost two whole-document data losses pre-1.0.
+
 ### Parse + serialize helpers
 
 The recognizer and serializer halves an opener and a `rebuildRaw` need, promoted off `core/` deep paths so the packaged artifact carries them:

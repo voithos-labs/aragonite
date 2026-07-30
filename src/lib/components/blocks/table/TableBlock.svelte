@@ -28,6 +28,7 @@
 	import { metadataOf } from '../../../core/nodes';
 	import { asEditorX } from '../../../cursor/coordinate-spaces';
 	import { pathsEqual } from '../../../selection/path-math';
+	import { placeCaret } from '../../../selection/caret-doors';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { intraTableRect } from './cell-clipboard';
@@ -521,15 +522,23 @@
 	export const focusable = true;
 
 	// 2D surface — one integer can't address a cell. Callers that need a
-	// specific cell use the deep `focusByPath`; this mirrors
-	// `createContainerBlockComponent.focus`'s 0-or-last collapse.
-	export function focus(offset: number): void {
+	// specific cell use the deep `focusByPath`; both caret doors mirror
+	// `createContainerBlockComponent`'s 0-or-last collapse.
+	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
 		if (offset === 0) {
 			focusCell(0, 0, 'start');
 			return;
 		}
 		focusCell(rowCount - 1, columnCount - 1, 'end');
+	});
+
+	export function parkCaret(offset: number): void {
+		if (rowCount === 0) return;
+		const atStart = offset === 0;
+		const rowIdx = atStart ? 0 : rowCount - 1;
+		const colIdx = atStart ? 0 : columnCount - 1;
+		cellRefAt(rowIdx, colIdx)?.parkCaret?.(atStart ? 0 : CURSOR_END);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -633,6 +642,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		focusAtColumn,
 		focusByPath,
 		getBlockComponentByPath,

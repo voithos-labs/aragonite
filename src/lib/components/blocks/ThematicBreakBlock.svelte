@@ -24,6 +24,7 @@
 	} from '../../schema/commands';
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
 	import { handleWholeBlockKeys } from '../../editor-actions/container-block-component';
+	import { placeCaret } from '../../selection/caret-doors';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -33,6 +34,7 @@
 	const {
 		reorder,
 		stickyColumn,
+		selection,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
@@ -50,7 +52,12 @@
 	export const editable = false;
 	export const focusable = true;
 
-	export function focus(_offset: number): void {
+	// Whole-block focus: the block IS its own focus target, so the offset carries no
+	// meaning. `focus` still owes the range-ending — nothing below it seats a DOM
+	// caret that would collapse the old range on its own.
+	export const focus = placeCaret(selection, parkCaret);
+
+	export function parkCaret(_offset: number): void {
 		el?.focus();
 	}
 
@@ -71,7 +78,14 @@
 				return false;
 		}
 	}
-	void ({ editable, focusable, focus, getCursorOffset, runCommand } satisfies BlockComponent);
+	void ({
+		editable,
+		focusable,
+		focus,
+		parkCaret,
+		getCursorOffset,
+		runCommand
+	} satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 

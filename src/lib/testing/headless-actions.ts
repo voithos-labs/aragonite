@@ -26,6 +26,7 @@ import { createUndoManager } from '../undo/manager';
 export function stubBlockComponent(): BlockComponent {
 	return {
 		focus: () => {},
+		parkCaret: () => {},
 		getCursorOffset: () => null,
 		editable: true,
 		focusable: true

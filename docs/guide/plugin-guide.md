@@ -369,6 +369,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
+	export const parkCaret = containerApi.parkCaret;
 	export const getCursorOffset = containerApi.getCursorOffset;
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
@@ -383,6 +384,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		getCursorPosition,
 		focusByPath,
@@ -413,7 +415,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 
 Three rules for that file, each earned the hard way:
 
-- **The re-export block is verbatim.** `bind:this` reads each instance export _individually_, so the block can't be spread or collapsed. It is the same in every container block. End it with the `satisfies ContainerBlockComponent` line: a member you forget to forward becomes a `npm run check` error instead of a focus bug that only surfaces at runtime.
+- **The re-export block is verbatim.** `bind:this` reads each instance export _individually_, so the block can't be spread or collapsed. It is the same in every container block. End it with the `satisfies ContainerBlockComponent` line: a member you forget to forward becomes a `npm run check` error instead of a focus bug that only surfaces at runtime. Forward `parkCaret` beside `focus`: the two are one door in two halves — `focus` places a caret and ends any live cross-block selection, `parkCaret` places it without ending one, and the editor's selection-extend paths reach for the second.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read — `var(--color-ui-muted, #a4a4a4)` — so the block still renders outside `.editor` scope. Match that fallback to the token's **dark base** value; dark is the base. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 

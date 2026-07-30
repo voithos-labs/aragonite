@@ -37,7 +37,7 @@
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
-	const { controller, stickyColumn, registryView } =
+	const { controller, stickyColumn, selection, registryView } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	const listState = createBlockListState(() => node);
@@ -110,6 +110,7 @@
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	const containerApi = createContainerBlockComponent({
+		selection,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
@@ -125,6 +126,7 @@
 	export const editable = containerApi.editable;
 	export const focusable = containerApi.focusable;
 	export const focus = containerApi.focus;
+	export const parkCaret = containerApi.parkCaret;
 	export const getCursorOffset = containerApi.getCursorOffset;
 	export const getCursorPosition = containerApi.getCursorPosition;
 	export const focusByPath = containerApi.focusByPath;
@@ -140,6 +142,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		getCursorPosition,
 		focusByPath,

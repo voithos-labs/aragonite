@@ -1,27 +1,31 @@
 /**
- * G2.12 — every pointer gesture that places a caret must end a live cross-block range.
+ * G2.12 — a caret placement ends a live cross-block range, unless it is an extend.
  *
- * The rule cannot be seated in a funnel. `BlockComponent.focus(offset)` looks like
- * the choke point every caret placement crosses, and it is not one: the cross-block
- * dispatcher parks its own dispatch caret through the same verb while an extend is
- * still growing the range (`revealActiveEndpoint`). Seating a `selection.clear()`
- * there was tried and reverted — it reds `extend-offwindow-endpoint`,
- * `keyboard/vertical-skip` and `cross-block-delete-container-survivor-caret`. No
- * position test separates the two uses either: the consumer-door reproduction parked
- * a caret at a path INSIDE the live range. One verb, two meanings, and the meaning is
- * the caller's intent.
+ * Half the rule is now a funnel. `BlockComponent.focus` ends the range itself, minted
+ * from `selection/caret-doors.ts`' `placeCaret` over each surface's park primitive, so
+ * a programmatic caret landing is safe by construction and its callers declare nothing.
+ * What is left un-funnelable is what the guards below carry.
  *
- * So the rule is carried, and this is the rung culture.md prescribes when the funnel
- * can't be built: the entry set is the subject, and a gesture joining it either
- * routes through `resetForPointerDown` or says here why it places no caret. Both
- * instances of the miss this guard exists for cost a whole-document delete — the
- * dead-space click (entry path N+1, caught in review) and the render-primary reveal
- * click (found by writing this list out).
+ * 1. NATIVE caret placement. A plain click inside a paragraph moves the caret through
+ *    the browser's own default — no `focus` call for a funnel to sit in — so the range
+ *    must be ended by the pointerdown preamble. Both instances of the miss this arm
+ *    exists for cost a whole-document delete: the dead-space click (entry path N+1,
+ *    caught in review) and the render-primary reveal click (found by writing the list
+ *    out). Door granularity is per FILE, so a file holding two press handlers declares
+ *    both: `editable-leaf.ts` is exactly that case, and a file-level "either door"
+ *    check would have passed it on the sibling handler's delegate call while the
+ *    rendered view's reveal reset nothing.
  *
- * Door granularity is per FILE, so a file holding two press handlers declares both
- * doors: `editable-leaf.ts` is exactly that case, and a file-level "either door"
- * check would have passed it on the sibling handler's delegate call while the
- * rendered view's reveal reset nothing.
+ * 2. The park door's callers. `parkCaret` is `focus` WITHOUT the range-ending — the one
+ *    thing an extend needs and nothing else may have. It is an allowlist because the
+ *    legitimacy of a park is the caller's intent, and no position test separates the
+ *    two uses: the consumer-door reproduction parked a caret at a path INSIDE the live
+ *    range.
+ *
+ * 3. The park door's presence. `parkCaret` is optional on `BlockComponent`, so a block
+ *    that forwards a shared seam's `focus` and forgets its `parkCaret` type-checks
+ *    clean and silently degrades every extend that lands on it. Two blocks did exactly
+ *    that on the first pass of the split.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -37,6 +41,13 @@ const DELEGATE_RE = /\bcrossBlock\.handlePointerDown\s*\(/;
  *  its surface to a plugin component, and omitting it hid `editable-leaf.ts` — the
  *  file that held the second instance of this bug. */
 const POINTER_HANDLER_RE = /\bon(pointerdown|mousedown)\s*[=:]|['"](pointerdown|mousedown)['"]/;
+/** A call THROUGH the park door, optional-call spelling included. A bare forward
+ *  (`export const parkCaret = leaf.parkCaret;`) has no call and is not a caller. */
+const PARK_CALL_RE = /\.parkCaret\s*\??\.?\s*\(/;
+/** A block forwarding a shared caret seam's public verb, capturing the seam. The
+ *  `export` is load-bearing: an unexported `const focus = selection.focus` is a read
+ *  of the selection's focus ENDPOINT, a different `focus` entirely. */
+const FOCUS_FORWARD_RE = /\bexport const focus = ((?:\w+\.)*\w+)\.focus\s*;/g;
 
 type Door = 'reset' | 'delegate' | 'both';
 
@@ -46,7 +57,7 @@ type Door = 'reset' | 'delegate' | 'both';
  */
 const PREAMBLE_MODULE = 'src/lib/selection/cross-block/pointer.ts';
 
-/** Gestures that place a caret, and the door(s) each one owes. */
+/** Gestures whose caret the BROWSER places, and the door(s) each one owes. */
 const CARET_GESTURE_DOORS: Record<string, Door> = {
 	[PREAMBLE_MODULE]: 'reset',
 	'src/lib/components/blocks/table/TableCellBlock.svelte': 'reset',
@@ -92,6 +103,26 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'harness chrome — preventDefault on a mode toggle so the press takes no focus'
 };
 
+/**
+ * The only callers allowed through the park door, and why each one is not a
+ * range-ending placement. A new entry is a claim that the caller runs WHILE an extend
+ * is growing a range; anything else wants `focus`.
+ */
+const PARK_DOOR_CALLERS: Record<string, string> = {
+	'src/lib/selection/cross-block/keydown.ts':
+		'revealActiveEndpoint — parks the dispatch caret in a just-revealed endpoint while the extend still owns the range',
+	'src/lib/editor-actions/container-block-component.ts':
+		"implementation: the container walk lands through its child's park door",
+	'src/lib/components/blocks/editable-leaf.ts':
+		"implementation: the leaf's park door over the shared surface",
+	'src/lib/components/blocks/code/CodeBlock.svelte':
+		'implementation: clamps the parked offset onto fence body before delegating',
+	'src/lib/components/blocks/table/TableBlock.svelte':
+		'implementation: the 2D park collapses to a cell park',
+	'src/lib/components/blocks/table/TableRowBlock.svelte':
+		'implementation: the row park collapses to its first cell'
+};
+
 function missingDoors(code: string, door: Door): string[] {
 	const missing: string[] = [];
 	if (door !== 'delegate' && !RESET_RE.test(code)) missing.push('resetForPointerDown');
@@ -99,7 +130,16 @@ function missingDoors(code: string, door: Door): string[] {
 	return missing;
 }
 
-describe('G2.12 caret-placing gesture ends a live cross-block range', () => {
+/** Seams whose `focus` was forwarded without the sibling `parkCaret` forward. */
+export function unforwardedParkSeams(code: string): string[] {
+	const missing: string[] = [];
+	for (const [, seam] of code.matchAll(FOCUS_FORWARD_RE)) {
+		if (!code.includes(`const parkCaret = ${seam}.parkCaret;`)) missing.push(seam);
+	}
+	return missing;
+}
+
+describe('G2.12 caret placement ends a live cross-block range', () => {
 	const sources = collectEditorSources();
 	const byPath = new Map(sources.map((f) => [f.relPath, f]));
 
@@ -107,7 +147,7 @@ describe('G2.12 caret-placing gesture ends a live cross-block range', () => {
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('every caret-placing gesture reaches every door it declares', () => {
+	it('every native-caret gesture reaches every door it declares', () => {
 		const offenders: string[] = [];
 		for (const [relPath, door] of Object.entries(CARET_GESTURE_DOORS)) {
 			const file = byPath.get(relPath);
@@ -155,6 +195,42 @@ describe('G2.12 caret-placing gesture ends a live cross-block range', () => {
 		}
 	});
 
+	// ── The park door ────────────────────────────────────────────────────────
+
+	it('only declared extend paths and door implementations call parkCaret', () => {
+		const callers = sources
+			.filter((f) => PARK_CALL_RE.test(f.code))
+			.map((f) => f.relPath)
+			.sort();
+		expect(
+			callers,
+			'a file reached through the park door: it must be a selection-extend path (parking ' +
+				'while the range is still growing) or a caret-door implementation. Anything else ' +
+				'wants `focus`, which ends the range.'
+		).toEqual(Object.keys(PARK_DOOR_CALLERS).sort());
+	});
+
+	it('every declared park caller still calls the door (no dead entry)', () => {
+		for (const [relPath, why] of Object.entries(PARK_DOOR_CALLERS)) {
+			const file = byPath.get(relPath);
+			expect(file, `park caller not found: ${relPath} (${why})`).toBeDefined();
+			expect(PARK_CALL_RE.test(file!.code), `stale entry: ${relPath}`).toBe(true);
+		}
+	});
+
+	it('a block forwarding a seam’s focus forwards that seam’s parkCaret too', () => {
+		const offenders = sources
+			.filter((f) => unforwardedParkSeams(f.code).length > 0)
+			.map((f) => `${f.relPath}: ${unforwardedParkSeams(f.code).join(', ')}`)
+			.sort();
+		expect(
+			offenders,
+			'a block forwards a shared caret seam’s `focus` without its `parkCaret`. parkCaret is ' +
+				'optional on BlockComponent, so this type-checks — and every extend that lands on ' +
+				'the block silently fails to park.'
+		).toEqual([]);
+	});
+
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the press matcher reads every spelling and ignores unrelated pointer verbs', () => {
@@ -181,5 +257,30 @@ describe('G2.12 caret-placing gesture ends a live cross-block range', () => {
 				'both'
 			)
 		).toEqual([]);
+	});
+
+	it('the park-call matcher reads both call spellings and ignores a bare forward', () => {
+		expect(PARK_CALL_RE.test('ref.parkCaret?.(offset)')).toBe(true);
+		expect(PARK_CALL_RE.test('surface.parkCaret(offset)')).toBe(true);
+		expect(PARK_CALL_RE.test('refs[last]?.parkCaret?.(FOCUS_LAST_START)')).toBe(true);
+		expect(PARK_CALL_RE.test('export const parkCaret = leaf.parkCaret;')).toBe(false);
+		expect(PARK_CALL_RE.test('export function parkCaret(offset: number): void {')).toBe(false);
+	});
+
+	it('the forward check names the seam that lost its park door', () => {
+		expect(unforwardedParkSeams('export const focus = leaf.focus;')).toEqual(['leaf']);
+		expect(
+			unforwardedParkSeams(
+				'export const focus = leaf.focus;\nexport const parkCaret = leaf.parkCaret;'
+			)
+		).toEqual([]);
+		// The seam must MATCH: forwarding a sibling's park door is not forwarding this one's.
+		expect(
+			unforwardedParkSeams(
+				'export const focus = editableSurface.surface.focus;\nexport const parkCaret = other.parkCaret;'
+			)
+		).toEqual(['editableSurface.surface']);
+		// A selection-endpoint read is not a caret-seam forward.
+		expect(unforwardedParkSeams('const focus = ctx.selection.focus;')).toEqual([]);
 	});
 });

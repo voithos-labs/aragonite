@@ -385,6 +385,7 @@
 	export const focusable = true;
 
 	export const focus = editableSurface.surface.focus;
+	export const parkCaret = editableSurface.surface.parkCaret;
 	export const focusAtColumn = editableSurface.surface.focusAtColumn;
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;
 	export const getSelectedText = editableSurface.surface.getSelectedText;
@@ -517,6 +518,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
 		isVerticallyTransparent,

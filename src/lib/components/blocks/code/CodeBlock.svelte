@@ -155,13 +155,17 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// The two caret-landing doors clamp onto editable content; every other surface
-	// method is the shared implementation verbatim. A landing is not a selection: it
-	// seats a single caret, and seating one on a fence line hands the user a position
-	// whose keystrokes the fence guard refuses — the merge fallback that moves focus
-	// to this block's END lands exactly there.
+	// Every caret-landing door clamps onto editable content; every other surface
+	// method is the shared implementation verbatim. Seating a caret on a fence line
+	// hands the user a position whose keystrokes the fence guard refuses — the merge
+	// fallback that moves focus to this block's END lands exactly there — and a
+	// PARKED caret on a fence line is as dead as a placed one, so both verbs clamp.
 	export function focus(offset: number): void {
 		editableSurface.surface.focus(clampCaretToBody(node, offset));
+	}
+
+	export function parkCaret(offset: number): void {
+		editableSurface.surface.parkCaret(clampCaretToBody(node, offset));
 	}
 
 	// The column walk resolves against pixels, so it can only be corrected after the
@@ -581,6 +585,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
 		runCommand

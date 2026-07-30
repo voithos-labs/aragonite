@@ -33,6 +33,7 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import { placeCaret } from '../../selection/caret-doors';
 import {
 	asEditorX,
 	asRawOffset,
@@ -178,6 +179,9 @@ export interface ClipboardCaretIO {
 /** The BlockComponent methods shared verbatim across every editable surface. */
 export interface EditableSurfaceMethods {
 	focus(offset: number): void;
+	/** Required here, optional on `BlockComponent`: an editable surface is what the
+	 *  cross-block extend paths park into, so every one of them owes the door. */
+	parkCaret(offset: number): void;
 	focusAtColumn(x: number, from: StickyColumnDirection): void;
 	getCursorOffset(): number | null;
 	getSelectedText(): string;
@@ -230,12 +234,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── BlockComponent surface ────────────────────────────────────────────────
 
-	function focus(offset: number): void {
+	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus();
 		deps.backend.setRaw(asRawOffset(Math.max(0, offset)));
 	}
+
+	const focus = placeCaret(deps.selection, parkCaret);
 
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		const el = deps.getEl();
@@ -281,6 +287,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	const surface: EditableSurfaceMethods = {
 		focus,
+		parkCaret,
 		focusAtColumn,
 		getCursorOffset,
 		getSelectedText,

@@ -24,6 +24,7 @@
 	export const focusable = true;
 
 	export const focus = leaf.focus;
+	export const parkCaret = leaf.parkCaret;
 	export const focusAtColumn = leaf.focusAtColumn;
 	export const getCursorOffset = leaf.getCursorOffset;
 	export const getSelectedText = leaf.getSelectedText;
@@ -35,6 +36,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		focusAtColumn,
 		getCursorOffset,
 		getSelectedText,

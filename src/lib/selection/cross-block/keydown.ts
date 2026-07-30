@@ -290,6 +290,12 @@ function selectFirstPressContent(el: HTMLElement): void {
  * in the revealed cell to keep the next keystroke routed (the pinned-caret
  * rule). Start, not end: an end caret in the last cell makes ArrowRight read as
  * an exit-the-table move rather than a collapse.
+ *
+ * `parkCaret`, never `focus`: this is the one caret landing that runs WHILE an
+ * extend is still growing its range, so the range-ending `focus` owes would cancel
+ * the selection the user is building (G2.12 guards the set). A component that
+ * omits the door simply isn't parked — focus falls to the editor root, whose
+ * document-level listener routes the next cross-block keystroke anyway.
  */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
@@ -299,7 +305,7 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 		// A null ref means the cell never mounted; fall through to scroll the
 		// (mounted) table so a failed reveal still keeps the endpoint in view.
 		if (cellRef) {
-			cellRef.focus(0);
+			cellRef.parkCaret?.(0);
 			return;
 		}
 	}
@@ -311,7 +317,7 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 	if (focus && !ctx.getBlockElByPath(focus.path)) {
 		const ref = await ctx.revealPath(focus.path);
 		if (ref) {
-			ref.focus(focus.offset);
+			ref.parkCaret?.(focus.offset);
 			scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 			return;
 		}
