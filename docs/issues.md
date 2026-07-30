@@ -8,44 +8,6 @@ word of the entry changing, so work landed elsewhere closes entries nobody edite
 
 ## Core editing
 
-### Content typed into a code block can still break its fence
-
-**Severity:** important (byte corruption; the block absorbs the rest of the document on reload)
-**Files:** `src/lib/components/blocks/code/CodeBlock.svelte` (the beforeinput fence guard and
-the auto-pair arm — both police WHERE an edit lands, not WHAT it writes),
-`src/lib/components/blocks/code/code-beforeinput.ts` (`computeAutoPair` closes a typed backtick
-into a pair), `src/lib/components/blocks/code/code-paste-surface.ts` (paste bumps the opener's
-fence length when the pasted text carries a matching run — the shape of a fix, applied to one
-character class)
-
-Where an edit may land is settled: the fence marker runs, the opener indentation and the two
-body line endings are structure, and every gesture that would rewrite them is clamped onto the
-body. What an edit may _write_ into the two content regions is not policed, and two characters
-break the fence from inside a region the contract calls safe:
-
-- a backtick typed (or pasted) into a **backtick fence's info string** — GFM forbids backticks
-  there, so the opener stops being a fence, the block demotes, and its closer becomes the
-  opener of a fence that absorbs everything after it.
-- a **fence run typed into the body** at column 0 closes the block early, and the trailing
-  half of the old body becomes a fence that absorbs everything after it.
-
-Both parser-verified (source on the left, resulting block sequence on the right):
-
-````
-"```j`s\nconst x = 1\n```\n\n# Heading\n"   → paragraph | fencedCode="```\n\n# Heading\n"
-"```js\n```\nconst x = 1\n```\n\n# Heading\n" → fencedCode | paragraph | fencedCode="```\n\n# Heading\n"
-````
-
-**Repro:** in a fenced code block, put the caret in the info string after the language and type
-a backtick; save and reload.
-
-**Why deferred:** this is character-validity, not structure — a different rule that has to cover
-typing, paste and IME uniformly on both regions, and whose fix is a product decision (refuse the
-character, or bump the fence the way paste already bumps it). The structural contract is
-complete and independently enforced; bolting a character rule onto its predicate would blur two
-rules into one guard. The body half is the same family as the container terminator-collision
-work, which has its own conformance cell.
-
 ### Caret navigation still stops on a code block's non-editable fence lines
 
 **Severity:** minor (no corruption; silent no-op with no feedback)
