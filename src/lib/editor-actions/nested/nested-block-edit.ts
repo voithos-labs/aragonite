@@ -37,6 +37,17 @@ export function createNestedBlockEdit(
 	const scope = createContainerScope(state, deps);
 	const core = createBlockEditCore(scope);
 
+	/**
+	 * Where a caret at `offset` lands once this container's body-write rule has
+	 * rewritten `text`. Both caret doors read it: the surface's post-commit restore
+	 * (through the exposed method) and the structural commit's own focus landing,
+	 * which arrives from a component that measured the DOM before the rewrite.
+	 */
+	function mapCommittedOffset(text: string, offset: number): number {
+		const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
+		return bodyWrite ? bodyWrite.mapOffset(text, offset) : offset;
+	}
+
 	const blockEdit: BlockEditActions = {
 		// ── Structural mutations (interior → core, edges → parent) ─────────────
 		async splitBlock(innerIndex, offset) {
@@ -115,10 +126,7 @@ export function createNestedBlockEdit(
 			core.replaceBlock(innerIndex, replacement, focus, options),
 
 		// ── In-place leaf edits (per-level) ────────────────────────────────────
-		mapCommittedOffset(text, offset) {
-			const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
-			return bodyWrite ? bodyWrite.mapOffset(text, offset) : offset;
-		},
+		mapCommittedOffset,
 
 		async updateBlockContent(
 			innerIndex: number,
@@ -138,7 +146,11 @@ export function createNestedBlockEdit(
 			const leafPath = extendDocPath(deps.path, innerIndex);
 
 			if (preview.op !== 'noop') {
-				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
+				// Mapped, because a caret measured before the rewrite names a position in
+				// bytes that never landed. Reachable on this path and not only the routine
+				// one: completing `</details>` turns an htmlBlock (`</details` alone is a
+				// type-6 opener) into the escaped paragraph, and a kind change commits here.
+				const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
 				let change: StructuralChange = { op: 'noop' };
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,

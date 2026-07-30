@@ -12,8 +12,11 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   escapes the offending line's `<` to `&lt;`, which reads as the literal tag in the editor and on
   GitHub alike while closing neither. The placement is what makes it work where the rebuild seam
   could not: escaping ahead of the reparse means the kind a write lands on is the kind its committed
-  bytes describe, and the container's raw never disagrees with its children. Typing and split go
-  through those sinks; paste, move and search-replace do not yet, and keep the ledger entry.
+  bytes describe, and the container's raw never disagrees with its children. Both caret doors read
+  the rule's exact image, which matters because the keystroke that completes the tag arrives as a
+  kind change, not as routine typing — `</details` alone is already an HTML-block opener, so the
+  block is an htmlBlock until the final `>` escapes it back to prose. Typing and split go through
+  those sinks; paste, move and search-replace do not yet, and keep the ledger entry.
 
 - **Plugin/testing surface: the container conformance kit's `terminatorCollision` cell writes
   through `bodyWrite`.** The cell's fixture `bodyRaw` now names the bytes a USER produces rather
