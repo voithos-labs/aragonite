@@ -41,9 +41,10 @@ import {
  * Observation, not the G2.12 tables. Each `consumes` below was read off a real run
  * of that gesture over a live range; the lint's caret/non-caret classification is a
  * hypothesis about the same behavior, and pinning to it would make this suite a
- * mirror of the thing it is supposed to cross-check. When T22 teaches the dead-space
- * click to land in a table, `dead-space-below-table` flips from `range` to `caret`
- * here, deliberately and in one line.
+ * mirror of the thing it is supposed to cross-check. `dead-space-below-table` was
+ * written against the decline that shipped before 0.9.36 and flipped to `caret` when
+ * the click learned to land in the nearest cell — the flip this file predicted, and
+ * the reason each row states its contract rather than deriving it.
  *
  * The build is chosen per gesture on the same reasoning: a caret-pinned gesture
  * prefers select-all, where the corruption is a one-char document and maximally far
@@ -81,9 +82,12 @@ interface GestureSpec {
 
 const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	'dead-space-below': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
-	// Today's contract: a table addresses cells, not characters, so the click declines
-	// and the range it found is the range it leaves. T22 flips this to `caret`.
-	'dead-space-below-table': { consumes: 'range', build: 'prose-range', act: clickBelowLastBlock },
+	// The click lands at the end of the nearest cell of the last row and ends the range
+	// (0.9.36). Its landing is the family's one NESTED caret — the prediction reaches it
+	// because a grid's leaf bytes are contiguous inside its ancestors' raw; see `predict`.
+	// Select-all like the other caret rungs now: the disaster is a one-char document,
+	// maximally far from a prediction that inserts one byte inside the table.
+	'dead-space-below-table': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
 	'dead-space-margin': { consumes: 'caret', build: 'select-all', act: clickInRightMargin },
 	'image-click': { consumes: 'block', build: 'select-all', act: clickImageWidget },
 	'drag-handle-press': { consumes: 'range', build: 'prose-range', act: pressDragHandle },
@@ -149,6 +153,10 @@ export async function rangeInterrupt(
 
 	const landing = await ctx.editor.bridge.getSelectionPaths();
 	const spans = await topLevelSpans(ctx);
+	const nestedCaret =
+		landing && landing.focus.path.length > 1
+			? await nestedCaretOffset(ctx, landing.focus)
+			: undefined;
 	const predicted = predict({
 		ctx,
 		gesture,
@@ -158,6 +166,7 @@ export async function rangeInterrupt(
 		range,
 		spans,
 		landing,
+		nestedCaret,
 		consumedBlock
 	});
 
@@ -507,11 +516,15 @@ interface PredictArgs {
 	range: BuiltRange;
 	spans: BlockSpan[];
 	landing: BuiltRange | null;
+	/** Absolute offset of a NESTED caret landing, resolved in the page; null when the
+	 *  leaf's bytes are not contiguous in its ancestors', undefined for a top-level one. */
+	nestedCaret: number | null | undefined;
 	consumedBlock: number | undefined;
 }
 
 function predict(args: PredictArgs): string {
-	const { ctx, gesture, spec, before, char, range, spans, landing, consumedBlock } = args;
+	const { ctx, gesture, spec, before, char, range, spans, landing, nestedCaret, consumedBlock } =
+		args;
 	switch (spec.consumes) {
 		case 'range': {
 			const a = absolute(spans, range.anchor);
@@ -537,19 +550,20 @@ function predict(args: PredictArgs): string {
 		case 'reveal-escape':
 		case 'reveal-blur': {
 			if (!landing) throw new Error(`[${ctx.label}] ${gesture} left no selection to type into`);
-			// A caret inside a container addresses its LEAF's raw, and a container's raw is
-			// not the concatenation of its children (the markers are stripped), so there is
-			// no offset to convert. Every gesture here is chosen to land top-level; a nested
-			// landing means a fixture moved under the probe, and guessing a prediction for it
-			// would red on a correct editor. Fail loud instead.
-			if (landing.focus.path.length > 1) {
+			// A nested caret addresses its LEAF's raw, which converts to a document offset
+			// only where those bytes are a contiguous run inside every ancestor's raw. A
+			// grid is that case (a cell's raw sits verbatim in its row's, the row's in the
+			// table's); a strip container is not (its markers are stripped from the child's
+			// raw), and there the walk finds nothing and hands back null. Guessing past a
+			// null would red on a correct editor, so fail loud instead.
+			if (landing.focus.path.length > 1 && nestedCaret == null) {
 				throw new Error(
-					`[${ctx.label}] ${gesture} landed the caret inside a container ` +
-						`(${JSON.stringify(landing.focus.path)}); this family predicts top-level ` +
-						`landings only, so its target block needs re-choosing for this document.`
+					`[${ctx.label}] ${gesture} landed the caret inside a container whose bytes are ` +
+						`not contiguous in its ancestors' raw (${JSON.stringify(landing.focus.path)}); ` +
+						`this family cannot predict that landing, so its target needs re-choosing.`
 				);
 			}
-			const at = absolute(spans, landing.focus);
+			const at = nestedCaret ?? absolute(spans, landing.focus);
 			return splice(before, at, at, char);
 		}
 	}
@@ -594,6 +608,51 @@ async function topLevelSpans(ctx: SimContext): Promise<BlockSpan[]> {
 		);
 	}
 	return spans;
+}
+
+/**
+ * Absolute byte offset of a caret sitting in a NESTED leaf, or null when the leaf's
+ * bytes are not a contiguous run inside its ancestors' raw — in which case no offset
+ * conversion exists and the caller must fail rather than guess.
+ *
+ * The descent IS the verification. At each level the child's raw is located inside the
+ * parent's from a cursor advanced past the previous siblings, so a grid resolves (a
+ * cell's raw sits verbatim in its row's, the row's in the table's, and the delimiter
+ * line between them is simply skipped over) while a strip container does not — a
+ * blockquote child's raw has had its `> ` markers stripped, so past the first line it
+ * matches nothing and the walk reports null instead of a plausible wrong number.
+ */
+async function nestedCaretOffset(ctx: SimContext, point: RangePoint): Promise<number | null> {
+	return ctx.page.evaluate((pt) => {
+		const doc = (window as any).__test.getDocument();
+		type Node = { leadingTrivia?: string; raw: string; children?: Node[] };
+		const children = doc.children as Node[];
+		let at = (doc.prefix as string).length;
+		for (let i = 0; i < pt.path[0]; i++) {
+			at += (children[i].leadingTrivia ?? '').length + children[i].raw.length;
+		}
+		let node = children[pt.path[0]];
+		if (!node) return null;
+		at += (node.leadingTrivia ?? '').length;
+
+		for (let depth = 1; depth < pt.path.length; depth++) {
+			const kids = node.children;
+			if (!kids) return null;
+			let cursor = 0;
+			for (let i = 0; i < pt.path[depth]; i++) {
+				const found = node.raw.indexOf(kids[i].raw, cursor);
+				if (found < 0) return null;
+				cursor = found + kids[i].raw.length;
+			}
+			const child = kids[pt.path[depth]];
+			if (!child) return null;
+			const found = node.raw.indexOf(child.raw, cursor);
+			if (found < 0) return null;
+			at += found;
+			node = child;
+		}
+		return at + pt.offset;
+	}, point);
 }
 
 /**
