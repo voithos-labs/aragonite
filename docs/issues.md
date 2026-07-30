@@ -572,27 +572,29 @@ covered by construction instead: a new arm added to `blockCommand`'s switch inhe
 and the guard without its author doing anything. Re-open if a mutation entry path is ever added to
 a reveal-bearing surface outside that switch.
 
-### The block-component mount harness exists but covers a minority of block components
+### Two block components still have no test at their own level
 
 **Severity:** minor (coverage shape; the pure layer below these components is well covered)
-**Files:** `src/lib/test/harness/mount-context.ts` (the harness), the block components with no test
-at their own level: `BlockquoteBlock`, `ListBlock`, `ListItemBlock`, `TableBlock`, `TableRowBlock`,
-`TableCellBlock`, `DirectiveContainerBlock`, `ThematicBreakBlock`
+**Files:** `src/lib/test/harness/mount-context.ts` (the harness), `TableRowBlock`,
+`ThematicBreakBlock`
 
 The harness assembles every context a block component reads, so mounting one in isolation is a few
-lines. It is used by a small handful of suites. The components it is not used for include several of
-the repo's highest bugfix-density files, and the 0.9.35 review's own miss-analysis named this shape
+lines. The shape this entry exists to close is the one the 0.9.35 review's miss-analysis named
 twice: the pure helper is tested, the entry layer that produces its inputs is not, so a helper's
 documented refusal path is pinned by its own unit test while nothing pins what that refusal means at
-the caller. Where a component has no test at its own level, that gap is total.
+the caller.
+
+The top of the bugfix-density table is now covered — every container and leaf named when this entry
+was opened has a suite at its own level, and the four densest also answer for the refusal paths
+below them. The two above are what is left: the row is mounted only transitively through
+`mount-table.ts`, and the thematic break has no mount anywhere, only a source-scan lint.
 
 **Fix direction:** for each pure helper with a documented refusal path, one test at a caller
 asserting the contrapositive, which for a component-level caller means a mount through the harness.
-Prioritize by bugfix density rather than by component size.
 
-**Why deferred:** this is a suite-shaping program rather than a fix, and it wants the pre-1.0
-re-audit's unit-suite pass to scope it, since that pass is the one artifact class the 0.9.35 review did
-not cover, so its findings should set the priority order rather than this entry guessing it.
+**Why deferred:** both are low-density files whose behavior is thin, so they rank below the rest of
+the pre-1.0 re-audit's unit-suite pass; that pass should pick them up rather than a dedicated
+session.
 
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
