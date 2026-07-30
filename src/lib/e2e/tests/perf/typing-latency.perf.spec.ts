@@ -157,7 +157,6 @@ test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async (
 // toc), two of which derive over the whole document. So a route delta bounds the
 // installed-rung cost from ABOVE and is not attributable to the rung alone. Report
 // the numbers; do not read "the bail probe costs X" off a route delta.
-const RUNG_BYTES = 100_000;
 const RUNG_KEYSTROKES = 30;
 
 interface RungRow {
@@ -171,7 +170,11 @@ interface RungRow {
 	// Loaded before the fixture when the fixture itself mints no widget — the only
 	// liveness evidence the plain-prose row can carry.
 	probeDocument?: { source: string; widget: string };
+	// One size unless a row's cost is suspected to scale with the document.
+	sizes: Array<[label: string, bytes: number]>;
 }
+
+const ONE_SIZE: Array<[string, number]> = [['100KB', 100_000]];
 
 const RUNG_ROWS: RungRow[] = [
 	{
@@ -180,21 +183,32 @@ const RUNG_ROWS: RungRow[] = [
 		// document on every content version (the third non-viewport axis in
 		// docs/design/performance.md). The widget count in the artifact is what says
 		// the second mechanism was live.
+		//
+		// The only row with a size axis, because the two mechanisms scale differently:
+		// the consultation is bounded by the scanned range, while the mounted
+		// derivation walks the document, so a 10× document with the same viewport
+		// separates them without needing a second fixture.
 		row: 'bracket-dense-footnotes',
 		fixture: 'bracket-footnote',
 		seed: 'footnotes',
-		requireWidget: 'sup.footnote-ref'
+		requireWidget: 'sup.footnote-ref',
+		sizes: [
+			['100KB', 100_000],
+			['1MB', 1_000_000]
+		]
 	},
 	{
 		row: 'colon-dense-emoji',
 		fixture: 'colon',
 		seed: 'emoji',
-		requireWidget: '.md-emoji-widget'
+		requireWidget: '.md-emoji-widget',
+		sizes: ONE_SIZE
 	},
 	{
 		row: 'dollar-dense-latex',
 		fixture: 'dollar',
-		requireWidget: '.math-inline-widget'
+		requireWidget: '.math-inline-widget',
+		sizes: ONE_SIZE
 	},
 	{
 		// The bail-probe row: ordinary prose with no trigger in it at all, under an
@@ -203,60 +217,63 @@ const RUNG_ROWS: RungRow[] = [
 		row: 'plain-prose-bail-emoji',
 		fixture: 'flat-prose',
 		seed: 'emoji',
-		probeDocument: { source: 'probe :tada: line\n', widget: '.md-emoji-widget' }
+		probeDocument: { source: 'probe :tada: line\n', widget: '.md-emoji-widget' },
+		sizes: ONE_SIZE
 	}
 ];
 
-function rungFixture(fixture: RungRow['fixture']): string {
+function rungFixture(fixture: RungRow['fixture'], bytes: number): string {
 	return fixture === 'flat-prose'
-		? generateFixture('flat-prose', RUNG_BYTES)
-		: generateTriggerDense(fixture, RUNG_BYTES);
+		? generateFixture('flat-prose', bytes)
+		: generateTriggerDense(fixture, bytes);
 }
 
 test.describe('typing latency — installed inline rungs', () => {
-	for (const { row, fixture, seed, requireWidget, probeDocument } of RUNG_ROWS) {
-		test(`${row} 100KB`, async ({ page }) => {
-			const document = rungFixture(fixture);
+	for (const { row, fixture, seed, requireWidget, probeDocument, sizes } of RUNG_ROWS) {
+		for (const [sizeLabel, bytes] of sizes) {
+			test(`${row} ${sizeLabel}`, async ({ page }) => {
+				const document = rungFixture(fixture, bytes);
 
-			const plugins = new PluginsPage(page);
-			await plugins.gotoPlugins(seed);
-			if (probeDocument) {
-				await plugins.loadContent(probeDocument.source);
-				expect(
-					await page.locator(probeDocument.widget).count(),
-					`the rung is not live on this route — ${probeDocument.widget} never mounted`
-				).toBeGreaterThan(0);
-			}
-			const rung = await measureTypingIntoDocument(
-				page,
-				plugins,
-				document,
-				RUNG_KEYSTROKES,
-				requireWidget
-			);
+				const plugins = new PluginsPage(page);
+				await plugins.gotoPlugins(seed);
+				if (probeDocument) {
+					await plugins.loadContent(probeDocument.source);
+					expect(
+						await page.locator(probeDocument.widget).count(),
+						`the rung is not live on this route — ${probeDocument.widget} never mounted`
+					).toBeGreaterThan(0);
+				}
+				const rung = await measureTypingIntoDocument(
+					page,
+					plugins,
+					document,
+					RUNG_KEYSTROKES,
+					requireWidget
+				);
 
-			const control = new EditorPage(page);
-			await control.goto();
-			const rungFree = await measureTypingIntoDocument(page, control, document, RUNG_KEYSTROKES);
+				const control = new EditorPage(page);
+				await control.goto();
+				const rungFree = await measureTypingIntoDocument(page, control, document, RUNG_KEYSTROKES);
 
-			writeResult(`rung-${row}`, '100KB', {
-				row,
-				fixture,
-				seed: seed ?? '(base plugins only)',
-				bytes: RUNG_BYTES,
-				keystrokes: RUNG_KEYSTROKES,
-				mountedWidgets: rung.mountedWidgets ?? 0,
-				rungLoadMs: round(rung.loadMs),
-				rungP50Ms: round(rung.p50Ms),
-				rungP95Ms: round(rung.p95Ms),
-				rungFreeLoadMs: round(rungFree.loadMs),
-				rungFreeP50Ms: round(rungFree.p50Ms),
-				rungFreeP95Ms: round(rungFree.p95Ms),
-				note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the rung's cost from above`
+				writeResult(`rung-${row}`, sizeLabel, {
+					row,
+					fixture,
+					seed: seed ?? '(base plugins only)',
+					bytes,
+					keystrokes: RUNG_KEYSTROKES,
+					mountedWidgets: rung.mountedWidgets ?? 0,
+					rungLoadMs: round(rung.loadMs),
+					rungP50Ms: round(rung.p50Ms),
+					rungP95Ms: round(rung.p95Ms),
+					rungFreeLoadMs: round(rungFree.loadMs),
+					rungFreeP50Ms: round(rungFree.p50Ms),
+					rungFreeP95Ms: round(rungFree.p95Ms),
+					note: `${DEV_CAVEAT}; report-only, and the plugins route installs eight base plugins, so the delta bounds the rung's cost from above`
+				});
+				expect(rung.samples).toHaveLength(RUNG_KEYSTROKES);
+				expect(rungFree.samples).toHaveLength(RUNG_KEYSTROKES);
 			});
-			expect(rung.samples).toHaveLength(RUNG_KEYSTROKES);
-			expect(rungFree.samples).toHaveLength(RUNG_KEYSTROKES);
-		});
+		}
 	}
 });
 

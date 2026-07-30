@@ -4,6 +4,23 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **What an installed inline rung costs, measured instead of assumed.** Every standing perf
+  ceiling measures an EMPTY inline registry, because the harness route installs no plugins, so no
+  row had ever seen the consultation a registered rung adds. Four report-only rows now load a
+  trigger-dense fixture twice, once with the rung installed and once on the rung-free route:
+  bracket-dense under footnotes, colon-dense under emoji, dollar-dense under latex, and plain prose
+  under an installed unreserved rung. The last was the one the ledger called the gate's blindest
+  spot, on the theory that registering `:` turns on a per-character probe for the whole document,
+  and it is not observable: 2.3 ms p50 either way at 100KB. The trigger-dense rows are at or below
+  noise too. What the rows did surface is the mechanism the footnote fixture carries alongside the
+  consultation, and it is not a scanner cost: with a reference widget in the viewport the keystroke
+  is O(document), 8.2 ms at 100KB against 50 ms at 1MB while the control stays flat at 2.7 ms and
+  the mounted widget count does not change. The rows report rather than gate on purpose — a
+  recognizer is the registering plugin's code, so a ceiling would pin a number the editor does not
+  own, and the plugins route installs eight base plugins, so a route delta bounds a rung's cost
+  from above rather than measuring it. Each row records its mounted-widget count, so a row whose
+  plugin stopped installing fails instead of quietly reporting the control number.
+
 - **The requirement↔spec lockstep is a rule again, not a review habit.** `testing.md` makes the
   filesystem the authoritative list of what the e2e suite covers, and every mapping in it was
   hand-verified at review time, which fails silently the day someone adds a spec without its
