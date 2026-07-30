@@ -40,6 +40,7 @@
 	import { indentLines, dedentLines, type IndentResult } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
+	import { reconcileFenceWrite, type FenceShape } from './code-fence-write';
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
@@ -141,9 +142,23 @@
 		getTextLen,
 		readText,
 		// Code anchors undo at preEditOffset only; it has no kind-change remount to
-		// re-focus, so it passes no saved offset (the omitted 4th argument).
-		commitInput: (text, preEdit) => {
-			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit);
+		// re-focus, so it passes no saved offset (the omitted 4th argument). What it
+		// does pass back is the caret the RECONCILED bytes want: typing and IME both
+		// land here, and the write seam can grow the fence or drop a character the
+		// grammar cannot hold, either of which moves the caret off the DOM's.
+		commitInput: (text, preEdit, savedOffset) => {
+			const written = reconcileFenceWrite({
+				display: text,
+				caret: savedOffset,
+				fence: fenceShapeOf(node),
+				mode: 'authored'
+			});
+			void blockEdit.updateBlockContent(
+				index,
+				written.display + trailingLineEnding(node.raw),
+				preEdit
+			);
+			return written.display === text ? undefined : written.caret;
 		}
 	});
 
@@ -187,6 +202,11 @@
 
 	function getDisplayText(): string {
 		return trimTrailingLineEnding(node.raw);
+	}
+
+	function fenceShapeOf(view: NodeView): FenceShape {
+		const meta = metadataOf(view, 'fencedCode');
+		return { marker: meta.fenceMarker, length: meta.fenceLength, closed: meta.closed };
 	}
 
 	$effect(() => {

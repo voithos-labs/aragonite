@@ -20,9 +20,11 @@ test.describe('code block paste — fence bumping', () => {
 		// the closer run, where every write — paste included — is refused.
 		await editor.focusBlock(0, 9);
 
-		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
+		// The run has to be a LINE to threaten the fence: the bump rule reads the lines a
+		// paste leaves behind, so `` ```pasted code``` `` is ordinary body text.
+		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```\npasted code\n');
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceContains('```pasted code```');
+		await editor.bridge.waitForSourceContains('pasted code');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^````/m);

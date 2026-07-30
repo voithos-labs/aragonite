@@ -1123,6 +1123,26 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   deterministic probe keyed by the gesture union, and the family also rides two note sessions and
   the multi-seed fuzz, where the seed picks which gesture meets which mid-session tree.
 
+- **A code block holds content its fence cannot express.** Two characters still broke a fence from
+  inside a region the contract calls editable: a run of the block's own marker typed on a body line
+  closed the block early, leaving the rest of its body as a fence that swallowed every following
+  block, and a backtick typed into a backtick fence's info string demoted the block and promoted
+  its closer to the same absorbing opener. Both are now answered where the bytes are committed, by
+  one write seam that typing, IME composition end and paste all cross — paste already had half the
+  rule (it grew the fence past a pasted run) and the other routes had none, which is the
+  sibling-parity shape rather than a missing feature. A colliding body line grows BOTH fence runs
+  past it, so the line stays content; that is the move a directive already makes with its colons
+  (`escalatedColonCount`), and it is the system widening its own delimiter, not the user editing
+  structure — the guard still refuses an edit AIMED at a fence line. The escalation reads the lines
+  a write leaves behind rather than the characters it carried, which both narrows it (a run landing
+  mid-line threatens nothing) and widens it (a run formed at a splice seam is caught, which the old
+  scan of the pasted text alone could not see). The info-string backtick has no such rescue —
+  CommonMark forbids it at any fence length — so it is dropped: typing one is inert, a paste lands
+  without it, and a tilde fence stays the escape hatch for an author who needs one. Converting the
+  author's chosen markers to tildes would make the character representable and is a bigger surprise
+  than dropping it. Both rules leave an UNCLOSED fence alone, where typing a closer is how a block
+  gets closed by hand.
+
 Ship gates: unit 5889, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
 container-head rows plus the row-shape verification at the batch base).
