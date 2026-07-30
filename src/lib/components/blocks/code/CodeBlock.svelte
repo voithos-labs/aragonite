@@ -146,20 +146,7 @@
 		// does pass back is the caret the RECONCILED bytes want: typing and IME both
 		// land here, and the write seam can grow the fence or drop a character the
 		// grammar cannot hold, either of which moves the caret off the DOM's.
-		commitInput: (text, preEdit, savedOffset) => {
-			const written = reconcileFenceWrite({
-				display: text,
-				caret: savedOffset,
-				fence: fenceShapeOf(node),
-				mode: 'authored'
-			});
-			void blockEdit.updateBlockContent(
-				index,
-				written.display + trailingLineEnding(node.raw),
-				preEdit
-			);
-			return written.display === text ? undefined : written.caret;
-		}
+		commitInput: (text, preEdit, savedOffset) => commitDisplay(text, preEdit, savedOffset)
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -207,6 +194,33 @@
 	function fenceShapeOf(view: NodeView): FenceShape {
 		const meta = metadataOf(view, 'fencedCode');
 		return { marker: meta.fenceMarker, length: meta.fenceLength, closed: meta.closed };
+	}
+
+	/**
+	 * The block's ONE display-commit door: every gesture that rewrites this block's
+	 * display text goes through it, and none calls `updateBlockContent` directly
+	 * (pinned by `lint/code-commit-funnel`). The write seam sits inside rather than at
+	 * each caller, so a gesture written tomorrow gets the fence reconciliation by
+	 * construction — the two that predated the seam did not, and each could split the
+	 * block by moving an existing body run into terminator position: Enter splitting a
+	 * line around a mid-line run, Shift+Tab dedenting an indented one to column 0.
+	 *
+	 * Returns where `caret` lands in the committed bytes, which is `caret` itself
+	 * unless the seam grew the fence or dropped a character.
+	 */
+	function commitDisplay(display: string, undoAnchor: number, caret: number): number {
+		const written = reconcileFenceWrite({
+			display,
+			caret,
+			fence: fenceShapeOf(node),
+			mode: 'authored'
+		});
+		void blockEdit.updateBlockContent(
+			index,
+			written.display + trailingLineEnding(node.raw),
+			undoAnchor
+		);
+		return written.caret;
 	}
 
 	$effect(() => {
@@ -287,12 +301,7 @@
 				mode: 'soft',
 				ending: trailingLineEnding(node.raw)
 			});
-			blockEdit.updateBlockContent(
-				index,
-				result.newText + trailingLineEnding(node.raw),
-				branchPreEditOffset
-			);
-			pendingCursorOffset = result.newCursor;
+			pendingCursorOffset = commitDisplay(result.newText, branchPreEditOffset, result.newCursor);
 			return;
 		}
 		if (composing || e.inputType !== 'insertText' || !el) return;
@@ -317,15 +326,14 @@
 			setCursorOffsetHelper(el, asDomTextOffset(result.caretOffset));
 			return;
 		}
-		blockEdit.updateBlockContent(
-			index,
-			result.newText + trailingLineEnding(node.raw),
-			preEditOffset
-		);
 		if (result.kind === 'wrap') {
-			pendingSelection = result.selection;
+			// Both endpoints sit inside the body, so whatever the seam inserts ahead of
+			// the wrap's start moves its end by the same delta.
+			const start = commitDisplay(result.newText, preEditOffset, result.selection.start);
+			const shift = start - result.selection.start;
+			pendingSelection = { start, end: result.selection.end + shift };
 		} else {
-			pendingCursorOffset = result.caretOffset;
+			pendingCursorOffset = commitDisplay(result.newText, preEditOffset, result.caretOffset);
 		}
 	}
 
@@ -362,12 +370,7 @@
 		if (!edit) return true;
 		// Mobile/IME beforeinput arrives without a preceding keydown, so the undo
 		// anchor reads fresh rather than trusting preEditOffset (see the soft-break arm).
-		blockEdit.updateBlockContent(
-			index,
-			edit.newText + trailingLineEnding(node.raw),
-			backend.getRaw() ?? 0
-		);
-		pendingCursorOffset = edit.newCursor;
+		pendingCursorOffset = commitDisplay(edit.newText, backend.getRaw() ?? 0, edit.newCursor);
 		return true;
 	}
 
@@ -491,8 +494,7 @@
 		const pairSpan = { start: offset - 1, end: offset + 1 };
 		if (isBetweenEmptyPair(text, offset) && !crossesFenceBoundary(node, pairSpan)) {
 			const newText = text.slice(0, offset - 1) + text.slice(offset + 1);
-			blockEdit.updateBlockContent(index, newText + trailingLineEnding(node.raw), preEditOffset);
-			pendingCursorOffset = offset - 1;
+			pendingCursorOffset = commitDisplay(newText, preEditOffset, offset - 1);
 			return true;
 		}
 		return false;
@@ -529,7 +531,7 @@
 		}
 		if (exit.kind !== 'none') {
 			if (exit.kind === 'exitWithEdit') {
-				blockEdit.updateBlockContent(index, exit.newText + trailingLineEnding(node.raw), offset);
+				commitDisplay(exit.newText, offset, offset);
 			}
 			exitDownward();
 			return true;
@@ -548,8 +550,8 @@
 			const indent = getLineLeadingWhitespace(text, at);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
 			const newText = text.slice(0, at) + ending + inner + ending + indent + text.slice(at);
-			blockEdit.updateBlockContent(index, newText + ending, offset);
-			pendingCursorOffset = at + ending.length + inner.length;
+			const inner_caret = at + ending.length + inner.length;
+			pendingCursorOffset = commitDisplay(newText, offset, inner_caret);
 			return true;
 		}
 
@@ -559,8 +561,7 @@
 			mode: 'normal',
 			ending
 		});
-		blockEdit.updateBlockContent(index, enter.newText + ending, offset);
-		pendingCursorOffset = enter.newCursor;
+		pendingCursorOffset = commitDisplay(enter.newText, offset, enter.newCursor);
 		return true;
 	}
 
@@ -620,16 +621,15 @@
 	}
 
 	function applyIndentResult(result: IndentResult): void {
-		blockEdit.updateBlockContent(
-			index,
-			result.text + trailingLineEnding(node.raw),
-			result.selection.start
-		);
+		const start = commitDisplay(result.text, result.selection.start, result.selection.start);
 		if (result.selection.start === result.selection.end) {
-			pendingCursorOffset = result.selection.start;
-		} else {
-			pendingSelection = result.selection;
+			pendingCursorOffset = start;
+			return;
 		}
+		// Both endpoints sit inside the body, so an escalation inserting at the opener
+		// run moves them by the same delta.
+		const shift = start - result.selection.start;
+		pendingSelection = { start, end: result.selection.end + shift };
 	}
 
 	// Both gestures rewrite whole LINES, so their range clamps out of the fence
@@ -678,12 +678,7 @@
 			if (!selOffsets) return;
 			const edit = computeFenceRangedEdit(node, selOffsets, '');
 			if (!edit) return;
-			blockEdit.updateBlockContent(
-				index,
-				edit.newText + trailingLineEnding(node.raw),
-				edit.newCursor
-			);
-			pendingCursorOffset = edit.newCursor;
+			pendingCursorOffset = commitDisplay(edit.newText, edit.newCursor, edit.newCursor);
 		},
 		pasteTail: async (e, pastedText) => {
 			if (!el) return;
