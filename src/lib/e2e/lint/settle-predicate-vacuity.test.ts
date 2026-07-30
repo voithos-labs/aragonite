@@ -1,5 +1,5 @@
 /**
- * G4.18 — settle-predicate vacuity. A `waitForSource*` predicate that is already
+ * G4.22 — settle-predicate vacuity. A `waitForSource*` predicate that is already
  * true on the document the test just loaded returns on its first poll, so it
  * synchronizes on nothing: the assertions after it race the commit, and a
  * regression in which the gesture under test silently no-ops satisfies the whole
@@ -317,7 +317,7 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 
 // ── The gate ────────────────────────────────────────────────────────────
 
-describe('G4.18 settle-predicate vacuity', () => {
+describe('G4.22 settle-predicate vacuity', () => {
 	const { vacuous, total } = scanSettleSites();
 
 	// Non-vacuity: the scan proves something only if it actually resolved sites.
@@ -336,7 +336,7 @@ describe('G4.18 settle-predicate vacuity', () => {
 	});
 });
 
-describe('G4.18 settle-predicate vacuity — classifier self-tests', () => {
+describe('G4.22 settle-predicate vacuity — classifier self-tests', () => {
 	const table = '| A | B | C | D |\n| --- | --- | --- | --- |\n';
 
 	it('flags a substring of the loaded document and clears the post-op shape', () => {
