@@ -173,7 +173,7 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 ## Conformance harness (commonmark.js differ)
 
-`src/lib/test/gfm-conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note. Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
+`src/lib/test/gfm-conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note (`scripts/extract-spec-examples.mjs` regenerates `spec-examples.json` from the new version's downloaded spec.json). Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
 
 | Tier       | Command                    | Scope                                                                                                               |
 | ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
