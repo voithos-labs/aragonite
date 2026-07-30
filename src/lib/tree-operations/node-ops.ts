@@ -45,21 +45,45 @@ import { replacePreservingFirst, type StructuralChange } from './structural-chan
 
 // ── Types ──
 
-/**
- * A children array plus, when the caller knows it, the container that owns it.
- * `ownerKind` is what lets the write sinks read the container's `bodyWrite` rule
- * — bytes destined for a body have to satisfy the enclosing grammar, and a bare
- * children array cannot say which grammar that is. Absent = the document root,
- * or a detached array with no container to answer for.
- */
-export type NodeParent = { children: CstNode[]; ownerKind?: AnyBlockKind };
+/** A children array an op mutates structurally — splice, delete, reorder. */
+export type NodeParent = { children: CstNode[] };
 
-/** Text made legal as a child's raw inside `parent`, per the owner's body-write rule. */
-function forBody(parent: NodeParent, raw: string): string {
-	const owner =
-		parent.ownerKind === undefined ? undefined : tryGetBlockKindDescriptor(parent.ownerKind);
+/**
+ * A {@link NodeParent} that has answered which container owns it. Required by
+ * the sinks that WRITE BYTES into the array, because those bytes have to satisfy
+ * the owner's grammar (`bodyWrite`) and a bare children array cannot say whose.
+ * Structural ops keep the looser type: they move nodes, they do not author bytes.
+ *
+ * Nullable rather than optional, so every byte-writing site must ANSWER:
+ * `undefined` is a real answer (the document root, a detached array with no
+ * container behind it), but skipping the question is a compile error. It shipped
+ * optional and was promptly omitted at three sinks while every sibling caller
+ * threaded it — the rung the `grammar` thread was raised onto for the same reason.
+ */
+export type BodyParent = NodeParent & { ownerKind: AnyBlockKind | undefined };
+
+/**
+ * What the byte sinks accept. A whole `Document` is admitted because it IS the
+ * answer — the root owns no body grammar — while a bare `{ children }` literal,
+ * the shape that skipped the question at three sinks, still cannot compile.
+ */
+export type BodyParentArg = BodyParent | Document;
+
+const ownerKindOf = (parent: BodyParentArg): AnyBlockKind | undefined =>
+	'ownerKind' in parent ? parent.ownerKind : undefined;
+
+/**
+ * Text made legal as a child's raw inside a container of kind `ownerKind`.
+ * Exported for the sinks that build their own bytes instead of handing text to
+ * {@link updateNodeContent} — a range delete merges two raws into one.
+ */
+export function normalizeBodyWrite(ownerKind: AnyBlockKind | undefined, raw: string): string {
+	const owner = ownerKind === undefined ? undefined : tryGetBlockKindDescriptor(ownerKind);
 	return owner?.bodyWrite?.normalize(raw) ?? raw;
 }
+
+const forBody = (parent: BodyParentArg, raw: string): string =>
+	normalizeBodyWrite(ownerKindOf(parent), raw);
 
 // ── Node minting ──
 
@@ -133,7 +157,7 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
  * shape difference; a blank does nothing there, so none is minted.
  */
 export function splitNode(
-	parent: NodeParent,
+	parent: BodyParentArg,
 	blockIndex: number,
 	offset: number
 ): StructuralChange {
@@ -371,7 +395,7 @@ export function deleteNode(
  * typing.
  */
 export function updateNodeContent(
-	parent: NodeParent,
+	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
 	grammar?: GrammarView

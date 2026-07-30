@@ -85,10 +85,16 @@ export interface InlineWidgetComponentProps {
  * registration; the decoration islands express their internal policies in the same
  * vocabulary (never on the public API).
  */
+/** The closed vocabularies, as values — so the published conformance kit can
+ *  check a registration against the type's own members instead of a copy that
+ *  ages out of step with it. */
+export const DELETE_GRANULARITIES = ['atomic', 'select-then-delete'] as const;
+export const ON_EDGE_POLICIES = ['select', 'step-over'] as const;
+
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
-	deleteGranularity?: 'atomic' | 'select-then-delete';
-	onEdge?: 'select' | 'step-over';
+	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
+	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
 }
 

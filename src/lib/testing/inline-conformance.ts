@@ -64,6 +64,8 @@ import {
 	getInlineWidgetComponent,
 	getInlineWidgetEditing,
 	isInlineWidget,
+	DELETE_GRANULARITIES as DELETE_GRANULARITY_VALUES,
+	ON_EDGE_POLICIES as ON_EDGE_POLICY_VALUES,
 	type InlineWidgetEditingPolicy
 } from '../core/inline/inline-widgets';
 import {
@@ -580,8 +582,10 @@ function assertWalkLengthIsRawLength(fixture: string): void {
 
 // ── editingPolicy ────────────────────────────────────────────────────────────
 
-const DELETE_GRANULARITIES = ['atomic', 'select-then-delete'];
-const ON_EDGE_VALUES = ['select', 'step-over'];
+// Derived from the type's own home: a member added there reaches the shipped kit,
+// which would otherwise reject a conforming plugin with no compile error in-repo.
+const DELETE_GRANULARITIES: readonly string[] = DELETE_GRANULARITY_VALUES;
+const ON_EDGE_VALUES: readonly string[] = ON_EDGE_POLICY_VALUES;
 
 /**
  * A policy field outside the caret-edge dispatch's vocabulary is read as absent and

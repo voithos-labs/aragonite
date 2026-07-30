@@ -191,7 +191,8 @@ describe('setext heading split', () => {
 describe('splitNode on arbitrary parent', () => {
 	it('splitNode works on a container children array', () => {
 		const parent = {
-			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }]
+			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }],
+			ownerKind: undefined
 		};
 		splitNode(parent, 0, 5);
 		expect(parent.children).toHaveLength(2);

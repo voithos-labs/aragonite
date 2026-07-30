@@ -15,7 +15,7 @@ import { trailingLineEnding } from '../core/lines';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { firstLeafAtOrAfter } from './path-lookup';
-import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
+import { blockNodeAt, emptyParagraph, normalizeBodyWrite } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
@@ -81,7 +81,14 @@ export function rangeDelete(
 	const endRaw = endBlock.raw;
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
-	const mergedRaw = startRaw.slice(0, startOffset) + endRaw.slice(endOffset);
+	// A join can MINT a line neither side held: two lines each carrying a mid-line
+	// `</details>` become one that opens with it. The survivor lands in start's
+	// container, so it answers to that container's body rule — applied here, ahead
+	// of every reparse below, so the kinds derive from the bytes that land.
+	const mergedRaw = normalizeBodyWrite(
+		blockNodeAt(doc, start.path.slice(0, -1))?.kind,
+		startRaw.slice(0, startOffset) + endRaw.slice(endOffset)
+	);
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.

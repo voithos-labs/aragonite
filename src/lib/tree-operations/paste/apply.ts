@@ -60,7 +60,12 @@ async function commitInlineJoin(
 			// The slot may still be snapshot-shared: copy-path-on-write before the
 			// funnel's in-place same-kind branch writes its raw (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
-			const change = updateNodeContent(view, leafIndex, result.newRaw, ctx.grammar);
+			const change = updateNodeContent(
+				{ children: view.children, ownerKind: view.node.kind },
+				leafIndex,
+				result.newRaw,
+				ctx.grammar
+			);
 			stampStructuralChange(view.children, change, view.sharing);
 			return [change];
 		},

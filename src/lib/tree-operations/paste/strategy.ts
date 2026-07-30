@@ -14,11 +14,16 @@ export function pickPasteStrategy(parsed: Document): PasteStrategy {
 }
 
 /**
- * Convert blank-line trivia into explicit empty-paragraph blocks so pasted
- * "one\n\ntwo" renders the same visible blank-line row that typing the same
- * source produces. The parser collapses blank lines into leadingTrivia,
- * which serializes the same but doesn't render as a row. Top-level only —
- * list items don't carry blank-line semantics in their own trivia.
+ * Convert blank-line trivia into explicit empty-paragraph blocks, so pasted
+ * "one\n\ntwo" renders a visible blank-line row. The parser collapses blank
+ * lines into leadingTrivia, which serializes the same but doesn't render as a
+ * row. Top-level only — list items don't carry blank-line semantics in their
+ * own trivia.
+ *
+ * This once matched what TYPING produced; it no longer does. Enter now separates
+ * with a blank line the parser folds back into trivia, so paste is the one path
+ * that materializes a row — the divergence the issues ledger tracks, not a
+ * property to preserve.
  *
  * `lineEnding` is the TARGET document's, never the payload's: paste entry points
  * normalize the clipboard to LF, so the trivia these rows materialize from cannot

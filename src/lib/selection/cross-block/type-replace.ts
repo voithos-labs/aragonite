@@ -12,7 +12,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { blockNodeAt, updateNodeContent } from '../../tree-operations/node-ops';
+import { blockNodeAt, normalizeBodyWrite, updateNodeContent } from '../../tree-operations/node-ops';
 import { focusCollapsedCaret } from '../native-bridge';
 import {
 	ensureUnsharedChild,
@@ -92,7 +92,13 @@ export async function handleCrossBlockTypeReplace(
 				);
 				const chain = ensureUnsharedPath(doc, caret.path, sharing);
 				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
-				owned.raw = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
+				// Degraded, but still a body write: this arm splices raw with no reparse,
+				// so the owner's rule is the only thing standing between a typed `>` and
+				// a terminator line. The owner is the leaf's parent on the owned chain.
+				owned.raw = normalizeBodyWrite(
+					chain[chain.length - 2]?.kind,
+					owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
+				);
 				rebuildUnsharedChain(doc, chain, sharing, ctx.grammar);
 				return [{ op: 'noop' }];
 			}
@@ -106,7 +112,7 @@ export async function handleCrossBlockTypeReplace(
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
 			const change = updateNodeContent(
-				{ children: scopeView.children },
+				{ children: scopeView.children, ownerKind: scopeView.node.kind },
 				leafIndex,
 				newText,
 				ctx.grammar

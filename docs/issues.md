@@ -704,10 +704,17 @@ shape, not the container's own spelling, so the indented, upper-cased, trailing-
 unterminated forms (which aragonite's recognizer never sees but a browser closes the element on)
 escape too. Typing and split go through those sinks.
 
-Three doors do NOT: **paste** into a body (the realistic one — copying an example off GitHub),
-block **move/reorder** into a body, and **search-replace** substitution inside a body child. Each
-mints or rewrites child bytes outside `updateNodeContent`/`splitNode`, so the collision is still
-reachable through them.
+Cross-block typing and both delete arms were the same gap and are now closed too: each threads its
+container to the sink, and a range delete normalizes the raw it MERGES — a join can mint a
+terminator line out of two lines that each held one mid-line, which no per-block rule would see.
+The requirement is now structural: the byte sinks take a parent that has ANSWERED which container
+owns it (`undefined` for the root is an answer; omitting it is a compile error), so a new sink
+cannot inherit this bug silently.
+
+Two doors do NOT: **paste** into a body (the realistic one — copying an example off GitHub) and
+block **move/reorder** into a body. Both mint child bytes through paths that build nodes before any
+sink sees them, so the collision is still reachable there. Search-replace is a third, narrower case:
+it rewrites a child's raw through its own reparse-based clone path.
 
 Note what the guard covers there. G1.12 fires on the CANONICAL form, which is what makes the
 floor honest for the case a user is most likely to paste. It is **blind** to the passthrough-only

@@ -16,12 +16,15 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 1. **Limestone internal integration — remaining scope.** The integration ran (2026-07) and paid
    as predicted: the editor is the app's editor, the findings landed as 0.9.36 refinements, and
-   the consumer-lens directions below are its architectural residue. What has NOT yet run, and
-   stays here as forward work: the 0.9.25 **field-report workflow** end to end (the diagnostics
-   door: reproduce → `serializeDiagnostics()` → attach — no real report has been filed yet); the
-   **overridable-history-seam joint design** (§ Downstream boundary — the integration is named as
-   the design table, and the table has not convened); and landing whatever the consumer's
-   remaining manual passes (journal surface, real-webview gestures) surface before the freeze.
+   the consumer-lens directions below are its architectural residue. The 0.9.25 **field-report
+   workflow** has now run end to end against the real app (reproduce → `serializeDiagnostics()` →
+   attach), so the door is proven rather than assumed; what it left forward is narrower — the
+   embedder must hold and expose the editor instance for the diagnostics door to be reachable at
+   all (an example-app requirement), and the trace behind the report covers the inline layer only.
+   What has NOT yet run, and stays here as forward work: the **overridable-history-seam joint
+   design** (§ Downstream boundary — the integration is named as the design table, and the table
+   has not convened); and landing whatever the consumer's remaining manual passes (journal
+   surface, real-webview gestures) surface before the freeze.
 
 2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and

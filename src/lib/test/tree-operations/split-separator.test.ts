@@ -44,7 +44,7 @@ describe('split separator — the half that absorbs gets one', () => {
 	it('a blockquote child split reparses as two quoted paragraphs', () => {
 		const doc = parse('> Risk noted,\n');
 		const quote = doc.children[0];
-		splitNode({ children: quote.children! }, 0, 'Risk noted,'.length);
+		splitNode({ children: quote.children!, ownerKind: quote.kind }, 0, 'Risk noted,'.length);
 		quote.children![1].raw = 'so we sequence it later.\n';
 		rebuildBlockquoteRaw(quote);
 
