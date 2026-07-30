@@ -27,6 +27,12 @@ export interface KeydownEnvOptions {
 	/** Component the reveal resolves to — the post-delete command dispatch target. */
 	revealTo?: BlockComponent | null;
 	myPath?: number[];
+	/**
+	 * Paths that are windowed OUT: `getBlockElByPath` reports null for them until a
+	 * reveal mounts them, which is the only way to reach the endpoint-park arm of
+	 * `revealActiveEndpoint` (it is gated on the endpoint having no element).
+	 */
+	offWindowPaths?: number[][];
 }
 
 export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
@@ -39,8 +45,10 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 
 	// One element per path: the extend walk reads element identity, never geometry.
 	const blockEls = new Map<string, HTMLElement>();
-	const getBlockElByPath = (path: number[]): HTMLElement => {
+	const offWindow = new Set((opts.offWindowPaths ?? []).map((path) => JSON.stringify(path)));
+	const getBlockElByPath = (path: number[]): HTMLElement | null => {
 		const key = JSON.stringify(path);
+		if (offWindow.has(key)) return null;
 		if (!blockEls.has(key)) blockEls.set(key, document.createElement('div'));
 		return blockEls.get(key)!;
 	};
@@ -48,6 +56,9 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 	const revealed: number[][] = [];
 	const revealPath = vi.fn(async (path: number[]) => {
 		revealed.push(path.slice());
+		// A reveal mounts what it scrolled to, so the path stops being off-window —
+		// which is what lets the post-park scroll be observed at all.
+		offWindow.delete(JSON.stringify(path));
 		return opts.revealTo ?? null;
 	});
 
