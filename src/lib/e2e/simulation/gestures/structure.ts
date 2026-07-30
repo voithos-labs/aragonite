@@ -35,7 +35,8 @@ export async function softEnter(ctx: SimContext): Promise<void> {
  * makes the inserted ending the block's trailing one, leaving a bare backslash with
  * the caret still on that line, so a forward-only cadence cannot produce the shape.
  * The caret is left mid-block, which the tracker's document-end model cannot type
- * against: use this as a note's LAST build gesture.
+ * against: use this as a note's LAST build gesture. `Gestures` throws on a later
+ * `typeText` rather than letting the mismatch surface as a mis-attributed diff.
  */
 export async function hardBreakAt(
 	ctx: SimContext,

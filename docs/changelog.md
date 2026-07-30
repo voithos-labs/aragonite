@@ -19,8 +19,10 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 - **Behavior change: a trailing backslash then Enter is now two paragraphs, not a hard break.** Enter
   splits everywhere else in the editor, and it separates now, so it can no longer leave a soft join
-  behind. `Shift+Enter` (`block.hardBreak`) is the gesture that authors a hard break, and it carries
-  the whole idiom: it inserts the backslash and the line ending together, inside the paragraph.
+  behind. `Shift+Enter` (`block.hardBreak`) is the gesture that authors a hard break: it inserts the
+  backslash and the line ending together. Press it BETWEEN the two halves, with both already typed —
+  at the end of a paragraph the inserted ending becomes the block's own, so it leaves a trailing
+  backslash and the caret stays on that line until a following line exists.
 
 - **BREAKING (plugin authors): a container block publishes ONE instance export.** `export
 { containerApi }` replaces the twelve `export const` forwards plus the `satisfies` completeness

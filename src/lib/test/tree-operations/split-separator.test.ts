@@ -3,12 +3,18 @@
 // bytes: the defect this guards is the LIVE tree disagreeing with a reparse of its
 // own serialization, which every byte-level oracle is blind to (the round trip is a
 // tautology, G2.1).
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
+import { NEXT_PROSE_LINE, probeLineOpensAsProse } from '../../tree-operations/node-ops';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
+import { registerBlockKind } from '../../schema/block-kind-descriptor';
+import { registerBlockOpener } from '../../schema/block-openers';
+import { declarePluginKind } from '../../schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { describeConvergence } from '../../testing/parse-convergence';
+import { testClosure } from '$lib/test/support/closure';
 
 describe('split separator — the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
@@ -54,7 +60,12 @@ describe('split separator — the halves that close get none', () => {
 	const closesOnItsOwn: readonly [name: string, source: string, offset: number][] = [
 		['heading', '## Title\n', 8],
 		['thematic break', '---\n', 3],
-		['setext heading', 'Title\n=====\n', 5]
+		['setext heading', 'Title\n=====\n', 5],
+		// A body that swallows a blank line as content: a separator there would land
+		// INSIDE the block, which is why the predicate asks what a blank line DOES
+		// rather than whether the tight join merges.
+		['unclosed fence', '```\ncode\n', 9],
+		['unclosed html block', '<pre>\nliteral\n', 13]
 	];
 
 	for (const [name, source, offset] of closesOnItsOwn) {
@@ -70,5 +81,45 @@ describe('split separator — the halves that close get none', () => {
 		splitNode(doc, 0, 0);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(serialize(doc)).toBe('\nHello\n');
+	});
+});
+
+// The probe stands in for whatever the user types next, so it has to be the line
+// NO opener claims. Openers are arbitrary code, so that cannot hold by
+// construction — a consumer's plugin registering globally is the reachable way to
+// break it, and unit files reset the platform, so nothing else here would see it.
+describe('split separator — the probe line', () => {
+	beforeEach(__resetSchemaRegistriesForTests);
+	afterEach(__resetSchemaRegistriesForTests);
+
+	it('is ordinary prose under the built-in grammar', () => {
+		expect(probeLineOpensAsProse()).toBe(true);
+	});
+
+	it('is reported claimed when an opener takes it, and the mint is what is lost', () => {
+		const kind = declarePluginKind('probe-claimer');
+		registerBlockKind(kind, {
+			mergeRole: 'not-mergeable',
+			editable: false,
+			supportsInline: false,
+			closure: testClosure
+		});
+		registerBlockOpener(kind, {
+			priority: 1,
+			interruptsParagraph: () => true,
+			tryOpen: (ctx) =>
+				ctx.line.text === NEXT_PROSE_LINE
+					? { node: { kind, leadingTrivia: '', raw: ctx.line.raw }, consumed: 1 }
+					: null
+		});
+
+		expect(probeLineOpensAsProse()).toBe(false);
+
+		// The consequence, pinned so the guard's warning is not the only record: the
+		// probe now opens its own block either way, so the separator reads as doing
+		// nothing and every paragraph split silently loses it.
+		const doc = parse('Hello world\n');
+		splitNode(doc, 0, 5);
+		expect(doc.children[1].leadingTrivia).toBe('');
 	});
 });
