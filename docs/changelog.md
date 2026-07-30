@@ -4,6 +4,21 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **The requirement↔spec lockstep is a rule again, not a review habit.** `testing.md` makes the
+  filesystem the authoritative list of what the e2e suite covers, and every mapping in it was
+  hand-verified at review time, which fails silently the day someone adds a spec without its
+  scenario list. A source scan (G4.23) now pins the pairing in both directions, plus the stem
+  collision the `.perf` strip would otherwise hide, plus per-file shape, and it found two specs
+  whose requirement file was never written, one of them naming the missing file in its own header.
+  The interesting half is the count rule: scenario-count equality was measured and refuted (212 of
+  336 pairs diverge legitimately, because one test routinely walks several bullets), so the shipped
+  rule fires only on a requirement list that ran 3× ahead of its spec, and every deliberate
+  divergence carries a reason string. An equality rule would have needed a 212-entry allowlist and
+  would have pressured authors toward padding the suite with one-assertion tests, which is exactly
+  why the guard sat deferred. Its 23 live divergences are one seeded-simulation family plus eight
+  named compound tests; the allowlist only shrinks, since an entry that stops diverging is reported
+  as stale.
+
 - **Reading mode's line is bytes, not interactivity.** The standing product question was whether
   reading mode should permit a curated set of edits (a live task checkbox, GitHub-style). The
   answer is no — the mode writes no bytes, and that is now a contract rather than a v1

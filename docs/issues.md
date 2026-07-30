@@ -586,32 +586,6 @@ Prioritize by bugfix density rather than by component size.
 re-audit's unit-suite pass to scope it, since that pass is the one artifact class the 0.9.35 review did
 not cover, so its findings should set the priority order rather than this entry guessing it.
 
-### Nothing enforces the requirement↔spec lockstep the testing doc asks for
-
-**Severity:** minor (coverage-shape risk; every mapping is correct today, by hand)
-**Files:** `src/lib/e2e/requirements/` (the scenario files), `src/lib/e2e/tests/` (the specs),
-`src/lib/e2e/lint/` (the source-scan directory where such a guard would live, holding only the
-settle-predicate vacuity scan)
-
-`docs/contributing/testing.md` asks requirement files and their specs to stay in lockstep, and the
-e2e lint directory is exactly where a parity rule of that shape belongs — but none exists. Every
-N↔N mapping in the suite is hand-verified at review time, which is the protection culture.md says
-to promote: a rule enforced by review fails silently the day someone adds scenario N+1 without its
-test, and nothing goes red.
-
-The gap has teeth rather than being theoretical. A review pass found a documented selection-restore
-route with no discriminating coverage, and a mutation to that route survived the entire unit
-battery — only the one scenario added afterwards stands between the codebase and shipping it green.
-
-**Fix direction:** a source scan that reads each requirement file's scenario bullets and each
-spec's test titles and asserts a mapping. Semantic pairing is the hard part; the cheap version
-asserts counts and named sections instead, which catches dropped bullets and unmapped tests
-without pretending to understand either.
-
-**Why deferred:** the guard's design is the work, not its wiring, and a counts-only version has to
-be shaped so it does not train authors to pad. Wants the pre-1.0 suite pass already scoped to
-re-shape this directory, which should set its form.
-
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
 **Severity:** watch (no field report yet; Chromium-only test coverage)
