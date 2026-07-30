@@ -18,8 +18,11 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   and the still-unterminated `</details` are escaped too — each of those reloads intact locally
   while silently ending the element on GitHub. Plugin authors reach the same predicate through
   `htmlBlockTagLineMatcher`. Both caret doors read the rule's exact image, so a rewrite never
-  strands the caret. Typing and split go through those sinks; paste, move and search-replace do
-  not yet, and keep the ledger entry.
+  strands the caret. Typing, split, cross-block typing and both delete arms go through the rule —
+  a range delete normalizes the raw it MERGES, since a join can mint a terminator line out of two
+  lines that each held one harmlessly mid-line. Paste and block move do not yet, and keep the
+  ledger entry. The requirement is structural rather than remembered: the byte sinks take a parent
+  that has ANSWERED which container owns it, so a sink added later cannot inherit the gap silently.
 
 - **Plugin/testing surface: the container conformance kit's `terminatorCollision` cell writes
   through `bodyWrite`.** The cell's fixture `bodyRaw` now names the bytes a USER produces rather

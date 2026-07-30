@@ -74,9 +74,17 @@ export function createBlockEditActions(
 					snapshot: 'skip',
 					eventTarget: blockIndex,
 					op: { kind: 'updateContent', detail: { length: text.length } },
+					// ownerKind undefined is the ANSWER, not an omission: this factory is
+					// the document root's, and the root imposes no body grammar. The
+					// container factory is where a real owner rides.
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
-						change = performUpdate({ children: view.children }, blockIndex, text, deps.grammar);
+						change = performUpdate(
+							{ children: view.children, ownerKind: undefined },
+							blockIndex,
+							text,
+							deps.grammar
+						);
 						stampStructuralChange(view.children, change, view.sharing);
 						return change;
 					},

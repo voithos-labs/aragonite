@@ -10,25 +10,32 @@
 
 import type { TableAxisAction } from '../../../action-contracts';
 import type { AnyCommandId } from '../../../schema/command-id';
+import type { BlockCommandId } from '../../../schema/commands';
 
 export type CommandAxis = 'row' | 'column';
 
-const TABLE_AXIS_COMMANDS: Record<string, { action: TableAxisAction; axis: CommandAxis }> = {
-	'table.insertRowBelow': { action: 'insertRowBelow', axis: 'row' },
-	'table.insertRowAbove': { action: 'insertRowAbove', axis: 'row' },
-	'table.insertColumnRight': { action: 'insertColumnRight', axis: 'column' },
-	'table.insertColumnLeft': { action: 'insertColumnLeft', axis: 'column' },
-	'table.deleteRow': { action: 'deleteRow', axis: 'row' },
-	'table.deleteColumn': { action: 'deleteColumn', axis: 'column' },
-	'table.moveRowUp': { action: 'moveRowUp', axis: 'row' },
-	'table.moveRowDown': { action: 'moveRowDown', axis: 'row' },
-	'table.moveColumnLeft': { action: 'moveColumnLeft', axis: 'column' },
-	'table.moveColumnRight': { action: 'moveColumnRight', axis: 'column' },
-	'table.cycleAlignment': { action: 'cycleAlignment', axis: 'column' }
-};
+/** Every `table.*` command the vocabulary declares — the map's key type, so a
+ *  twelfth id added to `BLOCK_COMMAND_IDS` and bound in the keymap is a compile
+ *  error here rather than a chord that resolves to nothing at runtime. */
+type TableCommandId = Extract<BlockCommandId, `table.${string}`>;
+
+const TABLE_AXIS_COMMANDS: Record<TableCommandId, { action: TableAxisAction; axis: CommandAxis }> =
+	{
+		'table.insertRowBelow': { action: 'insertRowBelow', axis: 'row' },
+		'table.insertRowAbove': { action: 'insertRowAbove', axis: 'row' },
+		'table.insertColumnRight': { action: 'insertColumnRight', axis: 'column' },
+		'table.insertColumnLeft': { action: 'insertColumnLeft', axis: 'column' },
+		'table.deleteRow': { action: 'deleteRow', axis: 'row' },
+		'table.deleteColumn': { action: 'deleteColumn', axis: 'column' },
+		'table.moveRowUp': { action: 'moveRowUp', axis: 'row' },
+		'table.moveRowDown': { action: 'moveRowDown', axis: 'row' },
+		'table.moveColumnLeft': { action: 'moveColumnLeft', axis: 'column' },
+		'table.moveColumnRight': { action: 'moveColumnRight', axis: 'column' },
+		'table.cycleAlignment': { action: 'cycleAlignment', axis: 'column' }
+	};
 
 export function tableAxisCommand(
 	id: AnyCommandId
 ): { action: TableAxisAction; axis: CommandAxis } | null {
-	return TABLE_AXIS_COMMANDS[id] ?? null;
+	return TABLE_AXIS_COMMANDS[id as TableCommandId] ?? null;
 }

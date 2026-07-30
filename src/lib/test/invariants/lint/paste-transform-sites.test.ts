@@ -52,12 +52,16 @@ const RULE = `every clipboard→parse route must run applyPasteTransforms; the t
  * Pulling a payload off a clipboard or a drop — the routes this rule governs. The
  * accessor arms tolerate `?.` and `!.` between the carrier and the read: a non-null
  * assertion is the shape a new route is most likely to be written with, and matching
- * only `.`/`?.` let a planted probe through. `.files` is a read shape too — the
- * image-import arm turns a File into markdown that must still reach the transforms,
- * so a future route pulling `dataTransfer.files` in a new file has to declare itself.
+ * only `.`/`?.` let a planted probe through.
+ *
+ * Keyed on the READ and on the carrier TYPE, never on the receiver's name. Keying
+ * on `clipboardData|dataTransfer` as identifiers is what let an extraction slip a
+ * route out of this scan: moving the `.files` read into a helper whose parameter is
+ * called `data` unenrolled it silently, and set-equality still passed on the files
+ * that stayed. A payload read is a payload read whatever the variable is called.
  */
 const CLIPBOARD_READ_RE =
-	/(?:clipboardData|dataTransfer)\s*[!?]?\s*\.\s*(?:getData|files)\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/;
+	/[!?]?\.\s*getData\s*\(|[!?]?\.\s*files\b|\bDataTransfer\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/;
 
 /** Each site that reads external text → the sanctioned route it hands the text to. */
 const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
@@ -69,11 +73,21 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'pasteDispatch',
 		why: 'the right-click menu paste has no ClipboardEvent to read, so it reads through navigator.clipboard and calls the paste tree-op directly'
 	},
+	'src/lib/components/paste-image-arm.ts': {
+		handoff: 'handlePaste',
+		why: 'the image-import arm reads the attachment payload and hands the hook’s markdown to the cross-block paste route, which is a sanctioned site'
+	},
 	'src/lib/selection/cross-block/paste.ts': {
 		handoff: 'applyPasteTransforms',
 		why: 'a sanctioned site itself: runs the transforms before parsing the pasted slice'
 	}
 };
+
+// `editor-root-clipboard.ts` is deliberately NOT here: it forwards the carrier
+// (`imageArm.filesOf(event.clipboardData)`) and reads no payload of its own — the
+// read is in the arm above. Keying this scan on the carrier instead of the payload
+// pulls in five copy/cut files that only WRITE to the clipboard, which would cost
+// the allowlist its meaning.
 
 const READ_RULE =
 	'every clipboard/drop read must reach a sanctioned paste route. A new read site joins ' +

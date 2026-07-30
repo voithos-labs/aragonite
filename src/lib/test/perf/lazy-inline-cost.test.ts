@@ -32,7 +32,10 @@ afterEach(() => disablePerfInstruments());
 
 describe('lazy inline: common keystroke computes once', () => {
 	it('updateNodeContent parses no inline; the render compute is the only one', () => {
-		const parent = { children: [para('alpha\n'), para('beta\n'), para('gamma\n')] };
+		const parent = {
+			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
+			ownerKind: undefined
+		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
 		// The content-update path block-parses kind/metadata/children but must not
@@ -44,7 +47,10 @@ describe('lazy inline: common keystroke computes once', () => {
 	});
 
 	it('an off-render accessor read computes on demand, not eagerly', () => {
-		const parent = { children: [para('alpha\n'), para('beta\n'), para('gamma\n')] };
+		const parent = {
+			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
+			ownerKind: undefined
+		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
 		computeInlineContent(parent.children[1]);

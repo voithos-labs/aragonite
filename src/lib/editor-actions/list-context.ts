@@ -214,7 +214,11 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// onward), not just the one we split.
 					const preSpliceLen = itemChildren.length;
 
-					const splitChange = performSplit({ children: itemChildren }, innerIndex, offset);
+					const splitChange = performSplit(
+						{ children: itemChildren, ownerKind: itemScope.node.kind },
+						innerIndex,
+						offset
+					);
 					stampStructuralChange(itemChildren, splitChange, sharing);
 					const secondHalf = itemChildren.splice(innerIndex + 1);
 					if (secondHalf.length > 0) {
