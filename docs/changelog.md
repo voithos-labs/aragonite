@@ -4,6 +4,63 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **The table's keyboard vocabulary is declarative, so `keybindings` reaches it.** The table's
+  eleven structural chords lived in a second, hard-coded dispatch — an ordered `SHORTCUTS` table
+  inside the cell's keydown plan — which ran BEFORE the keymap. So an override for one of them was
+  resolved and then never consulted, and the consumer guide had to carve the whole Tables family
+  out of its rebindability promise. They are `tableCell` keymap bindings now, on eleven new
+  `table.*` command ids, and the guide's promise covers them: a disable frees the chord, a rebind
+  moves it, and a global-scope disable reaches a cell like any other surface. Additive to the
+  plugin surface — new command ids and one new descriptor capability, with `KeyBinding` itself
+  unchanged — so no migration.
+
+  The precedence the retired table carried is now the CALL ORDER in one function: the command
+  dispatcher gets first refusal on every chord, and what reaches the navigation plan is a chord no
+  binding claimed. That ordering is forced rather than chosen — the shared prose keydown prelude's
+  own `ArrowLeft`-at-offset-0 boundary hop does not gate on Alt, so anything resolving the keymap
+  after it would lose `Alt+←` (move column) at a cell's left edge, which is exactly the collision
+  the SHORTCUTS ordering existed to prevent. The plan's branches therefore still ignore Alt and
+  Mod, deliberately: an unclaimed modified arrow (a disabled binding, or reading mode, where the
+  whole vocabulary dead-keys) is just an arrow and must navigate, where answering "native" would
+  hand it to that prelude, whose boundary branches move focus among a block's siblings by index —
+  inside a cell, the wrong axis entirely. Reading mode's refusal gains an owner it did not have:
+  the structural chords are now dead-keyed by the command seam's own gate, leaving the cell only
+  the guard the seam cannot supply, for the row-appending end of Tab/Enter.
+
+  Two things stay off the keymap, and the boundary is the same one in both cases: arrow navigation
+  between cells and the three-stage `Mod+A` read where the caret sits INSIDE the cell, which a
+  chord cannot express. The select-all case is the one real gap the migration found in the keymap
+  design — its stage machine has to recognize "the chord that continues my run", and with no
+  command→chord reverse lookup a rebound select-all would break the run. The workaround is exact
+  rather than a hack (resolve the chord and test the resulting COMMAND), and it is not taken here
+  because nothing rebinds `Mod+A`; the finding is recorded for the freeze review rather than
+  answered with a type extension for one caller.
+
+- **A table can be reordered from the keyboard.** Every other kind moves among its siblings on
+  `Alt+↑`/`Alt+↓`, which its drag handle's tooltip promises — but inside a cell that chord already
+  means "move this row", and a table has no non-cell focus surface, so the block-level move had no
+  gesture at all. It takes `Mod+Alt+↑`/`Mod+Alt+↓`: the same gesture with the platform modifier
+  added, so the two reorders read as one family rather than two conventions. No new command and no
+  new tree operation — the reorder walk already resolves the unit at the nearest ancestor that
+  reorders its children, and a table's grid rows are not that, so a cell's own path lands on the
+  table's slot, and the move announces itself to a screen reader through the same shared action
+  every other kind uses.
+
+- **A destructive key at a mid-cell `<br>` edge deletes it, on the first press.** A cell paints no
+  widget-selection overlay, so the prose select-then-delete model a `<br>` inherited showed the
+  user nothing: press #1 moved the caret across the widget without deleting a byte, and press #2 —
+  the caret now past it — deleted a NON-adjacent one two positions from where the user pressed. The
+  fix is a surface-level policy substitution rather than a second delete path: a caret-edge policy
+  names an AFFORDANCE, and a surface that paints none has to answer differently instead of
+  degrading, so the cell declares `deleteGranularity: 'atomic'` for the widgets it paints and the
+  one existing atomic arm does the work — one commit, undo anchored at the pre-delete caret,
+  nothing duplicated. `onEdge` stays unset, so an arrow still steps the caret over the widget: that
+  pair is the fix, and a policy that deleted on arrows too would pass any test written for the
+  destructive half alone. Scoped to what the cell actually paints, because the classifier is
+  kind-based and DOM-blind: an image renders as its literal source in a cell, so its edge is
+  ordinary text and keeps the registered policy — otherwise one press would have eaten all of
+  `![a](b)` where the user sees characters.
+
 - **A dead-space click near a table lands in the nearest cell.** Clicking the editor's padding or
   the area below the last block places a caret at the nearest text — except on a kind that
   addresses its own internals, where "the end of that line" named a cell rather than a character

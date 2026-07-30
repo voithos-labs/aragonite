@@ -4,12 +4,12 @@
  * the hand-listed table can't silently drift from the bindings. Chords route
  * through several owners, and each documented family is validated against its own:
  *
- *   - Editing / Block reorder → the per-kind + global keymap registry
- *     (`resolveBinding`, which falls through to the global table).
- *   - Tables → the cell keydown plan. The structural table chords live as
- *     predicates in `cell-keydown-plan.ts`, not the keymap (the single-source
- *     gap tracked in docs/issues.md); a chord "resolves" when the plan is
- *     non-native for a synthesized key event.
+ *   - Editing / Block reorder / Tables → the per-kind + global keymap registry
+ *     (`resolveBinding`, which falls through to the global table). The Tables family
+ *     joined this resolver when the table's structural chords migrated off the cell
+ *     keydown plan onto the `tableCell` keymap: they are ordinary bindings now, so
+ *     they are held to the same standard as every other documented chord instead of
+ *     to a synthesized-key probe of a plan.
  *   - Find / replace → literal presence in the two dispatch sites
  *     (`editor-root-keydown.ts` / `SearchBar.svelte`) plus the reserved Ctrl+F /
  *     Ctrl+H source (`schema/commands.ts`, read by the root handler via
@@ -31,11 +31,6 @@ import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { resolveBinding } from '$lib/schema/commands';
 import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
 import { normalizeChord } from '$lib/schema/keybindings';
-import {
-	cellKeydownPlan,
-	type CellKeyInput,
-	type CellKeyState
-} from '$lib/components/blocks/table/cell-keydown-plan';
 import { readEditorFile } from './scan-source';
 
 registerBuiltInDescriptors();
@@ -90,34 +85,6 @@ function keymapResolves(chord: string): boolean {
 	return getAllRegisteredKinds().some((kind) => resolveBinding(chord, kind) !== null);
 }
 
-// A mid-grid cell with room on every side, so a nav chord lands on a real
-// neighbor (a `focus-cell` plan) rather than exiting the table.
-const CENTRAL_CELL: CellKeyState = {
-	rowIdx: 1,
-	colIdx: 1,
-	columnCount: 3,
-	rowCount: 3,
-	offset: 1,
-	textLen: 2,
-	collapsed: true,
-	selectAllCount: 0
-};
-
-function toCellInput(chord: string): CellKeyInput {
-	const parts = chord.split('+');
-	const key = parts.pop() ?? '';
-	return {
-		key,
-		ctrlOrMeta: parts.includes('Mod'),
-		shiftKey: parts.includes('Shift'),
-		altKey: parts.includes('Alt')
-	};
-}
-
-function cellPlanResolves(chord: string): boolean {
-	return cellKeydownPlan(toCellInput(chord), CENTRAL_CELL).kind !== 'native';
-}
-
 // Find/replace chords route through the search components; the reserved Ctrl+F /
 // Ctrl+H pair single-sources from schema/commands.ts (RESERVED_UI_CHORDS), which
 // the root handler reads via isReservedUiChord. The token each chord must show in
@@ -168,7 +135,7 @@ function clipboardResolves(chord: string): boolean {
 const RESOLVERS: Record<string, (chord: string) => boolean> = {
 	Editing: keymapResolves,
 	'Block reorder': keymapResolves,
-	Tables: cellPlanResolves,
+	Tables: keymapResolves,
 	'Find / replace': searchResolves,
 	Clipboard: clipboardResolves
 };
@@ -205,7 +172,6 @@ describe('consumer-guide chord coherence — self-tests', () => {
 
 	it('resolvers reject a chord that is dispatched nowhere', () => {
 		expect(keymapResolves('Mod+Q')).toBe(false);
-		expect(cellPlanResolves('Mod+Q')).toBe(false);
 		expect(searchResolves('Mod+Q')).toBe(false);
 		expect(clipboardResolves('Mod+Q')).toBe(false);
 	});

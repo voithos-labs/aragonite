@@ -22,7 +22,10 @@
  * A non-reveal widget with no explicit policy takes the image row's default. An
  * explicit deleteGranularity:'atomic' diverges (whole-delete on one press); an
  * explicit onEdge:'step-over' declines a plain arrow so native steps the caret
- * across the atomic island. Islands carry internal policy records
+ * across the atomic island. A SURFACE may substitute the policy for a widget it
+ * paints on other terms (`widgetEdgePolicy`) — the rows above assume prose
+ * affordances, and a select-then-delete with no selection to paint is a press that
+ * looks like nothing happened. Islands carry internal policy records
  * in the same vocabulary (never on the public API); the ambient marker is the
  * deliberate exception — a one-press delete of the selection range overlapping the
  * marker, not a caret-edge construct, so it fits no onEdge/deleteGranularity value.
@@ -52,7 +55,7 @@ import { widgetAtCursor } from './widget-adjacency';
 
 /** The subset of the inline-widget vocabulary the internal island/ambient policies
  *  reuse — expressing them in the same terms without leaking into the public API. */
-type EdgePolicy = Pick<InlineWidgetEditingPolicy, 'onEdge' | 'deleteGranularity'>;
+export type EdgePolicy = Pick<InlineWidgetEditingPolicy, 'onEdge' | 'deleteGranularity'>;
 
 const REPLACE_ISLAND_POLICY: EdgePolicy = {
 	onEdge: 'select',
@@ -100,6 +103,21 @@ export interface EdgePolicyDispatchDeps {
 		widget: { start: number; end: number; kind: InlineNode['kind'] },
 		fromTrailingEdge: boolean
 	) => void;
+	/**
+	 * Substitute the edge policy for a caret-adjacent widget this surface renders on
+	 * terms the kind's registration does not assume. A policy names an affordance —
+	 * `select-then-delete` promises a visible selected state — and a surface that
+	 * paints none has to answer differently rather than degrade: a table cell reads
+	 * `deleteGranularity: 'atomic'` for the widgets it paints, so a destructive key
+	 * takes the whole construct in one press instead of a two-press dance with nothing
+	 * on screen between the presses. Returning `undefined` (or omitting the dep) keeps
+	 * the kind's registered policy, so the fallthrough is the common case.
+	 */
+	widgetEdgePolicy?: (widget: {
+		start: number;
+		end: number;
+		kind: InlineNode['kind'];
+	}) => EdgePolicy | undefined;
 	/** Reading mode: island and ambient handling stand down wholesale, and the
 	 *  widget branch commits nothing (a selected-widget still selects). */
 	isReading: () => boolean;
@@ -145,7 +163,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			plainEdgeKey && !widgetAt.atRight && (e.key === 'ArrowRight' || e.key === 'Delete');
 		if (enterFromRight || enterFromLeft) {
 			const isDestructive = e.key === 'Backspace' || e.key === 'Delete';
-			const policy = getInlineWidgetEditing(widgetAt.kind);
+			const policy = deps.widgetEdgePolicy?.(widgetAt) ?? getInlineWidgetEditing(widgetAt.kind);
 			// onEdge:'step-over' (inline entity): a plain arrow treats the widget as one
 			// character — decline so native contenteditable carries the caret across the
 			// atomic island. Only navigation steps over; a destructive key still runs the

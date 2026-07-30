@@ -81,6 +81,35 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
+// The cell is the focused surface inside a table, so the table's whole keyboard
+// vocabulary binds on THIS kind — an override scoped to `table` would resolve
+// against a block that never holds the caret. Navigation (plain arrows) is
+// deliberately unbound: it depends on the caret's position within the cell, which a
+// chord cannot express, and stays in `cell-keydown-plan.ts`.
+const TABLE_CELL_KEYMAP: KeyBinding[] = [
+	{ chord: 'Enter', command: 'cell.enter' },
+	{ chord: 'Tab', command: 'cell.tab' },
+	{ chord: 'Shift+Tab', command: 'cell.shiftTab' },
+	{ chord: 'Mod+B', command: 'format.toggleStrong' },
+	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+	{ chord: 'Mod+Enter', command: 'table.insertRowBelow' },
+	{ chord: 'Mod+Shift+Enter', command: 'table.insertRowAbove' },
+	{ chord: 'Alt+Shift+ArrowRight', command: 'table.insertColumnRight' },
+	{ chord: 'Alt+Shift+ArrowLeft', command: 'table.insertColumnLeft' },
+	{ chord: 'Mod+Shift+Backspace', command: 'table.deleteRow' },
+	{ chord: 'Alt+Shift+Backspace', command: 'table.deleteColumn' },
+	{ chord: 'Alt+ArrowUp', command: 'table.moveRowUp' },
+	{ chord: 'Alt+ArrowDown', command: 'table.moveRowDown' },
+	{ chord: 'Alt+ArrowLeft', command: 'table.moveColumnLeft' },
+	{ chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' },
+	{ chord: 'Mod+Shift+A', command: 'table.cycleAlignment' },
+	// The whole table among its siblings. Alt+Arrow — every other kind's reorder
+	// chord — is taken by the row reorder a cell caret means first, so the block-level
+	// move takes the Mod+Alt variant of the same gesture.
+	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
+	{ chord: 'Mod+Alt+ArrowDown', command: 'block.moveDown' }
+];
+
 // ── Closure blocks ────────────────────────────────────────────────────────────
 
 // Shared by the not-mergeable, non-inline raw-text leaves (indentedCode,
@@ -333,13 +362,7 @@ export function registerBuiltInDescriptors(): void {
 		normalizeRawWrite: normalizeCellRaw,
 		getContentRange: tableCellContentRange,
 		renderImagesAsWidgets: false,
-		keymap: [
-			{ chord: 'Enter', command: 'cell.enter' },
-			{ chord: 'Tab', command: 'cell.tab' },
-			{ chord: 'Shift+Tab', command: 'cell.shiftTab' },
-			{ chord: 'Mod+B', command: 'format.toggleStrong' },
-			{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
-		],
+		keymap: TABLE_CELL_KEYMAP,
 		// No conformanceFixture: context-dependent — the table opener mints cells, so a
 		// cell never stands alone as the top-level result of a document scan.
 		closure: {

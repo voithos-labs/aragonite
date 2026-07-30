@@ -3,14 +3,14 @@ import {
 	tableMenuItems,
 	type TableMenuItem
 } from '../../../components/blocks/table/table-menu-model';
-import type { CellShortcutAction } from '../../../components/blocks/table/cell-keydown-plan';
+import type { TableAxisAction } from '../../../action-contracts';
 
 type ActionItem = Extract<TableMenuItem, { kind: 'action' }>;
 
-const actionItem = (items: TableMenuItem[], action: CellShortcutAction): ActionItem | undefined =>
+const actionItem = (items: TableMenuItem[], action: TableAxisAction): ActionItem | undefined =>
 	items.find((i): i is ActionItem => i.kind === 'action' && i.action === action);
 
-const hasAction = (items: TableMenuItem[], action: CellShortcutAction): boolean =>
+const hasAction = (items: TableMenuItem[], action: TableAxisAction): boolean =>
 	items.some((i) => i.kind === 'action' && i.action === action);
 
 describe('tableMenuItems: delete enablement', () => {
@@ -113,14 +113,14 @@ describe('tableMenuItems: inserts and alignment', () => {
 });
 
 describe('tableMenuItems: action items carry their own axis index', () => {
-	const rowActions: CellShortcutAction[] = [
+	const rowActions: TableAxisAction[] = [
 		'insertRowAbove',
 		'insertRowBelow',
 		'moveRowUp',
 		'moveRowDown',
 		'deleteRow'
 	];
-	const colActions: CellShortcutAction[] = [
+	const colActions: TableAxisAction[] = [
 		'insertColumnLeft',
 		'insertColumnRight',
 		'moveColumnLeft',

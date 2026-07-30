@@ -5,6 +5,9 @@
 // (cell-keydown-plan.test.ts) over inputs a test hands it; here the input is a
 // real keystroke on a real cell, and the assertion is the document that came out.
 //
+// Scope: the NAVIGATION plans, which is all the planner still decides. The structural
+// chords are keymap bindings and live in cell-table-chords.test.ts.
+//
 // Driven through a mounted Editor rather than a bare table: every arm below
 // commits, and a commit replaces the table node by copy-path-on-write — only a
 // real parent re-renders the component with the replacement (see
@@ -94,43 +97,5 @@ describe('the cell translates the row-creating plans into real rows', () => {
 		await pressInCell(2, 0, { key: 'Enter' });
 
 		expect(mounted!.source()).toBe(`${GRID}|  |  |\n`);
-	});
-});
-
-describe('the cell translates the structural chords into table mutations', () => {
-	it('Alt+Shift+ArrowRight inserts a column beside the caret’s', async () => {
-		mountGrid();
-
-		await pressInCell(1, 0, { key: 'ArrowRight', altKey: true, shiftKey: true });
-
-		expect(mounted!.source()).toBe(
-			'| A |  | B |\n| --- | --- | --- |\n| 1 |  | 2 |\n| 3 |  | 4 |\n'
-		);
-	});
-
-	it('Ctrl+Shift+Backspace deletes the caret’s row', async () => {
-		mountGrid();
-
-		await pressInCell(1, 0, { key: 'Backspace', ctrlKey: true, shiftKey: true });
-
-		expect(mounted!.source()).toBe('| A | B |\n| --- | --- |\n| 3 | 4 |\n');
-	});
-
-	it('Alt+ArrowDown moves the caret’s row down', async () => {
-		mountGrid();
-
-		await pressInCell(1, 0, { key: 'ArrowDown', altKey: true });
-
-		expect(mounted!.source()).toBe('| A | B |\n| --- | --- |\n| 3 | 4 |\n| 1 | 2 |\n');
-	});
-
-	it('Alt+ArrowUp on the first body row leaves the table alone', async () => {
-		// Contrapositive: the reorder target declines at the boundary, so the chord
-		// must not displace the header — and must not push an undo entry either.
-		mountGrid();
-
-		await pressInCell(1, 0, { key: 'ArrowUp', altKey: true });
-
-		expect(mounted!.source()).toBe(GRID);
 	});
 });

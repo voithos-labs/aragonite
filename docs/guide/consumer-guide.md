@@ -338,11 +338,15 @@ Outside that contract sits the editor's own visual language — the syntax and c
 
 Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
 
-**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing** and **Block reorder** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck).
+**What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing**, **Block reorder** and **Tables** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck).
 
 Scoping by kind is what makes the shared structural chords reachable, because a chord like `Tab` is bound separately on every kind that wants it. `{ kind: 'listItem', chord: 'Tab', command: null }` frees `Tab` inside list items (for focus traversal in a form-embedded editor, say) and leaves `Tab` alone in code blocks and prose.
 
-The **Tables** and **Find / replace** families do **not** consult the override map: table chords are structural predicates in the cell's own keydown plan, which runs _before_ the keymap, so inside a cell those chords are claimed before any override is consulted — even the ones that are rebindable everywhere else. The find chords are wired directly into the search components. Rebinding the table chords is tracked in `docs/issues.md` (folded into their migration onto the declarative keymap); the find chords are not rebindable today.
+**Scope table chords to `tableCell`, not `table`.** Inside a table the cell holds the caret, so the cell's kind is what resolves a chord: `{ kind: 'tableCell', chord: 'Mod+Enter', command: null }` frees the insert-row chord, while the same entry scoped to `table` resolves against a block that never receives a keystroke and silently does nothing.
+
+Two things a cell still claims ahead of any override, because both depend on where the caret sits inside the cell rather than on the chord: **arrow navigation** between cells, and the three-stage `Mod+A` (cell text, then the table, then the document). Disabling `Tab` or `Enter` for `tableCell` leaves the cell with no way to reach the next cell or append a row, so scope those deliberately.
+
+The **Find / replace** family does **not** consult the override map at all — those chords are wired directly into the search components, and are not rebindable today.
 
 **Plugin-global chords resolve last.** A plugin's global command (see the plugin guide) may claim a chord in the plugin-global tier, which resolves after every `keybindings` override, built-in kind chord, and built-in global chord — so a plugin chord never shadows a built-in binding, and the Find/replace chords `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord **on that kind, not elsewhere** — a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
@@ -378,12 +382,13 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 | Delete column                       | `Alt+Shift+Backspace`                               |
 | Move row up / down                  | `Alt+↑` / `Alt+↓`                                   |
 | Move column left / right            | `Alt+←` / `Alt+→`                                   |
+| Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                           |
 | Cycle column alignment              | `Mod+Shift+A`                                       |
 | **Clipboard**                       |                                                     |
 | Copy / cut a focused block          | `Mod+C` / `Mod+X`                                   |
 | Copy / cut a selected image         | `Mod+C` / `Mod+X`                                   |
 
-**The Editing rows assume a caret in ordinary block content.** Inside a table cell, `Enter`, `Tab` and `Shift+Tab` mean what the **Tables** rows say instead: the cell's keydown plan claims those three first, so there they neither split a block nor indent a list item, and no `keybindings` override reaches them.
+**The Editing rows assume a caret in ordinary block content.** Inside a table cell, `Enter`, `Tab` and `Shift+Tab` mean what the **Tables** rows say instead — the `tableCell` keymap binds them to the cell's own commands, which shadow the prose bindings for as long as the caret is in a cell. `Alt+↑` / `Alt+↓` likewise move the caret's ROW rather than the block; the whole table moves among its siblings on `Mod+Alt+↑` / `Mod+Alt+↓`.
 
 **Whole-block clipboard.** A block focused as a whole — a thematic break or a plugin diagram — has no text selection, so `Mod+C` / `Mod+X` copy or cut the block's own Markdown (cut removes the block); the same chords on a selected inline image act on the image's source. In reading mode copy works and cut degrades to copy.
 

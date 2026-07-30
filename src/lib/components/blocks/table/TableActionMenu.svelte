@@ -4,7 +4,7 @@
 		type TableMenuItem,
 		type ClipboardAction
 	} from './table-menu-model';
-	import type { CellShortcutAction } from './cell-keydown-plan';
+	import type { TableAxisAction } from '../../../action-contracts';
 
 	let {
 		items,
@@ -19,7 +19,7 @@
 		items: TableMenuItem[];
 		x: number;
 		y: number;
-		onaction: (action: CellShortcutAction, index: number) => void;
+		onaction: (action: TableAxisAction, index: number) => void;
 		onclipboard: (action: ClipboardAction) => void;
 		onalign: (alignment: 'left' | 'center' | 'right') => void;
 		onclose: () => void;

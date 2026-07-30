@@ -510,45 +510,6 @@ contract. Recorded so the next reader of that predicate does not "fix" the asymm
 
 ## Code structure
 
-### A destructive key at a mid-cell `<br>` edge needs a second press, which then deletes a non-adjacent byte
-
-**Severity:** trivial (niche gesture; byte-safe and round-trip stable throughout)
-**Files:** `src/lib/components/blocks/table/TableCellBlock.svelte` (the cell's
-`enterWidget` dep to the caret-edge dispatch)
-
-Threading the caret-edge dispatch through cells for inline reveal made it meet a
-`<br>` — a non-reveal widget with no cell affordance (images render as alt text).
-The cell's `enterWidget` sends non-reveal kinds to a caret step-over rather than the
-prose image select-then-delete path, which had no cell paint and stranded focus.
-Because `enterWidget` receives only the entry side, not the key, a Backspace/Delete
-at a `<br>` edge takes that same non-deleting step-over: press #1 hops the caret to
-the widget's far edge (no byte deleted), and press #2 — the caret now past the
-widget — deletes a NON-adjacent byte, two positions past where the user pressed; a
-Delete #2 at the trailing edge can land in the NEIGHBORING cell, and the caret
-transiently parks on an off-cell DIV mid-gesture. Every end state is byte-safe and
-round-trips. This is the pre-existing native `<br>`-in-cell behavior (0.9.14, when
-Shift+Enter cells gained `<br>`); the step-over now shields the clean first press,
-which previously stranded focus. Only reachable mid-cell — at the cell's text
-boundaries the plan owns the key.
-
-**Fix direction:** give the cell a key-aware caret-edge path for non-reveal
-widgets — a one-press atomic delete on Backspace/Delete, a caret hop on arrows —
-which needs the dispatch to hand `enterWidget` the gesture kind (or a separate
-destructive hook).
-
-**Why deferred:** bundled with the whole-table keymap migration below, since both want the cell
-keydown path expressed declaratively rather than special-cased, and every end state here is
-byte-safe and round-trip stable.
-
-### Whole-table keyboard reorder (Alt+↑/↓) is unavailable
-
-**Severity:** minor (a11y; table blocks only)
-**Files:** `src/lib/components/blocks/table/cell-keydown-plan.ts`, `src/lib/schema/block-kind-descriptor.ts` (`table` registration), `src/lib/components/blocks/table/TableBlock.svelte`
-
-Alt+↑/↓ now reorders fencedCode, thematicBreak, paragraphs, and list items among their siblings via the `block.moveUp/moveDown` keymap, matching the drag handle's tooltip. A table has no non-cell focus surface, and inside a cell Alt+↑/↓ is already bound — in `cell-keydown-plan.ts`'s hard-coded `SHORTCUTS` — to ROW reorder, so there is no free gesture to reorder the whole table block, and its drag handle's keyboard equivalent is missing.
-
-**Why deferred:** the table's structural chords live in a second, hard-coded dispatch (`cell-keydown-plan.ts`) instead of the declarative `keymap` the other kinds use, so they also bypass the consumer `keybindings` override prop. Expressing a whole-table `block.moveUp/moveDown` cleanly is part of migrating the table chords onto the declarative keymap — its own deliberate change (the consumer-guide's rebindability promise should be scoped or fulfilled with it). Code and thematic-break keyboard reorder shipped; the table case is flagged here.
-
 ### Container shim hardcodes the component `editable` flag
 
 **Severity:** minor (latent capability gap; no current misbehavior)

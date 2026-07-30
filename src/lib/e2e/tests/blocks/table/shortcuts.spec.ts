@@ -131,6 +131,22 @@ test.describe('table block: keyboard vocabulary', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
+	// The whole-block reorder every other kind puts on Alt+Arrow; in a cell that chord
+	// is the row reorder, so the block move takes the Mod+Alt variant.
+	test('Ctrl+Alt+ArrowUp moves the whole table above its previous sibling', async ({ page }) => {
+		await editor.loadContent(`lead\n\n${TABLE_2x2}`);
+		await page.locator('[role="cell"]').nth(2).click();
+
+		await page.keyboard.press('Control+Alt+ArrowUp');
+
+		await editor.bridge.waitForSourceEquals(`${TABLE_2x2}\nlead\n`);
+		// The row reorder still owns the bare chord — the two must not collide.
+		await page.locator('[role="cell"]').nth(2).click();
+		await page.keyboard.press('Alt+ArrowUp');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(`${TABLE_2x2}\nlead\n`);
+	});
+
 	test('Shift+Enter inside a cell inserts a literal <br> at the cursor', async ({ page }) => {
 		// Inline raw-HTML parsing makes <br> a recognized rawHtml node, so a cell can
 		// carry it without confusing it with markup. This pins the byte-level
