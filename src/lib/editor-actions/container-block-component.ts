@@ -222,11 +222,15 @@ export type ContainerBlockComponent = BlockComponent &
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
 ): ContainerBlockComponent {
-	// The park half of the caret door; `focus` is this plus the range-ending. The
-	// walk lands through the child's PARK door, so a child that omits it simply
-	// isn't parked (see BlockComponent.parkCaret) rather than silently ending the
-	// extend's range through the safe verb.
-	function parkCaret(offset: number): void {
+	/**
+	 * Both caret doors share this walk; they differ only in which child verb they land
+	 * through. `focus` lands through the child's own `focus` — a second range-ending,
+	 * which is a guarded no-op by then, in exchange for a caret in a child that never
+	 * forwarded the park door. `parkCaret` lands through the child's park door and
+	 * skips a child that lacks one, because for an extend a missed park costs a caret
+	 * while the safe verb would cost the range.
+	 */
+	function walkInto(offset: number, land: (ref: BlockComponent, offset: number) => void): void {
 		// Whole-block focus: any caret entry lands on the block itself, the
 		// element offset carries no meaning (ThematicBreak's model).
 		const focusEl = deps.getFocusEl?.();
@@ -239,19 +243,21 @@ export function createContainerBlockComponent(
 		// below — which targets the last child — clamps to it rather than no-oping
 		// on the unmounted ref.
 		const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
-		if (offset === FOCUS_LAST_START) {
-			deps.innerBlockRefs[last]?.parkCaret?.(FOCUS_LAST_START);
-		} else if (offset === 0) {
-			deps.innerBlockRefs[0]?.parkCaret?.(0);
-		} else {
-			deps.innerBlockRefs[last]?.parkCaret?.(CURSOR_END);
-		}
+		const child = offset === 0 ? deps.innerBlockRefs[0] : deps.innerBlockRefs[last];
+		if (!child) return;
+		if (offset === FOCUS_LAST_START) land(child, FOCUS_LAST_START);
+		else if (offset === 0) land(child, 0);
+		else land(child, CURSOR_END);
+	}
+
+	function parkCaret(offset: number): void {
+		walkInto(offset, (child, at) => child.parkCaret?.(at));
 	}
 
 	return {
 		editable: true,
 		focusable: true,
-		focus: placeCaret(deps.selection, parkCaret),
+		focus: placeCaret(deps.selection, (offset) => walkInto(offset, (child, at) => child.focus(at))),
 		parkCaret,
 		getCursorOffset() {
 			const focusEl = deps.getFocusEl?.();

@@ -24,8 +24,13 @@
  *
  * 3. The park door's presence. `parkCaret` is optional on `BlockComponent`, so a block
  *    that forwards a shared seam's `focus` and forgets its `parkCaret` type-checks
- *    clean and silently degrades every extend that lands on it. Two blocks did exactly
- *    that on the first pass of the split.
+ *    clean and silently degrades every extend that lands on it. Four blocks did exactly
+ *    that on the first pass of the split. Scope: FORWARDS only. A hand-rolled
+ *    `export function focus(offset)` — CodeBlock, ThematicBreak, the two table
+ *    surfaces — is outside the matcher, and deliberately so: there is no seam to pair
+ *    against, and the worst outcome for a hand-roll that omits the door is the benign
+ *    one the contract already documents (a missed park, not a lost caret), because the
+ *    container walk lands `focus` through the child's `focus`.
  */
 
 import { describe, it, expect } from 'vitest';
