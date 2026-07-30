@@ -4,12 +4,7 @@
 	// reaches for (block-list state, the ancestor contexts, container-exit,
 	// windowing, the BlockComponent shim). This component supplies only its own
 	// chrome around the returned BlockList props.
-	import {
-		BlockList,
-		createContainerBlock,
-		type ContainerBlockComponent,
-		type NodeView
-	} from '$lib/plugin';
+	import { BlockList, createContainerBlock, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -22,36 +17,7 @@
 		getBoxEl: () => boxEl
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-
-	// Completeness guard: `bind:this` reads each instance export individually, so the
-	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
-	// new ContainerBlockComponent member is added and left un-forwarded above.
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

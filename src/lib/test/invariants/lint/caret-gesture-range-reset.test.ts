@@ -25,12 +25,20 @@
  * 3. The park door's presence. `parkCaret` is optional on `BlockComponent`, so a block
  *    that forwards a shared seam's `focus` and forgets its `parkCaret` type-checks
  *    clean and silently degrades every extend that lands on it. Four blocks did exactly
- *    that on the first pass of the split. Scope: FORWARDS only. A hand-rolled
+ *    that on the first pass of the split. Scope: LEAF forwards. A hand-rolled
  *    `export function focus(offset)` — CodeBlock, ThematicBreak, the two table
  *    surfaces — is outside the matcher, and deliberately so: there is no seam to pair
  *    against, and the worst outcome for a hand-roll that omits the door is the benign
  *    one the contract already documents (a missed park, not a lost caret), because the
  *    container walk lands `focus` through the child's `focus`.
+ *
+ *    Containers left this class entirely: they publish the whole surface as ONE
+ *    `containerApi` export, so no member — `parkCaret` included — can be dropped one at
+ *    a time. What replaces the pairing check for them is the arm below: publish that one
+ *    export, or publish nothing. Its own belt is the registry type
+ *    (`BlockComponentExports`), which fails `npm run check` at the registration site; the
+ *    lint is what still covers a container with no registry entry (`listItem`) and names
+ *    the rule where an author reads it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -53,6 +61,15 @@ const PARK_CALL_RE = /\.parkCaret\s*\??\.?\s*\(/;
  *  `export` is load-bearing: an unexported `const focus = selection.focus` is a read
  *  of the selection's focus ENDPOINT, a different `focus` entirely. */
 const FOCUS_FORWARD_RE = /\bexport const focus = ((?:\w+\.)*\w+)\.focus\s*;/g;
+/** A call to a container seam factory — the thing that mints a whole
+ *  `ContainerBlockComponent`, both doors included. */
+const CONTAINER_SEAM_RE = /\bcreateContainerBlock(?:Component)?\s*\(/;
+/** The publication: one instance export carrying that surface, in either spelling
+ *  (`export const containerApi = …` where the factory result IS the export, or
+ *  `export { containerApi }` beside a destructure). The `export` keyword is load-bearing
+ *  for the same reason it is above — `bind:this` reads instance EXPORTS. */
+const CONTAINER_API_EXPORT_RE =
+	/\bexport\s+(?:const\s+containerApi\s*=|\{[^}]*\bcontainerApi\b[^}]*\})/;
 
 type Door = 'reset' | 'delegate' | 'both';
 
@@ -61,6 +78,15 @@ type Door = 'reset' | 'delegate' | 'both';
  * it is named as the seam and excluded from the press sweep below.
  */
 const PREAMBLE_MODULE = 'src/lib/selection/cross-block/pointer.ts';
+
+/**
+ * The container seam's own modules. They MINT the surface, so a factory call here is a
+ * definition, not a container component with a ref to publish.
+ */
+const CONTAINER_SEAM_MODULES = [
+	'src/lib/editor-actions/container-block-component.ts',
+	'src/lib/editor-actions/plugin/container.ts'
+];
 
 /** Gestures whose caret the BROWSER places, and the door(s) each one owes. */
 const CARET_GESTURE_DOORS: Record<string, Door> = {
@@ -228,6 +254,36 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		}
 	});
 
+	it('every container publishes its surface as one containerApi instance export', () => {
+		const containers = sources.filter(
+			(f) => CONTAINER_SEAM_RE.test(f.code) && !CONTAINER_SEAM_MODULES.includes(f.relPath)
+		);
+		// Non-vacuity: the sweep is only a guard while it reaches real containers. No
+		// enumeration here on purpose — this file's own list drifted once as plugins landed.
+		expect(containers.length, 'the container sweep found no container components').toBeGreaterThan(
+			0
+		);
+
+		const offenders = containers
+			.filter((f) => !CONTAINER_API_EXPORT_RE.test(f.code))
+			.map((f) => f.relPath)
+			.sort();
+		expect(
+			offenders,
+			'a container calls the seam factory but publishes no `containerApi` instance export. ' +
+				'BlockHost resolves a container ref through that one export, so without it the block ' +
+				'publishes a surface with no verbs — no focus, and no park door for an extend.'
+		).toEqual([]);
+	});
+
+	it('every declared container-seam module still mints the surface (no dead entry)', () => {
+		for (const relPath of CONTAINER_SEAM_MODULES) {
+			const file = byPath.get(relPath);
+			expect(file, `container-seam module not found: ${relPath}`).toBeDefined();
+			expect(CONTAINER_SEAM_RE.test(file!.code), `stale entry: ${relPath}`).toBe(true);
+		}
+	});
+
 	it('a block forwarding a seam’s focus forwards that seam’s parkCaret too', () => {
 		const offenders = sources
 			.filter((f) => unforwardedParkSeams(f.code).length > 0)
@@ -275,6 +331,24 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		expect(PARK_CALL_RE.test('refs[last]?.parkCaret?.(FOCUS_LAST_START)')).toBe(true);
 		expect(PARK_CALL_RE.test('export const parkCaret = leaf.parkCaret;')).toBe(false);
 		expect(PARK_CALL_RE.test('export function parkCaret(offset: number): void {')).toBe(false);
+	});
+
+	it('the container matchers read both publication spellings and reject a bare local', () => {
+		expect(CONTAINER_SEAM_RE.test('const { containerApi } = createContainerBlock({')).toBe(true);
+		expect(CONTAINER_SEAM_RE.test('const api = createContainerBlockComponent({')).toBe(true);
+		expect(CONTAINER_API_EXPORT_RE.test('export { containerApi };')).toBe(true);
+		expect(CONTAINER_API_EXPORT_RE.test('export { blockListProps, containerApi };')).toBe(true);
+		expect(CONTAINER_API_EXPORT_RE.test('export const containerApi = createContainerBlock({')).toBe(
+			true
+		);
+		// The discriminating cases: a destructure alone publishes nothing, and neither does
+		// a local that lost its `export` — the same keystroke the park-forward arm catches.
+		expect(CONTAINER_API_EXPORT_RE.test('const { blockListProps, containerApi } = f({')).toBe(
+			false
+		);
+		expect(CONTAINER_API_EXPORT_RE.test('const containerApi = createContainerBlock({')).toBe(false);
+		// A neighbouring export is not this one.
+		expect(CONTAINER_API_EXPORT_RE.test('export { blockListProps };')).toBe(false);
 	});
 
 	it('the forward check names the seam that lost its park door', () => {

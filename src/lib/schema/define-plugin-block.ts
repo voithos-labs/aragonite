@@ -15,14 +15,14 @@ import type { Component } from 'svelte';
 import { definePlugin, type EditorPlugin } from './plugin-install';
 import { declaredPluginKind } from './plugin-kind';
 import { registerBlockComponent, defineBlockComponent } from './block-component-registry';
-import type { BlockComponent, BlockComponentProps } from '../block-component';
+import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 
 export function definePluginBlock<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
 >(config: {
 	name: string;
 	kind: string;
-	component: Component<P, BlockComponent>;
+	component: Component<P, BlockComponentExports>;
 	register: () => void;
 }): EditorPlugin {
 	return definePlugin({

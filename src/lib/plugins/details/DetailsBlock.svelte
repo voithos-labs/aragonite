@@ -10,7 +10,6 @@
 		BlockList,
 		createContainerBlock,
 		isCollapsedContainer,
-		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
 	import { createReaderDisclosure } from './details-disclosure.svelte';
@@ -60,36 +59,7 @@
 	// chooses — the toggle keeps working for a reader either way.
 	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-
-	// Completeness guard: `bind:this` reads each instance export individually, so the
-	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
-	// new ContainerBlockComponent member is added and left un-forwarded above.
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <div class="details-block" bind:this={boxEl}>

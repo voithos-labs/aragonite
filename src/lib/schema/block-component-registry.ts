@@ -6,34 +6,37 @@
 import type { Component } from 'svelte';
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import type { BlockComponent, BlockComponentProps } from '../block-component';
+import type { BlockComponentExports, BlockComponentProps } from '../block-component';
 import { registerOnce } from './register-once';
 
 export interface BlockComponentEntry {
 	/**
-	 * Declaring `BlockComponent` as the component's Exports lets
-	 * `bind:this={ref: BlockComponent}` in BlockHost type-check even though
-	 * the concrete component is picked from the registry at runtime. Every
-	 * registered component `satisfies BlockComponent`, so the invariant
-	 * holds — this just surfaces it to Svelte's dynamic-component typing.
+	 * Declaring `BlockComponentExports` as the component's Exports lets BlockHost's
+	 * `bind:this` type-check even though the concrete component is picked from the
+	 * registry at runtime — and pins which shapes a block may publish: the surface
+	 * itself (a leaf) or a container's single `containerApi`. BlockHost resolves the
+	 * two through `resolveBlockSurface`.
 	 */
-	component: Component<Record<string, unknown>, BlockComponent>;
+	component: Component<Record<string, unknown>, BlockComponentExports>;
 	extraProps?: (node: NodeView) => Record<string, unknown>;
 }
 
 /**
- * Typed constructor for a component-registry entry. The `Component<P, BlockComponent>`
- * parameter enforces the two invariants that matter at the call site — the
- * component's exported surface is `BlockComponent`, and its props are a subset of
- * the `BlockComponentProps` BlockHost passes (plus any registry `extraProps`). The
- * single internal cast widens props to the registry's `Record<string, unknown>`;
- * props are contravariant, so a component with specific props can't be assigned
- * directly, but BlockHost always supplies the correct props at runtime.
+ * Typed constructor for a component-registry entry. The
+ * `Component<P, BlockComponentExports>` parameter enforces the two invariants that
+ * matter at the call site — the component publishes one of the two sanctioned
+ * surface shapes, and its props are a subset of the `BlockComponentProps` BlockHost
+ * passes (plus any registry `extraProps`). A container that forgot to export its
+ * `containerApi` publishes neither shape, so it fails here rather than mounting as a
+ * block nothing can focus. The single internal cast widens props to the registry's
+ * `Record<string, unknown>`; props are contravariant, so a component with specific
+ * props can't be assigned directly, but BlockHost always supplies the correct props
+ * at runtime.
  */
 export function defineBlockComponent<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
 >(
-	component: Component<P, BlockComponent>,
+	component: Component<P, BlockComponentExports>,
 	extraProps?: (node: NodeView) => Record<string, unknown>
 ): BlockComponentEntry {
 	return { component: component as BlockComponentEntry['component'], extraProps };

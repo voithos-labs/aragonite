@@ -120,6 +120,8 @@ Everything else is optional, and a block implements what its surface can honestl
 
 Caret placement is two verbs, not one. `focus` places a caret and ends any live cross-block range — the safe default, because a caret that lands inside a range left live is content the next keystroke type-replaces. The optional `parkCaret` is the same landing WITHOUT the range-ending, for the selection-extend paths only: the cross-block dispatcher parks a caret in an endpoint it has just revealed while the extend is still growing the range. G2.12 guards which callers may reach the second verb.
 
+A block publishes that shape in one of two ways, and BlockHost resolves both at the single point it stores a ref. A leaf publishes the members as its own instance exports. A container publishes the whole surface under one export, `containerApi`, because Svelte 5 instance exports are individual top-level declarations with no spread, and forwarding a dozen members by hand made every member a place to drop one. The component registry types the two shapes as a union, so a block publishing neither does not compile.
+
 ## 5. Schema — the per-kind metadata layer
 
 Cross-cutting block-kind metadata lives in `src/lib/schema/`. Both `core/inline/` and `tree-operations/` read from it; the schema depends on neither, because otherwise the layer DAG cycles. It is not the only thing those two share (`core/` and `perf/` are in that intersection too), but it is the one carrying kind vocabulary, which is why a cross-cutting block-kind fact belongs here.

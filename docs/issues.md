@@ -747,29 +747,6 @@ multi-child container), so it moves existing byte expectations across the clipbo
 than adding to them. Fold it into the post-1.0 clipboard/hook generalization, where those
 expectations are being revisited anyway.
 
-### Container components re-export the component surface member-by-member
-
-**Severity:** trivial (authoring ergonomics; every container is guarded)
-**Files:** `src/lib/components/BlockHost.svelte` (ref binding); every container component
-
-A container block re-exports each `ContainerBlockComponent` member as its own `export const` so
-`bind:this` on `<Comp>` in BlockHost captures the full surface — Svelte 5 instance exports are
-individual top-level declarations, with no spread. That is ~11 identical lines in every container
-component. Every container, built-in and bundled-plugin alike, now ends
-the block with a `satisfies ContainerBlockComponent` guard, so a forgotten member is a compile
-error everywhere (the built-ins' redundant `!` non-null assertions are gone with it). The
-duplication itself remains. Read the guard's own call sites for the list a migration must cover
-rather than an enumeration here, which has already drifted once as plugins landed.
-
-**Fix direction:** let a container expose ONE well-known instance export (its `containerApi`) and
-have BlockHost read `ref.<that>` as the `BlockComponent` surface it stores and dispatches through
-(`publishRefSlot`, `SelectionOverlay`, the parent's `innerBlockRefs` walks). Collapses the block to a
-single line, but changes ref normalization for the single most load-bearing dispatch component and
-the whole ref chain, across every block kind — blast radius only the simulation + VR suites observe.
-
-**Target:** 1.2 — carry it with the container-seam ergonomics pass, not as a standalone pre-freeze
-change to the ref chain.
-
 ### Footnote definition body ergonomics: Enter-at-end and non-prose-first-child residuals
 
 **Severity:** minor (edge ergonomics; byte round-trip and the common `[^label]: <prose>` shape hold)

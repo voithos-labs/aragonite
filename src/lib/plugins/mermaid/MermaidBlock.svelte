@@ -10,7 +10,6 @@
 		getPluginMetadata,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
-		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
@@ -44,41 +43,10 @@
 
 	// A childless opaque container opts into editor-level whole-block focus: the
 	// factory routes caret entry, focus-then-delete, Enter-below, arrow traversal,
-	// and Alt-arrow reorder at the block level (ThematicBreak's model). The rest of
-	// the surface re-exports the shim.
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const parkCaret = containerApi.parkCaret;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-	// Childless opaque box: the overlays measure the whole block off this for a
-	// search/decoration rect, since there are no child hosts to paint through.
-	export const measurePartialRects = containerApi.measurePartialRects;
-	// Completeness guard: `bind:this` reads each instance export individually, so the
-	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
-	// new ContainerBlockComponent member is added and left un-forwarded above.
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath,
-		measurePartialRects
-	} satisfies ContainerBlockComponent);
+	// and Alt-arrow reorder at the block level (ThematicBreak's model). It also
+	// carries `measurePartialRects`, which the overlays read to paint a
+	// search/decoration rect off the whole box — there are no child hosts here.
+	export { containerApi };
 
 	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');
 	const displayCode = $derived(trimTrailingLineEnding(code));

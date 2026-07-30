@@ -4,6 +4,34 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **BREAKING (plugin authors): a container block publishes ONE instance export.** `export
+{ containerApi }` replaces the twelve `export const` forwards plus the `satisfies` completeness
+  block every container carried, roughly fourteen lines down to one, and BlockHost resolves the two
+  publication shapes (a leaf's own surface, a container's `containerApi`) at the single point it
+  stores a ref. Every consumer of that ref reads the resolved surface: `publishRefSlot` into the
+  parent's `innerBlockRefs`, both overlays, the focus/reveal/caret-at-point walks. Eleven containers
+  migrated (four built-ins, four bundled plugins, the harness callout, the consumer example's callout
+  and dev-guard probe); a container that forgets the export now fails `npm run check` at its
+  `registerBlockComponent` call, because the component registry types a block's exports as exactly
+  those two shapes. That type is the rung the retired per-member forwards were reaching for: the
+  earlier `satisfies` guard caught a member dropped from a hand-written block, and there is no
+  hand-written block left to drop one from.
+
+  Two latent defects fell out of the migration. `SelectionOverlay` decided who paints a container's
+  selection rects by testing whether the ref carried `measurePartialRects` at all, which discriminated
+  only because a strip container happened not to forward that member; once every container publishes
+  the shim's whole surface it stopped discriminating, and a blockquote or list inside a cross-block
+  range would have washed its own box on top of its children's rects. It now reads the same
+  `!hasChildHosts` predicate its `DecorationOverlay` sibling already did. `hasChildHosts` itself was
+  wrong for a grid, whose rows render inside its own component rather than through BlockHost: it
+  answered true off child COUNT, and only the presence test above kept the table painting. Both are
+  pinned by a routing suite that mounts the host over a real container, leaf and grid under one live
+  range. The G2.12 lint moved with the migration rather than losing coverage: its park-forward
+  pairing arm is leaf-scoped now, and a new arm requires every container-seam call site to publish
+  `containerApi` (the export keyword included), which is what still covers `listItem`, the one
+  container with no component-registry entry to type-check. It found an eleventh container the
+  issue's own enumeration had missed.
+
 - **The table's keyboard vocabulary is declarative, so `keybindings` reaches it.** The table's
   eleven structural chords lived in a second, hard-coded dispatch — an ordered `SHORTCUTS` table
   inside the cell's keydown plan — which ran BEFORE the keymap. So an override for one of them was

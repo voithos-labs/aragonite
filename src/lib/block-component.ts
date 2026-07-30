@@ -249,3 +249,31 @@ export interface BlockComponent {
 	/** Whether focus may land on this block at all. This is the flag focus dispatch reads. */
 	readonly focusable: boolean;
 }
+
+// ── Published instance surface ─────────────────────────────────────────────
+
+/**
+ * What a mounted block component publishes through `bind:this`. A leaf publishes
+ * the surface itself. A container publishes it under ONE well-known export:
+ * Svelte 5 instance exports are individual top-level declarations with no spread,
+ * and re-exporting a dozen members by hand let four blocks silently drop one.
+ *
+ * The union is the enforcement. A container that publishes neither shape is a
+ * `defineBlockComponent` type error at its registration site.
+ */
+export type BlockComponentExports = BlockComponent | { readonly containerApi: BlockComponent };
+
+/**
+ * The `BlockComponent` behind a published instance — the one point that knows a
+ * container's surface hides under `containerApi`.
+ *
+ * Returns the object it was handed, never a wrapper: `publishRefSlot` clears a ref
+ * slot only while it still holds the ref it wrote, so a fresh identity per read
+ * would stomp a neighbour's slot.
+ */
+export function resolveBlockSurface(
+	exports: BlockComponentExports | undefined
+): BlockComponent | undefined {
+	if (!exports) return undefined;
+	return 'containerApi' in exports ? exports.containerApi : exports;
+}

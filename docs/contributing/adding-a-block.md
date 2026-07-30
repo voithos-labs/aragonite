@@ -47,7 +47,7 @@ Pick the closest reference and read it fully before starting. It will answer mor
 
 ## The component
 
-Every block exposes the `BlockComponent` shape: two boolean flags (`editable`, `focusable`) plus focus and cursor methods, with optional extensions for selection and the container focus cascade. A `satisfies BlockComponent` assertion at the bottom of the script enforces it at compile time — if you get the shape wrong, you find out from `npm run check`, not from a user.
+Every block exposes the `BlockComponent` shape: two boolean flags (`editable`, `focusable`) plus focus and cursor methods, with optional extensions for selection and the container focus cascade. A leaf publishes those as its own instance exports, ending the script with a `satisfies BlockComponent` assertion; a container publishes the whole surface as one `export { containerApi }`. Either way you find a wrong shape from `npm run check`, not from a user: the component registry types a block's exports as exactly those two publication shapes.
 
 ### Reading parent contexts
 
