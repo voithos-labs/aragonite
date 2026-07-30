@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -31,22 +31,12 @@ const FOOTNOTE_DOC =
 	'[^a]: The first note body.\n\n' + // [2] — the seeded definition
 	'Draft line for a new note.\n'; // [3] — a blank-line-separated slot a new definition forms in
 
-class FootnoteSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=footnotes');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('footnote-ops simulation', () => {
-	let editor: FootnoteSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new FootnoteSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('footnotes');
 	});
 
 	test('reference + definition inserts, reveals, edits, split, and undo stay corruption-free', async ({

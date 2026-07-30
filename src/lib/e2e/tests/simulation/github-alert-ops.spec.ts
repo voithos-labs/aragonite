@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -29,22 +29,12 @@ const ALERT_DOC =
 	'> [!WARNING]\n> first body\n>\n> second body\n\n' + // [1] — a seeded two-child alert
 	'Tail paragraph.\n'; // [2]
 
-class GithubAlertSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=admonitions');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('github-alert-ops simulation', () => {
-	let editor: GithubAlertSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new GithubAlertSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('admonitions');
 	});
 
 	test('alert formation, inner edit, contained merge, unwrap, and undo stay corruption-free', async ({

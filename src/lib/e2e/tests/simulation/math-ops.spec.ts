@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -32,21 +32,11 @@ const MERMAID_DOC =
 // reorder and a range delete reach its bytes without ever focusing it.
 const MATH_FENCE_DOC = 'Above the fence\n\n```math\nx^2\n```\n\nBelow the fence\n';
 
-class MathSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('math-ops simulation', () => {
-	let editor: MathSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new MathSimPage(page);
+		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
 	});
 
