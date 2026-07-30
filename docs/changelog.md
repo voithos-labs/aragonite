@@ -1123,9 +1123,9 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   deterministic probe keyed by the gesture union, and the family also rides two note sessions and
   the multi-seed fuzz, where the seed picks which gesture meets which mid-session tree.
 
-Ship gates: unit 5367, e2e 1571, check 0/0, lint 0, perf:check 11/11 gated rows (gate
-restructured this minor — the 24-row count was the 0.9.35 spec layout; row shape verified
-identical at the batch base).
+Ship gates: unit 5889, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
+was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
+container-head rows plus the row-shape verification at the batch base).
 
 ### 0.9.35: the navigation API + toc v2
 
