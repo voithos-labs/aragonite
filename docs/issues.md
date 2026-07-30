@@ -631,6 +631,65 @@ failure.
 
 ## Plugin containers
 
+### `updateOwnMetadata` is not reading-gated, so "reading mode writes no bytes" is pinned by tests where a choke point is available
+
+**Severity:** medium-low (published-contract enforcement gap; no shipped defect)
+**Files:** `src/lib/editor-actions/plugin/container.ts` (`updateOwnMetadata` — no mode check),
+`src/lib/editor-actions/block-edit.ts` and `editor-actions/nested/nested-block-edit.ts` (the
+forwarding level), `src/lib/editor-actions/block-edit-core.ts` (`updateBlockMetadata` — the
+choke point)
+
+0.9.36 promoted "reading mode writes no bytes" from a v1 limitation to a **published contract**
+(consumer guide, `plugin-contract.md`, changelog). The plugin-facing metadata door does not
+enforce it: none of the three levels from `updateOwnMetadata` down to `updateBlockMetadata`
+checks the mode, so a third-party container plugin following the documented recipe can commit
+bytes in reading mode. Its immediate siblings inside the same factory DO gate —
+`composeExpandDoor` declines in reading, and the whole-block edit branches check `isReading` —
+so the container seam gates every path except the one plugins are told to use.
+
+Reading-mode inertness is per-site everywhere: the task checkbox's comes from `if (readOnly)
+return` in `ListItemBlock.toggleTask`, which is G4.19's arm 2. **G4.19 cannot see this path** —
+it scans `dispatchKeyCommand`/`dispatchKindCommand`/`getCommand` construction sites, and a
+component's `onclick` is not one. The bundled details disclosure is safe by construction (its
+reading handler is closed over a module with no commit door in its dependencies, which is a
+compile error to violate), and that construction is pinned: routing the reading path to the
+committing handler reds 3 of 4 presentation specs on the byte/undo/mount triple. So the contract
+is **test-pinned where a single guard at a choke point would make it structural** — the
+enforcement ladder's `documented`+`guarded-per-site` rung where `unrepresentable` is reachable.
+
+**Fix direction:** gate at `block-edit-core.updateBlockMetadata`, the one choke point every
+metadata write funnels through, so the contract holds for every container plugin in one edit.
+
+**Why deferred:** pre-existing, with no shipped defect behind it — the bundled containers all
+gate, and the e2e pins hold the line for the one that matters. The fix is a choke-point design
+decision (does the gate refuse silently, dev-warn, or return a result the caller must handle?)
+that touches every container plugin's commit path, so it wants its own pass rather than a rider
+on a records round.
+
+### A table cell's inline widgets read neither the presentation mode nor the theme
+
+**Severity:** nit (sibling-parity gap; benign today)
+**Files:** `src/lib/components/blocks/table/cell-render.ts` (widget pool built without
+`getPresentationMode`/`getTheme`; render key carries no mode term), against
+`src/lib/components/blocks/text/text-render.ts` (carries both)
+
+0.9.36 wrote _the theme rides exactly where the mode rides_ into `plugin-contract.md` and the
+plugin guide. The cell render surface is the one sibling carrying neither term, so it preserves
+that rule rather than half-answering it — but a published rule with an unrecorded exception is
+the sibling-parity shape `docs/contributing/culture.md` says to record rather than pass.
+
+Benign today: no bundled inline-widget **component** reads the mode (only block components do),
+so a cell widget defaulting to `'source'`/`'dark'` changes nothing shipped. It becomes real for
+the first mode- or theme-reading widget placed in a cell, which would otherwise discover it in
+production.
+
+**Fix direction:** thread both terms at once, and add a mode term to the cell's render key — a
+mode flip must rebuild a cell's inline DOM the way it rebuilds a prose block's.
+
+**Why deferred:** it belongs with whoever first ships a mode- or engine-painted in-cell widget;
+adding the terms now would ship two unused getters plus a new render-key segment on the
+keystroke path, unexercised by any consumer.
+
 ### A details body line reproducing `</details>` destroys the container, and no rebuild can repair it
 
 **Severity:** important (container destruction on reload; guarded, not silent)
@@ -778,20 +837,30 @@ listItem in the same pass, since both inherit the same prefix-forward machinery.
 footnote shape never produces; the Enter-at-end fix is the same deferred splitNode design pass its
 top-level sibling entry already owns.
 
-### A deferred or blocked image widget has no placeholder styling
+### An image that has not loaded reserves no space
 
 **Severity:** nit (visual; an unloaded image occupies 0×0 instead of reserving space)
 **Files:** `src/lib/components/image/widget-dom.ts` (adds `md-image-placeholder` /
-`md-image-blocked`), `src/lib/styles/editor.css` (styles neither)
+`md-image-blocked`, and leaves an in-flight widget classless), `src/lib/styles/editor.css`
+(styles neither class)
 
-`imageLoadPolicy: 'placeholder'` and a disallowed `src` scheme both leave `img.src` unset and
-mark the widget with a class that has no CSS anywhere, so the widget shrink-wraps a 0×0 `<img>`
-and the image reads as missing rather than deferred. `md-image-broken` is the styled sibling and
-the shape a fix would copy.
+`.md-image-widget` shrink-wraps its `<img>`, and an `<img>` with no decoded dimensions lays out
+0×0 — so every state short of "loaded or known-broken" is a zero-height widget. Three ways in,
+one class:
 
-**Why deferred:** what a deferred image should look like is a visual-design decision (reserve the
-declared `|WxH` box? a click-to-load affordance? a distinct treatment for blocked-vs-deferred),
-not a defect with one right answer, and neither state is reachable from the default policy.
+- `imageLoadPolicy: 'placeholder'` and a disallowed `src` scheme both leave `img.src` unset and
+  mark the widget with a class that has no CSS anywhere.
+- an **in-flight** request carries no state class at all, so there is nothing for CSS to hang a
+  treatment on. Measured with an intercepted, held request: `md-image-widget`, `complete=false`,
+  `naturalWidth=0`, box 0×0 until it settles, then 229×60.
+
+`md-image-broken` is the one styled member of the family and the shape a fix would copy.
+
+**Why deferred:** what an unloaded image should look like is a visual-design decision (reserve
+the declared `|WxH` box? a click-to-load affordance for the deferred policy? distinct treatments
+for blocked, deferred, and merely-slow?), not a defect with one right answer. The in-flight case
+is also the one every browser shares for a dimensionless `<img>`, so a fix here is aspect-ratio
+reservation, not a bug fix.
 
 ### `BlockComponent.focus(offset)` parks a caret without ending a live cross-block range
 

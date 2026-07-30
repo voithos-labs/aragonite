@@ -300,7 +300,7 @@ Tokens are declared on the editor's own root (`.editor`), never on `:root` — t
 
 Mode keys on `data-editor-theme` on the scoped element. Set the `theme` prop on `<Editor>` (`'dark'` default, `'light'`, or any custom name); on an `.aragonite-editor-theme` wrapper, set the attribute directly. **Dark is the base** — `'light'` overrides only the tokens that differ.
 
-The prop is **live**: changing it retheme the surface through the cascade, and plugin content whose colors an engine PAINTS rather than CSS styles (a Mermaid diagram's SVG) is redrawn for the new theme — nothing is a mount-time snapshot. A theme change writes no document bytes.
+The prop is **live**: changing it rethemes the surface through the cascade, and plugin content whose colors an engine PAINTS rather than CSS styles (a Mermaid diagram's SVG) is redrawn for the new theme — nothing is a mount-time snapshot. A theme change writes no document bytes.
 
 ### Overriding and custom themes
 
@@ -407,7 +407,7 @@ The payload envelopes — read the source types for the per-op arms, which chang
 - **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused.
 - **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command | decoration | clipboard` and `context` carries the block path or op kind when known (the block kind, command id, and owning plugin for a `command` throw; the source name for a `decoration` throw; the range the paste was aimed at, where there was one, for a `clipboard` failure).
 - **`PresentationMode`** (`presentationModeChange`) — the effective mode after a `presentationMode` prop change; a bare mode value, not a `{…}` envelope, and never fired at mount.
-- **`string`** (`themeChange`) — the theme name after a `theme` prop change; a bare value, never fired at mount. Only plugin content that PAINTS its own colors needs it; token-styled content retheme itself through the cascade.
+- **`string`** (`themeChange`) — the theme name after a `theme` prop change; a bare value, never fired at mount. Only plugin content that PAINTS its own colors needs it; token-styled content rethemes itself through the cascade.
 
 `on(name, cb)` returns a disposer; call it to unsubscribe. Events fire synchronously from their emission sites. **Handlers must not mutate the document** — reentrant edits are not supported.
 

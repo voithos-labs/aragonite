@@ -20,7 +20,7 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   cross-check gains its one carve-out, scoped to reading alone, since that is the only mode where
   a view running ahead of the document is legitimate.
 
-- **The theme reaches content the editor does not style.** A stylesheet retheme everything the
+- **The theme reaches content the editor does not style.** A stylesheet rethemes everything the
   editor paints, which is why the theme had no seam beyond CSS — but an engine that emits markup
   carrying color literals is outside that reach: a drawn Mermaid SVG cannot be rethemed, only
   redrawn. The theme now rides the four doors the presentation mode already rode (the container
