@@ -951,11 +951,11 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Component registry**
 
-| Export                                                         | Role                                                                                     |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `registerBlockComponent`                                       | Bind a kind to the component that renders it                                             |
-| `defineBlockComponent`                                         | Wrap a Svelte component into the registry's entry shape                                  |
-| `BlockComponentEntry`, `BlockComponent`, `BlockComponentProps` | The registry entry, the component contract, and the props every block component receives |
+| Export                                                                                  | Role                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerBlockComponent`                                                                | Bind a kind to the component that renders it                                                                                                                                              |
+| `defineBlockComponent`                                                                  | Wrap a Svelte component into the registry's entry shape                                                                                                                                   |
+| `BlockComponentEntry`, `BlockComponent`, `BlockComponentExports`, `BlockComponentProps` | The registry entry, the component contract, the two shapes a component may publish it as (its own members, or a container's `containerApi`), and the props every block component receives |
 
 **Parser opener** — placement rules in [Opener priority](#opener-priority)
 

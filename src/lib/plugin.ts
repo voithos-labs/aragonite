@@ -85,7 +85,7 @@ export { simpleLeafClosure, containerClosure } from './schema/closure';
 // ── Component registry ───────────────────────────────────────────────────────
 export { registerBlockComponent, defineBlockComponent } from './schema/block-component-registry';
 export type { BlockComponentEntry } from './schema/block-component-registry';
-export type { BlockComponent, BlockComponentProps } from './block-component';
+export type { BlockComponent, BlockComponentExports, BlockComponentProps } from './block-component';
 
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
