@@ -240,11 +240,12 @@ test.describe('plugin container: <details> collapsible', () => {
 		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
 		expect(await page.locator('.details-block .block-host').last().innerText()).toBe('</details>');
 
-		// The caret stays in the block it was typed into. Its exact offset is NOT
-		// pinned here: the escape's caret image is exact in raw space (unit-pinned on
-		// `mapCommittedOffset`), but the restore lands short for a block that gains
-		// an atomic widget within the same commit — a cursor-core seam, ledgered.
-		expect(await activeBlockPath(page)).toEqual([0, 2]);
+		// The caret sits after the typed `>`, past the entity the escape grew ahead of
+		// it, so the next keystroke continues the line instead of landing mid-word.
+		// The completing keystroke commits as a KIND CHANGE (`</details` alone is a
+		// type-6 opener), so this is the structural door's landing, not the typing one.
+		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
+		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

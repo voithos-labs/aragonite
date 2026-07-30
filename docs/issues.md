@@ -697,30 +697,6 @@ and search-replace are smaller and can ride behind it.
 plumbing whose cost is concentrated in paste, and the uncovered doors sit exactly where the floor
 already was.
 
-### A caret restored into a block that grows an atomic widget mid-commit lands short
-
-**Severity:** minor (caret placement only; bytes and structure correct)
-**Files:** `src/lib/cursor/widget-offset.ts` (`createRangeAtDomTextOffsets` /
-`findDomTextOffsetTarget`), `src/lib/ambient/ambient-cursor.ts` (`setRaw`)
-
-**Repro:** in a details body, type `</details>` into a paragraph. The commit escapes it to
-`&lt;/details>`, which renders `&lt;` as an atomic entity widget — a widget the block did not
-have one keystroke earlier. The caret should land at raw 13 (after the `>`); it lands at raw 10,
-three units short, inside the word.
-
-Measured, not inferred: the pending-cursor trace records `set 13` then `consume 13, applied` with
-the widget already in the DOM and the escaped raw in the node, so the seam hands the restore the
-right raw offset and the restore runs. The loss is downstream, in the raw→DOM walk — whose own
-contract says widgets count by RAW length, which would put 13 at the line's end.
-
-**Fix direction:** treat as a cursor-core defect and run it under systematic-debugging; the
-narrow question is what the walk does with an offset at the container's one-past-end position
-when a widget's walk length exceeds its rendered text.
-
-**Why deferred:** it is the first case of a commit ADDING a widget to the block being typed in,
-so nothing else exercises it; the blast radius of the walk is every caret in the editor, and the
-byte seam that surfaced it is independently correct.
-
 ### Search replace skips matches inside childless opaque containers
 
 **Severity:** minor (replace parity; find/highlight/navigate work today)

@@ -14,7 +14,9 @@ import {
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { splitNode } from '$lib/tree-operations/node-ops';
 
 /**
  * `</details>` is a fixed terminator with no fence length to escalate, so bytes
@@ -120,6 +122,38 @@ describe('details terminator collision through the real commit path', () => {
 	});
 });
 
+// Enter is the second door into the body. BOTH halves are reachable, which is why
+// the sink escapes both: the anchored recognizer spares a tag line with text on
+// either side, and the cut is what strands it alone.
+describe('details terminator escape at the split door', () => {
+	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS) });
+
+	it('escapes the second half when the cut strands a trailing tag', () => {
+		const parent = { children: parse('foo</details>\n').children, ...detailsOwner() };
+		splitNode(parent, 0, 3);
+
+		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
+	});
+
+	it('escapes the first half when the cut strands a leading tag', () => {
+		// `</details>foo` parses as an htmlBlock — the tag line only survived unescaped
+		// because the trailing text kept it off the anchored terminator.
+		const parent = { children: parse('</details>foo\n').children, ...detailsOwner() };
+		expect(parent.children[0].kind).toBe('htmlBlock');
+
+		splitNode(parent, 0, 10);
+
+		expect(parent.children.map((c) => c.raw)).toEqual(['&lt;/details>\n', 'foo\n']);
+	});
+
+	it('leaves both halves alone at the document root, where no container claims them', () => {
+		const parent = { children: parse('foo</details>\n').children };
+		splitNode(parent, 0, 3);
+
+		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);
+	});
+});
+
 describe('details terminator escape caret image', () => {
 	it('maps the caret past the inserted entity so the re-render seats it correctly', () => {
 		const h = mountDetails(OPEN_DETAILS);
@@ -139,5 +173,21 @@ describe('details terminator escape caret image', () => {
 		const h = mountDetails(OPEN_DETAILS);
 
 		expect(h.bundle.blockEdit.mapCommittedOffset?.('&lt;/details>\n', 13)).toBe(13);
+	});
+
+	// The keystroke that completes the tag is a KIND CHANGE, not routine typing:
+	// `</details` alone is already a type-6 html opener, so the block is an
+	// htmlBlock until the `>` escapes it back to prose. Both commit doors must map
+	// the caret; the landing itself is pinned end-to-end in the details e2e, which
+	// is the only place the component measures a pre-escape DOM for real.
+	it('escapes the completing keystroke even though it arrives as a kind change', async () => {
+		const h = mountDetails(OPEN_DETAILS);
+		await h.bundle.blockEdit.updateBlockContent(1, '</details\n', 0);
+		expect(h.deps.doc.children[0].children?.[1].kind).toBe('htmlBlock');
+
+		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 9, 10);
+
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
+		expect(h.deps.doc.children[0].children?.[1].kind).toBe('paragraph');
 	});
 });
