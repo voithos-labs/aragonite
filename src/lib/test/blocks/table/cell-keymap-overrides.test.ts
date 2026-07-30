@@ -61,12 +61,19 @@ describe('a keybindings override reaches a table structural chord', () => {
 		expect(mounted!.source()).toBe(`| A | B |\n| --- | --- |\n| 1 | 2 |\n|  |  |\n| 3 | 4 |\n`);
 	});
 
-	it('disables the delete-row chord', async () => {
+	// An unchanged source alone does not discriminate "disabled" from "did something
+	// else instead" — with the binding gone the navigation plan claims the key and hops
+	// a cell, which also writes nothing. So each disable arm also names where the caret
+	// ended up: the two answers differ there.
+	it('disables the delete-row chord, leaving the caret in its own cell', async () => {
 		mountWith([{ kind: 'tableCell', chord: 'Mod+Shift+Backspace', command: null }]);
 
 		await pressInCell(1, 0, { key: 'Backspace', ctrlKey: true, shiftKey: true });
 
 		expect(mounted!.source()).toBe(GRID);
+		// Backspace at offset 0 with no binding is the plan's cell hop; the caret is at
+		// the start of the pressed cell here, so the plan hops it to the previous one.
+		expect(document.activeElement).toBe(cell(0, 1));
 	});
 
 	// A global-scope disable (no `kind`) must reach the cell too: the override tier is
@@ -77,6 +84,9 @@ describe('a keybindings override reaches a table structural chord', () => {
 		await pressInCell(1, 0, { key: 'ArrowDown', altKey: true });
 
 		expect(mounted!.source()).toBe(GRID);
+		// The unbound modified arrow navigates rather than no-op'ing (see
+		// cell-keydown-plan.ts) — so the row is intact AND the caret moved down a row.
+		expect(document.activeElement).toBe(cell(2, 0));
 	});
 
 	// Contrapositive: an override for a DIFFERENT kind must not free the cell's chord,

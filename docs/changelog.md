@@ -28,13 +28,25 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   the guard the seam cannot supply, for the row-appending end of Tab/Enter.
 
   Two things stay off the keymap, and the boundary is the same one in both cases: arrow navigation
-  between cells and the three-stage `Mod+A` read where the caret sits INSIDE the cell, which a
-  chord cannot express. The select-all case is the one real gap the migration found in the keymap
-  design — its stage machine has to recognize "the chord that continues my run", and with no
-  command→chord reverse lookup a rebound select-all would break the run. The workaround is exact
-  rather than a hack (resolve the chord and test the resulting COMMAND), and it is not taken here
-  because nothing rebinds `Mod+A`; the finding is recorded for the freeze review rather than
-  answered with a type extension for one caller.
+  between cells and the three-stage `Mod+A` read where the caret sits INSIDE the cell, which a chord
+  cannot express. Neither is a command, which makes the two override directions asymmetric, and the
+  guide now says so: a DISABLE cannot reach them (there is no binding to unbind), while a BIND
+  shadows them completely, because the dispatcher resolves first. The intended precedence — an
+  explicit binding wins — but worth stating, since claiming an arrow takes the built-in gesture with
+  it. Two smaller consequences of the same reordering: a plugin-GLOBAL chord now reaches a cell where
+  the plan used to swallow it (the tier is documented to resolve last, and it does — it just gets
+  there now), and in reading mode a modified structural chord falls through the dead-keyed seam to
+  the navigation plan, so `Mod+Enter` hops a row where the retired route swallowed it. Navigation is
+  what reading mode permits, so the refusal's scope narrowed only for keys that no longer mutate.
+
+  The one keymap-design item routed to the freeze review is narrower than it first looked. The
+  three-stage machine recognises "the chord that continues my run" against a chord LITERAL, which is
+  a latent coupling rather than a live defect: select-all is not in the command vocabulary at all
+  (the document-level machine keys off the raw key too), so there is nothing to rebind and no command
+  to resolve a chord to. It bites only if select-all becomes a command id — which is exactly what
+  1.2's unified command registry plans — and at that point the fix is a `chordsForCommand(kind,
+command, overrides)` read over the tiers the resolvers already hold, not a new tier. Recorded so
+  that migration inherits the coupling rather than discovering it.
 
 - **A table can be reordered from the keyboard.** Every other kind moves among its siblings on
   `Alt+↑`/`Alt+↓`, which its drag handle's tooltip promises — but inside a cell that chord already
@@ -45,6 +57,11 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
   reorders its children, and a table's grid rows are not that, so a cell's own path lands on the
   table's slot, and the move announces itself to a screen reader through the same shared action
   every other kind uses.
+
+  One caveat for anyone shipping this chord: `Ctrl+Alt+Arrow` is the display-rotation hotkey on some
+  Windows graphics drivers, and `Cmd+Opt+←/→` switches tabs in some macOS browsers (the vertical
+  pair this uses is free there). The chord routes through the keymap like every other table binding,
+  so a host that collides rebinds it through `keybindings` rather than losing the gesture.
 
 - **A destructive key at a mid-cell `<br>` edge deletes it, on the first press.** A cell paints no
   widget-selection overlay, so the prose select-then-delete model a `<br>` inherited showed the

@@ -344,7 +344,12 @@ Scoping by kind is what makes the shared structural chords reachable, because a 
 
 **Scope table chords to `tableCell`, not `table`.** Inside a table the cell holds the caret, so the cell's kind is what resolves a chord: `{ kind: 'tableCell', chord: 'Mod+Enter', command: null }` frees the insert-row chord, while the same entry scoped to `table` resolves against a block that never receives a keystroke and silently does nothing.
 
-Two things a cell still claims ahead of any override, because both depend on where the caret sits inside the cell rather than on the chord: **arrow navigation** between cells, and the three-stage `Mod+A` (cell text, then the table, then the document). Disabling `Tab` or `Enter` for `tableCell` leaves the cell with no way to reach the next cell or append a row, so scope those deliberately.
+Two cell gestures sit outside the keymap entirely, because both depend on where the caret sits inside the cell rather than on the chord: **arrow navigation** between cells, and the three-stage `Mod+A` (cell text, then the table, then the document). They are not commands, so the two override directions are asymmetric — worth knowing before you scope one:
+
+- A **disable** cannot reach them. `{ kind: 'tableCell', chord: 'Mod+A', command: null }` unbinds nothing (there was no binding) and the three-stage gesture keeps running.
+- A **bind** shadows them completely. `{ kind: 'tableCell', chord: 'ArrowUp', command: 'table.deleteRow' }` resolves first and the cell never navigates. That is the intended precedence — an explicit binding wins — but it means claiming an arrow or `Mod+A` for your own command takes the built-in gesture with it.
+
+Disabling `Tab` or `Enter` for `tableCell` likewise leaves the cell with no way to reach the next cell or append a row, so scope those deliberately.
 
 The **Find / replace** family does **not** consult the override map at all — those chords are wired directly into the search components, and are not rebindable today.
 
