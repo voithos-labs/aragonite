@@ -572,10 +572,10 @@ covered by construction instead: a new arm added to `blockCommand`'s switch inhe
 and the guard without its author doing anything. Re-open if a mutation entry path is ever added to
 a reveal-bearing surface outside that switch.
 
-### Two block components still have no test at their own level
+### Three block components still have no test at their own level
 
 **Severity:** minor (coverage shape; the pure layer below these components is well covered)
-**Files:** `src/lib/test/harness/mount-context.ts` (the harness), `TableRowBlock`,
+**Files:** `src/lib/test/harness/mount-context.ts` (the harness), `ListBlock`, `TableRowBlock`,
 `ThematicBreakBlock`
 
 The harness assembles every context a block component reads, so mounting one in isolation is a few
@@ -584,17 +584,29 @@ twice: the pure helper is tested, the entry layer that produces its inputs is no
 documented refusal path is pinned by its own unit test while nothing pins what that refusal means at
 the caller.
 
-The top of the bugfix-density table is now covered — every container and leaf named when this entry
-was opened has a suite at its own level, and the four densest also answer for the refusal paths
-below them. The two above are what is left: the row is mounted only transitively through
-`mount-table.ts`, and the thematic break has no mount anywhere, only a source-scan lint.
+The standard is a mount of the component itself. Being reached through `mountEditor` does not count:
+the editor supplies whatever the component declines, so a decision the component makes is invisible
+there. The three below all fail that standard — no test file imports any of them.
+
+`ListBlock` is the one that matters. It is not a thin file: it layers `createListOverrides` onto the
+nested bundle, it SHADOWS `LIST_CONTEXT_KEY` (reading the parent's context before overwriting it,
+which is what makes nested-list promotion addressable), and it carries the absolute-index invariant
+that windowed item rendering rests on — the item's `index`, `myPath` and key must be the absolute
+index, never the local one. Each of those is a decision the component alone makes, and each is
+exactly the kind that a passing `mountEditor` suite would keep passing through.
+
+`TableRowBlock` is mounted only transitively through `mount-table.ts`. `ThematicBreakBlock` has no
+mount anywhere, only a source-scan lint — and it is the whole-block-focus reference implementation
+the container seam's own affordances were modelled on.
 
 **Fix direction:** for each pure helper with a documented refusal path, one test at a caller
 asserting the contrapositive, which for a component-level caller means a mount through the harness.
+`ListBlock` first.
 
-**Why deferred:** both are low-density files whose behavior is thin, so they rank below the rest of
-the pre-1.0 re-audit's unit-suite pass; that pass should pick them up rather than a dedicated
-session.
+**Why deferred:** the remaining three are a smaller unit of work than a dedicated session, so the
+pre-1.0 re-audit's unit-suite pass should pick them up. `ListBlock` should not slip past that pass:
+it was named when this entry was opened and was mistaken for closed once already, because the
+commit that covered the rest of the list tier covered `ListItemBlock` and not the list.
 
 ### G1.27 may false-fire on Safari's duplicate compositionend
 
