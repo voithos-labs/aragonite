@@ -42,9 +42,10 @@ mounted check rather than recording a bogus latency.
 
 Four rows measuring what a REGISTERED inline rung costs, which no standing row can see:
 the editor route installs no plugins, so every ceiling is an empty-registry number.
-Report-only, no gate, no baseline judgment. Each row loads its fixture twice at 100KB,
-30 keystrokes: once on `/test/plugins` where the rung is installed, once on the
-rung-free editor route, so the artifact carries both numbers and their delta.
+Report-only, no gate, no baseline judgment. Each row loads its fixture twice, 30
+keystrokes, at 100KB (the footnote row also at 1MB): once on `/test/plugins` where the
+rung is installed, once on the rung-free editor route, so the artifact carries both
+numbers and their delta.
 
 - bracket-dense under footnotes (`?seed=footnotes`): every paragraph carries inline
   links plus a `[^label]` reference, so each `[` in a scanned range pays the rung's
@@ -58,6 +59,11 @@ rung-free editor route, so the artifact carries both numbers and their delta.
 - dollar-dense under latex (base plugins): shell-documentation prose (the
   `$HOME`/`$PATH`/`$USER` shape) with one real math span in the first paragraph, which
   is also the row's proof the rung is live.
+- the footnote row again at 1MB, the only row with a size axis: its two mechanisms scale
+  differently — the consultation is bounded by the scanned range while the mounted
+  derivation walks the document — so a 10× document at the same viewport separates them
+  without a second fixture. A mounted count unchanged across the two sizes is what makes
+  the growth attributable to the document rather than to the readers.
 - plain-prose under an installed unreserved rung (`?seed=emoji`): ordinary prose with
   no trigger in it at all. `:` is held out of `SPECIAL_CHARS`, so registering emoji
   turns on `needsScan`'s per-character probe for the whole document — the bail cost

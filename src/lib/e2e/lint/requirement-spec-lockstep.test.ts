@@ -27,15 +27,20 @@
  *    than its spec has tests, by at least 4, must be NAMED below with a reason.
  *    Divergence is legal; unexplained divergence is not.
  *
- * Rule 3 is a ratio rather than equality because equality was measured and
- * refuted: 212 of 336 pairs diverge legitimately, since one test routinely walks
- * several scenario bullets and shared-invariant bullets apply to every scenario.
- * Requiring equality would have needed a 212-entry allowlist — an allowlist that
- * large is noise, and the pressure it applies is toward padding the suite with
- * one-assertion tests, which is the failure `docs/issues.md` named when it
- * deferred this guard. Excluding prose sections (Notes, Artifacts, Miss-analysis…)
- * from the count was also measured: it changes nothing at this threshold (the same
- * 23 pairs fire either way), so the simpler rule with no section-name list ships.
+ * Rule 3 is a ratio rather than equality because equality was measured and refuted
+ * (2026-07-29: 214 of 338 pairs diverge legitimately, since one test routinely walks
+ * several scenario bullets and shared-invariant bullets apply to every scenario).
+ * Requiring equality would have needed a per-pair allowlist for two thirds of the
+ * suite — that large a list is noise, and the pressure it applies is toward padding
+ * the suite with one-assertion tests, which is the failure `docs/issues.md` named
+ * when it deferred this guard.
+ *
+ * Excluding prose sections (Notes, Artifacts, Miss-analysis…) from the unit count was
+ * measured too, and rejected: it moves two pairs, both perf harnesses whose bullets
+ * state budget, sizes and measurement semantics rather than scenarios — and both are
+ * named in the allowlist for exactly that, in prose, at the place it applies. Two
+ * named exceptions beat a global section-name list that every future heading has to be
+ * checked against, and the reason string says more than an exclusion ever could.
  *
  * What a green run does NOT prove: that any scenario maps to the test that covers
  * it. Bullets and test titles are semantic paraphrases of each other
@@ -73,6 +78,16 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 		spec: 'blocks/atomic-cross-block-delete.spec.ts',
 		reason:
 			'four hard-invariant bullets asserted in EVERY scenario, and the two tests are one parametrized loop over the atomic variants'
+	},
+	{
+		spec: 'perf/perf-gate.perf.spec.ts',
+		reason:
+			'two parametrized loops run 13 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
+	},
+	{
+		spec: 'perf/typing-latency.perf.spec.ts',
+		reason:
+			'five parametrized loops run ~35 report rows, and the bullets state measurement semantics (caret target, settle predicate, sizes, artifacts, the rung rows and their confound) rather than scenarios'
 	},
 	{
 		spec: 'perf/vr-reveal-anchor.spec.ts',
@@ -149,6 +164,13 @@ export function readRequirementShape(text: string): RequirementShape {
  * Literal `test()` calls outside comments. A parametrized loop counts once — the
  * shape rule 3's threshold was measured against, and the count a reader sees in
  * the file.
+ *
+ * A TITLE is what makes a call a test. `test.skip(condition, reason)` at file or
+ * describe scope is a run guard whose first argument is an expression, and five
+ * report-only specs carry one; counting those inflated the test side and made rule 3
+ * leniently wrong in exactly the files most likely to drift. Requiring a string
+ * literal first argument is the strict direction, which is the correct one here: the
+ * leniency was an accident of the regex, not a decision.
  */
 export function countTests(code: string): number {
 	const withoutComments = code
@@ -160,7 +182,10 @@ export function countTests(code: string): number {
 			return isComment ? '' : line;
 		})
 		.join('\n');
-	return [...withoutComments.matchAll(/(?:^|[\s.;{}])test(?:\.skip|\.fixme|\.only)?\s*\(/g)].length;
+	const calls = withoutComments.matchAll(
+		/(?:^|[\s.;{}])test(?:\.skip|\.fixme|\.only)?\s*\(\s*(.?)/g
+	);
+	return [...calls].filter(({ 1: firstArgument }) => `'"\``.includes(firstArgument)).length;
 }
 
 /** Rule 3's predicate: a requirement list that ran far ahead of its spec. */
@@ -237,10 +262,51 @@ function scanLockstep(): Lockstep {
 	};
 }
 
-function allowedInflation(spec: string): InflationException | undefined {
-	return INFLATION_ALLOWLIST.find((entry) =>
-		entry.spec.endsWith('/') ? spec.startsWith(entry.spec) : spec === entry.spec
-	);
+/** Whether an entry covers a spec: a trailing `/` makes it a directory prefix. */
+export function coversSpec(entry: InflationException, spec: string): boolean {
+	return entry.spec.endsWith('/') ? spec.startsWith(entry.spec) : spec === entry.spec;
+}
+
+function allowedInflation(spec: string): boolean {
+	return INFLATION_ALLOWLIST.some((entry) => coversSpec(entry, spec));
+}
+
+export interface AllowlistAudit {
+	/** Names a spec the tree does not have — a typo, or a spec since deleted. */
+	dangling: string[];
+	/** Every spec it covers is covered by another entry, so it can never be read. */
+	shadowed: string[];
+	/** Covers live specs, none of which diverges any more. */
+	stale: string[];
+}
+
+/**
+ * Audit each entry against the tree INDEPENDENTLY of the others. Asking "which entry
+ * did a first-match lookup return for this spec?" conflates three different failures:
+ * a file entry sitting under a directory entry never wins that lookup, so it read as
+ * "no longer diverges" while diverging. Each condition now names itself.
+ *
+ * Shadowing is decided by position, not by set inclusion alone, because two entries
+ * covering the same spec each subsume the other and would both report. The lookup
+ * returns the FIRST match, so the entry whose reason is never read is the later one.
+ */
+export function auditAllowlist(
+	entries: readonly InflationException[],
+	specs: readonly string[],
+	inflatedSpecs: readonly string[]
+): AllowlistAudit {
+	const covered = entries.map((entry) => specs.filter((spec) => coversSpec(entry, spec)));
+	const audit: AllowlistAudit = { dangling: [], shadowed: [], stale: [] };
+	entries.forEach((entry, index) => {
+		const mine = covered[index];
+		if (mine.length === 0) audit.dangling.push(entry.spec);
+		else if (
+			entries.some((earlier, j) => j < index && mine.every((spec) => coversSpec(earlier, spec)))
+		)
+			audit.shadowed.push(entry.spec);
+		else if (!mine.some((spec) => inflatedSpecs.includes(spec))) audit.stale.push(entry.spec);
+	});
+	return audit;
 }
 
 // ── The gate ────────────────────────────────────────────────────────────────
@@ -311,16 +377,29 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		).toEqual([]);
 	});
 
+	const audit = auditAllowlist(
+		INFLATION_ALLOWLIST,
+		lockstep.pairs.map(({ spec }) => spec),
+		lockstep.pairs
+			.filter(({ shape, tests }) => isInflated(shape.scenarioUnits, tests))
+			.map(({ spec }) => spec)
+	);
+
 	it('no allowlist entry outlived the divergence it explains', () => {
-		const inflated = lockstep.pairs.filter(({ shape, tests }) =>
-			isInflated(shape.scenarioUnits, tests)
-		);
-		const stale = INFLATION_ALLOWLIST.filter(
-			(entry) => !inflated.some(({ spec }) => allowedInflation(spec) === entry)
-		).map((entry) => entry.spec);
 		expect(
-			stale,
-			`allowlist entries whose spec no longer diverges (delete them — the list only shrinks):\n  ${stale.join('\n  ')}`
+			audit.stale,
+			`allowlist entries whose spec no longer diverges (delete them — the list only shrinks):\n  ${audit.stale.join('\n  ')}`
+		).toEqual([]);
+	});
+
+	it('every allowlist entry names a live spec no other entry already covers', () => {
+		expect(
+			audit.dangling,
+			`allowlist entries naming a spec that does not exist (renamed or deleted):\n  ${audit.dangling.join('\n  ')}`
+		).toEqual([]);
+		expect(
+			audit.shadowed,
+			`allowlist entries a broader entry already covers, so their reason is never read:\n  ${audit.shadowed.join('\n  ')}`
 		).toEqual([]);
 	});
 });
@@ -364,9 +443,21 @@ describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
 			"test.skip('b', () => {});",
 			"// test('commented out', () => {});",
 			"	test.fixme('c', () => {});",
-			"expect(latest('d')).toBe(1);"
+			"expect(latest('d')).toBe(1);",
+			'test(`a ${shape} template title`, () => {});'
 		].join('\n');
-		expect(countTests(code)).toBe(3);
+		expect(countTests(code)).toBe(4);
+	});
+
+	// The discriminating case: a run guard and a skipped test are both `test.skip(`,
+	// and only the second has a title.
+	it('does not count a file-level test.skip run guard as a test', () => {
+		expect(
+			countTests("test.skip(!process.env.PERF || !!process.env.PERF_GATE, 'report-only');")
+		).toBe(0);
+		expect(
+			countTests("test.skip(condition, 'reason');\ntest.skip('a real skipped test', fn);")
+		).toBe(1);
 	});
 
 	it('fires on a requirement list that ran ahead, not on ordinary divergence', () => {
@@ -378,5 +469,34 @@ describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
 		// scenario list to four before it reads as drift.
 		expect(isInflated(4, 1)).toBe(false);
 		expect(isInflated(5, 1)).toBe(true);
+	});
+
+	// The defect this audit replaced: a first-match lookup returns the DIRECTORY entry
+	// for a spec under it, so a file entry beneath one read as "no longer diverges"
+	// while diverging. The three conditions are now told apart.
+	it('tells a shadowed allowlist entry from a stale one', () => {
+		const entries = [
+			{ spec: 'simulation/', reason: 'family' },
+			{ spec: 'simulation/emoji-ops.spec.ts', reason: 'shadowed by the family entry' },
+			{ spec: 'plugins/healed.spec.ts', reason: 'no longer diverges' },
+			{ spec: 'plugins/gone.spec.ts', reason: 'names a spec that is not there' }
+		];
+		const specs = [
+			'simulation/emoji-ops.spec.ts',
+			'plugins/healed.spec.ts',
+			'plugins/still-diverging.spec.ts'
+		];
+		expect(auditAllowlist(entries, specs, ['simulation/emoji-ops.spec.ts'])).toEqual({
+			dangling: ['plugins/gone.spec.ts'],
+			shadowed: ['simulation/emoji-ops.spec.ts'],
+			stale: ['plugins/healed.spec.ts']
+		});
+	});
+
+	it('keeps a directory entry live while any spec under it diverges', () => {
+		const entries = [{ spec: 'simulation/', reason: 'family' }];
+		const specs = ['simulation/a.spec.ts', 'simulation/b.spec.ts'];
+		expect(auditAllowlist(entries, specs, ['simulation/b.spec.ts']).stale).toEqual([]);
+		expect(auditAllowlist(entries, specs, []).stale).toEqual(['simulation/']);
 	});
 });

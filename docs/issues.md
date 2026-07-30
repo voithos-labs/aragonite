@@ -314,7 +314,6 @@ twice — on the plugins route with the rung installed, and on the rung-free edi
 | row                                     | rung p50 | rung-free p50 | rung p95 | rung-free p95 |
 | --------------------------------------- | -------- | ------------- | -------- | ------------- |
 | bracket-dense under footnotes           | 8.2 ms   | 2.7 ms        | 14.6 ms  | 6.9 ms        |
-| bracket-dense under footnotes, 1MB      | 50 ms    | 2.7 ms        | 54.3 ms  | 5.8 ms        |
 | colon-dense under emoji                 | 2.6 ms   | 2.3 ms        | 8.5 ms   | 2.8 ms        |
 | dollar-dense under latex                | 2.6 ms   | 2.3 ms        | 3.6 ms   | 3.4 ms        |
 | plain prose under an installed `:` rung | 2.3 ms   | 2.3 ms        | 2.7 ms   | 2.6 ms        |
@@ -324,12 +323,9 @@ and **the bail probe this entry called the blindest spot is not observable at al
 under an installed unreserved rung types at the same p50 as the same bytes with an empty registry.
 The entry's own prediction (sub-millisecond at real scale) holds, on the row built to falsify it.
 
-What the rows did surface is the OTHER mechanism the footnote fixture carries, and it is not a
-scanner cost: with reference widgets in the viewport, the keystroke is O(document) — 8.2 ms at
-100KB, 50 ms at 1MB, against a control flat at 2.7 ms, with the mounted widget count identical (20)
-at both sizes. That is the third non-viewport axis in `docs/design/performance.md`, now measured in
-the browser rather than extrapolated from a node constant, and it is a bundled plugin's reader
-paying, not the ladder.
+The footnote row's excess is **not** a scanner cost: it is the second mechanism that fixture
+deliberately carries, and it now has its own entry (§ "A mounted footnote reference makes every
+keystroke O(document)"). Nothing in the numbers above is about it.
 
 **Residual:** no keystroke CEILING under an installed rung. The rows report; nothing fails if the
 number doubles. Gating was declined deliberately: a recognizer is the registering plugin's code, so
@@ -338,10 +334,51 @@ a ceiling here pins a number the editor does not own, and the only available con
 delta bounds a rung's cost from above rather than measuring it. A clean per-rung ceiling wants a
 rung-only harness route, which is the work this residual names.
 
-**Why deferred:** the measured numbers say the consultation is not worth a ceiling, and the axis
-that IS expensive belongs to the footnote reader rather than to any rung. Re-open for a rung-only
-route if a consumer reports keystroke latency under an installed rung, or if the reader axis needs
-a gate — that one is a `performance.md` decision, not this entry's.
+**Why deferred:** the measured numbers say the consultation is not worth a ceiling. Re-open for a
+rung-only route if a consumer reports keystroke latency under an installed rung.
+
+### A mounted footnote reference makes every keystroke O(document)
+
+**Severity:** watch (reachable in ordinary use, measured, unguarded; no field report yet)
+**Files:** `src/lib/plugins/footnotes/FootnoteReference.svelte` (the `$derived` that reads the
+content version), `src/lib/plugins/footnotes/footnote-numbering.ts` (`footnoteNumbersFor` — the
+shared walk, which parses inline content per prose leaf), the editor's content-version derived (the
+whole-tree touch it memoizes against), `src/lib/e2e/tests/perf/typing-latency.perf.spec.ts` (the
+`rung-bracket-dense-footnotes` rows that measure it)
+
+A mounted `[^label]` reference derives its number from the whole document, so while one is in the
+viewport every keystroke anywhere pays a walk over every node plus an inline parse per prose leaf.
+Windowing cannot bound it: the walk reads the CST, not the mounted set. Browser-measured 2026-07-29
+by the rows above, typing into a bracket-dense document with references in view:
+
+| document | keystroke p50 | rung-free control | mounted references |
+| -------- | ------------- | ----------------- | ------------------ |
+| 100KB    | 8.2 ms        | 2.7 ms            | 20                 |
+| 1MB      | 50 ms         | 2.7 ms            | 20                 |
+
+The mounted count is identical at both sizes while the document grows 10× and the cost grows ~6×,
+with the control flat — so the growth is the walk, not the number of readers. `performance.md`'s
+third non-viewport axis carries the mechanism; this entry carries the fact that nothing fails if the
+number gets worse. With no reference mounted the version is a lazy derived that never computes and
+the cost is zero, which is why the standing ceilings (no plugins installed) cannot see any of it.
+
+This is already far cheaper than what it replaced — each mounted widget used to inline-parse the
+whole document itself, 10–140× worse — so the shape is the concern, not a regression.
+
+**Fix direction:** an **incremental content version** rather than a whole-tree touch, so an edit
+invalidates the readers whose subtree changed instead of every reader on every keystroke. The read
+set is deliberately wider than any one reader needs today (a metadata, trivia, or inner-affix write
+invalidates every reader), which is what makes the incremental version the lever rather than a
+narrower memo key.
+
+**Trigger workload:** the **limestone integration**, which is the first consumer to run large
+documents with footnotes under real typing. A 1MB note with one reference in view is 50 ms per
+keystroke on the dev build.
+
+**Why deferred:** the numbers are report-only by design (a baseline here is a decision to make from
+evidence, not a diff to bless), and the lever is a change to the version seam that wants its own
+pass rather than a ride-along on a measurement task. Re-open on a consumer keystroke-latency report
+over a reference-bearing document, or on a decision to gate the axis.
 
 ### `selectionChange` fires on gestures that change no selection
 
