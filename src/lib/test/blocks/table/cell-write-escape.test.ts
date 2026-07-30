@@ -12,65 +12,18 @@
 // for knowing the rule. Measuring at the component's own call would only prove
 // the gesture escaped its bytes itself, which is the carrier these fixed.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync, tick } from 'svelte';
-import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
-import type { BlockComponent } from '$lib/block-component';
+import { tick } from 'svelte';
 import type { CstNode } from '$lib/core/nodes';
-import type { EditorServices } from '$lib/editor-keys';
-import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
 import { splitRowCells } from '$lib/core/parsers/table';
 import { updateNodeContent } from '$lib/tree-operations/node-ops';
 import { rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
-
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+import { mountCell } from './mount-cell';
 
 // The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a
 // marker span and the `|` as text, so both bytes are in textContent and the
 // caret can sit between them.
 const ESCAPED = 'a\\|b';
-
-function mountCell(raw: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	const blockEdit = makeStubBlockEdit();
-	const context = editorMountContext({
-		blockEdit,
-		doc: { doc: () => ({ kind: 'document', prefix: '', children: [node], suffix: '' }) },
-		services: { decorations: noIslands }
-	});
-	context.set(TABLE_CONTEXT_KEY, {
-		notifyCellFocused: vi.fn(),
-		notifyCellBlurred: vi.fn(),
-		focusCell: vi.fn(),
-		setStickyColumn: vi.fn()
-	});
-	// The right-click-menu clipboard reaches the cell through its published ref,
-	// not a component export — capture the slot the way BlockList does.
-	const refs: (BlockComponent | undefined)[] = [];
-	const instance = mount(TableCellBlock, {
-		target,
-		props: {
-			node,
-			index: 0,
-			myPath: [0, 1, 0],
-			rowIdx: 1,
-			colIdx: 0,
-			columnCount: 2,
-			rowCount: 2,
-			setRef: (i: number, r: BlockComponent | undefined) => {
-				refs[i] = r;
-			},
-			getRef: (i: number) => refs[i]
-		},
-		context
-	});
-	flushSync();
-	const el = target.querySelector('.table-cell') as HTMLElement;
-	return { instance, el, blockEdit, ref: () => refs[0]! };
-}
 
 /** The raw the gesture committed for this cell. */
 function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
@@ -106,7 +59,7 @@ function reparsedCells(committed: string): string[] {
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 });
 

@@ -21,64 +21,14 @@
 // catch the hop's inserted empty row. Do not thin those e2e cases expecting this
 // pair to cover them.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync, tick } from 'svelte';
-import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { CstNode } from '$lib/core/nodes';
-import type { EditorServices } from '$lib/editor-keys';
-import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { tick } from 'svelte';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
 import { resetInlineState } from '../text/math-widget-fixture';
-
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+import { mountCell } from './mount-cell';
 
 // `x $a$ yz`: a math widget at raw [2,5) with prose on both sides, so every caret
 // offset this test names sits OUTSIDE the widget span and reads back unambiguously.
 const CELL = 'x $a$ yz';
-
-function mountCell(raw: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	const blockEdit = makeStubBlockEdit();
-	const context = editorMountContext({
-		blockEdit,
-		doc: { doc: () => ({ kind: 'document', prefix: '', children: [node], suffix: '' }) },
-		services: {
-			decorations: noIslands,
-			widgetSelection: createWidgetSelectionState({ onSelect: () => {} })
-		}
-	});
-	context.set(TABLE_CONTEXT_KEY, {
-		notifyCellFocused: vi.fn(),
-		notifyCellBlurred: vi.fn(),
-		focusCell: vi.fn(),
-		setStickyColumn: vi.fn()
-	});
-	const refs: (BlockComponent | undefined)[] = [];
-	const instance = mount(TableCellBlock, {
-		target,
-		props: {
-			node,
-			index: 0,
-			myPath: [0, 1, 0],
-			rowIdx: 1,
-			colIdx: 0,
-			columnCount: 2,
-			rowCount: 2,
-			setRef: (i: number, r: BlockComponent | undefined) => {
-				refs[i] = r;
-			},
-			getRef: (i: number) => refs[i]
-		},
-		context
-	});
-	flushSync();
-	return { instance, el: target.querySelector('.table-cell') as HTMLElement, blockEdit };
-}
 
 function press(el: HTMLElement, key: string): void {
 	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
@@ -101,7 +51,7 @@ function revealedSource(el: HTMLElement): Text {
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 	resetInlineState();
 });
