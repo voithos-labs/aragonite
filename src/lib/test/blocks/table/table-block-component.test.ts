@@ -93,6 +93,26 @@ describe('the table addresses its own cells for focus and geometry', () => {
 		expect(document.activeElement).toBe(mounted.cell(1, 1));
 	});
 
+	// The two caret verbs reach the same corner cell by DIFFERENT routes — `focus` via
+	// the row's `focusByPath`, `parkCaret` via `getBlockComponentByPath` — because
+	// re-deriving `focus` from the park would be a route change on the table's five
+	// other `focusCell` callers, not a rename. Both routes index the same
+	// `innerBlockRefs` slot today; this is what makes them unable to drift apart.
+	it('both caret verbs land in the same corner cell', () => {
+		mounted = mountTable(GRID);
+
+		for (const offset of [0, 1]) {
+			const corner = offset === 0 ? mounted.cell(0, 0) : mounted.cell(2, 1);
+
+			mounted.block.focus(offset);
+			expect(document.activeElement).toBe(corner);
+
+			mounted.cell(1, 0).focus(); // move off, so the park has to place it again
+			mounted.block.parkCaret!(offset);
+			expect(document.activeElement).toBe(corner);
+		}
+	});
+
 	it('reports no cursor position until a cell reports focus', () => {
 		mounted = mountTable(GRID);
 		expect(mounted.block.getCursorPosition!()).toBeNull();

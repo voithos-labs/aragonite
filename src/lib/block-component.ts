@@ -144,6 +144,14 @@ export interface BlockComponent {
 	 * Position the cursor at the offset nearest to editor-relative pixel X
 	 * on the first (`'above'`) or last (`'below'`) visual line. Non-
 	 * participating blocks omit this; callers fall back to focus(0) / CURSOR_END.
+	 *
+	 * Range semantics differ from {@link focus} and are deliberately narrower: this
+	 * inherits {@link parkCaret}'s behavior and does NOT end a live cross-block range.
+	 * It is a column landing for vertical traversal, which the cross-block dispatcher
+	 * cannot reach — a plain ArrowUp/Down with a range live is consumed by the collapse
+	 * before sticky-column dispatch runs. A caller placing a caret because the USER
+	 * acted wants `focus`. If a range-live caller ever appears, this routes through the
+	 * same `placeCaret` door additively: the range-ending is behavior, not shape.
 	 */
 	focusAtColumn?(x: number, from: StickyColumnDirection): void;
 	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */

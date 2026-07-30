@@ -135,11 +135,16 @@ function missingDoors(code: string, door: Door): string[] {
 	return missing;
 }
 
-/** Seams whose `focus` was forwarded without the sibling `parkCaret` forward. */
+/**
+ * Seams whose `focus` was forwarded without the sibling `parkCaret` forward. The
+ * pairing string carries `export` for the same reason the matcher does: `bind:this`
+ * reads instance EXPORTS individually, so an unexported `const parkCaret = leaf.parkCaret;`
+ * is absent from the published ref while looking like a forward in the file.
+ */
 export function unforwardedParkSeams(code: string): string[] {
 	const missing: string[] = [];
 	for (const [, seam] of code.matchAll(FOCUS_FORWARD_RE)) {
-		if (!code.includes(`const parkCaret = ${seam}.parkCaret;`)) missing.push(seam);
+		if (!code.includes(`export const parkCaret = ${seam}.parkCaret;`)) missing.push(seam);
 	}
 	return missing;
 }
@@ -287,5 +292,12 @@ describe('G2.12 caret placement ends a live cross-block range', () => {
 		).toEqual(['editableSurface.surface']);
 		// A selection-endpoint read is not a caret-seam forward.
 		expect(unforwardedParkSeams('const focus = ctx.selection.focus;')).toEqual([]);
+		// The discriminating case: a park forward that lost only its `export` keyword is
+		// absent from the published ref, so the pair is NOT satisfied. `satisfies
+		// BlockComponent` cannot see export-ness and the member is optional, so this
+		// arm is the only thing between that keystroke and a silently door-less block.
+		expect(
+			unforwardedParkSeams('export const focus = leaf.focus;\nconst parkCaret = leaf.parkCaret;')
+		).toEqual(['leaf']);
 	});
 });
