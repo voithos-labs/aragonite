@@ -147,7 +147,7 @@ milestone that touches each area inherits it rather than rediscovering it:
   formatting, the syntax-of-origin family and its `rewriteImage` hook). Gathering the editing
   capabilities a rung carries into one facet was assessed and rejected: they sit in two key
   spaces, rung and kind, and the split is the design, so what 1.2 inherits is the layering
-  direction below rather than a consolidation. Standing direction: a new inline-editing
+  direction (§ 1.2) rather than a consolidation. Standing direction: a new inline-editing
   capability picks its key space deliberately and enrolls in the inline conformance kit, which
   is where a rung's behavior is held now.
 - **The webview host boundary is where consumer bugs live, and the in-repo harness cannot see it.**
