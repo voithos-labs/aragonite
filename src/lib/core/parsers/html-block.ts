@@ -22,8 +22,35 @@ const TYPE_2_OPEN = /^ {0,3}<!--/;
 const TYPE_3_OPEN = /^ {0,3}<\?/;
 const TYPE_4_OPEN = /^ {0,3}<![A-Za-z]/;
 const TYPE_5_OPEN = /^ {0,3}<!\[CDATA\[/;
-const TYPE_6_OPEN =
-	/^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul)(?:[\s/>]|$)/i;
+const TYPE_6_TAGS =
+	'address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul';
+
+/** The type-6 line shape over a tag-name alternation: 0-3 indent, an optional
+ *  closing slash (captured), the name, then whitespace, `/`, `>`, or end of line. */
+function type6Shape(names: string): string {
+	return `^ {0,3}<(/?)(?:${names})(?:[\\s/>]|$)`;
+}
+
+const TYPE_6_OPEN = new RegExp(type6Shape(TYPE_6_TAGS), 'i');
+
+/**
+ * Recognize a type-6 tag line for ONE of the listed tag names, open or close.
+ *
+ * For a container kind whose terminator IS an html tag line: what closes such a
+ * container is whatever CommonMark hands to raw-HTML passthrough, which is looser
+ * than any single canonical spelling (`   </details>`, `</DETAILS>`, `<details >`
+ * all qualify). Built from the same shape as the type-6 union above so the two
+ * cannot drift — a kind testing this is testing the spec, not a copy of it.
+ */
+export function htmlBlockTagLineMatcher(
+	tagName: string
+): (text: string) => 'open' | 'close' | null {
+	const pattern = new RegExp(type6Shape(tagName), 'i');
+	return (text) => {
+		const m = pattern.exec(text);
+		return m === null ? null : m[1] === '/' ? 'close' : 'open';
+	};
+}
 
 // CommonMark §6.6 complete-tag grammar applied at line scope: the same open/
 // close tag sources the inline raw-HTML stage uses (core/inline/html-tag-

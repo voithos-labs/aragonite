@@ -681,12 +681,21 @@ keystroke path, unexercised by any consumer.
 The commit-path escape seam shipped: a container declares `bodyWrite`, and the tree-op write
 sinks run a child's bytes through it ahead of the reparse that picks the child's kind, so a typed
 `</details>` lands as `&lt;/details>` — the container survives, and the escaped form renders as
-the literal tag in aragonite and on GitHub alike. Typing and split go through those sinks.
+the literal tag in aragonite and on GitHub alike. The predicate is CommonMark's type-6 tag-line
+shape, not the container's own spelling, so the indented, upper-cased, trailing-space and
+unterminated forms (which aragonite's recognizer never sees but a browser closes the element on)
+escape too. Typing and split go through those sinks.
 
 Three doors do NOT: **paste** into a body (the realistic one — copying an example off GitHub),
 block **move/reorder** into a body, and **search-replace** substitution inside a body child. Each
 mints or rewrites child bytes outside `updateNodeContent`/`splitNode`, so the collision is still
-reachable through them, with G1.12 as the same guarded floor as before.
+reachable through them.
+
+Note what the guard covers there. G1.12 fires on the CANONICAL form, which is what makes the
+floor honest for the case a user is most likely to paste. It is **blind** to the passthrough-only
+spellings (` </details>`, `</DETAILS>`, `<details >`): aragonite's recognizer does not see them
+either, so the live tree agrees with its own bytes and only GitHub breaks. Those arrive through
+the uncovered doors alone — the covered sinks escape them.
 
 **Fix direction:** widen the same capability to those doors. Paste is the one that matters and is
 not a line-level addition — `tree-operations/paste/` is a subsystem with its own dispatch and

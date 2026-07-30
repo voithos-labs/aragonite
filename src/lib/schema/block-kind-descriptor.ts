@@ -288,6 +288,19 @@ const CONTAINER_ONLY_KEYS = [
 ] as const;
 type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
 
+// The list's completeness, as a compile error rather than a convention. A group
+// field missed here stays in the flat registration shape, so a LEAF could declare
+// it and survive the strip — silent, and invisible to every runtime check. The
+// same staleness channel that let the augment merge drop a field, one level up.
+// `contract` is the one group field with no flat twin: it normalizes to
+// `containerContract`, which the list does carry.
+type MissingContainerOnlyKey = Exclude<
+	Exclude<keyof ContainerDescriptorGroup, 'contract'>,
+	ContainerOnlyKey
+>;
+const _containerOnlyKeysAreComplete: MissingContainerOnlyKey extends never ? true : never = true;
+void _containerOnlyKeysAreComplete;
+
 function stripContainerOnlyKeys<T extends object>(fields: T): Omit<T, ContainerOnlyKey> {
 	const stripped = { ...fields } as Record<string, unknown>;
 	for (const key of CONTAINER_ONLY_KEYS) delete stripped[key];

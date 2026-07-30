@@ -835,7 +835,7 @@ If your plugin registers a **container** kind, `aragonite/testing` also publishe
 | `terminatorCollision` | A body line reproducing your container's own terminator stays inside it                            |
 | `declarations`        | Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` runs |
 
-`terminatorCollision` is new, and **required** — a profile written before it stops compiling until the cell is declared. Assert it and supply a `terminatorCollisionFixture` (body bytes carrying a line that reproduces your terminator), or declare it `exempt` with a reason if your terminator is a fixed token with no length to grow; the paragraph below the example says which of those you are.
+`terminatorCollision` is new, and **required** — a profile written before it stops compiling until the cell is declared. Assert it and supply a `terminatorCollisionFixture` (body bytes carrying a line that reproduces your terminator), or declare it `exempt` with a reason if nothing a body can hold could ever reproduce your terminator; the paragraph below the example says which of those you are. The fixture's `bodyRaw` names the bytes a **user types**, not the bytes that reach the tree — the kit writes them through your `bodyWrite` rule, the same door a real commit uses.
 
 You supply the fixtures, because the kit parses its way to your kind — so register the plugin first, then hand it Markdown that produces your container:
 
@@ -862,7 +862,30 @@ it('my container conforms', async () => {
 
 Pick a **non-first** child at a **non-zero** chain position for `localIndexFixture`. At chain `[0, 0]` / child 0 a local path and a flat global offset are the same number, and the check proves nothing.
 
-`terminatorCollision` is the one most container authors have not considered. If your container wraps body bytes between an opener and a terminator, a body line that reproduces that terminator closes it early, and everything below leaves the container the next time the document is parsed. Byte round-trip does not catch it: the bytes are re-emitted verbatim either way, and only the live tree disagrees with them. A fence-shaped terminator escalates (the `:::` containers lengthen their fence past the body's runs, which the editor does for you); a strip container is immune, because it prefixes every line it emits. A fixed-token terminator such as an HTML close tag can do neither, so it declares the cell `exempt` (there is no fence length for the invariant to bite on) and leans on the dev-time staleness guard. Escaping the offending bytes is not an option for an opaque container: its `raw` is byte-compared against its live children, so rewriting a child on the way out reads as staleness.
+`terminatorCollision` is the one most container authors have not considered. If your container wraps body bytes between an opener and a terminator, a body line that reproduces that terminator closes it early, and everything below leaves the container the next time the document is parsed. Byte round-trip does not catch it: the bytes are re-emitted verbatim either way, and only the live tree disagrees with them.
+
+Three repairs, by terminator shape. A **fence-shaped** terminator escalates — the `:::` containers lengthen their fence past the body's runs, which the editor does for you. A **strip** container is immune, because it prefixes every line it emits. A **fixed-token** terminator such as an HTML close tag can do neither, and repairs the collision with [`bodyWrite`](#making-body-bytes-legal-bodywrite) instead: it rewrites the offending bytes on the way IN, so the child's own `raw` carries the rewrite and nothing diverges. Declare the cell `exempt` only when nothing a body can hold could reproduce your terminator at all.
+
+Escaping at the **rebuild** is the one thing that does not work, and it is the tempting one: an opaque container's `raw` is checked against its live children, so rewriting a child on the way out reads as staleness. The write sink is early enough that no such gap exists.
+
+#### Making body bytes legal: `bodyWrite`
+
+A container kind declares `bodyWrite` when its body's bytes carry grammatical meaning it owns:
+
+```
+container: {
+	contract: 'opaque',
+	rebuildRaw: rebuildMyRaw,
+	bodyWrite: {
+		normalize: (raw) => /* raw, made legal as a child of this container */,
+		mapOffset: (raw, offset) => /* where a caret at `offset` ends up after that */
+	}
+}
+```
+
+`normalize` is applied to every byte destined for the body, at the tree-op write sinks — **ahead of the reparse that decides the child's kind**, which is what makes it work where a rebuild-time rewrite cannot: the kind a write lands on is the kind its committed bytes describe. It must be **idempotent** (a re-commit of already-legal bytes changes nothing) and **line-local** (it may read the whole raw to decide _which_ lines to rewrite, but never moves bytes across a line boundary). `mapOffset` is its caret image, so a surface whose committed bytes differ from what the user typed still seats the caret on the bytes; the pair ships as one object because a rewrite without its caret image strands the caret.
+
+Two rules of thumb from the bundled `details` container. Ask the **grammar**, not your own spelling: what breaks the container is everything the Markdown spec hands to raw-HTML passthrough — indented, upper-cased and trailing-space spellings included — which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author sees what they typed.
 
 Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is declared, not skipped: `exempt` means the invariant has nothing to bite on (no multi-scope op exists), `boundary` means asserting it would need something the harness cannot reach (a mounted component, a DOM). Both demand a substantive `reason` — a thin one fails the run, so an exemption stays visible instead of quietly hollowing the harness out. The call resolves with a report of what was asserted and what was excused; it throws an `Error` naming every failed cell otherwise, so it drops straight into a test case under any runner.
 
@@ -1047,6 +1070,12 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `matchFenceOpen`  | Recognize a CommonMark fence-opener line, verbatim indent/info bytes included                 |
 | `matchFenceClose` | Test a line as the closer for a matched opener (marker + minimum run length)                  |
 | `FenceOpen`       | The matched opener's shape: marker, run length, trimmed `info`, verbatim `indent` + `infoRaw` |
+
+**HTML tag-line grammar** _(pre-freeze / unstable)_
+
+| Export                    | Role                                                                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `htmlBlockTagLineMatcher` | Build a recognizer for one tag name's CommonMark type-6 line, open or close — every spelling the spec hands to raw-HTML passthrough, not just the canonical one |
 
 **Blockquote grammar** _(pre-freeze / unstable)_
 

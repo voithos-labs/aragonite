@@ -242,8 +242,11 @@ test.describe('plugin container: <details> collapsible', () => {
 
 		// The caret sits after the typed `>`, past the entity the escape grew ahead of
 		// it, so the next keystroke continues the line instead of landing mid-word.
-		// The completing keystroke commits as a KIND CHANGE (`</details` alone is a
-		// type-6 opener), so this is the structural door's landing, not the typing one.
+		//
+		// KEEP THE OFFSET. This assertion is the ONLY guard on the commit doors' caret
+		// mapping: a unit pin would need jsdom plus mounted refs, since the landing goes
+		// through `refAt(i)?.focus`. Weakened to a path check it guards nothing, and the
+		// caret silently lands three units inside the word — the shipped bug it caught.
 		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
 		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);
