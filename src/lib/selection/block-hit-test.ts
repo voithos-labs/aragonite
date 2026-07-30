@@ -1,9 +1,10 @@
 /**
- * Viewport point → the block under it, for drag hit-testing. Walks ancestors of
- * the topmost element to the nearest `data-block-path` host; a kind with
- * internal coordinate addressing (a table, whose offset is a row-major cellIdx)
- * carries its `foreignDragHitTest` so the drag can resolve a cell-coordinate
- * point. Shared by cross-block drag and intra-table cell drag.
+ * Viewport point → the block under it, for pointer hit-testing. Walks ancestors of
+ * the topmost element to the nearest `data-block-path` host; a kind with internal
+ * coordinate addressing (a table, whose offset is a row-major cellIdx) carries the
+ * point→internals hooks its descriptor declares, so a caller resolves a
+ * cell-coordinate point without knowing the kind. Shared by cross-block drag,
+ * intra-table cell drag, and the dead-space caret.
  */
 
 import type { AnyBlockKind } from '../core/nodes';
@@ -21,6 +22,16 @@ export interface BlockHit {
 	 * block-specific DOM knowledge.
 	 */
 	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
+	/**
+	 * The caret landing inside such a kind, as an internal child path plus offset —
+	 * the descriptor's `caretTargetAtPoint`, pre-bound like its drag sibling. Answers
+	 * the nearest addressable leaf where the drag hook declines; a caret-placing
+	 * gesture reads this one.
+	 */
+	caretTargetAtPoint?: (
+		clientX: number,
+		clientY: number
+	) => { path: number[]; offset: number } | null;
 }
 
 export function blockAtPoint(
@@ -35,15 +46,18 @@ export function blockAtPoint(
 			if (!path) return null;
 			const kind = el.getAttribute('data-block-kind');
 			// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
-			const hitTest = kind
-				? tryGetBlockKindDescriptor(kind as AnyBlockKind)?.foreignDragHitTest
-				: undefined;
-			if (hitTest) {
+			const descriptor = kind ? tryGetBlockKindDescriptor(kind as AnyBlockKind) : undefined;
+			const dragHitTest = descriptor?.foreignDragHitTest;
+			const caretTarget = descriptor?.caretTargetAtPoint;
+			// Either hook means the kind addresses its own internals, so the wrapper is
+			// the element: there is no single editable surface to hand back.
+			if (dragHitTest || caretTarget) {
 				const wrapper = el;
 				return {
 					path,
 					element: wrapper,
-					foreignDragHitTest: (cx, cy) => hitTest(wrapper, cx, cy)
+					foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
+					caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))
 				};
 			}
 			const editable = el.querySelector('[contenteditable]') as HTMLElement | null;

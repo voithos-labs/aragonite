@@ -4,6 +4,33 @@ Editor version history (CST block editor). **Style (pre-v1):** one tight entry p
 
 ### 0.9.36 (unreleased)
 
+- **A dead-space click near a table lands in the nearest cell.** Clicking the editor's padding or
+  the area below the last block places a caret at the nearest text — except on a kind that
+  addresses its own internals, where "the end of that line" named a cell rather than a character
+  and the gesture declined. Kinds now opt in with a descriptor capability
+  (`caretTargetAtPoint`) that maps a point to an internal child path plus an offset, and the
+  landing goes through `focusByPath`, so it inherits the range-ending caret door rather than
+  minting a second one. It is a SEPARATE declaration from the drag hit test the same kinds carry,
+  because the two answer opposite questions: a drag needs the exact hit and must decline off-cell,
+  or a pointer crossing a grip gutter would jump the selection; a caret gesture arrives with its
+  point already clamped into the block's box and must be total, so the table's implementation is
+  one nearest-cell-box scan that answers in the gutter, in a padding gap, and in a windowing
+  spacer band alike. y picks the row, x picks the column, and the end-of-document gesture keeps
+  aiming at the box's trailing corner, which is how "below the table" reaches the last row's last
+  cell. A non-editable leaf (a rule, a rendered diagram) still declines, and that stays the
+  answer rather than a gap: it holds no character position, and the whole-block focus a click ON
+  it means would arm the next Backspace against a block the user only clicked near.
+
+  The decline was hiding a data loss, which is the part worth reading twice. The ledger recorded
+  this as invisible, on the grounds that the browser's own click handling reaches the same cell
+  anyway — and beside a block it does. What it does not do is end the editor's overlay-painted
+  cross-block range, which only the claimed path clears: with a range live, a click beside a table
+  left it painted over the caret the browser had just placed, and the next printable key
+  type-replaced the whole document. So the regression test drives that gesture with a range live
+  rather than from a clean caret, because that is the only way the editor's answer is
+  distinguishable from the browser's — and the assertion that reds is "the document is still
+  there".
+
 - **Breaking, plugin surface: `BlockComponent.focus` ends a live cross-block range; the park
   behavior moves to `parkCaret`.** One verb carried two meanings — the selection-extend paths need
   a caret parked WITHOUT ending the range they are still growing, while every other placement must

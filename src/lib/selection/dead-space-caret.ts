@@ -7,8 +7,15 @@
  * existing hit test resolve the leaf under it. Nothing here knows a block kind — the
  * clamp turns "beside a line" into a point ON that line and "below everything" into
  * the last block's trailing corner, and `blockAtPoint` descends into containers by
- * itself. Surfaces that address something other than characters (a table, whose
- * offset is a cell index) decline rather than guess; see `docs/issues.md`.
+ * itself. A kind that addresses its own internals rather than characters (a table,
+ * whose offset is a cell index) answers the clamped point through its descriptor's
+ * `caretTargetAtPoint` and lands through `focusByPath`; one that declares no such
+ * hook declines rather than guess.
+ *
+ * A NON-EDITABLE leaf (a rule, a rendered diagram) declines deliberately, and that
+ * is the answer rather than a gap: it holds no character position, and handing it the
+ * whole-block focus a click ON it means would arm the next Backspace against a block
+ * the user only clicked near.
  *
  * "Below the last block" means below the last MOUNTED one: the bands come from the
  * live DOM, which under virtual rendering is the window, not the document. Harmless
@@ -18,7 +25,7 @@
  */
 
 import type { BlockComponent } from '../block-component';
-import { blockAtPoint } from './block-hit-test';
+import { blockAtPoint, type BlockHit } from './block-hit-test';
 import { offsetFromViewportPoint } from './native-bridge';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -123,28 +130,51 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			const probeY = clamp(event.clientY, rect.top + 1, rect.bottom - 1);
 
 			const hit = blockAtPoint(root, probeX, probeY);
-			if (!hit || hit.foreignDragHitTest) return false;
-			// Reading mode flips contenteditable off, and a non-editable leaf (a rule, a
-			// rendered diagram) has no character position to land on — both decline here.
-			if (!hit.element.matches('[contenteditable="true"]')) return false;
-
-			const offset = offsetFromViewportPoint(hit.element, probeX, probeY);
-			if (offset === null) return false;
+			if (!hit) return false;
+			const landing = landingFor(hit, probeX, probeY);
+			if (!landing) return false;
 
 			const component = deps.getBlockComponent(hit.path);
 			if (!component?.focusable) return false;
+			// An internal landing needs the deep door; a block declaring the hook without
+			// it can't be reached, and declining here keeps the selection intact.
+			if (landing.path.length > 0 && !component.focusByPath) return false;
 
 			// Only once the landing is known: a declined click leaves the selection as it
 			// found it. Left live, the range would still be painted over a caret placed
 			// elsewhere, and the next printable key would type-replace the whole of it.
 			deps.resetSelectionForClick();
-			component.focus(offset);
+			// Both doors end the live range (`selection/caret-doors.ts`); `focusByPath`
+			// reaches the leaf's own `focus`.
+			if (landing.path.length === 0) component.focus(landing.offset);
+			else component.focusByPath!(landing.path, landing.offset);
 			return true;
 		}
 	};
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * Where the caret goes for a resolved hit: an internal child path (empty for a
+ * character-addressed surface) plus the offset within that leaf. A coordinate-
+ * addressed kind answers through its own hook; everything else through the
+ * character hit test on its editable surface. Null declines the click.
+ */
+function landingFor(
+	hit: BlockHit,
+	probeX: number,
+	probeY: number
+): { path: number[]; offset: number } | null {
+	if (hit.caretTargetAtPoint) return hit.caretTargetAtPoint(probeX, probeY);
+	// A kind with only the drag hook addresses cells and named no caret landing.
+	if (hit.foreignDragHitTest) return null;
+	// Reading mode flips contenteditable off, and a non-editable leaf has no
+	// character position to land on — both decline here.
+	if (!hit.element.matches('[contenteditable="true"]')) return null;
+	const offset = offsetFromViewportPoint(hit.element, probeX, probeY);
+	return offset === null ? null : { path: [], offset };
+}
 
 function clamp(value: number, low: number, high: number): number {
 	return Math.min(Math.max(value, low), high);

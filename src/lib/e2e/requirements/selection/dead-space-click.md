@@ -12,6 +12,11 @@ behaviour (CodeMirror, Obsidian) is to land the caret on the nearest text.
 - Click in the right margin beside a line: the caret lands at the end of THAT line,
   not at the end of the block.
 - Click below a document ending in a list: the caret lands at the end of the last item.
+- Click below a table: the caret lands at the end of the geometrically nearest cell of
+  the last row. The end-of-document gesture aims at the block box's trailing corner,
+  so that is the last row's last cell.
+- Click beside a table: y picks the row and x picks the column, so a click level with a
+  middle row lands in that row — not in the table's last cell.
 
 ## Edge cases
 
@@ -21,6 +26,6 @@ behaviour (CodeMirror, Obsidian) is to land the caret on the nearest text.
   caret placement).
 - A document ending in a thematic break declines: a rule holds no character position,
   so the click must not hand it the whole-block focus that a click ON the rule means.
-- A document ending in a table also declines — a table addresses cells, not characters
-  (see docs/issues.md). Not covered here: the browser's own click handling already
-  places a caret in the nearest cell, so the decline is not separately observable.
+- A kind that addresses its own internals but declares no caret landing still declines,
+  and declines before ending any live range — a rejected click must leave the selection
+  exactly as it found it.

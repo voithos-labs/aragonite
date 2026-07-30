@@ -28,6 +28,7 @@ import BlockquoteBlock from './blocks/BlockquoteBlock.svelte';
 import ListBlock from './blocks/list/ListBlock.svelte';
 import TableBlock from './blocks/table/TableBlock.svelte';
 import { tableCellPasteSurface } from './blocks/table/table-cell-paste';
+import { tableCaretAtPoint } from './blocks/table/table-caret-at-point';
 import { tableDragHitTest } from './blocks/table/table-drag-hit-test';
 
 function headingExtraProps(node: NodeView): Record<string, unknown> {
@@ -81,10 +82,14 @@ export function registerBuiltInBlocks(): void {
 	// inline default if both registrars ran and order let the default win.
 	registerPasteSurface(tableCellPasteSurface);
 
-	// Table owns internal cell addressing, so it registers a foreign-drag hit-test
-	// the selection layer dispatches through the descriptor registry — no
-	// selection→table-component import.
-	augmentBuiltin('table', { foreignDragHitTest: tableDragHitTest });
+	// Table owns internal cell addressing, so it registers both point→cell hooks the
+	// selection layer dispatches through the descriptor registry — no
+	// selection→table-component import. Two declarations, not one: a drag needs the
+	// exact hit (and its off-cell decline), a caret gesture needs the nearest cell.
+	augmentBuiltin('table', {
+		foreignDragHitTest: tableDragHitTest,
+		caretTargetAtPoint: tableCaretAtPoint
+	});
 
 	// Image resize is editor-layer behavior; the core image kind stays data-only and
 	// gains its selected-key handler here, where the DOM/render layer is reachable.
