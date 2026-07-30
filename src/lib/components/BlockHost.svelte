@@ -102,9 +102,13 @@
 	let ref: BlockComponent | undefined = $derived(resolveBlockSurface(instance));
 
 	// A container that delegates nothing paints its own rects, when its surface can
-	// measure a range. Presence of `measurePartialRects` is NOT the discriminator: the
-	// container shim supplies it to every container, so it only guards a hand-rolled
-	// container that omits the optional member.
+	// measure a range. Neither conjunct is redundant, and both look it. Presence of
+	// `measurePartialRects` is NOT the discriminator: the container shim supplies it to
+	// every container, so that term only guards a hand-rolled container that omits the
+	// optional member. The delegation term survives the shim's own
+	// `nodeChildrenLength > 0` early return because it guards the case we cannot yet
+	// instantiate in-tree: a hand-rolled, child-bearing, non-grid container supplying its
+	// own `measurePartialRects`, which would otherwise paint its box over its children's.
 	let containerPaintsRects = $derived(
 		isContainer && !delegatesPainting && !!ref?.measurePartialRects
 	);
