@@ -265,13 +265,14 @@ domain for the resource part) **and** a security-surface decision, since `xmpp` 
 two is a new accept class that reaches the href allowlist, so it wants its own conformance pass
 rather than a ride-along on a domain-scan fix.
 
-### Installed inline-rung consultation is unmeasured by the standing perf gate
+### No keystroke ceiling holds under an installed inline rung
 
-**Severity:** watch (measurement gap; the per-consultation cost the entry once assumed is now
-measured and bounded)
+**Severity:** watch (the cost is now measured and small; what is missing is a gate, and a clean
+control to gate against)
 **Files:** `src/lib/core/inline/scan/index.ts` (the pre-switch prefix consultation, the
 default-arm unreserved-rung consultation, and `needsScan`'s per-character probe),
-`src/lib/test/perf/` (the standing harness installs no rung-registering plugin)
+`src/lib/e2e/tests/perf/typing-latency.perf.spec.ts` (the `rung-*` report rows),
+`src/routes/test/plugins/+page.svelte` (no rung-only route exists, so no clean control does)
 
 A registered inline rung adds a consultation the standing empty-registry gate never measures. Three
 bundled rungs ship, on the two rung shapes:
@@ -305,24 +306,42 @@ prose-frequent trigger the ladder has opened, and the first consumer is about to
 document with latex or emoji installed therefore runs a more expensive bail loop than the standing
 ceilings measure, on every keystroke, not merely a denser trigger cost.
 
-**Fix direction:** when a perf-harness pass next touches fixtures, install each rung shape and
-measure it: a bracket-dense fixture under footnotes, a colon-dense one under emoji, a dollar-dense
-one under latex — plus a **plain-prose** row under any installed unreserved rung, which is the row
-that measures the bail-probe cost the current gate is blindest to. The trigger-dense half now has
-growth bounds in the unit suites (each recognizer's `*-bounds` file), so what is still unmeasured
-is the keystroke ceiling and the plain-prose bail row.
+**Measured 2026-07-29, and the consultation half is closed.** The four rows this entry asked for
+now exist as report-only rows in `typing-latency.perf.spec.ts` (`rung-*`), each loading its fixture
+twice — on the plugins route with the rung installed, and on the rung-free editor route — at 100KB,
+30 keystrokes, p50/p95:
 
-The bracket-dense footnote fixture carries a second, unrelated mechanism, so it must be typed into
-with a reference widget **in the viewport**: a mounted reference reads the editor's content version,
-which walks the CST rather than the mounted set (`docs/design/performance.md`, third non-viewport
-axis). One fixture, two costs — the scanner consultation this entry is about, and the mounted
-derivation, which nothing measures today either.
+| row                                     | rung p50 | rung-free p50 | rung p95 | rung-free p95 |
+| --------------------------------------- | -------- | ------------- | -------- | ------------- |
+| bracket-dense under footnotes           | 8.2 ms   | 2.7 ms        | 14.6 ms  | 6.9 ms        |
+| bracket-dense under footnotes, 1MB      | 50 ms    | 2.7 ms        | 54.3 ms  | 5.8 ms        |
+| colon-dense under emoji                 | 2.6 ms   | 2.3 ms        | 8.5 ms   | 2.8 ms        |
+| dollar-dense under latex                | 2.6 ms   | 2.3 ms        | 3.6 ms   | 3.4 ms        |
+| plain prose under an installed `:` rung | 2.3 ms   | 2.3 ms        | 2.7 ms   | 2.6 ms        |
 
-**Why deferred:** sub-millisecond at real scale, and cost-identical to the pre-ladder path on an
-empty registry. The bail probe itself predates the ladder — latex's `$` has ridden it since inline
-math shipped — so this is a standing measurement gap, not a ladder regression. Re-open when a
-perf-harness pass next touches fixtures, or if a real workload holds a trigger-dense region under
-an installed rung.
+The per-occurrence consultation is at or below measurement noise on a trigger-dense 100KB document,
+and **the bail probe this entry called the blindest spot is not observable at all**: plain prose
+under an installed unreserved rung types at the same p50 as the same bytes with an empty registry.
+The entry's own prediction (sub-millisecond at real scale) holds, on the row built to falsify it.
+
+What the rows did surface is the OTHER mechanism the footnote fixture carries, and it is not a
+scanner cost: with reference widgets in the viewport, the keystroke is O(document) — 8.2 ms at
+100KB, 50 ms at 1MB, against a control flat at 2.7 ms, with the mounted widget count identical (20)
+at both sizes. That is the third non-viewport axis in `docs/design/performance.md`, now measured in
+the browser rather than extrapolated from a node constant, and it is a bundled plugin's reader
+paying, not the ladder.
+
+**Residual:** no keystroke CEILING under an installed rung. The rows report; nothing fails if the
+number doubles. Gating was declined deliberately: a recognizer is the registering plugin's code, so
+a ceiling here pins a number the editor does not own, and the only available control is confounded
+(the plugins route installs eight base plugins, two of them whole-document derivers), so a route
+delta bounds a rung's cost from above rather than measuring it. A clean per-rung ceiling wants a
+rung-only harness route, which is the work this residual names.
+
+**Why deferred:** the measured numbers say the consultation is not worth a ceiling, and the axis
+that IS expensive belongs to the footnote reader rather than to any rung. Re-open for a rung-only
+route if a consumer reports keystroke latency under an installed rung, or if the reader axis needs
+a gate — that one is a `performance.md` decision, not this entry's.
 
 ### `selectionChange` fires on gestures that change no selection
 
