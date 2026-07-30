@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -27,22 +27,12 @@ import {
 const EMBED = '![[/test-fixtures/sample.png|400]]';
 const EMBED_DOC = `Alpha lead paragraph.\n\n${EMBED}\n\nBeta tail paragraph.\n`;
 
-class ClaimedImageSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=wiki-embed');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('claimed-image-ops simulation', () => {
-	let editor: ClaimedImageSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new ClaimedImageSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('wiki-embed');
 	});
 
 	test('resizing a rung-claimed image keeps its syntax and stays corruption-free', async ({

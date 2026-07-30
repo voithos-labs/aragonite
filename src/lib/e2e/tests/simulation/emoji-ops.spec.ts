@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -26,22 +26,12 @@ import {
 
 const EMOJI_DOC = 'Alpha lead paragraph here.\n\n' + 'Beta tail paragraph here.\n';
 
-class EmojiSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=emoji');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('emoji-ops simulation', () => {
-	let editor: EmojiSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new EmojiSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('emoji');
 	});
 
 	test('mid-prose shortcode insert, both-directions step-over, atomic delete, and undo stay corruption-free', async ({

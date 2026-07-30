@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -104,16 +105,6 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 	}
 };
 
-class PluginsSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 function probesFor(route: Probe['route']): [RangeInterruptGesture, Probe][] {
 	return (Object.entries(PROBES) as [RangeInterruptGesture, Probe][]).filter(
 		([, probe]) => probe.route === route
@@ -158,10 +149,10 @@ test.describe('range-interrupt simulation', () => {
 	});
 
 	test.describe('plugins route', () => {
-		let editor: PluginsSimPage;
+		let editor: PluginsPage;
 
 		test.beforeEach(async ({ page }) => {
-			editor = new PluginsSimPage(page);
+			editor = new PluginsPage(page);
 			await editor.gotoPlugins();
 		});
 

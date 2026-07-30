@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -27,25 +27,15 @@ const DECORATION_DOC =
 	'BADGE marks this whole block below.\n\n' +
 	'Tail line for entity and neutral edits.\n';
 
-class DecorationSimPage extends EditorPage {
-	// `?seed=sim` installs the standing mark source plus the content-keyed island
-	// source; loadContent overrides the seed's (absent) document with DECORATION_DOC,
-	// whose sentinels (`[>…<]`, `WIDGET`, `BADGE`) light up the island source.
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=sim');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('decoration-ops simulation', () => {
-	let editor: DecorationSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new DecorationSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		// `?seed=sim` installs the standing mark source plus the content-keyed island
+		// source; loadContent overrides the seed's (absent) document with DECORATION_DOC,
+		// whose sentinels (`[>…<]`, `WIDGET`, `BADGE`) light up the island source.
+		await editor.gotoPlugins('sim');
 	});
 
 	test('island caret/delete/typing + block-badge reorder + entity widget stay corruption-free', async ({

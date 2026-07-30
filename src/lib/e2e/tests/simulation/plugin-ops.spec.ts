@@ -1,13 +1,12 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 import { topLevelIndexOf } from './helpers';
-import { activeBlockPath } from '../plugins/helpers';
+import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
 // Ungated plugin-container ops oracle. The simulation's oracle stack (structured
 // error + `[invariant:…]` console watcher, live-CST round-trip, nested-state
@@ -32,19 +31,6 @@ const PLUGIN_DOC =
 	'- alpha\n- beta\n\n' +
 	'<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n\n' +
 	'Tail paragraph.\n';
-
-class PluginsSimPage extends EditorPage {
-	// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
-	// the base plugins, so the oracle stack watches the decoration engine run on every
-	// edit. loadContent overrides the seed's (absent) document with PLUGIN_DOC.
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=sim');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
 
 // ── Spec-local probes ─────────────────────────────────────────────────────────
 
@@ -117,11 +103,14 @@ async function mergeFromBelow(
 }
 
 test.describe('plugin-container ops simulation', () => {
-	let editor: PluginsSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new PluginsSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
+		// the base plugins, so the oracle stack watches the decoration engine run on every
+		// edit. loadContent overrides the seed's (absent) document with PLUGIN_DOC.
+		await editor.gotoPlugins('sim');
 	});
 
 	test('chrome/body edits, collapse, cross-boundary merges, and undo stay corruption-free', async ({
