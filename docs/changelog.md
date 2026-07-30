@@ -886,9 +886,9 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   seated in one verb was measured rather than assumed: `BlockComponent.focus` was the obvious
   candidate and was the same call the cross-block dispatcher parked its own caret with mid-extend,
   so a clear seated there redded three extend specs. That measurement is what forced the verb
-  split above (`focus` ends the range, `parkCaret` carries the extend paths), so the funnel
-  exists now, and G2.12 is what still covers the gestures no verb can reach. The consumer-facing
-  door that ends a range is `setSelection`.
+  split above (`focus` ends the range, `parkCaret` carries the extend paths), which makes the
+  range-ending landing the default a caller inherits by doing nothing. G2.12 holds the gestures
+  no verb can reach; the consumer-facing door that ends a range is `setSelection`.
 
 - **A ranged edit spanning a fence line stops corrupting the fence.** Select from a fenced code
   block's last body line through its closer, press Backspace, and the committed block was an
