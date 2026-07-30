@@ -5,6 +5,7 @@
 		CellPosition,
 		ContainerEditActions,
 		FocusActions,
+		TableAxisAction,
 		TableContext
 	} from '../../../action-contracts';
 	import {
@@ -53,7 +54,6 @@
 	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
 	import { tableMenuItems, type ClipboardAction } from './table-menu-model';
-	import type { CellShortcutAction } from './cell-keydown-plan';
 
 	let {
 		node,
@@ -380,7 +380,7 @@
 		focusCell(target.rowIdx, target.colIdx, offset);
 	}
 
-	async function runAction(action: CellShortcutAction, axisIdx: number): Promise<void> {
+	async function runAction(action: TableAxisAction, axisIdx: number): Promise<void> {
 		if (!menu) return;
 		await ctx[action](axisIdx);
 		menu = null;

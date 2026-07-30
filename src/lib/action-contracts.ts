@@ -328,3 +328,14 @@ export interface TableContext {
 	/** Set a column's alignment directly — distinct from the cycle step. */
 	setColumnAlignment(colIdx: number, alignment: TableAlignment): Promise<void>;
 }
+
+/**
+ * The TableContext mutations addressed by ONE axis index — the vocabulary the
+ * affordance menu's items and the cell's table commands both dispatch through.
+ * Derived from the contract rather than listed beside it, so a member whose
+ * signature is not `(index) => Promise<void>` (a two-coordinate reorder, a sticky
+ * write) cannot be named by either caller.
+ */
+export type TableAxisAction = {
+	[K in keyof TableContext]: TableContext[K] extends (index: number) => Promise<void> ? K : never;
+}[keyof TableContext];

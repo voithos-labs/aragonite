@@ -52,6 +52,7 @@
 	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
+	import { tableAxisCommand } from './cell-table-commands';
 	import { intraTableRectPayload } from './cell-clipboard';
 	import { escapedCellOffset } from './table-cell-paste';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
@@ -67,6 +68,7 @@
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
+	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 
 	type ExitDirection = 'up' | 'down';
@@ -109,6 +111,7 @@
 		selection,
 		widgetSelection,
 		registryView,
+		reorder,
 		events: editorEvents,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -305,16 +308,35 @@
 		setSnapTarget: () => {},
 		isRevealing: () => widgetInteraction.isRevealing(),
 		// Reveal-capable kinds (math, directive) reveal their source; a non-reveal CST
-		// widget in a cell is only `<br>` (images render as alt text here), and the
-		// prose image model — select whole, second press deletes — has no cell
-		// affordance and strands focus, so step the caret over it like native
-		// contenteditable instead. `fromTrailingEdge` is the entry side.
+		// widget reached through this seam is an ARROW's entry, so step the caret over it
+		// like native contenteditable. `fromTrailingEdge` is the entry side.
 		enterWidget: (widget, fromTrailingEdge) => {
 			if (getInlineWidgetEditing(widget.kind)?.revealSource) {
 				widgetInteraction.enterWidget(widget, fromTrailingEdge);
 			} else {
 				cursor.setRaw(asRawOffset(fromTrailingEdge ? widget.start : widget.end));
 			}
+		},
+		// A cell paints no widget-selection overlay, so the prose default a non-reveal
+		// widget inherits — select whole, second press deletes — showed the user nothing
+		// between the presses and stranded focus. Atomic instead: one press takes the
+		// whole construct, through the dispatch's own atomic arm (one commit, undo
+		// anchored at the pre-delete caret), while `onEdge` stays unset so an arrow still
+		// falls to the step-over above.
+		//
+		// Scoped to what this cell actually PAINTS as a widget: an image renders as its
+		// literal source here (`renderImagesAsWidgets: false`), so its edge is ordinary
+		// text and keeps the registered policy — the CST classifier is kind-based and
+		// cannot tell the two apart.
+		// Merged onto the registered policy, not substituted for it: only the delete
+		// granularity is a cell concern, and a kind that already declares `onEdge`
+		// (the entity widget's step-over) must keep it.
+		widgetEdgePolicy: (widget) => {
+			const registered = getInlineWidgetEditing(widget.kind);
+			if (!el || registered?.revealSource) return undefined;
+			return widgetElByStart(el, widget.start)
+				? { ...registered, deleteGranularity: 'atomic' }
+				: undefined;
 		},
 		isReading: () => readOnly
 	});
@@ -360,13 +382,29 @@
 		return true;
 	}
 
-	// Cross-block dispatch entry (IMPL-7): a post-delete Enter/Tab routed to this
-	// focused cell. There's no live event, so the 'native'/'select-all-step' plans
-	// (which extend or delegate an event) are declined; the action plans run.
+	// Every chord the `tableCell` keymap binds arrives here — from the live keydown
+	// path, and from cross-block dispatch (IMPL-7: a post-delete Enter/Tab routed to
+	// this focused cell), which has no event, so the 'native'/'select-all-step' plans
+	// are declined below and the action plans run.
 	export function runCommand(id: CommandId): boolean {
 		if (!el) return false;
 		if (id === 'format.toggleStrong') return toggleFormat('strong');
 		if (id === 'format.toggleEmphasis') return toggleFormat('emphasis');
+		// A structural table mutation, indexed by whichever of this cell's coordinates
+		// the command names.
+		const axisCommand = tableAxisCommand(id);
+		if (axisCommand) {
+			void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
+			return true;
+		}
+		// The whole table among its siblings. `myPath` points at the cell, and the
+		// reorder walk resolves the unit at the nearest ancestor that reorders its
+		// children — a table's grid rows are not that, so it lands on the table's own
+		// slot, and the shared action announces the move like every other kind's.
+		if (id === 'block.moveUp' || id === 'block.moveDown') {
+			void reorder.nudgeReorderUnit(myPath, id === 'block.moveUp' ? -1 : 1);
+			return true;
+		}
 		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return false;
 		const plan = cellKeydownPlan(
 			{
@@ -557,6 +595,29 @@
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
 		preEditOffset = cursor.getRaw() ?? 0;
+
+		// The kind's declared chords resolve FIRST — ahead of the navigation plan and
+		// ahead of the shared prose prelude, both of which would otherwise claim a bound
+		// chord: the plan's boundary branches don't test modifiers, and
+		// `handleSharedKeydown`'s own ArrowLeft@0 hop doesn't gate on Alt, so either
+		// would eat the column reorder at a cell's left edge. Resolving here is also
+		// what makes a consumer `keybindings` entry reach a cell at all — while the
+		// chords were plan predicates, an override was resolved for them and never
+		// consulted.
+		if (
+			chord &&
+			dispatchKeyCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{ history, pluginEditor, getPresentationMode },
+				keybindingOverrides(),
+				onCommandError
+			)
+		) {
+			e.preventDefault();
+			return;
+		}
+
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },
 			cellPlanState(preEditOffset)
@@ -588,22 +649,6 @@
 				// text boundaries it claims (offset 0 / textLen) the entered widget sits
 				// outside the boundary, so the dispatch declines and cell nav proceeds.
 				if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
-				// Cells route navigation through cellKeydownPlan, but inline-format
-				// chords (Mod+B/Mod+I) still dispatch through the keymap like every
-				// other editable surface.
-				if (
-					chord &&
-					dispatchKeyCommand(
-						chord,
-						{ kind: node.kind, runCommand },
-						{ history, pluginEditor, getPresentationMode },
-						keybindingOverrides(),
-						onCommandError
-					)
-				) {
-					e.preventDefault();
-					return;
-				}
 				return;
 			}
 			// Cells override the document-level 2-stage Ctrl+A with a 3-stage
@@ -634,13 +679,10 @@
 		}
 	}
 
-	// The action plans (no live event needed). Shared by onKeyDown's default arm
+	// The navigation plans (no live event needed). Shared by onKeyDown's default arm
 	// and runCommand's cross-block dispatch; the caller preventDefaults.
 	async function applyCellPlan(plan: CellKeyPlan): Promise<void> {
 		switch (plan.kind) {
-			case 'shortcut':
-				await tableContext[plan.action](plan.arg);
-				return;
 			case 'focus-cell':
 				if (plan.setStickyColumn !== undefined) tableContext.setStickyColumn(plan.setStickyColumn);
 				tableContext.focusCell(plan.rowIdx, plan.colIdx, plan.position);

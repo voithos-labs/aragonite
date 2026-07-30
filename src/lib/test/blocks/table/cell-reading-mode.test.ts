@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 //
-// Reading mode makes a cell inert without making it dead: navigation still
-// works, so a reader can walk the grid, and every mutation is refused. The cell
-// carries that split ITSELF, in the default arm of its keydown switch — the
-// keymap gate `reading-gate-parity` scans for cannot see it, because the cell's
-// structural chords never reach the command seam.
+// Reading mode makes a cell inert without making it dead: navigation still works, so
+// a reader can walk the grid, and every mutation is refused. The refusal now has two
+// owners, and both are load-bearing. The structural chords are keymap bindings, so the
+// command seam's own gate (`reading-gate-parity`, G4.19) dead-keys them for free. What
+// stays the cell's own is the row-appending end of Tab/Enter: those are NAVIGATION
+// plans, which reading mode must keep, and one of them mutates — so the default arm of
+// the keydown switch still carries a guard the seam cannot supply.
 //
 // One test per side of the split, because it is exactly the shape that rots:
 // a refusal added without its navigation twin makes reading mode a dead end,

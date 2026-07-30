@@ -4,7 +4,7 @@
  * dispatches `context[action](arg)` on click; enablement reuses the context's
  * own refusal predicates so a disabled item can never reach a no-op commit.
  */
-import type { CellShortcutAction } from './cell-keydown-plan';
+import type { TableAxisAction } from '../../../action-contracts';
 import type { TableAlignment } from '../../../core/nodes';
 import {
 	tableRowReorderTarget,
@@ -38,7 +38,7 @@ export type TableMenuItem =
 	// `index` is the action's own axis index (rowIdx for row-group actions, colIdx
 	// for column-group actions), so a both-axes cell menu can route each item to the
 	// right coordinate without the dispatcher tracking which group it came from.
-	| { kind: 'action'; action: CellShortcutAction; label: string; enabled: boolean; index: number }
+	| { kind: 'action'; action: TableAxisAction; label: string; enabled: boolean; index: number }
 	| { kind: 'clipboard'; action: ClipboardAction; label: string; enabled: boolean }
 	| { kind: 'alignment'; current: TableAlignment }
 	| { kind: 'separator' };

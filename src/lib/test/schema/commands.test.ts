@@ -107,6 +107,52 @@ describe('fencedCode keymap', () => {
 	});
 });
 
+describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
+	// The cell is the surface that holds the caret, so every table chord binds on THIS
+	// kind; an override scoped to `table` would resolve against a block that never
+	// receives a keystroke. Behavior is pinned in blocks/table/cell-table-chords.test.ts —
+	// this is the resolution the consumer guide's Tables family is checked against.
+	const TABLE_CELL_BINDINGS = [
+		['Mod+Enter', 'table.insertRowBelow'],
+		['Mod+Shift+Enter', 'table.insertRowAbove'],
+		['Alt+Shift+ArrowRight', 'table.insertColumnRight'],
+		['Alt+Shift+ArrowLeft', 'table.insertColumnLeft'],
+		['Mod+Shift+Backspace', 'table.deleteRow'],
+		['Alt+Shift+Backspace', 'table.deleteColumn'],
+		['Alt+ArrowUp', 'table.moveRowUp'],
+		['Alt+ArrowDown', 'table.moveRowDown'],
+		['Alt+ArrowLeft', 'table.moveColumnLeft'],
+		['Alt+ArrowRight', 'table.moveColumnRight'],
+		['Mod+Shift+A', 'table.cycleAlignment'],
+		// Alt+Arrow is the row reorder here, so the whole-block move takes Mod+Alt.
+		['Mod+Alt+ArrowUp', 'block.moveUp'],
+		['Mod+Alt+ArrowDown', 'block.moveDown'],
+		['Enter', 'cell.enter'],
+		['Tab', 'cell.tab'],
+		['Shift+Tab', 'cell.shiftTab']
+	] as const;
+
+	it('resolves each chord to its command', () => {
+		for (const [chord, command] of TABLE_CELL_BINDINGS) {
+			expect(resolveBinding(chord, 'tableCell')?.command, chord).toBe(command);
+		}
+	});
+
+	it('leaves the bare arrows and Mod+A unbound — both depend on the caret’s position', () => {
+		// Cell navigation and the three-stage select-all read where the caret sits inside
+		// the cell, which a chord cannot express, so they stay with the keydown plan.
+		for (const chord of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+			expect(resolveBinding(chord, 'tableCell'), chord).toBeNull();
+		}
+		expect(resolveBinding('Mod+A', 'tableCell')).toBeNull();
+	});
+
+	it('binds the whole-table move on the table’s CHILD kind, not the table', () => {
+		// The table block never holds the caret; a chord resolved against it is dead.
+		expect(resolveBinding('Mod+Alt+ArrowUp', 'table')).toBeNull();
+	});
+});
+
 describe('thematicBreak keymap — keyboard reorder', () => {
 	// The hr renders a drag handle whose tooltip promises Alt+↑/↓; those chords
 	// must resolve to the block-move commands. Plain arrows stay unbound so the

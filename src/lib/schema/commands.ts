@@ -54,6 +54,20 @@ export const BLOCK_COMMAND_IDS = [
 	'cell.enter',
 	'cell.tab',
 	'cell.shiftTab',
+	// Structural table mutations. Bound on `tableCell` (the focused surface) but named
+	// for their subject, like `heading.cycle` on a paragraph: each takes the focused
+	// cell's row or column as its index, which the cell supplies from its own props.
+	'table.insertRowBelow',
+	'table.insertRowAbove',
+	'table.insertColumnRight',
+	'table.insertColumnLeft',
+	'table.deleteRow',
+	'table.deleteColumn',
+	'table.moveRowUp',
+	'table.moveRowDown',
+	'table.moveColumnLeft',
+	'table.moveColumnRight',
+	'table.cycleAlignment',
 	'chrome.descendToBody'
 ] as const;
 export type GlobalCommandId = (typeof GLOBAL_COMMAND_IDS)[number];
