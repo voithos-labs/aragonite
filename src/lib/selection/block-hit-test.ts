@@ -13,7 +13,13 @@ import { readBlockPath } from './path-lookup';
 
 export interface BlockHit {
 	path: number[];
-	/** Editable surface for character-offset hit-testing (or the wrapper when none). */
+	/**
+	 * Editable surface for character-offset hit-testing (or the wrapper when none). A
+	 * kind declaring `foreignDragHitTest` gets the WRAPPER instead: it addresses cells,
+	 * so it has no character surface to offer and its drag consumers read the hook.
+	 * Declaring only `caretTargetAtPoint` does not cost a kind this surface — the hooks
+	 * are independent.
+	 */
 	element: HTMLElement;
 	/**
 	 * Set for block kinds with internal coordinate addressing (e.g. table, whose
@@ -44,24 +50,25 @@ export function blockAtPoint(
 		if (el instanceof HTMLElement && el.getAttribute('data-block-path')) {
 			const path = readBlockPath(el);
 			if (!path) return null;
-			const kind = el.getAttribute('data-block-kind');
+			const wrapper = el;
+			const kind = wrapper.getAttribute('data-block-kind');
 			// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
 			const descriptor = kind ? tryGetBlockKindDescriptor(kind as AnyBlockKind) : undefined;
 			const dragHitTest = descriptor?.foreignDragHitTest;
 			const caretTarget = descriptor?.caretTargetAtPoint;
-			// Either hook means the kind addresses its own internals, so the wrapper is
-			// the element: there is no single editable surface to hand back.
-			if (dragHitTest || caretTarget) {
-				const wrapper = el;
-				return {
-					path,
-					element: wrapper,
-					foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
-					caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))
-				};
-			}
-			const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
-			return { path, element: editable ?? el };
+			const editable = wrapper.querySelector('[contenteditable]') as HTMLElement | null;
+			return {
+				path,
+				// The wrapper substitution belongs to the DRAG hook alone. Its consumers
+				// branch on that hook's presence and otherwise character-hit-test `element`,
+				// which accepts any contained node — so a wrapper handed to them yields a
+				// plausible-but-wrong offset measured across the whole subtree, with no
+				// cellCoordinate flag, instead of declining. Declaring the caret hook says
+				// nothing about a drag, so it must not cost a kind its character surface.
+				element: dragHitTest ? wrapper : (editable ?? wrapper),
+				foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
+				caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))
+			};
 		}
 		el = el.parentElement;
 	}

@@ -124,6 +124,37 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		});
 	}
 
+	// The NON-entry half of the matrix, and the direct mirror of the ledger's complaint:
+	// a destructive key pointing AWAY from the widget must take the ordinary adjacent
+	// character and leave the tag alone. It rests on `widgetAtCursor`'s direction
+	// tie-break, so an atomic policy that ignored the key's direction would eat the tag
+	// from either side and these are the only arms that would notice.
+	const nonEntry: Array<[string, string, number, string]> = [
+		['Backspace at the LEADING edge', 'Backspace', BR_START, 'Lef<br>Right'],
+		['Delete at the TRAILING edge', 'Delete', BR_END, 'Left<br>ight']
+	];
+
+	for (const [name, key, caret, after] of nonEntry) {
+		it(`${name} takes the adjacent character, not the tag`, async () => {
+			mounted = mountCell(CELL);
+			const { el, blockEdit, instance } = mounted;
+			el.focus();
+			instance.setSelection(caret, caret);
+
+			press(el, key);
+			await settle();
+
+			// jsdom leaves a non-entry destructive key to native contenteditable, which it
+			// does not implement — so an absent commit here means "not claimed by the
+			// dispatch", which is the assertion. The browser-level outcome is
+			// e2e/tests/blocks/table/cell-inline-rendering.spec.ts.
+			const calls = vi.mocked(blockEdit.updateBlockContent).mock.calls;
+			if (calls.length > 0) expect(calls[0][1]).toBe(after);
+			// Either way the tag survives: nothing wrote a text without it.
+			for (const call of calls) expect(call[1]).toContain('<br>');
+		});
+	}
+
 	// The scoping arm. A cell renders an image as its literal source, not a widget, so
 	// the atomic policy must NOT reach it — the CST classifier calls an image a widget
 	// on kind alone, and an unscoped policy would eat all of `![a](b)` on one press

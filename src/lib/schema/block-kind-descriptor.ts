@@ -214,6 +214,10 @@ export interface BlockKindDescriptor {
 	 * hit test must do the opposite and decline off-cell, or a pointer crossing a
 	 * gutter would jump the selection. Patched in from
 	 * `components/built-in-blocks.ts`, like its drag sibling.
+	 *
+	 * Independent of that sibling: declaring this one says nothing about how a DRAG
+	 * addresses the kind, so a character-addressed kind may declare it alone and keeps
+	 * the editable surface the drag hit test resolves against.
 	 */
 	caretTargetAtPoint?: (
 		blockEl: HTMLElement,
