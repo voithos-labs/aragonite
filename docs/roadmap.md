@@ -281,7 +281,7 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
 load-bearing contract climbs as high as it can: prefer types/seams that make the violation
 inexpressible; where types can't reach, a dev guard that fails at the gate; prose only for what
 neither can hold. Two habits keep the ladder honest: every bug fix records a one-line miss-analysis
-("what test should have caught this, and why didn't it") in its commit or requirement file, and every
+("what test should have caught this, and why didn't it") in its regression test's requirement file, and every
 new feature class adds a simulation gesture so the corruption oracle's coverage tracks the product's
 surface. The complexity is essential — cap the downside, don't simplify.
 

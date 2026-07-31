@@ -35,7 +35,7 @@ Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-
 
 ## Fixing bugs
 
-Root-cause first — never patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis — what test should have caught this, and why none did — in the commit message.
+Root-cause first — never patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis — what test should have caught this, and why none did — in the regression test's requirement file.
 
 ## Licensing
 

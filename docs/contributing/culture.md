@@ -102,7 +102,7 @@ kill it:
 - **Coverage claims get revert-checked.** "Pinned by existing tests" is disproven by reverting
   the change and watching the suites stay green — this exact claim failed review once already.
 - **Miss-analysis, one line per bug fix**: what test should have caught this, and why didn't
-  it — in the commit message or requirement file. The generalized answers reshape the suite;
+  it — in the regression test's requirement file. The generalized answers reshape the suite;
   three of them explained all ten audit bugs.
 
 ## Testing shape

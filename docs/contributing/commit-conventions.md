@@ -13,10 +13,11 @@ A commit message opens with a symbol saying what kind of change it is:
 
 Rules:
 
-- Lowercase, no period, short
+- One subject line per change: lowercase, no trailing period, plain words, aim for under ~72 characters
+- The subject says what changed; the diff says how. **No essay bodies.** A body is exceptional: at most 2-3 short lines, only when the subject genuinely cannot carry it (a breaking-change note, a non-obvious constraint)
 - Scope in parens when useful: `+ (editor) block parser`. Comma-separate several: `> (editor,plugins) …`
 - One logical change per commit. Bundle small related edits into medium-sized commits rather than micro-commits
-- Multi-line messages for multiple changes. E.g.
+- A commit holding several changes lists one subject line per change:
 
 ```
 + (editor) undo/redo
@@ -28,15 +29,4 @@ Rules:
 
 ## Bug fixes carry a miss-analysis
 
-Every `!` commit records one line in its body: **what test should have caught this, and why none did.** Not an apology — a finding. The generalized answers are what reshape the suite; three of them explained all ten bugs of the 2026-07 audit.
-
-```
-! (editor) enter at content offset 0 splits instead of no-op or corrupting
-
-& ...
-& miss-analysis: the dispatch core's unit test pinned the no-op as correct
-  while no entry-level test drove a real enter at offset 0; the opener-side
-  fence boundary was never modeled though its closer twin was
-```
-
-It can live in the commit message or in the requirement file for the regression test. See `docs/contributing/culture.md` § Fixing bugs.
+Every `!` fix records one line: **what test should have caught this, and why none did.** It lives in the requirement file of the regression test, not in the commit message. See `docs/contributing/culture.md` § Fixing bugs.
