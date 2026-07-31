@@ -78,9 +78,8 @@ describe('nearestScrollContainer', () => {
 	});
 });
 
-// The two host-seam walks. Their divergence is the point: one host shape (a
-// rounded card, `overflow: hidden` at auto height, inside a real scroller) must
-// autoscroll the scroller while bounding visibility by both boxes.
+// The two host-seam walks diverge on one real host shape: a rounded card (`overflow: hidden` at
+// auto height) inside a scroller must autoscroll the scroller but be bounded by both boxes.
 describe('host-seam walks', () => {
 	let root: HTMLDivElement;
 

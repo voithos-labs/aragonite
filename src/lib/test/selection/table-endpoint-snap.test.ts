@@ -15,12 +15,8 @@ describe('normalizeTableEndpoint', () => {
 		});
 	});
 
-	// Load-bearing: a shallow [tableIdx] path (the intra-table selection shape) is
-	// returned UNFLAGGED. Intra-table cell-ness is context-established (same path +
-	// table node via isCustomRendered), NOT flag-established — which is why
-	// intra-table decoders read `.offset` directly instead of cellIndexOf, whose
-	// flag guard would warn spuriously on these points. Flag a shallow path here
-	// and every intra-table cell op starts crying wolf in DEV.
+	// Load-bearing: a shallow [tableIdx] path is UNFLAGGED because intra-table cell-ness is
+	// context-established, and flagging it makes every cell op reading `.offset` cry wolf in DEV.
 	it('leaves a shallow table-wrapper path unflagged', () => {
 		expect(normalizeTableEndpoint(doc, [2], 3)).toEqual({ path: [2], offset: 3 });
 	});
@@ -37,10 +33,8 @@ describe('cellEndpointDeepPath', () => {
 		]);
 	});
 
-	// The intra-table rectangle's focus is unflagged by the same-path convention
-	// but its offset is still a cell index. Gating on the flag left every
-	// forward-extended rectangle resolving no cell, so the collapse planted the
-	// caret at a character offset into the table's rendered text.
+	// The intra-table rectangle's focus is unflagged by the same-path convention but its offset is
+	// still a cell index; gating on the flag left every forward-extended rectangle resolving no cell.
 	it('expands an unflagged point on a table path — the intra-table convention', () => {
 		expect(cellEndpointDeepPath(doc, { path: [2], offset: 5 })).toEqual([2, 2, 1]);
 	});
@@ -50,10 +44,8 @@ describe('cellEndpointDeepPath', () => {
 		expect(cellEndpointDeepPath(doc, { path: [2, 1, 0], offset: 0 })).toBeNull();
 	});
 
-	// The decode used to run unchecked: offset 99 on this 2-column table produced
-	// [2, 49, 1], a path to a row that does not exist, handed to revealPath as if
-	// valid. Callers read null as "no deep path" and fall back to the table itself,
-	// so declining is the only honest answer for an index outside the grid.
+	// The decode used to run unchecked: offset 99 on this 2-column table produced [2, 49, 1], a path
+	// to a row that does not exist. Callers read null as "no deep path" and fall back to the table.
 	it('returns null when the cell index falls outside the grid', () => {
 		// 3 rows x 2 columns: 6 is the first index past the last cell.
 		const outOfGrid = [6, 99, -1].map((offset) =>

@@ -1,13 +1,9 @@
 // @vitest-environment jsdom
 //
-// The navigation arms, which stay live in reading mode because nothing they do is an
-// edit. Two things are easy to get wrong and invisible if only one direction is
-// tested: WHICH endpoint an unshifted arrow collapses to (left/up go to the range
-// start, right/down to its end — reversing them teleports the caret across the whole
-// selection), and whether a shifted arrow grows or shrinks the range.
-//
-// Escape shares the collapse-to-start arm but is gated on carrying no modifiers, so a
-// modified Escape has to fall through rather than silently collapse.
+// The navigation arms, live in reading mode because nothing they do is an edit. Two things are
+// invisible if only one direction is tested: WHICH endpoint an unshifted arrow collapses to
+// (left/up to range start, right/down to end), and whether a shifted arrow grows or shrinks.
+// Escape shares the collapse-to-start arm but is gated on carrying no modifiers.
 import { describe, it, expect } from 'vitest';
 import { makeKeydownEnv, press } from './keydown-env';
 
@@ -87,9 +83,8 @@ describe('cross-block keydown — extend', () => {
 		expect(env.selection.anchor?.path).toEqual([0]);
 	});
 
-	// Contraction: pulling the focus back onto the anchor's own block leaves nothing
-	// spanning two blocks, so the range stops being cross-block rather than lingering
-	// as a zero-width one that the next keystroke would still route through here.
+	// Contraction: pulling the focus back onto the anchor's own block leaves nothing spanning two
+	// blocks, so the range must stop being cross-block rather than linger as a zero-width one.
 	it('Shift+ArrowUp back onto the anchor block leaves cross-block mode', async () => {
 		const env = envAcrossFirstTwo();
 

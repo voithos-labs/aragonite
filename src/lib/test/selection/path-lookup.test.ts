@@ -162,11 +162,9 @@ describe('findBlockPathForElement', () => {
 	});
 });
 
-// The door for any producer that resolves an endpoint path from the DOM: only
-// block hosts carry data-block-path, so the plain walk stops at the table and
-// hands back a path whose offsets are cell indices while the caret's are
-// characters. Every null arm matters — a producer that mistakes "not a cell"
-// for "cell 0" mints the same corrupt endpoint from the other direction.
+// The door for any producer that resolves an endpoint path from the DOM: only block hosts carry
+// data-block-path, so a plain walk stops at the table and hands back cell-index offsets where the
+// caret's are characters. Every null arm matters — "not a cell" read as "cell 0" corrupts too.
 describe('findCellPathForElement', () => {
 	function grid(rowCount: number, colCount: number, tablePath = '[3]') {
 		const host = document.createElement('div');

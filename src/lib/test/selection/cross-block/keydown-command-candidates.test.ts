@@ -1,13 +1,9 @@
 // @vitest-environment jsdom
 //
-// Command-candidate keys (Enter, Tab, Mod+B/I, Mod+0-6) are owned by the block at the
-// caret, so over a cross-block range they run in two steps: delete the range, then
-// dispatch the chord against the block the delete left behind. Both halves matter —
-// dispatching before the delete would run the command against stale indices, and
-// deleting without dispatching would silently swallow the keystroke.
-//
-// The reveal target is the authoritative post-delete caret, not the pre-delete start
-// path: for a table endpoint those differ, and only the deep one has a `runCommand`.
+// Command-candidate keys (Enter, Tab, Mod+B/I, Mod+0-6) are owned by the block at the caret, so
+// over a cross-block range they delete then dispatch. Dispatching first would run against stale
+// indices; deleting without dispatching would swallow the keystroke. The reveal target is the
+// authoritative post-delete caret, not the pre-delete start path — they differ for a table end.
 import { describe, it, expect, vi } from 'vitest';
 import { mockRef } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -69,10 +65,8 @@ describe('cross-block keydown — command candidates', () => {
 		expect(runCommand).not.toHaveBeenCalled();
 	});
 
-	// The contrapositive of `isCommandCandidateKey` at its only caller: a modified
-	// Enter/Tab is NOT a candidate, so it must not trigger the destructive prelude.
-	// A candidate test that only asserted the positives would pass with the guard
-	// widened to every Enter, which would delete the range on Ctrl+Enter.
+	// The contrapositive of `isCommandCandidateKey` at its only caller: a modified Enter/Tab is NOT a
+	// candidate, so a guard widened to every Enter would delete the range on Ctrl+Enter.
 	for (const [name, init] of [
 		['Ctrl+Enter', { ctrlKey: true }],
 		['Alt+Enter', { altKey: true }]

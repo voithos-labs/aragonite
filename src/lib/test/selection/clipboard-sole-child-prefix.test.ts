@@ -4,12 +4,9 @@ import { collectCrossBlockText } from '$lib/selection/clipboard-text';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
-// A partial mid-leaf clipboard slice from the SOLE child of a strip container must keep
-// the container's per-line marker prefix, or the slice reparses as bare text and the
-// container kind is lost on paste. Eligibility is the descriptor's `strip` contract
-// (raw is a per-line marker around serialize(children)), not a hardcoded kind list —
-// so githubAlert and footnote-def recover their wrapper exactly as listItem and
-// blockquote always have.
+// A partial mid-leaf slice from the SOLE child of a strip container must keep the container's
+// per-line marker prefix, or it reparses as bare text. Eligibility is the descriptor's `strip`
+// contract (raw is a per-line marker around serialize(children)), not a hardcoded kind list.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);

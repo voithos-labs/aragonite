@@ -7,9 +7,8 @@ const TWO_COL_THREE_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 describe('rangeDelete — across two top-level tables (char-addressable caret)', () => {
 	it('both tables survive: caret lands in the start table anchor cell with a char offset', () => {
-		// Tables A=[0], B=[1], 6 cells each. Anchor cell 3 of A (row 1, col 1),
-		// focus inclusive cell 2 of B (row 1, col 0). A's cell (1,1) clears + its
-		// last body row drops; A survives. B's header row drops; B survives.
+		// Tables A=[0], B=[1], 6 cells each. Anchor cell 3 of A (row 1, col 1), focus inclusive cell 2
+		// of B: A's cell (1,1) clears and its last body row drops; B's header row drops.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
@@ -66,9 +65,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with surrounding paragraphs: caret lands at the end of the preceding paragraph', () => {
-		// Doc: pre[0], A[1], B[2], post[3]. Both tables fully cleared → both
-		// removed. Survivors: pre[0], post[1]. Anchor-side convention: end of the
-		// nearest surviving block before the deleted range = end of "pre".
+		// Doc: pre[0], A[1], B[2], post[3]. Both tables clear and are removed; the anchor-side
+		// convention puts the caret at the end of the nearest surviving block before the range.
 		const doc = parse(`pre\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}\npost\n`);
 
 		const result = rangeDelete(
@@ -87,9 +85,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a preceding table: caret deep-addresses the last cell of the survivor', () => {
-		// Tables [0], [1], [2]. Select all of [1] and [2] → both removed; table
-		// [0] survives untouched. The caret must address [0]'s last cell as a
-		// char-offset leaf, never the table block shallowly.
+		// Tables [0], [1], [2]. Selecting all of [1] and [2] removes both; the caret must address [0]'s
+		// last cell as a char-offset leaf, never the table block shallowly.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
@@ -107,11 +104,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a preceding blockquote: caret descends to the survivor last leaf', () => {
-		// Blockquote (two paragraphs) [0], table A [1], table B [2]. Select all of A
-		// and B → both removed; the blockquote survives. The caret must land at the
-		// END of the blockquote's deepest leaf (its last paragraph), never a char
-		// offset on the blockquote's own container path — that offset names bytes no
-		// leaf owns, so the restore clamps or mis-lands.
+		// Blockquote (two paragraphs) [0], tables [1] and [2]. The caret must land at the END of the
+		// blockquote's deepest leaf: a char offset on the container path names bytes no leaf owns.
 		const doc = parse(`> alpha\n>\n> bravo\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
@@ -129,10 +123,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a blockquote ending in a fenced code block: caret descends to the code leaf', () => {
-		// The blockquote's deepest leaf is a fenced code block — editable but NOT
-		// merge-eligible. The survivor caret must descend to it by focusability, not
-		// merge-eligibility; parking on the blockquote's own container path names a
-		// full-raw offset no leaf owns.
+		// The blockquote's deepest leaf is a fenced code block — editable but NOT merge-eligible — so
+		// the survivor caret must descend by focusability rather than merge-eligibility.
 		const source =
 			'> alpha\n>\n> ```\n> code\n> ```\n\n' + `${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`;
 		const doc = parse(source);
@@ -153,9 +145,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('both empty with a preceding list: caret descends into the last item last leaf', () => {
-		// List (two items) [0], table A [1], table B [2]. Both tables consumed → the
-		// list survives; the caret lands at the end of the last item's leaf, deep-
-		// pathed, not at a shallow char offset on the list's container path.
+		// List (two items) [0], tables [1] and [2]. Both consumed, so the caret lands on the last
+		// item's leaf, deep-pathed, not at a shallow offset on the list's container path.
 		const doc = parse(`- one\n- two\n\n${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(
@@ -173,9 +164,8 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 	});
 
 	it('start empties across an intervening blockquote: end-table path is not over-shifted', () => {
-		// Table A [0], blockquote [1], table B [2]. A empties → removed; the
-		// blockquote AND its inner paragraph are both deletion paths — counting
-		// the nested path as a top-level shift would over-shift B's index.
+		// Table A [0], blockquote [1], table B [2]. A empties → removed; the blockquote AND its inner
+		// paragraph are both deletion paths, and counting the nested one would over-shift B's index.
 		const doc = parse(`${TWO_COL_THREE_ROW}\n> quoted\n\n${TWO_COL_THREE_ROW}`);
 
 		const result = rangeDelete(

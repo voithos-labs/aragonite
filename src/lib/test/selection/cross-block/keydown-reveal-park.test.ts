@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
 //
-// `revealActiveEndpoint`'s prose arm: the one caret landing in the editor that runs
-// while an extend is still growing its range, and therefore the only caller of the
-// park door. It is reachable only when the endpoint is windowed OUT — the arm is gated
-// on the endpoint having no element — and it lands through `parkCaret?.()`, which every
-// other spec exercises with the door present.
-//
-// `parkCaret` is optional on `BlockComponent`, so a block may omit it, and the contract
-// promises a specific degradation: no parked caret, the range survives, the scroll still
-// runs. Pinned directly here rather than transitively, because what must NOT happen — a
-// fallback to the range-ending `focus`, or a throw — is invisible to every extend spec.
+// `revealActiveEndpoint`'s prose arm: the only caller of the park door, reachable only when the
+// endpoint is windowed OUT. `parkCaret` is optional on `BlockComponent`, and the contract promises
+// a specific degradation — no parked caret, the range survives, the scroll still runs. Pinned here
+// because what must NOT happen (a fallback to the range-ending `focus`, or a throw) is invisible
+// to every extend spec.
 import { describe, it, expect, vi } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import { makeKeydownEnv, press } from './keydown-env';

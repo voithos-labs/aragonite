@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 //
-// The two caret doors a block component exposes. `parkCaret` is each surface's own
-// primitive (exercised through the surfaces' own suites); this pins what `placeCaret`
-// adds on top of it, which is the whole difference between the safe verb and the
-// extend-only one.
+// The two caret doors a block component exposes. `parkCaret` is each surface's own primitive
+// (exercised through the surfaces' own suites); this pins what `placeCaret` adds on top of it.
 import { describe, it, expect } from 'vitest';
 import { placeCaret } from '../../selection/caret-doors';
 import { createSelectionState } from '../../selection/selection-state.svelte';
@@ -51,9 +49,8 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.landed).toBe(7);
 	});
 
-	// The T5 rule: subscribers read the editor back on notify, so an emission between
-	// the state write and the DOM landing reports the caret the landing is about to
-	// move. One emission, and it sees the landed caret.
+	// The T5 rule: subscribers read the editor back on notify, so an emission between the state write
+	// and the DOM landing reports a caret the landing is about to move.
 	it('notifies once, after the caret has landed', () => {
 		const h = liveRange();
 
@@ -62,9 +59,8 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
 	});
 
-	// `clear()` notifies whether or not it changed anything, and the overwhelming
-	// majority of caret placements happen with no range standing — so the guard is
-	// what keeps the selection channel as quiet as it was before the split.
+	// `clear()` notifies whether or not it changed anything, and most caret placements happen with no
+	// range standing — the guard is what keeps the selection channel quiet.
 	it('emits nothing when no range is live', () => {
 		const emissions: number[] = [];
 		const selection = createSelectionState({ onChange: () => emissions.push(1) });

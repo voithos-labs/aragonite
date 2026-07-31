@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 //
-// Which door the dead-space click lands through. The band arithmetic is
-// dead-space-band.test.ts and the table's geometry is
-// blocks/table/table-caret-at-point.test.ts; what is untested between them is the
-// routing decision — a coordinate-addressed kind lands through its internal path,
-// one that names no caret landing still declines, and both go through the
-// range-ending door only once a landing is known.
+// Which door the dead-space click lands through. The band arithmetic is dead-space-band.test.ts
+// and the geometry is blocks/table/table-caret-at-point.test.ts; untested between them is the
+// routing decision, and whether the range-ending door opens only once a landing is known.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import { CURSOR_END } from '$lib/block-component';
@@ -95,9 +92,8 @@ describe('createDeadSpaceCaret routing', () => {
 	});
 
 	it('declines, touching no selection, when the kind names no caret landing', () => {
-		// The pre-0.9.36 table: a drag hit test and nothing to place a caret with. The
-		// decline must come BEFORE the range-ending preamble, or a rejected click
-		// collapses a selection it never replaced.
+		// A kind with a drag hit test and nothing to place a caret with: the decline must come BEFORE
+		// the range-ending preamble, or a rejected click collapses a selection it never replaced.
 		const declared = tryGetBlockKindDescriptor('table')!.caretTargetAtPoint;
 		try {
 			augmentBuiltin('table', { caretTargetAtPoint: undefined });

@@ -99,11 +99,9 @@ function selectAcross(selection: SelectionState, anchor: number[], focus: number
 }
 
 /**
- * Mirror of the shell's own `edit` subscriber (`Editor.svelte`): rebuild the
- * link-reference map whenever the gate says a commit could have changed the
- * definition set, reading the live post-commit document exactly as the shell
- * does. Replaying the collected events afterwards would not reproduce the
- * shell — the gate's answer depends on the document state at each commit.
+ * Mirror of the shell's own `edit` subscriber (`Editor.svelte`): rebuild the link-reference map
+ * whenever the gate says a commit could have changed the definition set, reading the live
+ * post-commit document. Replaying the collected events afterwards would not reproduce the shell.
  */
 function trackLrdResolver(env: ReturnType<typeof makeEnv>): () => LinkReferenceResolver {
 	let resolve = buildLinkReferenceMap(env.doc.children).resolve;
@@ -125,10 +123,8 @@ function makeBeforeInputEvent(typed: string): InputEvent {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('cross-block typed character — A2/A3 event symmetry', () => {
-	// The commit re-derives the leaf's kind, so it declares `updateContent`, not
-	// `input` — matching the single-block path's kind-changing branch. Its detail
-	// is that op's `{ length }`, the post-edit block's full text length, so a
-	// consumer reading `detail.length` gets the same fact from every emitter of it.
+	// The commit re-derives the leaf's kind, so it declares `updateContent`, not `input` — matching
+	// the single-block kind-changing branch, with the post-edit block's full text length as detail.
 	it.each(['X', 'ABC'])('emits op:delete then op:updateContent for a typed "%s"', async (typed) => {
 		const env = makeEnv('hello\n\nworld\n');
 		const editEvents: EditEvent[] = [];
@@ -153,9 +149,8 @@ describe('cross-block typed character — A2/A3 event symmetry', () => {
 	it('typed character lands in the merged target raw', async () => {
 		const env = makeEnv('hello\n\nworld\n');
 
-		// Cross-block from [0] offset 5 (end of "hello") to [1] offset 0 (start of "world")
-		// — selecting only the paragraph break — typing should still produce delete+input
-		// and leave a single merged block "helloXworld".
+		// Selecting only the paragraph break, [0] offset 5 to [1] offset 0: typing should still produce
+		// delete+input and leave a single merged block.
 		env.selectionState.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
 		const handlers = makeHandlers(env, [0], () => 5);
@@ -183,9 +178,8 @@ describe('cross-block typed character — A2/A3 event symmetry', () => {
 	});
 });
 
-// The typed splice re-parses the surviving leaf inside the commit, so a marker at
-// offset 0 re-derives the kind (parity with the single-block type path). Before the
-// fix the raw was spliced with the kind held stale until the next full re-parse.
+// The typed splice re-parses the surviving leaf inside the commit, so a marker at offset 0
+// re-derives the kind (parity with the single-block type path) rather than holding it stale.
 describe('cross-block typed character — kind re-derivation at offset 0', () => {
 	it('a marker at offset 0 of an emptied survivor re-parses to the new kind', async () => {
 		const env = makeEnv('aaa\n\nbbb\n');
@@ -217,11 +211,8 @@ describe('cross-block typed character — kind re-derivation at offset 0', () =>
 	});
 });
 
-// The commit re-derives the kind, so it must declare an op the LRD gate treats
-// as kind-unstable. Declaring `input` made the gate fall through to the node's
-// POST-commit kind, which reads `paragraph` for a destroyed definition — the
-// resolver then kept serving a definition the document no longer holds, and a
-// prose block's render memo keys on the LRD epoch, so nothing self-healed.
+// A commit that re-derives the kind must declare an op the LRD gate treats as kind-unstable:
+// under `input` the gate read the POST-commit kind and kept serving a destroyed definition.
 describe('cross-block typed character — link-reference resolver freshness', () => {
 	it('a type-replace that destroys a definition stops the resolver serving it', async () => {
 		const env = makeEnv('[label]: /a\n\n[ref]: /b\n\nSee [ref] and [label].\n');
@@ -230,9 +221,8 @@ describe('cross-block typed character — link-reference resolver freshness', ()
 		env.events.on('edit', (e) => editEvents.push(e));
 		expect(resolver()('ref')).toEqual({ url: '/b' });
 
-		// Shift+ArrowDown from the start of block 0, then type: the delete drops
-		// `[label]` and leaves `[ref]: /b` at [0], which the typed `x` reparses
-		// into prose — the document now defines neither label.
+		// The delete drops `[label]` and leaves `[ref]: /b` at [0], which the typed `x` reparses into
+		// prose — the document then defines neither label.
 		selectAcross(env.selectionState, [0], [1]);
 		const handlers = makeHandlers(env, [0]);
 		await handlers.handleBeforeInput(makeBeforeInputEvent('x'));
@@ -242,9 +232,8 @@ describe('cross-block typed character — link-reference resolver freshness', ()
 		expect(resolver()('ref')).toBeUndefined();
 		expect(resolver()('label')).toBeUndefined();
 
-		// The detail is computed before the commit, but a kind change mints a fresh
-		// node by re-parsing — so the length contract needs checking on THIS arm,
-		// not only on the kind-stable one above.
+		// The detail is computed before the commit, but a kind change mints a fresh node by re-parsing,
+		// so the length contract needs checking on THIS arm, not only on the kind-stable one above.
 		const update = editEvents.at(-1) as Extract<EditEvent, { op: 'updateContent' }>;
 		expect(update.op).toBe('updateContent');
 		expect(update.detail.length).toBe(survivor.raw.length);

@@ -94,9 +94,8 @@ describe('widgetsIntersectingRange', () => {
 		expect(widgetsIntersectingRange(el, asDomTextOffset(0), asDomTextOffset(10))).toEqual([]);
 	});
 
-	// A widget decoration island spans 0 bytes: it is a [data-inline-widget] with
-	// data-source-start === data-source-end. Selection cover-rects deliberately skip
-	// it (0 bytes ⇒ nothing selected) — recorded here so nobody "fixes" the guard.
+	// A zero-byte widget decoration island (data-source-start === data-source-end) is deliberately
+	// skipped by selection cover-rects — nothing is selected — so nobody "fixes" the guard.
 	it('ignores a zero-length decoration widget island', () => {
 		const island = document.createElement('span');
 		island.setAttribute('data-inline-widget', '');

@@ -1,15 +1,10 @@
 /**
- * Regression: widget edge-select and vertical-transparency are registry-generic,
- * not image-coupled. A non-image live widget — the built-in `<br>` rawHtml
- * widget — must travel the same predicates the selection/focus entry layer uses:
- * `findFirst/LastEdgeWidget` (behind `enterEdgeWidget`) and
- * `isVerticallyTransparentNode` (behind cross-block vertical traversal). Re-couple
- * recognition to `kind === 'image'` and the `<br>` assertions below go red.
+ * Regression: widget edge-select and vertical-transparency are registry-generic, not image-coupled
+ * — a non-image live widget (the built-in `<br>` rawHtml widget) must travel the same entry-layer
+ * predicates. Re-couple recognition to `kind === 'image'` and the `<br>` assertions go red.
  *
- * Lives under test/selection/ — it guards the entry layer, not the leaf helpers'
- * own suites. A standalone `<br>\n` parses as an HTML block (CommonMark §4.6
- * type 7), so a transparent `<br>`-only paragraph needs content that can't open
- * one, hence `<br><br>`.
+ * A standalone `<br>\n` parses as an HTML block (CommonMark §4.6 type 7), so a transparent
+ * `<br>`-only paragraph needs content that cannot open one, hence `<br><br>`.
  */
 
 import { describe, it, expect } from 'vitest';

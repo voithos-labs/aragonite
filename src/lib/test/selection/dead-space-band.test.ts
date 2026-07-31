@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { nearestBand } from '$lib/selection/dead-space-caret';
 
-// Which block a dead-space click belongs to. The geometry half needs real layout
-// and is pinned by e2e/tests/selection/dead-space-click.spec.ts; this is the
-// arithmetic, where the off-by-ones live.
+// Which block a dead-space click belongs to. The geometry half needs real layout and is pinned by
+// e2e/tests/selection/dead-space-click.spec.ts; this is the arithmetic, where the off-by-ones live.
 
 const BANDS = [
 	{ top: 100, bottom: 130 },

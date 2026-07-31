@@ -28,10 +28,8 @@ describe('reveal anchor', () => {
 		expect(fresh.isSuperseded()).toBe(false);
 	});
 
-	// The distinction the settle loop turns on: a successor means another reveal owns
-	// the viewport, an empty slot means nobody does. Neither the user's release nor a
-	// claimant's own release appoints a successor, and supersession is monotone — the
-	// successor releasing in turn does not un-supersede its predecessor.
+	// The distinction the settle loop turns on: a successor means another reveal owns the viewport,
+	// an empty slot means nobody does. Supersession is monotone.
 	it('an empty slot is not supersession, however it was emptied', () => {
 		const anchor = createRevealAnchorState();
 		const byUser = anchor.claim([1]);
@@ -47,10 +45,8 @@ describe('reveal anchor', () => {
 		expect(stale.isSuperseded()).toBe(true);
 	});
 
-	// A claim in flight outlives the pin it lost: a reveal parked in its mount wait
-	// while the user's pointerdown empties the slot is still running, and the next
-	// reveal to be issued owns the viewport over it. Reading the slot instead of the
-	// last mint loses that — the successor would find nobody to supersede.
+	// A claim in flight outlives the pin it lost, so the next reveal owns the viewport over it;
+	// reading the slot instead of the last mint leaves the successor with nobody to supersede.
 	it('a later claim supersedes an earlier one across an emptied slot', () => {
 		const anchor = createRevealAnchorState();
 		const inFlight = anchor.claim([1]);

@@ -1,5 +1,4 @@
-// Regression: cross-list-item paste. Drives pure layers
-// independent of Svelte reactivity.
+// Regression: cross-list-item paste, driven through pure layers independent of Svelte reactivity.
 
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';

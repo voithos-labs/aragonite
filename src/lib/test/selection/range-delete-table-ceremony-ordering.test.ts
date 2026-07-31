@@ -4,21 +4,17 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 
-// Contract guard for the shared cross-block deletion ceremony (planCrossBlock-
-// Deletion → applyPlannedDeletion → rebuildSharedAncestries). Each case routes
-// through the SAME helpers but sequences its endpoint prose-replace on a
-// different side of the delete, and locates its shifted survivor by identity.
-// A between-block strictly inside the range shifts a surviving endpoint's
-// document index; the caret + surviving content below only land right if that
-// ordering is preserved. A future "unify the three orderings" edit breaks here.
+// Contract guard for the shared cross-block deletion ceremony (planCrossBlockDeletion →
+// applyPlannedDeletion → rebuildSharedAncestries). Each case routes through the SAME helpers but
+// sequences its endpoint prose-replace on a different side of the delete, and locates its shifted
+// survivor by identity — a between block strictly inside the range shifts that document index.
 
 const TWO_COL_FOUR_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 
 describe('cross-block delete ceremony — per-case ordering survives the shared path', () => {
 	it('Case 1 (prose→table): the between block drops and the start truncates through the shared path', () => {
-		// para[0], mid[1], table[2]. mid is strictly between → deleted, shifting the
-		// surviving table [2]→[1]. The start truncates AFTER the delete (replacing it
-		// before would shift the between/end deletion paths mid-plan).
+		// para[0], mid[1], table[2]. mid is strictly between → deleted, shifting the table [2]→[1]. The
+		// start truncates AFTER the delete; before would shift the between/end deletion paths mid-plan.
 		const doc = parse(`head\n\nmid\n\n${TWO_COL_FOUR_ROW}`);
 
 		const result = rangeDelete(
@@ -41,9 +37,8 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 	});
 
 	it('Case 2 (table→prose): end replaces BEFORE the delete; surviving tail resolves its shifted path by identity', () => {
-		// table[0] (survives), mid[1], tail[2]. mid deleted → tail [2]→[1]. The end
-		// tail was replaced at its live path [2] before the delete, then re-located
-		// by identity at [1] — replacing after the delete would hit the stale slot.
+		// table[0] survives, mid[1], tail[2]. mid deleted → tail [2]→[1]. The end tail is replaced at
+		// its live path first, then re-located by identity — replacing after hits a stale slot.
 		const doc = parse(`${TWO_COL_FOUR_ROW}\nmid\n\ntail text\n`);
 
 		const result = rangeDelete(
@@ -66,9 +61,8 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 	});
 
 	it('Case 3 (table→table): start empties and the caret lands in the identity-resolved end table', () => {
-		// tableA[0] (emptied → removed), mid1[1], mid2[2], tableB[3] (survives). Both
-		// betweens delete and A's block goes, shifting B [3]→[0]. The caret addresses
-		// B by its identity-resolved path; a stale [3] would misland it off the tree.
+		// tableA[0] empties → removed, mid1[1], mid2[2], tableB[3]. Both betweens delete and A's block
+		// goes, shifting B [3]→[0]; the caret addresses B by identity, since a stale [3] is off-tree.
 		const doc = parse(`${TWO_COL_FOUR_ROW}\nmid1\n\nmid2\n\n${TWO_COL_FOUR_ROW}`);
 
 		const result = rangeDelete(

@@ -9,7 +9,7 @@ describe('HeightModel', () => {
 		expect(m.offsetOf(0)).toBe(0);
 		expect(m.offsetOf(1)).toBe(10);
 		expect(m.offsetOf(2)).toBe(30);
-		expect(m.offsetOf(4)).toBe(100); // offset past the last index == total
+		expect(m.offsetOf(4)).toBe(100);
 	});
 
 	it('updates one height in place and reflects it in offsets and total', () => {
@@ -27,7 +27,7 @@ describe('HeightModel', () => {
 		expect(m.indexAtOffset(10)).toBe(1);
 		expect(m.indexAtOffset(59)).toBe(2);
 		expect(m.indexAtOffset(60)).toBe(3);
-		expect(m.indexAtOffset(99999)).toBe(3); // clamps to last
+		expect(m.indexAtOffset(99999)).toBe(3);
 	});
 
 	it('handles an empty model', () => {
@@ -43,37 +43,34 @@ describe('HeightModel', () => {
 		const five = new HeightModel([10, 20, 30, 40, 50]); // tops 0,10,30,60,100; total 150
 		expect(five.indexAtOffset(0)).toBe(0);
 		expect(five.indexAtOffset(29)).toBe(1);
-		expect(five.indexAtOffset(30)).toBe(2); // exact boundary
+		expect(five.indexAtOffset(30)).toBe(2);
 		expect(five.indexAtOffset(99)).toBe(3);
-		expect(five.indexAtOffset(100)).toBe(4); // exact boundary
-		expect(five.indexAtOffset(150)).toBe(4); // == total clamps to last
+		expect(five.indexAtOffset(100)).toBe(4);
+		expect(five.indexAtOffset(150)).toBe(4);
 		expect(five.indexAtOffset(99999)).toBe(4);
 
 		const seven = new HeightModel([1, 1, 1, 1, 1, 1, 1]); // tops 0..6; total 7
 		expect(seven.indexAtOffset(0)).toBe(0);
 		expect(seven.indexAtOffset(3)).toBe(3);
 		expect(seven.indexAtOffset(6)).toBe(6);
-		expect(seven.indexAtOffset(7)).toBe(6); // == total clamps to last
+		expect(seven.indexAtOffset(7)).toBe(6);
 	});
 
 	// Zero-height entries make consecutive tops tie; pin that the search lands on
 	// the last tied index so a future refactor can't silently flip the contract.
 	it('lands on the last index when zero-height entries tie offsets', () => {
 		const m = new HeightModel([5, 0, 0, 0]); // tops 0,5,5,5; total 5
-		expect(m.indexAtOffset(4)).toBe(0); // before the first boundary
-		expect(m.indexAtOffset(5)).toBe(3); // offsetOf(1..3) all == 5; last wins
+		expect(m.indexAtOffset(4)).toBe(0);
+		expect(m.indexAtOffset(5)).toBe(3);
 	});
 
-	// VR-9: out-of-range writes/reads must not poison the Fenwick tree. setHeight at
-	// i === count used to record heights[count] (read back stale) with no tree update;
-	// offsetOf(i > count) reads past the tree array and returns NaN, which then
-	// propagates into every spacer. A negative index makes bump's `p += p & -p` stall
-	// at p = 0 forever.
+	// VR-9: out-of-range writes/reads must not poison the Fenwick tree — a stale height recorded
+	// at i === count, NaN offsets past it, and a bump that never terminates on a negative index.
 	it('ignores a setHeight at or past the count instead of recording a stale height', () => {
 		const m = new HeightModel([10, 20, 30]); // count 3
-		m.setHeight(3, 50); // i === count
+		m.setHeight(3, 50);
 		expect(m.heightOf(3)).toBe(0); // unguarded: returns 50
-		expect(m.total()).toBe(60); // tree untouched
+		expect(m.total()).toBe(60);
 	});
 
 	it('ignores a negative setHeight index instead of looping forever', () => {
@@ -84,7 +81,7 @@ describe('HeightModel', () => {
 
 	it('clamps offsetOf past the count to total instead of returning NaN', () => {
 		const m = new HeightModel([10, 20, 30]); // total 60
-		expect(m.offsetOf(3)).toBe(60); // offsetOf(count) == total, still valid
+		expect(m.offsetOf(3)).toBe(60);
 		expect(m.offsetOf(4)).toBe(60); // unguarded: NaN
 		expect(Number.isFinite(m.offsetOf(99))).toBe(true);
 	});

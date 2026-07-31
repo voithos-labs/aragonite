@@ -114,9 +114,8 @@ describe('cellIndexOf', () => {
 	});
 });
 
-// Compile-time pins for the discriminated union. The load-bearing assertions
-// are the `@ts-expect-error` directives, verified by `npm run check`; the runtime
-// expectations only keep the values live so vitest still exercises the block.
+// Compile-time pins for the discriminated union. The load-bearing assertions are the directives
+// verified by `npm run check`; the runtime expectations only keep the values live for vitest.
 describe('SelectionPoint discriminated union — type pins', () => {
 	it('discriminates on the flag literal and narrows the union', () => {
 		const cellPoint: CellSelectionPoint = { path: [0], offset: 3, cellCoordinate: true };

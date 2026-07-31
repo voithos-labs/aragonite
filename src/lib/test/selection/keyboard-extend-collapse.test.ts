@@ -17,11 +17,9 @@ function harness() {
 	return { selection, cellRef, revealPath, getBlockElByPath };
 }
 
-// An intra-table rectangle carries a FLAGGED anchor and an UNFLAGGED focus —
-// cross-block/keydown.ts extends with `{ path: focus.path, offset }` by the
-// same-path convention. Whichever side the collapse targets, the offset is a
-// cell index and must resolve to that cell, not to a character offset into the
-// table's rendered text.
+// An intra-table rectangle carries a FLAGGED anchor and an UNFLAGGED focus (cross-block/keydown.ts
+// extends by the same-path convention), so either collapse target's offset is a cell index and
+// must resolve to that cell, not to a character offset into the table's rendered text.
 describe('collapseCrossBlock over an intra-table rectangle', () => {
 	it('resolves the deep cell path when the collapse target is the unflagged focus', async () => {
 		const { selection, cellRef, revealPath, getBlockElByPath } = harness();

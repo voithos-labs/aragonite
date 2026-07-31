@@ -28,9 +28,8 @@ function restoreHarness(source: string, { mounted = true } = {}) {
 	};
 }
 
-// The e2e cannot discriminate this: an over-long DOM offset already degrades to
-// the container end when the range is built, so the browser hides a missing model
-// clamp. These are the tests that fail when the clamp goes.
+// The e2e cannot discriminate this: an over-long DOM offset already degrades to the container end
+// when the range is built, so the browser hides a missing model clamp.
 describe('resolveSelectionPoint — clamping per coordinate space', () => {
 	it('clamps a prose offset to the block raw length', () => {
 		const doc = parse(PROSE);
@@ -46,9 +45,8 @@ describe('resolveSelectionPoint — clamping per coordinate space', () => {
 	});
 
 	it('clamps an UNFLAGGED intra-table endpoint in cell space, not against the markdown', () => {
-		// The case the kind-based discriminant exists for: no flag, yet the offset is
-		// a cell index. 2 rows × 2 columns → indices 0..3, while the table's raw is
-		// far longer, so a raw-length clamp would leave the index outside the grid.
+		// The case the kind-based discriminant exists for: no flag, yet the offset is a cell index. 2
+		// rows × 2 columns → indices 0..3, while a raw-length clamp leaves the index outside the grid.
 		expect(resolveSelectionPoint(parse(TABLE_2x2), { path: [0], offset: 99 })).toEqual({
 			path: [0],
 			offset: 3

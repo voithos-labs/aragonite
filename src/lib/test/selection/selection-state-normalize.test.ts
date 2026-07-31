@@ -35,9 +35,8 @@ function gridForeigners(doc: Document): string[] {
 	return bad;
 }
 
-// The deleted doc must not just re-serialize (a tautology) — its live tree must
-// converge with a fresh parse of its bytes, so a delete that leaves a stale grid
-// or split-separator shape is caught. Byte round-trip retained alongside.
+// The deleted doc must not just re-serialize (a tautology) — its live tree must converge with a
+// fresh parse of its bytes, catching a delete that leaves a stale grid or split-separator shape.
 function assertDeleteConverged(doc: Document): void {
 	expectParseConverged(doc);
 	const out = serialize(doc);

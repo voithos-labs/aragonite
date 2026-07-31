@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
 //
-// jsdom has no layout engine, so the browser rect primitives are patched at the
-// prototype level (the SUT calls document.createRange() internally — per-range
-// stubs never reach it). Each mocked rect is derived from the collapsed range's
-// (startContainer, startOffset) so the SUT's real candidate scan, line-probe,
-// and nearest-X selection run against the injected geometry. Only the browser
-// primitives are stubbed; the SUT's own helpers (getOffsetRect,
-// findDomTextOffsetTarget) run for real.
+// jsdom has no layout engine, so the browser rect primitives are patched at the prototype level
+// (the SUT calls document.createRange() internally — per-range stubs never reach it). Each mocked
+// rect derives from the collapsed range's (startContainer, startOffset), so the SUT's own
+// candidate scan, line-probe, and nearest-X selection run for real against injected geometry.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset, asEditorX } from '../../cursor/coordinate-spaces';
@@ -20,9 +17,8 @@ const CHAR_WIDTH = 8;
 const LINE_HEIGHT = 18;
 const EDITOR_LEFT = 30;
 
-// Maps a character offset within a single text node to a fake rect. `wrapAt`
-// pushes every offset >= wrapAt onto a second visual line whose top is two line
-// heights below the first, so the two lines' band filters don't overlap.
+// Maps a character offset in a single text node to a fake rect. `wrapAt` pushes every offset >=
+// it onto a second visual line two line-heights down, so the two bands' filters never overlap.
 function rectForOffset(offset: number, wrapAt: number): DOMRect {
 	const onSecondLine = offset >= wrapAt;
 	const top = onSecondLine ? LINE_HEIGHT * 4 : 0;
@@ -197,9 +193,8 @@ describe('sticky-measure geometry', () => {
 		});
 
 		it('bounds the scan to the probed edge instead of the whole block', () => {
-			// 195-char text node, 20 chars/visual line → 10 lines, tops spaced wide so
-			// the band filter never bridges adjacent lines (as the wrapped-line fixtures
-			// above do). The bounded scan must read far fewer than all ~196 offsets.
+			// 195 chars at 20 per visual line → 10 lines, tops spaced wide so the band filter never
+			// bridges adjacent lines. The bounded scan must read far fewer than all ~196 offsets.
 			text.data = 'a'.repeat(195);
 			const PER_LINE = 20;
 			const LINE_GAP = LINE_HEIGHT * 3;

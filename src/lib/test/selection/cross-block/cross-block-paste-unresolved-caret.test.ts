@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 //
-// The defensive branch in handleCrossBlockPaste that consumes the event and
-// inserts nothing. Reachable through the delete's own re-entrancy serialization:
-// a paste arriving while a cross-block delete is parked on its reveal waits the
-// delete out, and the delete collapses the selection on its way through — so the
-// paste's own delete re-resolves to no range and hands back no caret.
+// The defensive branch in handleCrossBlockPaste that consumes the event and inserts nothing.
+// Reachable through the delete's own re-entrancy serialization: a paste arriving while a delete is
+// parked on its reveal waits it out, and the delete collapses the selection on its way through.
 import { describe, it, expect } from 'vitest';
 import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import { performCrossBlockDelete } from '$lib/selection/cross-block/ops';
@@ -109,9 +107,8 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		expect(serialize(env.deps.doc)).not.toContain('DROPPED');
 		expect(env.errors.map((e) => e.origin)).toEqual(['clipboard']);
 		expect(String((env.errors[0].error as Error).message)).toContain('no caret');
-		// The range start, read before the delete collapsed the selection. A report that
-		// named nothing would leave a host unable to say WHERE the paste it must
-		// compensate for was aimed.
+		// The range start, read before the delete collapsed the selection: a report naming nothing
+		// would leave a host unable to say WHERE the paste it must compensate for was aimed.
 		expect(env.errors[0].context?.path).toEqual([0]);
 	});
 });
