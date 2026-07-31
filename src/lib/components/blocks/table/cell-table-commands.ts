@@ -1,11 +1,7 @@
 /**
  * How a cell resolves the table's structural commands: a command id names a
  * `TableContext` mutation plus which of the cell's two coordinates indexes it.
- *
- * The chord half lives on the `tableCell` keymap. This is the half the retired
- * `SHORTCUTS` table carried as a per-row `arg: (state) => state.rowIdx` getter — an
- * argument the binding never needed, because the component running the command owns
- * the coordinates already.
+ * The chord half lives on the `tableCell` keymap.
  */
 
 import type { TableAxisAction } from '../../../action-contracts';
@@ -14,9 +10,8 @@ import type { BlockCommandId } from '../../../schema/commands';
 
 export type CommandAxis = 'row' | 'column';
 
-/** Every `table.*` command the vocabulary declares — the map's key type, so a
- *  twelfth id added to `BLOCK_COMMAND_IDS` and bound in the keymap is a compile
- *  error here rather than a chord that resolves to nothing at runtime. */
+/** Keying the map by the declared vocabulary makes a new `table.*` id a compile error
+ *  here, rather than a bound chord that resolves to nothing at runtime. */
 type TableCommandId = Extract<BlockCommandId, `table.${string}`>;
 
 const TABLE_AXIS_COMMANDS: Record<TableCommandId, { action: TableAxisAction; axis: CommandAxis }> =

@@ -84,21 +84,17 @@
 	const getPresentationMode = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.presentationMode;
-	// Every menu item mutates the table (structure, clipboard cut/paste), so
-	// reading mode declines to open it; the native context menu (with Copy) shows
-	// instead. Grips are CSS-hidden under [data-presentation='reading'].
+	// Every menu item mutates the table, so reading mode declines to open it and the
+	// native context menu (with Copy) shows instead.
 	const readOnly = $derived(getPresentationMode?.() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
-	// A column reorder permutes each row's cells (and their childIds) while leaving
-	// columnCount and widthVersion untouched, so it alone can't invalidate the
-	// monotonic width floors. The header row's cell-id order tracks the column
-	// order: it permutes on a reorder but is stable across row-window slides
-	// (childIds are CST fields, mounting-independent) and content edits (cell ids
-	// persist). Folded into the measure epoch below.
+	// A column reorder permutes cells while leaving columnCount and widthVersion untouched,
+	// so it alone can't invalidate the monotonic width floors below; the header row's
+	// cell-id order tracks column order and nothing else, so the measure epoch folds it in.
 	const columnStructureToken = $derived((node.children?.[0]?.childIds ?? []).join(','));
 
 	// Plain `let`, not $state: writes happen during keyed-each reconcile via
@@ -143,8 +139,8 @@
 		getChildIds: () => rowsState.innerBlockIds,
 		// The .table-block grid IS the content origin (holds spacers + rows).
 		getListEl: () => tableEl ?? null,
-		// The table is itself a BlockHost block; match the leaf channel the parent
-		// measured for it, so the subtotal we report up doesn't fight that slot.
+		// The table is itself a BlockHost block; match the leaf channel the parent measured
+		// for it, so the subtotal reported up doesn't fight that slot.
 		getOwnEl: () => tableEl?.closest('.block-host') ?? null,
 		provideLeafChannel: false
 	});
@@ -152,19 +148,13 @@
 	let win = $derived(windowing.window);
 	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
 
-	// Pin each column track to the widest cell SEEN across all windowed-in rows, not just
-	// the currently-mounted slice. `repeat(columnCount, minmax(80px, max-content))` alone
-	// sizes a track to its mounted cells, so under row windowing a column jumps width as a
-	// wide cell scrolls out of the mounted set (F6). The cached floor only grows, so the
-	// track can't shrink when its widest cell unmounts; `max-content` stays the upper bound
-	// so a still-wider cell scrolling IN still expands it (and feeds the cache). Reset on a
-	// column-count change or a width re-wrap (`widthVersion`), which invalidate the cache.
+	// Pin each column track to the widest cell SEEN across all windowed-in rows: a bare
+	// `minmax(80px, max-content)` sizes to the mounted cells, so a column jumps width as a
+	// wide cell scrolls out of the mounted set (F6). The floor only ever grows.
 	let columnMaxWidths = $state<number[]>([]);
 
-	// Leading `0` track is the row-grip gutter (col 1). Width 0 keeps cell A's left
-	// edge at the same x — no content shift, so caret pixel-measurement and sticky
-	// column geometry are untouched; the row grip's dots overflow right into cell A's
-	// left padding (mirrors the column grip overflowing into the header cell's top).
+	// Leading `0` track is the row-grip gutter: zero width keeps cell A's left edge at the
+	// same x, so caret pixel-measurement and sticky-column geometry are untouched.
 	const trackTemplate = $derived(
 		[
 			'0',
@@ -177,12 +167,9 @@
 
 	let measuredColumnEpoch = '';
 
-	// Re-measure when the mounted slice slides (`win` re-derives on every window recompute) or
-	// after a column-count change / width re-wrap (both invalidate cached widths). Runs
-	// post-flush, so the newly mounted rows are in the DOM. A column-count or width change
-	// resets the cache first — the old maxes are stale (narrower wrap, shifted track set) and
-	// monotonic-grow would otherwise pin a track too wide. Within a stable epoch it only grows
-	// the floor and only bumps state on an increase, so it settles rather than spinning.
+	// An epoch change resets the cache first: the old maxes are stale, and monotonic-grow
+	// would otherwise pin a track too wide. Within a stable epoch the floor only grows and
+	// only bumps state on an increase, so the effect settles rather than spinning.
 	$effect(() => {
 		void win;
 		const epoch = `${columnCount}:${getWidthVersion?.() ?? 0}:${columnStructureToken}`;
@@ -289,8 +276,8 @@
 
 	type MenuAxis = 'row' | 'column';
 	type MenuTarget = { rowIdx?: number; colIdx?: number };
-	// clipboardSel is the cell's raw selection captured at right-click, before the
-	// menu steals focus — null for grip menus and for an empty cell with no caret.
+	// clipboardSel is the cell's selection captured at right-click, before the menu steals
+	// focus — null for grip menus and for an empty cell with no caret.
 	type CellSelection = { start: number; end: number };
 	let menu = $state<{
 		target: MenuTarget;
@@ -299,8 +286,7 @@
 		clipboardSel: CellSelection | null;
 	} | null>(null);
 
-	// A live intra-table rectangle on THIS table (its shared endpoint path is this
-	// table's). It suppresses the cell-local selection, so the menu reads it
+	// A live rectangle suppresses the cell-local selection, so the menu reads it
 	// separately to keep Cut/Copy enabled.
 	const rectActive = $derived.by(() => {
 		if (!selection) return false;
@@ -325,8 +311,7 @@
 			menu = { target, x: e.clientX, y: e.clientY, clipboardSel: null };
 			return;
 		}
-		// Column grip sits atop its column → drop below it; row grip sits in the left
-		// gutter → open beside it so the menu clears the table's left edge.
+		// A row grip opens beside itself rather than below, so the menu clears the left edge.
 		menu =
 			axis === 'column'
 				? { target, x: rect.left, y: rect.bottom, clipboardSel: null }
@@ -337,17 +322,15 @@
 		return rowRefAt(rowIdx)?.getBlockComponentByPath?.([colIdx]) ?? null;
 	}
 
-	// Open the both-axes cell menu (row group + column group + clipboard group).
-	// Captures the cell's selection now, before a menu-item click moves focus off
-	// it, so Cut/Copy have a range to act on.
+	// Capture the cell's selection now, before a menu-item click moves focus off it, so
+	// Cut/Copy have a range to act on.
 	function openMenuAtCell(rowIdx: number, colIdx: number, x: number, y: number): void {
 		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
 		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel };
 	}
 
-	// Right-click anywhere in a cell opens the menu at the pointer. Only
-	// preventDefault when actually over a cell, so a right-click in the table's
-	// padding gaps keeps the native menu.
+	// preventDefault only over a cell, so a right-click in the table's padding gaps keeps
+	// the native menu.
 	function openCellMenu(e: MouseEvent): void {
 		if (readOnly || !tableEl) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
@@ -356,9 +339,8 @@
 		openMenuAtCell(cell.rowIdx, cell.colIdx, e.clientX, e.clientY);
 	}
 
-	// Keyboard equivalent of the cell right-click: Shift+F10 / ContextMenu on a
-	// focused cell opens the menu at that cell's rect. The event bubbles up from
-	// the cell; preventDefault suppresses the native context menu the key triggers.
+	// Keyboard equivalent of the cell right-click, bubbling up from the cell;
+	// preventDefault suppresses the native context menu the key would trigger.
 	function onTableKeyDown(e: KeyboardEvent): void {
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
 		if (readOnly || !opensMenu || !focusedCell) return;
@@ -368,9 +350,8 @@
 		openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
 	}
 
-	// Escape restores focus to the originating cell (cell menus only; grip menus
-	// have no caret to return to). Caret lands where it was, via focusCell's offset
-	// path — a bare el.focus() on a contenteditable doesn't seat a typeable caret.
+	// Cell menus only — a grip menu has no caret to return to. The restore goes through
+	// `focusCell`: a bare `el.focus()` on a contenteditable seats no typeable caret.
 	async function closeMenuRestoringFocus(): Promise<void> {
 		const target = menu?.target;
 		const offset = menu?.clipboardSel?.start ?? 'start';
@@ -405,15 +386,13 @@
 	// ── Row drag reorder ───────────────────────────────────────────────────
 
 	let dragLine = $state<RowReorderLine | null>(null);
-	// Plain let: read only in the grip's pointer/click handlers. A drag that ends
-	// off the grip fires no click, so this is reset on every grip pointerdown
-	// rather than consumed on click — a stale `true` can't swallow a later menu.
+	// A drag that ends off the grip fires no click, so this resets on every grip
+	// pointerdown rather than being consumed on click; a stale `true` would eat a menu.
 	let suppressRowGripClick = false;
 
-	// Rows are `display: contents` (no box); measure each MOUNTED row's first cell,
-	// whose border-box spans the grid row track. Carries each row's ABSOLUTE index
-	// (data-table-row-idx) so the drop maps a mounted edge to a body position under
-	// row windowing. Re-read live each move, so an autoscroll re-slice is reflected.
+	// Rows are `display: contents` (no box), so measure each mounted row's first cell.
+	// Carries the ABSOLUTE row index so a drop maps a mounted edge to a body position
+	// under windowing; re-read live each move, so an autoscroll re-slice is reflected.
 	function rowReorderGeometry() {
 		if (!tableEl || rowCount === 0) return null;
 		const rowEdges: number[] = [];
@@ -438,19 +417,16 @@
 	}
 
 	function onRowGripPointerDown(rowIdx: number, e: PointerEvent): void {
-		// Reset before any bail: a prior drag released off the grip leaves no click
-		// to consume the flag, so resetting here is what keeps it from sticking.
+		// Before any bail: a prior drag released off the grip left no click to consume it.
 		suppressRowGripClick = false;
-		// The header row is positionally fixed (mirrors the keyboard no-op); its
-		// grip stays click-only — no drag, no line.
+		// The header row is positionally fixed, so its grip stays click-only.
 		if (rowIdx === 0) return;
 		startRowReorderDrag(e, {
 			fromRowIdx: rowIdx,
 			getRowCount: () => rowCount,
 			getGeometry: rowReorderGeometry,
-			// Row windowing scrolls whatever scrolls this editor (list-windowing's
-			// getScrollEl); autoscroll must move that exact element so off-window rows
-			// mount — the root in self mode, the host's scroller in host mode.
+			// Autoscroll must move whatever scrolls this editor — the root in self mode, the
+			// host's scroller in host mode — or off-window rows never mount.
 			getScrollContainer: getScrollHost,
 			setLine: (line) => (dragLine = line),
 			onDragRecognized: () => (suppressRowGripClick = true),
@@ -465,10 +441,8 @@
 	// Plain let, reset on every grip pointerdown — see suppressRowGripClick.
 	let suppressColumnGripClick = false;
 
-	// Columns aren't windowed, so every column cell is mounted; the shared track
-	// geometry comes from the first mounted row. Client coords match the
-	// position:fixed insertion line. Re-read live each move, so a horizontal-
-	// autoscroll shift of the clipped columns is reflected.
+	// Columns aren't windowed, so any mounted row carries the shared track geometry.
+	// Client coords match the position:fixed insertion line.
 	function columnReorderGeometry() {
 		if (!tableEl || rowCount === 0 || columnCount === 0) return null;
 		const firstRowEl = mountedRowEls(tableEl)[0];
@@ -484,15 +458,13 @@
 	}
 
 	function onColumnGripPointerDown(colIdx: number, e: PointerEvent): void {
-		// Reset before any bail: a prior drag released off the grip leaves no click
-		// to consume the flag, so resetting here is what keeps it from sticking.
+		// Before any bail: a prior drag released off the grip left no click to consume it.
 		suppressColumnGripClick = false;
 		startColumnReorderDrag(e, {
 			fromColIdx: colIdx,
 			getColCount: () => columnCount,
 			getGeometry: columnReorderGeometry,
-			// `.table-block` (tableEl) is itself the overflow-x container; autoscrolled
-			// to reveal columns clipped off a wide table's edge.
+			// `.table-block` is itself the overflow-x container.
 			getScrollContainer: () => tableEl ?? null,
 			setLine: (line) => (columnDragLine = line),
 			onDragRecognized: () => (suppressColumnGripClick = true),
@@ -521,9 +493,9 @@
 	export const editable = true;
 	export const focusable = true;
 
-	// 2D surface — one integer can't address a cell. Callers that need a
-	// specific cell use the deep `focusByPath`; both caret doors mirror
-	// `createContainerBlockComponent`'s 0-or-last collapse.
+	// 2D surface — one integer can't address a cell, so both caret doors mirror
+	// `createContainerBlockComponent`'s 0-or-last collapse and cell callers use
+	// `focusByPath`.
 	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
 		if (offset === 0) {
@@ -566,11 +538,8 @@
 	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const [rowIdx, ...rest] = path;
-		// A row scrolled off-window leaves a stale (detached) ref in this scope's slot —
-		// the windowed each-block's cleanup is conditional and doesn't always clear it.
-		// isStale gates the scroll on the live window bounds (truthiness alone is a cache,
-		// not a mount oracle) and dropRef clears the detached ref so the mount-wait
-		// resolves on the FRESH row.
+		// A row scrolled off-window can leave a detached ref in its slot, so the scroll gates
+		// on live window bounds (a present ref is a cache, not a mount oracle) and drops it.
 		await revealChildOrWait(rowIdx, {
 			childCount: rowCount,
 			getRef: (i) => rowsState.innerBlockRefs[i],
@@ -587,8 +556,7 @@
 			: (rowRef.getBlockComponentByPath?.(rest) ?? null);
 	}
 
-	// See `focus()` — 2D surface, no shallow offset. Cursor location comes
-	// from `getCursorPosition` below, which selection consumers prefer.
+	// See `focus()` — 2D surface, no shallow offset; `getCursorPosition` carries it.
 	export function getCursorOffset(): number | null {
 		return null;
 	}
@@ -659,9 +627,7 @@
 		if (!firstRowEl) return [];
 		const editorRoot = getEditorRoot();
 		if (!editorRoot) return [];
-		// Editor-relative space matches the captured sticky X (which is also
-		// editor-relative). cell.getBoundingClientRect() already accounts for
-		// the table's internal scroll position.
+		// Editor-relative space, matching the captured sticky X.
 		const editorLeft = editorRoot.getBoundingClientRect().left;
 		return rowCellEls(firstRowEl).map((c) => {
 			const r = c.getBoundingClientRect();
@@ -688,11 +654,9 @@
 	oncontextmenu={openCellMenu}
 	onkeydown={onTableKeyDown}
 >
-	<!-- Corner occupies the zero-width row-grip gutter (col 1) so the column grips align
-	     to their columns (cols 2..N+1), not the gutter; carries no grip attribute. The
-	     grid's block boundaries below are kept whitespace-adjacent: a stray text node
-	     directly under .table-block joins the raw-offset walk and shifts a parked
-	     cross-block caret (cursor/widget-offset.ts; mirrors TableRowBlock). -->
+	<!-- The corner occupies the zero-width gutter so the column grips align to their
+	     columns. The block boundaries below stay whitespace-adjacent: a stray text node
+	     joins the raw-offset walk and shifts a parked caret (cursor/widget-offset.ts). -->
 	<span class="table-grip-corner" aria-hidden="true"></span>{#each columnIndices as colIdx (colIdx)}
 		<TableGrip
 			axis="column"
@@ -705,9 +669,8 @@
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
-		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key are the absolute row
-		     index (bounds.start + localIndex), never the local loop index. When
-		     inactive, bounds are {0, rowCount} so rowIdx === the loop index. -->
+		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key carry the absolute row index
+		     (bounds.start + localIndex), never the local loop index. -->
 		{@const rowIdx = bounds.start + localIndex}
 		<TableRowBlock
 			node={rowNode}
@@ -769,10 +732,8 @@
 	.table-grip-corner {
 		height: 0;
 	}
-	/* Drag overlay: viewport-fixed (rect from getBoundingClientRect / pointer client
-	   coords); pointer-events:none so it never intercepts the drag's own pointer
-	   stream. A single subtle line, not a band — a document should feel like a
-	   document. Horizontal marks a row gap; vertical marks a column gap. */
+	/* Viewport-fixed, matching the client coords the drag measures in; pointer-events:none
+	   so the overlay never intercepts the drag's own pointer stream. */
 	.table-reorder-line,
 	.table-reorder-line-vertical {
 		position: fixed;

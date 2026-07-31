@@ -1,12 +1,8 @@
 /**
- * DOM-build steps for TextEditableBlock's render $effect. The component
- * owns the effect (Svelte reactivity entry point); this factory owns the
- * imperative inline-DOM construction it dispatches to.
- *
- * The `pendingCursorOffset` restore stays in the SFC — those writes touch
- * $state. This factory only carries a live caret across a decoration-driven
- * rebuild (no edit-path pending offset); the edit path passes `carryCaret:
- * false`, since the SFC's pending restore overwrites the selection right after.
+ * DOM-build steps for TextEditableBlock's render $effect. The component owns the
+ * effect and the `pendingCursorOffset` restore (those writes touch $state); this
+ * factory owns the imperative inline-DOM construction and carries a live caret across
+ * a decoration-driven rebuild the edit path's pending restore doesn't cover.
  */
 
 import type { AmbientPrefix } from '../../../block-component';
@@ -52,51 +48,41 @@ export interface TextRenderDeps {
 	/** Effective mode. Read inside the render pass on purpose: the read is the
 	 *  reactive dependency that re-renders every mounted block on a mode flip. */
 	get presentationMode(): PresentationMode;
-	/** The editor's theme name, forwarded to component widgets beside the mode. NOT a
-	 *  render-key term: the inline DOM this builds is themed by CSS, so only a widget
-	 *  whose engine paints its own colors reads it — live, inside its own derived. */
+	/** The editor's theme name, forwarded to widgets. NOT a render-key term: this DOM is
+	 *  themed by CSS, so only a widget whose engine paints its own colors reads it. */
 	getTheme?: () => string;
-	/** Live root document, handed to component widgets whose derived value depends
-	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
-	 *  document across edits, never a mount-time snapshot. */
+	/** Live root document for widgets that derive from it. A getter, so a pooled widget
+	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
-	/** The editor's content version, handed to component widgets so a derivation
-	 *  over the document can be memoized on it. Absent in a bare harness. */
+	/** The editor's content version, so a widget can memoize a document-wide derivation
+	 *  on it. Absent in a bare harness. */
 	getContentVersion?: () => number;
 	get linkResolver(): LinkReferenceResolver | undefined;
-	/** A compact stamp that changes exactly when the document's LRD signature
-	 *  changes (the shell mints it — link-reference-resolver.ts). Reference-bearing
-	 *  blocks fold this into their render key instead of the whole signature string,
-	 *  which reaches ~MB scale in reference-heavy documents. */
+	/** A compact stamp changing exactly when the document's LRD signature does
+	 *  (`link-reference-resolver.ts` mints it), so a reference-bearing block folds this
+	 *  into its render key instead of a signature string that reaches ~MB scale. */
 	get linkStamp(): string;
-	/** Position-sorted islands for this block. A getter, and read inside the
-	 *  render pass on purpose: that read is the reactive dependency that
-	 *  re-renders the block when its island set changes. */
+	/** Position-sorted islands. A getter read inside the render pass on purpose: that
+	 *  read is the reactive dependency that re-renders the block on an island change. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
 	brokenUrlCache: Set<string>;
-	/** A widget component's synchronous mount throw is routed here — the editor's
-	 *  `error` channel, matching BlockHost's render-boundary origin. Absent → errors
-	 *  are not surfaced (the widget still falls back to its raw source). */
+	/** A widget's synchronous mount throw goes to the editor's `error` channel. Absent →
+	 *  unsurfaced; the widget still falls back to its raw source. */
 	reportRenderError?: (error: unknown) => void;
 }
 
 export interface TextRender {
 	/**
-	 * Rebuild the block's children from current node state. Skips work when
-	 * neither (ambientPrefixText, raw, ref-stamp, image-policy, island-signature)
-	 * nor `forceRebuild` demands it. Pass `forceRebuild` when a pending cursor
-	 * restoration needs the DOM positions re-anchored even though the rendered key
-	 * is unchanged. `carryCaret` (default true) captures and re-anchors the focused
-	 * caret across the rebuild; pass false on the edit path, where the SFC's
-	 * pending-cursor restore overwrites the selection immediately after.
+	 * Rebuild the block's children from current node state. Skips work on an unchanged
+	 * render key unless `forceRebuild` — pass it when a pending cursor restore needs the
+	 * DOM re-anchored. `carryCaret` re-anchors the caret; the edit path passes false.
 	 */
 	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget instance — called when the block unmounts. */
 	dispose(): void;
 }
 
-// The NUL-joined parts of a prose renderKey, index-aligned. `islands` is the
-// trailing segment islandRenderKeyPart contributes (absent ⇒ no sixth part).
+// The NUL-joined parts of a prose renderKey, index-aligned.
 const RENDER_KEY_SEGMENTS = [
 	'ambient',
 	'raw',
@@ -107,9 +93,8 @@ const RENDER_KEY_SEGMENTS = [
 	'islands'
 ] as const;
 
-/** Which renderKey segment(s) differ between two keys — the interaction trace's
- *  rebuild cause. Pure over the key format so the recorder never learns the NUL
- *  layout and the decomposition is directly testable. */
+/** Which renderKey segment(s) differ — the interaction trace's rebuild cause. Pure over
+ *  the key format, so the recorder never learns the NUL layout. */
 export function renderKeySegmentDiff(prev: string, next: string): string {
 	const a = prev.split('\0');
 	const b = next.split('\0');
@@ -140,18 +125,16 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return widgetPool.acquire(node.kind, node, raw.slice(node.start, node.end));
 	}
 
-	// The dimmed marker portion of the raw (a heading's `## `, a directive leaf's
-	// `::name`) — whatever the kind's descriptor excludes from the content range.
-	// Kinds that declare none yield '' and render as plain text.
+	// The dimmed marker portion of the raw — whatever the kind's descriptor excludes
+	// from the content range. Kinds that declare none yield ''.
 	function getBlockMarkerPrefix(): string {
 		const node = deps.node;
 		const range = getContentRange(node);
 		return node.raw.slice(0, range.start);
 	}
 
-	// Render computes inline content via computeInlineContent (the pure path), not
-	// the caching getInlineContent accessor — the cache is non-reactive, so reading
-	// it here would skip render-relevant changes (invariants G4.2).
+	// The render path computes inline content on the pure path, never the caching
+	// accessor: the cache is non-reactive and would skip render-relevant changes (G4.2).
 	function buildInlineDOM(content: InlineNode[]): DocumentFragment {
 		const node = deps.node;
 		const frag = document.createDocumentFragment();
@@ -175,17 +158,15 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				buildPortalWidget,
-				// Attribute-only stamps for the construct-reveal trigger; mode-gated so
-				// the other modes' DOM stays byte-identical (the renderKey's mode segment
-				// already forces the rebuild on a flip).
+				// Attribute-only stamps for the construct-reveal trigger, mode-gated so the
+				// other modes' DOM stays byte-identical.
 				tagConstructMarkers: deps.presentationMode === 'preview-inline'
 			})
 		);
 		return frag;
 	}
 
-	// Non-prose marker line: a dimmed `.md-marker` span over the fence, then the
-	// remainder as a raw text node. No inline pass runs, so the text is verbatim.
+	// No inline pass runs here, so the remainder is a verbatim text node.
 	function buildMarkerPrefixDOM(marker: string, rest: string): DocumentFragment {
 		const frag = document.createDocumentFragment();
 		const span = document.createElement('span');
@@ -196,8 +177,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		return frag;
 	}
 
-	// A `<br>` inside an island belongs to the widget, not the block — it must
-	// not satisfy the empty block's caret anchor.
+	// A `<br>` inside an island belongs to the widget, so it must not satisfy the empty
+	// block's caret anchor.
 	function ensureBr(el: HTMLElement): void {
 		if (deps.getDisplayText() !== '') return;
 		const hasAnchorBr = [...el.querySelectorAll('br')].some(
@@ -206,9 +187,6 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (!hasAnchorBr) el.appendChild(document.createElement('br'));
 	}
 
-	// An island-signature change rebuilds the focused block's DOM with no
-	// edit-path pendingCursorOffset set; carry the caret across in walk space.
-	// The SFC's pending restore (when an edit set one) runs after and wins.
 	function captureCaretIfFocused(el: HTMLElement): DomTextOffset | null {
 		const walk = captureFocusedCaretWalkOffset(el);
 		if (walk !== null) traceCursorCapture(walk);
@@ -224,29 +202,22 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const el = deps.el;
 		if (!el) return;
 		const node = deps.node;
-		// A block can only resolve through an LRD if it contains a bracket. Gate
-		// both the signature dependency and the resolver read on it: a bracketless
-		// block reads neither, so an LRD change never invalidates it. Without this,
-		// every block subscribes to the resolver and one LRD edit re-renders the
-		// whole document.
+		// Gating both the signature dependency and the resolver read on the bracket keeps
+		// one LRD edit from re-rendering the whole document.
 		const hasRef = node.raw.includes('[');
 		const refKeyPart = hasRef ? deps.linkStamp : '';
-		// The built widget bakes in imageLoadPolicy (placeholder class / src), so the
-		// key must track it — but only for blocks with an image, so image-free blocks
-		// neither subscribe to policy changes nor rebuild when the policy flips.
+		// The built widget bakes in imageLoadPolicy, so the key tracks it — but only for
+		// blocks with an image, which keeps image-free blocks off the policy dependency.
 		const hasImg = node.raw.includes('![');
 		const imgKeyPart = hasImg ? deps.imageLoadPolicy : '';
-		// Unconditional (unlike ref/img gating): a mode flip re-renders every
-		// mounted block. '' in source keeps the default key one NUL longer and
-		// otherwise byte-identical — the sanctioned default-path change.
+		// Unconditional, unlike the ref/img gating: a mode flip re-renders every mounted
+		// block. '' in source keeps the default key byte-identical but for one NUL.
 		const mode = deps.presentationMode;
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		// The kind is a render input, not just a branch selector: it picks the content
-		// range (so the block's own dimmed marker) and `renderImagesAsWidgets`. Two
-		// prose kinds can share a raw when the registry gains an opener for bytes
-		// already in the document, and the memo would then early-return onto the
-		// previous kind's DOM.
+		// The kind is a render input, not just a branch selector: two prose kinds can share
+		// a raw when the registry gains an opener for bytes already in the document, and
+		// the memo would then early-return onto the previous kind's DOM.
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
@@ -257,15 +228,11 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			if (isInteractionTraceEnabled())
 				traceRebuild(renderKeySegmentDiff(lastRenderedKey, renderKey), forceRebuild);
 			const content = computeInlineContent(node, hasRef ? deps.linkResolver : undefined);
-			// Edit-path rebuilds (carryCaret false) skip the capture/restore pair: the
-			// SFC's pending-cursor restore overwrites the selection right after, so the
-			// walk is dead work. When focus already left, capture returns null and the
-			// SFC restore skips too — so skipping here is behavior-identical either way.
+			// Edit-path rebuilds skip the capture/restore pair: the SFC's pending restore
+			// overwrites the selection right after, so the walk would be dead work.
 			const caretWalkOffset = carryCaret ? captureCaretIfFocused(el) : null;
-			// Bracket the rebuild: portal widgets acquired during the build are adopted
-			// for this pass; the sweep destroys any that the previous DOM held but this
-			// build did not re-acquire (a widget whose source changed or was deleted).
-			// Island widgets are unpooled — destroy last pass's, mount this pass's.
+			// Bracketing the rebuild pools portal widgets: the sweep destroys only those the
+			// previous DOM held and this build didn't re-acquire. Island widgets are unpooled.
 			widgetPool.beginPass();
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content));
@@ -281,20 +248,16 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			widgetPool.sweep();
 			if (caretWalkOffset !== null) restoreCaret(el, caretWalkOffset);
 		} else {
-			// A non-prose kind builds no inline widgets or islands, so an empty pass
-			// here sweeps any pooled widget — and the destroy run any island — stranded
-			// by an in-place prose→non-prose kind change (the same TextEditableBlock
-			// instance is reused across the transition).
+			// An empty pass sweeps any widget or island stranded by an in-place
+			// prose→non-prose kind change, which reuses this same component instance.
 			widgetPool.beginPass();
 			destroyIslands();
 			widgetPool.sweep();
 			const display = deps.getDisplayText();
 			const markerPrefix = getBlockMarkerPrefix();
 			if (markerPrefix) {
-				// A non-prose kind with a marker (the directive leaf's `::name`): dim the
-				// fence like a heading marker, render the remainder as plain text. The line
-				// stays one editable coordinate space, so an edit that breaks the fence
-				// reparses to the natural kind.
+				// The line stays one editable coordinate space, so an edit that breaks the
+				// fence reparses to the natural kind.
 				if (el.textContent !== display || forceRebuild) {
 					el.replaceChildren(
 						buildMarkerPrefixDOM(markerPrefix, display.slice(markerPrefix.length))
@@ -305,11 +268,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			}
 		}
 
-		// Record the key unconditionally: after this pass the DOM reflects
-		// renderKey even when an arm skipped its write because the text already
-		// matched. Updating only on a write froze the key across a prose→non-prose
-		// flip whose DOM the browser had already mutated, and a later prose render
-		// with the frozen key wrongly early-returned onto stale DOM.
+		// Unconditional: after this pass the DOM reflects renderKey even where an arm
+		// skipped its write, and a key frozen by a skipped write would let a later render
+		// early-return onto stale DOM.
 		lastRenderedKey = renderKey;
 		ensureBr(el);
 	}

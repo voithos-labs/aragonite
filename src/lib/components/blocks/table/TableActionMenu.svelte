@@ -28,9 +28,8 @@
 
 	let menuEl: HTMLDivElement | undefined = $state();
 
-	// Clamped position, resolved once the menu's measured size is known; until then
-	// the template falls back to the raw open coordinate (close enough for the first
-	// frame, which the post-mount measure corrects before an edge overflow paints).
+	// Resolved once the menu's measured size is known; until then the template falls back
+	// to the raw open coordinate, which the post-mount measure corrects before it paints.
 	let clamped = $state<{ x: number; y: number } | null>(null);
 	$effect(() => {
 		if (!menuEl) return;
@@ -42,8 +41,7 @@
 		);
 	});
 
-	// Move focus into the menu on open so it's keyboard-operable; the first enabled
-	// item is the entry point (disabled items are aria-disabled, never focus stops).
+	// The first enabled item is the keyboard entry point; disabled items are never stops.
 	$effect(() => {
 		if (menuEl) focusStop(0);
 	});
@@ -53,9 +51,8 @@
 			if (menuEl && e.target instanceof Node && menuEl.contains(e.target)) return;
 			onclose();
 		};
-		// Document-level so Escape closes even if focus drifted off a stop. Escape
-		// restores focus to the originating cell (via onescape); an outside-click
-		// onclose does not, so a click elsewhere isn't yanked back to the cell.
+		// Document-level so Escape closes even if focus drifted off a stop. Escape restores
+		// focus to the originating cell; an outside click deliberately does not.
 		const onKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') {
 				e.preventDefault();
@@ -72,9 +69,8 @@
 
 	// ── Roving focus (ARIA menu pattern) ────────────────────────────────────
 	//
-	// Up/Down (and Tab, trapped) step through every enabled item and the three
-	// alignment segments; Left/Right hop within the alignment trio. Enter/Space
-	// fall through to native <button> activation, so the click handlers run once.
+	// Up/Down (and Tab, trapped) step every enabled item and alignment segment; Left/Right
+	// hop within the alignment trio. Enter/Space fall through to native button activation.
 
 	function focusableStops(): HTMLElement[] {
 		if (!menuEl) return [];
@@ -142,9 +138,8 @@
 		segments[(((i + delta) % n) + n) % n].focus();
 	}
 
-	// 'none' renders identically to 'left' (see table-menu-model / alignment cycle),
-	// so the left segment reads as active for both. Visible text stays L/C/R; the
-	// accessible name carries the full word so screen readers can target it.
+	// 'none' renders identically to 'left', so the left segment reads active for both.
+	// Visible text stays L/C/R; the accessible name carries the full word.
 	const alignmentSegments = [
 		{ value: 'left', label: 'L', name: 'Left' },
 		{ value: 'center', label: 'C', name: 'Center' },
