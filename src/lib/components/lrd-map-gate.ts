@@ -3,22 +3,11 @@ import type { EditEvent } from '../editor-events';
 import { nodeAt } from '../tree-operations/node-ops';
 
 /**
- * Whether a commit could change the LRD set, gating the O(nodes) map rebuild off
- * the keystroke hot path. The op discriminates the two ways the set changes:
- *
- *   - A kind change to/from `linkReferenceDefinition` commits structurally as
- *     `updateContent`, so any op that is NOT a kind-stable `input`/`metadataUpdate`
- *     could add or remove a definition — rebuild. The gate cannot verify that
- *     premise itself: it runs post-commit, so a destroyed definition is
- *     indistinguishable from ordinary prose. `input` is therefore kind-stable by
- *     CONSTRUCTION — only the debounced flush emits it, held by the input-op
- *     kind-stability lint under `test/invariants/lint/`.
- *   - A kind-stable edit can only change the set if it edits a definition's own
- *     bytes (label/url/title) — so an `input`/`metadataUpdate` rebuilds only
- *     when its target node is itself an LRD.
- *
- * Net: typing in an ordinary paragraph never walks the doc, even in a
- * definition-dense document.
+ * Whether a commit could change the LRD set, keeping the O(nodes) map rebuild off the
+ * keystroke hot path. Any op that is not a kind-stable `input`/`metadataUpdate` could
+ * add or remove a definition; a kind-stable one only can when its target is itself an
+ * LRD. `input` is kind-stable by construction — only the debounced flush emits it,
+ * held by the input-op kind-stability lint under `test/invariants/lint/`.
  */
 export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean {
 	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
@@ -26,12 +15,9 @@ export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean 
 }
 
 /**
- * Advance the LRD signature epoch: a monotonic stamp that changes **exactly** when
- * the signature string changes. Reference-bearing render memos fold the epoch into
- * their key instead of the whole signature (~MB scale in reference-heavy docs), so
- * the invariant is load-bearing — a stamp that bumped on every rebuild would
- * over-invalidate every bracket-bearing block per commit. Returns the previous
- * pair unchanged when the signature is unchanged; bumps once when it differs.
+ * A monotonic stamp that changes **exactly** when the signature string does.
+ * Reference-bearing render memos key on the epoch instead of the whole (~MB)
+ * signature, so bumping on every rebuild would re-render every bracket-bearing block.
  */
 export function advanceSignatureEpoch(
 	prevSignature: string,

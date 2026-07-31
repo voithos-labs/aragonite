@@ -1,12 +1,8 @@
 /**
  * Built-in block component registrations, applied by an explicit
- * `registerBuiltInBlocks()` call from the editor's mount path — a bare
- * side-effect import is tree-shaken out of the production Rollup build (see
- * built-in-descriptors.ts). Plugin authors mirror this shape for their own
- * kinds.
- *
- * Lives in `components/` rather than `schema/` so the schema layer has no
- * downstream imports — registration is a top-of-DAG wire-up.
+ * `registerBuiltInBlocks()` call: a bare side-effect import is tree-shaken out of the
+ * production build (see built-in-descriptors.ts). Lives in `components/` rather than
+ * `schema/` so the schema layer keeps no downstream imports.
  */
 
 import type { NodeView } from '../core/node-views';
@@ -66,9 +62,8 @@ export function registerBuiltInBlocks(): void {
 	registerBlockComponent('list', defineBlockComponent(ListBlock));
 	registerBlockComponent('table', defineBlockComponent(TableBlock));
 
-	// Raw-editable fallback for kinds with no dedicated rendered surface.
-	// tableRow / tableCell normally render inside TableBlock — these entries only
-	// catch orphaned nodes that reach BlockHost directly.
+	// Raw-editable fallback for kinds with no rendered surface. tableRow/tableCell
+	// render inside TableBlock; these catch only orphans that reach BlockHost directly.
 	registerBlockComponent('indentedCode', textAsRawBlock);
 	registerBlockComponent('htmlBlock', textAsRawBlock);
 	registerBlockComponent('linkReferenceDefinition', textAsRawBlock);
@@ -76,22 +71,20 @@ export function registerBuiltInBlocks(): void {
 	registerBlockComponent('tableCell', textAsRawBlock);
 	registerBlockComponent('unrecognized', textAsRawBlock);
 
-	// tableCell is the one supportsInline kind with bespoke paste semantics, so its
-	// surface registers here rather than via the default loop in paste/hooks.ts
-	// (which skips it). Pipe-escaping cell paste would silently revert to the plain
-	// inline default if both registrars ran and order let the default win.
+	// tableCell is the one supportsInline kind with bespoke paste semantics, so it
+	// registers here and the default loop in paste/hooks.ts skips it — running both
+	// would let ordering silently revert cell paste to the plain inline default.
 	registerPasteSurface(tableCellPasteSurface);
 
-	// Table owns internal cell addressing, so it registers both point→cell hooks the
-	// selection layer dispatches through the descriptor registry — no
-	// selection→table-component import. Two declarations, not one: a drag needs the
-	// exact hit (and its off-cell decline), a caret gesture needs the nearest cell.
+	// Table owns cell addressing, so it registers both point→cell hooks through the
+	// descriptor registry rather than the selection layer importing the component.
+	// Two hooks: a drag needs the exact hit and its decline, a caret the nearest cell.
 	augmentBuiltin('table', {
 		foreignDragHitTest: tableDragHitTest,
 		caretTargetAtPoint: tableCaretAtPoint
 	});
 
-	// Image resize is editor-layer behavior; the core image kind stays data-only and
-	// gains its selected-key handler here, where the DOM/render layer is reachable.
+	// Image resize is editor-layer behavior, so the core image kind stays data-only
+	// and gains its selected-key handler here, where the render layer is reachable.
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
 }

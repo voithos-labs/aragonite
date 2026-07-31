@@ -12,8 +12,8 @@
 	}: {
 		target: WidgetTarget;
 		fields: ImageFields;
-		/** The bytes a commit of these fields would write — the popover's dirty check
-		 *  is a byte comparison, and the bytes are the write seam's to decide. */
+		/** The popover's dirty check is a byte comparison, and the bytes are the write
+		 *  seam's to decide. */
 		buildBytes: (target: WidgetTarget, fields: ImageFields) => string | null;
 		onCommit: (target: WidgetTarget, newFields: ImageFields) => void;
 		onDismiss: () => void;
@@ -27,9 +27,8 @@
 
 	const initialBytes = untrack(() => buildBytes(target, fields));
 
-	// Outside-click dismisses; the actual commit runs in $effect cleanup so
-	// the dismiss path (this), the image-switch path (key change), and the
-	// programmatic clear path all commit through one seam.
+	// The commit runs in $effect cleanup so dismiss, image-switch (key change) and
+	// programmatic clear all commit through one seam.
 	$effect(() => {
 		if (!popoverEl) return;
 		const handler = (e: PointerEvent) => {
@@ -72,8 +71,8 @@
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			// Esc is "cancel": discard local edits so the unmount commit short-circuits
-			// on byte-equality rather than persisting in-flight typing.
+			// Esc is cancel: discard local edits so the unmount commit short-circuits on
+			// byte-equality rather than persisting in-flight typing.
 			url = fields.url;
 			alt = fields.alt;
 			titleInput = fields.title ?? '';

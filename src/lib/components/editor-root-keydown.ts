@@ -1,13 +1,10 @@
 /**
- * Editor-root chord routing: the dispatch for keystrokes no mounted block
- * consumed. Pure dispatch over live getters — the `$effect` that installs the
- * listener stays in `Editor.svelte`, which also captures the root element and
- * hands it in per event rather than exposing it as a re-read binding.
+ * Editor-root chord routing: dispatch for keystrokes no mounted block consumed. Pure
+ * dispatch over live getters; the installing `$effect` stays in `Editor.svelte`.
  *
- * Arm order is load-bearing (pinned by `test/editor-root-keydown.test.ts`): the
- * search/Escape arm runs FIRST because the global-chord arm's focus gate is an
- * unconditional early return for everything below it, so a Mod+F pressed with the
- * caret inside a block would be swallowed if the two swapped.
+ * Arm order is load-bearing (pinned by `test/components/editor-root-keydown.test.ts`): search /
+ * Escape runs FIRST because the global-chord arm's focus gate is an unconditional
+ * early return, which would swallow a Mod+F pressed with the caret inside a block.
  */
 
 import { claimsBodyChord, isForeignTextEntry } from '../active-editor';
@@ -27,12 +24,12 @@ import {
 import { eventToChord } from '../schema/keybindings';
 
 export interface EditorRootKeydownDeps {
-	/** Live reads arrive as getters — a captured value would freeze the
-	 *  reading-mode gate and the override map at construction time. */
+	/** Getters, never values: a capture freezes the reading-mode gate and the
+	 *  override map at construction time. */
 	get searchBarEnabled(): boolean;
 	get mode(): PresentationMode;
-	/** The editor's one replace predicate, threaded so the root Mod+H and the
-	 *  bar's chevron cannot diverge on when the replace row may open. */
+	/** One predicate, so the root Mod+H and the bar's chevron cannot diverge on when
+	 *  the replace row may open. */
 	get canReplace(): boolean;
 	get keybindingOverrides(): KeybindingOverrideMap;
 	get isCrossBlock(): boolean;
@@ -41,9 +38,8 @@ export interface EditorRootKeydownDeps {
 	pluginEditor: PluginEditorLookup;
 	onCommandError: CommandErrorSink;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown'>;
-	/** True for nodes in the host's `header` slot. The root's chord claims read
-	 *  "focus is inside this editor" off `root.contains`, which the slot made
-	 *  ambiguous — a host's title field is inside the root and is not ours. */
+	/** True for nodes in the host's `header` slot: they sit inside `root.contains`
+	 *  without being the editor's own content. */
 	isHostChrome(node: Node | null): boolean;
 	/** Snapshot the pre-search caret; the bar's close handler restores it. */
 	saveSearchRange(range: Range | null): void;
@@ -51,22 +47,17 @@ export interface EditorRootKeydownDeps {
 }
 
 export interface EditorRootKeydown {
-	/** `root` is the element the installing effect captured, not a live binding —
-	 *  a teardown that nulled the component's reference must not reach here. */
+	/** `root` is the element the installing effect captured, not a live binding: a
+	 *  teardown that nulled the component's reference must not reach here. */
 	handleKeyDown(event: KeyboardEvent, root: HTMLElement): void;
 }
 
 export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRootKeydown {
 	/**
-	 * Search / Escape: focus INSIDE this editor (a block, the find input, or the
-	 * root), or a search chord this instance claims. claimsBodyChord is true for the
-	 * sole editor (or, among several, the last-interacted one), so a lone editor
-	 * claims Find/Replace page-wide — even with focus on a sibling toolbar control —
-	 * restoring the pre-containment behavior; a second mounted editor can't steal it
-	 * (an outside-focus Mod+F opens no bar when 2+ editors exist). The one exception:
-	 * a foreign text-entry surface (a consumer's own <textarea>/<input>/
-	 * contenteditable) owns page-global Find while the user types in it, so the
-	 * editor yields there rather than hijacking it.
+	 * Search / Escape: focus inside this editor, or a search chord this instance
+	 * claims. `claimsBodyChord` gives a lone editor Find/Replace page-wide while
+	 * keeping a second mounted editor from stealing it. A foreign text-entry surface
+	 * owns page-global Find while the user types in it, so the editor yields there.
 	 */
 	function handleSearchChords(
 		event: KeyboardEvent,
@@ -79,10 +70,9 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 
 		if (deps.searchBarEnabled && chord && isReservedUiChord(chord)) {
 			event.preventDefault();
-			// Seed the query from the live native selection before open() — focusing
-			// the find input collapses it. Guard the saved-caret snapshot on !isOpen so
-			// a repeat Mod+F (focus already in the find input) can't clobber the
-			// pre-search caret with the collapsed one.
+			// Seed the query before open(): focusing the find input collapses the
+			// selection. The !isOpen guard keeps a repeat Mod+F from clobbering the
+			// saved pre-search caret with the collapsed one.
 			const selection = window.getSelection();
 			const selected = selection?.toString() ?? '';
 			if (!deps.search.isOpen) {
@@ -105,13 +95,9 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 	}
 
 	/**
-	 * Undo/redo, plugin-global chords and cross-block motion fire only when NO block
-	 * holds focus: active === root (the caret's block windowed out and parked on THIS
-	 * root, unique per editor), or nothing focused (body/null — windowed out and
-	 * blurred to a page-shared target, claimed by the sole/last-interacted editor).
-	 * Unlike the search chords, these collide with a focused outside element's native
-	 * behavior — a text input owns Mod+Z — so they yield to any focused element and
-	 * act only on the windowed-out caret.
+	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block
+	 * holds focus. Unlike the search chords, these collide with a focused outside
+	 * element's native behavior (a text input owns Mod+Z), so they yield to it.
 	 */
 	function ownsWindowedOutCaret(root: HTMLElement, active: Element | null): boolean {
 		const noElementFocused = active === null || active === root.ownerDocument.body;
@@ -120,26 +106,22 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 
 	return {
 		handleKeyDown(event, root) {
-			// eventToChord normalizes the key (CapsLock uppercases e.key without
-			// Shift), matching every other chord-dispatch site.
+			// Normalizes the key (CapsLock uppercases e.key without Shift), matching
+			// every other chord-dispatch site.
 			const chord = eventToChord(event);
 			const active = root.ownerDocument.activeElement;
 
-			// Host chrome owns its own keystrokes, whole. `isForeignTextEntry` cannot
-			// answer this — it reports "outside every mounted editor", and the slot is
-			// inside one — so the yield lives at the dispatch entry rather than being
-			// carried by each arm below (the search arm's `root.contains` claim is the
-			// one that hijacked a host title field's Find).
+			// Host chrome owns its own keystrokes whole. The yield lives at the dispatch
+			// entry rather than in each arm; `isForeignTextEntry` can't answer it, since
+			// it means "outside every mounted editor" and the slot is inside one.
 			if (deps.isHostChrome(active)) return;
 
 			if (handleSearchChords(event, root, chord, active)) return;
 			if (!ownsWindowedOutCaret(root, active)) return;
 
-			// Undo/redo fire regardless of cross-block: the inert case is a collapsed
-			// caret whose block unmounted, not necessarily a selection. No block is
-			// focused here, so resolve at global scope (consumer override, else
-			// default). This branch runs getCommand directly (no dispatchKeyCommand),
-			// so it carries the reading-mode gate itself — sibling: ThematicBreakBlock.
+			// No block is focused here, so resolve at global scope. This branch runs
+			// getCommand directly rather than dispatchKeyCommand, so it carries the
+			// reading-mode gate itself — sibling: ThematicBreakBlock.
 			if (chord && isEditorGlobalChord(chord)) {
 				event.preventDefault();
 				if (deps.mode === 'reading') return;
