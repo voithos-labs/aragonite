@@ -16,10 +16,8 @@ function makeContainer(childRaws: string[]): CstNode {
 	} as CstNode;
 }
 
-// publishScopeView writes each scope's mutated ids/refs into reactive state
-// BEFORE the ancestor-raw rebuild. A throw after the doc scope published left
-// top-level blockIds/refs reflecting the rolled-back mutation until the next
-// commit. The rollback must snapshot and restore them per scope.
+// publishScopeView writes each scope's ids/refs into reactive state BEFORE the
+// ancestor-raw rebuild, so a later throw leaves them reflecting a rolled-back mutation.
 describe('commitMultiScope — ids/refs rollback on a post-publish throw', () => {
 	it('restores top-level blockIds/refs when a later scope throws after the doc scope published', async () => {
 		const { deps, getBlockIds, getBlockRefs } = makeEditorActionsDeps([
@@ -31,9 +29,8 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 		const idsBefore = [...getBlockIds()];
 		const refsBefore = [...getBlockRefs()];
 
-		// Scope 2's innerBlockRefs setter throws on the FIRST write (publish) and
-		// succeeds after (rollback) — a deterministic fault after scope 1 (the doc
-		// scope) has already published its grown ids/refs.
+		// Throws on the FIRST write (publish) and succeeds after (rollback), so the fault
+		// lands once the doc scope has already published its grown ids/refs.
 		let refsWrites = 0;
 		let stashedRefs: (unknown | undefined)[] = [];
 		const throwingState: BlockListState = {
@@ -60,8 +57,7 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 				scopes,
 				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([docScope]) => {
-					// Append a top-level block so the doc-scope publish rewrites blockIds
-					// (a fresh id) — the mutation the rollback must undo.
+					// A fresh id makes the doc-scope publish rewrite blockIds — the mutation to undo.
 					docScope.children.push({ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' } as CstNode);
 					return [{ op: 'insert', at: docScope.children.length - 1, count: 1 }, { op: 'noop' }];
 				}

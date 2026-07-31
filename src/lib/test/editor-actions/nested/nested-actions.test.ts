@@ -9,9 +9,8 @@ import {
 	makeStubFocus
 } from '../../harness/editor-actions';
 
-// listItem: the container WITHOUT an unwrapRole — kinds that declare one
-// (blockquote/list) dispatch mergeWithPrevious(0) to an unwrap strategy
-// instead of delegating upward.
+// listItem is the container WITHOUT an unwrapRole: kinds that declare one dispatch
+// mergeWithPrevious(0) to an unwrap strategy instead of delegating upward.
 function makeNode(children: CstNode[]): CstNode {
 	return {
 		kind: 'listItem',
@@ -51,9 +50,8 @@ function makeParentDeferring(method: 'mergeWithPrevious' | 'mergeWithNext' | 'de
 	return { deferred, parent };
 }
 
-// Each method's upward-delegation boundary: the inner index that triggers it
-// and the single-child node shape (mergeWithNext/deleteBlock need the inner
-// block to be the last/only child; mergeWithPrevious triggers at index 0).
+// Each method's upward-delegation boundary: mergeWithNext/deleteBlock need the inner
+// block to be the last/only child, mergeWithPrevious triggers at index 0.
 const delegationCases = [
 	{
 		method: 'mergeWithPrevious' as const,
@@ -113,8 +111,7 @@ describe('createStandardNestedActions', () => {
 					continuationRan = true;
 				});
 
-				// Drain microtasks: the method's body has run, but the parent's
-				// promise is still pending — the continuation must not have fired.
+				// One microtask drain: the body has run but the parent's promise is still pending.
 				await Promise.resolve();
 				expect(continuationRan).toBe(false);
 				expect(parent.blockEdit[method]).toHaveBeenCalledWith(3);

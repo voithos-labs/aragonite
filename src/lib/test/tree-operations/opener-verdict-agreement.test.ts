@@ -12,21 +12,15 @@ import { lineOpensAs } from '$lib/tree-operations/node-ops';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
-// The container kind gate skips a reparse when the rewritten opener line, read
-// ALONE, still opens as the kind the node already is. That is a claim about every
-// registered container: either its first line identifies it on its own (the gate can
-// elide its content edits) or it does not (the gate falls through to the full parse
-// for it, always). This partition is what makes the gate sound, and nothing else
-// checks it — so a new opener whose claim needs a later line lands in the
-// conservative half here, loudly, instead of silently eliding a real kind change.
+// The container kind gate elides a reparse when the rewritten opener line, read ALONE,
+// still opens as the kind the node already is. That partition over every registered
+// container is what makes the gate sound, and nothing else checks it: a new opener whose
+// claim needs a later line must land in the conservative half here, loudly.
 
 /**
- * Kinds whose opener declines a one-line probe, so the gate is CONSERVATIVE for
- * them — every edit to their opener line pays the full container parse.
- *
- * `directiveContainer` and `admonition` need their `:::` closer before the opener
- * claims anything; `details` needs its `</details>`, and a bare `<details>` reads as
- * an HTML block. None is a correctness problem: falling through is the safe answer.
+ * Kinds whose opener declines a one-line probe, so the gate stays CONSERVATIVE for them
+ * and every edit to their opener line pays the full container parse. Falling through is
+ * the safe answer, so membership here is a cost, not a correctness problem.
  */
 const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'note']);
 
@@ -85,8 +79,7 @@ describe('opener verdict agreement across registered container kinds', () => {
 		expect(misfiled).toEqual([]);
 	});
 
-	// The load-bearing half: these are the kinds whose ordinary typing the gate
-	// elides, so a regression here is a keystroke cost on the container-size axis.
+	// The load-bearing half: a regression here is a keystroke cost on the container-size axis.
 	it.each(['blockquote', 'list', 'githubAlert', 'footnote-def'])(
 		'%s identifies itself from its opener line',
 		(kind) => {

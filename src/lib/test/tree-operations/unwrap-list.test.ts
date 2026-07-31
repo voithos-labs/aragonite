@@ -4,8 +4,6 @@ import { serialize } from '../../core/serializer';
 import { unwrapFirstItemFromList } from '../../tree-operations';
 import type { CstNode } from '../../core/nodes';
 
-// Lifting the first item out of a list: happy paths, nested-sublist promotion,
-// ordered-list renumbering, loose items, and input-immutability guarantees.
 
 describe('unwrapFirstItemFromList', () => {
 	function parseList(src: string): CstNode {

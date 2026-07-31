@@ -13,8 +13,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// Minimal literal scan for tests (the real scan is search/document-scan.ts):
-// walk containers, find a literal in non-container leaf raw, return {path,start,end}.
+// A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {
 	const out: { path: number[]; start: number; end: number }[] = [];
 	const walk = (nodes: CstNode[], prefix: number[]) => {
@@ -94,20 +93,19 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 		const sr = createSearchReplace(deps, createUndoController(deps));
 		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'a|b');
 		const bodyCells = deps.doc.children[0].children![1].children!;
-		expect(bodyCells.length).toBe(2); // not split into three by the literal pipe
-		expect(bodyCells[1].raw.trim()).toBe('2'); // adjacent cell not displaced
-		expect(serialize(deps.doc)).toContain('a\\|b'); // escaped in source
+		expect(bodyCells.length).toBe(2);
+		expect(bodyCells[1].raw.trim()).toBe('2');
+		expect(serialize(deps.doc)).toContain('a\\|b');
 	});
 
 	it('collapses a newline in a regex table-cell replacement so no phantom row appears', async () => {
 		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
 		const sr = createSearchReplace(deps, createUndoController(deps));
-		// Regex mode supplies groups, which lets `\n` expand; the cell escape must
-		// then collapse it so the table doesn't gain a row.
+		// Regex mode supplies groups, which lets `\n` expand, so the cell escape must collapse it.
 		const matches = scanForLiteral(deps.doc, 'cat').map((m) => ({ ...m, groups: ['cat'] }));
 		await sr.replaceAll(matches, 'a\\nb');
-		expect(deps.doc.children[0].children!.length).toBe(2); // header + one body row
+		expect(deps.doc.children[0].children!.length).toBe(2);
 		expect(deps.doc.children[0].children![1].children![0].raw.trim()).toBe('a b');
 	});
 
@@ -126,7 +124,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 		const { deps } = makeEditorActionsDeps(doc.children);
 		const sr = createSearchReplace(deps, createUndoController(deps));
 		const match = scanForLiteral(deps.doc, 'X')[0];
-		expect(match.path.length).toBeGreaterThan(1); // genuinely nested, so RED ≠ GREEN
+		expect(match.path.length).toBeGreaterThan(1); // nested, so RED ≠ GREEN
 
 		await sr.replaceOne(match, 'Y');
 
@@ -146,17 +144,15 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 
 	it('gives every container in a reparsed subtree childIds (reused container never reads undefined keys)', async () => {
-		// item 0 = paragraph + continuation paragraph (≥2 children); the needle lives
-		// in item 1, so replaceAll reparses the whole top-level list. The fresh
-		// listItem[0] must arrive with childIds or a reused container's keyed-each
-		// renders `undefined` keys and the ≥2 children collide on a duplicate key.
+		// The needle in item 1 makes replaceAll reparse the whole list. Without childIds on the
+		// fresh listItem[0], the reused container's keyed-each collides on `undefined` keys.
 		const doc = parse('1. First.\n\n   Continuation.\n2. Second with a needle sub.\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
 		const sr = createSearchReplace(deps, createUndoController(deps));
 
 		const matches = scanForLiteral(deps.doc, 'needle');
 		expect(matches.length).toBeGreaterThan(0);
-		// Genuinely a ≥2-child list item, so RED ≠ GREEN (one child can't collide).
+		// RED ≠ GREEN: one child cannot collide.
 		expect(deps.doc.children[0].children![0].children!.length).toBeGreaterThanOrEqual(2);
 
 		await sr.replaceAll(matches, 'love');
@@ -193,8 +189,7 @@ describe('replaceOne — single-subtree case', () => {
 		expect(deps.doc.children[0].kind).toBe('heading');
 	});
 
-	// Parity with the top-level content commit: the reparse honors the instance
-	// grammar, so an introduced marker for a disabled kind stays unmaterialized.
+	// Parity with the top-level content commit: the reparse honors the instance grammar.
 	it('honors the instance grammar — a disabled heading marker stays paragraph', async () => {
 		const doc = parse('title\n');
 		const { deps } = makeEditorActionsDeps(doc.children);
@@ -206,8 +201,7 @@ describe('replaceOne — single-subtree case', () => {
 });
 
 describe('replace — matches on childless opaque containers are skipped', () => {
-	// The real scanner (not scanForLiteral): only it produces the container
-	// matches whose replace behavior these tests pin.
+	// The real scanner: only it produces the container matches these pin.
 	function scanFor(doc: Document, q: string) {
 		const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
 		if (!r.ok) throw new Error(r.error);

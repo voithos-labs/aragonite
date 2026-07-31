@@ -1,14 +1,7 @@
 /**
- * Regression: `mergeListItemIntoPrevious` (M1) must keep every container's
- * `childIds` in lockstep with its `children`. When parity breaks, Svelte's
- * keyed-each logs `each_key_duplicate` for the trailing `undefined` keys and
- * downstream renders drift from CST.
- *
- * Each row exercises one of the three mutation sites in the helper:
- *   row 2 — nested-list absorbed into target listItem (push into targetItem.children)
- *   row 3 — depth-1 nested list grows by current's nested items (push into depthOneList.children)
- *   row 4 — depth-1 nested list grows when target is deeper than 1 (same site as row 3)
- *   row 5 — non-list continuation paragraph absorbed into target listItem
+ * `mergeListItemIntoPrevious` (M1) must keep every container's `childIds` in lockstep
+ * with its `children`; broken parity makes the keyed-each log `each_key_duplicate` for
+ * the trailing `undefined` keys. The rows cover each of the helper's mutation sites.
  */
 
 import { describe, it } from 'vitest';
@@ -19,10 +12,8 @@ import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/
 import type { CstNode } from '$lib/core/nodes';
 
 /**
- * Mirror the commitContainer path: M1 is invoked with a children-copy and the
- * helper returns the outer-scope mutation implicitly (delete @ currentIndex,
- * count 1). Apply that to the outer list's childIds the same way the commit
- * primitive does.
+ * Mirrors the commitContainer path: M1 takes a children-copy and returns the outer-scope
+ * delete implicitly, so the childIds are applied here the way the commit primitive does.
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();

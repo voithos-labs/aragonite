@@ -137,10 +137,8 @@ describe('thematic break split', () => {
 	});
 });
 
-// The setext underline sits AFTER the title, so a plain raw cut inside the
-// content strands it in the second half — where `=====` reparses as a junk
-// paragraph and `-----` as a thematicBreak, demoting the heading. The split
-// choke point keeps the whole underline suffix on the originating block.
+// The setext underline sits AFTER the title, so a plain raw cut strands it in the second
+// half, where `=====` reparses as a junk paragraph and `-----` demotes the heading.
 describe('setext heading split', () => {
 	for (const underline of ['=====', '-----']) {
 		const source = `Title\n${underline}\n`;

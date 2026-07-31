@@ -7,18 +7,13 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
-// unwrapFirstChildFromQuote (Rule U2) is a core tree-op that names no plugin kind:
-// it lifts a container's first child only when the container DECLARES the
-// quote-unwrap capability (`unwrapRole.quoteShaped`), a positive opt-in a
-// scratch-registered kind can turn on. A chrome container that shares
-// 'lift-first-child' but omits the flag no-ops (the callout chrome-preserving
-// path) — so a future quote-shaped kind opts in by declaration, not by a core
-// edit to a hardcoded kind list.
+// unwrapFirstChildFromQuote (Rule U2) names no plugin kind: it lifts only when the
+// container DECLARES `unwrapRole.quoteShaped`. A future quote-shaped kind opts in by
+// declaration, not by a core edit to a hardcoded kind list.
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
-// A two-child container of an arbitrary kind, metadata cleared so the lift
-// exercises the alert-like default (no quoteDepth to preserve).
+// Metadata cleared so the lift exercises the alert-like default, with no quoteDepth.
 function twoChildContainer(kind: AnyBlockKind): CstNode {
 	const bq = parse('> first\n>\n> second\n').children[0];
 	return { ...bq, kind, metadata: undefined } as CstNode;
@@ -50,7 +45,6 @@ describe('unwrapFirstChildFromQuote dispatches on the quoteShaped capability, no
 		const result = unwrapFirstChildFromQuote(twoChildContainer(kind));
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
-		// The remainder always reparses as a plain blockquote (the marker/chrome drops).
 		expect(result[1].kind).toBe('blockquote');
 	});
 

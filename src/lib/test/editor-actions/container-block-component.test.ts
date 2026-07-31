@@ -70,8 +70,8 @@ describe('createContainerBlockComponent', () => {
 		expect(() => container([]).focus(0)).not.toThrow();
 	});
 
-	// Collapse clamp: the body is unmounted, so a walk-in from below (which targets
-	// the last child) must land on the summary (child 0), never the absent last ref.
+	// The body is unmounted, so a walk-in from below must clamp to child 0, never the
+	// absent last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
 		return createContainerBlockComponent({
 			selection: createSelectionState(),
@@ -119,8 +119,8 @@ describe('createContainerBlockComponent', () => {
 		expect(refs[1].focusByPath).toHaveBeenCalledWith([0], 5);
 	});
 
-	// Pure-data transparency reads the CST node, not the (possibly sparse,
-	// off-window) refs — so it answers for an unmounted container (VR-6).
+	// Reading the CST node rather than the sparse refs is what lets it answer for an
+	// unmounted container (VR-6).
 	it('isVerticallyTransparent reads the node, not refs', () => {
 		const imageOnly: CstNode = {
 			kind: 'list',
@@ -155,8 +155,8 @@ describe('createContainerBlockComponent', () => {
 	});
 });
 
-// The container shim is a caret door like any leaf: `focus` ends a live cross-block
-// range so the next keystroke can't type-replace the document, `parkCaret` doesn't.
+// `focus` ends a live cross-block range so the next keystroke can't type-replace the
+// document; `parkCaret` deliberately does not.
 describe('createContainerBlockComponent — the two caret doors', () => {
 	function withRange(refs: BlockComponent[]) {
 		const selection = createSelectionState();
@@ -196,8 +196,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
 	});
 
-	// A child that never forwarded the park door is not parked; the extend's range
-	// survives, which is the half that matters (BlockComponent.parkCaret).
+	// The half that matters: the extend's range survives (BlockComponent.parkCaret).
 	it('a child without the park door is skipped, not landed through focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
@@ -208,10 +207,8 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 		expect(selection.isCrossBlock).toBe(true);
 	});
 
-	// …but the SAFE verb must still place a caret in that child. `parkCaret` is
-	// optional on the contract precisely so an external leaf may omit it, and the
-	// documented cost of omitting it is a missed PARK — never a stranded caret on an
-	// ordinary focus walk, which is every ArrowDown into a container.
+	// `parkCaret` is optional so an external leaf may omit it; the documented cost is a
+	// missed PARK, never a stranded caret on an ordinary focus walk.
 	it('focus lands in a child without the park door, through its focus', () => {
 		const bare = { focus: vi.fn(), getCursorOffset: () => null } as unknown as BlockComponent;
 		const { selection, api } = withRange([bare]);
@@ -223,10 +220,8 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	});
 });
 
-// Whole-block focus (opaque childless plugin block, e.g. mermaid): when a focus
-// element getter is supplied, caret entry lands on that element instead of walking
-// absent children, and the cursor offset reads 0 only while it (or a descendant)
-// holds focus — the ThematicBreak model, exposed through the container shim.
+// The ThematicBreak model exposed through the container shim: with a focus element
+// getter, caret entry lands on that element instead of walking absent children.
 describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
 	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
 		return createContainerBlockComponent({
@@ -288,7 +283,7 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 
 	it('getCursorOffset() is null when the focus element does not hold focus', () => {
 		const el = focusableEl();
-		document.body.focus(); // move focus off el
+		document.body.focus();
 		expect(wholeBlock(el).getCursorOffset()).toBeNull();
 	});
 
@@ -298,11 +293,9 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 	});
 });
 
-// Opaque single-unit measurement: the shim ALWAYS exposes measurePartialRects,
-// the seam the search/decoration overlays' childless-container route measures
-// through. A childless container paints its whole box for any non-empty range;
-// a child-bearing container returns nothing (its children self-paint), and the
-// overlay never even asks — it gates on delegatesPainting, not on this return.
+// The shim ALWAYS exposes measurePartialRects, the seam the search/decoration overlays
+// measure a childless container through. A child-bearing container returns nothing and
+// is never asked: the overlay gates on delegatesPainting, not on this return.
 describe('createContainerBlockComponent — measurePartialRects (opaque single-unit)', () => {
 	const RECT = { left: 4, top: 8, width: 120, height: 40 } as unknown as DOMRect;
 	const boxEl = () => ({ getBoundingClientRect: () => RECT }) as unknown as HTMLElement;

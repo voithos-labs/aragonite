@@ -6,12 +6,11 @@ import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-br
 import { focusIndexBeforeResidue } from '$lib/tree-operations/paste/focus-target';
 
 describe('buildListBreakOutReplacement', () => {
-	// Regression: a mismatched paste breaking out of an ordered list whose first
-	// item is not "1." must keep the list's own numbering across the gap, not
-	// restart both halves at 1 (matches list/exit-replacement.ts semantics).
+	// A break-out from an ordered list whose first item is not "1." must keep the list's own
+	// numbering across the gap (matching list/exit-replacement.ts semantics).
 	it('preserves a non-1 ordered base across the break-out gap', () => {
 		const list = parse('3. a\n4. b\n5. c\n').children[0];
-		const pasted = parse('- x\n').children; // mismatched (unordered) clipboard list
+		const pasted = parse('- x\n').children;
 
 		const { replacement } = buildListBreakOutReplacement(list, 1, 0, 0, pasted);
 
@@ -49,8 +48,8 @@ describe('buildListBreakOutReplacement — trailing-residue flag drives the care
 	const pasted = () => parse('1. a\n2. b\n').children;
 
 	it('flags a residue for a mid-item break-out; caret lands one node before it', () => {
-		// Break out inside "two" (offset 1) — the "wo" residue becomes the trailing
-		// second-half list, so the last node is residue, not pasted content.
+		// Breaking out mid-word leaves a residue as the trailing second-half list, so the last
+		// node is residue rather than pasted content.
 		const { replacement, hasTrailingResidue } = buildListBreakOutReplacement(
 			list(),
 			1,

@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { canDeleteRow, canDeleteColumn } from '$lib/tree-operations/table-mutations';
 
-// rowCount is the FULL row count (header at index 0 + body rows). A header
-// delete promotes the next row, so it only needs a second row; a body delete
-// needs a second body row, else a header-only table would be left.
+// rowCount is the FULL row count. A header delete promotes the next row so it needs only
+// a second row; a body delete needs a second BODY row, or a header-only table is left.
 describe('canDeleteRow', () => {
 	it('refuses a header-only table (nothing left to promote)', () => {
 		expect(canDeleteRow(0, 1)).toBe(false);

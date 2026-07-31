@@ -126,8 +126,7 @@ describe('commitMultiScope', () => {
 		const stateB = makeBlockListState(() => deps.doc.children[1], ['b0']);
 		const controller = createUndoController(deps);
 
-		// Dynamically-typed scopes array: tuple inference degrades to array
-		// typing, so the wrong arity compiles and the runtime backstop throws.
+		// Array (not tuple) typing lets the wrong arity compile, reaching the runtime backstop.
 		const scopes: MultiScopeTarget[] = [
 			{ node: deps.doc.children[0], state: stateA, path: [0] },
 			{ node: deps.doc.children[1], state: stateB, path: [1] }

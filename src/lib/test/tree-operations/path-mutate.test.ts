@@ -4,10 +4,8 @@ import { assignIds } from '../../block-id';
 import { deleteAtPath, replaceAtPath } from '../../tree-operations/path-mutate';
 import type { CstNode } from '../../core/nodes';
 
-// Both entries address a container at arbitrary depth, where `childIds` is the
-// keyed-each source and `createBlockListState` backfills only an ABSENT array —
-// so a hand-rolled splice desynced the two permanently, rendering every later
-// sibling under its predecessor's id.
+// `createBlockListState` backfills only an ABSENT `childIds` array, never a short one, so
+// a hand-rolled splice at depth desyncs the keyed-each source permanently.
 function quoteWithIds(source: string): CstNode {
 	const quote = parse(source).children[0];
 	quote.childIds = assignIds(quote.children!);

@@ -16,10 +16,8 @@ describe('updateNodeContent', () => {
 		expect(change).toEqual({ op: 'noop' });
 	});
 
-	// The same-kind path writes in place: routine typing must keep the node object,
-	// since the component instance, IME state, and the inline-cache WeakMap are all
-	// keyed on it. A mint-always refactor keeps raw/metadata and the noop return but
-	// silently breaks this — the covering tests above stay green, so pin it directly.
+	// The component instance, IME state, and inline-cache WeakMap are all keyed on the node
+	// object. A mint-always refactor leaves the covering tests green, so this pins it directly.
 	it('same-kind edit preserves the node object identity', () => {
 		const doc = parse('Hello\n');
 		const before = doc.children[0];
@@ -27,11 +25,8 @@ describe('updateNodeContent', () => {
 		expect(doc.children[0]).toBe(before);
 	});
 
-	// The in-place branch reassigns `children` and reports `noop`, so nothing
-	// downstream resyncs the parallel id array: a reparse that changes the child
-	// count left `childIds` the wrong length permanently (createBlockListState
-	// backfills only an ABSENT array), and the keyed each rendered children under
-	// their predecessors' ids.
+	// The in-place branch reassigns `children` and reports `noop`, so nothing resyncs the id
+	// array — and `createBlockListState` backfills only an ABSENT one, never a short one.
 	it('same-kind edit keeps childIds in lockstep with a reparsed child count', () => {
 		const doc = parse('> a\n');
 		const quote = doc.children[0];
@@ -42,8 +37,7 @@ describe('updateNodeContent', () => {
 
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
-		// The surviving slot keeps its id — a blanket re-mint would remount every
-		// child of the container on routine typing.
+		// A blanket re-mint would remount every child of the container on routine typing.
 		expect(quote.childIds[0]).toBe(survivingId);
 	});
 
@@ -126,10 +120,8 @@ describe('updateNodeContent', () => {
 		expect(change).toEqual(replacePreservingFirst(0, 1, 2));
 	});
 
-	// The stuck-fence class: an edit appending past a verbatim fence must split
-	// into fence + paragraph, not cram both into the fence node (a same-kind
-	// reparse used to be a raw-only write, leaving the CST disagreeing with
-	// parse(serialize(doc))).
+	// The stuck-fence class: an edit appending past a verbatim fence must split into
+	// fence + paragraph, or the CST disagrees with parse(serialize(doc)).
 	it('same-kind multi-block content splits instead of cramming (fence + trailing paragraph)', () => {
 		const doc = parse('```\nx\n```\n');
 		const edited = '```\nx\n```\n\nhello\n';
@@ -169,12 +161,11 @@ describe('updateNodeContent', () => {
 	it('exposes fresh inlines via the lazy accessor after an edit (validate-on-read)', () => {
 		const source = '![pic](/sample.png)\n';
 		const doc = parse(source);
-		// Pre-edit: image-only inline tree.
 		expect(getInlineContent(doc.children[0]).map((n) => n.kind)).toEqual(['image']);
 
 		updateNodeContent(doc, 0, '![pic](/sample.png)a\n');
 
-		// raw changed in place → the accessor recomputes rather than returning the cached image-only tree.
+		// The accessor recomputes rather than returning the cached image-only tree.
 		const inlines = getInlineContent(doc.children[0]);
 		expect(inlines.map((n) => n.kind)).toEqual(['image', 'text']);
 		expect(inlines[1].text).toBe('a');

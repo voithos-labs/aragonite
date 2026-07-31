@@ -1,9 +1,6 @@
-// The container factory spread `base.blockEdit` but replaced `base.focus`
-// wholesale. Harmless while `createBlockquoteOverrides` returns only a
-// `blockEdit` key — and silently dropping every focus override the day it grows
-// one, for every container built on this seam (the built-in BlockquoteBlock
-// included). Two adjacent lines disagreeing about the same rule, with no check
-// binding them: this is the check.
+// The container factory spreads `base.blockEdit` but replaces `base.focus` wholesale:
+// harmless while the overrides return only a `blockEdit` key, and a silent drop of
+// every focus override the day one grows. Nothing else binds the two lines.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	composeCollapseGates,

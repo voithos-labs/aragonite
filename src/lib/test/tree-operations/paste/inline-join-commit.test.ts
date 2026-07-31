@@ -13,12 +13,9 @@ import {
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { EditEvent } from '$lib/editor-events';
 
-// The cross-block ('join') inline paste is the one paste route that used to
-// mutate children outside the commit ceremony. Its splice then updated neither
-// the parent's `childIds` (keyed-`{#each}` desync at every depth, and
-// `createBlockListState` backfills only an ABSENT id array, never a short one —
-// so it never self-heals) nor the `edit` stream (a persistence layer saw the
-// range delete and never the insertion).
+// A splice outside the commit ceremony updates neither the parent's `childIds` (which
+// never self-heals: `createBlockListState` backfills only an ABSENT id array, never a
+// short one) nor the `edit` stream, so persistence sees the delete and not the insertion.
 
 function blockquoteHarness() {
 	const { deps, events } = makeEditorActionsDeps(parse('> # Head\n').children);
@@ -89,10 +86,8 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 		expect(onEdit.mock.calls.map(([e]) => e.op)).toContain('updateContent');
 	});
 
-	// The cross-block caller has ALREADY committed the range delete by the time the
-	// paste dispatches, so a throw here loses the user's selection and lands no
-	// paste. A windowed-out container has no mounted state; the commit still has to
-	// realign childIds — only ref alignment is unavailable.
+	// The range delete has ALREADY committed by the time the paste dispatches, so a throw here
+	// loses the selection with nothing pasted; only ref alignment is unavailable when unmounted.
 	it('an unmounted container still commits instead of throwing', async () => {
 		const { deps } = makeEditorActionsDeps(parse('> # Head\n').children);
 		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);

@@ -1,15 +1,9 @@
 // @vitest-environment jsdom
 //
-// `createNestedBlockEdit` is the container BlockEditActions factory, and its own
-// contribution over the shared block-edit core is entirely BOUNDARY logic: which
-// calls stay inside the container and which hand UP to the parent. Nothing imports
-// it in the test suite today — its coverage is incidental, through
-// `createStandardNestedActions`, which never asserts the delegation.
-//
-// The boundaries are where a container leaks: an edge merge that stayed interior
-// dead-ends silently, and an interior merge that delegated deletes the wrong block.
-// Each case here pins one side of one boundary, and the interior twin beside it, so
-// a rule that moved by one index fails.
+// `createNestedBlockEdit`'s own contribution over the shared block-edit core is entirely
+// BOUNDARY logic: which calls stay inside the container and which hand UP to the parent.
+// An edge merge that stayed interior dead-ends silently; an interior merge that delegated
+// deletes the wrong block. Each case pins one side plus its interior twin.
 import { describe, it, expect, vi } from 'vitest';
 import { setPluginMetadata, type CstNode } from '$lib/core/nodes';
 import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-edit';
@@ -57,7 +51,6 @@ function container(kind: string, childCount: number): CstNode {
 	} as CstNode;
 }
 
-/** A collapsed `<details>`: its body children are unmounted, only the chrome shows. */
 function collapsedDetails(childCount: number): CstNode {
 	const node = container(DETAILS, childCount);
 	setPluginMetadata(node, { open: false });
@@ -102,10 +95,8 @@ describe('nested block edit — upward boundaries', () => {
 });
 
 describe('nested block edit — collapsed forward-merge', () => {
-	// While collapsed, the chrome row is the last VISIBLE child, so a forward-Delete
-	// on it exits past the container instead of merging into the hidden body.
-	// `append: false` is load-bearing: without it, exiting past the final block mints
-	// a trailing paragraph — a Delete that mutates the document.
+	// The chrome row is the last VISIBLE child while collapsed. `append: false` is
+	// load-bearing: without it, exiting past the final block mints a trailing paragraph.
 	it('moves focus past the container instead of merging into the hidden body', async () => {
 		const { blockEdit, parent, node } = env(collapsedDetails(3));
 
@@ -129,9 +120,8 @@ describe('nested block edit — collapsed forward-merge', () => {
 });
 
 describe('nested block edit — childless guards', () => {
-	// Every structural entry opens with `if (!deps.node.children) return`. The
-	// contrapositive is what matters: it returns WITHOUT delegating, so a childless
-	// container never asks its parent to merge or delete on its behalf.
+	// The contrapositive of `if (!deps.node.children) return` is what matters: it returns
+	// WITHOUT delegating, so a childless container never asks its parent to act for it.
 	it('return without delegating upward when the container has no children', async () => {
 		const { blockEdit, parent } = env({ kind: 'listItem', leadingTrivia: '', raw: '' } as CstNode);
 

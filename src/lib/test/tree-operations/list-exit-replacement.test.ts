@@ -16,7 +16,6 @@ function parseList(src: string): CstNode {
 	return list;
 }
 
-// Mirrors the shape produced when Enter is pressed on an item whose first paragraph is empty.
 function blankFirstParagraph(item: CstNode): void {
 	const first = item.children?.[0];
 	if (!first || first.kind !== 'paragraph') {
@@ -139,7 +138,7 @@ describe('buildExitReplacement', () => {
 		const secondHalf = blocks[2];
 		expect((firstHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^1\./);
 		expect((firstHalf.children?.[1].metadata as { marker: string }).marker).toMatch(/^2\./);
-		// Exit slot doesn't burn a number; "four" continues at 3.
+		// The exit slot does not burn a number.
 		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^3\./);
 	});
 
@@ -152,10 +151,8 @@ describe('buildExitReplacement', () => {
 		expect(blocks).toHaveLength(3);
 		const firstHalf = blocks[0];
 		const secondHalf = blocks[2];
-		// Surviving first half keeps the original base, not a reset to 1.
 		expect((firstHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^5\./);
 		expect((firstHalf.children?.[1].metadata as { marker: string }).marker).toMatch(/^6\./);
-		// Exit slot doesn't burn a number; "eight" continues at 7.
 		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^7\./);
 	});
 
@@ -170,11 +167,9 @@ describe('buildExitReplacement', () => {
 	});
 });
 
-// An exit paragraph that follows the surviving list half serializes directly
-// after the list. Without a blank line the parser lazy-continues it into the
-// list's last item on reload, so the live [list, paragraph] pair diverges from
-// its own serialization once the paragraph is typed into. The exit paragraph
-// owns the separator.
+// Without a blank line the parser lazy-continues the exit paragraph into the list's last
+// item on reload, so the live tree diverges from its own serialization. The exit
+// paragraph owns the separator.
 describe('buildExitReplacement blank-line separator (parse convergence)', () => {
 	it('last-item exit: a typed line after the surviving list stays a separate paragraph', () => {
 		const doc = parse('- First\n- Last\n');

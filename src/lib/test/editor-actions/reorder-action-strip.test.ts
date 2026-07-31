@@ -10,20 +10,17 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
 
-// A strip plugin container reorders its body children within itself — the seam the
-// 0.9.34 quote-unwrap capability climb did not reach. Both gestures (keyboard nudge,
-// drag move) flow through the shared resolveReorderUnit seam. The corruption hazard the
-// ledger flagged (rebuild-as-blockquote drops the `[!TYPE]` marker) is masked in
-// committed state by the commit ceremony re-rebuilding the scope through its own
-// descriptor — so these tests pin the OBSERVABLE contract: the body child reorders
-// within, the marker survives, and the tree converges with its reparse.
+// A strip plugin container reorders its body children within itself. The
+// rebuild-as-blockquote hazard (which drops the `[!TYPE]` marker) is masked in committed
+// state by the ceremony re-rebuilding the scope through its own descriptor, so these pin
+// the OBSERVABLE contract instead: reorder-within, marker survives, tree converges.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin(), footnotesPlugin()]);
 });
 
-// Mirrors reorder-action.test.ts makeContainer: seed innerBlockRefs to mimic a mounted
-// container and register the live node's state so expectStateForNode resolves.
+// Mirrors reorder-action.test.ts makeContainer: mounted-container refs plus a registered
+// state so expectStateForNode resolves.
 function makeContainer(source: string) {
 	const initial = parse(source).children[0];
 	const harness = makeEditorActionsDeps([initial]);
@@ -49,7 +46,7 @@ function makeContainer(source: string) {
 describe('reorder action — githubAlert body children reorder within', () => {
 	it('drag move reorders the body child within and keeps the [!TYPE] marker', async () => {
 		const h = makeContainer('> [!NOTE]\n> a\n>\n> b\n');
-		await h.reorder.moveReorderUnit([0, 0], 1); // first body child -> last
+		await h.reorder.moveReorderUnit([0, 0], 1);
 		expect(serialize(h.doc)).toBe('> [!NOTE]\n> b\n>\n> a\n');
 		h.assertStable();
 	});
@@ -81,8 +78,8 @@ describe('reorder action — footnote-def body children reorder within', () => {
 	});
 });
 
-// The teleport the fix removes: an alert between two paragraphs must not drag the whole
-// alert among the document siblings when a body child is nudged.
+// The teleport: nudging a body child must not drag the whole alert among the
+// document siblings.
 describe('reorder action — no whole-alert teleport', () => {
 	function makeDocWithAlert() {
 		const nodes = parse('top\n\n> [!NOTE]\n> a\n>\n> b\n\nbottom\n').children;
@@ -97,7 +94,7 @@ describe('reorder action — no whole-alert teleport', () => {
 
 	it('nudging a body child reorders within; top/bottom siblings stay put', async () => {
 		const h = makeDocWithAlert();
-		await h.reorder.nudgeReorderUnit([1, 0], 1); // alert body child 0 down
+		await h.reorder.nudgeReorderUnit([1, 0], 1);
 		const live = serialize(h.doc);
 		expect(live.startsWith('top\n')).toBe(true);
 		expect(live.trimEnd().endsWith('bottom')).toBe(true);

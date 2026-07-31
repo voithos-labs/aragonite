@@ -15,9 +15,8 @@ import type { CstNode } from '$lib/core/nodes';
 
 // ── Top-level harness ─────────────────────────────────────────────────────────
 
-// Build top-level children through `parse` so blank-line separators exist as real
-// `leadingTrivia` — a hand-built `{ raw }` node has none, and the positional-trivia
-// reorder fix only shows up against genuine separators.
+// Built through `parse` so blank-line separators exist as real `leadingTrivia` — a
+// hand-built `{ raw }` node has none, and positional trivia only shows up against genuine ones.
 function makeTop(raws: string[]) {
 	const harness = makeEditorActionsDeps(parse(raws.join('\n\n') + '\n').children);
 	const controller = createUndoController(harness.deps);
@@ -39,9 +38,8 @@ function makeTop(raws: string[]) {
 
 // ── Container harness ─────────────────────────────────────────────────────────
 
-// Seed innerBlockRefs to mirror a mounted container ({#each} never runs in node
-// env) and register the live node's state so the action's expectStateForNode
-// resolves. The state object is the one the harness asserts against.
+// Seeds innerBlockRefs to mimic a mounted container ({#each} never runs in node env)
+// and registers the live node's state so the action's expectStateForNode resolves.
 function makeContainer(source: string) {
 	const initial = parse(source).children[0];
 	const harness = makeEditorActionsDeps([initial]);
@@ -59,9 +57,8 @@ function makeContainer(source: string) {
 		deps: harness.deps,
 		undo: history.requestUndo,
 		ids: () => state.innerBlockIds,
-		// Convergence, not just a byte round-trip: after a reorder the live tree
-		// must match a fresh parse of its bytes, so a permutation that leaves a
-		// stale container raw or a renumber-desynced marker is caught.
+		// Convergence, not just a byte round-trip: the round trip is blind to a stale
+		// container raw or a renumber-desynced marker the permutation left behind.
 		assertStable() {
 			expectParseConverged(harness.doc);
 			const live = serialize(harness.doc);
@@ -77,11 +74,11 @@ describe('reorder action — top level', () => {
 		const h = makeTop(['a', 'b', 'c']);
 		const idsBefore = h.ids().slice();
 
-		await h.reorder.nudgeReorderUnit([1], 1); // 'b' down past 'c'
+		await h.reorder.nudgeReorderUnit([1], 1);
 
 		expect(serialize(h.doc)).toBe('a\n\nc\n\nb\n');
-		expect(h.ids()[2]).toBe(idsBefore[1]); // 'b' kept its id (idMap permute, no recreate)
-		expect(h.ids()[1]).toBe(idsBefore[2]); // 'c' shifted up keeping its id
+		expect(h.ids()[2]).toBe(idsBefore[1]);
+		expect(h.ids()[1]).toBe(idsBefore[2]);
 		h.assertAligned();
 	});
 
@@ -89,7 +86,7 @@ describe('reorder action — top level', () => {
 		const h = makeTop(['a', 'b']);
 		const idsBefore = h.ids().slice();
 
-		await h.reorder.nudgeReorderUnit([0], -1); // already first
+		await h.reorder.nudgeReorderUnit([0], -1);
 
 		expect(serialize(h.doc)).toBe('a\n\nb\n');
 		expect(h.ids()).toEqual(idsBefore);
@@ -97,52 +94,50 @@ describe('reorder action — top level', () => {
 
 	it('undo restores the original order in one step', async () => {
 		const h = makeTop(['a', 'b', 'c']);
-		await h.reorder.nudgeReorderUnit([0], 1); // a down
+		await h.reorder.nudgeReorderUnit([0], 1);
 		expect(serialize(h.doc)).toBe('b\n\na\n\nc\n');
 		await h.undo();
 		expect(serialize(h.doc)).toBe('a\n\nb\n\nc\n');
 	});
 
-	// A "loose list" — blank lines between items — parses to separate top-level
-	// `list` nodes (the blank line is the next list's leadingTrivia), so reordering
-	// it is the document branch. The separators must stay positional: the moved
-	// list adopts its destination slot's blank line, not drag its own along.
+	// A "loose list" parses to separate top-level `list` nodes (the blank line is the
+	// next list's leadingTrivia), so this is the document branch, not the list branch.
 	it('reorders blank-separated top-level list nodes, separators stay positional', async () => {
 		const harness = makeEditorActionsDeps(parse('- one\n\n- two\n\n- three\n').children);
 		const controller = createUndoController(harness.deps);
 		const reorder = createReorderAction(harness.deps, controller);
 
-		await reorder.moveReorderUnit([0], 2); // first list -> last
+		await reorder.moveReorderUnit([0], 2);
 
 		const live = serialize(harness.doc);
 		expect(live).toBe('- two\n\n- three\n\n- one\n');
-		expectParseConverged(harness.doc); // live tree converges with a reparse of its bytes
-		expect(serialize(parse(live))).toBe(live); // byte-stable round-trip
+		expectParseConverged(harness.doc);
+		expect(serialize(parse(live))).toBe(live);
 	});
 });
 
 describe('reorder action — list', () => {
 	it('nudge moves a list item up and down (down at the tail clamps)', async () => {
 		const up = makeContainer('- one\n- two\n- three\n');
-		await up.reorder.nudgeReorderUnit([0, 2, 0], -1); // 3rd item up
+		await up.reorder.nudgeReorderUnit([0, 2, 0], -1);
 		expect(serialize(up.doc)).toBe('- one\n- three\n- two\n');
 
 		const down = makeContainer('- one\n- two\n- three\n');
-		await down.reorder.nudgeReorderUnit([0, 2, 0], 1); // 3rd item down — already last
+		await down.reorder.nudgeReorderUnit([0, 2, 0], 1);
 		expect(serialize(down.doc)).toBe('- one\n- two\n- three\n');
 	});
 
 	it('moving a list item keeps its keyed id (idMap, not recreate)', async () => {
 		const h = makeContainer('- one\n- two\n- three\n');
 		const idsBefore = h.ids().slice();
-		await h.reorder.nudgeReorderUnit([0, 2, 0], -1); // three up to index 1
+		await h.reorder.nudgeReorderUnit([0, 2, 0], -1);
 		expect(h.ids()[1]).toBe(idsBefore[2]);
 		expect(h.ids()[2]).toBe(idsBefore[1]);
 	});
 
 	it('ordered list renumbers and stays byte-stable', async () => {
 		const h = makeContainer('1. one\n2. two\n3. three\n');
-		await h.reorder.nudgeReorderUnit([0, 2, 0], -1); // three up
+		await h.reorder.nudgeReorderUnit([0, 2, 0], -1);
 		expect(serialize(h.doc)).toBe('1. one\n2. three\n3. two\n');
 		h.assertStable();
 	});
@@ -151,7 +146,7 @@ describe('reorder action — list', () => {
 describe('reorder action — blockquote', () => {
 	it('drag move (absolute toIndex) reorders and undoes in one byte-exact step', async () => {
 		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
-		await h.reorder.moveReorderUnit([0, 0], 2); // a -> last
+		await h.reorder.moveReorderUnit([0, 0], 2);
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
 		await h.undo();
 		expect(serialize(h.doc)).toBe('> a\n>\n> b\n>\n> c\n');
@@ -159,30 +154,25 @@ describe('reorder action — blockquote', () => {
 
 	it('drag move clamps an out-of-range toIndex to the last slot', async () => {
 		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
-		await h.reorder.moveReorderUnit([0, 0], 99); // clamps to 2
+		await h.reorder.moveReorderUnit([0, 0], 99);
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
 	});
 
-	// A drag carries no live caret, so the undo snapshot synthesizes the restore
-	// path. It must be the child's deep path within the container, not a top-level
-	// index — otherwise undoing a drag of a nested block strands the caret on an
-	// unrelated top-level block. (jsdom has no native selection, so this harness
-	// always exercises the no-caret fallback.)
+	// A drag carries no live caret, so the snapshot synthesizes the restore path; a
+	// top-level index there strands the caret on an unrelated block after undo.
 	it('a no-caret container reorder snapshots a deep restore path', async () => {
 		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
-		await h.reorder.moveReorderUnit([0, 0], 2); // drag bq child 0 -> last
+		await h.reorder.moveReorderUnit([0, 0], 2);
 		const { undo } = h.deps.undoManager.getStacks();
-		expect(undo.at(-1)?.selection.focus.path).toEqual([0, 0]); // into the blockquote, not [0]
+		expect(undo.at(-1)?.selection.focus.path).toEqual([0, 0]);
 	});
 });
 
 describe('reorder action — plugin (opaque) container declines', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	// TOP / :::spec (reserved chrome + one body) / BOTTOM — the teleport seed. A
-	// pre-decline resolver hands back the container's DOCUMENT slot, so a body-leaf
-	// nudge/move permutes the top-level array (the teleport). The decline returns
-	// null, so run() bails before commit: no permutation, no undo, no edit.
+	// The teleport seed: a pre-decline resolver hands back the container's DOCUMENT
+	// slot, so a body-leaf gesture permutes the top-level array instead.
 	function makeDeclineHarness() {
 		const chromeKind = declarePluginKind('spec-chrome');
 		const containerKind = declarePluginKind('spec-container');
@@ -225,11 +215,10 @@ describe('reorder action — plugin (opaque) container declines', () => {
 		let edits = 0;
 		harness.events.on('edit', () => edits++);
 
-		await reorder.nudgeReorderUnit([1, 1], -1); // body paragraph "up"
+		await reorder.nudgeReorderUnit([1, 1], -1);
 
-		// Assertions ordered so each fails independently under the pre-fix teleport:
-		// the commit emits an edit + pushes an undo entry BEFORE the permutation shows
-		// in the bytes, so checking those first keeps `edits`/`undo` non-vacuous.
+		// Ordered so each fails independently: the commit emits an edit and pushes an
+		// undo entry BEFORE the permutation reaches the bytes.
 		expect(edits).toBe(0);
 		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
 		expect(serialize(harness.doc)).toBe(before);
@@ -241,7 +230,7 @@ describe('reorder action — plugin (opaque) container declines', () => {
 		let edits = 0;
 		harness.events.on('edit', () => edits++);
 
-		await reorder.moveReorderUnit([1, 1], 0); // body paragraph dragged to index 0
+		await reorder.moveReorderUnit([1, 1], 0);
 
 		expect(edits).toBe(0);
 		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);

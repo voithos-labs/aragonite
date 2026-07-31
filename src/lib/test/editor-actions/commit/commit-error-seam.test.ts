@@ -1,9 +1,6 @@
-// editor.md §12 promises the `error` channel is one seam for every contained
-// failure, and `origin: 'commit'` is the ceremony's arm of it. Two throw sites
-// sat outside the containment: the pre-mutation snapshot push (which walks live
-// block refs, including plugin-authored leaves) and the post-tick callback the
-// public `updateOwnMetadata(patch, afterTick)` threads a plugin closure into.
-// Both reported nothing and rejected a promise every caller voids.
+// `docs/design/editor.md` §12: the `error` channel is one seam for every contained
+// failure, and `origin: 'commit'` is the ceremony's arm of it. Both throw sites here
+// run plugin-authored code — the snapshot push's ref walk and the post-tick callback.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -49,8 +46,7 @@ describe('the commit ceremony contains and attributes every throw site', () => {
 		expect(errors).toHaveLength(1);
 		expect(errors[0].origin).toBe('commit');
 		expect(errors[0].context?.op).toBe('appendBlock');
-		// The commit itself succeeded: a failing view callback is not a reason to
-		// unwind a correct tree.
+		// A failing view callback is not a reason to unwind a correct tree.
 		expect(serialize(deps.doc)).toContain('- edited\n');
 	});
 

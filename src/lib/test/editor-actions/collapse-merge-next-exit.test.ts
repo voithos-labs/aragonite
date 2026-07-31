@@ -17,10 +17,8 @@ import {
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 
-// Regression: forward-Delete at the end of a collapsed container's summary once
-// dead-ended on the unmounted body (refAt(i+1) no-op). The container-level
-// mergeWithNext now exits past the collapsed container instead — a focus move
-// with no mutation (mirrors gateMoveFocusOnCollapse).
+// Forward-Delete at the end of a collapsed summary must exit past the container rather
+// than dead-end on the unmounted body (refAt(i+1) no-op) — a focus move, no mutation.
 
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
 const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n';
@@ -48,7 +46,7 @@ describe('collapsed container forward-merge exit', () => {
 
 	it('mergeWithNext from a collapsed summary exits past the container without mutating', async () => {
 		const node = parse(CLOSED_DETAILS).children[0];
-		expect(node.children?.length).toBe(2); // summary chrome + unmounted body
+		expect(node.children?.length).toBe(2);
 		const { bundle, parent } = nestedFor(node);
 
 		await bundle.blockEdit.mergeWithNext(0);
@@ -68,12 +66,8 @@ describe('collapsed container forward-merge exit', () => {
 		expect(parent.focus.moveFocus).not.toHaveBeenCalledWith(5, 'start');
 	});
 
-	// The exit moves focus to the block after the container. When the container is
-	// the LAST block that index is past the document end, where the root focus
-	// action would otherwise mint an empty paragraph (an appendBlock op + undo
-	// entry) — a mutation from a Delete that must stay inert. The `{ append: false }`
-	// guard keeps it a pure no-op. Driven through the REAL focus action (the stub
-	// is position-blind) so a dropped guard actually appends.
+	// Past the document end the root focus action mints an empty paragraph unless
+	// `{ append: false }` stops it. Driven through the REAL action; the stub is position-blind.
 	it('mergeWithNext from a collapsed summary that is the last block appends nothing', async () => {
 		const details = parse(CLOSED_DETAILS).children[0];
 		const harness = makeEditorActionsDeps([details]);

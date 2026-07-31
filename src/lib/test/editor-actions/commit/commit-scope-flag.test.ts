@@ -9,9 +9,8 @@ import {
 	type StructuralChange
 } from '$lib/tree-operations/structural-change';
 
-// The commit ceremony brackets its synchronous body with this DEV flag so the
-// decoration engine can assert no source re-runs inside a half-applied commit.
-// The live behavior is otherwise only exercised by the simulation suite.
+// The ceremony brackets its synchronous body with this DEV flag so the decoration
+// engine can assert no source re-runs inside a half-applied commit.
 describe('commit-scope flag', () => {
 	it('tracks an explicit begin/end pair (confirming the mechanism is live under DEV)', () => {
 		expect(isCommitInProgress()).toBe(false);
@@ -32,16 +31,13 @@ describe('commit-scope flag', () => {
 		const focus = createFocusActions(deps, controller);
 
 		expect(isCommitInProgress()).toBe(false);
-		await focus.moveFocus(doc.children.length, 'start'); // appends a block → a real __commit
-		expect(doc.children).toHaveLength(2); // the commit actually ran
-		expect(isCommitInProgress()).toBe(false); // finally-cleared before the first await
+		await focus.moveFocus(doc.children.length, 'start');
+		expect(doc.children).toHaveLength(2);
+		expect(isCommitInProgress()).toBe(false);
 	});
 
-	// The pair above proves the flag mechanism and that the ceremony leaves it
-	// clear — but neither observes it ARMED mid-ceremony, so removing beginCommit()
-	// from the commit helper leaves both green. This pins the arm itself: the flag
-	// is true inside a mutate driven through the real commit entry point, which is
-	// exactly the window the decoration-run-in-commit assert guards.
+	// Pins the arm itself: the cases above stay green if `beginCommit()` is removed,
+	// since neither observes the flag mid-ceremony.
 	it('arms the flag for the whole of a real commit mutate callback', async () => {
 		const { deps, doc } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
 		const controller = createUndoController(deps);
@@ -58,8 +54,8 @@ describe('commit-scope flag', () => {
 			}
 		});
 
-		expect(flagInsideMutate).toBe(true); // armed while the mutation ran
-		expect(doc.children).toHaveLength(2); // and the commit actually applied
-		expect(isCommitInProgress()).toBe(false); // then cleared
+		expect(flagInsideMutate).toBe(true);
+		expect(doc.children).toHaveLength(2);
+		expect(isCommitInProgress()).toBe(false);
 	});
 });

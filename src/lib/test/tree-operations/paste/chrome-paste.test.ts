@@ -15,8 +15,8 @@ import { registerBlockListState } from '../../../reactivity/state-registry';
 import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
 
-// A container declaring its child 0 as reserved chrome, plus the chrome leaf and
-// the leaf's inline-only paste surface — the shape registerChromeLeaf produces.
+// The shape registerChromeLeaf produces: reserved chrome at child 0 plus the leaf's
+// inline-only paste surface.
 function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockKind } {
 	const chrome = declarePluginKind('spec-chrome-title');
 	const container = declarePluginKind('spec-chrome-container');
@@ -38,7 +38,6 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 	return { container, chrome };
 }
 
-// One titled container: [0,0]=chrome leaf "Title", [0,1]=body paragraph "Body".
 function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): Document {
 	return {
 		kind: 'document',
@@ -83,7 +82,6 @@ describe('paste into a reserved-chrome leaf', () => {
 
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 12);
-		// Inline splice, not a structural split of the chrome node.
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 
@@ -97,7 +95,7 @@ describe('paste into a reserved-chrome leaf', () => {
 			{ doc, blockEdit, controller: makeStubController() }
 		);
 
-		// A `\r\n\r\n` break is one run, not two — flattening per-`\n` double-spaces it.
+		// A `\r\n\r\n` break is one run: flattening per-`\n` double-spaces it.
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 12);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
@@ -105,9 +103,8 @@ describe('paste into a reserved-chrome leaf', () => {
 
 	it('flattens a list clipboard at a chrome path even when an enclosing list would absorb', async () => {
 		const { container, chrome } = registerChromeContainer();
-		// list → chrome-container → chrome-leaf: the chrome leaf sits where
-		// findListAbsorb treats the container as a list item, so the container
-		// family would fire here if the chrome gate did not precede it.
+		// The chrome leaf sits where findListAbsorb treats the container as a list item, so the
+		// container family fires here unless the chrome gate precedes it.
 		const list: CstNode = {
 			kind: 'list',
 			leadingTrivia: '',
@@ -130,7 +127,7 @@ describe('paste into a reserved-chrome leaf', () => {
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
 
-		// The container family matches this target — the gate must win regardless.
+		// The container family matches this target, so the gate must win over it.
 		expect(findListAbsorb(doc, [0, 0, 0], parse('- a\n- b\n'), 5)).not.toBeNull();
 
 		await pasteDispatch(
@@ -155,7 +152,6 @@ describe('paste into a reserved-chrome leaf', () => {
 			{ doc, blockEdit, controller }
 		);
 
-		// The gate is scoped to chrome children: a plain list item still absorbs.
 		expect(controller.commitMultiScope).toHaveBeenCalledOnce();
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});

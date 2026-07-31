@@ -1,8 +1,7 @@
-// Enter mints the successor's blank-line separator when the first half would
-// otherwise lazily absorb it. Asserted through `describeConvergence`, not through
-// bytes: the defect this guards is the LIVE tree disagreeing with a reparse of its
-// own serialization, which every byte-level oracle is blind to (the round trip is a
-// tautology, G2.1).
+// Enter mints the successor's blank-line separator when the first half would otherwise
+// lazily absorb it. Asserted through `describeConvergence`, not bytes: the defect is the
+// LIVE tree disagreeing with a reparse of its own serialization, which every byte-level
+// oracle is blind to (the round trip is a tautology, G2.1).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -54,16 +53,14 @@ describe('split separator — the half that absorbs gets one', () => {
 });
 
 describe('split separator — the halves that close get none', () => {
-	// Over-minting is not a convergence defect, so convergence cannot guard these.
-	// Each closes on its own, so a following line already starts its own block, and a
-	// blank would widen the document's spacing for nothing.
+	// Over-minting is not a convergence defect, so convergence cannot guard these. Each kind
+	// here closes on its own, so a blank would widen the document's spacing for nothing.
 	const closesOnItsOwn: readonly [name: string, source: string, offset: number][] = [
 		['heading', '## Title\n', 8],
 		['thematic break', '---\n', 3],
 		['setext heading', 'Title\n=====\n', 5],
-		// A body that swallows a blank line as content: a separator there would land
-		// INSIDE the block, which is why the predicate asks what a blank line DOES
-		// rather than whether the tight join merges.
+		// A body that swallows a blank line as content would take the separator INSIDE itself,
+		// which is why the predicate asks what a blank line DOES, not whether the join merges.
 		['unclosed fence', '```\ncode\n', 9],
 		['unclosed html block', '<pre>\nliteral\n', 13]
 	];
@@ -84,10 +81,9 @@ describe('split separator — the halves that close get none', () => {
 	});
 });
 
-// The probe stands in for whatever the user types next, so it has to be the line
-// NO opener claims. Openers are arbitrary code, so that cannot hold by
-// construction — a consumer's plugin registering globally is the reachable way to
-// break it, and unit files reset the platform, so nothing else here would see it.
+// The probe stands in for whatever the user types next, so it must be the line NO opener
+// claims. Openers are arbitrary code, so a consumer's globally-registered plugin is the
+// reachable way to break that, and unit files reset the platform.
 describe('split separator — the probe line', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 	afterEach(__resetSchemaRegistriesForTests);
@@ -115,9 +111,8 @@ describe('split separator — the probe line', () => {
 
 		expect(probeLineOpensAsProse()).toBe(false);
 
-		// The consequence, pinned so the guard's warning is not the only record: the
-		// probe now opens its own block either way, so the separator reads as doing
-		// nothing and every paragraph split silently loses it.
+		// The consequence, pinned so the guard's warning is not the only record: a claimed probe
+		// makes the separator read as doing nothing, and every paragraph split loses it.
 		const doc = parse('Hello world\n');
 		splitNode(doc, 0, 5);
 		expect(doc.children[1].leadingTrivia).toBe('');

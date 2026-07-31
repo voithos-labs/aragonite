@@ -11,17 +11,10 @@ import { testClosure } from '$lib/test/support/closure';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 
-// A commit that unwinds AFTER the chain rebuild re-kinded a container has published
-// a replacement into a live children array. No other rollback register reaches it:
-// the top-level array swap restores `doc.children`, which a NESTED swap never
-// touched, and `savedChildren` restores the swapped-out node's own children rather
-// than the slot that now holds a different node.
-//
-// The unwind is driven the way it is actually reachable — a container's own
-// `rebuildRaw` throwing mid-ceremony, which is plugin code at the freeze boundary —
-// so the pin is a plugin whose rebuild throws on the SECOND scope of a two-scope
-// commit, after the first scope's rebuild already swapped a nested blockquote into
-// a GitHub alert.
+// A commit that unwinds AFTER the chain rebuild re-kinded a container published a
+// replacement into a live NESTED children array, which no other rollback register
+// reaches: the array swap restores `doc.children` and `savedChildren` restores the
+// swapped-out node's own children, not the slot now holding a different node.
 
 let THROWING: AnyBlockKind;
 
@@ -54,16 +47,8 @@ function makeDoc() {
 	return { ...harness, controller, inner, thrower };
 }
 
-/**
- * Two commits in ONE undo unit. The first takes the snapshot and unshares the
- * spine, so the second — joining that entry with `snapshot: 'skip'` — finds the
- * outer blockquote already owned and splices into its live children array. That
- * in-place splice is precisely what the top-level array restore cannot reach.
- *
- * The second commit scopes the inner blockquote (whose leaf write completes a
- * `> [!TIP]` marker, so its rebuild re-kinds it) and the throwing container.
- * Chains sort deepest-first, so the swap lands before the throw.
- */
+/** Takes the snapshot and unshares the spine, so the joining commit below finds the
+ *  outer blockquote already owned and splices into its live children array. */
 async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 	await h.controller.commitMultiScope({
 		scopes: [{ node: h.inner(), path: [0, 0], state: createBlockListState(h.inner) }],
@@ -75,6 +60,8 @@ async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 	});
 }
 
+/** The inner leaf write completes a `> [!TIP]` marker, so that scope's rebuild re-kinds the
+ *  container — and chains sort deepest-first, so the swap lands before the throw. */
 async function throwingCommit(h: ReturnType<typeof makeDoc>): Promise<unknown> {
 	try {
 		await h.controller.commitMultiScope({
@@ -108,10 +95,8 @@ describe('a commit that unwinds after a container was re-kinded', () => {
 		expect(h.inner().kind).toBe('blockquote');
 	});
 
-	// The slot alone is not enough: a swap keeps the bytes, so a document that still
-	// held the replacement would serialize identically. The restored body is what
-	// distinguishes them — the alert's marker lives in its own raw, so its body is the
-	// backfilled blank, while the blockquote's body still holds the marker text.
+	// The slot alone is not enough: a swap keeps the bytes, so the replacement would
+	// serialize identically. Only the restored body distinguishes the two.
 	it('leaves the restored body and the bytes as they were before the commit', async () => {
 		const h = makeDoc();
 		await seedUndoUnit(h);

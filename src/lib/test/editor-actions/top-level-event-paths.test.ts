@@ -10,9 +10,8 @@ import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 
-// Top-level/container event-path parity: both scopes emit the op's TARGET
-// (the deleted neighbor for not-editable merges, the minted index for
-// descend-mint) — the top-level scope no longer substitutes the snapshot index.
+// Top-level/container event-path parity: both scopes emit the op's TARGET, never the
+// snapshot index.
 
 function makeTopFrom(children: CstNode[]) {
 	const harness = makeEditorActionsDeps(children);
@@ -56,8 +55,7 @@ describe('top-level event paths target the operated block', () => {
 		expect(h.edits[0]).toMatchObject({ op: 'delete', path: [1] });
 	});
 
-	// The focus-then-delete twin: a whole-block-focus neighbour is a focus move, so
-	// press one emits no edit event at all — nothing was mutated to report.
+	// The focus-then-delete twin: press one mutates nothing, so there is no edit to report.
 	it('backspace-merge into a thematic break emits no edit event', async () => {
 		const h = makeTop('---\n\ntext\n');
 		await h.actions.mergeWithPrevious(1);

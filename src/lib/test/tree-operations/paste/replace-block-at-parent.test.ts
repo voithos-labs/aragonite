@@ -94,8 +94,7 @@ describe('replaceBlockAtParent — id preservation', () => {
 	});
 
 	it('uses the live old kind read before mutation runs', async () => {
-		// Sanity guard: even with a heading already at the path, a paragraph
-		// replacement must not be mistaken for same-kind.
+		// A heading already at the path must not make a paragraph replacement read as same-kind.
 		const harness = makeEditorActionsDeps([parse('# heading\n').children[0]]);
 		const controller = createPasteCoordinator(
 			createUndoController(harness.deps),

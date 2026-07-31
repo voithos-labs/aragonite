@@ -15,16 +15,12 @@ describe('debounce flush on structural commit', () => {
 		const editHandler = vi.fn<(payload: EditEvent) => void>();
 		events.on('edit', editHandler);
 
-		// Simulate 5 keystrokes in block 0 — each call extends the batch.
 		for (let i = 0; i < 5; i++) {
 			controller.pushUndoSnapshotDebounced([0], i);
 		}
 
-		// No input event yet — debounce hasn't fired.
 		expect(editHandler).not.toHaveBeenCalled();
 
-		// Structural commit before debounce flush — must emit the buffered
-		// keystrokes as one op:'input' event, then its own 'split' event.
 		await actions.splitBlock(0, 5);
 
 		const inputEvents = editHandler.mock.calls.map((c) => c[0]).filter((e) => e.op === 'input');
@@ -35,8 +31,7 @@ describe('debounce flush on structural commit', () => {
 		const splitEvents = editHandler.mock.calls.map((c) => c[0]).filter((e) => e.op === 'split');
 		expect(splitEvents).toHaveLength(1);
 
-		// Order matters: input flush precedes the structural event so observers
-		// see typing → split, not split → typing.
+		// Observers must see typing → split, not split → typing.
 		const inputIdx = editHandler.mock.calls.findIndex((c) => c[0].op === 'input');
 		const splitIdx = editHandler.mock.calls.findIndex((c) => c[0].op === 'split');
 		expect(inputIdx).toBeLessThan(splitIdx);

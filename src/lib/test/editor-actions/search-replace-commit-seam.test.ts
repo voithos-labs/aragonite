@@ -11,11 +11,9 @@ import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import type { EditEvent, EditorError } from '$lib/editor-events';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// The subtree rebuild dispatches into `descriptor.rebuildRaw` — plugin code —
-// outside any commit and after the batch's single undo snapshot was pushed. An
-// unattributed throw there left the snapshot pushed, the redo stack cleared, and
-// the editor's own `error` channel silent. The aggregate edit event also reported
-// `path: []` for `replaceOne`, which operates on exactly one known index.
+// The subtree rebuild dispatches into plugin `rebuildRaw` outside any commit and after
+// the batch's single undo snapshot was pushed, so an unattributed throw leaves the
+// snapshot pushed, the redo stack cleared, and the `error` channel silent.
 
 function scanRaw(raw: string, needle: string, path: number[]) {
 	const at = raw.indexOf(needle);
@@ -36,8 +34,7 @@ describe('replaceOne reports the subtree it operated on', () => {
 		expect(edits[0]).toMatchObject({ op: 'replaceBlock', path: [2], detail: { count: 1 } });
 	});
 
-	// Several subtrees genuinely have no single operated node, so the aggregate
-	// keeps the empty path there.
+	// Several subtrees genuinely have no single operated node, so the empty path stays.
 	it('replaceAll across two subtrees keeps the empty path', async () => {
 		const doc = parse('a cat\n\nanother cat\n');
 		const { deps, events } = makeEditorActionsDeps(doc.children);

@@ -26,9 +26,8 @@ function doc(children: CstNode[]): Document {
 }
 
 describe('cascadeCleanupEmptyAncestors', () => {
-	// The walk splices at arbitrary depth, so it owns its spine like every other
-	// tree-op: without the unshare the splice lands on a node an undo entry still
-	// references, and the snapshot loses a child it never gave up.
+	// The walk splices at arbitrary depth, so it owns its spine: without the unshare the
+	// splice lands on a node an undo entry still references.
 	it('unshares the spine instead of splicing through a snapshot-shared parent', () => {
 		const sharing = createSharingState();
 		const d = parse('> para\n>\n> - item\n');
@@ -40,7 +39,6 @@ describe('cascadeCleanupEmptyAncestors', () => {
 
 		expect(d.children[0]).not.toBe(sharedQuote);
 		expect(d.children[0].children).toHaveLength(1);
-		// The snapshot's view keeps both children.
 		expect(sharedQuote.children).toHaveLength(2);
 	});
 
@@ -71,7 +69,6 @@ describe('cascadeCleanupEmptyAncestors', () => {
 	});
 
 	it('keeps a surviving ancestor childIds aligned when an emptied container is removed', () => {
-		// blockquote containing a paragraph and a list; empty the list and clean up.
 		const d = parse('> para\n>\n> - item\n');
 		const quote = d.children[0];
 		quote.childIds = assignIds(quote.children!);

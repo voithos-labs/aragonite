@@ -1,12 +1,8 @@
-// The chain rebuild runs AFTER every scope's byte writes and dispatches into
-// `descriptor.rebuildRaw` — plugin code at the freeze boundary. A throw there,
-// or a `discardIfNoop` bail behind it, must unwind the bytes as well as the
-// structure, or the restored children disagree with the serialized raw and the
-// very next `serialize()` emits a half-applied document.
-//
-// Both cases need a node the top-level array swap cannot recover: one already
-// unshared in the same undo unit (copy-path-on-write no-ops, so the write lands
-// in place), or a direct child the shallow copy still aliases.
+// A `rebuildRaw` throw or a `discardIfNoop` bail must unwind the bytes as well as
+// the structure, or the restored children disagree with the serialized raw and the
+// next `serialize()` emits a half-applied document. Both cases need a node the
+// top-level array swap cannot recover: one already unshared in the same undo unit,
+// or a direct child the shallow copy still aliases.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -17,8 +13,7 @@ import type { EditorActionsDeps, MultiScopeTarget, UndoController } from '$lib/e
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-/** Every raw in the tree, depth-first — the oracle for "no half-written tree".
- *  `serialize()` reads only top-level raws, so it cannot see an inner container
+/** `serialize()` reads only top-level raws, so it cannot see an inner container
  *  whose bytes the rebuild rewrote before the throw. */
 function collectRaws(nodes: readonly CstNode[]): string[] {
 	const out: string[] = [];
@@ -34,8 +29,6 @@ afterEach(() => {
 	augmentBuiltin('list', { container: { rebuildRaw: originalListRebuild } });
 });
 
-/** Let the first `okCalls` list rebuilds write their bytes, then throw — the
- *  finding's shape: the inner chain rebuilds fine, the outer chain blows up. */
 function throwListRebuildAfter(okCalls: number): void {
 	let seen = 0;
 	augmentBuiltin('list', {
@@ -74,8 +67,7 @@ function nestedListHarness(): {
 	return {
 		deps,
 		controller: createUndoController(deps),
-		// Rebuilt per commit: copy-path-on-write replaces the spine nodes, and
-		// assertScopeIdentity checks the scope node against the live tree.
+		// Re-read per commit: copy-path-on-write replaces the spine nodes assertScopeIdentity checks against.
 		scopes: () => [
 			{ node: getOuter(), state: outerState, path: [0] },
 			{ node: getInner(), state: innerState, path: [0, 0, 1] }
@@ -88,7 +80,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 		const { deps, controller, scopes } = nestedListHarness();
 
 		// Own the whole spine at the current epoch, so the second commit's
-		// copy-path-on-write is a no-op and its rebuild writes in place.
+		// copy-path-on-write no-ops and its rebuild writes in place.
 		await controller.commitMultiScope({
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -100,9 +92,8 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 
 		const rawsBefore = collectRaws(deps.doc.children);
 
-		// Deepest chain first: the inner scope's chain rebuilds the inner list and
-		// the outer list, then the outer scope's chain reaches the outer list again
-		// and throws — after both writes have landed.
+		// Chains sort deepest-first, so the outer list is reached twice — the throw
+		// lands on the third rebuild, after two writes.
 		throwListRebuildAfter(2);
 
 		await expect(
@@ -119,10 +110,8 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 		expect(collectRaws(deps.doc.children)).toEqual(rawsBefore);
 	});
 
-	// The byte register spans each scope's whole spine, while the rebuild loop
-	// deliberately skips chain nodes the mutation detached. `promoteNestedItem`'s
-	// three-scope shape is where the two disagree: overlapping chains, and one of
-	// them ends on a node another scope splices out mid-commit.
+	// The byte register spans each scope's whole spine while the rebuild loop skips
+	// chain nodes the mutation detached — `promoteNestedItem`'s shape is where they disagree.
 	it('restores overlapping scopes whose chains include a node the mutation detached', async () => {
 		const { deps, controller, scopes } = nestedListHarness();
 		const parentItemState = makeBlockListState(() => deps.doc.children[0].children![0]);
@@ -139,8 +128,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 		const rawsBefore = collectRaws(deps.doc.children);
 		const treeBefore = serialize(deps.doc);
 
-		// list rebuilds: the inner chain's outer list, the parent-item chain's outer
-		// list, then the outer scope's own — throw on the third, after two landed.
+		// Three chains reach the outer list; the throw lands on the third, after two wrote.
 		throwListRebuildAfter(2);
 
 		const [outer, inner] = scopes();
@@ -157,9 +145,8 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 				],
 				snapshot: 'skip',
 				mutate: ([outerScope, innerScope, parentItemScope]) => {
-					// Promote item 0 out of the nested list, emptying it, then splice the
-					// emptied list out of the parent item — detaching the inner scope's
-					// own chain tail while two other scopes still hold it in theirs.
+					// Emptying then splicing out the nested list detaches the inner scope's own
+					// chain tail while two other scopes still hold it in theirs.
 					const [promoted] = innerScope.children.splice(0, 1);
 					const nestedIdx = parentItemScope.children.indexOf(innerScope.node);
 					parentItemScope.children.splice(nestedIdx, 1);
@@ -177,9 +164,8 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 		expect(serialize(deps.doc)).toBe(treeBefore);
 	});
 
-	// The same residual with no plugin and no throw: `discardIfNoop` calls the
-	// identical rollback AFTER the rebuild loop already wrote bytes. The direct
-	// child a shallow spine copy still aliases is what the array swap cannot reach.
+	// The same residual with no plugin and no throw: `discardIfNoop` rolls back AFTER
+	// the rebuild loop wrote bytes, into a direct child the shallow spine copy still aliases.
 	it('restores the raws a discarded commit wrote before it bailed', async () => {
 		const { deps } = makeEditorActionsDeps(parse('- a\n- b\n').children);
 		const controller = createUndoController(deps);
@@ -193,8 +179,8 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			discardIfNoop: true,
 			mutate: ([scope]) => {
-				// A byte write that precedes the discovery that nothing structural
-				// changed — the precondition `DiscardIfNoop` states in prose only.
+				// A byte write preceding the discovery that nothing structural changed —
+				// the precondition `DiscardIfNoop` states in prose only.
 				scope.children[0].raw = '- CHANGED\n';
 				return [{ op: 'noop' }];
 			}

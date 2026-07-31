@@ -53,9 +53,8 @@ describe('focusMovedOutsideReplacement', () => {
 		expect(focusMovedOutsideReplacement([2], 1, 2)).toBe(false);
 	});
 
-	// A plugin may own data-block-path with a non-JSON value; the parse runs inside
-	// afterTick, outside the commit ceremony's catch, so a throw there is an unhandled
-	// rejection. Treat an unparseable attr like the fell-to-body case and run the restore.
+	// A plugin may own data-block-path with a non-JSON value, and the parse runs inside
+	// afterTick — outside the ceremony's catch, so a throw is an unhandled rejection.
 	it('restores without throwing when data-block-path is non-JSON', () => {
 		focusHostWithRawPath('plugin-owned-token');
 		expect(() => focusMovedOutsideReplacement([], 1, 2)).not.toThrow();
@@ -63,10 +62,9 @@ describe('focusMovedOutsideReplacement', () => {
 	});
 });
 
-// The preview picks between the structural commit and the routine typing path,
-// and nothing re-decides it later — so it has to answer about the bytes the write
-// will actually land. A container that rewrites its body's bytes makes the two
-// answers differ, and the owner argument is what keeps them together.
+// The preview picks between the structural commit and the routine typing path and
+// nothing re-decides it, so it must answer about the bytes the write actually lands —
+// which a container that rewrites its body's bytes makes differ.
 describe('previewContentReparse reads the owning container', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();

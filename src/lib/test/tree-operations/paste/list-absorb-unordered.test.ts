@@ -17,9 +17,8 @@ import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { UndoController } from '$lib/editor-actions/deps';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 
-// Regression: absorbing a same-type list paste normalized markers only for the
-// ordered half. An unordered paste (`* one`) into a `- ` list kept its `*`, so
-// reference parsers split it into two lists downstream. Both halves normalize now.
+// Absorbing a same-type list paste must normalize markers for BOTH halves: a `*` kept
+// inside a `- ` list is split into two lists by reference parsers.
 
 function makeController(): UndoController & PasteCommitCoordinator {
 	return {
@@ -28,7 +27,6 @@ function makeController(): UndoController & PasteCommitCoordinator {
 		pushUndoSnapshotDebounced: vi.fn(),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
-		// Run the mutation against the live children so the splice is observable.
 		commitMultiScope: vi.fn(
 			async ({
 				scopes,
@@ -63,8 +61,7 @@ describe('list-absorb — marker normalization', () => {
 			innerBlockRefs: list.children!.map(() => undefined)
 		} as unknown as Parameters<typeof registerBlockListState>[1]);
 
-		// A normal single-caret paste (not a cross-block 'join') routes to the
-		// list-absorb strategy rather than the container-match merge.
+		// A single-caret paste routes to list-absorb rather than the container-match merge.
 		await pasteDispatch(
 			{ pastedText: '* one\n* two\n', targetPath: [0, 0, 0], offset: 'alpha'.length },
 			{ doc, blockEdit: makeStubBlockEdit(), controller: makeController() }

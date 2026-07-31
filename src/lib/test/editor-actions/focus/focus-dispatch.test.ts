@@ -88,8 +88,7 @@ describe('dispatchMoveFocus', () => {
 	});
 
 	// A non-focusable target must not dead-end the move (`docs/design/editor.md`
-	// § Focus traversal). With no focusable sibling in the travel direction, the
-	// walk runs off this scope's edge and delegates upward.
+	// § Focus traversal); with no focusable sibling ahead, the walk delegates upward.
 	it('non-focusable at the boundary: delegates upward in the move direction', async () => {
 		const child = mockRef({ focus: vi.fn(), focusable: false });
 		const parentFocus = makeStubFocus();
@@ -101,9 +100,7 @@ describe('dispatchMoveFocus', () => {
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(1, 'start');
 	});
 
-	// Mid-chain: the walk steps past the non-focusable block to the next focusable
-	// sibling in the travel direction and lands there — no upward delegation while
-	// a focusable sibling remains.
+	// The interior twin: no upward delegation while a focusable sibling remains.
 	it('non-focusable mid-chain: skips to the next focusable sibling', async () => {
 		const nonFocusable = mockRef({ focus: vi.fn(), focusable: false });
 		const focusable = mockRef({ focus: vi.fn(), focusable: true });

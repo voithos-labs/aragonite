@@ -14,14 +14,13 @@ function leaf(raw: string): CstNode {
 	return parse(raw).children[0];
 }
 
-/** A ref that records the offsets it was focused at — for descend focus assertions. */
 function focusSpy() {
 	const calls: number[] = [];
 	const ref = { focus: (offset: number) => calls.push(offset) } as unknown as BlockComponent;
 	return { calls, ref };
 }
 
-/** Stub scope: runs the real mutate against a live children array, records commits. */
+/** Runs the REAL mutate against a live children array, recording commits. */
 function stubScope(
 	children: CstNode[],
 	collapseEmptyReplaceToDelete = true,
@@ -94,8 +93,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('merge-prev into an editable-but-unmergeable previous block moves focus without committing', async () => {
-		// fencedCode is not-mergeable yet editable, so the prev block is neither
-		// concatenated nor deleted — the else branch only moves focus.
+		// fencedCode is the not-mergeable-yet-editable fixture: the else branch only moves focus.
 		const { scope, commits, children } = stubScope([leaf('```\n'), leaf('text\n')]);
 		expect(children[0].kind).toBe('fencedCode');
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
@@ -156,14 +154,9 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 });
 
-// A whole-block-focus kind (opaque childless plugin block) is FOCUSED at offset 0
-// with no commit in either merge direction — the branch sits before the
-// `!isBlockEditable` check, so the policy overrides the delete-non-editable
-// fallback regardless of editability. Both directions are pinned: the dominant
-// bug class here is sibling-path parity (a rule enforced on one twin, missed on
-// the other). The non-editable cases give the cleanest red — pre-fix they delete;
-// the editable case is mermaid's real config, where pre-fix merge-prev moves the
-// caret to CURSOR_END into a childless container (the reported no-op dead-end).
+// The whole-block-focus branch sits before the `!isBlockEditable` check, so the policy
+// overrides the delete-non-editable fallback regardless of editability. Both merge
+// directions are pinned because the bug class here is sibling-path parity.
 describe('block-edit core — whole-block-focus fallback', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
@@ -186,9 +179,9 @@ describe('block-edit core — whole-block-focus fallback', () => {
 			undefined
 		]);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
-		expect(children).toHaveLength(2); // survives — pre-fix this deleted it
-		expect(commits).toHaveLength(0); // no undo entry — a focus move, not a mutation
-		expect(focus.calls).toEqual([0]); // whole-block focus at offset 0
+		expect(children).toHaveLength(2);
+		expect(commits).toHaveLength(0);
+		expect(focus.calls).toEqual([0]);
 	});
 
 	it('merge-next focuses a non-editable whole-block next block instead of deleting it', async () => {
@@ -198,7 +191,7 @@ describe('block-edit core — whole-block-focus fallback', () => {
 			focus.ref
 		]);
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
-		expect(children).toHaveLength(2); // survives — pre-fix this deleted it
+		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
 		expect(focus.calls).toEqual([0]);
 	});
@@ -212,17 +205,12 @@ describe('block-edit core — whole-block-focus fallback', () => {
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
-		// Pre-fix the editable-but-unmergeable else branch moved the caret to
-		// CURSOR_END, which walked into the childless container and no-op'd.
 		expect(focus.calls).toEqual([0]);
 	});
 });
 
-// The delete-the-neighbour fallback, for a non-editable block that does NOT opt
-// into whole-block focus. `---` was the fixture until thematicBreak joined the
-// focus-then-delete model, so this branch now needs a kind of its own: every
-// non-editable built-in is a whole-block-focus target, and only a plugin kind can
-// still reach it.
+// The delete-the-neighbour fallback needs a synthetic kind: every non-editable
+// built-in is a whole-block-focus target, so only a plugin kind still reaches it.
 describe('block-edit core — non-editable neighbour fallback', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
@@ -242,9 +230,8 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbor (i-1), not i — both scope factories mint the
-		// emitted event path from this target (top-level parity pinned in
-		// top-level-event-paths.test.ts).
+		// The deleted neighbor (i-1), not i — both scope factories mint the emitted event
+		// path from this target (top-level parity in top-level-event-paths.test.ts).
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
@@ -257,11 +244,8 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 	});
 });
 
-// thematicBreak is the shipped built-in on the same model: a caret-adjacent
-// destructive key focuses the rule, and only a second press — handled on the
-// focused block itself — deletes it. Registered built-ins rather than a synthetic
-// kind, because the point is that the shipped descriptor carries the declaration
-// its closure cells claim.
+// The shipped built-in on the same model, deliberately not a synthetic kind: the point
+// is that thematicBreak's own descriptor carries the declaration its closure cells claim.
 describe('block-edit core — thematicBreak focus-then-delete', () => {
 	const rule = () => leaf('---\n');
 
@@ -324,8 +308,7 @@ describe('block-edit core — chrome.descendToBody', () => {
 	});
 
 	it('consumes the key without minting when the body ref is windowed out', async () => {
-		// Body child exists in the array but its ref is off-window: the caret stays
-		// put (no focus lands) and nothing is created.
+		// Empty refs: the body child exists in the array but is windowed out.
 		const { scope, commits, children } = stubScope([leaf('Title\n'), leaf('Body\n')], true, []);
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);

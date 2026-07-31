@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// A structural paste turns the clipboard's internal blank lines into real
-// empty-paragraph rows. Each row's raw IS a line ending, so in a CRLF document it
-// must be CRLF (G4.20) — the paste payload is normalized to LF before it is parsed,
-// so the row's ending can only come from the target document, never from the
-// clipboard's own trivia.
+// A materialized blank-line row's raw IS a line ending, so in a CRLF document it must be
+// CRLF (G4.20). The payload is normalized to LF before parsing, so the row's ending can
+// only come from the target document.
 import { describe, it, expect } from 'vitest';
 import { materializeBlankLines } from '../../../tree-operations/paste/strategy';
 import { pasteDispatch, __getDefaultTextSurface } from '../../../tree-operations/paste/dispatch';
@@ -28,8 +26,8 @@ describe('materializeBlankLines — minted row line ending', () => {
 	});
 });
 
-// The payload's own bytes keep the endings the clipboard authored; only the row
-// the editor MINTS has no provenance, so only it takes the document's ending.
+// The payload's own bytes keep the endings the clipboard authored; only the MINTED row
+// has no provenance of its own.
 describe('structural paste into a CRLF document', () => {
 	it('mints the payload blank-line row at the target document ending', async () => {
 		__resetPasteSurfacesForTests();
