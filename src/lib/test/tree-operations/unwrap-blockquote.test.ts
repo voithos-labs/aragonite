@@ -4,10 +4,9 @@ import { serialize } from '../../core/serializer';
 import { unwrapFirstChildFromQuote } from '../../tree-operations';
 import type { CstNode } from '../../core/nodes';
 
-// Lifting the first child out of a quote-shaped container. Blockquote coverage lives
-// here (single- vs multi-paragraph, nested quotes/lists, input immutability); the
-// GitHub-alert branch — whose marker drops so the remainder is a plain blockquote —
-// is pinned against a real parsed alert in `plugins/admonitions/github-alert-unwrap`.
+// Blockquote coverage for lifting the first child out of a quote-shaped container. The
+// GitHub-alert branch is pinned against a real parsed alert in
+// `plugins/admonitions/github-alert-unwrap`.
 
 describe('unwrapFirstChildFromQuote', () => {
 	function parseBlockquote(src: string): CstNode {

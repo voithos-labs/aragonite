@@ -11,7 +11,7 @@ function leaf(raw: string): CstNode {
 	return parse(raw).children[0];
 }
 
-// Stub scope: runs the real mutate against a live children array, records commits.
+// Runs the REAL mutate against a live children array, recording commits.
 function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = []) {
 	const commits: ScopeCommitArgs[] = [];
 	const sharing = createSharingState();
@@ -36,8 +36,8 @@ describe('gateDescendOnCollapse (M3)', () => {
 
 		await gated(0);
 
-		expect(children).toHaveLength(1); // no phantom body paragraph
-		expect(commits).toHaveLength(0); // no undoable commit
+		expect(children).toHaveLength(1);
+		expect(commits).toHaveLength(0);
 	});
 
 	it('expanded: delegates to descend, minting and committing when the chrome is childless', async () => {

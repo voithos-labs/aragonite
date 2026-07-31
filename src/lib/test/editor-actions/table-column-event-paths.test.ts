@@ -10,12 +10,10 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-// Column-shaped table ops address the TABLE, with the column index in the event
-// detail — a column is not a child node, so a [tableIdx, colIdx] path would
-// resolve to a ROW (or nothing). Two sites share this contract by design: the
-// alignment ops (editor-actions/table-context) and the coverage-driven column
-// delete (selection/range-delete-table-coverage). Reverting either back to the
-// old [index, colIdx] / [tableIdx, colIdx] shape turns these red.
+// A column is not a child node, so column-shaped ops address the TABLE and carry the
+// column index in the event detail. Two sites share the contract: the alignment ops
+// (editor-actions/table-context) and the coverage-driven column delete
+// (selection/range-delete-table-coverage).
 
 const TABLE = '| a | b |\n| --- | --- |\n| c | d |\n';
 
@@ -110,7 +108,6 @@ function makeColumnCoverageEnv() {
 describe('coverage-driven column delete emits the table path with colIdx in the detail', () => {
 	it('a full-column selection targets the table, not the column index', async () => {
 		const { deps, table, ctx, edits } = makeColumnCoverageEnv();
-		// Cell-index endpoints spanning column 0 across both rows (2 cols × 2 rows).
 		const start: SelectionPoint = { path: [0, 0, 0], offset: 0 };
 		const end: SelectionPoint = { path: [0, 1, 0], offset: 2 };
 		deps.selectionState.enterCrossBlock(start, end);

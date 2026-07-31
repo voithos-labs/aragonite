@@ -40,7 +40,6 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 		const rawBefore = targetLeaf.raw;
 		makeStubBlockListState(list);
 
-		// Singleton clipboard: one matching ordered-list item with one paragraph.
 		const pastedText = '1. INSERTED\n';
 
 		let rawAtCommitInvocation: string | null = null;
@@ -67,10 +66,8 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 		);
 
 		expect(captured.mutate).not.toBeNull();
-		// commitMultiScope was invoked with the pre-mutation raw — proves the
-		// snapshot would capture pre-mutation state.
+		// The pre-mutation raw at invocation is what makes the snapshot capture pre-mutation state.
 		expect(rawAtCommitInvocation).toBe(rawBefore);
-		// After mutate ran inside the stub's call, the raw is now updated.
 		expect(targetLeaf.raw).not.toBe(rawBefore);
 		expect(targetLeaf.raw).toContain('INSERTED');
 	});
@@ -83,7 +80,6 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 		const rawBefore = targetLeaf.raw;
 		makeStubBlockListState(list);
 
-		// Two-item matching clipboard exercises the multi-item path.
 		const pastedText = '1. ALPHA\n2. BETA\n';
 
 		let rawAtCommit: string | null = null;
@@ -124,10 +120,8 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 		registerPasteSurface(__getDefaultTextSurface('paragraph'));
 	});
 
-	// A join paste that completes marker syntax at offset 0 must re-mint the slot
-	// at the reparsed kind, not leave a paragraph-typed node holding list bytes
-	// (parse(serialize(live)) would then diverge). The non-join sibling routes
-	// through updateBlockContent → the funnel; the join branch must mirror it.
+	// A join paste completing marker syntax at offset 0 must re-mint the slot at the reparsed
+	// kind, mirroring the non-join sibling's funnel route, or parse(serialize(live)) diverges.
 	it('completing an ordered-list marker re-mints the block as a list', async () => {
 		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
 		expect(deps.doc.children[0].kind).toBe('paragraph');
@@ -146,8 +140,7 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 		expect(deps.doc.children[0].kind).toBe('list');
 	});
 
-	// The join reparse is content-commit-class, so it threads the instance grammar:
-	// an instance whose grammar drops the list opener keeps the completion a paragraph.
+	// The join reparse is content-commit-class, so it threads the instance grammar.
 	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
 		const { deps } = makeEditorActionsDeps(parse('. item\n').children);
 
@@ -170,8 +163,8 @@ describe('pasteDispatch — cross-block inline join reparse', () => {
 // ── pasteDispatch end-to-end routing ────────────────────────────────────────
 
 describe('pasteDispatch — strategy routing end-to-end', () => {
-	// Register-once: clear first, then register the paragraph default so routing
-	// sees the same surface it would in the app, independent of prior describes.
+	// Registries are register-once, so the reset makes routing see the app's surface
+	// independent of prior describes.
 	beforeEach(() => {
 		__resetPasteSurfacesForTests();
 		registerPasteSurface(__getDefaultTextSurface('paragraph'));
@@ -194,9 +187,8 @@ describe('pasteDispatch — strategy routing end-to-end', () => {
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 
-	// Routes through controller.commitMultiScope at the doc scope — bypasses
-	// blockEdit so callers passing a nested-bundle blockEdit (e.g., a row-level
-	// bundle for a cell's path) can't misroute the splice into a child container.
+	// Routing at the doc scope bypasses blockEdit, so a caller passing a nested-bundle
+	// blockEdit cannot misroute the splice into a child container.
 	it('structural strategy: multi-block clipboard routes through controller.commitMultiScope at doc scope', async () => {
 		const doc = parse('target\n');
 		const blockEdit = makeStubBlockEdit();

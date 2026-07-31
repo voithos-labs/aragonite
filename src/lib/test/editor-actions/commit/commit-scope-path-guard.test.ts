@@ -1,8 +1,7 @@
-// A multi-scope target whose `path` does not address its `node` used to fall back
-// to the caller's node — never unshared — so the mutation spliced the live,
-// snapshot-shared node and the freshest undo entry observed the splice. Nothing
-// threw: G1.19 and G1.22 are dev-only warnings. The sibling seam
-// (`withUnsharedSpine`, G1.20) bails on the same input; so does this one now.
+// A scope `path` that does not address its `node` must bail, not fall back to the
+// caller's never-unshared node: the splice would land on the snapshot-shared node and
+// corrupt the freshest undo entry, silently — G1.19/G1.22 are dev-only warnings. The
+// sibling seam (`withUnsharedSpine`, G1.20) bails on the same input.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
@@ -25,8 +24,7 @@ function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);
 	const controller = createUndoController(deps);
 	const state = makeBlockListState(() => deps.doc.children[0]);
-	// A pushed snapshot is what makes the live node shared — the state in which a
-	// write through it corrupts history.
+	// A pushed snapshot is what makes the live node shared, so a write through it corrupts history.
 	controller.pushUndoSnapshot(0, 0);
 	const scopes: MultiScopeTarget[] = [{ node: deps.doc.children[0], state, path: scopePath }];
 	const commit = (): Promise<void> =>

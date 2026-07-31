@@ -67,18 +67,15 @@ describe('reconcileTaskMetadata', () => {
 	});
 
 	it('demotes task listItem when effective first line no longer matches', () => {
-		// User deleted the `]` from `[x]` — effective line becomes `[x something`.
+		// The user deleted the `]` from `[x]`.
 		const item = makeListItem('x something\n', taskMeta('[', false));
-		// Start with a stripped state that, combined with the broken marker,
-		// no longer parses as a task: taskMarker `[` + firstLine `x something`
-		// = `[x something` — no match.
+		// A stripped state that, recombined with the broken marker, no longer parses as a task.
 		reconcileTaskMetadata(item);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(false);
 		expect(meta.taskMarker).toBeNull();
 		expect(meta.taskChecked).toBe(false);
-		// Demotion restored the taskMarker bytes into paragraph.raw so the
-		// user's content survives.
+		// Demotion restores the taskMarker bytes into paragraph.raw so the content survives.
 		expect(item.children![0].raw).toBe('[x something\n');
 	});
 
@@ -145,10 +142,8 @@ describe('reconcileTaskMetadata', () => {
 	});
 
 	it('updates taskChecked when existing task item has raw that flips check state', () => {
-		// Marker drift: meta says [x] but effective line is `[x] task` with [x]
-		// marker — stays checked. Change check state by rewriting effective.
+		// Marker drift: the check state changes by rewriting the effective line, not the metadata.
 		const item = makeListItem('  task\n', taskMeta('[x]', true));
-		// Effective line: `[x]  task` — matches `[x] ` with double space.
 		reconcileTaskMetadata(item);
 		const meta = item.metadata as ListItemMetadata;
 		expect(meta.taskItem).toBe(true);

@@ -6,10 +6,8 @@ import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfac
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 
-// Backspace-at-start-of-list-item merge semantics: flat merges, nested-sublist
-// absorption, preserve-absolute-indent for deep targets, loose items, ordered
-// renumbering, and the itemIndex=0 guard. Worked examples mirror the table in
-// e2e/requirements/blocks/list/backspace.md.
+// Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
+// in e2e/requirements/blocks/list/backspace.md.
 
 describe('mergeListItemIntoPrevious', () => {
 	function parseList(src: string): CstNode {
@@ -21,8 +19,7 @@ describe('mergeListItemIntoPrevious', () => {
 		return list;
 	}
 
-	// Every worked-example row reaches a text-bearing target; unwrap the result
-	// or fail loudly. The opaque-leaf null path has its own case below.
+	// Every worked-example row reaches a text-bearing target; the null path has its own case.
 	function mergeExpectingTarget(list: CstNode, children: CstNode[], currentIndex: number) {
 		const result = mergeListItemIntoPrevious(list, children, currentIndex);
 		if (!result) throw new Error('expected a merge target');
@@ -74,8 +71,7 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 
 	it('row 4: deep target (depth 2) — E stays at depth 1 (preserve-absolute-indent)', () => {
-		// Merging D into the deepest target (C) must preserve E at its original
-		// absolute depth 1, not deepen it to match C's depth 2.
+		// E must keep its original absolute depth, not deepen to match the merge target's.
 		const list = parseList('- A\n  - B\n    - C\n- D\n  - E\n');
 
 		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
@@ -106,8 +102,8 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 
 	it('row 5b: target item is loose — trailing paragraph index is not 0', () => {
-		// Regression: loose target has findDeepestVisibleTextTarget landing on
-		// A.children[1]; a prior path-slice bug cascaded focus to A.children[0].
+		// A loose target lands findDeepestVisibleTextTarget on A.children[1]; a path-slice bug
+		// cascaded focus to A.children[0].
 		const list = parseList('- A\n\n  extra\n- B\n');
 
 		const { mergePoint } = mergeExpectingTarget(list, list.children!.slice(), 1);
@@ -161,9 +157,8 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 
 	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
-		// The previous item is a fenced code block — not-mergeable, so the walker
-		// finds no text-bearing leaf. M1 must report no-target for the caller's
-		// focus-move fallback, not throw inside the commit ceremony.
+		// A not-mergeable previous item leaves the walker no text-bearing leaf: M1 must report
+		// no-target for the caller's focus-move fallback, not throw inside the ceremony.
 		const list = parseList('- ```\n  code\n  ```\n- text\n');
 		const children = list.children!.slice();
 		const before = children.length;
@@ -176,8 +171,8 @@ describe('mergeListItemIntoPrevious', () => {
 	});
 });
 
-// The details dogfood kind must be registered for the walker's collapse probe to
-// read the summary chrome as opaque — hence the isolated describe.
+// Isolated because the walker's collapse probe needs the details kind registered to read
+// the summary chrome as opaque.
 describe('mergeListItemIntoPrevious — collapsed container as previous leaf', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -186,9 +181,8 @@ describe('mergeListItemIntoPrevious — collapsed container as previous leaf', (
 	});
 
 	it('previous item ends in a collapsed <details>: returns null without mutating', () => {
-		// The preceding item's last child is a collapsed details; its only reachable
-		// leaf is the summary chrome (opaque), so — like the fenced-code case — M1
-		// reports no target and the caret falls back to the previous item's end.
+		// The collapsed details' only reachable leaf is its opaque summary chrome, so this
+		// reaches the same no-target fallback as the fenced-code case.
 		const list = parse(
 			'- <details>\n  <summary>Sum</summary>\n\n  Hidden\n\n  </details>\n- text\n'
 		).children[0];

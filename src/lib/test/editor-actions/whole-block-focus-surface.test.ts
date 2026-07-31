@@ -9,9 +9,8 @@ import {
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 
-// The class guard behind whole-block focus: a kind whose declared focus element
-// is absent (a render-error/loading state the plugin forgot to cover) must
-// degrade to a focusable box, never a silent no-op that strands the caret.
+// A kind whose declared focus element is absent (a render-error state the plugin forgot
+// to cover) must degrade to a focusable box, never a no-op that strands the caret.
 
 function box(): HTMLElement {
 	const el = document.createElement('div');

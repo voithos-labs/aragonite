@@ -21,12 +21,10 @@ describe('debounce flush on batch-key change', () => {
 	it('typing in block 1 mid-batch flushes the displaced block 0 batch as one input event', () => {
 		const { controller, editHandler, inputEvents } = makeSetup();
 
-		// Three keystrokes in block 0 — still buffered, debounce hasn't fired.
 		for (let i = 0; i < 3; i++) controller.pushUndoSnapshotDebounced([0], i);
 		expect(editHandler).not.toHaveBeenCalled();
 
-		// Focus moves to block 1 inside the debounce window. The key change
-		// must flush block 0's batch, not silently drop it.
+		// A key change inside the debounce window must flush block 0's batch, not drop it.
 		controller.pushUndoSnapshotDebounced([1], 0);
 
 		expect(inputEvents()).toHaveLength(1);

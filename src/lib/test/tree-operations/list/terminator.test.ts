@@ -35,10 +35,8 @@ describe('ensureListItemNewlineTerminated', () => {
 		expect(item.raw).toBe('- a\n');
 	});
 
-	// The last child may be a CONTAINER. Patching its raw without descending left
-	// raw and children disagreeing (G1.1) the instant the item was terminated, and
-	// the next rebuild of the nested list mashed its unterminated tail item into
-	// the following one — three items serializing as two.
+	// Patching a CONTAINER last child's raw without descending leaves raw and children
+	// disagreeing (G1.1), and the next rebuild mashes its tail item into the following one.
 	it('descends into a nested container instead of patching its raw alone', () => {
 		const item = parse('- a\n  - b').children[0].children![0];
 		const nested = item.children![item.children!.length - 1];
@@ -76,12 +74,8 @@ describe('spliceTerminatedItems', () => {
 		expect(list.raw).toBe('1. one\n6. Ordered\n7. third\n');
 	});
 
-	// The terminator appended a literal '\n', so the one item arriving WITHOUT an
-	// ending landed as an LF line inside an otherwise CRLF container — the
-	// mixed-ending class G4.20 exists for. The ending comes from the siblings the
-	// item is joining, which is the only ending an unterminated item can adopt.
-	// (Items that carry their own ending keep it: normalizing those is the paste
-	// entry's job, not the splice's.)
+	// A literal '\n' strands an item arriving WITHOUT an ending as an LF line inside a CRLF
+	// container (G4.20); the siblings it joins carry the only ending it can adopt.
 	it('adopts the surrounding list ending instead of a literal LF', () => {
 		const list = parse('1. one\r\n2. two\r\n').children[0];
 		const pasted = parse('6. Ordered\r\n7. third').children[0].children!;

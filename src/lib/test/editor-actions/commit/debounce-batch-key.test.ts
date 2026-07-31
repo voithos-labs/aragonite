@@ -32,16 +32,13 @@ describe('debounce batch key — sibling leaves inside one container', () => {
 	it('typing in leaf 0 then leaf 1 produces two undo entries (focus break)', async () => {
 		const { bundle, controller, deps } = makeSetup(['hello\n', 'world\n']);
 
-		// Simulate typing 1 char into leaf 0 — first stroke pushes a snapshot.
 		await bundle.blockEdit.updateBlockContent(0, 'hello1\n', 5);
-		// Simulate "focus moved to leaf 1, then typed" — the new leaf's id key
-		// must break the batch even though no checkpoint is pending (text-batch
-		// needsCheckpoint still false).
+		// The new leaf's id key must break the batch even though no checkpoint is
+		// pending (text-batch `needsCheckpoint` is still false here).
 		await bundle.blockEdit.updateBlockContent(1, 'world1\n', 5);
 
-		// Two snapshots: one before each leaf's typing batch.
 		expect(deps.undoManager.getStacks().undo).toHaveLength(2);
-		// Cleanup the still-pending debounce timer so vitest exits cleanly.
+		// Clear the still-pending debounce timer so vitest exits cleanly.
 		controller.flushDebouncedCheckpoint();
 	});
 
@@ -77,8 +74,8 @@ describe('debounce batch key — top-level blocks', () => {
 		const blockEdit = createBlockEditActions(deps, controller);
 
 		await blockEdit.updateBlockContent(0, 'a1\n', 1);
-		// Slot 0 now holds a different block. A slot-keyed batch cannot see this and
-		// folds the next keystroke into the previous block's undo entry.
+		// A slot-keyed batch cannot see this and folds the next keystroke into the
+		// previous block's undo entry.
 		deps.setBlockIds(['block-new', deps.blockIds[1]]);
 		await blockEdit.updateBlockContent(0, 'x1\n', 1);
 

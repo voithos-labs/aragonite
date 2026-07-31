@@ -3,11 +3,9 @@ import { mergedElseFocusPrevious } from '$lib/editor-actions/merge-fallback';
 import { CURSOR_END } from '$lib/block-component';
 import { mockRef } from '../harness/editor-actions';
 
-// Single owner of the interior-merge no-target fallback, shared by
-// block-edit-core.mergeWithPreviousInterior and unwrap-strategies.
-// listItemCascadeMiddle. A null result means the previous block exposed no text
-// leaf, so the caret must land at the previous block's end — pinned here so
-// dropping that focus call is caught at the source rather than in either caller.
+// The single owner of the interior-merge no-target fallback, shared by
+// block-edit-core.mergeWithPreviousInterior and unwrap-strategies.listItemCascadeMiddle.
+// Pinned here so a dropped focus call fails at the source, not in either caller.
 
 describe('mergedElseFocusPrevious', () => {
 	it('focuses the previous block at its end when the merge found no target', () => {

@@ -29,7 +29,7 @@ describe('updateNodeContent — contextDependentKind stickiness', () => {
 
 		const change = updateNodeContent(parent as never, 0, 'TitleX\n');
 
-		expect(parent.children[0].kind).toBe(chrome); // sticky — not reparsed to paragraph
+		expect(parent.children[0].kind).toBe(chrome);
 		expect(parent.children[0].raw).toBe('TitleX\n');
 		expect(change).toEqual({ op: 'noop' });
 	});
@@ -39,20 +39,18 @@ describe('updateNodeContent — contextDependentKind stickiness', () => {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hi\n' }] as CstNode[]
 		};
 		updateNodeContent(parent as never, 0, '# hi\n');
-		expect(parent.children[0].kind).toBe('heading'); // ordinary reparse unaffected
+		expect(parent.children[0].kind).toBe('heading');
 	});
 });
 
-// The write branch above is where every cell gesture's text reaches the bytes the
-// row joins verbatim, so it is where the kind's legality pass has to run. Three
-// gestures carried that escape above this point and each lost it; these pin the
-// sink so a fourth cannot.
+// Every cell gesture's text reaches the row's verbatim bytes through the write branch
+// above, so the legality pass belongs there. Three gestures carried it individually and
+// each lost it; these pin the sink so a fourth cannot.
 describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	/**
-	 * Cell `at` of a body row rewritten through the funnel, read back the way the
-	 * user gets it: the row's rebuilt bytes reparsed inside their own table.
+	 * Read back the way the user gets it: the row's rebuilt bytes reparsed in their own table.
 	 */
 	function writeCellAndReparse(cellRaws: string[], at: number, text: string): string[] {
 		const row: CstNode = {
@@ -76,8 +74,8 @@ describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write
 	}
 
 	it('a bare pipe written into a cell costs the row no column', () => {
-		// Written bare, the row reads `| d|X | e | f |`: one cell too wide for the
-		// delimiter, so the parser truncates and the last column's content is gone.
+		// Written bare the row is one cell too wide for the delimiter, so the parser truncates
+		// and the last column's content is gone.
 		expect(bodyCellsOf(3, '| d|X | e | f |\n')).toEqual(['d', 'X', 'e']);
 
 		expect(writeCellAndReparse(['d', 'e', 'f'], 0, 'd|X')).toEqual(['d\\|X', 'e', 'f']);

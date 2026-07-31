@@ -8,12 +8,10 @@ import { createGrammarView } from '$lib/schema/block-openers';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
 import type { CstNode, Document } from '$lib/core/nodes';
 
-// The pure half of the container kind-change path: a container whose rebuilt raw
-// opens as a different kind is replaced in its parent's slot by the correctly-kinded
-// node. Eligibility is the opener registry — a kind with no standalone recognizer
-// (listItem, tableRow, chrome, tableCell) reparses to something else entirely and is
-// never re-derived. See the editor-driven half in
-// test/plugins/admonitions/github-alert-typed-formation.test.ts.
+// The pure half of the container kind-change path: a container whose rebuilt raw opens
+// as a different kind is replaced in its parent's slot. Eligibility is the opener
+// registry, since a kind with no standalone recognizer reparses to something else. The
+// editor-driven half is test/plugins/admonitions/github-alert-typed-formation.test.ts.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -47,9 +45,7 @@ describe('reclassifyContainer', () => {
 		expect(reclassifyContainer(doc, quoteIndex)?.leadingTrivia).toBe(trivia);
 	});
 
-	// The mirror direction. No editing gesture reaches it for githubAlert — its
-	// rebuild re-emits the marker from metadata, so line 1 always re-opens as an
-	// alert — but a metadata write can, and the pass must not be one-way.
+	// The mirror direction, reachable only by a metadata write: the pass must not be one-way.
 	it('demotes an alert whose rebuilt marker no longer names an alert type', () => {
 		const doc: Document = parse('> [!TIP]\n> body\n');
 		setPluginMetadata(doc.children[0], { alertType: 'NOPE' });
@@ -68,9 +64,8 @@ describe('reclassifyContainer', () => {
 		expect(doc.children[0]).toBe(before);
 	});
 
-	// A listItem's raw (`- [!TIP]`) parses to a LIST, and a tableRow's to a
-	// paragraph: neither has a standalone opener, so re-deriving from their own raw
-	// would destroy them. The eligibility rule is the opener registry, not a name list.
+	// A listItem's raw parses to a LIST and a tableRow's to a paragraph, so re-deriving
+	// either from its own raw destroys it. The rule is the opener registry, not a name list.
 	it.each([
 		['listItem', '- [!TI\n', '[!TIP]\n'],
 		['tableRow', '| a |\n| - |\n| b |\n', 'x']
@@ -102,9 +97,8 @@ describe('reclassifyContainer', () => {
 		expect(doc.children[0].kind).toBe('blockquote');
 	});
 
-	// A freshly-parsed replacement carries no childIds; published under the reused
-	// component instance, undefined keys reach the nested keyed `{#each}` and throw
-	// on the second child. One body child cannot expose it.
+	// A freshly-parsed replacement carries no childIds, so undefined keys reach the nested
+	// keyed `{#each}` and throw on the second child. One body child cannot expose it.
 	it('assigns child ids on a replacement with a multi-block body', () => {
 		const doc: Document = parse('> [!TI\n>\n> a\n>\n> b\n');
 		editFirstLeaf(doc.children[0], '[!TIP]\n');
@@ -116,9 +110,8 @@ describe('reclassifyContainer', () => {
 		expect(alert?.childIds?.filter(Boolean)).toHaveLength(2);
 	});
 
-	// `> [!TIP]` alone parses to a childless alert. The backfilled focus paragraph
-	// has no bytes in the typed raw (unlike a blockquote, whose `>` line doubles as
-	// the blank body), so the replacement must rebuild through it or G1.1 fires.
+	// The backfilled focus paragraph has no bytes in the typed raw, unlike a blockquote whose
+	// `>` line doubles as the blank body, so the replacement must rebuild through it (G1.1).
 	it('backfills a caret target into a marker-only alert and rebuilds its raw', () => {
 		const doc: Document = parse('> [!TI\n');
 		editFirstLeaf(doc.children[0], '[!TIP]\n');

@@ -15,10 +15,9 @@ import type { BlockComponent } from '../../../block-component';
 import type { UndoController } from '../../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 
-// The container-match join route spliced pasted list items into a matching
-// ancestor without templating their bullet glyph to the destination list — a
-// `*`/`+` paste into a `- ` list kept its `*`, so reference parsers split it
-// into two lists downstream. Mirrors the list-absorb unordered-marker fix.
+// Splicing pasted list items into a matching ancestor without templating their bullet
+// glyph leaves a `*` inside a `- ` list, which reference parsers split into two lists.
+// Mirrors the list-absorb unordered-marker fix.
 
 function registerStubState(node: CstNode): void {
 	registerBlockListState(node, {
@@ -27,9 +26,8 @@ function registerStubState(node: CstNode): void {
 	} as unknown as Parameters<typeof registerBlockListState>[1]);
 }
 
-// commitMultiScope mirroring the real primitive's owned-scope protocol (attach
-// working children, run mutate, rebuild scope raws) — enough to observe the
-// splice + normalized item raws the fix produces.
+// Mirrors the real primitive's owned-scope protocol: attach working children, run
+// mutate, rebuild scope raws.
 function runningController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
@@ -67,7 +65,7 @@ describe('container-matching paste — unordered marker normalization', () => {
 	it('templates pasted "*" markers to the enclosing "-" list on the empty-target route', async () => {
 		const doc = parse('- a\n- keep\n');
 		const list = doc.children[0];
-		// Empty the first item's content to simulate a post-cross-block-delete stub.
+		// An emptied first item stands in for a post-cross-block-delete stub.
 		list.children![0].children![0].raw = '';
 		registerStubState(list);
 
@@ -76,8 +74,6 @@ describe('container-matching paste — unordered marker normalization', () => {
 			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), undoEntry: 'join' }
 		);
 
-		// Bug: the spliced `* x` / `* y` items kept their `*`, serializing the list as
-		// `* x\n* y\n- keep\n` — two lists to a reference parser.
 		expect(list.children!.map((it) => metadataOf(it, 'listItem').marker)).toEqual([
 			'- ',
 			'- ',
@@ -91,15 +87,13 @@ describe('container-matching paste — unordered marker normalization', () => {
 		const list = doc.children[0];
 		registerStubState(list);
 
-		// Caret at end of "alpha"; a cross-block 'join' paste takes the merge-first
-		// branch, splicing the trailing pasted item as a sibling.
+		// A cross-block 'join' paste takes the merge-first branch, splicing the trailing pasted
+		// item as a sibling.
 		await pasteDispatch(
 			{ pastedText: '* x\n* y\n', targetPath: [0, 0, 0], offset: 'alpha'.length },
 			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), undoEntry: 'join' }
 		);
 
-		// First pasted item merges into "alpha"; the trailing "* y" splices as a
-		// sibling and must adopt the "- " glyph, not keep its "*".
 		expect(list.children!.map((it) => metadataOf(it, 'listItem').marker)).toEqual([
 			'- ',
 			'- ',
@@ -109,15 +103,13 @@ describe('container-matching paste — unordered marker normalization', () => {
 	});
 });
 
-// The container-match route spliced ordered items into a matching ordered
-// ancestor with their pasted numbers intact — `1. 2.` landed mid-list and the
-// tail kept its old number, so the source read misnumbered (reference renderers
-// re-sequenced it, masking the drift). Mirrors the sibling-absorb renumber.
+// Ordered items spliced with their pasted numbers intact leave the source misnumbered,
+// which reference renderers mask by re-sequencing. Mirrors the sibling-absorb renumber.
 describe('container-matching paste — ordered renumbering', () => {
 	it('renumbers pasted ordered items into the sequence on the empty-target route', async () => {
 		const doc = parse('1. a\n2. keep\n');
 		const list = doc.children[0];
-		// Empty the first item's content to simulate a post-cross-block-delete stub.
+		// An emptied first item stands in for a post-cross-block-delete stub.
 		list.children![0].children![0].raw = '';
 		registerStubState(list);
 
@@ -126,8 +118,6 @@ describe('container-matching paste — ordered renumbering', () => {
 			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), undoEntry: 'join' }
 		);
 
-		// Bug: pasted "1. x" / "2. y" kept their numbers and the tail "keep" stayed
-		// "2.", serializing as 1. x / 2. y / 2. keep.
 		expect(list.children!.map((it) => metadataOf(it, 'listItem').marker)).toEqual([
 			'1. ',
 			'2. ',
@@ -141,15 +131,13 @@ describe('container-matching paste — ordered renumbering', () => {
 		const list = doc.children[0];
 		registerStubState(list);
 
-		// Caret at end of "alpha"; a cross-block 'join' paste takes the merge-first
-		// branch, splicing the trailing pasted item as a sibling.
+		// A cross-block 'join' paste takes the merge-first branch, splicing the trailing pasted
+		// item as a sibling.
 		await pasteDispatch(
 			{ pastedText: '1. x\n2. y\n', targetPath: [0, 0, 0], offset: 'alpha'.length },
 			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), undoEntry: 'join' }
 		);
 
-		// "1. x" merges into "alpha" (keeps "1."); "2. y" splices as item 2 and the
-		// tail "keep" renumbers to 3.
 		expect(list.children!.map((it) => metadataOf(it, 'listItem').marker)).toEqual([
 			'1. ',
 			'2. ',
