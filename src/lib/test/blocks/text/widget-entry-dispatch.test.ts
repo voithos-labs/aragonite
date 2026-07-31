@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 //
-// Caret-entry against a widget edge dispatches on the widget kind's revealSource
-// policy at TWO seams — the within-block caret-edge dispatch (`edge-policy-dispatch`,
-// all four entry keys) and the cross-block `enterEdgeWidget`. Reveal-capable kinds
-// (inline math) open the source reveal at the direction-appropriate edge; non-reveal
-// kinds (image) keep select-then-step. This pins the split at both seams so a
+// Caret-entry against a widget edge dispatches on the widget kind's revealSource policy at TWO
+// seams — the within-block caret-edge dispatch (`edge-policy-dispatch`, all four entry keys) and
+// the cross-block `enterEdgeWidget`. Reveal-capable kinds open the source reveal at the
+// direction-appropriate edge; non-reveal kinds keep select-then-step. Pinned at both seams so a
 // regression to N−1-of-N sibling parity fails here, not only in e2e.
 import { beforeEach, describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
@@ -29,9 +28,8 @@ beforeEach(() => {
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
 });
 
-// Mount a paragraph with one atomic widget island between two prose text nodes —
-// the shape TextEditableBlock renders. `widgetKind` selects the inline node the
-// stamped island stands in for.
+// Mount a paragraph with one atomic widget island between two prose text nodes — the shape
+// TextEditableBlock renders. `widgetKind` selects the inline node the island stands in for.
 function mount(source: string, widgetKind: string) {
 	const node: CstNode = parse(source).children[0];
 	const widget = computeInlineContent(node).find((n: InlineNode) => n.kind === widgetKind)!;
@@ -94,9 +92,8 @@ function mount(source: string, widgetKind: string) {
 	} as unknown as EdgePolicyDispatchDeps);
 
 	const key = (k: string) => new KeyboardEvent('keydown', { key: k });
-	// Raw offset of the collapsed caret, node-agnostic: at a text-node boundary the
-	// walk may anchor in either adjacent node, so the raw offset — not node identity —
-	// is the direction oracle.
+	// Raw offset of the collapsed caret, node-agnostic: at a text-node boundary the walk may anchor
+	// in either adjacent node, so the raw offset is the direction oracle.
 	const caretRaw = () => {
 		const sel = window.getSelection()!;
 		return domTextOffsetAtNode(el, sel.anchorNode!, sel.anchorOffset);
@@ -162,10 +159,8 @@ describe('edge dispatch — image kind keeps select-then-step', () => {
 // ── Atomic deleteGranularity: delete whole in one press, no select step ──────
 
 describe('edge dispatch — an atomic kind deletes whole on one press', () => {
-	// entityReference is the shipped deleteGranularity:'atomic' consumer (pinned in
-	// its own block below). Reconfiguring the math kind as a synthetic atomic widget
-	// proves the field is honored for ANY kind, not just the built-in entity. The
-	// beforeEach reset re-registers math clean for the next test, so it never leaks.
+	// Reconfiguring the math kind as a synthetic atomic widget proves `deleteGranularity` is honored
+	// for ANY kind, not just the built-in entity; the beforeEach reset re-registers math clean.
 	it('Backspace at the trailing edge removes the widget span through one CST edit', () => {
 		// MATH_INLINE is the raw kind string; the augment API takes the branded kind.
 		augmentInlineWidgetKind(MATH_INLINE as AnyInlineKind, {

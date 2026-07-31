@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// A destructive key at a mid-cell `<br>` edge. The `<br>` is the one widget a cell
-// paints that has no reveal source, so the caret-edge dispatch used to send it to the
-// cell's step-over: press #1 hopped the caret across the widget without deleting a
-// byte, and press #2 — the caret now past it — deleted a NON-adjacent one two
-// positions from where the user pressed. A cell paints no widget-selection overlay, so
-// the prose select-then-delete model it inherited had nothing to show and stranded
-// focus; the affordance a cell does have is the one-press atomic delete.
-//
-// Arrows must keep the step-over, so each arm has its navigation twin: that pair is
-// the whole point of the fix, and a policy that deleted on arrows too would pass any
-// test written for the destructive half alone.
+// A destructive key at a mid-cell `<br>` edge. The `<br>` is the one widget a cell paints with
+// no reveal source, so the caret-edge dispatch used to send it to the cell's step-over: press #1
+// hopped the caret across it, press #2 deleted a NON-adjacent byte. A cell paints no
+// widget-selection overlay, so the affordance it does have is the one-press atomic delete — and
+// each arm has its navigation twin, because arrows must keep the step-over.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import { mountCell } from './mount-cell';
@@ -51,7 +45,6 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			press(el, key);
 			await settle();
 
-			// One commit, the whole widget gone, and the caret anchored where it opened.
 			expect(vi.mocked(blockEdit.updateBlockContent).mock.calls).toHaveLength(1);
 			const [index, text, , caretAfter] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 			expect(index).toBe(0);
@@ -74,11 +67,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		});
 	}
 
-	// The NON-entry half of the matrix, and the direct mirror of the ledger's complaint:
-	// a destructive key pointing AWAY from the widget must take the ordinary adjacent
-	// character and leave the tag alone. It rests on `widgetAtCursor`'s direction
-	// tie-break, so an atomic policy that ignored the key's direction would eat the tag
-	// from either side and these are the only arms that would notice.
+	// The NON-entry half of the matrix: a destructive key pointing AWAY from the widget takes the
+	// ordinary adjacent character. It rests on `widgetAtCursor`'s direction tie-break.
 	const nonEntry: Array<[string, string, number, string]> = [
 		['Backspace at the LEADING edge', 'Backspace', BR_START, 'Lef<br>Right'],
 		['Delete at the TRAILING edge', 'Delete', BR_END, 'Left<br>ight']
@@ -94,10 +84,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			press(el, key);
 			await settle();
 
-			// jsdom leaves a non-entry destructive key to native contenteditable, which it
-			// does not implement — so an absent commit here means "not claimed by the
-			// dispatch", which is the assertion. The browser-level outcome is
-			// e2e/tests/blocks/table/cell-inline-rendering.spec.ts.
+			// jsdom leaves this key to native contenteditable, so an absent commit means "not
+			// claimed"; e2e/tests/blocks/table/cell-inline-rendering.spec.ts owns the browser outcome.
 			const calls = vi.mocked(blockEdit.updateBlockContent).mock.calls;
 			if (calls.length > 0) expect(calls[0][1]).toBe(after);
 			// Either way the tag survives: nothing wrote a text without it.
@@ -105,10 +93,8 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		});
 	}
 
-	// The scoping arm. A cell renders an image as its literal source, not a widget, so
-	// the atomic policy must NOT reach it — the CST classifier calls an image a widget
-	// on kind alone, and an unscoped policy would eat all of `![a](b)` on one press
-	// where the user sees plain text and expects one character.
+	// The scoping arm: a cell renders an image as its literal source, not a widget, so the atomic
+	// policy must not reach it — the CST classifier calls an image a widget on kind alone.
 	it('leaves an image alone — a cell renders its source, not a widget', async () => {
 		const withImage = 'Left![a](b)Right';
 		mounted = mountCell(withImage);

@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// A cell's raw is joined verbatim into its row, so an unescaped `|` reaching
-// `cell.raw` reparses the row wider than the delimiter's column count and the
-// parser truncates — the last column's content is deleted, silently. Three
-// gestures compute their own bytes and commit them: Mod+B, Shift+Enter, and the
-// menu Cut. Each is driven here through the mounted component, against a cell
-// whose authored `\|` the gesture frees.
-//
-// Each gesture's committed text is read through the write sink, which is where
-// the kind's escape runs: the gesture is responsible for reaching the sink, not
-// for knowing the rule. Measuring at the component's own call would only prove
-// the gesture escaped its bytes itself, which is the carrier these fixed.
+// A cell's raw is joined verbatim into its row, so an unescaped `|` reaching `cell.raw` reparses
+// the row wider than the delimiter's column count and the parser truncates the last column,
+// silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter, and the
+// menu Cut. Each committed text is read through the write sink, where the kind's escape runs —
+// measuring at the component's own call would only prove the gesture escaped its own bytes.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import type { CstNode } from '$lib/core/nodes';
@@ -20,9 +14,8 @@ import { rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell } from './mount-cell';
 
-// The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a
-// marker span and the `|` as text, so both bytes are in textContent and the
-// caret can sit between them.
+// The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a marker span and
+// the `|` as text, so both bytes are in textContent and the caret can sit between them.
 const ESCAPED = 'a\\|b';
 
 /** The raw the gesture committed for this cell. */

@@ -68,7 +68,6 @@ describe('classifyFenceBoundary', () => {
 		expect(classifyFenceBoundary({ node: withInfo, offset: 9, forward: false })).toEqual({
 			kind: 'allow'
 		});
-		// offset===bodyStart (10) is still the boundary.
 		expect(classifyFenceBoundary({ node: withInfo, offset: 10, forward: false })).toEqual({
 			kind: 'exitPrev'
 		});
@@ -100,7 +99,6 @@ describe('classifyFenceBoundary', () => {
 		expect(classifyFenceBoundary({ node: unclosed, offset: 6, forward: false })).toEqual({
 			kind: 'exitPrev'
 		});
-		// Without a closer, Delete-at-anywhere allows native handling.
 		expect(classifyFenceBoundary({ node: unclosed, offset: 13, forward: true })).toEqual({
 			kind: 'allow'
 		});
@@ -118,10 +116,8 @@ describe('classifyFenceBoundary', () => {
 		}
 	});
 
-	// `bodyEnd = closerStart - 1` assumed a one-character line ending, so in a CRLF
-	// document the guard fired at the offset BETWEEN `\r` and `\n` and allowed the
-	// native forward delete at the real body end — which eats the whole ending and
-	// fuses the last body line with the closer.
+	// `bodyEnd = closerStart - 1` assumed a one-character line ending, so on CRLF the guard
+	// fired between `\r` and `\n` and the native delete fused the last body line with the closer.
 	it('CRLF body: the closer boundary sits before the whole `\\r\\n`, not inside it', () => {
 		// raw "```\r\ncode\r\n```\r\n": opener=[0,5) body=[5,11) closer=[11,14).
 		const crlf = fencedCode('```\r\ncode\r\n```\r\n');
@@ -171,8 +167,7 @@ describe('clampEnterOffsetToBody', () => {
 		expect(clampEnterOffsetToBody(closed, 10)).toBe(10);
 	});
 
-	// The closer-side mirror. Splicing at 19 broke the closer apart —
-	// "```js\nconst x = 1\n`\n``" — leaving an unclosed fence.
+	// The closer-side mirror: splicing at 19 broke the closer apart, leaving an unclosed fence.
 	it('clamps a caret inside the closer text back to the body end', () => {
 		expect(clampEnterOffsetToBody(closed, 19)).toBe(17);
 		expect(clampEnterOffsetToBody(closed, 20)).toBe(17);
@@ -205,7 +200,6 @@ describe('clampEnterOffsetToBody', () => {
 			ending: '\n'
 		});
 		expect(enter.newText).toBe('```js\n\nconst x = 1\n```');
-		// Caret stays with the content, now on the second body line.
 		expect(enter.newCursor).toBe(7);
 	});
 });
@@ -243,9 +237,8 @@ describe('clampRangeToBody', () => {
 		expect(clampRangeToBody(fresh, { start: 0, end: 3 })).toEqual({ start: 3, end: 3 });
 	});
 
-	// Shift+Down over the last body line lands the focus at the closer line's start.
-	// Tab then indented the closer past the 3-space limit, so the fence no longer
-	// closed — on reload it absorbed every following block into the code body.
+	// Tab over the last body line once indented the closer past the 3-space limit, so the
+	// fence stopped closing and absorbed every following block into the code body.
 	it('Tab over a body line leaves the closer at column 0', () => {
 		const display = trimTrailingLineEnding(closed.raw);
 		const indented = indentLines(display, clampRangeToBody(closed, { start: 6, end: 18 }));
@@ -267,13 +260,12 @@ describe('crossesFenceBoundary', () => {
 	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
 
 	it('is false only inside the body or the info string', () => {
-		expect(crossesFenceBoundary(closed, { start: 8, end: 14 })).toBe(false); // body
-		expect(crossesFenceBoundary(closed, { start: 3, end: 5 })).toBe(false); // info string
+		expect(crossesFenceBoundary(closed, { start: 8, end: 14 })).toBe(false);
+		expect(crossesFenceBoundary(closed, { start: 3, end: 5 })).toBe(false);
 	});
 
-	// Parser-verified: deleting one closer backtick leaves "```js\nconst x = 1\n``\n",
-	// which swallows every following block into the code node. Same for the opener's
-	// marker run — the block demotes and its closer becomes an absorbing opener.
+	// Parser-verified: deleting one closer backtick swallows every following block into the
+	// code node, and retyping the opener run demotes the block into an absorbing opener.
 	it('is true inside either marker run of a closed fence', () => {
 		expect(crossesFenceBoundary(closed, { start: 18, end: 21 })).toBe(true); // closer text
 		expect(crossesFenceBoundary(closed, { start: 0, end: 3 })).toBe(true); // opener markers
@@ -288,9 +280,8 @@ describe('crossesFenceBoundary', () => {
 		expect(crossesFenceBoundary(closed, { start: 0, end: 21 })).toBe(true);
 	});
 
-	// A fence with no closer has nothing to orphan: retyping the markers is how a
-	// just-typed ` ``` ` is undone, and it demotes the block to a paragraph without
-	// absorbing anything (parser-verified).
+	// A fence with no closer has nothing to orphan: retyping the markers is how a just-typed
+	// ` ``` ` is undone, and it demotes the block without absorbing anything (parser-verified).
 	it('is false inside the marker run of an UNCLOSED fence', () => {
 		const unclosed = fencedCode('```js\nconst x\n', 'js', false);
 		expect(crossesFenceBoundary(unclosed, { start: 0, end: 3 })).toBe(false);
@@ -304,9 +295,8 @@ describe('crossesFenceBoundary', () => {
 		expect(crossesFenceBoundary(indented, { start: 4, end: 6 })).toBe(false); // info string
 	});
 
-	// GFM's indentation limit is the scan's limit: three spaces still open a fence, so
-	// the info string past them is content. A line whose markers sit past the limit is
-	// not an opener the grammar recognizes, and nothing on it is editable.
+	// GFM's indentation limit is the scan's limit: three spaces still open a fence, so the info
+	// string past them is content, and a line whose markers sit past it is not an opener at all.
 	it('reads the info string at the 3-space limit and nothing past it', () => {
 		const legal = fencedCode('   ```js\nconst x = 1\n   ```\n', 'js');
 		expect(crossesFenceBoundary(legal, { start: 6, end: 8 })).toBe(false); // "js"
@@ -450,9 +440,8 @@ describe('computeFenceRangedEdit', () => {
 		});
 	});
 
-	// An edit whose range has no body to rewrite is refused outright rather than
-	// re-sited: a character aimed at a fence must not land where the user never
-	// pointed, and the fence itself is not editable content.
+	// An edit with no body to rewrite is refused rather than re-sited: a character aimed at a
+	// fence must not land where the user never pointed.
 	it('returns null for a range with no body intersection, insertion or not', () => {
 		expect(computeFenceRangedEdit(closed, { start: 17, end: 18 }, '')).toBeNull();
 		expect(computeFenceRangedEdit(closed, { start: 18, end: 21 }, '```')).toBeNull();

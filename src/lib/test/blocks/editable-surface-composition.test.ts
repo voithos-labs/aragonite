@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
 //
-// The IME composition window driven through the real surface skeleton, in the
-// order the browser sends it: start → input(s) with the window open → end,
-// which funnels to input and reads the DOM back. Pins the composing gate (no
-// commit mid-window), the exactly-once end commit, the offset pair the commit
-// receives, and G1.27 (an unpaired end fires; a paired cycle stays silent).
-// The commit's downstream effects (undo anchor, no-op discard) are pinned
-// against the real block-edit actions in editable-surface-composition-commit.
+// The IME composition window driven through the real surface skeleton in browser order:
+// start → input(s) → end, which funnels to input and reads the DOM back. Pins the composing
+// gate, the exactly-once end commit, the offset pair the commit receives, and G1.27. The
+// commit's downstream effects are pinned in editable-surface-composition-commit.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));

@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 //
-// Modifier parity on the caret-edge dispatch's CST-widget arm. The dispatch's
-// contract is "one PLAIN (no ctrl/meta/alt) key at a caret edge routes here"; the
-// island arm enforces it (edge-policy-islands.test.ts) and this arm read only
-// shiftKey, so Ctrl+ArrowLeft — the platform word-left chord — entered the widget
-// instead of moving the caret. For an image that entry is modal, so the user's next
-// printable key replaced the construct's bytes: a navigation chord reaching bytes.
-//
-// The arm is pinned at the dispatch's own decision (declined, entry seam untouched,
-// event left to native) rather than through the modal state it would have opened.
+// Modifier parity on the caret-edge dispatch's CST-widget arm. The contract is "one PLAIN key at
+// a caret edge routes here"; the island arm enforces it (edge-policy-islands.test.ts) and this arm
+// read only shiftKey, so Ctrl+ArrowLeft entered the widget instead of moving the caret — modal for
+// an image, so the next printable key replaced the construct's bytes. Pinned at the dispatch's own
+// decision (declined, entry seam untouched) rather than through the modal state it would open.
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -76,9 +72,8 @@ afterEach(() => {
 describe('a modifier chord at a widget edge is not a widget entry', () => {
 	const chords: Partial<KeyboardEvent>[] = [{ ctrlKey: true }, { metaKey: true }, { altKey: true }];
 
-	// Both entry directions and both key families the arm claims: navigation
-	// (word-step) and destructive (word-delete). Each is a platform chord whose
-	// meaning is "act on a word", never "enter the construct beside me".
+	// Both entry directions and both key families the arm claims: navigation (word-step) and
+	// destructive (word-delete). Each is a platform chord meaning "act on a word".
 	for (const [label, keyName, side] of [
 		['ArrowLeft at the trailing edge', 'ArrowLeft', 'end'],
 		['Backspace at the trailing edge', 'Backspace', 'end'],

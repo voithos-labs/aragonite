@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// A composing cell claims no keys. During an IME composition the browser still
-// delivers keydown for the keys driving the candidate window — Enter confirms a
-// candidate, Tab and the arrows walk it — and those are the same keys a table cell
-// binds to structural moves. The cell's handler therefore refuses ahead of everything
-// else, before the chord dispatcher and before the navigation plan.
-//
-// The commit half of composition is pinned in cell-typing-commit (the CST write waits
-// for compositionend). This is the keydown half, which nothing pins: the guard is the
-// first line of the handler, so a regression is silent right up until an IME user
-// confirms a candidate and the table grows a row, or Tab jumps to the next cell
-// carrying an unconfirmed composition out of the surface that owns it.
+// A composing cell claims no keys. During an IME composition the browser still delivers keydown
+// for the keys driving the candidate window — Enter confirms, Tab and the arrows walk it — and
+// those are the keys a table cell binds to structural moves, so the handler refuses ahead of the
+// chord dispatcher and the navigation plan. A regression is silent until an IME user confirms a
+// candidate and the table grows a row. The commit half is pinned in cell-typing-commit.
 import { describe, it, expect, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import { mountCell, type MountedCell } from './mount-cell';
@@ -26,10 +20,8 @@ function compose(m: MountedCell): void {
 	m.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 }
 
-// The cell's handler awaits its widget intercepts before it can claim anything, so
-// `defaultPrevented` is only meaningful once those microtasks have drained. Reading it
-// synchronously reports "not claimed" for every key, which is what these tests assert —
-// the drain is what keeps them from passing vacuously.
+// The cell's handler awaits its widget intercepts before it can claim anything, so reading
+// `defaultPrevented` synchronously would report "not claimed" for every key — vacuously.
 async function press(m: MountedCell, init: KeyboardEventInit): Promise<boolean> {
 	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
 	m.el.dispatchEvent(event);

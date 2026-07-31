@@ -99,9 +99,8 @@ describe('computeCodePaste — fence bump', () => {
 		expect(result.cursor).toBe(12);
 	});
 
-	// The rule reads the LINES the paste leaves behind, not the run inside it: a run
-	// landing mid-line threatens nothing, and one formed at the splice seam — the old
-	// scan of the pasted text alone could not see it — threatens everything.
+	// The rule reads the LINES the paste leaves behind, not the run inside it: a run landing
+	// mid-line threatens nothing, one formed at the splice seam threatens everything.
 	it('leaves the fence alone when the pasted run lands mid-line', () => {
 		const result = computeCodePaste({
 			display: '```\nfoo\n```',

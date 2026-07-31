@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
 //
-// The clipboard skeleton's ORDER contract (docs/contributing/culture.md § the bug
-// shape to fear). The four editable surfaces share createClipboardHandlers, which
-// OWNS the arms that must stay in lockstep — the reading gate, the cross-block
-// copy/cut write, the reveal fold, and the load-bearing scar: paste's
-// preventDefault BEFORE any await. These pins fail the day the seam resequences an
-// arm; the per-surface tails (widget slice, rect payload, cell escaping) are
-// exercised by the surface suites. The non-cross-block branch is driven here — a
-// collapsed selection makes writeCrossBlock{Copy,Cut} decline without a real doc.
+// The clipboard skeleton's ORDER contract (docs/contributing/culture.md § the bug shape to
+// fear). The four editable surfaces share createClipboardHandlers, which OWNS the arms that
+// must stay in lockstep — the reading gate, the cross-block copy/cut write, the reveal fold,
+// and the load-bearing scar: paste's preventDefault BEFORE any await. The per-surface tails
+// (widget slice, rect payload, cell escaping) are exercised by the surface suites.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
@@ -41,9 +38,8 @@ function recorder(pasteText = ''): Recorder {
 	return rec;
 }
 
-/** A fully-instrumented dep set; each test overrides only the arms it exercises.
- *  A collapsed selection routes past writeCrossBlock{Copy,Cut} (they read
- *  isCrossBlock first), so the intra-block tails run without a live document. */
+/** A fully-instrumented dep set; each test overrides only the arms it exercises. A collapsed
+ *  selection routes past writeCrossBlock{Copy,Cut}, so the intra-block tails run doc-free. */
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 	return {
 		stickyColumn: { reset: () => log.push('reset') } as never,

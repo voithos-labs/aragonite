@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 //
-// CodeBlock's insertLineBreak composition gate, driven through the mounted
-// component's real listeners (the branch lives in the component, not an
-// extracted helper): an IME emitting insertLineBreak mid-composition must not
-// sync the CST; the same event after compositionend splices its newline.
-// The standard mount context comes from `editorMountContext`, so a new required
-// context is a harness-wide change rather than a per-test key list.
+// CodeBlock's insertLineBreak composition gate, driven through the mounted component's real
+// listeners (the branch lives in the component, not an extracted helper): an IME emitting
+// insertLineBreak mid-composition must not sync the CST; the same event after
+// compositionend splices its newline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';

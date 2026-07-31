@@ -1,15 +1,8 @@
-// The generic `:::name` container mounted BY ITSELF, over a real CST.
-//
-// This is the plugin tier's representative: `DirectiveContainerBlock` is built on the
-// public `createContainerBlock` seam and supplies none of its optional deps, so every
-// optional-dep refusal in that seam fires here. A bare mount is what puts the seam's
-// published `containerApi` in the test's hands — an Editor mount hands it to BlockHost
-// instead.
-//
-// Read-only questions only. A commit replaces the container node (copy-path-on-write)
-// and only a real parent re-renders the component with the replacement, so a bare
-// mount keeps the pre-commit node; assert on what the component reports and renders,
-// and on which parent actions a refusal did or did not reach.
+// The generic `:::name` container mounted BY ITSELF, over a real CST — the plugin tier's
+// representative. It is built on the public `createContainerBlock` seam and supplies none of
+// its optional deps, so every optional-dep refusal fires here, and a bare mount is what puts
+// the seam's published `containerApi` in the test's hands. Read-only questions only: a commit
+// replaces the container node and no parent re-renders a bare mount with the replacement.
 
 import { mount, unmount, flushSync } from 'svelte';
 import { expect } from 'vitest';

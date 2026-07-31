@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
 //
-// The image-paste arm of the clipboard skeleton. `onPasteImage` is a host hook, so
-// the arm's whole job is the ceremony around it: read the clipboard's files inside
-// the synchronous event window, prevent before anything awaits, call the hook once
-// per image in clipboard order, and insert what comes back at the caret the paste
-// STARTED from — a hook that takes seconds to upload must not follow a caret the
-// user moved meanwhile. Driven through createClipboardHandlers, the one place the
-// four editable surfaces share the arm; each surface's own insertion tail is
-// exercised by its own suite.
+// The image-paste arm of the clipboard skeleton. `onPasteImage` is a host hook, so the arm's
+// whole job is the ceremony around it: read the clipboard's files inside the synchronous event
+// window, prevent before anything awaits, call the hook once per image in clipboard order, and
+// insert at the caret the paste STARTED from — a hook that takes seconds to upload must not
+// follow a caret the user moved meanwhile. Driven through createClipboardHandlers.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
@@ -132,9 +129,8 @@ describe('image paste — replacing a cross-block selection', () => {
 		expect(h.seated).toEqual([]);
 	});
 
-	// The branch reads the selection LIVE, so a cross-block selection the user
-	// collapsed while the host uploaded leaves nothing for the seam to claim — and the
-	// paste falls back to the anchor captured when it fired.
+	// The branch reads the selection LIVE, so a cross-block selection collapsed while the host
+	// uploaded leaves nothing to claim — the paste falls back to the anchor captured when it fired.
 	it('a selection collapsed before the import lands falls through to the caret', async () => {
 		let stillCrossBlock = true;
 		const h = harness({

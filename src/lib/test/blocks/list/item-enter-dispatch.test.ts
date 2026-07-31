@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 //
-// ListItemBlock's `splitBlock` override is the router for Enter inside a list: it
-// reads the item's own shape and picks one of three ListContext members. The helpers
-// it picks between are unit tested; the ROUTING is not, and `exitListAtItem` has no
-// coverage at any level. Each branch lands different bytes, so driving the real
-// keystroke tells the branches apart without a spy — the routing is asserted by the
-// document it produces.
+// ListItemBlock's `splitBlock` override routes Enter inside a list: it reads the item's shape
+// and picks one of three ListContext members. The helpers are unit tested; the ROUTING is not,
+// and `exitListAtItem` has no coverage at any level. Each branch lands different bytes, so the
+// real keystroke tells them apart without a spy — the routing is asserted by the document.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
@@ -35,10 +33,8 @@ describe('list item Enter routing', () => {
 		expect(mounted.source()).toBe('- al\n- pha\n- beta\n');
 	});
 
-	// The empty-item arm, and the only route into `exitListAtItem` — which nothing
-	// else in the repo covers. `- \n` parses to an item with NO children, so an empty
-	// item that can hold a caret only exists after the append above: the two presses
-	// are the gesture a user actually makes to leave a list.
+	// The empty-item arm, and the only route into `exitListAtItem`. An empty item that can hold a
+	// caret only exists after the append above, so the two presses are the real user gesture.
 	it('exits the list on a second Enter in the item the first one appended', async () => {
 		mounted = mountEditor({ source: '- alpha\n' });
 
@@ -48,9 +44,8 @@ describe('list item Enter routing', () => {
 		expect(mounted.source()).toBe('- alpha\n\n\n');
 	});
 
-	// `isAtEnd` needs BOTH the last inner child and the end of its text. An item
-	// carrying a nested sub-list has the caret in child 0 with a child 1 behind it,
-	// so end-of-text alone must not read as end-of-item.
+	// `isAtEnd` needs BOTH the last inner child and the end of its text: an item carrying a nested
+	// sub-list has the caret in child 0 with a child 1 behind it.
 	it('splits rather than appends at the end of a non-final child', async () => {
 		mounted = mountEditor({ source: '- alpha\n  - nested\n' });
 

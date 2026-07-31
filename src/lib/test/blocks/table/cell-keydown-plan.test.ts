@@ -38,13 +38,8 @@ const cell = (
 	position
 });
 
-// The structural chords left this file for the `tableCell` keymap, which the cell
-// resolves BEFORE calling the plan (their behavior is cell-table-chords.test.ts). So a
-// modified arrow only reaches the plan when no binding claimed it — a consumer
-// disabled it, or reading mode dead-keyed the vocabulary — and it must still navigate.
-// A `native` answer would hand the key to the shared prose prelude, whose boundary
-// branches move focus among a block's siblings by index: inside a cell that is the
-// row's other cells, so ArrowDown would step sideways.
+// The structural chords are keymap bindings now (cell-table-chords.test.ts); an arrow reaching
+// the plan is unclaimed and must navigate — `native` hands it to the prose sibling-index walk.
 describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
 		[

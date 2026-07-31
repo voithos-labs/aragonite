@@ -1,17 +1,10 @@
 // @vitest-environment jsdom
 //
-// `cellKeydownPlan` decides; the cell TRANSLATES — a plan becomes a table-context
-// call, and that translation is the untested half. The planner has its own suite
-// (cell-keydown-plan.test.ts) over inputs a test hands it; here the input is a
-// real keystroke on a real cell, and the assertion is the document that came out.
-//
-// Scope: the NAVIGATION plans, which is all the planner still decides. The structural
-// chords are keymap bindings and live in cell-table-chords.test.ts.
-//
-// Driven through a mounted Editor rather than a bare table: every arm below
-// commits, and a commit replaces the table node by copy-path-on-write — only a
-// real parent re-renders the component with the replacement (see
-// `blocks/editor-mount.ts`).
+// `cellKeydownPlan` decides; the cell TRANSLATES a plan into a table-context call, and that
+// translation is the untested half. The planner has its own suite (cell-keydown-plan.test.ts)
+// over inputs a test hands it; here the input is a real keystroke and the assertion is the
+// document that came out. Scope: the NAVIGATION plans — the structural chords are keymap
+// bindings (cell-table-chords.test.ts). Editor mount, because every arm below commits.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
 

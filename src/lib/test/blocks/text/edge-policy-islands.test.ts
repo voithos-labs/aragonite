@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's decoration-island branch (edge-policy-dispatch). Pins
-// two contracts e2e cannot: modifier chords (word-delete) must stay native — the
-// island rules own only plain edge presses — and a printable key at an element-level
-// caret is consumed into a CST edit (in a real browser native typing can mask a
-// neutered branch byte-for-byte, so the seam is pinned here). A third describe pins
-// the observable precedence: a CST widget wins the shared caret edge over an island.
+// The caret-edge dispatch's decoration-island branch (edge-policy-dispatch). Pins two contracts
+// e2e cannot: modifier chords (word-delete) must stay native — the island rules own only plain
+// edge presses — and a printable key at an element-level caret is consumed into a CST edit, which
+// native typing can mask byte-for-byte in a real browser. A third describe pins the observable
+// precedence: a CST widget wins the shared caret edge over an island.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -32,8 +31,7 @@ interface Harness {
 }
 
 /** Common dispatch deps for the island tests: no CST widget, no reveal, editing mode.
- *  `hasIslands` defaults true (every `mount` stamps one); the scan-gate tests pass
- *  false to exercise the island-free early return. */
+ *  `hasIslands` defaults true; the scan-gate tests pass false for the island-free early return. */
 function islandDeps(
 	node: CstNode,
 	el: HTMLElement,
@@ -183,9 +181,8 @@ describe('a CST widget outranks a decoration island at the same caret edge', () 
 	});
 
 	it('Backspace at an offset both claim enters the widget, never selects the island', () => {
-		// `a![c](x)` — the image widget occupies raw 1..8; stamp a replace island whose
-		// trailing edge is also 8. The dispatch tries the widget class first, so the
-		// widget's select-then-delete wins and the island is untouched.
+		// `a![c](x)` — the image widget occupies raw 1..8 and the replace island ends at 8 too.
+		// The dispatch tries the widget class first, so its select-then-delete wins.
 		const node = parse('a![c](x)\n').children[0];
 		const image = computeInlineContent(node).find((n: InlineNode) => n.kind === 'image')!;
 

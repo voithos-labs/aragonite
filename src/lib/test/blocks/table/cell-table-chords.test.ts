@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 //
-// The table's structural keyboard vocabulary, end to end: a real keystroke on a real
-// cell, and the document that came out. These chords used to be predicates in
-// `cell-keydown-plan.ts` and were pinned there against a hand-built input; they are
-// `tableCell` keymap bindings now, so the planner can only be asked to DECLINE them
-// (cell-keydown-plan.test.ts) and the behavior has to be pinned where it happens.
-//
-// Driven through a mounted Editor rather than a bare table: every arm commits, and a
-// commit replaces the table node by copy-path-on-write, so only a real parent
-// re-renders the component with the replacement.
+// The table's structural keyboard vocabulary end to end: a real keystroke on a real cell, and
+// the document that came out. These chords used to be predicates in `cell-keydown-plan.ts` and
+// were pinned there against a hand-built input; they are `tableCell` keymap bindings now, so the
+// planner can only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to
+// be pinned where it happens. Editor mount, because every arm commits and replaces the node.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
 
@@ -134,9 +130,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		expect(mounted.source()).toBe(GRID);
 	});
 
-	// The caret's own cell, not row 0 / column 0: a chord indexed off the wrong
-	// coordinate is the failure this catches, and it hides whenever the caret is in
-	// the first cell.
+	// The caret's own cell, not row 0 / column 0: a chord indexed off the wrong coordinate hides
+	// whenever the caret happens to be in the first cell.
 	it('indexes the mutation off the caret’s own cell, not the first one', async () => {
 		mounted = mountEditor({ source: GRID });
 

@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 //
-// TableBlock's BlockComponent surface is a 2D adapter behind a 1D interface, and
-// the seams only exist once rows and cells are mounted: `focus` collapses an
-// offset to a corner cell, `getCursorPosition` reads back through the row refs,
-// and `measurePartialRects` decides between a live intra-table rectangle and the
-// plain cell range its caller asked for — a decision that turns on whether the
-// rectangle belongs to THIS table.
-//
-// Rect geometry is asserted by COUNT, not coordinates: jsdom gives every element
-// the same zero box, so which cells were measured is only visible in how many.
+// TableBlock's BlockComponent surface is a 2D adapter behind a 1D interface, and the seams only
+// exist once rows and cells are mounted: `focus` collapses an offset to a corner cell,
+// `getCursorPosition` reads back through the row refs, and `measurePartialRects` decides between
+// a live intra-table rectangle and the plain cell range its caller asked for. Rect geometry is
+// asserted by COUNT — jsdom boxes are all zero, so only how many were measured is visible.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { SELECTION_END } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -93,11 +89,8 @@ describe('the table addresses its own cells for focus and geometry', () => {
 		expect(document.activeElement).toBe(mounted.cell(1, 1));
 	});
 
-	// The two caret verbs reach the same corner cell by DIFFERENT routes — `focus` via
-	// the row's `focusByPath`, `parkCaret` via `getBlockComponentByPath` — because
-	// re-deriving `focus` from the park would be a route change on the table's five
-	// other `focusCell` callers, not a rename. Both routes index the same
-	// `innerBlockRefs` slot today; this is what makes them unable to drift apart.
+	// The two caret verbs reach the same corner cell by DIFFERENT routes — `focus` via the row's
+	// `focusByPath`, `parkCaret` via `getBlockComponentByPath` — so this is what keeps them in step.
 	it('both caret verbs land in the same corner cell', () => {
 		mounted = mountTable(GRID);
 

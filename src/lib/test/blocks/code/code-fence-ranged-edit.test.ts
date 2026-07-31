@@ -106,9 +106,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst Z\n```');
 	});
 
-	// A replacement carries its payload on the dataTransfer, which this surface never
-	// reads: an external payload it did not read is one it cannot route through the
-	// paste transforms (G4.11), so a crossing replacement is refused, not re-sited.
+	// A replacement carries its payload on the dataTransfer, which this surface never reads: a
+	// payload it did not read cannot go through the paste transforms (G4.11), so it is refused.
 	it('refuses a replacement rather than re-siting a payload it never read', async () => {
 		select(12, 20);
 		const e = replacement('Q');
@@ -175,9 +174,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	// The gesture the browser ranges for us: the caret is collapsed and the pending
-	// edit's target range covers a structural line ending. Chromium reports it through
-	// getTargetRanges(); jsdom implements no such method, so the test supplies one.
+	// The pending edit's target range covers a structural line ending. Chromium reports it
+	// through getTargetRanges(); jsdom implements no such method, so the test supplies one.
 	it('reads the pending edit from getTargetRanges, not the collapsed selection', async () => {
 		select(6, 6);
 		const e = new InputEvent('beforeinput', {
@@ -194,9 +192,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
-	// A target range reaching outside this block is a cross-block edit: the surface
-	// cannot measure it, so it declines rather than guessing an offset — the seam that
-	// owns such a selection has already had its turn by the time the guard runs.
+	// A target range reaching outside this block is a cross-block edit the surface cannot
+	// measure, so it declines rather than guessing an offset.
 	it('declines a target range that leaves the surface', async () => {
 		select(12, 20);
 		const foreign = document.createElement('div');
@@ -240,9 +237,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 		expect(committedText()).toBe('```js\nconst \n\n```');
 	});
 
-	// A landing door seats a caret, and on this surface it must seat one that can type:
-	// the cross-container merge fallback moves focus to this block's END, which is the
-	// closer run, where every keystroke is refused.
+	// A landing door must seat a caret that can type: the cross-container merge fallback moves
+	// focus to this block's END, which is the closer run, where every keystroke is refused.
 	it.each([
 		['past the display end', 999, 17],
 		['at offset 0', 0, 6]

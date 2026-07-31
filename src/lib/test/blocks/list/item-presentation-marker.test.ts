@@ -1,17 +1,10 @@
 // @vitest-environment jsdom
 //
-// `data-list-marker` exists so the marker-hiding CSS can tell a bullet from a number
-// from a checkbox — the ambient span carries no such class, and the three want
-// different treatment when markers stop being source. The attribute is therefore a
-// PRESENTATION-ONLY hook, and the derivation refuses outright in source mode so the
-// source-mode DOM stays byte-identical to what it was before the modes existed.
-//
-// That refusal is the load-bearing half and the invisible one: a derivation that
-// computed the attribute unconditionally would look correct in every presentation
-// test, while the reading-mode rules keyed to it started matching during ordinary
-// editing — bullets replaced by rendered chrome in the one mode that must show source.
-// The e2e presentation suite owns the positive side in a real browser; what is missing
-// is the mode that must paint nothing.
+// `data-list-marker` exists so the marker-hiding CSS can tell a bullet from a number from a
+// checkbox. It is a PRESENTATION-ONLY hook, and the derivation refuses outright in source mode
+// so the source-mode DOM stays byte-identical to what it was before the modes existed. That
+// refusal is the load-bearing half and the invisible one: an unconditional derivation looks
+// correct in every presentation test while reading-mode rules match during ordinary editing.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { installLayoutStubs } from '../editor-mount';

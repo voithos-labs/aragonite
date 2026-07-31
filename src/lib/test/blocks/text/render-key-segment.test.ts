@@ -4,12 +4,8 @@ import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { WidgetDecoration, ReplaceDecoration } from '$lib/decorations/types';
 
-// A renderKey is
-// `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}${islandPart}`, where
-// mode is '' in source and islandPart is '' or `\0<sig>`. The diff names which
-// segment moved — the interaction trace's rebuild cause. These pin the
-// decomposition directly, off the recorder path (the dump is never an assertion
-// target).
+// A renderKey is `${ambient}\0${raw}\0${ref}\0${imgPolicy}\0${mode}\0${kind}${islandPart}`, mode
+// '' in source. These pin the decomposition directly, off the recorder path (never an assertion).
 function key(parts: {
 	ambient?: string;
 	raw: string;

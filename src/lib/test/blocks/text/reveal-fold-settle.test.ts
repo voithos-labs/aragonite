@@ -15,9 +15,8 @@ import { installMathInline } from './math-widget-fixture';
 
 installMathInline();
 
-// A whole-block `$x$` paragraph: the reveal swaps the one widget for its editable
-// source, so an edit typed at source offset 0 reaches the block's leading bytes —
-// `# ` there makes the fold's own commit a paragraph→heading flip.
+// A whole-block `$x$` paragraph: the reveal swaps the widget for its editable source, so `# `
+// typed at source offset 0 makes the fold's own commit a paragraph→heading flip.
 function mountMathParagraph() {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
@@ -68,9 +67,8 @@ describe('a block command waits for the reveal fold it triggered', () => {
 		expect(instance.enterEdgeWidget('start')).toBe(true);
 		await flush();
 
-		// The reveal's swapped-in source node, edited the way typing at source offset
-		// 0 edits it. `input` is suppressed while revealed, so this stays ephemeral
-		// DOM until the fold reads it back.
+		// The reveal's swapped-in source node. `input` is suppressed while revealed, so this stays
+		// ephemeral DOM until the fold reads it back.
 		const source = Array.from(el.childNodes).find(
 			(child): child is Text => child.nodeType === Node.TEXT_NODE
 		);

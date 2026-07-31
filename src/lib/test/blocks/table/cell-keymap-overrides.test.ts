@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 //
-// The consumer `keybindings` prop reaching a table chord. Before the migration the
-// table's structural chords were predicates in the cell's keydown plan, which ran
-// before the keymap, so an override was resolved for them and then never consulted —
-// the guide had to carve the whole Tables family out of its rebindability promise.
-//
-// Driven through a mounted Editor with real keystrokes: the override tier lives
-// between the two, and a unit test of either half alone cannot see it.
+// The consumer `keybindings` prop reaching a table chord. Before the migration the table's
+// structural chords were predicates in the cell's keydown plan, which ran before the keymap, so
+// an override was resolved and then never consulted — the guide had to carve the whole Tables
+// family out of its rebindability promise. Driven through a mounted Editor with real keystrokes:
+// the override tier lives between the two, and a unit test of either half alone cannot see it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
@@ -61,10 +59,8 @@ describe('a keybindings override reaches a table structural chord', () => {
 		expect(mounted!.source()).toBe(`| A | B |\n| --- | --- |\n| 1 | 2 |\n|  |  |\n| 3 | 4 |\n`);
 	});
 
-	// An unchanged source alone does not discriminate "disabled" from "did something
-	// else instead" — with the binding gone the navigation plan claims the key and hops
-	// a cell, which also writes nothing. So each disable arm also names where the caret
-	// ended up: the two answers differ there.
+	// An unchanged source alone cannot tell "disabled" from "did something else": with the binding
+	// gone the navigation plan hops a cell, which also writes nothing — so each arm names the caret.
 	it('disables the delete-row chord, leaving the caret in its own cell', async () => {
 		mountWith([{ kind: 'tableCell', chord: 'Mod+Shift+Backspace', command: null }]);
 

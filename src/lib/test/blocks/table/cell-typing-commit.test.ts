@@ -1,21 +1,10 @@
 // @vitest-environment jsdom
 //
-// The cell's plain-typing commit funnel, end to end. A cell's raw is joined
-// verbatim into its row, so a `|` that reaches `cell.raw` unescaped reparses the
-// row wider than the delimiter's column count and the parser truncates — the last
-// column's content is deleted, silently.
-//
-// `cell-write-escape.test.ts` drives the three gestures that compute their own
-// bytes; the funnel every keystroke uses (`commitInput` — the one allowlisted
-// caller in G4.20) had no test. Driven here through a mounted Editor and asserted
-// on the document's bytes, so nothing between the keystroke and the file is
-// stubbed: DOM readback, the cell's write door, the kind's escape at the sink,
-// and the row and table rebuilds all have to agree.
-//
-// Typing is simulated the way the browser delivers it — the contenteditable's
-// text is replaced, then `input` fires. That IS what the funnel receives; a
-// per-character `keydown` cycle would prove nothing extra, since the cell reads
-// the DOM rather than the event.
+// The cell's plain-typing commit funnel, end to end. A cell's raw is joined verbatim into its
+// row, so a `|` reaching `cell.raw` unescaped reparses the row wider than the delimiter's column
+// count and the parser truncates — the last column's content is deleted, silently. The three
+// gestures computing their own bytes are cell-write-escape.test.ts's; the funnel every keystroke
+// uses (`commitInput`, the one allowlisted caller in G4.20) had no test until this one.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
