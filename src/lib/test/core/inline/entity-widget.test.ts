@@ -3,11 +3,8 @@ import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../core/nodes';
 import { entityRendersGlyph, buildEntityWidget } from '../../../core/inline/entity-widget';
 
-// The visibility gate: a decoded entity renders as an atomic widget only when its
-// glyph is visible. Whitespace / control / zero-width decodings stay literal spans,
-// because an invisible atomic island is a caret trap. `&nbsp;` (U+00A0) is on the
-// literal side by the same logic that puts a plain space there — its glyph is an
-// invisible column, indistinguishable from a space.
+// Whitespace / control / zero-width decodings stay literal spans because an invisible
+// atomic island is a caret trap; `&nbsp;` is on the literal side for the same reason.
 describe('entityRendersGlyph — the visibility gate', () => {
 	it.each([
 		{ name: 'named symbol (©)', decoded: '©' },

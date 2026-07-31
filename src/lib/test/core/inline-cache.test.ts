@@ -65,17 +65,14 @@ describe('getInlineContent', () => {
 		expect(link?.url).toBe('https://example.com');
 		expect(resolved.some((n) => n.kind === 'unresolvedReference')).toBe(false);
 
-		// Without a resolver the reference branch is skipped entirely, so the same
-		// `[text][ref]` falls through to plain text — no resolved link. Parse fresh
-		// so the WeakMap entry from the resolved read above can't mask the miss.
+		// Parsed fresh so the WeakMap entry from the resolved read above cannot mask the miss.
 		const fresh = parse(src).children[0];
 		const unforwarded = getInlineContent(fresh, undefined, '');
 		expect(unforwarded.some((n) => n.kind === 'link')).toBe(false);
 	});
 
-	// The plain (sig-'') and resolved (real-signature) callers hold separate
-	// slots, so interleaving them on a bracket-bearing block no longer evicts —
-	// each side stays a stable cache hit.
+	// The plain (sig-'') and resolved (real-signature) callers hold separate slots, so
+	// interleaving them on a bracket-bearing block must not evict either side.
 	it('does not evict across interleaved plain and resolved reads on a bracket block', () => {
 		const doc = parse('see [a][x]\n\n[x]: https://example.com\n');
 		const node = doc.children[0];

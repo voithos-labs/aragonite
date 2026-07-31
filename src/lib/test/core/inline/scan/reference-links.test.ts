@@ -8,10 +8,9 @@ import {
 	unresolvedRefNode
 } from './scan-test-helpers';
 
-// Reference forms (CommonMark §6.3): full [text][label], collapsed [text][],
-// shortcut [text] — precedence, label normalization, and the bracketAfter
-// guard follow commonmark.js 0.31.2 parseCloseBracket. Resolver-returned
-// url/title pass through byte-for-byte (LRD destinations are stored raw).
+// Reference forms (CommonMark §6.3). Precedence, label normalization and the bracketAfter
+// guard follow commonmark.js 0.31.2 parseCloseBracket; resolver-returned url/title pass
+// through byte-for-byte, since LRD destinations are stored raw.
 
 const REFS = resolverOf({
 	go: { url: '/go', title: 'Go now' },

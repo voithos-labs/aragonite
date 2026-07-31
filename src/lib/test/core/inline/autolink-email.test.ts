@@ -2,20 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { inlineOf } from './inline-test-helpers';
 
 /**
- * GFM §6.9's extended email autolink. The domain half answers to cmark-gfm,
- * which is what GitHub runs and what settles the corners the spec's prose
- * leaves loose ("one or more characters … separated by periods"); the four spec
- * examples below agree with it. The leading-boundary rule is the one place this
- * module keeps the spec against cmark-gfm — see the two boundary rows, which
- * cmark-gfm links (it guards only the `www.` form) and the spec's blanket "after
- * whitespace or `*_~(`" does not.
+ * GFM §6.9's extended email autolink. The domain half answers to cmark-gfm, which is what
+ * GitHub runs and what settles the corners the spec's prose leaves loose. The one place
+ * this module keeps the spec against cmark-gfm is the leading boundary — see the two
+ * boundary rows, which cmark-gfm links because it guards only the `www.` form.
  */
 
 function emailAutolinks(source: string) {
 	return inlineOf(source).filter((node) => node.kind === 'autolink');
 }
 
-// [label, source, the linked substring]
 const LINKS: [string, string, string][] = [
 	['at sentence position', 'Email me at foo@bar.com please', 'foo@bar.com'],
 	['at start of region', 'foo@bar.com', 'foo@bar.com'],
@@ -55,11 +51,8 @@ describe('bare email autolink (GFM §6.9)', () => {
 	});
 });
 
-// cmark-gfm's domain scan is stricter than the prose in two ways and looser in
-// one, and none of the three is settled by a spec example. Pinned against the
-// implementation GitHub runs: the last domain character must be a LETTER (not
-// merely "not `-` or `_`"), a `.` counts as a label separator only when an
-// alphanumeric follows it, and a leading `.` is accepted as an empty first label.
+// Three domain-scan corners no spec example settles, so each is pinned against the
+// implementation GitHub runs rather than against the prose.
 describe('email domain corners the spec prose leaves to cmark-gfm', () => {
 	it.each([
 		['a domain ending in a digit', 'a@b.c1'],

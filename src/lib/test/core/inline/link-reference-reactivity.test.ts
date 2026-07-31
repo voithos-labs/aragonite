@@ -6,15 +6,12 @@ import { buildLinkReferenceMap } from '../../../core/inline/link-reference-resol
 import type { CstNode, InlineNode } from '../../../core/nodes';
 
 /**
- * Pins the resolver-driven pipeline at the helper-function level. The editor
- * shell's wiring is a thin call-through to these helpers, so asserting against
- * them is robust to Svelte runtime details — the DOM-mounted shell subscribes
- * to `edit` events and re-runs the same pipeline.
+ * Pinned at the helper-function level, not through a mounted shell: the shell is a thin
+ * call-through to these helpers, so this stays robust to Svelte runtime details.
  */
 describe('link-reference reactivity pipeline', () => {
-	// Resolve the first prose block through the caching accessor with the CURRENT
-	// map's signature. The signature keys the cache, so re-resolving the same node
-	// after an LRD change (identical raw, new signature) must thread the fresh map.
+	// The signature keys the cache, so re-resolving the same node after an LRD change
+	// (identical raw, new signature) must thread the fresh map through.
 	function firstProseInlineContent(doc: { children: CstNode[] }): InlineNode[] {
 		const map = buildLinkReferenceMap(doc.children);
 		return getInlineContent(doc.children[0], map.resolve, map.signature);
@@ -61,9 +58,8 @@ describe('link-reference reactivity pipeline', () => {
 	});
 
 	it('signature is stable across no-op rebuilds', () => {
-		// Stability across rebuilds is what lets the render-memo key skip a
-		// rebuild when the LRD set is unchanged — an identical signature must
-		// not invalidate a reference block's render.
+		// The render-memo key rides the signature, so an unchanged LRD set must not
+		// invalidate a reference block's render.
 		const doc = parse('Just text.\n\n[go]: https://example.com\n');
 		const m1 = buildLinkReferenceMap(doc.children);
 		const m2 = buildLinkReferenceMap(doc.children);
@@ -71,10 +67,8 @@ describe('link-reference reactivity pipeline', () => {
 	});
 
 	it('after editor mount, reference links in a block re-parse to resolved links', () => {
-		// Simulates the block-render path: TextEditableBlock's text-render re-parses
-		// inline content locally using the resolver threaded via the linkRef context.
-		// This pins the wiring shape — if the resolver is dropped from the dep chain
-		// the local re-parse will produce no link nodes.
+		// Mirrors TextEditableBlock's local re-parse: drop the resolver from the dep chain
+		// and the re-parse silently produces no link nodes.
 		const doc = parse('Click [here][go] now.\n\n[go]: https://example.com\n');
 		const map = buildLinkReferenceMap(doc.children);
 

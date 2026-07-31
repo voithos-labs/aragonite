@@ -15,10 +15,8 @@ import {
 
 afterEach(() => __resetInlineSyntaxForTests());
 
-// `![[target]]` through the closing pair, image extensions only — a minimal
-// stand-in for an Obsidian-style embed plugin. The extension gate is the point:
-// `![[a]](u)` is a *built-in* image whose alt text is `[a]`, so the two grammars
-// overlap and the recognizer, consulted first, has to decline that one itself.
+// A minimal Obsidian-style embed stand-in. The extension gate is the point: `![[a]](u)`
+// is a built-in image with alt `[a]`, so the recognizer, consulted first, must decline it.
 const recognizeEmbed: InlineSyntaxRecognizer = (raw, pos, end) => {
 	if (!raw.startsWith('![[', pos)) return null;
 	const close = raw.indexOf(']]', pos + 3);
@@ -38,9 +36,8 @@ describe('inline ladder — a prefix rung on the `!` trigger', () => {
 		expect(parseInline(raw, 0, raw.length)).toEqual([textNode(0, 10, raw)]);
 	});
 
-	// The rung is consulted ahead of `handleBang`, which is the only position that
-	// works: `handleBang` consumes `![` as one unit and advances past it, so a rung
-	// waiting behind the switch would never see the trigger.
+	// The rung must be consulted ahead of `handleBang`: that handler consumes `![` as one
+	// unit and advances past it, so a rung waiting behind the switch never sees the trigger.
 	it('claims `![[a.png]]` while a built-in image in the same document is untouched', () => {
 		const raw = 'see ![[a.png]] and ![alt](u)';
 		registerEmbed();
@@ -50,9 +47,8 @@ describe('inline ladder — a prefix rung on the `!` trigger', () => {
 		expect(nodes[3]).toMatchObject({ kind: 'image', start: 19, end: 28, alt: 'alt', url: 'u' });
 	});
 
-	// The overlap case. `![[a]](u)` is an image with alt `[a]`; the embed recognizer
-	// declines it (no image extension), and a decline must leave the scan context
-	// untouched so the built-in case reads byte-identical bytes.
+	// The overlap case: a decline must leave the scan context untouched, so the built-in
+	// image reads byte-identical bytes.
 	it('declines `![[a]](u)` and the built-in image reads it byte-identically', () => {
 		const raw = '![[a]](u)';
 		const clean = scanClean(raw);
@@ -84,10 +80,8 @@ describe('inline ladder — a prefix rung on the `!` trigger', () => {
 	});
 });
 
-// `!` is the only registerable trigger whose built-in handler pushes the bracket
-// stack, so a rung that claims inside an open bracket is the one interaction `[^`
-// cannot stand in for: the claimed node lands among the label's children while the
-// enclosing construct still has to close over it.
+// `!` is the only registerable trigger whose built-in handler pushes the bracket stack, so
+// a claim lands among the label's children while the construct must still close over it.
 describe('inline ladder — a claiming `!` rung inside an open bracket', () => {
 	it.each([
 		['a link label', '[see ![[b.png]] here](u)', 'link'],

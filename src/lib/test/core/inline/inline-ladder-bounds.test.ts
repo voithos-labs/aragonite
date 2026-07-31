@@ -1,14 +1,8 @@
 /**
- * The dispatch's third claim validation: a rung may not claim past the range it was
- * given. The scan range is not always a block's whole raw — a heading's excludes its
- * closing `#` run, a table cell's excludes the `|` — so a recognizer that searches
- * the STRING instead of the range swallows bytes the block still needs. Nothing
- * moves in the document; every caret offset after the claim is simply wrong, and the
- * widget's `data-source-*` span covers markup the widget does not stand for.
- *
- * `start` and the advance were already validated here. The bound was not, and the
- * overrun left no trace: the node is appended, `ctx.pos` jumps past `ctx.end`, and
- * the scan loop exits as if it had finished.
+ * A rung may not claim past the range it was given. The scan range is not always a
+ * block's whole raw (a heading's excludes its closing `#` run, a table cell's the `|`),
+ * so a recognizer searching the STRING swallows bytes the block still needs — and the
+ * overrun leaves no trace, since the scan loop then exits as if it had finished.
  */
 
 import { afterEach, describe, expect, it } from 'vitest';

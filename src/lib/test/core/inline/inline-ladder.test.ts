@@ -56,9 +56,8 @@ describe('inline ladder — deterministic order (registration order never matter
 		expect(getInlineRungs(':').map((r) => r.prefix)).toEqual(expectedOrder);
 	});
 
-	// The scanner-level pin: the lower-priority `::`@40 rung must claim ahead of the
-	// bare `:`@100 rung. A reverse-iterating dispatch would let the bare rung claim a
-	// single colon first — the array-order test above can't see that.
+	// The scanner-level pin: a reverse-iterating dispatch would let the bare `:`@100 rung
+	// claim a single colon before `::`@40 — the array-order test above cannot see that.
 	function scanColons(reversed: boolean): InlineNode[] {
 		const steps = [
 			() => registerInlineSyntax(':', recognizeColonPair, { prefix: '::', priority: 40 }),

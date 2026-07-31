@@ -8,21 +8,21 @@ import { registerDirective, __resetDirectiveRegistryForTests } from '$lib/core/d
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-activateDirectiveGrammar(); // openers + ':' recognizer + generic kinds, before any parse
+activateDirectiveGrammar(); // before any parse
 
 const cases = [
 	':::note\nbody\n:::\n',
 	':::note  Title\n\n**md** body\n\n:::\n',
-	'::::outer\n:::inner\nx\n:::\n::::\n', // nested, colon-count aware
-	':::unregisteredPlugin\nstill lossless\n:::\n', // generic fallback
-	':::note\n:::\n', // empty body
-	':::wide\nx\n::::\n', // closer longer than opener — pins closerColonCount capture
-	':::bare\nx\n:::', // no trailing newline — pins closerNewline capture
-	'::leaf\n', // leaf tier — a single-line directive node
-	'::toc\n', // leaf, no info
-	'::embed some info\n', // leaf with multi-word info
-	'::note-2 x\n', // leaf, hyphenated name
-	'::note keep  \n' // leaf with trailing info whitespace — pins verbatim info bytes
+	'::::outer\n:::inner\nx\n:::\n::::\n',
+	':::unregisteredPlugin\nstill lossless\n:::\n',
+	':::note\n:::\n',
+	':::wide\nx\n::::\n', // pins closerColonCount capture
+	':::bare\nx\n:::', // pins closerNewline capture
+	'::leaf\n',
+	'::toc\n',
+	'::embed some info\n',
+	'::note-2 x\n',
+	'::note keep  \n' // pins verbatim info bytes
 ];
 
 describe('directive round-trip property', () => {
@@ -45,9 +45,8 @@ describe('directive round-trip property', () => {
 	});
 });
 
-// The opaque contract makes `serialize` emit `node.raw` verbatim, so the property
-// above passes even if the opener mis-captures metadata/children. This pins that
-// the captured fields reconstruct the same bytes — the post-edit gate.
+// `serialize` emits `node.raw` verbatim, so the property above passes even if the opener
+// mis-captures metadata. This pins that the captured fields reconstruct the same bytes.
 describe('directive container rebuild is the opener inverse', () => {
 	const containerCases = cases.filter((src) => src.startsWith(':::'));
 	for (const src of containerCases) {
@@ -60,9 +59,8 @@ describe('directive container rebuild is the opener inverse', () => {
 	}
 });
 
-// A registered name resolves through the registry to its `fromDirective` factory
-// instead of the generic fallback — the dispatch half of the opener. All cases
-// above register no name, so this is the only exercise of that branch.
+// The dispatch half of the opener: a registered name resolves through the registry to its
+// `fromDirective` factory. No case above registers a name, so this is its only exercise.
 describe('registered-name dispatch via fromDirective', () => {
 	const CHART = declarePluginKind('directiveChartProbe');
 	beforeAll(() => {

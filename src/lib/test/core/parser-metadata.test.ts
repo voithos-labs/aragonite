@@ -14,10 +14,8 @@ import type {
 	TableRowMetadata
 } from '../../core/nodes';
 
-// Metadata extraction from parsed blocks: heading level, fence info, list
-// markers, blockquote depth, link reference definition parts, table column
-// count. Structural edge cases (prefix/suffix capture, adjacent-block
-// boundaries, degenerate inputs) live in parser-structure.test.ts.
+// Per-block metadata extraction only; the structural edge cases live in
+// parser-structure.test.ts.
 
 describe('metadata: headings', () => {
 	for (let level = 1; level <= 6; level++) {

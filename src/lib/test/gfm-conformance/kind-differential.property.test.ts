@@ -3,27 +3,15 @@ import fc from 'fast-check';
 import { diffInput, type Divergence } from './differ';
 import { arbInlineSource, freshOrFixedSeed } from '../invariants/arbitraries';
 
-// The semantic oracle the byte-conservation and offset-tiling properties can NOT
-// be. Those assert that bytes tile the range; the 0.9.28 audit proved they stay
-// green when emphasis is classified into the WRONG kinds — the bytes still tile,
-// they are merely under the wrong node kinds. This property compares inline node
-// KINDS and NESTING against commonmark over the SAME arbInlineSource those
-// properties run on, so a misclassification that leaves the byte layout intact
-// still fails here.
-//
-// Division of labor with the astral read: a commonmark differential structurally
-// cannot catch an astral-flanking regression. Breaking aragonite's code-point read
-// makes it read UTF-16 units too — it CONVERGES with the equally-wrong reference,
-// so the divergence vanishes and nothing here fires. That regression is the
-// baseline slice ratchet's job (it pins astral inputs as must-diverge). This
-// property's target is broad emphasis misclassification over random sources, which
-// produces fresh divergences on ordinary inputs the baseline never enumerated.
+// The semantic oracle the byte-conservation and offset-tiling properties can NOT be:
+// they stay green when emphasis is classified into the WRONG kinds, since the bytes
+// still tile. Blind spot, by construction: breaking aragonite's code-point read makes it
+// CONVERGE with the equally-wrong UTF-16 reference, so astral-flanking regressions are
+// the baseline slice ratchet's job (it pins astral inputs as must-diverge), not this.
 
 // ── Deliberate-divergence allowlist (baseline.json classes, as predicates) ─────
-// A random input is never in baseline.json, so the allowlist is a predicate, not a
-// lookup. Each mirrors one documented "deliberate, must not regress" class; a
-// divergence on an input matching NONE of them is the bug class this oracle exists
-// to catch.
+// A random input is never in baseline.json, so each class is a predicate, not a lookup.
+// A divergence matching NONE of them is the bug class this oracle exists to catch.
 
 // emphasis-flanking-astral: ours classifies astral punctuation by code point per
 // spec; commonmark.js reads UTF-16 units and misclassifies the flanking neighbor.
@@ -42,10 +30,9 @@ function isDocumentedDivergence(input: string): boolean {
 	return ASTRAL_CODE_POINT.test(input) || GFM_BARE_AUTOLINK.test(input) || IMAGE.test(input);
 }
 
-// Strikethrough is a GFM extension the pinned CommonMark reference does not
-// implement, so the differential's normalizer refuses it by design (the corpus's
-// own ENUM_ALPHABET omits `~` for the same reason). Skip `~` inputs before the
-// differential rather than mapping a construct the reference cannot express.
+// Strikethrough is a GFM extension the pinned CommonMark reference cannot express, so
+// `~` inputs are skipped before the differential (the corpus's ENUM_ALPHABET omits it
+// for the same reason) rather than mapped to a construct the reference lacks.
 function isOutsideBaseline(input: string): boolean {
 	return input.includes('~');
 }
@@ -68,19 +55,16 @@ describe('kind-differential: inline node kinds vs commonmark over arbInlineSourc
 			fc.property(arbInlineSource, (source) => {
 				if (isOutsideBaseline(source)) return;
 				const divergence = diffInput(source);
-				if (divergence === null) return; // reference-skipped or byte-and-kind-equal
+				if (divergence === null) return;
 				if (!isDocumentedDivergence(source)) throw new Error(describeUnexpected(divergence));
 			}),
 			PARAMS
 		);
 	});
 
-	// Reachability + completeness self-test (culture: a generator that cannot reach
-	// the class proves nothing, and an allowlist that excuses everything is
-	// vacuously green). Fixed seed so it is a deterministic regression guard: it
-	// pins that arbInlineSource still reaches ALL THREE documented classes and that
-	// NO divergence falls outside them. A predicate hole or a real fourth-class
-	// regression fails this directly, independent of the fresh lane's search.
+	// Reachability + completeness self-test (culture.md: a generator that cannot reach the
+	// class proves nothing, and an allowlist that excuses everything is vacuously green).
+	// Fixed seed so it is a deterministic guard, not part of the fresh lane's search.
 	it('arbInlineSource reaches all three documented classes and no fourth', () => {
 		const samples = fc.sample(arbInlineSource, { numRuns: 30000, seed: 424242 });
 		let astral = 0;

@@ -15,9 +15,8 @@ describe('parseInline — autolinks', () => {
 	});
 
 	it('non-URL angle brackets are not autolinks', () => {
-		// `<world>` is no autolink (no URL/email pattern). It does match the §6.6 raw
-		// HTML grammar as a type-7 open tag — spec-correct, and a separate concern
-		// from autolink detection, so this asserts only the absence.
+		// Absence only: `<world>` does match the §6.6 raw-HTML grammar as a type-7 open tag,
+		// which is spec-correct and a separate concern from autolink detection.
 		const nodes = inlineOf('Hello <world> end');
 		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
 	});
@@ -97,9 +96,8 @@ describe('angle-bracket email autolink (CommonMark §6.5)', () => {
 		expect(autolinks[0].end).toBe(raw.length);
 	});
 
-	// No single-segment-domain rejection pin: §6.5's regex accepts `<foo@bar>`
-	// (commonmark.js emits `mailto:foo@bar`); the accepting shape is pinned in
-	// the scan suite.
+	// No single-segment-domain rejection pin: §6.5's regex accepts `<foo@bar>`, and the
+	// accepting shape is pinned in the scan suite.
 
 	it('rejects email with internal whitespace', () => {
 		const nodes = inlineOf('<foo @bar.com>');

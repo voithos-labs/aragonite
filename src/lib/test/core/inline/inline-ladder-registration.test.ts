@@ -64,9 +64,8 @@ describe('inline ladder — registration rules', () => {
 		expect(() => registerInlineSyntax('[', decline, { prefix: '[^', priority: 40 })).not.toThrow();
 	});
 
-	// `!` is scan-probed rather than scan-visible: absent from SPECIAL_CHARS, made
-	// visible to the fast bail by the registration itself. It registers like any
-	// other reserved trigger — prefix required, priority below the built-in anchor.
+	// `!` is scan-probed rather than scan-visible: absent from SPECIAL_CHARS, made visible
+	// to the fast bail by the registration itself, yet it registers like any reserved one.
 	it('rule 2 — a prefix rung on the scan-probed reserved trigger "!" is accepted', () => {
 		expect(() => registerInlineSyntax('!', decline, { prefix: '![[', priority: 40 })).not.toThrow();
 		expect(getInlineRungs('!')).toHaveLength(1);

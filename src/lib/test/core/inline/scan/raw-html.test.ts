@@ -1,8 +1,7 @@
 import { describeScanCases, emphasisNode, rawHtmlNode, textNode } from './scan-test-helpers';
 
-// Raw HTML (CommonMark §6.6) via the shared core/inline/html-tag-grammar.ts forms.
-// `<` claims first in the single left-to-right pass, so a construct that starts
-// inside a tag (entity, escape, emphasis) cannot fragment it.
+// Raw HTML (CommonMark §6.6) via the shared core/inline/html-tag-grammar.ts forms. `<`
+// claims first in the single left-to-right pass, so nothing inside a tag can fragment it.
 
 describeScanCases('tag forms', [
 	['self-closing open tag', '<br/>', [rawHtmlNode(0, 5)]],

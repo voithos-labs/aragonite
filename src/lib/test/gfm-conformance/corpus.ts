@@ -8,17 +8,14 @@ import specExamplesJson from './spec-examples.json';
 // ── Alphabets ────────────────────────────────────────────────────────────────
 
 /**
- * Inline-active punctuation plus a letter and a space — the characters that
- * actually change how the inline parser tokenizes. No `~`: strikethrough is a
- * GFM extension, outside the CommonMark baseline this corpus is measured against.
+ * The characters that actually change how the inline parser tokenizes. No `~`:
+ * strikethrough is a GFM extension, outside the CommonMark baseline measured against.
  */
 export const ENUM_ALPHABET = ['*', '_', '`', '[', ']', '(', ')', '!', '\\', 'a', ' '] as const;
 
 /**
- * Random-only characters: HTML/entity sinks, quotes, non-ASCII (including an
- * astral codepoint), a digit, a newline, and a second letter. They widen the
- * sampled stratum into byte territory the enumeration deliberately omits to keep
- * its combinatorial space small.
+ * Widens the sampled stratum into byte territory the enumeration deliberately omits to
+ * keep its combinatorial space small.
  */
 export const RANDOM_EXTRAS = [
 	'<',
@@ -65,9 +62,8 @@ function mulberry32(seed: number): () => number {
 }
 
 /**
- * `count` strings of length `minLen`..`maxLen`, each character drawn from
- * `ENUM_ALPHABET` ∪ `RANDOM_EXTRAS`. Deterministic in `seed` — the same seed and
- * bounds reproduce the exact sequence, which is what pins the baseline.
+ * Strings over `ENUM_ALPHABET` ∪ `RANDOM_EXTRAS`, deterministic in `seed` — the same
+ * seed and bounds reproduce the exact sequence, which is what pins the baseline.
  */
 export function sampleCorpus(
 	seed: number,

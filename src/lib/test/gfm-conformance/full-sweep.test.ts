@@ -5,9 +5,8 @@ import { enumerateCorpus, sampleCorpus, loadSpecExamples } from './corpus';
 import { REFERENCE_VERSION } from './reference';
 import baseline from './baseline.json';
 
-// Env-gated so `npm test` skips it in seconds; the controller runs the real
-// sweep via `npm run conformance:full`. The report is a divergence meter, not
-// a gate — the in-suite guard is the slice ratchet.
+// Env-gated so `npm test` skips it in seconds (`npm run conformance:full` runs it).
+// The report is a divergence meter, not a gate — the in-suite guard is the slice ratchet.
 const OUTPUT_DIR = 'conformance-results';
 const OUTPUT_FILE = `${OUTPUT_DIR}/full-sweep.json`;
 const MAX_EXEMPLARS = 5;
@@ -20,10 +19,8 @@ interface ClassReport {
 
 describe.skipIf(!process.env.CONFORMANCE_FULL)('conformance full sweep', () => {
 	it('writes the classed divergence report over the full corpus', () => {
-		// Built inside the test body, not at module scope: enumerateCorpus(5) is
-		// ~177k strings, so keeping it here is what lets the skipped run stay fast.
-		// Spec markdown is trailing-newline-stripped to match how the slice ratchet
-		// pins the baseline, so spec-derived divergences match their baseline class.
+		// Built in the test body, not at module scope, so the skipped run stays fast. Spec
+		// markdown loses its trailing newline to match its slice-ratchet baseline class.
 		const inputs = [
 			...loadSpecExamples().map((example) => example.markdown.replace(/\n$/, '')),
 			...enumerateCorpus(5),

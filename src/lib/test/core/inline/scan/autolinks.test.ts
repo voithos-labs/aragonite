@@ -1,8 +1,7 @@
 import { autolinkNode, describeScanCases, textNode } from './scan-test-helpers';
 
-// Spec autolinks (CommonMark §6.5): `<scheme:…>` URI and `<email>` forms per
-// the reference's grammar; url carries the reference's percent-encoded
-// destination byte-for-byte (mdurl encode — see core/inline/scan/url.ts).
+// Spec autolinks (CommonMark §6.5). `url` carries the reference's percent-encoded
+// destination byte-for-byte — mdurl encode, see core/inline/scan/url.ts.
 
 describeScanCases('uri autolinks', [
 	['plain https uri', '<https://x.y>', [autolinkNode(0, 13, 'https://x.y')]],

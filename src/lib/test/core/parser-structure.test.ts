@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import type { HeadingMetadata, ListMetadata } from '../../core/nodes';
 
-// Structural edge cases of the parser: degenerate inputs (7 hashes, empty
-// heading), document-level prefix/suffix capture, container-children shape,
-// and adjacent-block boundaries. Per-block metadata assertions live in
+// Structural edge cases only; the per-block metadata assertions live in
 // parser-metadata.test.ts.
 
 describe('structural: headings', () => {

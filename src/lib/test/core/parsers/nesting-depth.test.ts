@@ -3,9 +3,8 @@ import { parse, MAX_NESTING_DEPTH } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
 import type { CstNode } from '../../../core/nodes';
 
-// Container nesting recurses one `parseBlocks` per level. Past MAX_NESTING_DEPTH
-// the parser folds the rest into paragraph content instead of overflowing the
-// call stack — byte-preserving, since only a top-level node's raw is serialized.
+// Container nesting recurses one `parseBlocks` per level, so past MAX_NESTING_DEPTH the
+// parser folds the rest into paragraph content rather than overflowing the call stack.
 
 function blockquoteChainDepth(doc: ReturnType<typeof parse>): number {
 	let node: CstNode | undefined = doc.children[0];
