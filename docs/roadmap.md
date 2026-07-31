@@ -49,6 +49,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    toggles** — reading mode plus block- and inline-granular live preview beside styled
    source — so the first impression is not markers-everywhere, and the freeze litmus "the
    contract must not preclude a rendered reading mode" is a working proof, not a paper check.
+   The showcase also gains a `/changelog` route rendering `docs/changelog.md` with the editor
+   itself in reading mode, the toc plugin as navigation, and Mod+F search: the changelog page
+   is the dogfood.
 4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents. Accumulated freeze-review pointers from the
