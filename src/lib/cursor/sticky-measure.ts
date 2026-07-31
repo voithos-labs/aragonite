@@ -1,6 +1,5 @@
 /**
- * Pixel-X measurement for sticky column tracking. All coordinates are
- * editor-relative (viewport X minus editor container's viewport-left), so
+ * Pixel-X measurement for sticky column tracking. Coordinates are editor-relative, so
  * values are invariant to vertical scrolling inside the editor.
  */
 
@@ -16,9 +15,8 @@ import {
 import { containerDomTextLength, findDomTextOffsetTarget } from './widget-offset';
 import { firstUsefulRect } from './visual-lines';
 
-// A candidate counts as "on the probe line" when its rect overlaps the line band
-// padded by half a line height on each side — wide enough to catch ascender/
-// descender variation, narrow enough to exclude the neighbouring line.
+// Half a line height of padding on each side of the probe line — wide enough for
+// ascender/descender variation, narrow enough to exclude the neighbouring line.
 const LINE_BAND_TOLERANCE = 0.5;
 
 export function getCurrentCursorEditorRelativeX(el: HTMLElement): EditorX | null {
@@ -48,14 +46,11 @@ export function getOffsetRect(container: HTMLElement, offset: DomTextOffset): DO
 }
 
 /**
- * Offset on the first or last caret-bearing visual line whose collapsed-range
- * rect is closest to `editorRelativeX`. Linear scan: getClientRects left
- * values are non-monotonic on BiDi lines, so binary search is invalid.
- *
- * Widget-only lines are transparent here: collapsed ranges adjacent to a
- * contenteditable=false widget return null rects, so those offsets aren't
- * candidates and sticky-Up/Down naturally lands on the nearest text-bearing
- * line. `minOffset` excludes the ambient-marker prefix region.
+ * Offset on the first or last caret-bearing visual line whose collapsed-range rect is
+ * closest to `editorRelativeX`. Linear scan — `getClientRects` left values are
+ * non-monotonic on BiDi lines, so binary search is invalid. Widget-only lines are
+ * transparent (their collapsed ranges return null rects); `minOffset` excludes the
+ * ambient-marker prefix.
  */
 export function findOffsetNearestX(
 	container: HTMLElement,
@@ -70,12 +65,9 @@ export function findOffsetNearestX(
 	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
 	const targetViewportX = toViewportX(editorRelativeX, editorLeft);
 
-	// Sticky-from-above lands on the FIRST visual line, sticky-from-below on the
-	// LAST, so only offsets near that edge can be the answer. Walk inward from the
-	// probed edge and stop a few lines past it — the band filter below discards
-	// anything further regardless, so the result is identical to a full scan while
-	// the work is O(lines-near-edge), not O(raw length). The scan stays linear
-	// (BiDi makes per-line left values non-monotonic); only its range is bounded.
+	// Only offsets near the probed edge can be the answer, so walk inward and stop a few
+	// lines past it: the band filter below discards anything further regardless, making
+	// this identical to a full scan at O(lines-near-edge) instead of O(raw length).
 	const forward = from === 'above';
 	const STOP_AFTER_LINES = 3;
 	const candidates: { offset: DomTextOffset; rect: DOMRect }[] = [];

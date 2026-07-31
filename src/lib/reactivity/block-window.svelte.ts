@@ -1,10 +1,8 @@
 /**
- * Window math for virtual rendering. `computeWindow` is pure: given a height
- * model and the scroll viewport, it returns the [start, end) slice to mount —
- * extended to keep a pinned caret block contiguous — the spacer heights that
- * preserve native scroll geometry, and the next activation state (with
- * hysteresis so a list at the threshold doesn't thrash). The reactive
- * `createBlockWindow` wrapper wires live getters + a scroll listener to this.
+ * Window math for virtual rendering. `computeWindow` is pure: from a height model and the
+ * scroll viewport it returns the slice to mount (extended to keep a pinned caret block
+ * contiguous), the spacer heights preserving native scroll geometry, and the next
+ * activation state. `createBlockWindow` wires live getters and a scroll listener to it.
  */
 import { untrack } from 'svelte';
 import type { HeightModel } from '../cursor/height-model';
@@ -33,10 +31,9 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	const n = model.size;
 	const total = model.total();
 
-	// Hysteresis: cross the high watermark to turn on, fall below the low one to turn off.
-	// The one activation decision in the feature — host-scroll mode reaches the
-	// never-active result through this gate rather than substituting a window of its
-	// own, so `active` can never disagree with what the consumer renders.
+	// The one activation decision in the feature: host-scroll mode reaches its never-active
+	// result through this gate rather than substituting its own window, so `active` can
+	// never disagree with what the consumer renders.
 	const active =
 		input.windowingEnabled &&
 		(input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx);
@@ -46,17 +43,15 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	}
 
 	const firstVisible = model.indexAtOffset(input.scrollTop);
-	// The viewport is half-open [scrollTop, scrollTop+viewportHeight); probe the
-	// last on-screen pixel so a block whose top sits exactly on the bottom edge
-	// isn't counted visible.
+	// Probe the last on-screen pixel: the viewport is half-open, so a block whose top sits
+	// exactly on the bottom edge isn't visible.
 	const lastVisible = model.indexAtOffset(input.scrollTop + input.viewportHeight - 1);
 	let start = Math.max(0, firstVisible - input.overscan);
 	let end = Math.min(n, lastVisible + 1 + input.overscan);
 
-	// Keep the focused/caret block mounted by extending the CONTIGUOUS range to
-	// include it (so Svelte preserves its DOM node and native focus/IME survive a
-	// scroll) — but only within a bounded distance, so a caret parked far away
-	// before a large scroll doesn't mount thousands. Beyond the cap it blurs (rare).
+	// Extend the CONTIGUOUS range so Svelte preserves the caret block's DOM node and native
+	// focus/IME survive a scroll — bounded, so a caret parked far away before a large scroll
+	// doesn't mount thousands. Beyond the cap it blurs.
 	const pin = input.pinnedIndex;
 	if (pin !== null && pin >= 0 && pin < n) {
 		if (pin < start && start - pin <= input.pinExtensionCap) start = pin;
@@ -127,11 +122,9 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 		});
 	});
 
-	// Track activation across recomputes (hysteresis state lives here).
-	// `result` reads `active` and this effect writes it — write inside `untrack`
-	// and only on a real change so the effect doesn't register `active` as its
-	// own dependency and re-fire on its own write. It converges: once `active`
-	// equals `result.active`, the guard writes nothing.
+	// Hysteresis state. `result` reads `active` and this effect writes it, so the write is
+	// untracked and change-guarded — otherwise the effect depends on its own write. It
+	// converges: once `active` equals `result.active` the guard writes nothing.
 	$effect(() => {
 		const next = result.active;
 		untrack(() => {

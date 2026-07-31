@@ -1,14 +1,8 @@
 /**
- * Read-all-then-write height measurement. Each newly-mounted (or edited) block
- * needs its real post-layout height recorded into the scope's model. Reading one
- * block's `getBoundingClientRect` right after writing the previous block's height
- * (which dirties layout) forces a synchronous reflow PER block — the thrash a perf
- * feature must not introduce (one forced reflow per mounted block on a fling). This
- * splits the pass into a pure read phase and a pure write phase: no read ever
- * follows a write, so the whole batch costs at most one reflow.
- *
- * Pure (no DOM, no reactive state) so the read-before-write ordering is unit-testable
- * with spies — the honest guard against a regression silently re-interleaving them.
+ * Read-all-then-write height measurement: a rect read right after a layout-dirtying height
+ * write forces a synchronous reflow PER block, so the pass splits into a pure read phase
+ * and a pure write phase and costs at most one reflow. Kept free of DOM and reactive state
+ * so the ordering is unit-testable with spies.
  */
 
 export interface MeasureEntry {

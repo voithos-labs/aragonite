@@ -1,28 +1,21 @@
 /**
- * Geometry-based visual-line detection. Determines whether the cursor sits
- * on the first or last visual line of a wrapping element.
- *
- * Offsets alone can't answer this on blocks that wrap across 3+ visual lines;
- * the cursor Y must be compared to the first/last line Y. The text-node walk
- * is the workaround for collapsed ranges next to non-text children (e.g.
- * dimmed `md-marker` spans) returning null rects from getClientRects —
- * measuring around a real text node always returns a valid rect.
+ * Whether the cursor sits on the first or last visual line of a wrapping element. Offsets
+ * alone can't answer it past 2 wrapped lines, so cursor Y is compared to the first/last
+ * line's Y. The text-node walk works around collapsed ranges next to non-text children
+ * (dimmed marker spans) returning null rects — measuring around real text always works.
  */
 
 import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
 
-// Cursor counts as on the boundary line when its Y is within this fraction of a
-// line height of the first/last line's Y — sub-line so sub/superscript or
-// inline-image jitter on the same line doesn't read as a different line.
+// Fraction of a line height within which the cursor Y counts as the boundary line —
+// sub-line, so sub/superscript or inline-image jitter doesn't read as a different line.
 const SAME_LINE_TOLERANCE = 0.8;
 
 /**
- * The first rect that can position a caret: the leading client rect when it has
- * real height, else the bounding rect. `widthTolerant` (the default) also accepts a
- * zero-height rect that still has width. `getRangeTop` alone passes `false`, keeping
- * its test-pinned "null on a zero-height rect" contract; the two predicates differ
- * only on a zero-height/positive-width rect, which its collapsed-caret inputs never
- * produce, so the stricter form is behavior-neutral there.
+ * The first rect that can position a caret: the leading client rect when it has real
+ * height, else the bounding rect. `widthTolerant` also accepts a zero-height rect with
+ * width; only `getRangeTop` passes false, keeping its test-pinned "null on a zero-height
+ * rect" contract (behavior-neutral — its collapsed-caret inputs never produce that shape).
  */
 export function firstUsefulRect(range: Range, widthTolerant = true): DOMRect | null {
 	const rects = range.getClientRects();
@@ -36,10 +29,7 @@ export function getRangeTop(range: Range): number | null {
 	return firstUsefulRect(range, false)?.top ?? null;
 }
 
-/**
- * Non-collapsed ranges reliably return rects where collapsed ones don't —
- * this is the primary measurement primitive for isAt{First,Last}VisualLine.
- */
+/** Non-collapsed ranges reliably return rects where collapsed ones don't. */
 export function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
 	try {
 		const range = document.createRange();
@@ -57,10 +47,8 @@ export function getCharRangeTop(container: Node, offset: number, atEnd: boolean)
 	return null;
 }
 
-/**
- * Skips non-text children (e.g. dimmed marker spans) that would cause
- * isAtFirstVisualLine to fail to measure the block's first line.
- */
+/** Skips non-text children (dimmed marker spans) that would otherwise leave the block's
+ *  first line unmeasurable. */
 export function findFirstTextNode(node: Node): Text | null {
 	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
 		return node as Text;
@@ -84,16 +72,11 @@ export function findLastTextNode(node: Node): Text | null {
 }
 
 /**
- * True if the selection inside `el` sits on the first visual line.
- * `fallbackOffset` is consulted when geometry measurement fails and should
- * be the cursor offset from getCursorOffset. Empty containers return true.
- *
- * `rangeCount === 0` means there's no live range to measure — Chromium drops
- * the caret range adjacent to atomic `contenteditable=false` islands across
- * event-loop yields. Resolve via `fallbackOffset` (the snapped caret intent
- * the caller reads through `ambient-cursor.getRaw`) rather than hard-false:
- * a hard-false would strand every subsequent boundary read at false once the
- * range drops. This mirrors the geometry-null branch below.
+ * True if the selection inside `el` sits on the first visual line; empty containers
+ * return true. `fallbackOffset` (the snapped caret intent from `ambient-cursor.getRaw`)
+ * resolves the case where there is no live range — Chromium drops the caret range next to
+ * atomic contenteditable=false islands across event-loop yields, and a hard-false would
+ * strand every later boundary read at false.
  */
 export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): boolean {
 	const sel = window.getSelection();
