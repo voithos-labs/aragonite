@@ -4,10 +4,8 @@ import { ensureUnsharedChild } from './unshare';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
 
-// Invariant backstop: a stale index (e.g. a mid-drag delete shrank the array)
-// would otherwise splice `undefined` into the $state tree — or, on the trivia
-// path, unshare a nonexistent slot. Both entry points bail through this BEFORE
-// any unshare or write.
+// A stale index (a mid-drag delete shrank the array) would splice `undefined` into the
+// $state tree, so both entry points bail through this BEFORE any unshare or write.
 function isReorderOutOfBounds(from: number, to: number, len: number): boolean {
 	if (from < 0 || from >= len || to < 0 || to >= len) {
 		devWarn('reorder', `reorder out of bounds: from=${from} to=${to} len=${len}`);
@@ -35,16 +33,11 @@ export function reorderChildren(children: CstNode[], from: number, to: number): 
 }
 
 /**
- * Reorder children while keeping block separators positional. A separator (blank
- * line) is stored as the next child's `leadingTrivia`, but the serializer reads it
- * per slot (`leadingTrivia + raw`) — so it belongs to the position, not the node.
- * Permuting nodes alone drags each node's trivia to its new slot, corrupting the
- * separators. This captures the spanned window's trivia by slot, permutes, then
- * reassigns positionally so the moved nodes adopt their destination slot's separator.
- *
- * Writing `leadingTrivia` is a byte write, so each spanned child is unshared first
- * (copy-path-on-write — unshare.ts). The caller's `children` must be an owned array
- * (a commit ceremony's working copy or an already-unshared container scope).
+ * Reorder children while keeping block separators positional. A separator is stored as
+ * the next child's `leadingTrivia` but read per slot, so it belongs to the position, not
+ * the node; permuting nodes alone would drag each separator along. Writing
+ * `leadingTrivia` is a byte write, so spanned children are unshared first (`unshare.ts`)
+ * and `children` must already be an owned array.
  */
 export function reorderChildrenWithTrivia(
 	children: CstNode[],

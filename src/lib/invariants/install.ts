@@ -1,7 +1,6 @@
 /**
- * Seam-side glue between the pure predicates and the `assertInvariant` channel.
- * Callers at commit/bootstrap seams invoke these; the predicates themselves stay
- * pure and unaware of the channel.
+ * Seam-side glue between the pure predicates and the `assertInvariant` channel, so the
+ * predicates themselves stay pure and unaware of it.
  */
 
 import type { CstNode, Document } from '../core/nodes';
@@ -20,10 +19,9 @@ import { checkContentRange } from './descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
 /**
- * Per-commit check for the nodes a commit touched (scoped — never a whole-tree
- * walk). Each predicate self-filters by kind: stale-raw only inspects strip
- * containers, content-range only prose. Run AFTER the commit's rebuildRaw so a
- * strip container's raw is its freshly-rebuilt output.
+ * Per-commit check for the nodes a commit touched, never a whole-tree walk. Each predicate
+ * self-filters by kind. Run AFTER the commit's rebuildRaw, so a strip container's raw is
+ * its freshly-rebuilt output.
  */
 export function assertCommittedNodes(nodes: CstNode[]): void {
 	for (const node of nodes) {
@@ -37,9 +35,8 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 }
 
 /**
- * Pre-mutate commit-seam check: both declared commit coordinates must be
- * doc-absolute (see invariants/commit-paths.ts). Null skips a coordinate the
- * commit doesn't carry ('skip' snapshot, op-less commit).
+ * Pre-mutate commit-seam check that both declared coordinates are doc-absolute (G1.16,
+ * `commit-paths.ts`). Null skips a coordinate the commit doesn't carry.
  */
 export function assertCommitPaths(
 	doc: Document,
@@ -59,10 +56,9 @@ export function assertCommitPaths(
 }
 
 /**
- * G1.9 per-commit seam: the freshest undo entry is the one the commit's
- * mutations could have corrupted, so its digest is re-verified after each
- * commit (one digest over top-level rows). Deeper entries stay covered by
- * the restore-time check in editor-actions/commit/history.ts.
+ * G1.9 per-commit seam: the freshest undo entry is the one this commit's mutations could
+ * have corrupted, so only its digest is re-verified. Deeper entries stay covered by the
+ * restore-time check in `editor-actions/commit/history.ts`.
  */
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
@@ -70,9 +66,8 @@ export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 }
 
 /**
- * Registry-wide checks at the mount seam. The registration-check flush owns
- * the once-latch: the first flush sweeps the whole world; later mounts
- * validate only registrations that arrived since the previous flush.
+ * Registry-wide checks at the mount seam. The flush owns the once-latch: the first sweeps
+ * the whole world, later mounts validate only registrations since the previous flush.
  */
 export function runStartupInvariantChecks(): void {
 	flushPendingRegistrationChecks();

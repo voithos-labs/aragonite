@@ -1,13 +1,8 @@
 /**
- * Structural-sharing epoch primitive — the copy-on-write engine for the CST.
- * `isShared` lets the mutation layers (chiefly unshare.ts) decide when a node
- * must be cloned before it is written, so undo snapshots that still reference
- * it stay intact. The epoch is advanced by the undo lifecycle: a snapshot push
- * or restore calls `markSnapshotTaken` on the per-editor instance threaded
- * through EditorActionsDeps, after which any node whose ownerEpoch predates the
- * bump counts as shared. Missing ownerEpoch counts as shared too — the safe
- * direction, since an unnecessary copy is correct but a missed one corrupts
- * history.
+ * Structural-sharing epoch primitive — the copy-on-write engine `unshare.ts` reads to
+ * decide when a node must be cloned before it is written. The undo lifecycle bumps the
+ * epoch, after which any node stamped earlier counts as shared. A missing `ownerEpoch`
+ * counts as shared too: an unnecessary copy is correct, a missed one corrupts history.
  */
 export interface SharingState {
 	/** Bump after every snapshot push and every undo/redo restore. */

@@ -1,9 +1,7 @@
 /**
- * Reconcile listItem task metadata against its first paragraph's current raw.
- * The fresh parser extracts the task marker from the first stripped line and
- * stores it on listItem.metadata; live typing only mutates paragraph.raw.
- * Without this reconcile, typing `[ ] ` into a plain item produces serialized
- * text a fresh parse would treat as a task, but the live CST stays plain.
+ * Reconcile listItem task metadata against its first paragraph's raw. The parser stores
+ * the task marker on the item's metadata, but live typing only mutates `paragraph.raw` —
+ * so without this, typing `[ ] ` serializes as a task the live CST still calls plain.
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -12,11 +10,9 @@ import { metadataOf } from '../../core/nodes';
 const TASK_REGEX = /^\[( |x|X)\]\s+/;
 
 /**
- * Align taskItem / taskMarker / taskChecked on `listItem` with what a fresh
- * parse of its first paragraph's first line would produce. Promotes plain →
- * task when content gains `[ ] ` / `[x] ` / `[X] `, demotes task → plain
- * when content loses the prefix; on demote, the stripped marker bytes are
- * restored into the paragraph raw so the user's content survives.
+ * Align the item's task fields with what a fresh parse of its first line would produce.
+ * On demote the stripped marker bytes are restored into the paragraph raw, so the user's
+ * content survives.
  */
 export function reconcileTaskMetadata(listItem: CstNode): void {
 	if (listItem.kind !== 'listItem') return;

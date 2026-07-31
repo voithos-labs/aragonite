@@ -1,16 +1,9 @@
 /**
- * Ensure a list item's `raw` ends with a line ending. Pasted items cloned
- * from clipboards without trailing newlines otherwise cause `rebuildListRaw`
- * to concatenate adjacent items' raws, mashing `"6. Ordered"` and `"7. third"`
- * into one line `"6. Ordered7. third"` — which re-parses as one item.
- *
- * The ending is a parameter, never a literal `'\n'`: an item arriving without one
- * has no ending of its own to read, so it adopts the target's (G4.20) — otherwise
- * a paste lands one LF line inside an otherwise CRLF list.
- *
- * Round-trip invariant: items at parse time keep their original no-newline
- * state (the parser populates `raw` directly without calling this helper);
- * only callers that splice items mid-list need to normalize.
+ * Ensure a list item's `raw` ends with a line ending. Without it `rebuildListRaw`
+ * concatenates adjacent items' raws into one line, which re-parses as one item. The
+ * ending is a parameter, never a literal `'\n'`: an item arriving without one adopts the
+ * target's (G4.20), or a paste strands an LF line inside a CRLF list. Parse-time items
+ * keep their original state; only mid-list splices normalize.
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -18,10 +11,9 @@ import { trailingLineEnding } from '../../core/lines';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 
 /**
- * Terminate the deepest trailing leaf, then rebuild every container above it —
- * a nested container's raw is DERIVED from its children, so appending to it
- * directly leaves the two halves disagreeing (G1.1) and its own tail item
- * unterminated, which the next rebuild mashes into the following one.
+ * Terminate the deepest trailing leaf, then rebuild every container above it: a
+ * container's raw is DERIVED from its children, so appending to it directly leaves the
+ * two disagreeing (G1.1) and its tail item still unterminated.
  */
 function terminateDeepestLeaf(node: CstNode, ending: '\n' | '\r\n'): void {
 	if (node.raw.endsWith('\n')) return;
@@ -46,11 +38,9 @@ export function newlineTerminateListItems(items: CstNode[], ending: '\n' | '\r\n
 }
 
 /**
- * THE way pasted items enter a list's children mid-array: termination is
- * welded to the splice so a new paste path can't forget it and reintroduce
- * raw-mashing during the container's rebuild. The ending comes from the
- * neighbours the items are joining — the displaced target first, then the item
- * above, then the head of the list.
+ * THE way pasted items enter a list's children mid-array: termination is welded to the
+ * splice so a new paste path cannot forget it. The ending comes from the neighbours the
+ * items join — displaced target, then the item above, then the list head.
  */
 export function spliceTerminatedItems(
 	children: CstNode[],

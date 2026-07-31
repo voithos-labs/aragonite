@@ -1,15 +1,8 @@
 /**
- * Structural-change descriptor returned by tree ops. The commit primitive
- * consumes it to auto-sync the parallel `blockIds` / `blockRefs` arrays so
- * callers never hand-splice them.
- *
- * `idMap` on `replace` lets callers preserve IDs for specific new-position
- * indices — e.g., split's first half inherits the original ID.
- *
- * Every variant describes ONE contiguous `at`/`count` window. An op that edits
- * two disjoint index ranges can't be a single StructuralChange — it splits into
- * separate commits, or uses the multi-scope commit path (which syncs ids/refs
- * inside its own callback instead of returning a change here).
+ * Structural-change descriptor returned by tree ops; the commit primitive consumes it to
+ * auto-sync the parallel `blockIds` / `blockRefs` arrays, so callers never hand-splice
+ * them. Every variant describes ONE contiguous `at`/`count` window — an op editing two
+ * disjoint ranges splits into separate commits or uses the multi-scope commit path.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -31,9 +24,8 @@ export type StructuralChange =
 	  };
 
 /**
- * Replace [at, at+count) with newCount items where the FIRST new item
- * inherits the old first item's id + ref — preserving Svelte keyed identity
- * (cursor, IME composition state) across the swap.
+ * Replace [at, at+count) where the FIRST new item inherits the old first item's id + ref,
+ * preserving Svelte keyed identity (cursor, IME composition) across the swap.
  */
 export function replacePreservingFirst(
 	at: number,
@@ -44,19 +36,11 @@ export function replacePreservingFirst(
 }
 
 /**
- * Stamp the nodes a change's insert/replace window CREATED as owned by the
- * live tree. Pre-existing nodes an op writes go through ensureUnsharedPath
- * instead (tree-operations/unshare.ts).
- *
- * Also backfills `childIds` on any container in a created subtree (fill-absent,
- * so builder-set ids are untouched). A freshly-PARSED node carries no childIds;
- * if it (or a nested container) is published under a reused component instance —
- * any identity-preserving replace, e.g. reparse/kind-change/paste/search-replace —
- * the nested keyed-`{#each}` renders before `createBlockListState`'s post-render
- * re-init effect runs, so undefined keys reach Svelte (a duplicate-key throw once
- * a nested container holds ≥2 children). Initializing here, before the commit
- * publishes, keeps the render path read-only and closes the class at the single
- * seam every new-node op routes through.
+ * Stamp the nodes a change's insert/replace window CREATED as owned by the live tree;
+ * pre-existing nodes go through `unshare.ts` instead. Also backfills `childIds` on
+ * containers in a created subtree, before the commit publishes: a freshly-parsed node
+ * carries none, and under a reused component instance the nested keyed `{#each}` renders
+ * before the re-init effect, so undefined keys would reach Svelte.
  */
 export function stampStructuralChange(
 	children: CstNode[],
@@ -72,9 +56,8 @@ export function stampStructuralChange(
 }
 
 /**
- * Re-shape the parallel ids/refs arrays to match the mutated children.
- * Inserts get fresh IDs + undefined refs; `idMap` on replace preserves
- * specified old-index IDs for split/merge semantics.
+ * Re-shape the parallel ids/refs arrays to match the mutated children. Inserts get fresh
+ * IDs + undefined refs; `idMap` on replace preserves specified old-index IDs.
  */
 export function applyStructuralChangeToIdsRefs(
 	change: StructuralChange,

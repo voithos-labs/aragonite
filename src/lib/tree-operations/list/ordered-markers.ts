@@ -1,8 +1,4 @@
-/**
- * Ordered-list marker bookkeeping: renumbering an ordered list's items and
- * normalizing an item's marker style to match its parent list (ordered ↔
- * unordered). Pure tree mutations — no Svelte, no DOM.
- */
+/** Ordered-list marker bookkeeping: renumbering, and matching an item's style to its list. */
 
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
@@ -10,25 +6,16 @@ import type { SharingState } from '../sharing';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedChild } from '../unshare';
 
-/**
- * Increment the numeric prefix of an ordered marker by one, preserving the
- * suffix. No-op when the marker has no leading digits (unordered markers).
- */
+/** Increment an ordered marker's numeric prefix, preserving its suffix. */
 export function bumpOrderedMarker(marker: string): string {
 	return marker.replace(/^(\d+)/, (_, n) => String(Number(n) + 1));
 }
 
 /**
- * Renumber an ordered list's items in place starting at `fromIndex`. No-op
- * on unordered lists. Preserves each item's marker suffix (`. ` vs `) `).
- *
- * When `fromIndex` is 0 this resets the sequence to 1, not to the list's
- * original start number. Callers that need a non-1 base must seed item 0
- * manually and then call with `fromIndex=1`.
- *
- * Every renumbered item's metadata + raw is WRITTEN — live-tree callers must
- * pass `sharing` (the list itself already owned) so each item is unshared
- * first; construction-time callers operating on fresh nodes may omit it.
+ * Renumber an ordered list's items in place from `fromIndex`, preserving marker suffixes.
+ * `fromIndex = 0` resets the sequence to 1, so a caller needing a non-1 base seeds item 0
+ * itself and passes 1. Every renumbered item's metadata and raw is WRITTEN, so a live-tree
+ * caller must pass `sharing`; construction-time callers on fresh nodes may omit it.
  */
 export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: SharingState): void {
 	if (!list.children) return;
@@ -45,10 +32,8 @@ export function renumberOrderedList(list: CstNode, fromIndex = 0, sharing?: Shar
 }
 
 /**
- * Rewrite `item`'s marker so its style matches `parentList` (ordered ↔
- * unordered). Templates the suffix (`*`/`+`/`-` or `.`/`)`) from a sibling
- * so destination-list choices are preserved. No-op when already matching.
- * Caller renumbers afterward — this only touches marker style.
+ * Rewrite `item`'s marker style to match `parentList`, templating the suffix from a
+ * sibling so the destination list's choices are preserved. The caller renumbers afterward.
  */
 export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): void {
 	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
@@ -60,8 +45,8 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 		siblings.length > 0 ? metadataOf(siblings[0], 'listItem').marker : undefined;
 
 	if (parentOrdered) {
-		// Already ordered: only the number/suffix can differ, which the caller's
-		// renumber + suffix-adoption handle — nothing to template here.
+		// Already ordered: only number/suffix can differ, and the caller's renumber handles
+		// both.
 		if (itemOrdered) return;
 		meta.marker = '1' + (templateMarker?.replace(/^\d+/, '') ?? '. ');
 	} else {

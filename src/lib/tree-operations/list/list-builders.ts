@@ -1,7 +1,4 @@
-/**
- * Helpers for constructing list and listItem CST nodes used by Enter-exit
- * and paste flows.
- */
+/** Constructors for list and listItem CST nodes, used by Enter-exit and paste flows. */
 
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
@@ -16,10 +13,8 @@ import { assignIds } from '../../block-id';
 // ── List / item construction ─────────────────────────────────────────────────
 
 /**
- * Construct a list CST node carrying `items`, mirroring `template`'s metadata
- * and inner-prefix/suffix. Renumbers ordered markers starting at `startNumber`
- * (no-op for unordered lists). Items are mutated in place — pass clones if
- * the caller needs to preserve originals.
+ * A list node carrying `items`, mirroring `template`'s metadata and affixes and
+ * renumbering ordered markers from `startNumber`. Items are mutated in place.
  */
 export function assembleListHalf(
 	template: NodeView,
@@ -41,8 +36,8 @@ export function assembleListHalf(
 	if (items[0]) items[0].leadingTrivia = '';
 	for (const item of items) rebuildListItemRaw(item);
 
-	// renumberOrderedList's fromIndex=0 path always restarts at 1 — seed
-	// items[0] manually to renumber from an arbitrary base.
+	// renumberOrderedList's fromIndex=0 path always restarts at 1, so seed items[0]
+	// manually to renumber from an arbitrary base.
 	const ordered = metadataOf(half, 'list')?.ordered ?? false;
 	if (ordered && items.length > 0) {
 		const firstMeta = metadataOf(items[0], 'listItem');
@@ -56,9 +51,8 @@ export function assembleListHalf(
 }
 
 /**
- * Construct a listItem mirroring `template`'s metadata/affixes around the
- * provided children. `children` are placed verbatim — clone before passing
- * if they are still referenced from the source tree.
+ * A listItem mirroring `template`'s metadata/affixes. `children` are placed verbatim —
+ * clone before passing if they are still referenced from the source tree.
  */
 export function buildListItemWithContent(template: NodeView, children: CstNode[]): CstNode {
 	const item: CstNode = {
@@ -79,10 +73,8 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
 }
 
 /**
- * Construct a listItem from explicit metadata (marker + task fields) around
- * the provided children, with empty affixes. For action-layer sites that
- * derive a fresh marker rather than mirroring a source item's metadata.
- * Children are placed verbatim — clone first if still referenced elsewhere.
+ * A listItem from explicit metadata with empty affixes, for sites deriving a fresh marker
+ * rather than mirroring a source item. `children` are placed verbatim.
  */
 export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): CstNode {
 	const item: CstNode = {
@@ -101,10 +93,9 @@ export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): 
 }
 
 /**
- * Construct a bare list shell (kind/ordered/children only, empty raw). Unlike
- * `assembleListHalf` this neither renumbers nor rebuilds raw — the caller owns
- * that, which a live-tree caller must do through its `sharing` state so the
- * moved items are unshared before being written (Design Rule 5).
+ * A bare list shell with empty raw. Unlike `assembleListHalf` it neither renumbers nor
+ * rebuilds raw; a live-tree caller owns that and must route it through `sharing` so the
+ * moved items are unshared before being written (`unshare.ts`).
  */
 export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 	const metadata: ListMetadata = { ordered };
@@ -128,10 +119,7 @@ export function orderedBaseOf(item: NodeView | undefined): number {
 	return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-/**
- * Read the punctuation suffix (`. ` or `) `) from a list's first item.
- * Defaults to `. ` when the list is empty or the first item lacks a marker.
- */
+/** The punctuation suffix (`. ` or `) `) from a list's first item; defaults to `. `. */
 export function readOrderedSuffix(list: NodeView): string {
 	const first = list.children?.[0];
 	if (!first) return '. ';
@@ -142,11 +130,9 @@ export function readOrderedSuffix(list: NodeView): string {
 // ── Paste split ──────────────────────────────────────────────────────────────
 
 /**
- * Slice a leaf's raw at `offset` for a paste-style split: trims one leading
- * whitespace character from the trailing slice (avoids double-space markers
- * after word-boundary splits) and re-parses each half as its own block.
- * Returns null on an empty side; reports the detected line ending so callers
- * can re-terminate.
+ * Slice a leaf's raw at `offset` for a paste-style split, re-parsing each half. One
+ * leading whitespace is trimmed from the trailing slice, which would otherwise produce
+ * double-space markers after a word-boundary split. Null on an empty side.
  */
 export function splitLeafForPaste(
 	leaf: CstNode,

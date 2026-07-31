@@ -1,8 +1,7 @@
 /**
- * Container-matching unwrap: when the clipboard's top block is a container
- * kind declaring `containerPaste` and a same-kind ancestor passes its
- * `matchesAncestor` predicate, splice items into that ancestor instead of
- * nesting a sub-container.
+ * Container-matching unwrap: when the clipboard's top block declares `containerPaste` and
+ * a same-kind ancestor passes its `matchesAncestor` predicate, splice items into that
+ * ancestor instead of nesting a sub-container.
  */
 
 import { CURSOR_END } from '../../block-component';
@@ -27,10 +26,9 @@ interface ContainerUnwrap {
 	spliceIndex: number;
 	items: CstNode[];
 	/**
-	 * Non-empty-target variant: merge the first clipboard item's content
-	 * into the target leaf at `offset`, splice the rest as siblings, and
-	 * reattach post-caret residue to the last spliced item. Absent means
-	 * the descendant is empty and gets replaced wholesale.
+	 * Non-empty-target variant: merge the first clipboard item into the target leaf, splice
+	 * the rest as siblings, reattach post-caret residue to the last. Absent means the
+	 * descendant is empty and gets replaced wholesale.
 	 */
 	merge?: {
 		targetLeafPath: number[];
@@ -39,10 +37,9 @@ interface ContainerUnwrap {
 }
 
 /**
- * Detect whether to flatten the paste into a matching ancestor container.
- * Empty target descendants always unwrap. Non-empty targets unwrap only in
- * cross-block context (post-range-delete), so single-block pastes into a
- * partially-filled item keep the nested-sub-container behavior.
+ * Whether to flatten the paste into a matching ancestor container. Empty target
+ * descendants always unwrap; non-empty ones only in cross-block context, so a single-block
+ * paste into a partially-filled item keeps the nested-sub-container behavior.
  */
 export function findContainerMatchingUnwrap(
 	doc: Document,
@@ -72,8 +69,8 @@ export function findContainerMatchingUnwrap(
 			return { outerPath: ancestorPath, spliceIndex, items: topBlock.children };
 		}
 
-		// Non-empty unwrap requires single-paragraph first/last items —
-		// otherwise merge-first / trailing-residue semantics aren't well-defined.
+		// Merge-first / trailing-residue semantics are only well-defined for
+		// single-paragraph first and last items.
 		if (!crossBlockContext) return null;
 		if (!hasSingleParagraphChild(topBlock.children[0])) return null;
 		if (!hasSingleParagraphChild(topBlock.children[topBlock.children.length - 1])) return null;
@@ -102,15 +99,9 @@ function hasSingleParagraphChild(node: CstNode): boolean {
 }
 
 /**
- * Template pasted items' bullet glyph to a matching unordered `list` ancestor
- * before they splice in, so a `*`/`+` paste into a `- ` list serializes as one
- * list to reference parsers, not two. Markers are set on the not-yet-spliced
- * items — Svelte-5's precompute-before-splice discipline (see `list-absorb`).
- *
- * Scoped to unordered lists: `matchesAncestor` requires equal ordered flags, so
- * an unordered ancestor only ever receives unordered items; ordered ancestors
- * keep the pasted numbering, and non-list containers (blockquote) have no
- * listItem markers to touch.
+ * Template pasted items' bullet glyph to a matching unordered `list` ancestor, so a `*`
+ * paste into a `- ` list serializes as one list to reference parsers, not two. Markers
+ * are set before the splice (precompute-before-splice, see `list-absorb`).
  */
 function normalizePastedListMarkers(items: CstNode[], outer: CstNode): void {
 	if (outer.kind !== 'list' || metadataOf(outer, 'list')?.ordered) return;
@@ -118,12 +109,9 @@ function normalizePastedListMarkers(items: CstNode[], outer: CstNode): void {
 }
 
 /**
- * Ordered counterpart of normalizePastedListMarkers: number the pasted items to
- * continue an ordered `list` ancestor's sequence from `firstIndex` (their splice
- * position). No-op for unordered lists and non-list containers. Markers are set
- * on the not-yet-spliced items — Svelte-5's precompute-before-splice discipline
- * (see `list-absorb`); the caller renumbers the already-proxied tail after the
- * splice with `renumberOrderedList`.
+ * Ordered counterpart of `normalizePastedListMarkers`: continue the ancestor's sequence
+ * from `firstIndex`. Markers are set before the splice (precompute-before-splice, see
+ * `list-absorb`); the caller renumbers the already-proxied tail afterward.
  */
 function renumberPastedOrderedMarkers(items: CstNode[], outer: CstNode, firstIndex: number): void {
 	if (outer.kind !== 'list' || !metadataOf(outer, 'list')?.ordered) return;
@@ -167,8 +155,7 @@ export async function applyContainerMatchingPaste(
 				newCount: unwrap.items.length
 			};
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
-			// Renumber the already-proxied tail; the pasted items carry precomputed
-			// markers. No-op for unordered lists / non-list containers.
+			// The already-proxied tail; the pasted items carry precomputed markers.
 			renumberOrderedList(
 				scopeView.node,
 				unwrap.spliceIndex + unwrap.items.length,
@@ -189,10 +176,9 @@ export async function applyContainerMatchingPaste(
 }
 
 /**
- * Non-empty-target path: merge first item's content into the target leaf
- * at the caret, splice remaining items as siblings, reattach post-caret
- * residue to the last spliced item. Single-item clipboards keep everything
- * in the target leaf.
+ * Non-empty-target path: merge the first item into the target leaf at the caret, splice
+ * the rest as siblings, reattach post-caret residue to the last. A single-item clipboard
+ * keeps everything in the target leaf.
  */
 async function applyContainerMatchingMerge(
 	unwrap: ContainerUnwrap,
@@ -215,9 +201,8 @@ async function applyContainerMatchingMerge(
 	const firstItemText = trimTrailingLineEnding(firstLeaf.raw);
 
 	const remainingItems = unwrap.items.slice(1);
-	// The first item's content merges into the target leaf (keeping its marker);
-	// only the trailing siblings splice in, so only those need the glyph adopted /
-	// number assigned. They land after the target at spliceIndex + 1.
+	// The first item merges into the target leaf, keeping its marker; only the trailing
+	// siblings splice in, landing after the target.
 	normalizePastedListMarkers(remainingItems, outer);
 	renumberPastedOrderedMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
@@ -241,20 +226,16 @@ async function applyContainerMatchingMerge(
 				eventPath: docPathFrom(unwrap.outerPath)
 			},
 			afterTick: () =>
-				// End of the pasted content, before the reattached residue (displayAfter).
-				// The residue lives INSIDE the merged leaf, so this is a char offset in
-				// that leaf, not a block index — a container's focus(number) clamps a
-				// non-sentinel offset to its last child's end, so land on the leaf itself.
+				// A char offset inside the merged leaf, not a block index, so land on the leaf
+				// itself: a container's focus(number) would clamp to its last child's end.
 				ctx.controller.landCaret(merge.targetLeafPath, displayBefore.length + firstItemText.length)
 		});
 		return;
 	}
 
 	const lastItem = remainingItems[remainingItems.length - 1];
-	// findContainerMatchingUnwrap's hasSingleParagraphChild guard ensures this;
-	// the bail keeps a refactor that updates one guard but not the other from
-	// NPE-ing mid-commit — it fires before commitMultiScope, so the paste is a
-	// clean no-op rather than a half-applied mutation.
+	// Guaranteed by `hasSingleParagraphChild` upstream; bailing here (before the commit)
+	// keeps a drifting guard a clean no-op rather than a half-applied mutation.
 	const lastLeaf = lastItem.children?.[0];
 	if (!lastLeaf) return;
 	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
@@ -267,17 +248,13 @@ async function applyContainerMatchingMerge(
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
 			// The merged leaf sits BELOW the scope node — own its full spine.
-			// lastLeaf lives inside the parsed clipboard items (created, safe).
 			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 			const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
 			ownedLeaf.raw = displayBefore + firstItemText + targetLineEnding;
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
-			// Rebuild target's ancestry so the enclosing listItem reflects the
-			// merged paragraph before siblings splice in.
+			// Both rebuilds run before the splice, so the published children carry correct
+			// raws in one reactive flush.
 			rebuildUnsharedChain(ctx.doc, chain, sharing, ctx.grammar);
-			// Last remaining item's enclosing listItem raw still reflects the
-			// pre-mutation paragraph; rebuild before splicing so the published
-			// children carry correct raws in one reactive flush.
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
 			// The siblings land after the merged target, which keeps its own slot.
@@ -289,8 +266,8 @@ async function applyContainerMatchingMerge(
 			};
 			spliceTerminatedItems(scopeView.children, insertAt, 0, remainingItems);
 			stampStructuralChange(scopeView.children, change, sharing);
-			// Renumber the already-proxied tail below the spliced siblings; the merged
-			// target keeps its number. No-op for unordered lists / non-list containers.
+			// The already-proxied tail below the spliced siblings; the merged target keeps
+			// its number.
 			renumberOrderedList(scopeView.node, insertAt + remainingItems.length, sharing);
 			return [change];
 		},
@@ -300,9 +277,8 @@ async function applyContainerMatchingMerge(
 			eventPath: docPathFrom(unwrap.outerPath)
 		},
 		afterTick: () => {
-			// End of the pasted content: the last spliced item's paragraph, at the
-			// join before the reattached residue (displayAfter) — a char offset in
-			// that leaf, so land on the paragraph rather than CURSOR_END on the item.
+			// A char offset in the last spliced item's paragraph, so land on the paragraph
+			// rather than CURSOR_END on the item.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
 			return ctx.controller.landCaret(
 				[...unwrap.outerPath, lastInsertedIdx, 0],

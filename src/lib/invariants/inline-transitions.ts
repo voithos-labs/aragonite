@@ -1,18 +1,15 @@
 /**
- * Shared predicates for the inline layer's transition guards (G1.25–G1.27):
- * the widget-pool pass bracket, the reveal kernel's source-length precondition,
- * and the IME composition window. The interaction trace records these same
- * transitions; these predicates make the illegal ones fire on the `invariant:`
- * channel at their own seam.
+ * Predicates for the inline layer's transition guards (G1.25–G1.27): the widget-pool pass
+ * bracket, the reveal kernel's source-length precondition, and the IME composition window.
  */
 import type { InvariantViolation } from './assert';
 
 export type PoolBracketAction = 'acquire' | 'beginPass' | 'sweep';
 
 /**
- * G1.25 — every pool mutation respects the beginPass/sweep bracket. Outside a
- * bracket, adoption flags and pass tallies are meaningless, and key-only lookup
- * cannot distinguish byte-identical duplicate widgets.
+ * G1.25 — every pool mutation respects the beginPass/sweep bracket. Outside one, adoption
+ * flags and pass tallies are meaningless and key-only lookup cannot tell byte-identical
+ * duplicate widgets apart.
  */
 export function checkPoolBracket(
 	passOpen: boolean,
@@ -41,9 +38,8 @@ export function checkPoolBracket(
 }
 
 /**
- * G1.26 (kernel leg) — a reveal's source bytes span exactly its
- * [sourceStart, sourceEnd) range; a mismatch shifts every raw offset outside
- * the source across the swap, desyncing the offset walk.
+ * G1.26 (kernel leg) — a reveal's source bytes span exactly its [sourceStart, sourceEnd)
+ * range; a mismatch shifts every raw offset outside the source, desyncing the offset walk.
  */
 export function checkRevealSourceLength(
 	sourceLength: number,
@@ -59,10 +55,9 @@ export function checkRevealSourceLength(
 }
 
 /**
- * G1.27 — a compositionend lands only inside a composition the surface saw
- * start. Browsers pair the events per element, so an unpaired end means a
- * consumer wired `compositionend` without `compositionstart` — every
- * composition keystroke was committed to the CST mid-IME.
+ * G1.27 — a compositionend lands only inside a composition the surface saw start. Browsers
+ * pair the events per element, so an unpaired end means a consumer wired `compositionend`
+ * without `compositionstart` and every composition keystroke reached the CST mid-IME.
  */
 export function checkCompositionEndPaired(composing: boolean): InvariantViolation | null {
 	if (composing) return null;
