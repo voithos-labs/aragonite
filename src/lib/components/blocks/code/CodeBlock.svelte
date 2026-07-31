@@ -550,8 +550,8 @@
 			const indent = getLineLeadingWhitespace(text, at);
 			const inner = indent + ELECTRIC_INDENT_UNIT;
 			const newText = text.slice(0, at) + ending + inner + ending + indent + text.slice(at);
-			const inner_caret = at + ending.length + inner.length;
-			pendingCursorOffset = commitDisplay(newText, offset, inner_caret);
+			const innerCaret = at + ending.length + inner.length;
+			pendingCursorOffset = commitDisplay(newText, offset, innerCaret);
 			return true;
 		}
 
