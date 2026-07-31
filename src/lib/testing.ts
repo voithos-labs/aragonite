@@ -1,32 +1,11 @@
-// The plugin-testing surface, published at the `aragonite/testing` subpath.
-// TEST PROCESSES ONLY — never import from production code. Two seams:
+// The plugin-testing surface, published at the `aragonite/testing` subpath. TEST
+// PROCESSES ONLY, and nothing here may import a test runner — the kits run inside an
+// author's own case, so failures surface as plain `Error`s.
 //
-//   1. `resetPluginPlatformForTests` — wipes the process-global plugin registries
-//      so a plugin's test suite can re-install a fresh copy per case; run in a
-//      real app it is corruption, so it throws unless a test environment is
-//      detected (see the guard below).
-//   2. The conformance kits — the harnesses an author points at their own
-//      registration: the per-kind closure battery, the G4.3 container kit, and the
-//      inline-rung kit, each re-exported from its own module under `testing/`.
-//
-// Why (1) exists: the platform is register-once / throw-on-duplicate / no
-// unregister ("Registries are code, not state" — docs/contributing/culture.md). In-repo suites
-// reach past `$lib` for a scatter of internal reset helpers; a third-party author
-// writing a normal Vitest suite has no sanctioned seam and hits the dup throw on
-// the second `beforeEach`. This barrel is that seam — the ONLY place the resets
-// are public, and deliberately off the `aragonite/plugin` authoring barrel.
-//
-// Nothing here may import a test runner: the kit runs INSIDE an author's own test
-// case and must not force a runner (or an unlisted dep) on a suite that reaches
-// for the reset alone. Failures surface as plain `Error`s, which every runner
-// reports.
-//
-// MAINTENANCE INVARIANT: every register-once registration reachable from the
-// public `aragonite/plugin` surface must have its reset wired into the aggregate
-// below. Adding a new public registration without wiring its reset here re-opens
-// the exact dup-throw this seam closes — `testing-barrel.test.ts` registers
-// through each public entry and asserts the aggregate clears it, so a missing
-// wire fails there rather than in a downstream author's suite.
+// MAINTENANCE INVARIANT: the registries are register-once with no unregister
+// (docs/contributing/culture.md), so every registration reachable from the public
+// `aragonite/plugin` surface must wire its reset into the aggregate below.
+// `testing-barrel.test.ts` fails when one is missing.
 
 import { editorEnv } from './env';
 import { __resetSchemaRegistriesForTests } from './schema/registry-reset';
@@ -38,24 +17,11 @@ import { __clearDeclaredPluginInlineKindsForTests } from './schema/plugin-kind';
 import { __resetDirectiveRegistryForTests } from './core/directive/registry';
 
 /**
- * Reset the plugin platform's process-global registration state so a plugin's
- * test suite can re-install between cases. Call it in `beforeEach`, then re-run
- * your plugin's setup.
- *
- * Clears every non-built-in schema registration (block kinds, components,
- * openers, commands, block-commands, declared block + inline kinds, installed
- * plugins), the inline syntax + widget registries, the paste-surface and
- * paste-transform pipelines, and the `:::name` directive registry.
- *
- * Does NOT reset: built-in schema registrations (they survive, as in production);
- * the code-block language/highlight registries (editor internals, not a plugin
- * surface); or any runtime state (undo stack, selection, editor DOM/CST). One
- * asymmetry to know: the paste-surface reset clears ALL surfaces including the
- * built-ins, so a case that exercises built-in-block paste after a reset must
- * re-register or skip the reset — parse/round-trip cases are unaffected.
- *
- * Throws outside a detected test environment: wiping live registries is a
- * production corruption, never a supported runtime operation.
+ * Reset the plugin platform's process-global registration state so a plugin's test suite
+ * can re-install between cases: call it in `beforeEach`, then re-run your setup. Built-in
+ * schema registrations and all runtime state (undo stack, selection, DOM/CST) survive —
+ * except that the paste-surface reset clears ALL surfaces, so a case exercising built-in
+ * paste afterward must re-register. Throws outside a detected test environment.
  */
 export function resetPluginPlatformForTests(): void {
 	if (!editorEnv.isTest) {

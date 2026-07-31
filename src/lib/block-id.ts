@@ -3,10 +3,9 @@ import type { NodeView } from './core/node-views';
 let fallbackSequence = 0;
 
 /**
- * `crypto.randomUUID` is secure-context-only, and embedders on plain http (an
- * intranet, a LAN preview) have `crypto` without it. These ids key Svelte's
- * `{#each}`; they need process uniqueness, not unguessability, so the fallback is
- * a sequence — and a missing method must never take down every keyed render.
+ * `crypto.randomUUID` is secure-context-only, and an embedder on plain http has `crypto`
+ * without it. These ids key Svelte's `{#each}` — process uniqueness, not unguessability,
+ * so a sequence fallback is enough and a missing method never breaks keyed rendering.
  */
 export function generateBlockId(): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -23,9 +22,9 @@ export function assignIds(children: readonly NodeView[]): string[] {
 }
 
 /**
- * Initialize `childIds` on every container in a freshly-parsed subtree before it
- * is spliced into the live tree: a reused container component reads `childIds` in
- * its keyed-each synchronously, so a missing array surfaces as `undefined` keys.
+ * Initialize `childIds` before a freshly-parsed subtree is spliced into the live tree: a
+ * reused container reads it in its keyed-each synchronously, so a missing array surfaces
+ * as `undefined` keys.
  */
 export function assignChildIdsDeep(node: NodeView): void {
 	if (node.children && node.children.length > 0 && !node.childIds) {

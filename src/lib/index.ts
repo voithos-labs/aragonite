@@ -1,6 +1,5 @@
-// Public, supported surface of the editor module. Adding an export here is
-// non-breaking; removing one is breaking — keep this minimal and grow on demand.
-// Anything not re-exported here is internal and may change without notice.
+// Public, supported surface of the editor module: adding an export is non-breaking,
+// removing one is breaking. Anything not re-exported here is internal.
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -8,8 +7,6 @@ export { default as Editor } from './components/Editor.svelte';
 
 export type { EditorProps, EditorInstance } from './editor-props';
 
-// The consumer diagnostics door — `getDiagnostics()` returns EditorDiagnostics;
-// InteractionTraceEntry is what its `traceSnapshot()` yields.
 export type { EditorDiagnostics, InteractionTraceEntry } from './editor-props';
 
 export type { BlockComponent } from './block-component';
@@ -21,8 +18,8 @@ export type { Match } from './search/document-scan';
 
 // ── Plugins ────────────────────────────────────────────────────────────────────
 
-// installPlugins for editor-less `parse()` pipelines that need the grammar live
-// without mounting <Editor>; EditorPlugin types the `plugins` prop.
+// installPlugins is for editor-less `parse()` pipelines that need the grammar live
+// without mounting <Editor>.
 export { installPlugins } from './schema/plugin-install';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 
@@ -61,8 +58,7 @@ export type {
 	InlineNode
 } from './core/nodes';
 
-// The bytes-readonly views a consumer reads the CST through (EditorContext.document,
-// BlockComponentProps, DecorationSource.provide). Mutation goes through commits.
+// The bytes-readonly views a consumer reads the CST through; mutation goes through commits.
 export type { NodeView, DocumentView } from './core/node-views';
 
 // ── Events ───────────────────────────────────────────────────────────────────
@@ -94,8 +90,7 @@ export type {
 // ── Rects ──────────────────────────────────────────────────────────────────────
 
 // Viewport-space geometry over the rendered document, via `editor.getRects()`.
-// SELECTION_END is the importable "through the block's last measurable position"
-// sentinel `rangeRects` accepts as `end`.
+// SELECTION_END is the sentinel `rangeRects` accepts as `end`.
 export type { EditorRects } from './editor-rects';
 export { SELECTION_END } from './block-component';
 export type { SelectionEnd } from './block-component';

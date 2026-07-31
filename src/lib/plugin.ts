@@ -1,10 +1,7 @@
-// The plugin-authoring surface, published at the `aragonite/plugin` subpath.
-// Separate from the `<Editor>` consumer barrel (index.ts) on purpose: this is the
-// authoring API, not the embedding API. Only the authoring surface belongs here —
-// no test helpers, no internal getters or dispatch.
-//
-// Pre-freeze marker: sections tagged (pre-freeze) may change until the 1.0 freeze;
-// where the note sharpens it, the tag names what the shape is being refined against.
+// The plugin-authoring surface, published at the `aragonite/plugin` subpath. Only the
+// authoring API belongs here — not the `<Editor>` embedding barrel (index.ts), no test
+// helpers, no internal dispatch. Sections tagged (pre-freeze) may change until the 1.0
+// freeze; the tag names what the shape is being refined against.
 
 import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
@@ -14,21 +11,15 @@ import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
 // ── Plugin unit (pre-freeze) ─────────────────────────────────────────────────
-// definePlugin validates a { name, setup } unit at definition time; the editor's
-// `plugins` prop installs each once per process, so a consumer rarely calls
-// installPlugins directly. isPluginInstalled is the idempotence probe.
+// Installation is once per process — the editor's `plugins` prop does it, so a
+// consumer rarely calls installPlugins directly.
 export { definePlugin, isPluginInstalled } from './schema/plugin-install';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
-// The setup-context spine: `setup(ctx)` registers `onEditor` callbacks that
-// receive a per-instance EditorContext (editorId, live document, subscribe-only
-// events, typed options, live presentationMode).
+// `setup(ctx)` registers `onEditor` callbacks that receive a per-instance EditorContext.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
-// The presentation-mode vocabulary every mode read reports (EditorContext,
-// the editable-leaf getter, InlineWidgetComponentProps.getPresentationMode,
-// InlineWidgetEditingContext.presentationMode, the `data-presentation` root attr).
+// The vocabulary every mode read reports, the `data-presentation` root attribute included.
 export type { PresentationMode } from './presentation-mode';
-// The single-block plugin unit: one kind, one component, one register step. The
-// common case that needn't touch definePlugin + registerBlockComponent directly.
+// The single-block shortcut: one kind, one component, one register step.
 export { definePluginBlock } from './schema/define-plugin-block';
 
 // ── Kind declaration ─────────────────────────────────────────────────────────
@@ -36,10 +27,7 @@ export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
 // ── Inline authoring surface (pre-freeze: refined against the KaTeX/inline-widget work) ──
-// Mint an inline kind, hook the scanner on a trigger character, and register a
-// kind as a live atomic widget with its editing policy. The internal seams
-// (first-party widget augmentation, the recognizer/editing accessors, test
-// resets) stay off this barrel.
+// Mint an inline kind, hook the scanner on a trigger character, register a live atomic widget.
 export {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
@@ -57,9 +45,8 @@ export type {
 } from './core/inline/inline-widgets';
 
 // ── Block-kind descriptor registry ───────────────────────────────────────────
-// BlockKindRegistration is the write-side shape (container-only fields grouped
-// under `container`, isContainer derived); BlockKindDescriptor stays exported as
-// the flat read-side shape — the referent of ContainerDescriptorGroup's field types.
+// BlockKindRegistration is the write-side shape; BlockKindDescriptor is the flat
+// read-side one, still exported as the referent of ContainerDescriptorGroup's fields.
 export { registerBlockKind, augmentBlockKind } from './schema/block-kind-descriptor';
 export type {
 	BlockKindDescriptor,
@@ -69,10 +56,8 @@ export type {
 	MergeRole,
 	UnwrapRole
 } from './schema/block-kind-descriptor';
-// The required closure block a registration answers every cross-cutting system
-// with. `simpleLeafClosure`/`containerClosure` are sugar over the same field: each
-// bakes the structurally-fixed columns for its tier (source-editable leaf / strip
-// container) and demands the ones the kind's own component determines.
+// The required closure block a registration answers every cross-cutting system with.
+// `simpleLeafClosure`/`containerClosure` bake their tier's fixed columns over that field.
 export type {
 	ClosureBlock,
 	ClosureColumn,
@@ -95,95 +80,71 @@ export type { BlockOpener, BlockOpenerResult, OpenContext } from './schema/block
 export { OPENER_PRIORITIES } from './schema/opener-priorities';
 
 // ── Command vocabulary + keybindings ─────────────────────────────────────────
-// CommandId names the built-in command a keymap binding targets; KeyBinding is
-// the per-kind chord→command shape. The command-mint section below adds the
-// authoring surface for a plugin's own block-commands.
+// The built-in half; a plugin's own commands are minted in the section below.
 export type { CommandId } from './schema/commands';
 export type { KeyBinding } from './schema/keybindings';
 
 // ── Command mint ─────────────────────────────────────────────────────────────
-// registerBlockCommand binds a (kind, name) block-command and returns its minted
-// PluginCommandId; the handler runs against a BlockCommandContext (focused node +
-// metadata writer). AnyCommandId spans built-in and minted ids for keymap typing.
+// A (kind, name) block-command mints a PluginCommandId; AnyCommandId spans built-in and minted.
 export { registerBlockCommand } from './schema/block-commands';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
-// registerGlobalCommand mints a process-wide command run against the dispatching
-// instance's EditorContext, optionally bound to a chord in the plugin-global tier.
+// A global command is process-wide but runs against the dispatching instance's EditorContext.
 export { registerGlobalCommand } from './schema/global-commands';
 
 // ── Parse / serialize helpers ────────────────────────────────────────────────
-// The recognizer/serializer halves of an opener: parse a body to a Document,
-// join child bytes back, read a child's display text without dropping a CRLF,
-// and normalize external text to LF before it enters the tree. Re-exported here
-// so an opener needn't reach into core/ deep paths that the packaged artifact
+// Re-exported so an opener needn't reach into core/ deep paths the packaged artifact
 // doesn't expose.
 export { parse } from './core/parser';
 export type { Document } from './core/nodes';
 export { concatChildren as serializeChildren } from './core/serializer';
 export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
-// Split source into the `ParsedLine[]` every line-scoped seam here consumes — the
-// `blockquoteExtent` scanner below included, which a `source → source` transform
-// holding nothing but a string could otherwise not reach.
+// The `ParsedLine[]` every line-scoped seam here consumes — without it a `source →
+// source` transform holding nothing but a string could not reach `blockquoteExtent`.
 export { splitLines } from './core/lines';
 export type { ParsedLine } from './core/lines';
-// GFM §2.1's blank line (spaces and tabs only). An opener that ends its block on
-// a blank line asks this rather than `String.trim()`, which would admit the whole
+// GFM §2.1's blank line (spaces and tabs only). `String.trim()` would admit the whole
 // Unicode whitespace set and split a block on a pasted non-breaking space.
 export { isBlankLine } from './core/parser';
 
 // ── Fence grammar (pre-freeze: refined against the fence-claiming reference plugins) ──
-// The built-in CommonMark fence recognizers, so a plugin claiming a fence
-// (```mermaid) never reimplements the fence rules: match an opener line (verbatim
-// indent/info bytes included, for byte-exact rebuilds) and test a closer line
-// against it.
+// The built-in CommonMark fence recognizers, so a plugin claiming a fence (```mermaid)
+// never reimplements the rules. The opener match keeps verbatim indent/info bytes, for
+// byte-exact rebuilds.
 export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
 export type { FenceOpen } from './core/parsers/fenced-code';
 
 // ── HTML tag-line grammar (pre-freeze: refined against the details reference plugin) ──
-// CommonMark's type-6 tag-line shape for one tag name. A container whose terminator
-// IS an html tag line asks this rather than its own spelling: what closes such a
-// container in a browser is everything the spec passes through raw (indented,
-// upper-cased, trailing-space forms included), which is looser than any canonical
-// form a rebuild emits.
+// CommonMark's type-6 tag-line shape for one tag name. What actually closes such a
+// container is everything the spec passes through raw (indented, upper-cased, trailing
+// space) — looser than any canonical form a rebuild emits.
 export { htmlBlockTagLineMatcher } from './core/parsers/html-block';
 
 // ── Blockquote grammar (pre-freeze: refined against the alert-claiming reference plugin) ──
 // The built-in blockquote extent scanner, so a plugin claiming a blockquote-shaped
-// construct (`> [!NOTE]` GitHub alerts) reuses the CommonMark §5.1 lazy-continuation
-// extent instead of forking it: given the lines and a start, it returns the quote's
-// byte-exact raw and the index past it — the opener decomposes its own body.
+// construct (`> [!NOTE]`) reuses CommonMark §5.1 lazy continuation instead of forking it.
 export { blockquoteExtent } from './core/parsers/blockquote';
 
 // ── CST node access ────────────────────────────────────────────────────────────
 export type { CstNode } from './core/nodes';
-// The bytes-readonly views every read surface hands a plugin (component props,
-// EditorContext.document, DecorationSource.provide, descriptor read hooks).
-// CstNode/Document stay the types a plugin CONSTRUCTS (openers, factories,
-// rebuildRaw) — reads get views, owned/built nodes stay mutable.
+// Reads get bytes-readonly views; CstNode/Document stay the types a plugin CONSTRUCTS
+// (openers, factories, rebuildRaw), which stay mutable.
 export type { NodeView, DocumentView } from './core/node-views';
-// Typed plugin metadata: store/read a plugin kind's own shape without casting
-// through the built-in `BlockMetadata` union at the call site.
+// Store/read a plugin kind's own metadata shape without casting through `BlockMetadata`.
 export { setPluginMetadata, getPluginMetadata } from './core/nodes';
-// The content span within a block's raw, syntax markers excluded (a heading's
-// `#` prefix, a setext underline) — the offsets a marker-reading plugin slices.
+// The content span within a block's raw, syntax markers excluded (a heading's `#` prefix).
 export { getContentRange } from './core/inline';
 export type { ContentRange } from './core/inline';
-// A heading's level (ATX or setext), null otherwise — the outline reader for a
-// plugin building a table of contents. The typed path past the built-in-node
-// narrowing the barrel keeps internal.
+// A heading's level (ATX or setext), null otherwise: the typed path past the
+// built-in-node narrowing this barrel keeps internal.
 export { headingLevel } from './core/nodes';
-// Inline parse of a prose leaf, for a plugin deriving document-wide state from
-// inline structure (footnote numbering walks each prose leaf's `footnote-ref`
-// nodes). Pure and uncached — the reactive-safe path a widget's `$derived` reads;
-// `isProseKind` gates the walk so a code block's bytes are never inline-scanned.
+// Pure and uncached — the reactive-safe path a widget's `$derived` reads. `isProseKind`
+// gates the walk so a code block's bytes are never inline-scanned.
 export { isProseKind } from './core/inline';
 
 /**
- * Inline-parse a prose leaf into its inline nodes. The public form takes no
- * link-reference resolver — resolution is an editor-internal concern a plugin has
- * no handle to, so reference links parse as `unresolvedReference` here. Every other
- * inline construct (emphasis, code spans, plugin inline kinds) is fully resolved.
+ * Inline-parse a prose leaf. No link-reference resolver is available to a plugin, so
+ * reference links parse as `unresolvedReference`; every other construct fully resolves.
  */
 export function computeInlineContent(node: NodeView): InlineNode[] {
 	return parseLeafInline(node);
@@ -207,25 +168,20 @@ export type {
 	ContainerBlockDeps,
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
-// registerChromeLeaf binds the editor's built-in text surface as the leaf
-// component here — the one seam allowed to import components/, so editor-actions
-// keeps no upward value edge to the component tree.
+// The one seam allowed to import components/, so editor-actions keeps no upward
+// value edge to the component tree.
 export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions): void {
 	bindChromeLeaf(kind, TextEditableBlock, opts);
 }
 export type { ChromeLeafOptions };
-// Mint the reserved child-0 node for the chrome leaf a container declares — the
-// title/summary text plus its trailing newline.
+// Mint the reserved child-0 node for a container's chrome leaf: text plus its newline.
 export { chromeChild } from './editor-actions/plugin/chrome-leaf';
-// Reads the descriptor's `reservedChrome.isCollapsed` probe, so a component's
-// collapse getter and the model-layer walks share one definition.
+// One definition of collapsed, shared by a component's getter and the model-layer walks.
 export { isCollapsedContainer } from './schema/reserved-chrome';
 
 // ── Editable-leaf authoring surface (pre-freeze: refined against the block-math work) ──
-// Lets a plugin build a text-editing leaf block with native
-// caret/IME/undo/cross-block-selection parity — plain (always-editable,
-// per-keystroke commits) or render-primary (rendered view, reveal-to-edit, one
-// commit on blur) — without touching any editor context key. The
+// A text-editing leaf with native caret/IME/undo/selection parity, plain (per-keystroke
+// commits) or render-primary (reveal-to-edit, one commit on blur). The
 // createContainerBlock sibling for leaves.
 export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {
@@ -237,17 +193,13 @@ export type {
 export type { StickyColumnDirection } from './block-component';
 
 // ── Directive authoring (pre-freeze: refined against the `:::name` directive work) ──
-// `activateDirectives()` turns the grammar on (generic kinds + `:::`/`::` openers +
-// inline `:` recognizer + generic render); call it once at startup, before the
-// editor parses. The remaining symbols are inert — importing them does NOT claim
-// `:::`, only the call does. Register a name→kind directive, read the opener info
-// into structure, and serialize a fence losslessly.
+// `activateDirectives()` claims `:::` — call it once at startup, before the editor
+// parses. The other symbols are inert: importing them does NOT claim the grammar.
 export { activateDirectives } from './components/blocks/directive/activate-directives';
 export { registerDirective, isDirectiveRegistered } from './core/directive/registry';
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
-// `escalatedColonCount` is the write-side rule `serializeDirective` applies for you;
-// it is exported for the emitter that builds `:::name` text by concatenation rather
-// than through the CST — a `source → source` converter, a scaffold generator — where
+// `escalatedColonCount` is the rule `serializeDirective` already applies; exported for
+// emitters that build `:::name` text by concatenation instead of through the CST, where
 // a body line reproducing the fence would otherwise close the container early.
 export {
 	escalatedColonCount,
@@ -255,31 +207,24 @@ export {
 	serializeDirective
 } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
-// Build the `rebuildRaw` for a directive container whose child 0 is an editable
-// title — owns the title→opener, body serialization, and CRLF line-ending threading.
+// The `rebuildRaw` for a directive container whose child 0 is an editable title.
 export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
 
 // ── Renderer utilities ────────────────────────────────────────────────────────
-// A bounded LRU memo for a plugin renderer's per-source work: sync (with an
-// optional clone-on-read for live DOM nodes) or async (the value is the render
-// promise, so in-flight work is shared and a rejection is cached). See the plugin
-// guide's renderer recipe.
+// A bounded LRU memo for a renderer's per-source work, sync or async (store the
+// promise). See the plugin guide's renderer recipe.
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 
 // ── Paste transforms (pre-freeze: refined against the conversion-config direction) ──
-// registerPasteTransform records a content-keyed, pre-parse clipboard rewrite: it
-// inspects the raw pasted text and either replaces it or declines (null).
-// Transforms run in install order at every paste site, before the text is parsed
-// — paste-scoped only; loading and typing are untouched.
+// A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline
+// (null). Transforms run in install order at every paste site — never on load or typing.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
 export type { PasteTransform } from './tree-operations/paste/paste-transforms';
 
 // ── Decorations (pre-freeze) ─────────────────────────────────────────────────
-// View-only annotations layered over the rendered document — never part of the
-// CST. A plugin registers a pure per-instance DecorationSource through
-// `editor.decorations` (its onEditor context) and gets a handle back to
-// invalidate or dispose it.
+// View-only annotations layered over the rendered document, never part of the CST.
+// Sources register per-instance through `editor.decorations` (the onEditor context).
 export type {
 	Decoration,
 	MarkDecoration,
@@ -294,17 +239,12 @@ export type {
 } from './decorations/types';
 
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────
-// Viewport-space geometry over the rendered document, reached through
-// `editor.rects` (its onEditor context): a block's box, an inline range's rects,
-// the native caret, a reveal that mounts a windowed-out block, a scrollTo that
-// mounts then scrolls the viewport to a block by path, and a navigateTo that also
-// lands the caret there.
+// Viewport-space geometry over the rendered document, reached through `editor.rects`.
 export type { EditorRects } from './editor-rects';
 
 // ── Selection geometry (pre-freeze) ──────────────────────────────────────────
-// The selection shapes a decoration source or rect consumer reads: the
-// `selectionChange` payload, its endpoint type, and the importable "through the
-// block's last measurable position" sentinel `rangeRects` accepts as `end`.
+// The selection shapes a decoration source or rect consumer reads. SELECTION_END is
+// the sentinel `rangeRects` accepts as `end`.
 export type { EditorSelection, SelectionPoint } from './selection/primitives';
 export { SELECTION_END } from './block-component';
 export type { SelectionEnd } from './block-component';
