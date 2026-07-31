@@ -1,5 +1,4 @@
 <script lang="ts">
-	// Test-route only: throws during render to exercise BlockHost's <svelte:boundary>.
-	// Never registered in production.
+	// Test-route only, never registered in production: exercises BlockHost's <svelte:boundary>.
 	throw new Error('ThrowOnRenderBlock: intentional render failure');
 </script>

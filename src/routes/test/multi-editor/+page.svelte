@@ -2,9 +2,8 @@
 	import { Editor } from '$lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
-	// A post-hydration readiness signal: once both editor instances are bound, their
-	// mount effects (including each document-level keydown listener) have run. Tests
-	// wait on this before pressing chords, so a chord never races a cold editor.
+	// A post-hydration readiness signal: once both instances are bound, their mount effects
+	// (each document-level keydown listener included) have run, so no chord races a cold editor.
 	let left = $state<ReturnType<typeof Editor>>();
 	let right = $state<ReturnType<typeof Editor>>();
 
@@ -16,9 +15,8 @@
 	});
 </script>
 
-<!-- Two plain editors on one page: the fixture for multi-instance document-chord
-     containment (keybinding-multi-editor.spec.ts). The outside input is a focus
-     target that belongs to neither editor. -->
+<!-- The fixture for keybinding-multi-editor.spec.ts; the outside input is a focus target
+     belonging to neither editor. -->
 <div class="multi-harness aragonite-editor-theme">
 	<input data-testid="outside-input" aria-label="outside field" />
 	<Editor bind:this={left} source={'# One\n\nAlpha paragraph\n'} />

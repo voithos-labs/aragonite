@@ -8,9 +8,8 @@ export default defineConfig({
 		alias: {
 			$lib: path.resolve('./src/lib')
 		},
-		// Client svelte build, so unit tests can drive the runes graph ($effect.root
-		// + flushSync); the default node resolution picks the server build, where
-		// effects are no-ops and reactive seams (e.g. windowing) are untestable.
+		// Client svelte build, so unit tests can drive the runes graph. The default node
+		// resolution picks the server build, where effects are no-ops.
 		conditions: ['browser']
 	},
 	test: {

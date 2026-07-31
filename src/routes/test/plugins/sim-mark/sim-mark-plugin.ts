@@ -1,13 +1,8 @@
-// Standing benign mark source for the loaded-ops simulations. It marks every
-// whole-word occurrence of a fixture-known word across the document's leaf blocks,
-// re-run on every edit through the engine's per-edit pass. Marks are view-only
-// (overlay spans; no CST, source, or undo change), so the corruption oracles hold —
-// the point is that they now watch the decoration engine run on every keystroke, a
-// surface the simulation went a full minor version without covering.
-//
-// Installed only under `?seed=sim`: leaked into the scripted decoration battery its
-// marks would perturb those exact-overlay-count assertions, the same reason the
-// dogfood sources are seed-gated.
+// Standing benign mark source for the loaded-ops simulations, re-run on every edit through
+// the engine's per-edit pass. Marks are view-only (overlay spans; no CST, source, or undo
+// change), so the corruption oracles hold while watching the decoration engine run on every
+// keystroke. Installed only under `?seed=sim`: leaked into the scripted decoration battery,
+// its marks would perturb those exact-overlay-count assertions.
 import { definePlugin } from '$lib/plugin';
 import type { DocumentView, MarkDecoration } from '$lib/plugin';
 import { forEachLeaf } from '../walk-views';

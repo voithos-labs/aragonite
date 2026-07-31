@@ -3,9 +3,8 @@
 	import { nodeAt } from '$lib/tree-operations/node-ops';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
-	// Journal shape: two entries in ONE ancestor scroller, plus a clipped pane whose
-	// content no scroll can reveal (the honest-reveal arm). Every editor here runs
-	// `scrollMode="host"`, so the page — not the editor — owns the scroll.
+	// Journal shape: two entries in ONE ancestor scroller, plus a clipped pane no scroll can
+	// reveal. Every editor runs `scrollMode="host"`, so the page owns the scroll.
 
 	function entry(label: string, count: number): string {
 		return (
@@ -22,9 +21,8 @@
 	const ENTRY_B = entry('Beta', 120);
 	const CLIPPED = entry('Clipped', 60);
 
-	// A list (a direct-`{#each}` scope whose items are themselves BlockList-bearing
-	// scopes) and a table (the grid scope), each over the watermark: the nested
-	// windowing scopes a journal entry really contains.
+	// A list (a direct-`{#each}` scope whose items are themselves BlockList-bearing) and a
+	// table (the grid scope), each over the watermark: a journal entry's nested scopes.
 	const NESTED = [
 		'Nested entry intro.',
 		Array.from({ length: 120 }, (_, i) => `- item ${i}`).join('\n'),
@@ -41,9 +39,8 @@
 	let editors = $state<Record<string, EditorHandle | undefined>>({});
 	const ids = ['a', 'b', 'nested', 'clipped', 'header'];
 
-	// Toggled from a control fixed to the page, outside the scroller: a button in
-	// the flow would be scrolled into view by the click that toggles it, moving the
-	// very scrollTop the compensation contract is about.
+	// Toggled from a control fixed to the page: a button in the flow would be scrolled into
+	// view by the click, moving the very scrollTop the compensation contract is about.
 	let headerTall = $state(false);
 
 	for (const id of ids) trackParityDocument(() => editors[id]);
@@ -63,8 +60,8 @@
 			},
 			scrollTo: (id: string, path: number[], opts?: { block?: 'nearest' | 'center' }) =>
 				editors[id]?.getRects().scrollTo(path, opts) ?? Promise.resolve(null),
-			// Task 1's door, whose "a true focus block is IN VIEW" contract routes
-			// through the same mode-dependent in-view read as scrollTo.
+			// Its "a true focus block is IN VIEW" contract routes through the same
+			// mode-dependent in-view read as scrollTo.
 			setSelection: (id: string, selection: EditorSelection) =>
 				editors[id]?.setSelection(selection) ?? Promise.resolve(null),
 			blockRect: (id: string, path: number[]) => {
@@ -146,14 +143,10 @@
 	.entry {
 		margin: 1rem;
 	}
-	/* The rounded-card wrapper a journal shell puts around each entry: it matches
-	   the "scrolls or clips" predicate but does NEITHER — auto height, so it never
-	   clips, and no scroll. Every editor here wears one, so a resolver that stops at
-	   the innermost match measures against a box that spans the whole entry and
-	   autoscrolls an element that cannot move.
-	   The padding is load-bearing, not decoration: host mode drops the editor's own
-	   padding, and the hover drag handle sits at left:-0.85rem — a card with no
-	   padding clips it away and no drag can start. */
+	/* The rounded-card wrapper matches the "scrolls or clips" predicate but does NEITHER
+	   (auto height, no scroll), so a resolver stopping at the innermost match would
+	   autoscroll an element that cannot move. The padding is load-bearing: host mode drops
+	   the editor's own, and the hover drag handle sits at left:-0.85rem. */
 	.card {
 		overflow: hidden;
 		border-radius: 8px;

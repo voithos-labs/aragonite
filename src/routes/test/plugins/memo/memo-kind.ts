@@ -1,8 +1,7 @@
 /**
- * Harness validator for the plain editable-leaf tier: a `%%`-prefixed
- * single-line memo leaf. The recognizer is deliberately trivial — the kind
- * exists to drive `createEditableLeaf({ mode: 'plain' })` through the public
- * factory, not to be a useful block. Dev/e2e harness only.
+ * Harness validator for the plain editable-leaf tier. The recognizer is deliberately
+ * trivial: the kind exists to drive `createEditableLeaf({ mode: 'plain' })` through the
+ * public factory, not to be a useful block. Dev/e2e harness only.
  */
 
 import {
@@ -18,10 +17,9 @@ export const MEMO_BLOCK = 'memo';
 export function registerMemoBlock(): void {
 	const memo = declarePluginKind(MEMO_BLOCK);
 
-	// Two harness-only block commands exercise the editable-leaf tier's minted-command
-	// dispatch: `memo.tag` commits metadata through the sanctioned route (one
-	// metadataUpdate edit), `memo.boom` throws so the seam's containment + 'command'
-	// error routing surface end-to-end. Bound below on the memo keymap.
+	// Harness-only commands over the editable-leaf tier's minted-command dispatch:
+	// `memo.tag` commits metadata through the sanctioned route, `memo.boom` throws so the
+	// seam's containment and 'command' error routing surface end-to-end.
 	const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 		ctx.updateMetadata({ memoTagged: true });
 		return true;

@@ -76,10 +76,8 @@
 		return () => panel.toggleSection(key);
 	}
 
-	// The interaction trace ships default-off (one boolean per recorder site).
-	// Expanding its section is the dev's opt-in: it arms the recorder and stays
-	// armed for the session (least-magic — no per-keystroke enable, no hidden
-	// side effect beyond the one the user asked for by opening the view).
+	// The interaction trace ships default-off; expanding its section is the dev's opt-in,
+	// and it stays armed for the session rather than re-enabling per keystroke.
 	function toggleTrace() {
 		if (!panel.isExpanded('trace')) enableInteractionTrace();
 		panel.toggleSection('trace');
@@ -184,9 +182,8 @@
 		border-left: 1px solid var(--debug-divider, #2a2a2a);
 		display: flex;
 		flex-direction: column;
-		/* overflow-x: hidden clips the resize-handle's negative-left 3px so the
-		   panel doesn't permanently show a horizontal scrollbar. overflow-y: auto
-		   alone computes the other axis to auto per CSS, which was the bug. */
+		/* Both axes stated: `overflow-y: auto` alone computes the other to auto per CSS, and
+		   the resize-handle's negative-left 3px then shows a horizontal scrollbar. */
 		overflow-x: hidden;
 		overflow-y: auto;
 		z-index: 9999;
