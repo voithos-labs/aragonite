@@ -62,9 +62,8 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 	const span = ambientSpanOf(blockEl);
 	if (!span) return false;
 	const range = document.createRange();
-	// Prefer the start of the first text node after the span so visual-line
-	// geometry returns real rects; setStartAfter yields a collapsed range with
-	// no textbox in empty-item state.
+	// Prefer the first text node after the span so visual-line geometry returns real rects;
+	// setStartAfter yields a collapsed range with no textbox in empty-item state.
 	const textAfter = firstTextNodeAfter(span);
 	if (textAfter) {
 		range.setStart(textAfter, 0);

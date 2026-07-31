@@ -1,57 +1,10 @@
 /**
- * G4.3 — the container conformance kit, published at `aragonite/testing`.
- *
- * A parametrized harness a container author points at their own kind. The caller
- * supplies the kind and a profile: the fixtures the kit parses, plus a coverage
- * matrix declaring, per invariant, whether the kind asserts it or is exempt from
- * it. `runContainerConformance` is the entry; the granular checks are exported
- * for a sweep that wants one test case per invariant.
- *
- * The invariants:
- *   (a) local-index addressing  — children are addressed by their LOCAL index at
- *       each nesting level (the op mutates the right child and emits a path of
- *       local indices, not a global offset).
- *   (b) innermost-first ancestry rebuild — an edit deep in a STRIP nesting chain
- *       rebuilds raw inner→outer, so the root's raw reflects the leaf change.
- *   (c) one undo entry per multi-scope op — a single logical multi-scope op
- *       pushes exactly one undo snapshot.
- *   (d) focus-bubble termination at root — a boundary focus event bubbles up
- *       through nesting and terminates at the root (no loop / escape).
- *   (e) declaration sanity — the descriptor's declared behaviors hold: a
- *       declared unwrapRole names implemented strategies, a declared
- *       containerPaste is shaped as the paste path consumes it, and rebuildRaw
- *       runs non-throwing over a parsed fixture.
- *   (f) terminator collision — a body line reproducing the container's own
- *       terminator survives the rebuild: the container still holds it, instead
- *       of closing early and ejecting everything below it on reparse.
- *
- * Register your kind before calling: the kit parses its fixtures, so the opener
- * (or directive) that produces the kind must be live.
- *
- * Which answer a container owes that cell (escalate, immune by construction, or
- * exempt) is spelled out in the plugin guide's "Conformance-testing a container"
- * section, which ships with the published docs pack. That is the copy authors
- * read; a second one here would only drift from it.
- *
- * Strip vs grid vs opaque. Strip containers decompose as outer-syntax-around-
- * children, so their `rebuildRaw` reads only their own direct children and the
- * ancestry chain must be rebuilt innermost-first — the same holds for `'opaque'`
- * containers, whose rebuild re-derives raw from children too. Grid containers
- * re-derive their ENTIRE subtree raw in one `rebuildRaw`, so the innermost-first
- * ordering invariant doesn't apply; and grid focus is cell-addressed (focusCell
- * rowIdx/colIdx) rather than innerIndex delegation. Cells like those are declared
- * BOUNDARY/EXEMPT in the profile, reported as such with their reason — never a
- * silent skip, and a thin reason fails the run.
- *
- * Coverage boundary. Every asserted check drives the real per-kind action path
- * over a parsed CST — never the shared commit primitive directly, which would
- * pass vacuously for a container that bypasses it. Two boundaries the kit does
- * not cross: it mounts the DEFAULT nested-action bundle, not a per-kind
- * `overrideFactory` (those need the components); and a mounted-component focus
- * walk would need a DOM. Both would require rendering the editor.
- *
- * Failures throw a plain `Error` — no test runner is imported, so the kit runs
- * unchanged under Vitest, Jest or `node:test`.
+ * G4.3 — the container conformance kit, published at `aragonite/testing`. Register your
+ * kind, then point the kit at it with fixtures plus a coverage matrix declaring per
+ * invariant whether it asserts or is excused (never a silent skip; a thin reason fails the
+ * run). Which answer a container owes each cell is in the plugin guide's
+ * "Conformance-testing a container". Asserted checks drive the real per-kind action path,
+ * but stop at the default nested-action bundle and at anything needing a DOM.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
@@ -103,11 +56,9 @@ export { assertExemptionDocumented, type ConformanceCoverage };
 // ── Profile ──────────────────────────────────────────────────────────────────
 
 /**
- * `containerChain` is a doc-rooted path of container indices from the doc root
- * down to (and including) the kind-under-test, mounted as a real nested action
- * chain. The last container in the chain has its `targetChild` edited — pick a
- * NON-first child at a NON-zero chain position, or the check is vacuous (see
- * `checkStripLocalIndexAddressing`).
+ * `containerChain` is doc-rooted, from the doc root down to and including the
+ * kind-under-test. Its last container has `targetChild` edited — pick a NON-first child
+ * or a NON-zero chain position, or the check is vacuous (`checkStripLocalIndexAddressing`).
  */
 export interface LocalIndexFixture {
 	source: string;
@@ -127,18 +78,14 @@ export interface TerminatorCollisionFixture {
 }
 
 export interface ContainerConformanceProfile {
-	/**
-	 * A nesting where this kind is an intermediate ancestor of a deep editable
-	 * leaf. `leafPath` is doc-rooted.
-	 */
+	/** A nesting where this kind is an intermediate ancestor of the doc-rooted `leafPath`. */
 	deepNesting: { source: string; leafPath: number[] };
 	/** Required when `localIndex` asserts (strip/opaque kinds; grid has its own path). */
 	localIndexFixture?: LocalIndexFixture;
 	/** Required when `focusBubble` asserts: a source whose tree holds a node of the kind with ≥1 child. */
 	focusSource?: string;
-	/** Required when `terminatorCollision` asserts. `bodyRaw` is written through the
-	 *  kind's `bodyWrite` rule, so it names the bytes a USER produces, not the bytes
-	 *  that reach the tree. */
+	/** Required when `terminatorCollision` asserts. `bodyRaw` goes through the kind's
+	 *  `bodyWrite` rule, so it names the bytes a USER produces, not what reaches the tree. */
 	terminatorCollisionFixture?: TerminatorCollisionFixture;
 	localIndex: ConformanceCoverage;
 	ancestry: ConformanceCoverage;
@@ -166,9 +113,8 @@ export interface ContainerConformanceReport {
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 /**
- * Run every conformance cell for `kind`. Resolves with the coverage report when
- * the asserted cells hold and the exempt/boundary cells carry a reason; throws
- * an `Error` naming every failed cell otherwise.
+ * Run every conformance cell for `kind`. Resolves with the coverage report, or throws an
+ * `Error` naming every failed cell.
  */
 export async function runContainerConformance(
 	kind: AnyBlockKind,
@@ -218,12 +164,9 @@ export async function runContainerConformance(
 // ── (a) local-index addressing ───────────────────────────────────────────────
 
 /**
- * Mount the full nested chain down to the kind-under-test, edit a NON-FIRST child
- * of it (at a NON-ZERO position in its parent chain), and assert (i) the right
- * child mutated — by content — and (ii) the emitted edit path is the chain of
- * LOCAL indices. The non-zero / non-first setup is what discriminates local from
- * global addressing: at chain [0,0] / child 0 a local path coincides with a flat
- * global offset and the check would be vacuous.
+ * Assert the addressed child is the one that mutated (by content) and that the emitted
+ * path is the chain of LOCAL indices. The non-first / non-zero setup is what
+ * discriminates local from global addressing; at chain [0,0] child 0 the two coincide.
  */
 export async function checkStripLocalIndexAddressing(
 	profile: ContainerConformanceProfile
@@ -232,9 +175,6 @@ export async function checkStripLocalIndexAddressing(
 	if (!fixture) fail('localIndex asserts but the profile carries no localIndexFixture');
 	const { containerChain, targetChild } = fixture;
 	assert(containerChain.length > 1, 'chain has a top-level container + ≥1 nested level');
-	// Non-vacuity precondition (the docstring's own rule): a local path coincides
-	// with a flat global offset unless the edit reaches a non-first child OR a
-	// non-zero chain position — without one, this check can't tell them apart.
 	assert(
 		targetChild > 0 || containerChain.some((idx) => idx > 0),
 		'localIndexFixture must edit a non-first child or descend through a non-zero chain position (else the local-vs-global check is vacuous)'
@@ -245,7 +185,6 @@ export async function checkStripLocalIndexAddressing(
 	const controller = createUndoController(deps);
 	const rootContainerEdit = createContainerEditActions(deps, controller);
 
-	// Build the nested action chain: doc → outer (chain[0]) → … → kind node.
 	let parentBundle: NestedActionsBundle | null = null;
 	let parentContainerEdit: ContainerEditActions = rootContainerEdit;
 	let node = outer;
@@ -281,12 +220,10 @@ export async function checkStripLocalIndexAddressing(
 
 	await parentBundle!.blockEdit.deleteBlock(targetChild);
 
-	// (i) content oracle: the addressed local child is the one removed. The commit
-	// replaced the spine's nodes — re-resolve through the live doc.
+	// The commit replaced the spine's nodes — re-resolve through the live doc.
 	const liveKind = nodeAtPath(doc, containerChain);
 	const remaining = (liveKind.children ?? []).map((c) => c.raw);
 	assert(!remaining.includes(targetMarker), `local index ${targetChild} was the child removed`);
-	// (ii) the edit path equals the chain of local indices (+ the targeted child).
 	const editEvent = seen.find((e) => e.op === 'delete');
 	assert(editEvent, 'a delete edit event fired');
 	assertIndices(
@@ -296,19 +233,17 @@ export async function checkStripLocalIndexAddressing(
 	);
 	assertIs(editEvent.path.at(-1), targetChild, 'path ends at the targeted local child index');
 
-	// Not a byte round-trip (serialize(parse(serialize(doc))) === serialize(doc) is
-	// a tautology): the live tree must CONVERGE with a fresh parse of its bytes, so
-	// a local-index op that leaves a stale container raw or divergent shape fires.
+	// Convergence, not byte round-trip (which is a tautology here): a local-index op
+	// leaving a stale container raw or a divergent shape fires.
 	assertParseConverged(doc, 'doc converges after a local-index op');
 }
 
 /**
- * Grid local addressing: a table column op addresses cells by (rowIdx, colIdx)
- * and emits the table's own local path. Drive insertColumnRight on a table at a
- * NON-zero doc index and assert the right column landed in EVERY row by content.
+ * Grid local addressing: a table column op addresses cells by (rowIdx, colIdx) and emits
+ * the table's own local path. The leading paragraph keeps the table at a non-zero doc
+ * index, so a flat global offset would not coincide with the local one.
  */
 export async function checkGridLocalIndexAddressing(): Promise<void> {
-	// A leading paragraph pushes the table to doc index 1 (non-zero).
 	const doc = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
 	const table = doc.children[1];
 	assertIs(table.kind, 'table', 'table at non-zero doc index');
@@ -343,9 +278,8 @@ export async function checkGridLocalIndexAddressing(): Promise<void> {
 	const seen: EditEvent[] = [];
 	events.on('edit', (e) => seen.push(e));
 
-	// Insert a column to the RIGHT of column 0 → new empty cell at colIdx 1, the
-	// original second cell shifted to colIdx 2. Pinning the POSITION by content is
-	// what proves cells are addressed by local col index, not appended at the end.
+	// Pinning the new cell's POSITION by content is what proves cells are addressed by
+	// local col index rather than appended at the end.
 	await ctx.insertColumnRight(0);
 
 	const liveTable = deps.doc.children[1];
@@ -377,21 +311,17 @@ export function checkInnermostFirstAncestry(
 	const marker = `zzmark-${kind}`;
 	leaf.raw = marker + '\n';
 
-	// Fresh sharing state: nothing is shared, so this is a pure ancestry rebuild.
-	// Global grammar: the kit carries no editor registry view to source an instance
-	// one from, and this probe asserts raw propagation, never a kind re-derivation.
+	// Fresh sharing state and global grammar: this probe asserts raw propagation only,
+	// never a kind re-derivation, so nothing shared and no registry view is needed.
 	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), undefined);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
 }
 
 /**
- * Mutation probe: a reversed (outer→inner) rebuild must leave the root stale for
- * a container whose rebuild reads only its direct children (strip/opaque) — the
- * root concatenates still-stale inner raw. Assert it alongside the ancestry check
- * to prove that check is non-vacuous. (Returns false for a container whose
- * rebuild re-derives its whole subtree, e.g. grid — which is exactly why grid
- * declares ancestry a boundary rather than an assert.)
+ * Mutation probe proving the ancestry check is non-vacuous: a reversed (outer→inner)
+ * rebuild leaves the root stale for a strip/opaque container. Returns false for a
+ * container that re-derives its whole subtree (grid), which is why grid excuses ancestry.
  */
 export function reversedAncestryLeavesRootStale(profile: ContainerConformanceProfile): boolean {
 	const { source, leafPath } = profile.deepNesting;
@@ -416,10 +346,8 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 // ── (c) one undo entry per multi-scope op ────────────────────────────────────
 
 /**
- * A multi-scope op is inherently kind-specific — it is driven through the kind's
- * own context, not a generic bundle. The built-ins that own one are dispatched
- * here; a kind with no ≥2-scope author op declares `multiScope` exempt and never
- * reaches this.
+ * A multi-scope op is kind-specific: it drives through the kind's own context, not a
+ * generic bundle, so only the built-ins that own one are dispatched here.
  */
 export async function checkOneUndoPerMultiScope(kind: AnyBlockKind): Promise<void> {
 	if (kind === 'list') return checkListIndentOneUndo();
@@ -505,13 +433,10 @@ async function checkTableColumnOneUndo(): Promise<void> {
 // ── (d) focus-bubble termination at root ─────────────────────────────────────
 
 /**
- * Wire a real 2-level focus chain through the kind's OWN focus bundle:
- * kind-under-test inner (its `createNestedFocus`) → a strip outer at its own top
- * edge (also `createNestedFocus`) → a recording root. Bubble an out-of-range
- * ArrowUp off the top of the inner container and assert it reaches the root
- * exactly once — proving the bubble terminated (no loop back, no double-escape).
- * Calling the kind's bundle (not `dispatchMoveFocus` directly) is what makes this
- * non-vacuous: a container whose focus wiring re-enters or double-escapes is caught.
+ * Bubble an out-of-range ArrowUp through a real 2-level chain (kind-under-test → strip
+ * outer at its own top edge → recording root) and assert it reaches the root exactly
+ * once. Driving the kind's own bundle rather than `dispatchMoveFocus` is what catches a
+ * container whose focus wiring re-enters or double-escapes.
  */
 export async function checkFocusBubbleTermination(
 	kind: AnyBlockKind,
@@ -526,8 +451,7 @@ export async function checkFocusBubbleTermination(
 
 	const rootFocus = recordingFocus();
 
-	// Outer strip container at its own top edge: receiving moveFocus(-1) it must
-	// delegate to root, not re-enter the inner chain.
+	// At its own top edge, so moveFocus(-1) must delegate to root rather than re-enter.
 	const outerNode = parse('> a\n>\n> b\n').children[0];
 	const outerFocus = createNestedFocus(
 		mountBlockListState(() => outerNode),
@@ -542,7 +466,6 @@ export async function checkFocusBubbleTermination(
 		}
 	);
 
-	// The kind's own focus bundle, parented to the outer.
 	const innerFocus = createNestedFocus(
 		mountBlockListState(() => innerNode),
 		{
@@ -556,8 +479,8 @@ export async function checkFocusBubbleTermination(
 		}
 	);
 
-	// ArrowUp off the top of the inner container → inner delegates to
-	// outer.moveFocus(-1) → outer is at its own top (index 3) → root once at 2.
+	// Inner delegates to outer.moveFocus(-1); outer is at its own top (index 3), so the
+	// root sees index 2 exactly once.
 	await innerFocus.moveFocus(-1, 'end');
 
 	assertIs(rootFocus.moveFocusCalls.length, 1, 'bubble terminated at root exactly once');
@@ -570,18 +493,10 @@ export async function checkFocusBubbleTermination(
 // ── (f) terminator collision ─────────────────────────────────────────────────
 
 /**
- * Write a terminator-shaped line into the container's last child THROUGH the
- * kind's declared body-write rule, rebuild, and require the live tree to still
- * converge with a fresh parse of its own bytes. Convergence — not a byte
- * round-trip — is the oracle: `serialize(parse(s)) === s` holds throughout a
- * collision (the raw is emitted verbatim either way), while the container
- * silently stops containing what the live tree says it holds.
- *
- * The write goes through `bodyWrite` because that is the door the commit path
- * uses; a container repairs this collision either by escaping the bytes there
- * (details) or by growing its own fence around them at rebuild (the `:::`
- * directives). A kind declaring no rule writes verbatim and answers for what its
- * rebuild alone can do.
+ * Write a terminator-shaped line into the container's last child through `bodyWrite` (the
+ * door the commit path uses) and require the live tree to still converge with a fresh
+ * parse. Convergence is the oracle, not byte round-trip: `serialize(parse(s)) === s` holds
+ * throughout a collision while the container silently stops containing what it says it does.
  */
 export function checkTerminatorCollision(
 	kind: AnyBlockKind,
@@ -609,10 +524,8 @@ export function checkTerminatorCollision(
 // ── (e) declaration sanity ───────────────────────────────────────────────────
 
 /**
- * Hold the kind to its schema declarations: a declared `unwrapRole` must name
- * strategies the registries implement (the nested dispatcher indexes them
- * unguarded), a declared `containerPaste` must be shaped as the paste path
- * consumes it, and `rebuildRaw` must run non-throwing over a parsed fixture.
+ * Hold the kind to its schema declarations. A declared `unwrapRole` must name implemented
+ * strategies because the nested dispatcher indexes them unguarded.
  */
 export function checkDeclarationSanity(
 	kind: AnyBlockKind,

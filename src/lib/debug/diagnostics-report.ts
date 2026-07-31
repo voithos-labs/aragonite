@@ -7,11 +7,9 @@
 
 export interface DiagnosticsReportInput {
 	timestamp: string;
-	/** Interaction-trace tail, pre-rendered by the debug engine. */
+	/** Tails pre-rendered by the debug engine. */
 	trace: string;
-	/** Operations-log tail, pre-rendered by the debug engine. */
 	opsLog: string;
-	/** One-line selection summary. */
 	selection: string;
 	/** Raw document Markdown. Emitted ONLY when `includeSource` is true. */
 	source: string;

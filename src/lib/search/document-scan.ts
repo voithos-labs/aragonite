@@ -11,9 +11,8 @@ export interface Match {
 	groups?: string[];
 }
 
-// A childless opaque container (e.g. a diagram block) has no leaves to carry its
-// text — its own raw is the only carrier, so it matches like a leaf. Strip/grid
-// containers stay walk-only even when empty: their raw is marker syntax.
+// A childless opaque container has no leaves to carry its text, so its own raw matches like
+// a leaf. Strip/grid containers stay walk-only even when empty: their raw is marker syntax.
 const scansOwnRaw = (node: NodeView, desc: BlockKindDescriptor): boolean =>
 	desc.containerContract === 'opaque' && (node.children?.length ?? 0) === 0;
 
@@ -23,9 +22,8 @@ export interface ScanTarget {
 	raw: string;
 }
 
-/** The searchable leaves in document order. Split out from matching so the same
- *  target list can be matched here or shipped to the off-thread executor and
- *  re-joined against its ranges. */
+/** The searchable leaves in document order. Split out from matching so one target list can
+ *  be matched here or shipped to the off-thread executor and re-joined against its ranges. */
 export function collectScanTargets(doc: DocumentView): ScanTarget[] {
 	const out: ScanTarget[] = [];
 	const walk = (nodes: readonly NodeView[], prefix: number[]): void => {

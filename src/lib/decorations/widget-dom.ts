@@ -1,7 +1,6 @@
 /**
- * The one mounting seam for decoration widget specs — block badges and inline
- * islands both go through here, so a spec's error containment and teardown
- * semantics can't drift between tiers.
+ * The one mounting seam for decoration widget specs, so error containment and teardown
+ * semantics can't drift between block badges and inline islands.
  */
 
 import { mount, unmount } from 'svelte';
@@ -14,9 +13,8 @@ export interface DecorationWidgetHandle {
 }
 
 /**
- * Build a widget spec's DOM. A synchronous throw (component mount or buildDom)
- * is contained: routed to `reportError` and surfaced as null so the caller
- * renders without the widget instead of tearing down the block.
+ * Build a widget spec's DOM. A synchronous throw is contained and surfaced as null, so the
+ * caller renders without the widget instead of tearing down the block.
  */
 export function mountDecorationWidget(
 	spec: DecorationWidgetSpec,

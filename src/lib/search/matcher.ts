@@ -28,9 +28,8 @@ export function buildRegexSpec(query: string, opts: MatcherOptions): RegexSpec {
 	};
 }
 
-/** Every match of an already-compiled global regex. The scan worker carries its
- *  own copy of this loop (it ships as source text and cannot import), pinned to
- *  this one by a parity test. */
+/** Every match of an already-compiled global regex. The scan worker ships as source text
+ *  and cannot import, so it carries its own copy, pinned to this one by a parity test. */
 export function execAll(re: RegExp, text: string): RawRange[] {
 	const out: RawRange[] = [];
 	re.lastIndex = 0;
@@ -64,9 +63,8 @@ export function compileMatcher(query: string, opts: MatcherOptions): CompileResu
 		matcher: {
 			findAll(text) {
 				const hay = opts.caseSensitive ? text : text.toLowerCase();
-				// Case folding is not length-preserving ('İ' → 2 code units), so a
-				// folded haystack's indices can drift off the original string. Match
-				// with a case-insensitive regex over the original instead.
+				// Case folding is not length-preserving ('İ' → 2 code units), so a folded
+				// haystack's indices can drift off the original string.
 				if (hay.length !== text.length) return foldSafeFindAll(text, query, opts.wholeWord);
 				const out: RawRange[] = [];
 				let from = 0;

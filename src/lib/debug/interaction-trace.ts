@@ -1,35 +1,16 @@
 /**
- * Interaction trace — a ring buffer of the inline layer's state transitions.
- *
- * The inline layer rebuilds a block's spans on every keystroke, so cursor
- * capture/restore, reveal open/fold, widget-pool churn, IME composition, and
- * island application are all transient: by the time a field report is read, the
- * state that produced it is gone. This buffer records those transitions as they
- * happen, joining the ops log in the debug panel and the consumer diagnostics
- * door (`getDiagnostics()`).
- *
- * Two shapes fused: the bounded FIFO of `debug/operations-log.ts` and the
- * module-level record gate of `perf/instruments.ts` — but WITHOUT the perf
- * strip's dev/Vitest env fence. `enableInteractionTrace()` arms from anywhere,
- * production included, so a real consumer app can attach the trace to a bug
- * report. Disabled cost is one boolean check per recorder call; the perf gate is
- * the proof.
- *
- * Entries carry cheap primitives only — offsets, lengths, reasons, counts —
- * NEVER node references or raw document text. A trace attached to a bug report
- * must not smuggle the document.
- *
- * v1 LIMITATION: the buffer is module-global, so two editors on one page
- * interleave their entries. Same class as the reveal mount-waiter's per-scope
- * keying (ledgered); revisited at the freeze cut.
+ * Interaction trace — a bounded ring buffer of the inline layer's transient state
+ * transitions, joining `debug/operations-log.ts` in the debug panel and in `getDiagnostics()`.
+ * Unlike `perf/instruments.ts` it arms from anywhere, production included, so a consumer app
+ * can attach it to a bug report. Entries carry cheap primitives ONLY, never node references
+ * or raw document text — a trace attached to a bug report must not smuggle the document.
+ * Known limitation: the buffer is module-global, so two editors on one page interleave.
  */
 
 export interface InteractionTraceEntry {
 	/** `performance.now()` at record time — monotonic, no wall clock. */
 	t: number;
-	/** Subsystem the transition belongs to (`text-render`, `reveal`, `composition`…). */
 	site: string;
-	/** The transition within the site (`rebuild`, `open`, `fold`…). */
 	kind: string;
 	detail?: Record<string, string | number | boolean>;
 }
@@ -85,12 +66,10 @@ function record(site: string, kind: string, detail?: InteractionTraceEntry['deta
 }
 
 // ── Recorders (one per transition family) ────────────────────────────────────
-// Every recorder opens with the disabled gate as its first statement. Callers
-// pass primitives they already hold; any detail assembly that would allocate
-// stays behind an `isInteractionTraceEnabled()` guard at the call site.
+// Every recorder opens with the disabled gate. Detail assembly that would allocate stays
+// behind an `isInteractionTraceEnabled()` guard at the call site.
 
-/** A prose block rebuilt its inline DOM. `changed` names the render-key segments
- *  that differed (comma-joined; `renderKeySegmentDiff` computes it at the call site). */
+/** `changed` names the differing render-key segments, comma-joined. */
 export function traceRebuild(changed: string, force: boolean): void {
 	if (!enabled) return;
 	record('text-render', 'rebuild', { changed, force });
@@ -111,15 +90,14 @@ export function tracePendingCursorSet(source: string, offset: number | null): vo
 	record('pending-cursor', 'set', { source, offset: offset ?? -1, cleared: offset === null });
 }
 
-/** `applied` false = the block lost focus before the effect ran, so the caret
- *  restore was legally skipped (the documented focus-loss bail). */
+/** `applied` false = the block lost focus before the effect ran, so the caret restore was
+ *  legally skipped. */
 export function tracePendingCursorConsume(offset: number, applied: boolean): void {
 	if (!enabled) return;
 	record('pending-cursor', 'consume', { offset, applied });
 }
 
-/** `construct` (preview-inline's marker reveal) carries a `kind:start-end`
- *  descriptor; the widget/leaf tiers record the tier alone. */
+/** `construct` carries a `kind:start-end` descriptor; other tiers record the tier alone. */
 export function traceRevealOpen(tier: 'inline' | 'leaf' | 'construct', construct?: string): void {
 	if (!enabled) return;
 	record('reveal', 'open', construct === undefined ? { tier } : { tier, construct });
@@ -133,8 +111,7 @@ export function traceRevealFold(reason: RevealFoldReason, construct?: string): v
 	record('reveal', 'fold', construct === undefined ? { reason } : { reason, construct });
 }
 
-/** One record per rebuild bracket: how many pooled widgets were adopted, built
- *  fresh, and swept-destroyed. Counted inside the pool, never per widget. */
+/** One record per rebuild bracket, counted inside the pool rather than per widget. */
 export function tracePoolPass(adopt: number, build: number, destroyed: number): void {
 	if (!enabled) return;
 	record('widget-pool', 'pass', { adopt, build, destroyed });
