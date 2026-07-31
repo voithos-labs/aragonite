@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter } from './helpers';
 
 // A reveal click is a caret-placing gesture
-// (requirements/plugins/render-primary-reveal-selection.md). It reached the reveal
-// without the pointerdown reset every other caret-placing gesture runs, so a live
-// cross-block range stayed painted over the caret it had just landed elsewhere —
-// and the next Backspace deleted the range instead of a character.
+// (requirements/plugins/render-primary-reveal-selection.md). It reached the reveal without the
+// pointerdown reset every other caret-placing gesture runs, so a live cross-block range stayed
+// painted over the caret it had just landed elsewhere — and the next Backspace deleted the range
+// instead of a character.
 
 const DOC = 'lead para\n\n$$x^2$$\n\ntail para\n';
 

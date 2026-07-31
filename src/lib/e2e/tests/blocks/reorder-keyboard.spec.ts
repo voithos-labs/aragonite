@@ -1,12 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Reorder resolves the unit from the caret path and moves it among its siblings;
-// these cover the three reorderable parents (document, list, blockquote), the
-// focus-follow + single-undo guarantees, and that the moved item — not its inner
-// paragraph — is what travels. The CST is the source of truth: focus lands at
-// offset 0 of the moved block, so a type-after-move check expects the char
-// PREFIXED, not appended.
+// Reorder resolves the unit from the caret path and moves it among its siblings. Focus lands at
+// offset 0 of the moved block, so a type-after-move check expects the character PREFIXED, not
+// appended.
 test.describe('keyboard reorder', () => {
 	let editor: EditorPage;
 
@@ -47,9 +44,8 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceEquals('> a\n>\n> b\n');
 	});
 
-	// The reorder unit is any top-level block, not only prose: the atomic leaf
-	// kinds (fenced code, thematic break) resolve the chord through their own
-	// runCommand → reorder context wiring, not TextEditableBlock's.
+	// The reorder unit is any top-level block, not only prose: the atomic leaf kinds resolve the
+	// chord through their own runCommand → reorder context wiring, not TextEditableBlock's.
 	test('Alt+ArrowDown moves a fenced code block below its sibling; single undo restores', async () => {
 		await editor.loadContent('```\ncode\n```\n\ntail\n');
 		await editor.getBlock(0).click(); // caret inside the code block
@@ -66,10 +62,9 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
 
-	// Boundary clamp: a move with no sibling in that direction must change nothing
-	// AND push no undo entry — otherwise a boundary press would silently consume a
-	// Ctrl+Z. The type-then-boundary-then-undo sequence catches a phantom entry the
-	// unit-level clamp test can't (it bypasses the keymap-dispatch path).
+	// A move with no sibling in that direction must change nothing AND push no undo entry, or a
+	// boundary press silently consumes a Ctrl+Z; the unit-level clamp test bypasses the
+	// keymap-dispatch path.
 	test('Alt+Arrow at a boundary is a no-op and creates no undo entry', async () => {
 		await editor.loadContent('A\n\nB\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'A' }).click();

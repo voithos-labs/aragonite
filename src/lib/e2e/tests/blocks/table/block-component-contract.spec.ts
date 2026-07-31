@@ -36,7 +36,6 @@ test.describe('table block: BlockComponent cursor contract', () => {
 		expect(surface.exists).toBe(true);
 		// Null-shallow contract: 2D surfaces never report a shallow integer.
 		expect(surface.cursorOffset).toBeNull();
-		// Deep path locates the focused cell at row 1, col 1, with caret at end ("2".length = 1).
 		expect(surface.cursorPosition).not.toBeNull();
 		expect(surface.cursorPosition!.path).toEqual([1, 1]);
 		expect(surface.cursorPosition!.offset).toBe(1);
@@ -58,8 +57,8 @@ test.describe('table block: BlockComponent cursor contract', () => {
 	});
 
 	test('no cell focused: shallow and deep both return null', async ({ page }) => {
-		// Blur the table by clicking outside (the editor's body has no other blocks
-		// in this loader, so focus body itself which sits outside any cell).
+		// No other block exists in this loader, so blurring to <body> is the only way outside a
+		// cell.
 		await page.evaluate(() => {
 			(document.activeElement as HTMLElement | null)?.blur();
 		});

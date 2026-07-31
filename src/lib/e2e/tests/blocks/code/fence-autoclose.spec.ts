@@ -1,12 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Authoring an escape below an UNCLOSED fence mints the closing fence into the
-// code node's raw, as one commit. Without it the serialized document is an open
-// fence followed by the trailing blocks' bytes, which GFM lazy-continuation
-// absorbs back INTO the code block on reload — the live tree diverges from a
-// reparse of its own serialization. The escape gesture is Enter on the empty
-// trailing line (computeFenceExit's unclosed branch), the sole authoring escape.
+// Without a minted closer the serialization is an open fence that GFM lazy-continuation absorbs the
+// trailing blocks back into on reload — the live tree diverges from a reparse of its own bytes. The
+// sole authoring escape is Enter on the empty trailing line (computeFenceExit's unclosed branch).
 
 const parseConverged = (editor: EditorPage) =>
 	editor.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
@@ -30,10 +27,8 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		await editor.typeText('after');
 		await editor.bridge.waitForSourceContains('after');
 
-		// The closer is minted; the paragraph is a distinct block after it.
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n\nafter\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
-		// The live tree matches a reparse of its serialization — no absorption.
 		expect(await parseConverged(editor)).toBe(true);
 	});
 
@@ -50,15 +45,12 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		await editor.undo();
 		await editor.bridge.waitForBlockCount(1);
 
-		// The fence is open again and the appended paragraph is gone — one entry.
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		expect(await editor.bridge.getSource()).not.toContain('```\ncode\n```');
 	});
 
-	// The choke point is the container-scoped blockEdit, so a fence nested in a
-	// blockquote auto-closes within its own scope — the new paragraph stays inside
-	// the quote and the container's raw rebuilds cleanly (parse-convergence proves
-	// the reparse matches the live tree).
+	// The choke point is the container-scoped blockEdit: a fence nested in a quote must auto-close
+	// within its own scope, leaving the new paragraph inside the quote.
 	test('nested: escape below an unclosed fence in a blockquote closes it and converges', async () => {
 		await editor.loadContent('> ```\n> code\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');

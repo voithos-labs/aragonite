@@ -1,10 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Where Enter splices its newline inside a fenced code block: clamped out of
-// both fence lines (a splice inside the opener made sliceFencedCode render a
-// phantom fence; one inside the closer broke the fence outright), and applied to
-// the selection's body span when there is a selection. Requirements: enter-splice.md.
+// A splice inside the opener made sliceFencedCode render a phantom fence; one inside the closer
+// broke the fence outright. Requirements: enter-splice.md.
 
 test.describe('code block — Enter on the opener fence line', () => {
 	let editor: EditorPage;
@@ -25,7 +23,6 @@ test.describe('code block — Enter on the opener fence line', () => {
 		// Rendered text must match the raw — a phantom fence adds bytes the raw lacks.
 		expect(await editor.getBlockText(0)).toBe('```js\n\nconst x = 1;\n```');
 
-		// Caret stays with the content, now the second body line.
 		await editor.typeSlowly('y');
 		await editor.bridge.waitForSourceEquals('```js\n\nyconst x = 1;\n```\n');
 	});

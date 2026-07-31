@@ -3,10 +3,9 @@ import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 import { capturePageErrors } from '../../../page-probes';
 
-// Cells render row-major, header first: a 3-body-row 2-col table exposes cells
-// 0,1 (header), 2,3 (body row 1), 4,5 (body row 2), 6,7 (body row 3). Alt+↑/↓
-// reorders BODY rows only; the header is positionally fixed. Focus follows the
-// moved row and stays in its column — a marker typed after the move lands there.
+// Cells render row-major, header first: a 3-body-row 2-col table exposes cells 0,1 (header), 2,3
+// (body row 1), 4,5 (body row 2), 6,7 (body row 3). Alt+↑/↓ reorders BODY rows only — the header is
+// positionally fixed — and focus follows the moved row, staying in its column.
 const TABLE_3BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
@@ -53,9 +52,9 @@ test.describe('table block: keyboard row reorder', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	// Boundary clamp: a move with no body row in that direction must change
-	// nothing AND push no undo entry — otherwise the boundary press silently
-	// consumes a Ctrl+Z. Type → boundary-press → Ctrl+Z must undo the TYPING.
+	// Boundary clamp: a move with no body row in that direction must change nothing AND push no
+	// undo entry, or the boundary press silently consumes a Ctrl+Z. Type → boundary-press → Ctrl+Z
+	// must undo the TYPING.
 	test('Alt+ArrowUp on the first body row is a no-op and creates no undo entry', async ({
 		page
 	}) => {
@@ -115,19 +114,16 @@ test.describe('table block: keyboard row reorder', () => {
 		);
 	});
 
-	// Real-browser undo-restoration fidelity on a non-canonical table: reorder's
-	// rebuildTableRaw canonicalizes the live view, so undo must restore the exact
-	// original tight bytes. Covers the gap between the canonical parity e2e and the
-	// proxy-blind unit test. (Note: a single reorder→undo does NOT exercise the
-	// `ensureUnsharedChildren` line in moveRow — that snapshot-aliasing needs a prior
-	// shared snapshot; the line is correct by design, mirroring deleteRow's unshare.)
+	// Real-browser undo fidelity on a non-canonical table: reorder's rebuildTableRaw canonicalizes
+	// the live view, so undo must restore the exact original tight bytes. A single reorder→undo
+	// does NOT exercise moveRow's `ensureUnsharedChildren` — that snapshot aliasing needs a prior
+	// shared snapshot.
 	test('reorder→undo restores a non-canonical table source byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|\n|---|---|\n|1|2|\n|3|4|\n';
 		await editor.loadContent(NONCANON);
-		// Compare against the loaded source, not the literal — getSource() normalizes
-		// trailing whitespace. toContain proves load did NOT canonicalize the cells
-		// (canonical is `| 1 | 2 |`, which does not contain `|1|2|`); without that the
-		// test couldn't discriminate the unshare line.
+		// Compare against the loaded source, not the literal — getSource() normalizes trailing
+		// whitespace. toContain proves load did NOT canonicalize the cells (canonical `| 1 | 2 |`
+		// does not contain `|1|2|`).
 		const original = await editor.bridge.getSource();
 		expect(original).toContain('|1|2|');
 

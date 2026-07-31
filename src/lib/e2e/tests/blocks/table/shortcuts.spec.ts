@@ -7,13 +7,12 @@ const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 const TABLE_3ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
 
-// Every column carries a distinct alignment, so a delete-column that drops the
-// wrong delimiter cell shows up in the source rather than hiding behind `---`.
+// Every column carries a distinct alignment, so a delete-column that drops the wrong delimiter cell
+// shows up in the source rather than hiding behind `---`.
 //
-// The delete-column tests below settle on whole documents, not substrings,
-// because '| A | B | C | D |'.includes('| B | C | D |') — a substring settle for
-// the post-delete shape is already true before the delete, returns on its first
-// poll, and lets a silently no-op'd column op satisfy the entire test.
+// The delete-column tests settle on whole documents, not substrings: '| A | B | C | D |' contains
+// '| B | C | D |', so a substring settle for the post-delete shape is already true before the
+// delete and lets a silently no-op'd column op pass.
 const TABLE_ALIGNED = '| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
 const TABLE_ALIGNED_LESS_A = '| B | C | D |\n| :---: | ---: | --- |\n| 2 | 3 | 4 |\n';
 
@@ -148,9 +147,9 @@ test.describe('table block: keyboard vocabulary', () => {
 	});
 
 	test('Shift+Enter inside a cell inserts a literal <br> at the cursor', async ({ page }) => {
-		// Inline raw-HTML parsing makes <br> a recognized rawHtml node, so a cell can
-		// carry it without confusing it with markup. This pins the byte-level
-		// insertion; the rendered widget is cell-line-break.spec.ts.
+		// Inline raw-HTML parsing makes <br> a recognized rawHtml node, so a cell can carry it
+		// without confusing it with markup. This pins the byte-level insertion; the rendered widget
+		// is cell-line-break.spec.ts.
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
@@ -186,9 +185,9 @@ test.describe('table block: keyboard vocabulary', () => {
 	test('Column ops still work after a delete-column + undo (state-registry stays current)', async ({
 		page
 	}) => {
-		// Undo deep-clones the tree, swapping every container node's identity.
-		// The state-registry (keyed by node identity) must follow, otherwise
-		// commitMultiScope's per-row scope lookup throws and column ops silently no-op.
+		// Undo deep-clones the tree, swapping every container node's identity; the state-registry
+		// (keyed by node identity) must follow, or commitMultiScope's per-row scope lookup throws
+		// and column ops silently no-op.
 		await editor.loadContent(TABLE_ALIGNED);
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('Alt+Shift+Backspace');
@@ -207,12 +206,10 @@ test.describe('table block: keyboard vocabulary', () => {
 	});
 
 	test('Delete-undo-delete-undo cycles cleanly without state desync', async ({ page }) => {
-		// childIds live on container nodes; cloneNode clones them with the doc, so
-		// every undo restores the per-row id arrays alongside `children`. Without
-		// that, the second undo would leave row.childIds shorter than row.children
-		// and Svelte's keyed each would log `each_key_duplicate` for `undefined` keys.
-		// Also catches state_unsafe_mutation regressions: the focusout handler in
-		// TableBlock writes to internalStickyColumn / focusedCell during reconcile.
+		// childIds live on container nodes and cloneNode clones them with the doc, so every undo
+		// restores the per-row id arrays alongside `children`; without that the second undo leaves
+		// row.childIds shorter than row.children and Svelte's keyed each logs `each_key_duplicate`.
+		// Also catches state_unsafe_mutation from TableBlock's focusout handler.
 		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_ALIGNED);
 
@@ -245,11 +242,9 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		await editor.goto();
 	});
 
-	// Regression: deleteRow read a stale pre-commit row count and clamped the
-	// post-delete focus against `oldCount - 1`. Deleting the LAST body row then
-	// targeted a row index that no longer exists, so focus landed on nothing.
-	// Reading the post-commit count via `deps.node` (and clamping to it) keeps
-	// focus on a surviving cell.
+	// deleteRow read a stale pre-commit row count and clamped focus against `oldCount - 1`, so
+	// deleting the LAST body row targeted a row index that no longer exists; reading the
+	// post-commit count via `deps.node` keeps focus on a surviving cell.
 	test('deleting the last body row lands focus on a surviving cell', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3ROW);
@@ -269,9 +264,8 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		expect(pageErrors).toEqual([]);
 	});
 
-	// Symmetric regression for deleteColumn: it read a stale pre-commit column
-	// count and clamped focus against the old width, targeting the deleted last
-	// column's index.
+	// Symmetric for deleteColumn: it read a stale pre-commit column count and clamped focus against
+	// the old width, targeting the deleted last column's index.
 	test('deleting the last column lands focus on a surviving cell', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		// 2-column table so delete is not a no-op (no-op fires at 1 column).

@@ -105,9 +105,8 @@ test.describe('table block: caret/selection recovery on undo', () => {
 	});
 
 	test('undo after column delete via cross-block coverage restores selection', async ({ page }) => {
-		// Drag down column 0 (header "A" → body cell "4") to make a column-covering
-		// selection — the 3-stage Ctrl+A escalates cell → table → document without ever
-		// isolating a column.
+		// Drag down column 0 (header "A" → body cell "4") to make a column-covering selection — the
+		// 3-stage Ctrl+A escalates cell → table → document without ever isolating a column.
 		const tableInfo = await page.evaluate(() => {
 			const tableEl = document.querySelector('[role="table"]') as HTMLElement;
 			tableEl.scrollIntoView({ block: 'center' });
@@ -128,7 +127,6 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await editor.waitForCrossBlock(true);
 		await page.mouse.up();
 
-		// Cross-block intra-table selection should be active.
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
 		const before = await editor.bridge.getSource();
@@ -140,7 +138,6 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
 
-		// After undo, the cross-block intra-table selection should be active again.
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();

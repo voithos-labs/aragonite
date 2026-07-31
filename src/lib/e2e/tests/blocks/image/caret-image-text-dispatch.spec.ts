@@ -7,8 +7,8 @@ async function setupStaleInlineParagraph(editor: EditorPage, page: Page): Promis
 	await page.waitForFunction(
 		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
 	);
-	// Click-based placement; programmatic element-level placement bypasses
-	// the snap state the typing intercept needs.
+	// Click-based placement: a programmatic element-level caret bypasses the snap state the
+	// intercept needs.
 	const widget = page.locator('[data-image-widget]').first();
 	const widgetBox = await widget.boundingBox();
 	if (!widgetBox) throw new Error('widget box missing');

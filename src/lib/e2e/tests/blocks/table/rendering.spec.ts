@@ -70,10 +70,8 @@ test.describe('table block: rendering', () => {
 	});
 
 	test('hand-padded source renders cells with whitespace stripped', async ({ page }) => {
-		// Cosmetic cell padding (the user's spaces between pipes) is non-semantic
-		// content — it would interact awkwardly with text-align: center, distort
-		// cursor placement, and pollute clipboard payloads. Cell display must
-		// equal the trimmed content regardless of source padding.
+		// Cosmetic cell padding is non-semantic content: it would interact awkwardly with
+		// text-align: center, distort cursor placement, and pollute clipboard payloads.
 		await editor.loadContent(
 			'| Left     | Center   |    Right |\n| :------- | :------: | -------: |\n| Column A | Column B | Column C |\n| Row two  | data     |     $100 |\n'
 		);

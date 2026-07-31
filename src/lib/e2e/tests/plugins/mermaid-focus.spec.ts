@@ -2,13 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, waitForDoc, activeBlockPath, roundTripStable } from './helpers';
 
 /**
- * Mermaid whole-block focus + two-step delete (requirements/plugins/mermaid-focus.md).
- * The opaque childless diagram opts into `blockFocus: 'whole-block'`, so arrows stop on
- * it, a caret-adjacent Backspace/Delete focuses before a second press deletes, Enter
- * inserts a paragraph below, and Alt+arrows reorder — all through real keyboard/mouse
- * gestures. Fixture: `Above text`, one valid diagram, `tail text`, loaded per test so the
- * block has an editable neighbour on each side. The SVG wait is generous — the engine
- * loads through a dynamic import the dev server transforms on first hit.
+ * Mermaid whole-block focus + two-step delete (requirements/plugins/mermaid-focus.md). The opaque
+ * childless diagram opts into `blockFocus: 'whole-block'`, so arrows stop on it, a caret-adjacent
+ * Backspace/Delete focuses before a second press deletes, Enter inserts a paragraph below, and
+ * Alt+arrows reorder — all through real keyboard/mouse gestures. The SVG wait is generous: the
+ * engine loads through a dynamic import the dev server transforms on first hit.
  */
 
 const DOC = 'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
@@ -166,11 +164,11 @@ test.describe('mermaid whole-block focus', () => {
 		expect([doc.texts[0], doc.texts[2]]).toEqual(['Above text', 'tail text']);
 	});
 
-	// Container-factory pin for the shared whole-block copy tail: the gesture lands
-	// once in handleWholeBlockKeys, so mermaid inherits Mod+C/Mod+X like the built-in
-	// thematic break (pinned in clipboard/whole-block-atomic-copy).
-	// navigator.clipboard.writeText normalizes line endings to the OS convention
-	// (CRLF on Windows); the block markdown is authored LF, so compare LF-normalized.
+	// Container-factory pin for the shared whole-block copy tail: the gesture lands once in
+	// handleWholeBlockKeys, so mermaid inherits Mod+C/Mod+X like the built-in thematic break
+	// (pinned in clipboard/whole-block-atomic-copy). navigator.clipboard.writeText normalizes line
+	// endings to the OS convention (CRLF on Windows) and the block markdown is authored LF, so
+	// compare LF-normalized.
 	const readClipboardLF = () =>
 		editor.page
 			.evaluate(() => navigator.clipboard.readText())

@@ -4,13 +4,11 @@ import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Minted block commands on the editable-leaf tier
- * (requirements/plugins/editable-leaf-command.md): the `%%` memo harness kind binds
- * two commands on its keymap — `memo.tag` (Mod+Shift+K, commits metadata) and
- * `memo.boom` (Mod+Shift+J, throws). Proves a minted `(kind, id)` command resolves
- * on the leaf path through the real `createEditableLeaf` factory, and that a handler
- * throw is contained + surfaced as an `origin: 'command'` error rather than escaping.
- * Seed: `Before` / `%% memo text` / `After`.
+ * Minted block commands on the editable-leaf tier (requirements/plugins/editable-leaf-command.md):
+ * the `%%` memo harness kind binds two commands on its keymap — `memo.tag` (Mod+Shift+K, commits
+ * metadata) and `memo.boom` (Mod+Shift+J, throws). Proves a minted `(kind, id)` command resolves on
+ * the leaf path through the real `createEditableLeaf` factory, and that a handler throw is
+ * contained and surfaced as an `origin: 'command'` error rather than escaping.
  */
 
 class MemoPage extends PluginsPage {

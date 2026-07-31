@@ -1,16 +1,14 @@
 import { test, expect } from '../../fixtures';
 
-// The `/` showcase mounts <Editor> with all eight bundled plugins installed the
-// consumer way (subpath imports, injected latex/mermaid engines) and exposes no
-// `window.__test` bridge — so this smoke asserts through rendered DOM only. The
-// shared fixture also fails on any `[invariant:…]` console fire, so a green run
-// additionally proves the showcase document loads clean under every plugin.
-// Editing behavior belongs to the machine-facing batteries; this is presence only.
+// The `/` showcase mounts <Editor> with all eight bundled plugins installed the consumer way
+// (subpath imports, injected latex/mermaid engines) and exposes no `window.__test` bridge, so this
+// smoke asserts through rendered DOM only. The shared fixture also fails on any `[invariant:…]`
+// console fire, so a green run additionally proves the showcase document loads clean under every
+// plugin. Presence only — editing behavior belongs to the machine-facing batteries.
 
 test.describe('/ showcase route', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
-		// The document parsed and the block list rendered.
 		await expect(page.locator('.block-host').first()).toBeVisible();
 	});
 
@@ -42,8 +40,8 @@ test.describe('/ showcase route', () => {
 	test('emoji shortcodes render as glyph widgets in prose, a heading, and a table cell', async ({
 		page
 	}) => {
-		// Prose, plus the two ambient contexts the ledgered coverage note flagged: the
-		// `:` rung runs the same in a heading and a table cell as in a paragraph.
+		// Prose plus the two ambient contexts: the `:` rung runs the same in a heading and a table
+		// cell as in a paragraph.
 		await expect.poll(() => page.locator('.md-emoji-widget').count()).toBeGreaterThan(1);
 		await expect(
 			page.locator('[data-block-kind="heading"] .md-emoji-widget').first()

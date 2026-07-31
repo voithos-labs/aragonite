@@ -1,16 +1,12 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Forward-Delete at a fenced code block's closer boundary (exitNext): a focus
-// move to the next block when one exists, a true no-op at the document end.
-// Regression for F11 — the old guard compared a container-local index against
-// the ROOT child count, so a nested code block either appended a spurious
-// paragraph (false guard) or no-op'd past a real next sibling (true guard).
+// The old guard compared a container-local index against the ROOT child count, so a nested code
+// block either appended a spurious paragraph (false guard) or no-op'd past a real next sibling
+// (true guard).
 
-// Raw offset of the closer boundary for the body "code\n": just before the
-// closer fence's leading newline (== bodyEnd). Shared by every code block here
-// because the offset is local to the block's own contenteditable; the
-// blockquote's `> ` prefix renders as an ambient marker, not body text.
+// Raw offset of the closer boundary for the body "code\n" (== bodyEnd). Shared by every code block
+// here: the offset is local to the block's own contenteditable, and a quote's `> ` is ambient.
 const CLOSER_BOUNDARY = 8;
 
 async function pressDeleteAtCloser(editor: EditorPage, path: number[]) {
@@ -40,9 +36,8 @@ test.describe('code block — forward-Delete at closer exit', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(blockCountBefore);
 	});
 
-	// The root single-block no-op (`'```\ncode\n```\n'`, Delete at the closer) is
-	// already covered by editing-block-exit.spec.ts. Here only the cross-boundary
-	// arrangements the old root-count guard mishandled need new coverage.
+	// The root single-block no-op is already covered by editing-block-exit.spec.ts; only the
+	// cross-boundary arrangements the old root-count guard mishandled need coverage here.
 
 	test('nested code block, paragraph follows at root: focus delegates to the root paragraph', async () => {
 		await editor.loadContent('> ```\n> code\n> ```\n\nafter\n');

@@ -1,10 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-// Shared probe surface for every spec driving the `/test/plugins` harness. Reads go
-// through `window.__test` by path — the chained block locator is too slow at scale.
-// `gotoPlugins(seed?)` loads the harness on the named seed; the read helpers snapshot
-// either one container node or the document root.
+// Shared probe surface for every spec driving the `/test/plugins` harness. Reads go through
+// `window.__test` by path — the chained block locator is too slow at scale.
 
 export class PluginsPage extends EditorPage {
 	async gotoPlugins(seed?: string): Promise<void> {
@@ -33,11 +31,10 @@ export async function capturedErrors(page: Page): Promise<string[]> {
 	return page.evaluate(() => (window as any).__test.getCapturedErrors());
 }
 
-// Click a widget where a user aims: the VISIBLE math. locator.click()'s default
-// point is the first content quad's center, and with katex.css loaded the clipped
-// 1px `.katex-mathml` half degenerates that point to a corner outside the island —
-// silently missing the reveal hit-test. Target `.katex-html` (the painted glyphs)
-// when present; fall back to the island's border-box center.
+// Click a widget where a user aims: the VISIBLE math. locator.click()'s default point is the first
+// content quad's center, and with katex.css loaded the clipped 1px `.katex-mathml` half degenerates
+// that point to a corner outside the island, silently missing the reveal hit-test. Target
+// `.katex-html` (the painted glyphs) when present; fall back to the island's border-box center.
 export async function clickWidgetCenter(widget: Locator): Promise<void> {
 	const visible = widget.locator('.katex-html');
 	const target = (await visible.count()) > 0 ? visible.first() : widget;
@@ -46,9 +43,9 @@ export async function clickWidgetCenter(widget: Locator): Promise<void> {
 	await target.click({ position: { x: box.width / 2, y: box.height / 2 } });
 }
 
-// Reveal a render-primary widget by clicking it and settling on the fold-out: the
-// rendered widget vanishes (count 0) and its source becomes editable text. Block
-// math reveals a distinct `.math-block-source` element, so it settles its own way.
+// Reveal a render-primary widget by clicking it and settling on the fold-out: the rendered widget
+// vanishes (count 0) and its source becomes editable text. Block math reveals a distinct
+// `.math-block-source` element, so it settles its own way.
 export async function revealWidget(widget: Locator): Promise<void> {
 	await clickWidgetCenter(widget);
 	await expect(widget).toHaveCount(0);
@@ -63,9 +60,9 @@ export interface ContainerState {
 	childKinds: string[];
 	// Leaf raws with trailing newlines stripped, so they read as the visible text.
 	childTexts: string[];
-	// The container node's OWN raw — the value its rebuildRaw must regenerate from
-	// children after every edit. childTexts and roundTripStable both stay green on a
-	// stale container raw; only this asserts the rebuild ran.
+	// The container node's OWN raw, which its rebuildRaw must regenerate from children after every
+	// edit. childTexts and roundTripStable both stay green on a stale container raw; only this
+	// asserts the rebuild ran.
 	raw: string;
 }
 

@@ -9,13 +9,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * Fork-A spike gate: the `:::note` callout reserves child 0 as an editable
- * `note-title` chrome leaf (see src/routes/test/plugins/callout).
- *
- * Gate 4 — the rangeDelete chrome wall. Nothing merges across the note's wall:
- *   outside endpoints truncate in place, covered chrome clears (never
- *   node-deletes), and the container dies only when the range consumes its
- *   whole subtree from outside. Body-only ranges stay on the generic path.
+ * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * src/routes/test/plugins/callout). Gate 4 — the rangeDelete chrome wall: nothing merges across the
+ * note's wall. Outside endpoints truncate in place, covered chrome clears (never node-deletes), and
+ * the container dies only when the range consumes its whole subtree from outside. Body-only ranges
+ * stay on the generic path.
  */
 test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () => {
 	let editor: PluginsPage;
@@ -41,9 +39,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains(':::note\n');
 
-		// The wall rule: "Above" keeps its head as its own paragraph, the fully
-		// covered title survives as an EMPTY note-title (cleared, not deleted),
-		// and the body never hoists into the opener line.
+		// The wall rule: "Above" keeps its head as its own paragraph, the fully covered title
+		// survives as an EMPTY note-title (cleared, not deleted), and the body never hoists into
+		// the opener line.
 		const note = await readNote(page, 1);
 		expect(note.rootCount).toBe(2);
 		expect(note.childCount).toBe(2);
@@ -72,10 +70,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains('Ab\n');
 
-		// Sticky column lands the focus at title offset 0, so the range covers no
-		// title text: the wall truncates "Above" in place and leaves the chrome
-		// intact — where the pre-contract path deleted the title node and hoisted
-		// "Body" into the opener line.
+		// Sticky column lands the focus at title offset 0, so the range covers no title text: the
+		// wall truncates "Above" in place and leaves the chrome intact — where the pre-contract
+		// path deleted the title node and hoisted "Body" into the opener line.
 		const note = await readNote(page, 1);
 		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
 		expect(note.childTexts).toEqual(['Title', 'Body']);
@@ -115,11 +112,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// The cleared chrome cleared through an unshared copy (G1.9), so undo restores
-		// the title at the CHILD level — not just the container's authoritative source
-		// bytes, which `getSource` reads and would show even with a corrupted title node.
-		// Poll the child text (not the source bytes) so the assert waits for the CST to
-		// re-materialize, not just the serialized bytes to match.
+		// The cleared chrome cleared through an unshared copy (G1.9), so undo restores the title at
+		// the CHILD level — not just the container's authoritative source bytes, which `getSource`
+		// reads and would show even with a corrupted title node. Poll the child text so the assert
+		// waits for the CST to re-materialize, not just the serialized bytes to match.
 		await editor.undo();
 		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
@@ -214,11 +210,11 @@ test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () =
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		// Drag from the title start through the body end — an inside-only range that
-		// covers the entire subtree WITHOUT crossing the wall from outside. The wall
-		// keeps the container alive: the title clears in place and the fully-covered
-		// body truncates to an empty paragraph, so the reserved slot holds chrome (not
-		// a bare paragraph) and G1.14 stays satisfied — the delete-all end state.
+		// Drag from the title start through the body end — an inside-only range that covers the
+		// entire subtree WITHOUT crossing the wall from outside. The wall keeps the container
+		// alive: the title clears in place and the fully-covered body truncates to an empty
+		// paragraph, so the reserved slot holds chrome (not a bare paragraph) and G1.14 stays
+		// satisfied.
 		await editor.dragFromTo([1, 0], 0, [1, 1], 4);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);

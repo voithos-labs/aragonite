@@ -1,10 +1,9 @@
 import { test, expect } from '../../fixtures';
 
-// Two editors share one process-global memo registration; the left disables the
-// memo kind through its registry view. Both parse the memo syntax to a memo CST
-// node (global grammar at load), but only the enabled editor resolves a component
-// for it — the disabled one degrades to the raw-editable fallback. Concern #1's
-// instance-resolution seam, proven end-to-end.
+// Two editors share one process-global memo registration; the left disables the memo kind through
+// its registry view. Both parse the memo syntax to a memo CST node (global grammar at load), but
+// only the enabled editor resolves a component for it — the disabled one degrades to the
+// raw-editable fallback.
 test.describe('per-instance registry enablement', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/test/plugins/enablement');

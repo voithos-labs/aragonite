@@ -2,14 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Horizontal caret entry against an inline-math widget opens the source reveal
- * (Obsidian model) — the caret never parks in the invisible widget-selected state
- * math used to fall into. Reveal-vs-select dispatch is unit-pinned
- * (widget-entry-dispatch.test.ts); this drives the real keyboard gestures and
- * verifies caret DIRECTION by typing a marker char, plus the zero-byte-change and
- * fold-on-exit contracts the reactive path owns. Image contrast lives in
- * blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts — a reveal-capable
- * kind reveals where an image selects.
+ * Horizontal caret entry against an inline-math widget opens the source reveal (Obsidian model) —
+ * the caret never parks in the invisible widget-selected state math used to fall into.
+ * Reveal-vs-select dispatch is unit-pinned (widget-entry-dispatch.test.ts); this drives the real
+ * keyboard gestures and verifies caret DIRECTION by typing a marker char. Image contrast:
+ * blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts — an image selects here.
  */
 
 class MathEntryPage extends PluginsPage {

@@ -1,9 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, waitForContainer, roundTripStable } from './helpers';
 
-// The plugins harness seeds a single `:::note` callout. Read the callout by CST
-// path through the bridge: document root child [0] is the callout; its children
-// are the paragraphs the edits must move — never the document root.
+// Read the callout by CST path through the bridge: document root child [0] is the callout, and its
+// children are the paragraphs the edits must move — never the document root.
 
 test.describe('plugin container: :::note callout editability', () => {
 	let editor: PluginsPage;
@@ -16,8 +15,8 @@ test.describe('plugin container: :::note callout editability', () => {
 	test('type, split, merge, and undo mutate the callout children, never the root', async ({
 		page
 	}) => {
-		// Seed parsed as a real container, not a fallback paragraph. Child 0 is the
-		// reserved editable title (Fork-A spike); the body paragraph follows it.
+		// Seed parsed as a real container, not a fallback paragraph. Child 0 is the reserved
+		// editable title; the body paragraph follows it.
 		let state = await readContainer(page);
 		expect(state.kind).toBe('note');
 		expect(state.rootCount).toBe(1);
@@ -41,16 +40,14 @@ test.describe('plugin container: :::note callout editability', () => {
 		expect(state.childTexts[1]).toBe('First one');
 		expect(await roundTripStable(page)).toBe(true);
 
-		// Type into the new body child.
 		await editor.typeText('two');
 		const afterSplitTyping = await waitForContainer(page, 0, (s) => s.childTexts[2] === 'two');
 		expect(afterSplitTyping.rootCount).toBe(1);
 		expect(afterSplitTyping.childCount).toBe(3);
 		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
-		// The callout's own raw was rebuilt from ALL children — the title reaches the
-		// opener line and 'two' the body only if rebuildCalloutRaw ran (a stale raw
-		// would still read ':::note Title\nFirst\n:::'). The blank line between the
-		// body paragraphs is the split's separator, re-emitted by that same rebuild.
+		// The callout's own raw was rebuilt from ALL children — a stale raw would still read the
+		// seed opener line alone. The blank line between the body paragraphs is the split's
+		// separator, re-emitted by that same rebuild.
 		expect(afterSplitTyping.raw).toBe(':::note Title\nFirst one\n\ntwo\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst one\n\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);

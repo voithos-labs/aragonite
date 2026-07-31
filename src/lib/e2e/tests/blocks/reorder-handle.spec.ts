@@ -2,12 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 
-// The handle is a mouse-only affordance: rendered for every reorder unit
-// (top-level block, list item, blockquote child), revealed by a pure-CSS host
-// hover rule, and kept out of the SR/tab flow (aria-hidden, not a button).
-// Reveal is opacity-only and the handle is always in the DOM, so toBeVisible()
-// would pass even with a broken hover rule — assert the opacity transition
-// directly. Keyboard reorder is the accessible path (covered separately).
+// The handle is a mouse-only affordance: one per reorder unit, revealed by a pure-CSS host hover
+// rule and kept out of the SR/tab flow. Reveal is opacity-only and the handle is always in the DOM,
+// so toBeVisible() would pass even with a broken hover rule — assert the opacity directly.
 test.describe('reorder hover handle', () => {
 	let editor: EditorPage;
 
@@ -27,11 +24,9 @@ test.describe('reorder hover handle', () => {
 		await expect(handle).toHaveCSS('opacity', '1');
 	});
 
-	// Reachability: the prior tests only hover the block CENTER, so they pass even
-	// when the handle is unreachable. A real user moves the pointer from the block
-	// onto the handle — crossing the margin between them. If that margin isn't part
-	// of the hover region, the handle hides mid-move and, being pointer-events:none
-	// once hidden, can never re-catch the pointer (the reported deadlock).
+	// Reachability: the earlier tests hover the block CENTER and pass even when the handle is
+	// unreachable. If the margin between block and handle is not in the hover region, the handle
+	// hides mid-move and, being pointer-events:none once hidden, can never re-catch the pointer.
 	test('the revealed handle stays reachable as the pointer moves onto it', async ({ page }) => {
 		await editor.loadContent('plain paragraph here\n\nsecond block\n');
 		const top = page.locator('.block-host', { hasText: 'plain paragraph' }).last();
@@ -57,9 +52,8 @@ test.describe('reorder hover handle', () => {
 		expect(hitsHandle, 'pointer over the handle must resolve TO the handle (hittable)').toBe(true);
 	});
 
-	// Clipping: on an unindented top-level block the only left margin is the editor's
-	// own padding; the handle must fit inside it, not poke behind the border (which
-	// overflow-x:auto clips).
+	// On an unindented top-level block the only left margin is the editor's own padding, so the
+	// handle must fit inside it rather than poke behind the border that overflow-x:auto clips.
 	test('an unindented top-level handle is not clipped behind the editor border', async ({
 		page
 	}) => {
@@ -80,11 +74,9 @@ test.describe('reorder hover handle', () => {
 		);
 	});
 
-	// Tall blocks: the handle hit area must span the block's full height, not just a
-	// dots-tall sliver at the top — otherwise approaching it at mid-height (the
-	// natural move for a tall code block) leaves the block, hides the handle, and
-	// strands it (pointer-events:none). Mid-height is the reachability axis the
-	// earlier test (which moves to the handle's own center) doesn't isolate.
+	// The handle hit area must span the block's full height: approaching a tall block at mid-height
+	// otherwise leaves the block, hides the handle, and strands it — the axis the earlier test does
+	// not isolate.
 	test('a tall block handle is reachable when approached at mid-height', async ({ page }) => {
 		await editor.loadContent('```js\nline one\nline two\nline three\nline four\n```\n\ntail\n');
 		const code = page.locator('.block-host[data-block-kind="fencedCode"]').first();
@@ -108,7 +100,6 @@ test.describe('reorder hover handle', () => {
 		expect(hits, 'handle must be hittable in the gutter at mid-height').toBe(true);
 	});
 
-	// Alignment: the grip should sit on the first line of the block, not float above it.
 	test('the handle grip aligns with the first line of a paragraph', async ({ page }) => {
 		await editor.loadContent('A single line paragraph here.\n\ntail\n');
 		const para = page.locator('.block-host[data-block-kind="paragraph"]').first();

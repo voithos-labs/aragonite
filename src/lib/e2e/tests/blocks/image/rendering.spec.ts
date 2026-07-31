@@ -53,29 +53,23 @@ test.describe('image rendering', () => {
 		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
 	});
 
-	// A response with no intrinsic size resolves as `load`, not `error` (measured: a
-	// zero-dimension SVG loads with naturalWidth 0, while a dead URL errors in ~60ms).
-	// Pre-fix only the error arm marked the widget broken, so such an image stayed 0×0
-	// with no placeholder until an unrelated rebuild ran the build-time probe — the
-	// placeholder arriving one render behind the failure. No edit, no mode flip: the
-	// class must land off the load alone.
+	// A response with no intrinsic size resolves as `load`, not `error` (a zero-dimension SVG loads
+	// with naturalWidth 0). Only the error arm marked the widget broken, so such an image stayed
+	// 0×0 with no placeholder until an unrelated rebuild ran the probe — the class must land off
+	// the load alone.
 	test('an image that loads with no intrinsic size gets the placeholder with no other edit', async ({
 		page
 	}) => {
 		await editor.loadContent('![blank](/test-fixtures/unsized.svg)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
-		// The placeholder is what makes the failure visible — a bare 0×0 widget is the
-		// symptom, so assert the box grew, not just the class.
+		// A bare 0×0 widget is the symptom, so assert the box grew, not just the class.
 		const box = await widget.boundingBox();
 		expect(box?.height ?? 0).toBeGreaterThan(0);
 	});
 
-	// Pre-fix the inline-DOM rebuild on every keystroke produced a fresh
-	// <img> whose async `error` event re-applied `md-image-broken` only after
-	// a few ms; the new widget rendered briefly without the dashed-error
-	// min-width / min-height / border — visible flicker per keystroke in a
-	// paragraph containing a known-broken image.
+	// The inline-DOM rebuild on every keystroke produced a fresh <img> whose async `error`
+	// re-applied `md-image-broken` a few ms late — one flicker of unstyled widget per keystroke.
 	test('keystroke-rebuilt widget keeps md-image-broken without an async re-add', async ({
 		page
 	}) => {
@@ -83,7 +77,6 @@ test.describe('image rendering', () => {
 		await page.waitForFunction(
 			() => !!document.querySelector('[data-image-widget].md-image-broken')
 		);
-		// Observe class state on every newly-added widget element after typing.
 		const events = await page.evaluate(() => {
 			const para = document.querySelector('[data-image-widget]')!.parentElement!;
 			const seen: { tag: string; classes: string }[] = [];
@@ -120,16 +113,14 @@ test.describe('image rendering', () => {
 		});
 		const rebuilt = seen.filter((e) => e.tag === 'rebuilt');
 		expect(rebuilt.length).toBeGreaterThan(0);
-		// Every rebuilt widget must have md-image-broken at insertion time.
 		for (const e of rebuilt) {
 			expect(e.classes).toContain('md-image-broken');
 		}
 	});
 
-	// Pre-fix `.md-image-broken` overrode `.md-image-widget`'s display:block
-	// with display:inline-block, breaking the always-block-level rule:
-	// trailing text after a broken image flowed on the same baseline instead
-	// of wrapping below.
+	// `.md-image-broken` overrode `.md-image-widget`'s display:block with inline-block, breaking
+	// the always-block-level rule: trailing text flowed on the same baseline instead of wrapping
+	// below.
 	test('broken image preserves block-level layout (trailing text wraps below)', async ({
 		page
 	}) => {

@@ -1,10 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Keyboard behavior inside a code block that diverges from text-block parity:
-// bold/italic shortcuts are no-ops, horizontal-arrow focus exit, sticky-column
-// preservation across the code block, and Shift+Enter literal-newline (no br).
-
 test.describe('code block keyboard — beyond parity', () => {
 	let editor: EditorPage;
 
@@ -18,8 +14,8 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.getBlock(0).click();
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Control+b');
-		// Type a marker afterward to flush any async edit Ctrl+B might trigger;
-		// a real bold action would wrap with **markers** and the source diff would surface it.
+		// The marker flushes any async edit Ctrl+B might trigger, so the no-op assertion can't pass
+		// vacuously.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');

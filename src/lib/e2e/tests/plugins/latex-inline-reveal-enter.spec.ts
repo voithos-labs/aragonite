@@ -3,15 +3,12 @@ import { capturedErrors } from './helpers';
 import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
- * Enter's block meaning inside a revealed inline source. The reveal used to claim
- * the key as a commit gesture, which cost the user the press twice over: at a
- * source edge it moved the caret past the widget instead of splitting, and on a
- * source already broken into plain text it did nothing visible, so the split needed
- * a second press. Enter now commits the edit AND splits, through the fold seam
- * (`latex-inline-reveal-commands.spec.ts`); Escape stays the reveal's only key.
- *
- * Each case asserts the split structurally (block count + bytes) and the caret by
- * typing, because `getSource()` is correct wherever focus landed.
+ * Enter's block meaning inside a revealed inline source. The reveal used to claim the key as a
+ * commit gesture, which cost the user the press twice over: at a source edge it moved the caret
+ * past the widget instead of splitting, and on a source already broken into plain text it did
+ * nothing visible, so the split needed a second press. Enter now commits the edit AND splits,
+ * through the fold seam (`latex-inline-reveal-commands.spec.ts`); Escape stays the reveal's only
+ * key. Each case asserts the split structurally (block count + bytes) and the caret by typing.
  */
 
 test.describe('Enter splits a block whose inline source is revealed', () => {
@@ -58,10 +55,9 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 		await page.keyboard.type('q');
 		await expect(editor.getBlock(0)).toHaveText('$x^q2$ tail');
 
-		// The split lands where the caret is, and the ephemeral edit reaches the CST
-		// rather than being discarded by the structural op. Two blank-line-separated
-		// paragraphs is the editor's ordinary mid-paragraph split shape (a plain
-		// `abcdef` split at 3 serializes the same way), not a reveal artifact.
+		// The split lands where the caret is, and the ephemeral edit reaches the CST rather than
+		// being discarded by the structural op. Two blank-line-separated paragraphs is the editor's
+		// ordinary mid-paragraph split shape, not a reveal artifact.
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForBlockCount(2);
 		expect(await editor.bridge.getSource()).toBe('$x^q\n\n2$ tail\n');

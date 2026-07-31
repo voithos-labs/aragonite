@@ -1,12 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
 
-// Suite-specific probes for the `<details>` collapsible e2e suites (T4 core, the
-// reveal-degrade proof, the windowing stress scenarios). Collapse is a windowing
-// clamp: closed ⇒ only the summary row mounts, every body child genuinely
-// unmounts. The shared page/read/error probes come from ./helpers; this module
-// adds the mounted-host, spacer, desync, and scroll-height observables the
-// collapse-clamp gates assert against.
+// Suite-specific probes for the `<details>` collapsible e2e suites. Collapse is a windowing clamp:
+// closed ⇒ only the summary row mounts, every body child genuinely unmounts. The shared
+// page/read/error probes come from ./helpers; this module adds the mounted-host, spacer, desync,
+// and scroll-height observables the collapse-clamp gates assert against.
 
 export { activeBlockPath, capturedErrors, readContainer as readDetails } from './helpers';
 
@@ -36,13 +34,11 @@ export interface RefDesync {
 	refsLen: number;
 }
 
-// The desync guard for the clamp's mount/unmount churn. The bridge's raw audit
-// flags any container with fewer mounted refs than children — true of EVERY
-// windowed or collapse-clamped scope, since `innerBlockRefs` holds only the
-// mounted slice. That is not a desync. The genuine invariants are: childIds stay
-// 1:1 with children, and refs never EXCEED children (the stale-trailing-slot bug
-// the list-exit regression guards). Filter to those so windowing/clamp churn
-// passes while a real id/ref drift still fails.
+// The desync guard for the clamp's mount/unmount churn. The bridge's raw audit flags any container
+// with fewer mounted refs than children — true of EVERY windowed or collapse-clamped scope, since
+// `innerBlockRefs` holds only the mounted slice. The genuine invariants are: childIds stay 1:1 with
+// children, and refs never EXCEED children (the stale-trailing-slot bug the list-exit regression
+// guards).
 export async function auditRealDesyncs(page: Page): Promise<RefDesync[]> {
 	const violations = (await page.evaluate(() =>
 		(window as any).__test.auditBlockListStateConsistency()
@@ -57,17 +53,15 @@ export const CLOSED_WITH_BELOW =
 export const OPEN_WITH_BELOW =
 	'<details open>\n<summary>Sum</summary>\n\nBody\n\n</details>\n\nBelow\n';
 
-// Scroll-height of the editor's internal scroll container — the observable the
-// height oracle's per-block estimates sum into. Drifts when unmounted blocks are
-// estimated far from their rendered height (the collapsed-details over-estimate).
+// Scroll-height of the editor's internal scroll container — the observable the height oracle's
+// per-block estimates sum into. Drifts when unmounted blocks are estimated far from their rendered
+// height.
 export async function editorScrollHeight(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollHeight);
 }
 
-// Progressive scroll 0 → bottom → 0, flushing each step, so the top-level window
-// passes over (mounts + measures) every off-window block. A direct jump leaves
-// skipped blocks at estimate; only mounting them replaces the estimate with the
-// measured height.
+// Progressive scroll 0 → bottom → 0, flushing each step, so the top-level window mounts and
+// measures every off-window block. A direct jump leaves skipped blocks at estimate.
 export async function scrollThrough(page: Page, editor: DetailsPage): Promise<void> {
 	const { viewport, scrollHeight } = await page.evaluate(() => {
 		const el = document.querySelector('.editor') as HTMLElement;

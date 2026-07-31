@@ -2,15 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * Exactly one caret paints for one caret position, at an inline-math widget's edge.
- * The rule and its mechanism are kind-agnostic and live with the image pins
- * (`blocks/image/caret-synthetic-indicator.spec.ts`, which also guards the restore
- * direction); this is the plugin-surface twin, because the widget the consumer hit
- * it on was math and the image suite runs on a route with no plugins installed.
- *
- * Nothing here can assert the pixel: a control run established that Playwright
- * screenshots never capture a native caret at all. What is assertable — and what
- * the defect actually was — is that both caret sources were live at one position.
+ * Exactly one caret paints for one caret position, at an inline-math widget's edge. The rule is
+ * kind-agnostic and lives with the image pins (blocks/image/caret-synthetic-indicator.spec.ts);
+ * this is the plugin-surface twin, because the widget the consumer hit it on was math and the
+ * image suite runs on a route with no plugins installed. Nothing here can assert the pixel — a
+ * control run showed Playwright never captures a native caret — only that both sources were live.
  */
 
 test.describe('inline math: one caret per caret position', () => {
@@ -24,12 +20,11 @@ test.describe('inline math: one caret per caret position', () => {
 		const box = await widget.boundingBox();
 		if (!box) throw new Error('math widget has no bounding box');
 
-		// Click to the right of the widget with no trailing text to anchor in: the
-		// caret lands at an element-level offset, where the editor paints a synthetic
-		// caret because Chromium's own is unreliable there. When Chromium DOES paint,
-		// the user sees two — so the block's own caret goes dark while the synthetic
-		// is up, which is the only mutual exclusion available without asking the
-		// browser what it painted.
+		// Click to the right of the widget with no trailing text to anchor in: the caret lands at
+		// an element-level offset, where the editor paints a synthetic caret because Chromium's own
+		// is unreliable there. When Chromium DOES paint, the user sees two — so the block's own
+		// caret goes dark while the synthetic is up, the only mutual exclusion available without
+		// asking the browser what it painted.
 		await page.mouse.click(box.x + box.width + 25, box.y + box.height / 2);
 		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(1);
 		const caretColor = await page.evaluate(

@@ -20,9 +20,8 @@ test.describe('blockquote navigation — after Backspace (delete empty middle pa
 		await editor.waitForBlockHostCount(3);
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
-		// Both chars, either order: the click leaves the caret on either side of "2".
-		// `[2Z]+` alone matches the untouched "> 2", so an ArrowDown that never
-		// crossed the gap — leaving Z back in "1" — would pass.
+		// Either order: the click can leave the caret on either side of "2". `[2Z]+` alone would
+		// also match the untouched "> 2", so an ArrowDown that never crossed the gap would pass.
 		await editor.bridge.waitForSourceMatches(/^> (?:2Z|Z2)$/m);
 		expect(await editor.bridge.getSource()).toMatch(/^> (?:2Z|Z2)$/m);
 	});

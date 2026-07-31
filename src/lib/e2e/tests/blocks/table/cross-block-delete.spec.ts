@@ -45,9 +45,8 @@ test.describe('table block: cross-block delete', () => {
 	test('Case 1 — paragraph above → mid-table Backspace clears whole rows and promotes the survivor', async ({
 		page
 	}) => {
-		// Whole-row snap: dragging into a body cell selects every touched row in
-		// full, so the header row and row 1 are removed and row 2 ("3 | 4") is
-		// promoted to header — not a partial-cell clear.
+		// Whole-row snap: dragging into a body cell selects every touched row in full, so the
+		// header row and row 1 go and row 2 is promoted to header — not a partial-cell clear.
 		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
@@ -64,10 +63,9 @@ test.describe('table block: cross-block delete', () => {
 	});
 
 	test('Case 2 — mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
-		// Whole-row snap: a drag that STARTS in a body cell flags that anchor as a
-		// cell coordinate (matching the keyboard path), so the anchor's entire row and
-		// every row below are removed — not a partial-cell clear. Dragging from row 1
-		// ("2") removes body rows 1 and 2, leaving the header row.
+		// Whole-row snap: a drag that STARTS in a body cell flags that anchor as a cell coordinate
+		// (matching the keyboard path), so the anchor's entire row and every row below go —
+		// dragging from row 1 removes body rows 1 and 2.
 		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
 		const [cellBox, paraBox] = await boxesOf(
 			page.locator('[role="cell"]').nth(3), // body row 1, col 1 = "2"
@@ -78,9 +76,8 @@ test.describe('table block: cross-block delete', () => {
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
-		// Header survives, grid stays well-formed, and the caret lands in a real
-		// surviving cell — a subsequent keystroke writes into the grid, never the
-		// table wrapper or the dropped paragraph.
+		// The caret must land in a real surviving cell: the subsequent keystroke writes into the
+		// grid, never the table wrapper or the dropped paragraph.
 		await editor.bridge.waitForSourceContains('| A | B |');
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceContains('Z');
@@ -243,10 +240,9 @@ test.describe('table block: cross-block delete', () => {
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 		const source = await editor.bridge.getSource();
-		// The table grid must stay valid: external paragraph text must never be
-		// fused into a table cell (the old bug produced `| 3 | 4after\n |`).
-		// Whole-row snap selects the anchor's entire bottom row, so it is removed
-		// outright; "after" stays a paragraph.
+		// The grid must stay valid: external paragraph text must never fuse into a cell (the old
+		// bug produced `| 3 | 4after |`). Whole-row snap removes the anchor's entire bottom row;
+		// "after" stays a paragraph.
 		expect(source).toContain('| --- | --- |');
 		expect(source).not.toContain('4after');
 		expect(source).not.toContain('| 3 |');
@@ -258,19 +254,14 @@ test.describe('table block: cross-block delete', () => {
 	test('typing over a selection spanning two separate tables lands in a surviving cell, no grid corruption', async ({
 		page
 	}) => {
-		// Two adjacent top-level tables. Drag from a body cell of the first into a
-		// cell of the second; both endpoints are now flagged cell coordinates (the
-		// drag-from-cell anchor matches the keyboard path), so the whole-row snap
-		// removes the touched rows in both tables. Typing over the selection deletes
-		// the range and splices the character at the collapsed caret — which is a deep
-		// surviving cell, never a slice through the grid markup.
+		// Two adjacent tables: both endpoints are flagged cell coordinates, so the whole-row snap
+		// removes the touched rows in both. Typing over the selection splices the character at a
+		// deep surviving cell, never through the grid markup.
 		await editor.loadContent(`${TABLE_2x3}\n${TABLE_2x3}`);
 		const cells = page.locator('[role="cell"]');
-		// Anchor in the first table's body cell "2" (idx 3); focus in the second
-		// table's header cell "B" (idx 7). The focus must hit-test to cell index 1
-		// (a flagged cell coordinate); if it carried a raw char offset instead, the
-		// whole-row snap would clear the wrong cell in the second table, leaving an
-		// empty leading cell (`|  | 2 |`) — partial-clear corruption.
+		// Anchor in the first table's body cell "2" (idx 3), focus in the second table's header
+		// cell "B" (idx 7): the focus must hit-test to a flagged cell coordinate, or the snap
+		// clears the wrong cell and leaves an empty leading cell.
 		const [fromBox, toBox] = await boxesOf(cells.nth(3), cells.nth(7));
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
@@ -291,12 +282,10 @@ test.describe('table block: cross-block delete', () => {
 	test('Case 2 into a NESTED prose end (blockquote paragraph) truncates the tail without erroring', async ({
 		page
 	}) => {
-		// The nested endpoint is load-bearing: a blockquote paragraph end (path
-		// length 2) routes the delete through the cross-container commit, which runs
-		// rangeDelete on the LIVE $state doc. The reparsed tail spliced there is
-		// proxy-wrapped, so resolving its survivor path by node identity — instead
-		// of re-reading through the tree — throws "surviving block not found". A
-		// top-level prose end never reaches this: it mutates a plain proxy-doc clone.
+		// The nested endpoint is load-bearing: a blockquote paragraph end routes the delete through
+		// the cross-container commit, which runs rangeDelete on the LIVE $state doc. The reparsed
+		// tail spliced there is proxy-wrapped, so resolving the survivor path by node identity
+		// throws "surviving block not found".
 		const pageErrors = capturePageErrors(page);
 
 		const source = `${TABLE_2x3}\n> quoted text\n`;

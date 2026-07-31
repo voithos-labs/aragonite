@@ -2,9 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 // What a code block's content regions may HOLD, as opposed to where an edit may land
-// (fence-ranged-edit.spec.ts). Two characters used to break the fence from inside a
-// region the contract calls editable, and the heading below each fixture is what a
-// broken fence swallows. Requirements: fence-content-validity.md.
+// (fence-ranged-edit.spec.ts). Requirements: fence-content-validity.md.
 
 const SOURCE = '```js\nconst x = 1\n```\n\n# Heading\n';
 
@@ -59,10 +57,9 @@ test.describe('code block — content the fence cannot hold', () => {
 	});
 });
 
-// A run already sitting in the body as ordinary content — mid-line, or indented past
-// the closer limit — is safe until a gesture MOVES it into terminator position. Those
-// gestures rewrite the display without adding a character, which is why they reach the
-// same corruption through a different door.
+// A run already in the body is safe until a gesture MOVES it into terminator position — those
+// gestures rewrite the display without adding a character, reaching the same corruption by another
+// door.
 test.describe('code block — gestures that make an existing run a terminator', () => {
 	let editor: EditorPage;
 
@@ -96,8 +93,7 @@ test.describe('code block — gestures that make an existing run a terminator', 
 	});
 });
 
-// The escalation is scoped to a CLOSED fence so that this stays possible: closing a
-// block by typing its own closer is authoring, not a collision.
+// The escalation is scoped to a CLOSED fence: typing your own closer is authoring, not a collision.
 test.describe('code block — closing a fence by typing it', () => {
 	test('type ```, Enter, code, Enter, ``` yields one closed block', async ({ page }) => {
 		const editor = new EditorPage(page);
@@ -140,8 +136,7 @@ test.describe('code block — the tilde twin', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 
-	// A tilde fence's info string may hold backticks — GFM only forbids them in a
-	// BACKTICK fence's, so nothing is dropped here.
+	// GFM forbids backticks only in a BACKTICK fence's info string, so a tilde fence keeps them.
 	test('a backtick typed into a tilde info string survives', async () => {
 		await editor.focusBlock(0, 7); // end of "yaml"
 		await editor.typeText('`');

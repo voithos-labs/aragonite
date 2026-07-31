@@ -11,22 +11,11 @@ import {
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Spec §8.3 — height-oracle estimate for collapsed containers. The oracle reads
- * the declared `reservedChrome.isCollapsed` probe and estimates a collapsed
- * details at one chrome row, ignoring the hidden body its `raw` still carries.
- * That kills, at its root, the former over-estimate where a collapsed details'
- * full `raw` inflated the load-time scroll height until each was scrolled into
- * view and measured. The unit suite pins the exact one-chrome-row estimate; this
- * suite proves the tight estimate at scale — the load-time height no longer
- * over-counts — plus correctness under the residual drift.
- *
- * A collapsed block's real chrome (border/padding/margin) slightly exceeds one
- * prose row, so the tight estimate now sits at or below the fully-measured height
- * — a small under-estimate the same scroll-anchor machinery absorbs (the machinery
- * the VR suite's anchor tests prove where estimate ≠ measured). A dedicated details
- * mid-jump test is not carried here: this fixture's real measured height is shorter
- * than a viewport, so a mid-jump settles at the top via the browser's scrollTop
- * clamp, not the anchor correction — any local mid-jump assertion would be vacuous.
+ * Spec §8.3 — height-oracle estimate for collapsed containers. The oracle reads the declared
+ * `reservedChrome.isCollapsed` probe and estimates a collapsed details at one chrome row, ignoring
+ * the hidden body its `raw` still carries. The unit suite pins the exact estimate; this proves it
+ * at scale — the load-time height no longer over-counts — and stays correct under the residual
+ * under-estimate the scroll-anchor machinery absorbs.
  */
 
 function collapsedDetailsDoc(count: number): string {
@@ -96,10 +85,9 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 			`details collapsed-estimate drift ${JSON.stringify({ estimated, measured, drift, perDetails })}`
 		);
 
-		// The oracle estimates each off-window collapsed details at one chrome row,
-		// below its real rendered chrome, so the load-time height no longer over-counts
-		// — it now sits below the fully-measured height (the over-estimate class is
-		// gone), a residual the scroll-anchor machinery absorbs.
+		// The oracle estimates each off-window collapsed details at one chrome row, below its real
+		// rendered chrome, so the load-time height no longer over-counts — it now sits below the
+		// fully-measured height, a residual the scroll-anchor machinery absorbs.
 		expect(estimated).toBeLessThan(measured);
 
 		// Correctness holds under the residual drift: no desync, no render throw.

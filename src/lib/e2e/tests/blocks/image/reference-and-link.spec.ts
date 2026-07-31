@@ -1,15 +1,10 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Two regressions guarded here:
-//   BUG 1 — an image nested inside a link (`[![alt][ref]][repo]`) could not be
-//           click-selected or keyboard-resized, because the select/resolve and
-//           keyboard-widget paths walked top-level inlines only and never
-//           reached the image that lives as a child of the link node.
-//   BUG 2 — resizing / editing a reference-style image (`![alt][ref]`) silently
-//           rewrote it to the inline form, destroying the reference and
-//           orphaning its `[ref]:` LRD. Resize/dimension/alt edits must preserve
-//           the reference; only an explicit url/title change inlines it.
+// Two regressions: an image nested inside a link (`[![alt][ref]][repo]`) could not be
+// click-selected or keyboard-resized because those paths walked top-level inlines only; and
+// resizing or editing a reference-style image silently rewrote it to the inline form, orphaning its
+// `[ref]:` LRD. Only an explicit url/title change may inline it.
 test.describe('image inside a link + reference-style images', () => {
 	let editor: EditorPage;
 
@@ -40,9 +35,8 @@ test.describe('image inside a link + reference-style images', () => {
 
 	const REFERENCE = ['![cat|400][ref]', '', '[ref]: /test-fixtures/sample.png', ''].join('\n');
 
-	// Fail-fast guard: if the harness ever stopped wiring the LRD resolver, the
-	// reference/nested images would render as plain text and every assertion
-	// below would mis-report as "click selects nothing". Assert the widget first.
+	// Fail-fast guard: without the harness's LRD resolver these render as plain text and every
+	// assertion below would mis-report as "click selects nothing".
 	test('BUG 1: a reference image nested in a link renders as a widget', async ({ page }) => {
 		await editor.loadContent(NESTED);
 		await expect(page.locator('[data-image-widget]').first()).toBeVisible();
@@ -61,8 +55,6 @@ test.describe('image inside a link + reference-style images', () => {
 		await page.locator('[data-image-widget]').first().click();
 		await expect(overlay(page)).toBeVisible();
 		await page.keyboard.press('Shift+ArrowRight');
-		// Width steps 300 → 320; the surrounding `[...][repo]` link is preserved
-		// and the nested image stays a reference (`[shot]`, not an inlined url).
 		await editor.bridge.waitForSourceContains('[![cat|320][shot]][repo]');
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('[![cat|320][shot]][repo]');
@@ -98,7 +90,6 @@ test.describe('image inside a link + reference-style images', () => {
 		await page.locator('.paragraph-block').first().click();
 		await editor.bridge.waitForSourceContains('?v=2');
 		const src = await editor.bridge.getSource();
-		// The explicit url change opts into the inline form; the reference is gone.
 		expect(src).toContain('![cat|400](/test-fixtures/sample.png?v=2)');
 		expect(src).not.toContain('![cat|400][ref]');
 	});

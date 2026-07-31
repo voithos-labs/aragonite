@@ -1,11 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers';
 
-// The `/test/plugins` harness installs its four dogfood plugins through the
-// `<Editor plugins>` prop. These gates pin the prop pathway itself — that it runs
-// before the seed parses — reading the CST by path via `window.__test`. Per-plugin
-// editing/rendering lives in the sibling specs; repeat-install-in-one-process is
-// unit-pinned, so the reload path is the only repeat this e2e covers.
+// The `/test/plugins` harness installs its four dogfood plugins through the `<Editor plugins>`
+// prop. These gates pin the prop pathway itself — that it runs before the seed parses — reading the
+// CST by path via `window.__test`. Per-plugin editing/rendering lives in the sibling specs;
+// repeat-install-in-one-process is unit-pinned, so the reload path is the only repeat this e2e
+// covers.
 
 test.describe('plugins prop: install before the first parse', () => {
 	let editor: PluginsPage;
