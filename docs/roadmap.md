@@ -118,7 +118,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      CSS construct-reveal over the existing marker spans, not marker islands). The caret-affinity
      contract shipped with 0.9.26 and dissolved to raw offsets + inclusive reveal edges — no
      stored-marks machinery; the litmus reads satisfied-by-construction at the cut, with the
-     reading-gate parity residual living in `docs/issues.md`.
+     reading-gate parity residual tracked as issue #38.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only

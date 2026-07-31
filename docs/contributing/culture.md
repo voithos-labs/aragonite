@@ -131,7 +131,12 @@ kill it:
 
 ## Records
 
-- `docs/issues.md` is the defect ledger — entries carry severity, files, and either a target
-  or a why-deferred; **remove entries when shipped** (the file's own rule).
+- **The GitHub issue tracker is the defect ledger.** An issue carries one `severity:` label and
+  one `area:` label, and a body holding the defect and nothing else — what is wrong, the repro,
+  the files, the fix direction, and why it is deferred. No provenance, no process notes.
+- **Close an issue by naming the shipping commit** in the closing comment.
+- **Reconcile an issue against the commits that resolve it, never against its own prose.** A
+  premise expires without a word of the issue changing, so work landed elsewhere closes issues
+  nobody edited.
 - Roadmap is forward-only; changelog is past-only; a shipping milestone moves between them in
   the same commit.

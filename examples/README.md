@@ -8,7 +8,7 @@ breaks fail here instead of at a real consumer after publish.
 
 Consumers start at `docs/guide/consumer-guide.md` and `docs/guide/plugin-guide.md`.
 If something is only learnable from this folder, that is a docs bug — file it in
-`docs/issues.md`.
+the issue tracker.
 
 ## Run it locally
 
