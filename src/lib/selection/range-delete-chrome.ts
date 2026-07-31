@@ -1,10 +1,8 @@
 /**
- * Reserved-chrome branch of rangeDelete — the wall rule: nothing merges across
- * a `reservedChrome` container's wall. Outside endpoints truncate in place,
- * covered chrome clears (never node-deletes, G1.14), covered body children
- * delete, and the container dies only when the range consumes its whole
- * subtree — then as ONE splice with children intact, so a commit scope holding
- * the detached node stays invariant-clean.
+ * Reserved-chrome branch of rangeDelete, the wall rule: nothing merges across a
+ * `reservedChrome` container's wall. Outside endpoints truncate in place, covered chrome clears
+ * (never node-deletes, G1.14), covered body children delete, and the container dies only when
+ * the range consumes its whole subtree, then as ONE splice with children intact.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -29,12 +27,9 @@ import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * True when the range must take the wall path: an endpoint sits inside a
- * `reservedChrome` container the range crosses out of (or into), or the range
- * starts in the chrome leaf itself. Ranges the generic path already handles
- * safely stay generic: same-block ranges (in-place raw merge, kind kept),
- * body-only ranges inside one container, and ranges enclosing a container from
- * strictly outside (deleted whole as an ordinary between subtree).
+ * True when the range must take the wall path: an endpoint sits inside a `reservedChrome`
+ * container the range crosses out of or into, or the range starts in the chrome leaf itself.
+ * Same-block, body-only, and enclose-from-outside ranges stay on the generic path.
  */
 export function involvesReservedChrome(
 	doc: Document,
@@ -52,10 +47,9 @@ export function involvesReservedChrome(
 }
 
 /**
- * Delete [start, end] under the wall rule. Both endpoints truncate in place —
- * chrome endpoints by a raw write (kind kept via contextDependentKind), prose
- * endpoints by a reparse of their surviving slice — and nothing merges across
- * the wall. Collapsed caret keeps the generic start-position semantics.
+ * Delete [start, end] under the wall rule. Both endpoints truncate in place (chrome by a raw
+ * write, keeping the kind via contextDependentKind; prose by a reparse of the surviving slice),
+ * and nothing merges across the wall. Collapsed caret keeps generic start-position semantics.
  */
 export function chromeAwareRangeDelete(
 	doc: Document,
@@ -69,29 +63,21 @@ export function chromeAwareRangeDelete(
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
 
-	// Own every written spine BEFORE identities are captured (G1.9; see the
-	// range-delete.ts ceremony) — chains stay valid across splices, paths don't.
+	// Own every written spine BEFORE identities are captured (G1.9): chains stay valid across
+	// splices, paths don't.
 	const startChain = ensureUnsharedPath(doc, start.path, sharing);
 	const endChain = ensureUnsharedPath(doc, end.path, sharing);
 
-	// Shared deletion plan (range-delete-ceremony.ts): resolve the end wall,
-	// collect the covered subtree roots (plus a surviving container's chrome-
-	// clear), own their parent spines, and resolve the cascade LCA. Chrome marks
-	// no endpoint paths for deletion — both endpoints truncate in place below.
-	//
-	// resolveEndWall returns null when start sits inside the end container, where
-	// this branch's inline predecessor instead computed chromeClearPath =
-	// [...endC.path, 0]. The outcomes agree: with start inside the container, its
-	// chrome child 0 is the start endpoint itself or precedes it in doc order, so
-	// it never lands in the strictly-between walk — the clear target never
-	// matches and no chrome clears. Pinned by "start in chrome, end at the
-	// container's last byte" in range-delete-chrome.test.ts.
+	// Shared deletion plan (range-delete-ceremony.ts). Chrome marks no endpoint paths for
+	// deletion: both endpoints truncate in place below. resolveEndWall returns null when start
+	// sits inside the end container, which needs no chrome-clear either way, since that
+	// container's chrome child 0 never lands in the strictly-between walk.
 	const wall = resolveEndWall(doc, start, end, null);
 	const endConsumed = wall?.consumed ?? false;
 	const { plan, lcaPath } = planCrossBlockDeletion(doc, start, end, [], wall, sharing);
 
-	// End truncates in place first (its path is still live) — the wall: its
-	// tail never merges into start. Skipped when its container dies whole.
+	// End truncates in place first (its path is still live), the wall: its tail never merges
+	// into start. Skipped when its container dies whole.
 	if (!endConsumed) {
 		const endBlock = endChain[endChain.length - 1];
 		const endTail = endBlock.raw.slice(endOffset);
@@ -108,12 +94,10 @@ export function chromeAwareRangeDelete(
 		}
 	}
 
-	// Clear a surviving container's covered chrome, then splice the covered
-	// subtrees in reverse doc order under the identity gate.
 	applyPlannedDeletion(doc, plan, lcaPath);
 
-	// Start truncates in place; every deletion sits after it in doc order, so
-	// start.path is still live.
+	// Start truncates in place; every deletion sits after it in doc order, so start.path is
+	// still live.
 	const startBlock = startChain[startChain.length - 1];
 	const startHead = startBlock.raw.slice(0, startOffset);
 	if (startC && isChromeChild(startC, start.path)) {
@@ -128,8 +112,8 @@ export function chromeAwareRangeDelete(
 		replaceAtPath(doc, start.path, headReplacement);
 	}
 
-	// Chain-based rebuilds: node references survive the splices above where
-	// paths may not — every touched container re-emits raw (G1.12).
+	// Chain-based rebuilds: node references survive the splices above where paths may not, and
+	// every touched container re-emits raw (G1.12).
 	rebuildUnsharedChain(doc, startChain, sharing, grammar);
 	rebuildUnsharedChain(doc, endChain, sharing, grammar);
 
@@ -140,9 +124,8 @@ export function chromeAwareRangeDelete(
 }
 
 // ── Wall primitives (shared with the table branch) ──────────────────────────
-// `involvesTable` dispatches before `involvesReservedChrome`, so ranges with a
-// table endpoint ride range-delete-table.ts — these primitives keep the wall
-// rule single-sourced across both branches.
+// `involvesTable` dispatches before `involvesReservedChrome`, so ranges with a table endpoint
+// ride range-delete-table.ts; these primitives keep the wall rule single-sourced across both.
 
 export interface ChromeContainer {
 	path: number[];
@@ -172,10 +155,8 @@ export function isChromeChild(container: ChromeContainer, leafPath: number[]): b
 }
 
 /**
- * The range's end lands on the container's last byte: every step from the
- * container to the end block is a last-child edge and the offset consumes the
- * block's visible text. With start outside, the whole subtree is covered and
- * the container dies as one unit.
+ * The range's end lands on the container's last byte: every step from the container is a
+ * last-child edge and the offset consumes the block's visible text.
  */
 export function rangeConsumesContainer(container: ChromeContainer, end: SelectionPoint): boolean {
 	const endNode = lastChildDescendant(container, end.path);
@@ -194,10 +175,9 @@ export function lastChildDescendant(container: ChromeContainer, path: number[]):
 }
 
 /**
- * Reparse a truncated endpoint slice, preserving its leading trivia; empty → a bare
- * paragraph. `lineEnding` is the source block's (G4.20): a slice that is nothing but
- * an ending parses to no blocks, and the placeholder standing in for it must not
- * downgrade a CRLF block to LF.
+ * Reparse a truncated endpoint slice, preserving its leading trivia; empty gives a bare
+ * paragraph. `lineEnding` is the source block's (G4.20): a slice that is nothing but an ending
+ * parses to no blocks, and the placeholder must not downgrade a CRLF block to LF.
  */
 export function reparseWithFallback(
 	raw: string,

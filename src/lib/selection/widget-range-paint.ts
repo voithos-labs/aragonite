@@ -1,9 +1,7 @@
 /**
- * Paints `md-widget-selected` on atomic inline widgets the native Selection
- * range overlaps. Native `::selection` skips contenteditable=false content,
- * so a single-block range across an inline widget would leave it un-tinted.
- * Suspended while the cross-block overlay or the widget-selection popover
- * owns the visual.
+ * Paints `md-widget-selected` on atomic inline widgets the native Selection range overlaps,
+ * because `::selection` skips contenteditable=false content. Suspended while the cross-block
+ * overlay or the widget-selection popover owns the visual.
  */
 
 const WIDGET_SELECTOR = '[data-inline-widget]';

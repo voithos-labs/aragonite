@@ -1,13 +1,8 @@
 /**
- * Keyboard extension geometry for an intra-table rectangle. Shift+Arrow inside a
- * table grows the rectangle cell-by-cell — down/up a whole row, left/right a
- * column — instead of walking the next document-order leaf. Delegating to the
- * block-level extend walks the table's own first cell (nextPath descends into the
- * table), snapping the focus back to cellIdx 0.
- *
- * Vertical extension exits the table at the row boundary (the reverse of how a
- * Shift+Arrow enters one); horizontal extension clamps at the column edges — a
- * rectangle has no sideways exit.
+ * Keyboard extension geometry for an intra-table rectangle. Shift+Arrow grows the rectangle
+ * cell-by-cell rather than walking the next document-order leaf, which would descend into the
+ * table and snap the focus back to cellIdx 0. Vertical extension exits at the row boundary;
+ * horizontal extension clamps at the column edges, since a rectangle has no sideways exit.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -24,11 +19,9 @@ export type TableRectExtension =
 	| { kind: 'exit'; direction: 'forward' | 'backward'; fromCellPath: number[] };
 
 /**
- * The extension a Shift+Arrow produces for an intra-table rectangle, or null when
- * the selection is not a same-table rectangle. `anchor === focus` (a collapsed
- * caret's cell) is a valid one-cell rectangle, so the first Shift+Arrow starts
- * here too. Offsets are row-major cell indices, context-established by the shared
- * table path — read directly, as the copy/overlay paths do.
+ * The extension a Shift+Arrow produces for an intra-table rectangle, or null when the selection
+ * is not a same-table rectangle. `anchor === focus` is a valid one-cell rectangle, so the first
+ * Shift+Arrow starts here too. Offsets are cell indices, context-established by the shared path.
  */
 export function intraTableRectExtension(
 	doc: DocumentView,

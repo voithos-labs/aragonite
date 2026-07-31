@@ -1,14 +1,9 @@
 /**
- * Pointer-edge autoscroll RAF loop, shared between cross-block drag and
- * intra-table drag. Caller supplies the live pointer and the list of scroll
- * targets to evaluate each frame; the loop scrolls any target whose scrollport is
- * within `threshold` of the current pointer.
- *
- * A target may be the window (`cursor/scroll-ancestors`), and it answers the two
- * halves from different places on purpose: the scrollport to measure is the
- * viewport, while the box to write is `document.scrollingElement`. Substituting the
- * scrolling element for both puts the document's own box — thousands of pixels tall
- * — into the edge math, where the pointer never reaches an edge.
+ * Pointer-edge autoscroll RAF loop, shared between cross-block and intra-table drag. The caller
+ * supplies the live pointer and the scroll targets to evaluate each frame. A target may be the
+ * window (`cursor/scroll-ancestors`), which answers the two halves from different places on
+ * purpose: measure the viewport, write `document.scrollingElement`. Using the scrolling element
+ * for both puts the document's own multi-thousand-pixel box into the edge math.
  */
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 
@@ -40,9 +35,8 @@ export interface AutoScrollDeps {
 	onScrolled?: () => void;
 	threshold?: number;
 	/**
-	 * Restrict scrolling to one axis (default both). The column reorder drag pins
-	 * the pointer in the table's top band, where unrestricted vertical evaluation
-	 * would spin the loop on a `.table-block` that only scrolls horizontally.
+	 * Restrict scrolling to one axis (default both). The column reorder drag pins the pointer in
+	 * the table's top band, where vertical evaluation would spin on a horizontal-only scroller.
 	 */
 	axis?: 'horizontal' | 'vertical' | 'both';
 }
@@ -83,9 +77,8 @@ export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
 			const dy = dyFor(port, p.clientY);
 			const scroller = scrollerOf(t);
 			if (!scroller) continue;
-			// Count only motion that actually moved the target: a target already at
-			// its scroll limit ignores the write, and marking it scrolled would spin
-			// the rAF loop while the pointer sits pinned in the edge band.
+			// Count only motion that actually moved the target: one already at its scroll limit
+			// ignores the write, and marking it scrolled would spin the rAF loop.
 			if (dx !== 0) {
 				const before = scroller.scrollLeft;
 				scroller.scrollLeft += dx;

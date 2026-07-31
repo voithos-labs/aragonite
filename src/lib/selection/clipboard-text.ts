@@ -19,21 +19,11 @@ import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/blo
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Collect the plain-text content spanning a cross-block selection. Includes
- * the tail of the start block's raw, the full leadingTrivia + raw of every
- * middle block, and the head of the end block's raw.
- *
- * walkBetween yields containers AND their children; a container's raw already
- * includes its children's text, so we skip descendants of already-collected
- * containers to avoid duplication.
- *
- * Leaf endpoints at full-boundary offsets promote to their deepest non-shared
- * container ancestor so structural formatting (list markers, blockquote
- * prefixes) is preserved.
- *
- * A start inside a container's reserved chrome buffers what the walk collects
- * from inside that container and re-emits the container around it once, so the
- * copy keeps its kind instead of flattening to a chrome tail plus a bare body.
+ * Plain text spanning a cross-block selection: the start block's tail, every middle block's
+ * leadingTrivia + raw, the end block's head. Descendants of an already-collected container
+ * are skipped, since a container's raw already holds its children's text. Full-boundary leaf
+ * endpoints promote to their deepest non-shared container ancestor so list markers and
+ * blockquote prefixes survive; a start inside reserved chrome re-emits its container once.
  */
 export function collectCrossBlockText(
 	doc: DocumentView,
@@ -46,16 +36,12 @@ export function collectCrossBlockText(
 	const endNode = nodeAt(doc, end.path);
 	if (!startNode || !endNode) return '';
 
-	// On a table, offsets index half-open cell ranges (see `SelectionPoint`),
-	// not character positions; the three table branches below route through
-	// emitTablePortion so the generic raw.slice paths don't return garbage.
-	// Same-path intra-table copy: the endpoints' cell offsets are context-
-	// established (same table, unflagged), so they read directly. The cross-block
-	// table branches below carry the flag and use cellIndexOf.
+	// On a table, offsets index half-open cell ranges (see `SelectionPoint`), not characters,
+	// so the three table branches route through emitTablePortion. Same-path intra-table offsets
+	// are context-established (unflagged) and read directly; cross-block ones use cellIndexOf.
 	if (pathsEqual(start.path, end.path) && isBlockNode(startNode) && startNode.kind === 'table') {
-		// Cell offsets are inclusive on both ends, matching the cross-block table
-		// branches (`+ 1` below). A collapsed pair (equal offsets) is a caret in a
-		// cell, not a rect — copy nothing and let the cell's native copy handle it.
+		// Cell offsets are inclusive on both ends (hence the `+ 1`). A collapsed pair is a caret
+		// in a cell, not a rect, so copy nothing and let the cell's native copy handle it.
 		if (start.offset === end.offset) return '';
 		return emitTablePortion(startNode, start.offset, end.offset + 1);
 	}
@@ -86,8 +72,8 @@ export function collectCrossBlockText(
 				startTail = startRaw.slice(startOffset);
 			}
 		} else if (startOffset > 0 && start.path.length > 1) {
-			// A chrome start emits nothing here: its wrapper needs the body it
-			// encloses, which only the walk below knows.
+			// A chrome start emits nothing here: its wrapper needs the body it encloses,
+			// which only the walk below knows.
 			chromeStart = startChromeContainer(doc, start, startRaw, startOffset);
 			if (!chromeStart) {
 				const marker = soleChildContainerPrefix(doc, start.path, startRaw);
@@ -101,8 +87,8 @@ export function collectCrossBlockText(
 	let effectiveEndPath = end.path;
 	let endHead: string;
 	if (isBlockNode(endNode) && endNode.kind === 'table') {
-		// Snapped end cell is the inclusive last cell of its row; emitTablePortion
-		// takes an exclusive end. +1 makes the captured rows match the delete.
+		// Snapped end cell is the inclusive last cell of its row; emitTablePortion takes an
+		// exclusive end, so +1 makes the captured rows match the delete.
 		endHead = emitTablePortion(endNode, 0, cellIndexOf(end, 'collectCrossBlockText:endTable') + 1);
 	} else {
 		const endOffset = charOffsetOf(end, 'collectCrossBlockText:end');
@@ -150,7 +136,7 @@ export function collectCrossBlockText(
 		}
 	}
 
-	// Without endLead, blank lines between paragraphs get dropped and paste reparses as a single merged paragraph.
+	// Without endLead, blank lines between paragraphs drop and paste reparses as one paragraph.
 	let endLead = '';
 	if (!pathsEqual(effectiveStartPath, effectiveEndPath)) {
 		const endNode = nodeAt(doc, effectiveEndPath);
@@ -178,9 +164,8 @@ export function collectCrossBlockText(
 // ── Internal ───────────────────────────────────────────────────────────────
 
 /**
- * Emit a table portion for the half-open cell-index range
- * `[startCellIdx, endCellIdxExclusive)` in row-major order. Selection is
- * row-rectangular by GFM constraint; emit `[startRow..endRow] × all columns`.
+ * Table portion for the half-open cell range `[startCellIdx, endCellIdxExclusive)`. Selection
+ * is row-rectangular by GFM constraint, so emit `[startRow..endRow] × all columns`.
  */
 function emitTablePortion(
 	table: NodeView,
@@ -203,19 +188,11 @@ function emitTablePortion(
 }
 
 /**
- * The container marker prefix a partial-leaf clipboard slice must keep when the
- * leaf is the sole child of a strip container (e.g. "3. " so "3. thi" survives
- * rather than "thi"). Without it, CommonMark §5.2 stops a following "N." line
- * from interrupting the paragraph and the round-trip collapses into one
- * multi-line block. Null when the container isn't eligible — the callers prepend
- * nothing and keep the bare leaf slice.
- *
- * Eligibility is the descriptor's `strip` contract (raw is a per-line marker
- * around serialize(children)), not a kind list: listItem, blockquote, githubAlert
- * and footnote-def all recover their wrapper by the same suffix arithmetic.
- *
- * Sole-child is required: with earlier siblings, their text sits between the
- * marker and the leaf's raw, so the suffix arithmetic wouldn't recover a prefix.
+ * The container marker prefix a partial-leaf slice must keep when the leaf is the sole child
+ * of a strip container ("3. " so "3. thi" survives rather than "thi"). Without it CommonMark
+ * §5.2 stops a following "N." line from interrupting the paragraph and the round-trip
+ * collapses into one block. Eligibility is the descriptor's `strip` contract, not a kind list.
+ * Sole-child is required: earlier siblings sit between the marker and the leaf's raw.
  */
 function soleChildContainerPrefix(
 	doc: DocumentView,
@@ -232,18 +209,11 @@ function soleChildContainerPrefix(
 }
 
 /**
- * The rebuild a chrome-wrapper synthesis may run for `container`, or null when
- * re-emitting its wrapper is not the faithful answer. Both chrome endpoint paths
- * below consult this and nothing else, so the rule cannot hold on one endpoint
- * and not the other.
- *
- * The `'opaque'` gate carries the weight: an opaque container's syntax is an
- * opener line plus a closer, so a truncated chrome IS an opener and the kind's
- * rebuildRaw supplies the matching close. A `'strip'` container's syntax is a
- * per-line prefix with nothing to close, and the same synthesis would emit a
- * wrapper the kind never opens (`> Tit` around a callout's title) —
- * `soleChildContainerPrefix` is that family's seam. `'grid'` containers declare
- * no chrome and ride the table arm.
+ * The rebuild a chrome-wrapper synthesis may run for `container`, or null when re-emitting its
+ * wrapper isn't faithful. Both chrome endpoint paths consult this and nothing else, so the
+ * rule cannot hold on one endpoint and not the other. Only `'opaque'` qualifies: its syntax is
+ * an opener plus a closer, so a truncated chrome IS an opener. `'strip'` has nothing to close
+ * (`soleChildContainerPrefix` is its seam); `'grid'` declares no chrome and rides the table arm.
  */
 function chromeWrapperRebuild(
 	container: NodeView,
@@ -256,22 +226,11 @@ function chromeWrapperRebuild(
 }
 
 /**
- * Bytes for a copy endpoint that lands inside a container's reserved chrome (a
- * title/summary whose syntax lives in the container's own raw). The generic
- * raw.slice emits wrapper-less bytes that reparse to a bare paragraph — the kind
- * lost on paste — and the marker-recovery seam above can't help (it derives the
- * prefix by suffix arithmetic and gates on a single body child, which no chrome
- * container with a body satisfies). Instead synthesize a chrome-only container —
- * truncated chrome raw, empty body, the live node's metadata — and run the
- * kind's own rebuildRaw, yielding canonical reparseable bytes (`:::note Ti\n:::\n`)
- * generically off the chrome predicate. The gesture means "copy into a title" →
- * a container with that title and an empty body.
- *
- * rebuildRaw is contractually read-only over metadata (rebuildCalloutRaw /
- * rebuildDetailsRaw read `calloutType`/`open` and write only `raw`), but here it
- * is plugin code fed a node aliasing the LIVE tree — shallow-copy the metadata
- * (primitive-valued by the G1.6 convention) so a misbehaving plugin cannot write
- * through the clipboard path into the document.
+ * Bytes for a copy endpoint landing inside a container's reserved chrome. A generic raw.slice
+ * emits wrapper-less bytes that reparse to a bare paragraph, losing the kind on paste, so
+ * synthesize a chrome-only container (truncated chrome, empty body) and run the kind's own
+ * rebuildRaw. Metadata is shallow-copied (primitive-valued by G1.6) because rebuildRaw is
+ * plugin code fed a node that would otherwise alias the LIVE tree.
  */
 function endChromeContainerBytes(
 	doc: DocumentView,
@@ -286,7 +245,6 @@ function endChromeContainerBytes(
 	const rebuildRaw = chromeWrapperRebuild(parent, childIndex);
 	if (!rebuildRaw) return null;
 
-	// A synthetic node built from the parent's runtime kind for a rebuildRaw probe.
 	const synthetic = makeBlockNode({
 		kind: parent.kind,
 		leadingTrivia: '',
@@ -315,9 +273,8 @@ interface ChromeStartContainer {
 }
 
 /**
- * The container a copy STARTS inside the chrome of, when re-emitting its wrapper
- * around the collected body is the faithful answer; null when it isn't. The
- * eligibility rule is `chromeWrapperRebuild`'s, shared with the END path.
+ * The container a copy STARTS inside the chrome of, when re-emitting its wrapper around the
+ * collected body is faithful; null when it isn't. Eligibility is `chromeWrapperRebuild`'s.
  */
 function startChromeContainer(
 	doc: DocumentView,
@@ -340,20 +297,11 @@ function startChromeContainer(
 }
 
 /**
- * Re-emit the container around `body` — the bytes the walk collected from inside
- * it — with the truncated chrome back in the opener line. ONE rebuildRaw call
- * over the real body, which is what makes the closer trustworthy: a directive
- * fence widens when its body reproduces the terminator, and deriving opener and
- * closer in the same call means they cannot disagree about the width. A closer
- * emitted separately where the walk exits would have to re-derive it.
- *
- * `exited` means the walk left the container's subtree, i.e. its body was
- * captured to the end — only then does the container's trailing inner trivia
- * belong to the copy. Without that trivia a body stopping mid-line would run
- * into the closer, so the slice is line-terminated instead.
- *
- * Metadata is shallow-copied for the reason `endChromeContainerBytes` copies it:
- * rebuildRaw is plugin code, and nothing on this node may alias the live tree.
+ * Re-emit the container around `body` with the truncated chrome back in the opener line. ONE
+ * rebuildRaw call over the real body is what makes the closer trustworthy: a directive fence
+ * widens when its body reproduces the terminator, so opener and closer derived in the same call
+ * cannot disagree about width. `exited` means the walk left the subtree, i.e. the body ran to
+ * the end, so the trailing inner trivia belongs to the copy; otherwise line-terminate instead.
  */
 function wrapChromeStartContainer(
 	start: ChromeStartContainer,
@@ -386,9 +334,8 @@ function wrapChromeStartContainer(
 }
 
 /**
- * Walk up from a leaf endpoint, promoting to the deepest container ancestor
- * whose content is entirely within the selection scope. Start-side promotion
- * is safe only while each child is the first; end-side, only while last.
+ * Walk up from a leaf endpoint to the deepest container ancestor entirely inside the
+ * selection. Start-side promotion is safe only while each child is first; end-side, last.
  */
 function promoteToContainer(
 	doc: DocumentView,

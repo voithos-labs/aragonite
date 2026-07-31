@@ -1,10 +1,9 @@
 /**
- * Cross-block type-replace: the user typed a character with a cross-block
- * selection active. Delete the range, splice the typed character into the
- * surviving leaf's raw, and re-parse it so a marker at offset 0 re-derives the
- * kind (parity with the single-block type path). Routed through commitMultiScope
- * so the mutation matches the single-block update path — a kind change mints a
- * fresh node into the slot, ids/refs stay synced, op:'updateContent' is emitted.
+ * Cross-block type-replace: the user typed a character with a cross-block selection active.
+ * Delete the range, splice the character into the surviving leaf's raw, re-parse so a marker at
+ * offset 0 re-derives the kind (parity with the single-block type path). Routed through
+ * commitMultiScope so a kind change mints a fresh node, ids/refs stay synced, and the op is
+ * `updateContent`.
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
@@ -36,8 +35,8 @@ export async function handleCrossBlockTypeReplace(
 	const typed = e.data ?? '';
 	const caret = await performCrossBlockDelete(mutCtx, { skipCaretRestore: true });
 	if (!caret) return true;
-	// All caret placements below target caret.path's top-level block; mount it
-	// once here so each (the post-tick landing included) finds a live element.
+	// All caret placements below target caret.path's top-level block; mount it once here so each
+	// (the post-tick landing included) finds a live element.
 	await ctx.revealPath(caret.path);
 	if (!typed) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
@@ -51,30 +50,20 @@ export async function handleCrossBlockTypeReplace(
 		return true;
 	}
 
-	// Route the splice through commitMultiScope so the mutation lands inside the
-	// commit primitive: parallel ids/refs reactivity contract honored, and the op
-	// is `updateContent` — symmetric with the single-block path's KIND-CHANGING
-	// branch (block-edit.ts updateBlockContent), the partner for a write that
-	// re-derives the kind. Only that path's kind-stable branch emits the debounced
-	// `input`, and consumers read `input` as "kind held" (components/lrd-map-gate.ts
-	// runs post-commit and cannot recover a destroyed kind any other way).
-	// snapshot: 'skip' keeps the typed character in the same undo unit as
-	// performCrossBlockDelete.
+	// `updateContent`, not `input`: symmetric with the single-block path's KIND-CHANGING branch
+	// (block-edit.ts updateBlockContent). Only that path's kind-stable branch emits the debounced
+	// `input`, which consumers read as "kind held" (components/lrd-map-gate.ts runs post-commit
+	// and cannot recover a destroyed kind). snapshot: 'skip' keeps the char in the delete's unit.
 	const scope = resolveTypedCharScope(ctx, caret.path);
 	if (!scope) {
 		focusCollapsedCaret(ctx.getBlockElByPath, caret);
 		return true;
 	}
 
-	// resolveTypedCharScope returns the leaf's IMMEDIATE parent — every mounted
-	// container registers a BlockListState, so the deepest-registered ancestor is
-	// the parent, and the document root stands in for a top-level leaf (scope path
-	// []). The re-parse-and-replace below therefore lands in the scope's own
-	// children and its StructuralChange syncs the scope's ids/refs. The guard is
-	// the enforcement belt: an unregistered ancestor would make `scope` a
-	// grandparent, and the replace would splice the wrong slot — degrade to the
-	// raw-only splice rather than corrupt — non-corrupting, though a nested fallback
-	// leaves a stale kind and a dev-visible stale-raw fire until the next reparse.
+	// resolveTypedCharScope returns the leaf's IMMEDIATE parent: every mounted container registers
+	// a BlockListState, and the document root stands in for a top-level leaf. The guard below is
+	// the enforcement belt — an unregistered ancestor would make `scope` a grandparent and splice
+	// the wrong slot, so that case degrades to a raw-only splice instead.
 	const leafIndex = caret.path[caret.path.length - 1];
 	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
 
@@ -92,9 +81,8 @@ export async function handleCrossBlockTypeReplace(
 				);
 				const chain = ensureUnsharedPath(doc, caret.path, sharing);
 				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
-				// Degraded, but still a body write: this arm splices raw with no reparse,
-				// so the owner's rule is the only thing standing between a typed `>` and
-				// a terminator line. The owner is the leaf's parent on the owned chain.
+				// Degraded, but still a body write: this arm splices raw with no reparse, so the
+				// owner's rule is all that stands between a typed `>` and a terminator line.
 				owned.raw = normalizeBodyWrite(
 					chain[chain.length - 2]?.kind,
 					owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
@@ -103,12 +91,9 @@ export async function handleCrossBlockTypeReplace(
 				return [{ op: 'noop' }];
 			}
 
-			// Re-parse the spliced leaf inside the commit so a marker at offset 0
-			// re-derives the kind — parity with the single-block type path
-			// (updateNodeContent mints a fresh node on a kind change, writes fields
-			// in place otherwise). A single typed character never introduces a blank
-			// line, so the multi-block replacement arm is unreachable: the survivor
-			// stays one slot and afterTick restores one caret.
+			// Re-parse the spliced leaf inside the commit so a marker at offset 0 re-derives the
+			// kind (updateNodeContent mints a fresh node on a kind change). A single character
+			// never introduces a blank line, so the multi-block replacement arm is unreachable.
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
 			const change = updateNodeContent(
@@ -122,9 +107,8 @@ export async function handleCrossBlockTypeReplace(
 		},
 		op: {
 			kind: 'updateContent',
-			// `op` is evaluated ahead of `mutate`, and the splice only inserts, so
-			// the post-commit length is already fixed. Read for the event detail
-			// alone — the mutation still derives its bytes from the owned copy.
+			// `op` is evaluated ahead of `mutate` and the splice only inserts, so the post-commit
+			// length is already fixed. Read for the event detail alone.
 			detail: { length: targetNode.raw.length + typed.length },
 			eventPath: docPathFrom(caret.path)
 		},
@@ -139,10 +123,9 @@ export async function handleCrossBlockTypeReplace(
 }
 
 /**
- * Pick the smallest commit scope covering the typed-char target. Doc-scope
- * for top-level leaves; nearest container ancestor with a registered
- * BlockListState for nested leaves. Returns null when no scope is mounted —
- * caller falls back to direct caret restore.
+ * The smallest commit scope covering the typed-char target: doc scope for a top-level leaf,
+ * nearest container ancestor with a registered BlockListState otherwise. Null when none is
+ * mounted, and the caller falls back to a direct caret restore.
  */
 function resolveTypedCharScope(
 	ctx: CrossBlockDispatchContext,

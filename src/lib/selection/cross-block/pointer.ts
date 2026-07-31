@@ -1,7 +1,6 @@
 /**
- * Pointer half of the cross-block dispatcher: shift-click extension and
- * pointer-drag entry. See dispatch.ts for the composer that
- * wires this together with the keydown half.
+ * Pointer half of the cross-block dispatcher: shift-click extension and pointer-drag entry. See
+ * dispatch.ts for the composer that wires this together with the keydown half.
  */
 
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -25,10 +24,9 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 }
 
 /**
- * Shared pointerdown preamble for any block that intercepts cross-block input.
- * Resets sticky-column + select-all counter, and (for non-shift pointerdowns)
- * clears any active cross-block selection so a fresh drag doesn't extend the
- * prior range.
+ * Shared pointerdown preamble for any block that intercepts cross-block input. Resets
+ * sticky-column and the select-all counter, and on a non-shift press clears any active
+ * cross-block selection so a fresh drag doesn't extend the prior range.
  */
 export function resetForPointerDown(
 	selection: SelectionState,
@@ -80,8 +78,8 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		if (!root) return false;
 		const offset = offsetFromViewportPoint(el, e.clientX, e.clientY);
 		if (offset === null) return false;
-		// SelectionState normalizes table endpoints when the drag enters
-		// cross-block mode, so the raw block path is a valid anchor here.
+		// SelectionState normalizes table endpoints on cross-block entry, so the raw block path
+		// is a valid anchor here.
 		const anchorPoint = { path: myPath.slice(), offset };
 		const lifetimeSignal = ctx.getEditorLifetime();
 		if (!lifetimeSignal) {
@@ -95,8 +93,8 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		installDragListener(
 			{
 				editorRoot: root,
-				// The root is the hit-test boundary; what SCROLLS may be an ancestor
-				// (host-scroll mode), so the two are resolved separately.
+				// The root is the hit-test boundary; what SCROLLS may be an ancestor in
+				// host-scroll mode, so the two resolve separately.
 				scrollContainer: ctx.getScrollHost() ?? root,
 				selection,
 				getBlockElByPath: ctx.getBlockElByPath,

@@ -1,13 +1,8 @@
 /**
- * Shared pointer-drag session: the document-listener + rAF-coalescing scaffold
- * every drag lifecycle builds on (cross-block selection, block/row/column
- * reorder, intra-table cell selection). Owns the pointer-ownership filter,
- * autoscroll wiring, and idempotent teardown; callers supply the per-surface
- * move/end behavior, scroll targets, and the options that genuinely differ
- * (click threshold, Escape, userSelect).
- *
- * rAF here is frame-paced pointermove coalescing (one handler per frame), not
- * async sequencing — G4.4 allowlisted.
+ * Shared pointer-drag session: the document-listener + rAF-coalescing scaffold every drag
+ * lifecycle builds on. Owns the pointer-ownership filter, autoscroll wiring, and idempotent
+ * teardown; callers supply the per-surface move/end behavior and the options that genuinely
+ * differ. rAF here is frame-paced pointermove coalescing, not async sequencing (G4.4).
  */
 
 import { createAutoScroll, type AutoScrollDeps } from './autoscroll';
@@ -21,10 +16,8 @@ export interface PointerDragSessionOptions {
 	/** Coalesced to one call per animation frame with the latest pointer. */
 	onMove(pointer: PointerPosition): void;
 	/**
-	 * pointerup / pointercancel finalize, run after the pending move is flushed
-	 * and the session is torn down. NOT run on Escape or lifetime abort — those
-	 * are pure teardowns (an unmount must not, e.g., park a caret into a tree
-	 * that is going away).
+	 * pointerup / pointercancel finalize, after the pending move flushes and the session tears
+	 * down. NOT run on Escape or lifetime abort: those are pure teardowns.
 	 */
 	onEnd?(reason: 'up' | 'cancel'): void;
 	/** Caller cleanup, run once on every teardown path (up, cancel, Escape, abort). */
@@ -32,10 +25,8 @@ export interface PointerDragSessionOptions {
 	/** Scroll targets + axis; the session supplies the live pointer and rescroll. */
 	autoScroll: Pick<AutoScrollDeps, 'getTargets' | 'axis'>;
 	/**
-	 * Drag/click discriminator in px. Below this travel from `down` a move does
-	 * not process and the gesture stays a click; the first qualifying move flips
-	 * it to a drag and fires `onDragRecognized`. Omit where the pointerdown
-	 * already committed to a drag (no click affordance to protect).
+	 * Drag/click discriminator in px: below this travel from `down` the gesture stays a click.
+	 * Omit where the pointerdown already committed to a drag.
 	 */
 	threshold?: number;
 	onDragRecognized?(): void;
@@ -44,9 +35,8 @@ export interface PointerDragSessionOptions {
 	/** Suppress native text selection for the drag's duration. */
 	disableUserSelect?: boolean;
 	/**
-	 * Aborted on editor unmount. Without it an unmount mid-drag leaks the
-	 * document listeners — pointerup never fires once the originating element is
-	 * gone.
+	 * Aborted on editor unmount. Without it an unmount mid-drag leaks the document listeners:
+	 * pointerup never fires once the originating element is gone.
 	 */
 	lifetimeSignal?: AbortSignal;
 }
@@ -90,10 +80,9 @@ export function createPointerDragSession(
 		});
 	}
 
-	// A release before the coalescing rAF runs would otherwise drop the final
-	// move — a stale drop index, or isCrossBlock false on a fast flick /
-	// pointercancel (touch, Tauri WebView2). Guard on a LIVE rAF so an
-	// already-processed move is never replayed (double-commit / double-extend).
+	// A release before the coalescing rAF runs would otherwise drop the final move (a stale drop
+	// index, or isCrossBlock false on a fast flick / pointercancel). Guard on a LIVE rAF so an
+	// already-processed move is never replayed.
 	function flushPendingMove(): void {
 		if (rafId !== null && pending) opts.onMove(pending);
 	}
@@ -117,8 +106,8 @@ export function createPointerDragSession(
 		pending = null;
 	}
 
-	// Only the pointer that opened the drag ends it: a second touch's up/cancel
-	// would otherwise commit or tear down someone else's gesture.
+	// Only the pointer that opened the drag ends it: a second touch's up/cancel would otherwise
+	// commit or tear down someone else's gesture.
 	function onPointerUp(e: PointerEvent): void {
 		if (e.pointerId !== pointerId) return;
 		flushPendingMove();
@@ -126,9 +115,8 @@ export function createPointerDragSession(
 		opts.onEnd?.('up');
 	}
 
-	// Touch/stylus and Tauri WebView2 surface gestures fire pointercancel instead
-	// of pointerup when the OS reclaims the pointer; without this listener the
-	// pointermove + rAF would leak until editor unmount.
+	// Touch/stylus and Tauri WebView2 fire pointercancel instead of pointerup when the OS
+	// reclaims the pointer; without this the pointermove + rAF leak until editor unmount.
 	function onPointerCancel(e: PointerEvent): void {
 		if (e.pointerId !== pointerId) return;
 		flushPendingMove();
@@ -136,8 +124,8 @@ export function createPointerDragSession(
 		opts.onEnd?.('cancel');
 	}
 
-	// Editor unmount aborts the lifetime, not a pointer — always tears down, and
-	// never runs onEnd (no gesture result to finalize into an unmounting tree).
+	// Editor unmount aborts the lifetime, not a pointer: always tears down, never runs onEnd
+	// (no gesture result to finalize into an unmounting tree).
 	function onAbort(): void {
 		dispose();
 	}

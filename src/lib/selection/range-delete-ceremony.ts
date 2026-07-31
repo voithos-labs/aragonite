@@ -1,10 +1,8 @@
 /**
- * Deletion ceremony shared by every rangeDelete branch (generic, chrome,
- * table): covered paths are spliced identity-gated in reverse doc order,
- * cascading empty-ancestor cleanup per delete. The wall branches (chrome, table)
- * additionally reduce covered paths to subtree roots so a container dies as ONE
- * splice with children intact — a commit scope or undo entry holding the
- * detached node stays invariant-clean.
+ * Deletion ceremony shared by every rangeDelete branch (generic, chrome, table): covered paths
+ * splice identity-gated in reverse doc order, with cascading empty-ancestor cleanup. The wall
+ * branches also reduce covered paths to subtree roots so a container dies as ONE splice with
+ * children intact, keeping a commit scope or undo entry holding the detached node clean.
  */
 
 import type { GrammarView } from '../schema/block-openers';
@@ -28,10 +26,9 @@ import {
 	rebuildUnsharedAncestry,
 	rebuildUnsharedChain
 } from '../tree-operations/unshare';
-// The reserved-chrome wall primitives live with the chrome branch; the shared
-// wall-planning atoms below consume them, and the chrome branch imports those
-// atoms back. The resulting ceremony↔chrome cycle is function-body-only — every
-// cross-reference resolves at call time, never at module load — so it is safe.
+// Wall primitives live with the chrome branch, which imports the atoms below back. The
+// resulting cycle is function-body-only (resolved at call time, never at module load), so it
+// is safe.
 import {
 	nearestChromeContainer,
 	rangeConsumesContainer,
@@ -39,20 +36,15 @@ import {
 	type ChromeContainer
 } from './range-delete-chrome';
 
-/**
- * Subtree roots only: one splice per covered subtree, never a child-by-child
- * emptying of a container that is about to die.
- */
+/** Subtree roots only: one splice per covered subtree, never a child-by-child emptying. */
 export function filterToSubtreeRoots(paths: number[][]): number[][] {
 	return paths.filter((p) => !paths.some((q) => isStrictAncestorOf(q, p)));
 }
 
 /**
- * Identity-gated reverse-doc-order deletion: a deeper delete + cascade can
- * shift a survivor into an outer slot, so each path is re-resolved and only
- * spliced while it still holds the node captured up front. Caller must own
- * every parent spine BEFORE calling (G1.9) so the capture sees post-unshare
- * identities.
+ * Identity-gated reverse-doc-order deletion: a deeper delete + cascade can shift a survivor
+ * into an outer slot, so each path is re-resolved and spliced only while it still holds the
+ * node captured up front. Caller must own every parent spine BEFORE calling (G1.9).
  */
 export function deleteSubtreesIdentityGated(
 	doc: Document,
@@ -74,9 +66,8 @@ export function deleteSubtreesIdentityGated(
 }
 
 // ── Cross-block deletion plan (chrome + table branches) ─────────────────────
-// The cross-block branches interleave their endpoint replaceAtPath differently
-// (some before the deletes, some after — see each branch's ordering comment), so
-// the steps stay separate atoms the callers sequence explicitly.
+// The cross-block branches interleave their endpoint replaceAtPath differently, so the steps
+// stay separate atoms the callers sequence explicitly.
 
 export interface EndWall {
 	container: ChromeContainer;
@@ -84,11 +75,9 @@ export interface EndWall {
 }
 
 /**
- * End-side wall context: the chrome container holding the end point, when the
- * range enters it from outside. `consumed` means the whole subtree is covered
- * — the chrome branch's last-byte rule for a prose end; for a table end, the
- * emptied table sitting on the container's last-child chain — so the container
- * unit-deletes instead of leaving a husk.
+ * End-side wall context: the chrome container holding the end point, when the range enters it
+ * from outside. `consumed` means the whole subtree is covered (a prose end's last-byte rule, or
+ * an emptied table on the container's last-child chain), so the container unit-deletes.
  */
 export function resolveEndWall(
 	doc: Document,
@@ -114,12 +103,9 @@ export interface DeletionPlan {
 }
 
 /**
- * Covered subtree roots (chrome-ceremony parity: one splice per covered
- * subtree) plus endpoint paths the caller marks for removal, honoring the
- * chrome wall: a surviving end container's covered chrome CLEARS instead of
- * deleting (returned as an unshared chain for the caller's raw write +
- * rebuild), and a consumed container replaces its own endpoint/descendant
- * splices with one unit delete.
+ * Covered subtree roots plus endpoint paths the caller marks for removal, honoring the chrome
+ * wall: a surviving end container's covered chrome CLEARS instead of deleting (returned as an
+ * unshared chain for the caller's raw write), and a consumed container becomes one unit delete.
  */
 function collectDeletionPlan(
 	doc: Document,
@@ -152,11 +138,9 @@ function collectDeletionPlan(
 }
 
 /**
- * Plan the deletion — covered subtree roots plus caller-marked endpoint paths
- * (via {@link collectDeletionPlan}) — then own every deletion path's parent
- * spine before any splice (G1.9) and resolve the LCA cascade cleanup stops at.
- * The caller resolves `wall` itself: its `consumed` flag also gates each case's
- * endpoint prose-replace, which runs before this on some cases.
+ * Plan the deletion via {@link collectDeletionPlan}, own every deletion path's parent spine
+ * before any splice (G1.9), and resolve the LCA cascade cleanup stops at. The caller resolves
+ * `wall` itself: its `consumed` flag also gates each case's endpoint prose-replace.
  */
 export function planCrossBlockDeletion(
 	doc: Document,
@@ -174,10 +158,8 @@ export function planCrossBlockDeletion(
 }
 
 /**
- * Apply the plan as one atomic step: clear a surviving end container's covered
- * chrome (raw write, never a node delete), then splice the covered subtrees in
- * reverse doc order under the identity gate. The cases sequence their endpoint
- * prose-replace before or after this call per their ordering comments.
+ * Apply the plan atomically: clear a surviving end container's covered chrome (raw write, never
+ * a node delete), then splice the covered subtrees in reverse doc order under the identity gate.
  */
 export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath: number[]): void {
 	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
@@ -186,10 +168,8 @@ export function applyPlannedDeletion(doc: Document, plan: DeletionPlan, lcaPath:
 }
 
 /**
- * Rebuild every deletion path's surviving ancestry, then the cleared chrome's
- * opener line (chain-based so the re-emit survives the splices). Shared tail of
- * every case's rebuild block; case-specific survivor rebuilds stay at the call
- * site, on their own side of this call.
+ * Rebuild every deletion path's surviving ancestry, then the cleared chrome's opener line
+ * (chain-based, so the re-emit survives the splices). Case-specific rebuilds stay at call sites.
  */
 export function rebuildSharedAncestries(
 	doc: Document,
