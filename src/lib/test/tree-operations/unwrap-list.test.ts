@@ -4,7 +4,6 @@ import { serialize } from '../../core/serializer';
 import { unwrapFirstItemFromList } from '../../tree-operations';
 import type { CstNode } from '../../core/nodes';
 
-
 describe('unwrapFirstItemFromList', () => {
 	function parseList(src: string): CstNode {
 		const doc = parse(src);
