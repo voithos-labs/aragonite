@@ -7,49 +7,36 @@ import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 
 /**
- * A block's merge role classifies its behavior for Backspace-merge purposes.
- * See `docs/design/editor.md` — Merge eligibility: roles, not pairs — for the full role spec.
- *
- * Declared here rather than in `merge-rules.ts` so the descriptor registry
- * can reference it without creating an import cycle.
+ * Backspace-merge role. Full spec: `docs/design/editor.md` — Merge eligibility: roles, not pairs.
+ * Lives here, not `merge-rules.ts`, so the descriptor registry can reference it without a cycle.
  */
 export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'not-mergeable';
 
 /**
- * Backspace-at-start behavior for a container's children. Strategy
- * implementations live in editor-actions/unwrap-strategies.ts; the nested
- * blockEdit dispatcher selects by these names. Absent = default (first child
- * delegates upward; middle children follow merge-rules).
+ * Backspace-at-start behavior for a container's children; strategies live in
+ * `editor-actions/unwrap-strategies.ts`. Absent = default (first child delegates upward;
+ * middle children follow merge-rules).
  */
 export interface UnwrapRole {
 	firstChildBackspace: 'lift-first-child' | 'list-item-cascade';
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
 	/**
-	 * The container is quote-shaped: lifting its first child out (Rule U2) drops
-	 * the opener syntax and leaves a plain blockquote, so `unwrapFirstChildFromQuote`
-	 * takes the lift. A positive opt-in read by presence — a chrome container that
-	 * shares `firstChildBackspace: 'lift-first-child'` but omits this no-ops instead,
-	 * preserving its reserved chrome (the callout path). Keeps the core tree-op free
-	 * of any kind name; a future quote-shaped kind opts in here.
+	 * Quote-shaped: lifting the first child out (Rule U2) drops the opener, so
+	 * `unwrapFirstChildFromQuote` takes the lift. A `lift-first-child` container omitting
+	 * this no-ops instead, preserving its reserved chrome.
 	 */
 	quoteShaped?: true;
 }
 
 /**
- * A container whose direct children reorder among themselves (Alt+Arrow nudge /
- * drag handle). The reorder walk resolves the unit at the nearest ancestor
- * declaring this; absent means children are NOT independently reorderable — a
- * listItem's leaf resolves to the item under the list, and an opaque container
- * declines the reorder at its boundary rather than teleporting the whole block.
- * Distinct from `quoteShaped`: a list is reorder-within but not quote-shaped, and
- * a listItem is strip but not reorder-within.
+ * A container whose direct children reorder among themselves (Alt+Arrow / drag handle). The
+ * reorder walk resolves the unit at the nearest ancestor declaring this; absent = children are
+ * NOT independently reorderable, and the container declines the reorder at its boundary.
  */
 export interface ReorderChildrenRole {
 	/**
-	 * Direct children carry position-dependent markers that must be renumbered
-	 * after a permutation (ordered-list numbering). Absent = the per-line marker
-	 * is position-independent (a uniform quote/indent prefix — blockquote,
-	 * githubAlert, footnote-def), so the descriptor's rebuildRaw alone re-emits it.
+	 * Direct children carry position-dependent markers needing a renumber after a permutation
+	 * (ordered-list numbering). Absent = position-independent, so `rebuildRaw` alone re-emits.
 	 */
 	renumberMarkers?: true;
 }
@@ -58,134 +45,81 @@ export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
 	/**
-	 * The kind's answer to every cross-cutting editor system — the closure matrix
-	 * row as a required field, so a kind cannot ship closed under a subsystem
-	 * nobody asked about. `Record<ClosureColumn, …>` makes a missing column a
-	 * compile error; requiring the field makes a missing block one. Read-side and
-	 * flat (all kinds, not container-only), so it survives `stripContainerOnlyKeys`.
+	 * The kind's closure-matrix row: its answer to every cross-cutting editor system. Required,
+	 * so a kind cannot ship closed under a subsystem nobody asked about.
 	 */
 	closure: ClosureBlock;
 	/**
-	 * A small markdown source that parses to a tree containing this kind — consumed
-	 * by the conformance battery. Present for parser-reachable kinds; omitted for
-	 * context-dependent kinds (chrome, tableCell) and reserved `unrecognized`, which
-	 * a document scan can never yield in isolation. G1.24 checks that a declared
-	 * fixture actually parses to the kind; it does not demand one exist.
+	 * Markdown parsing to a tree containing this kind, for the conformance battery; omit for
+	 * kinds no document scan yields in isolation. G1.24 checks a declared fixture, not existence.
 	 */
 	conformanceFixture?: string;
 	/**
-	 * Editor-level whole-block focus policy for an opaque, childless block (e.g. a
-	 * render-primary plugin diagram). `'whole-block'` opts the kind into the
-	 * ThematicBreak-style focus-then-delete model: arrow traversal stops on it, a
-	 * caret-adjacent Backspace/Delete focuses it before a second press deletes, and
-	 * the merge-fallback twins focus it instead of deleting or no-oping. Absent =
-	 * the block is not an editor-level focus target on its own. Closed vocabulary —
-	 * a plugin may not invent values. Leaf-level, so it survives `stripContainerOnlyKeys`.
+	 * `'whole-block'` opts an opaque, childless block into the focus-then-delete model: arrow
+	 * traversal stops on it, and Backspace/Delete focuses it before a second press deletes.
 	 */
 	blockFocus?: 'whole-block';
 	isContainer: boolean;
 	/**
 	 * Shape of a container's raw↔children relationship (container kinds only).
-	 * `'strip'` — `raw` is outer syntax around a strip-and-recurse decomposition,
-	 * so `strip(raw) === serialize(children)` (blockquote/list/listItem).
-	 * `'grid'` — cells parse straight from `raw`; the invariant does NOT hold and
-	 * the container is coordinate-addressed (table/tableRow).
-	 * `'opaque'` — `raw` is authoritative and not a strip-decomposition (chrome
-	 * lives in the container's own raw, e.g. a title in the opener line); exempt
-	 * from the stale-raw byte-check like `'grid'`, but NOT coordinate-addressed.
-	 * Its `rebuildRaw` must be deterministic over children/metadata/inner trivia —
-	 * a DEV probe re-runs it twice and compares the outputs (never against `raw`,
-	 * which a faithful non-canonical parse legally differs from); a separate DEV
-	 * check reparses `raw` to catch children mutated without a rebuild.
+	 * `'strip'` — outer syntax wrapping a strip-and-recurse body, so
+	 * `strip(raw) === serialize(children)`.
+	 * `'grid'` — cells parse straight from `raw`; coordinate-addressed, and that does not hold.
+	 * `'opaque'` — `raw` is authoritative, not a strip-decomposition; exempt from the stale-raw
+	 * byte-check, and its `rebuildRaw` must be deterministic over children/metadata/inner trivia.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
 	/**
-	 * True when the kind has no standalone line recognizer, so `parse(raw)` would
-	 * NOT reproduce it (tableCell → paragraph; plugin chrome → paragraph). Its
-	 * container's rebuildRaw owns the surrounding syntax; a content edit keeps the
-	 * kind and just writes `raw`, instead of re-deriving kind and downgrading it.
+	 * The kind has no standalone line recognizer, so `parse(raw)` would NOT reproduce it: its
+	 * container's rebuildRaw owns the syntax, and a content edit writes `raw` without re-deriving.
 	 */
 	contextDependentKind?: boolean;
 	/**
-	 * Make text legal as this kind's `raw` before an in-place write lands. The
-	 * companion of `contextDependentKind`: a container that joins its children's
-	 * bytes verbatim gives those bytes delimiter meaning, so a write carrying a
-	 * delimiter would restructure the container instead of adding text (a bare `|`
-	 * in a tableCell deletes the row's last column). Applied at the write sink so
-	 * no gesture carries the rule; must be idempotent and prefix-composable, since
-	 * callers map their caret through the same pass. Absent = raw is written as given.
+	 * Make text legal as this kind's `raw` before an in-place write lands — a delimiter the
+	 * container joins verbatim would otherwise restructure it (a bare `|` in a tableCell deletes
+	 * the row's last column). Applied at the write sink; idempotent and prefix-composable, since
+	 * callers map carets through the same pass.
 	 */
 	normalizeRawWrite?: (raw: string) => string;
 	/**
-	 * Make text legal as a CHILD's raw inside this container's body (container
-	 * kinds only). The ancestor-side counterpart of `normalizeRawWrite`: that one
-	 * is a kind's rule about its own bytes, this one is a container's rule about
-	 * its descendants' — a container that joins its children between an opener and
-	 * a FIXED terminator (`</details>`, with no fence length to escalate) gives
-	 * those bytes grammatical meaning, so a body write reproducing the terminator
-	 * truncates the container instead of adding text.
-	 *
-	 * Applied at the tree-op write sinks, upstream of the reparse that derives the
-	 * child's kind. That placement is load-bearing, not incidental: the escape
-	 * changes what the bytes parse to (a bare `</details>` is an htmlBlock, an
-	 * escaped one a paragraph), so anything downstream of the reparse leaves
-	 * `kind` disagreeing with `parse(raw)`. Escaping at the container REBUILD
-	 * instead is the other dead end — it diverges the container's raw from its
-	 * live children, which is what G1.12 fires on.
-	 *
-	 * `normalize` must be idempotent and LINE-LOCAL: it may read the whole raw to
-	 * decide WHICH lines to rewrite (a stray opener is only stray given lookahead),
-	 * but never moves bytes across a line boundary. `mapOffset` is its exact caret
-	 * image; the pair ships as one object so a transform cannot be declared without
-	 * the map that keeps carets on it. Absent = the body takes bytes as given.
+	 * Make text legal as a CHILD's raw inside this container's body (container kinds only) —
+	 * `normalizeRawWrite`'s ancestor-side counterpart, for a container whose FIXED terminator
+	 * (`</details>`) a body write could otherwise reproduce and truncate on. Applied at the write
+	 * sinks upstream of the kind-deriving reparse, since the escape changes what the bytes parse
+	 * to. `normalize` is idempotent and LINE-LOCAL; `mapOffset` is its exact caret image.
 	 */
 	bodyWrite?: {
 		normalize: (raw: string) => string;
 		mapOffset: (raw: string, offset: number) => number;
 	};
 	/**
-	 * Declares child index 0 of this container as a reserved chrome leaf of the
-	 * given kind (a title/summary whose bytes live in the container's own raw —
-	 * e.g. the callout opener line). The machinery enforces: always present,
-	 * single-line, cleared-not-deleted by range ops, kind-stable. The chrome kind
-	 * itself is registered via registerChromeLeaf.
+	 * Child index 0 is a reserved chrome leaf of the given kind — a title whose bytes live in the
+	 * container's own raw. Enforced: always present, single-line, cleared-not-deleted by range
+	 * ops, kind-stable. Register the chrome kind itself via `registerChromeLeaf`.
 	 */
 	reservedChrome?: {
 		kind: AnyBlockKind;
 		/**
-		 * How the machinery reads this container's collapsed state — a PURE model
-		 * probe (node in, bool out; no DOM, no component state). Absent = never
-		 * collapsed. Collapse-aware walks (e.g. the Backspace merge walker) stop
-		 * at the chrome leaf instead of reaching into the clamped-out body.
+		 * PURE model probe (node in, bool out; no DOM, no component state) for collapsed state.
+		 * Collapse-aware walks stop at the chrome leaf rather than reach into a clamped-out body.
 		 */
 		isCollapsed?: (node: NodeView) => boolean;
 		/**
-		 * The metadata patch that expands a collapsed node, so a reveal aimed at a
-		 * clamped-out body child opens the container instead of dead-ending on it.
-		 * Pure like the probe beside it (node in, patch out); the container seam owns
-		 * the commit — one undoable metadata edit, inert in reading mode. Absent, or a
-		 * null return, means no door: the reveal degrades to the chrome row.
+		 * Pure patch that expands a collapsed node, so a reveal aimed at a clamped-out body child
+		 * opens the container. Absent or null = no door, and the reveal degrades to the chrome row.
 		 */
 		expandPatch?: (node: NodeView) => Record<string, unknown> | null;
 	};
 	/**
-	 * Clipboard-side container paste-merge behavior: how a clipboard whose TOP
-	 * block is this kind merges into a same-kind ancestor instead of nesting
-	 * as a sub-container. Absent = always nest (default structural path).
+	 * How a clipboard whose TOP block is this kind merges into a same-kind ancestor instead of
+	 * nesting as a sub-container. Absent = always nest (the default structural path).
 	 */
 	containerPaste?: {
-		/**
-		 * Confirms the merge against the candidate ancestor (e.g. equal list
-		 * ordered flags). The container-match path resolves a same-kind ancestor
-		 * before consulting this; the absorb/break-out path passes the nearest
-		 * list ancestor (list-shaped apply — see `siblingAbsorb`).
-		 */
+		/** Confirms the merge against the candidate ancestor (e.g. equal list ordered flags). */
 		matchesAncestor: (clipboardTop: CstNode, ancestor: CstNode) => boolean;
 		/**
-		 * Non-empty single-block targets: splice clipboard items as siblings in
-		 * the enclosing container when it matches, split it when it doesn't.
-		 * The apply path is list-shaped today (marker normalize + renumber) —
-		 * only list declares it.
+		 * Non-empty single-block targets: splice clipboard items as siblings in the enclosing
+		 * container when it matches, split it when it doesn't. The apply path is list-shaped.
 		 */
 		siblingAbsorb: boolean;
 	};
@@ -193,58 +127,29 @@ export interface BlockKindDescriptor {
 	unwrapRole?: UnwrapRole;
 	/** This container's direct children reorder among themselves. Absent = not reorder-within. */
 	reorderChildren?: ReorderChildrenRole;
-	/**
-	 * Declarative chord -> command map for this kind. Consulted by
-	 * dispatchKeyCommand before the editor-global table, so a kind can shadow a
-	 * global binding. Absent = only global bindings apply.
-	 */
+	/** Chord -> command map, consulted before the global table so a kind can shadow a global. */
 	keymap?: KeyBinding[];
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/**
-	 * Extract the content range (post-marker offsets) from a node's raw. Prose
-	 * kinds whose markers occupy a prefix of `raw` implement this to skip
-	 * markers; otherwise the default (start=0, end=displayLength) is used.
+	 * Content range (post-marker offsets) in a node's raw, for prose kinds whose markers occupy
+	 * a prefix of it. Absent = the default `start=0, end=displayLength`.
 	 */
 	getContentRange?: (node: NodeView) => { start: number; end: number };
-	/**
-	 * Recompute `raw` from children + container metadata. Container kinds
-	 * declare this at registration (implementations in
-	 * `schema/container-rebuilders.ts`); leaves omit it.
-	 */
+	/** Recompute `raw` from children + metadata; built-ins in `schema/container-rebuilders.ts`. */
 	rebuildRaw?: (node: CstNode) => void;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
 	renderImagesAsWidgets?: boolean;
 	/**
-	 * Translate a foreign drag's viewport point into an internal focus offset
-	 * for a block kind with its own coordinate addressing (today only `table`,
-	 * whose offset is a row-major cellIdx, not a character index). `blockEl` is
-	 * the `[data-block-path]` wrapper; the impl resolves its own internal DOM.
-	 * Returns null when the point lands outside an addressable region. Patched
-	 * in from `components/built-in-blocks.ts` (top-of-DAG wire-up) so the schema
-	 * layer keeps no downstream component import.
+	 * Translate a foreign drag's viewport point into an internal focus offset, for a kind with
+	 * its own coordinate addressing; null when the point is outside an addressable region.
+	 * Patched in from `components/built-in-blocks.ts`, so schema keeps no component import.
 	 */
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
 	/**
-	 * Translate a point inside this block's box into a caret landing expressed in
-	 * the kind's own internal addressing: a path of child indices from this block
-	 * plus the within-leaf offset, placed through `focusByPath`. Opt-in, and the
-	 * only thing that lets a coordinate-addressed kind answer a caret-placing
-	 * gesture aimed at its box (the dead-space click) instead of declining — a
-	 * table's block-level offset is a row-major cellIdx, which names a cell rather
-	 * than a character position.
-	 *
-	 * TOTAL within the box, which is what makes it a separate declaration from
-	 * {@link foreignDragHitTest} rather than a second return shape for it: the
-	 * point arrives already clamped into the box, so a y in internal chrome must
-	 * still answer, and the impl snaps to the NEAREST addressable leaf. A drag's
-	 * hit test must do the opposite and decline off-cell, or a pointer crossing a
-	 * gutter would jump the selection. Patched in from
-	 * `components/built-in-blocks.ts`, like its drag sibling.
-	 *
-	 * Independent of that sibling: declaring this one says nothing about how a DRAG
-	 * addresses the kind, so a character-addressed kind may declare it alone and keeps
-	 * the editable surface the drag hit test resolves against.
+	 * Translate a point in this block's box into a caret landing in the kind's own addressing —
+	 * child indices plus within-leaf offset, placed through `focusByPath`. TOTAL within the box,
+	 * unlike {@link foreignDragHitTest}: snap to the NEAREST leaf where a drag declines off-cell.
 	 */
 	caretTargetAtPoint?: (
 		blockEl: HTMLElement,
@@ -257,10 +162,8 @@ export interface BlockKindDescriptor {
 }
 
 /**
- * Container-only fields, registered as one unit. `contract` and `rebuildRaw`
- * are required together, and a leaf has no way to carry any of these — the
- * pairing violation the retired G1.3 bootstrap guard watched for is now
- * unrepresentable. Field semantics live on `BlockKindDescriptor`, the flat
+ * Container-only fields as one unit: `contract` and `rebuildRaw` are required together, and a
+ * leaf has no way to carry any of them. Field semantics live on `BlockKindDescriptor`, the flat
  * read-side shape the group normalizes into.
  */
 export interface ContainerDescriptorGroup {
@@ -273,9 +176,8 @@ export interface ContainerDescriptorGroup {
 	bodyWrite?: BlockKindDescriptor['bodyWrite'];
 }
 
-// One source for both the type-level Omit and the runtime strip: excess-property
-// checks bite only fresh literals, so a widened value (e.g. a flat descriptor
-// passed as a registration) can structurally smuggle these keys past the types.
+// One source for both the type-level Omit and the runtime strip: excess-property checks bite
+// only fresh literals, so a widened value can structurally smuggle these keys past the types.
 const CONTAINER_ONLY_KEYS = [
 	'isContainer',
 	'containerContract',
@@ -288,12 +190,9 @@ const CONTAINER_ONLY_KEYS = [
 ] as const;
 type ContainerOnlyKey = (typeof CONTAINER_ONLY_KEYS)[number];
 
-// The list's completeness, as a compile error rather than a convention. A group
-// field missed here stays in the flat registration shape, so a LEAF could declare
-// it and survive the strip — silent, and invisible to every runtime check. The
-// same staleness channel that let the augment merge drop a field, one level up.
-// `contract` is the one group field with no flat twin: it normalizes to
-// `containerContract`, which the list does carry.
+// The list's completeness as a compile error: a group field missed here stays in the flat
+// registration shape, so a LEAF could declare it and survive the strip. `contract` is the one
+// group field with no flat twin — it normalizes to `containerContract`, which the list carries.
 type MissingContainerOnlyKey = Exclude<
 	Exclude<keyof ContainerDescriptorGroup, 'contract'>,
 	ContainerOnlyKey
@@ -316,9 +215,8 @@ export interface BlockKindRegistration extends Omit<BlockKindDescriptor, Contain
 }
 
 /**
- * The augment shape: top-level fields replace; a partial `container` group
- * merges into the existing group — and is refused outright for a kind
- * registered as a leaf.
+ * The augment shape: top-level fields replace; a partial `container` group merges into the
+ * existing group, and is refused outright for a kind registered as a leaf.
  */
 export type BlockKindAugmentation = Partial<Omit<BlockKindRegistration, 'container'>> & {
 	container?: Partial<ContainerDescriptorGroup>;
@@ -345,9 +243,8 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 	);
 }
 
-// The flat part is stripped of container-only keys (see CONTAINER_ONLY_KEYS)
-// and isContainer is derived, so the `container` group is the only source of
-// container fields — a widened or stale-keyed registration object cannot leak.
+// The flat part is stripped and isContainer derived, so the `container` group is the only
+// source of container fields — a widened or stale-keyed registration object cannot leak.
 function normalizeRegistration(registration: BlockKindRegistration): BlockKindDescriptor {
 	const { container, ...rest } = registration;
 	const flat = stripContainerOnlyKeys(rest);
@@ -356,10 +253,9 @@ function normalizeRegistration(registration: BlockKindRegistration): BlockKindDe
 	return { ...flat, ...containerFields, isContainer: true, containerContract: contract };
 }
 
-// Merge fields into an existing registration; throw if the kind was never
-// registered (no accidental creation via partial data). The built-in-vs-plugin
-// gate lives in the two public entries below, not here — the leaf/container
-// gate lives here so both entries inherit it.
+// Throws if the kind was never registered (no accidental creation via partial data). The
+// built-in-vs-plugin gate lives in the two public entries below; the leaf/container gate lives
+// here so both entries inherit it.
 function mergeBlockKindFields(
 	entry: string,
 	kind: AnyBlockKind,
@@ -379,10 +275,8 @@ function mergeBlockKindFields(
 				`${entry}: cannot augment "${kind}" with container fields — it was registered as a leaf`
 			);
 		}
-		// Merge, never unset: skipping undefined keeps an explicitly-undefined group
-		// field from breaking the contract/rebuild pairing the registration shape
-		// guarantees. Keyed off the group rather than a hand-kept field list, which
-		// silently swallowed any group field the list had not caught up with.
+		// Merge, never unset: skipping undefined keeps an explicitly-undefined group field from
+		// breaking the contract/rebuild pairing. Keyed off the group, not a hand-kept field list.
 		const { contract, ...group } = container;
 		next.containerContract = contract ?? existing.containerContract;
 		Object.assign(
@@ -395,15 +289,10 @@ function mergeBlockKindFields(
 }
 
 /**
- * Merge fields into a plugin's own registration. The public authoring entry.
- * Rejects built-in kinds — a plugin augmenting a built-in silently rewrote its
- * descriptor process-globally; built-in wire-up uses the internal augmentBuiltin
- * seam. Rejects a kind owned by a DIFFERENT plugin for the same reason: the
- * ownership recorded at `declarePluginKind` gates augmentation to the declaring
- * plugin's own setup, so cross-plugin last-writer-wins is a loud throw, not a
- * silent override. A kind with no recorded owner (declared outside any plugin
- * install — the test/harness path) stays open. Also throws when the kind isn't
- * already registered.
+ * Merge fields into a plugin's own registration — the public authoring entry. Rejects built-in
+ * kinds (built-in wire-up uses the internal `augmentBuiltin` seam) and kinds owned by a
+ * different plugin, so cross-plugin last-writer-wins is a loud throw rather than a silent
+ * override. A kind with no recorded owner (declared outside any plugin install) stays open.
  */
 export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	if (isBuiltinBlockKind(kind)) {
@@ -426,10 +315,9 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 }
 
 /**
- * Internal seam for augmenting a BUILT-IN descriptor. Top-of-DAG wire-up
- * (components/built-in-blocks.ts) patches in behavior that can't live in this
- * file without importing downstream layers. Deliberately kept off the public
- * `aragonite/plugin` surface so a plugin can't rewrite a built-in.
+ * Internal seam for augmenting a BUILT-IN descriptor: top-of-DAG wire-up
+ * (`components/built-in-blocks.ts`) patches in behavior this file cannot import. Kept off the
+ * public `aragonite/plugin` surface so a plugin can't rewrite a built-in.
  */
 export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	mergeBlockKindFields('augmentBuiltin', kind, fields);
@@ -451,9 +339,8 @@ export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescript
 }
 
 /**
- * Probe by name whether a kind descriptor exists. `registerBlockKind` throws on
- * duplicate, so a plugin registering idempotently (HMR / re-import) guards on
- * this. Accepts a plain name so callers needn't pre-brand an unminted kind.
+ * Probe whether a kind descriptor exists — `registerBlockKind` throws on duplicate, so a plugin
+ * registering idempotently (HMR / re-import) guards on this. Takes a plain, unbranded name.
  */
 export function isBlockKindRegistered(kind: string): boolean {
 	return registry.has(kind as AnyBlockKind);

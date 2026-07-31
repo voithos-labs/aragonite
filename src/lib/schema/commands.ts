@@ -1,17 +1,9 @@
 /**
- * The command vocabulary, the global command registry, and chord→binding
- * resolution. A command is a named document intent. GLOBAL commands (undo/redo)
- * are free functions over a minimal context; BLOCK-LOCAL commands are implemented
- * by the focused block component's runCommand or a registered block-command
- * handler. Per-kind keybindings live on BlockKindDescriptor.keymap; this file
- * also holds the editor-global table. The chord dispatchers themselves live in
- * `./block-commands` (both the leaf and container-bubble paths), which reads this
- * file's resolvers and the block-command registry through one seam — kept there,
- * not here, so this file carries no runtime edge to block-commands.
- *
- * Layering: this file is a schema leaf — it must not import action-contracts
- * (which pulls in tree-operations/undo). GlobalCommandContext is the minimal
- * shape global commands need; HistoryActions satisfies it structurally.
+ * The command vocabulary, the global command registry, and chord→binding resolution. GLOBAL
+ * commands (undo/redo) are free functions over a minimal context; BLOCK-LOCAL ones run on the
+ * focused block or a registered block-command handler. The chord dispatchers live in
+ * `./block-commands`, not here, so this file carries no runtime edge to it. Schema leaf: it may
+ * not import action-contracts, so `GlobalCommandContext` is what `HistoryActions` satisfies.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
@@ -24,10 +16,8 @@ import {
 	overrideDecision,
 	type KeybindingOverrideMap
 } from './keybinding-overrides';
-// Type-only: no runtime edge. GlobalCommandContext carries a per-instance
-// EditorContext lookup and the dispatch seam's error sink; both are structural
-// references, so this schema leaf keeps no value edge to plugin-install or
-// block-commands.
+// Type-only: structural references, so this schema leaf keeps no value edge to plugin-install
+// or block-commands.
 import type { EditorContext } from './plugin-install';
 import type { CommandErrorSink } from './block-commands';
 import type { PresentationMode } from '../presentation-mode';
@@ -54,9 +44,8 @@ export const BLOCK_COMMAND_IDS = [
 	'cell.enter',
 	'cell.tab',
 	'cell.shiftTab',
-	// Structural table mutations. Bound on `tableCell` (the focused surface) but named
-	// for their subject, like `heading.cycle` on a paragraph: each takes the focused
-	// cell's row or column as its index, which the cell supplies from its own props.
+	// Bound on `tableCell` (the focused surface) but named for their subject: each takes the
+	// focused cell's row or column as its index, supplied from the cell's own props.
 	'table.insertRowBelow',
 	'table.insertRowAbove',
 	'table.insertColumnRight',
@@ -103,20 +92,14 @@ export function getCommand(id: AnyCommandId): GlobalCommandRun | undefined {
 
 const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 
-/**
- * True when the id is part of the closed built-in vocabulary (not a minted
- * plugin id). Accepts a plain name so probes needn't pre-brand (the
- * `isBlockKindRegistered` convention).
- */
+/** True when the id is in the closed built-in vocabulary. Takes a plain, unbranded name. */
 export function isBuiltinCommandId(id: string): boolean {
 	return BUILTIN_COMMAND_IDS.has(id);
 }
 
 /**
- * Test-only. Removes every command outside the closed built-in vocabulary —
- * minted block AND global command handlers alike, since both key into
- * `globalCommands`/the block registry. The plugin-global chord keymap resets
- * separately (`__resetPluginGlobalKeymapForTests`).
+ * Test-only. Removes every command outside the closed built-in vocabulary; the plugin-global
+ * chord keymap resets separately (`__resetPluginGlobalKeymapForTests`).
  */
 export function __removePluginCommandsForTests(): void {
 	for (const id of globalCommands.keys()) {
@@ -127,13 +110,9 @@ export function __removePluginCommandsForTests(): void {
 const warnedUnresolvedIds = new Set<string>();
 
 /**
- * Dev-warn once per id that a bound command reached no runnable handler on the
- * dispatch path that fired — a dead key. Shared by both paths (leaf and
- * container-bubble). "Reachable", not "registered": both paths resolve a minted
- * command only when the dispatch target supplies a command context, so a command
- * bound where no context is available (a built-in leaf, the cross-block replay
- * target) signals unreachability, not necessarily a missing registration. Silent
- * in production (devWarn).
+ * Dev-warn once per id that a bound command reached no runnable handler on the dispatch path
+ * that fired — a dead key. Unreachable, not unregistered: a minted command resolves only where
+ * the dispatch target supplies a command context.
  */
 export function warnUnresolvedPluginCommand(id: AnyCommandId): void {
 	if (warnedUnresolvedIds.has(id)) return;
@@ -162,41 +141,34 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 ];
 
 // ── Plugin-global chord tier ─────────────────────────────────────────────
-// A plugin's global command may claim a chord here. It resolves LAST — after
-// every override, built-in kind, and built-in global tier — and built-in chords
-// are unstealable (register-once, throw-on-collision).
+// A plugin's global command may claim a chord here. It resolves LAST, after every override and
+// built-in tier, and built-in chords are unstealable (register-once, throw-on-collision).
 
 const pluginGlobalKeymap: KeyBinding[] = [];
 
 // Chords the editor UI intercepts outside the command resolvers (the search bar's
-// document-level listener) — a plugin binding one would double-fire: its command
-// at the leaf AND the UI action, on one keypress.
+// document-level listener) — a plugin binding one would double-fire on a single keypress.
 const RESERVED_UI_CHORDS = new Set(['Mod+F', 'Mod+H']);
 
 /**
- * True when a chord is intercepted by the editor UI outside the command resolvers
- * (the search bar's document-level Ctrl+F / Ctrl+H). The single source both the
- * plugin-global registration guard and the editor-root keydown handler read, so
- * the reserved set is never hardcoded twice.
+ * True when the editor UI intercepts a chord outside the command resolvers. The single source
+ * both the plugin-global registration guard and the editor-root keydown handler read.
  */
 export function isReservedUiChord(chord: string): boolean {
 	return RESERVED_UI_CHORDS.has(normalizeChord(chord));
 }
 
 /**
- * `candidateCommand` is the id the incoming registration will bind — a plain name
- * (the mint is deterministic: name IS the id). On a dev-server re-eval a registrar
- * re-binds its OWN same command to its OWN same chord; that is an idempotent replace,
- * not a collision. Reserved chords and cross-command collisions still throw — the
- * same-key valve cannot distinguish those genuine conflicts.
+ * `candidateCommand` is the id the incoming registration will bind (the mint is deterministic:
+ * name IS the id). A dev-server re-eval re-binding its OWN command to its OWN chord is an
+ * idempotent replace, not a collision; reserved chords and cross-command collisions still throw.
  */
 export function assertPluginGlobalChordAvailable(
 	rawChord: string,
 	candidateCommand?: string
 ): void {
-	// A public registration API fails loudly, not warn-and-drop: a malformed chord
-	// (the `'Ctrl+B'` → bare `'B'` trap) that slipped through would bind a handler
-	// that fires on every plain keypress. Thrown before the mint (see
+	// Fails loudly, not warn-and-drop: a malformed chord (the `'Ctrl+B'` → bare `'B'` trap) would
+	// bind a handler that fires on every plain keypress. Thrown before the mint (see
 	// global-commands.ts), so a rejected registration leaves no orphaned command.
 	if (!isChordWellFormed(rawChord)) {
 		throw new Error(
@@ -222,9 +194,8 @@ export function assertPluginGlobalChordAvailable(
 
 export function registerPluginGlobalBinding(binding: KeyBinding): void {
 	assertPluginGlobalChordAvailable(binding.chord, binding.command);
-	// A dev re-eval passed the same-command exemption above; replace the prior
-	// binding in place instead of stacking a duplicate. Fresh registrations never
-	// find an existing entry (the assert would have thrown).
+	// A dev re-eval passed the same-command exemption above: replace in place instead of stacking
+	// a duplicate. A fresh registration never finds an existing entry.
 	const chord = normalizeChord(binding.chord);
 	const existing = pluginGlobalKeymap.findIndex((b) => normalizeChord(b.chord) === chord);
 	if (existing >= 0) pluginGlobalKeymap[existing] = binding;
@@ -245,10 +216,8 @@ function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | nul
 }
 
 /**
- * The consumer-override tier shared by both leaf and bubble resolution: kind
- * override, then global override. Returns the decision (a binding, or `null` for a
- * disable) when either tier decides, `undefined` when neither does — so the caller
- * falls through to its own built-in tiers.
+ * The consumer-override tier shared by leaf and bubble resolution: kind override, then global.
+ * `null` is a disable decision; `undefined` means neither tier decided.
  */
 function overrideTier(
 	overrides: KeybindingOverrideMap | undefined,
@@ -267,16 +236,10 @@ function builtinGlobalBinding(chord: string): KeyBinding | null {
 }
 
 /**
- * Container-bubble resolution: override(kind) → override(global) → built-in kind
- * keymap. No built-in GLOBAL fallthrough — undo/redo belong to the focused leaf,
- * and a bubble re-firing the built-in global table would double-fire (see
- * `dispatchKindCommand` in `./block-commands`). Consumer overrides ARE honored at
- * both scopes: a `keybindings` decision is a per-instance intent that must mean
- * the same at the leaf and the bubble. So a global DISABLE unbinds a chord even
- * where a kind defines it (the container-bubble hole this closes), and a global
- * BIND shadows the built-in kind binding too — routing to the container's
- * `runCommand`, which declines an unowned command, rather than falling through to
- * the shadowed built-in and firing a second, unasked action.
+ * Container-bubble resolution: override(kind) → override(global) → built-in kind keymap. No
+ * built-in GLOBAL fallthrough — undo/redo belong to the focused leaf, and a bubble re-firing
+ * them would double-fire. Consumer overrides ARE honored at both scopes, so a global disable
+ * unbinds a chord a kind defines, and a global bind shadows the built-in kind binding.
  */
 export function resolveKindBinding(
 	chord: string,
@@ -289,10 +252,8 @@ export function resolveKindBinding(
 }
 
 /**
- * Leaf precedence: override(kind) → override(global) → built-in kind → built-in
- * global. An override (bind or disable) at any tier ends resolution. Override
- * source dominates specificity (override-global before built-in-kind) so a
- * global disable suppresses a chord even where a kind defines it.
+ * Leaf precedence: override(kind) → override(global) → built-in kind → built-in global. Override
+ * source dominates specificity, so a global disable suppresses a chord a kind defines.
  */
 export function resolveBinding(
 	chord: string,
@@ -305,22 +266,16 @@ export function resolveBinding(
 }
 
 /**
- * True when the editor-global keymap binds this chord (today: undo/redo). The
- * input-layer interception sites consult this to know which chords they own —
- * then route the command through the override-aware resolver. Precise: it never
- * matches a modified variant like `Mod+Alt+Y`, only the exact global chords.
- * Includes plugin-global chords so an input-layer site that owns the global tier
- * (editor-root, thematic break) intercepts a plugin chord too.
+ * True when the editor-global or plugin-global keymap binds this exact chord — never a modified
+ * variant like `Mod+Alt+Y`. Input-layer sites consult it to know which chords they own.
  */
 export function isEditorGlobalChord(chord: string): boolean {
 	return builtinGlobalBinding(chord) !== null;
 }
 
 /**
- * Resolve a chord at GLOBAL scope only: a consumer global override (bind or
- * disable), else the editor-global keymap. For input-layer sites that own
- * undo/redo with no focused block (the editor-root keydown listener), where a
- * kind tier would have no block to apply to.
+ * Resolve a chord at GLOBAL scope only, for input-layer sites with no focused block for a kind
+ * tier to apply to: a consumer global override, else the editor-global keymap.
  */
 export function resolveGlobalBinding(
 	chord: string,
