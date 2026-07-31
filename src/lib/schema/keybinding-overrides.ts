@@ -1,8 +1,7 @@
 /**
- * Per-instance keybinding overrides: the public override-entry type, the
- * normalized lookup it compiles into, and the lookup primitives the command
- * resolver composes with the built-in tables. Schema leaf — no upward deps,
- * no context reads. The map is passed into the resolver as an argument.
+ * Per-instance keybinding overrides: the public override-entry type, the normalized lookup it
+ * compiles into, and the primitives the command resolver composes with the built-in tables.
+ * Schema leaf — the map reaches the resolver as an argument, never through a context read.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import { normalizeChordStrict, type KeyBinding } from './keybindings';
@@ -19,9 +18,8 @@ export interface KeybindingOverride {
 	 *  editor-global scope. */
 	kind?: AnyBlockKind;
 	/**
-	 * Static argument baked into the binding. `unknown` for coherence with
-	 * `KeyBinding.arg`: a minted command's non-number arg (e.g. a `setKind`
-	 * carrying a string) survives normalization; the handler type-guards it.
+	 * Static argument baked into the binding. `unknown` for coherence with `KeyBinding.arg`: a
+	 * minted command's non-number arg survives normalization, and the handler type-guards it.
 	 */
 	arg?: unknown;
 }

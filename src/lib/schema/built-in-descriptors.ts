@@ -1,16 +1,10 @@
 /**
  * Built-in block-kind descriptor registrations, applied by an EXPLICIT
- * `registerBuiltInDescriptors()` call from the two descriptor-read entry
- * points: `core/inline/index.ts` (the headless parse/inline surface) and
- * `components/built-in-blocks.ts` (the editor mount, which augments the
- * built-in `table` descriptor and so needs it registered first). A bare
- * side-effect import is NOT enough: the production Rollup build tree-shakes
- * an unused import of a module the package's `sideEffects` allowlist doesn't
- * cover, and the prod SSR bundle shipped with zero kinds registered exactly
- * that way. A used binding cannot be dropped. Split out of
- * `block-kind-descriptor.ts` so the contract/registry/API module carries no
- * registration payload — mirrors `core/parsers/built-in-openers.ts` and
- * `components/built-in-blocks.ts`.
+ * `registerBuiltInDescriptors()` call from the two descriptor-read entry points,
+ * `core/inline/index.ts` and `components/built-in-blocks.ts`. A bare side-effect import is NOT
+ * enough: the production Rollup build tree-shakes an unused import of a module outside the
+ * package's `sideEffects` allowlist, and a used binding cannot be dropped. Split out of
+ * `block-kind-descriptor.ts` so that module carries no registration payload.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -59,9 +53,8 @@ function tableCellContentRange(node: NodeView): { start: number; end: number } {
 
 // ── Keymaps ───────────────────────────────────────────────────────────────
 
-// Shared by every kind TextEditableBlock renders — prose and the raw-editable
-// fallback alike — so transformative chords behave identically across them. The
-// component's runCommand implements each command.
+// Shared by every kind TextEditableBlock renders — prose and the raw-editable fallback alike —
+// so transformative chords behave identically across them.
 const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Shift+Enter', command: 'block.hardBreak' },
@@ -81,11 +74,10 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
-// The cell is the focused surface inside a table, so the table's whole keyboard
-// vocabulary binds on THIS kind — an override scoped to `table` would resolve
-// against a block that never holds the caret. Navigation (plain arrows) is
-// deliberately unbound: it depends on the caret's position within the cell, which a
-// chord cannot express, and stays in `cell-keydown-plan.ts`.
+// The cell is the focused surface inside a table, so the table's whole keyboard vocabulary binds
+// on THIS kind — an override scoped to `table` would resolve against a block that never holds
+// the caret. Plain arrows stay unbound: they depend on caret position, which a chord can't
+// express, so they live in `cell-keydown-plan.ts`.
 const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'cell.enter' },
 	{ chord: 'Tab', command: 'cell.tab' },
@@ -103,19 +95,16 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowLeft', command: 'table.moveColumnLeft' },
 	{ chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' },
 	{ chord: 'Mod+Shift+A', command: 'table.cycleAlignment' },
-	// The whole table among its siblings. Alt+Arrow — every other kind's reorder
-	// chord — is taken by the row reorder a cell caret means first, so the block-level
-	// move takes the Mod+Alt variant of the same gesture.
+	// The whole table among its siblings. Alt+Arrow, every other kind's reorder chord, is taken
+	// by the row reorder a cell caret means first.
 	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
 	{ chord: 'Mod+Alt+ArrowDown', command: 'block.moveDown' }
 ];
 
 // ── Closure blocks ────────────────────────────────────────────────────────────
 
-// Shared by the not-mergeable, non-inline raw-text leaves (indentedCode,
-// htmlBlock, linkReferenceDefinition) — byte-identical rows, hoisted rather than
-// triplicated. fencedCode and unrecognized diverge (own keymap / self-merge), so
-// they stay inline.
+// Shared by the not-mergeable, non-inline raw-text leaves — byte-identical rows, hoisted rather
+// than triplicated. fencedCode and unrecognized diverge, so they stay inline.
 const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
 	focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
@@ -131,10 +120,8 @@ const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
 };
 
-// The prose trio (paragraph, heading, setextHeading) share a closure that differs
-// only in three via strings — the merge role and what selection/search painting
-// skips — plus paragraph's reorder addendum. Bake the structurally-fixed rows;
-// demand the varying vias so the honesty rule stays author-supplied.
+// The prose trio share a closure differing only in three via strings. Bake the
+// structurally-fixed rows; demand the varying vias so the honesty rule stays author-supplied.
 function proseLeafClosure(vias: {
 	mergeBackspaceVia: string;
 	selectionPaintVia: string;
@@ -346,10 +333,8 @@ export function registerBuiltInDescriptors(): void {
 					'grid child — not a block-level reorder unit; whole rows move via a row-drag gesture inside the table grid, not the BlockList'
 			},
 			undo: { mode: 'inherit-default' },
-			// inherit-default, not implemented like table/tableCell: no clipboard path
-			// anchors on a row node — the rectangular sub-table copy reads the table,
-			// the copy/cut handlers live on the cell. The row paints per-cell but is
-			// never a copy source, so selectionPaint: implemented does not extend here.
+			// inherit-default, unlike table/tableCell: no clipboard path anchors on a row node,
+			// so the row's per-cell painting does not extend to being a copy source.
 			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (table edits)' }
 		}
@@ -363,8 +348,8 @@ export function registerBuiltInDescriptors(): void {
 		getContentRange: tableCellContentRange,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP,
-		// No conformanceFixture: context-dependent — the table opener mints cells, so a
-		// cell never stands alone as the top-level result of a document scan.
+		// No conformanceFixture: the table opener mints cells, so one never stands alone as the
+		// top-level result of a document scan.
 		closure: {
 			roundTrip: {
 				mode: 'implemented',
@@ -398,8 +383,8 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		// No conformanceFixture: a document scan never yields `unrecognized` in
-		// isolation — it is the reserved fallback for content no opener claimed.
+		// No conformanceFixture: it is the reserved fallback for content no opener claimed, so a
+		// document scan never yields it in isolation.
 		closure: {
 			roundTrip: { mode: 'inherit-default' },
 			focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },

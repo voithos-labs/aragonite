@@ -1,8 +1,7 @@
 /**
- * Per-container-kind raw rebuilders. Separate from container-raw.ts (the
- * ancestry dispatch) so the built-in registrations can declare rebuildRaw
- * directly: this file imports only core/, while the dispatch must import
- * the registry — same-file would cycle.
+ * Per-container-kind raw rebuilders. Separate from container-raw.ts (the ancestry dispatch) so
+ * the built-in registrations can declare rebuildRaw directly: this file imports only core/,
+ * while the dispatch must import the registry, and same-file would cycle.
  */
 
 import type { CstNode, TableAlignment } from '../core/nodes';
@@ -24,8 +23,8 @@ export function rebuildBlockquoteRaw(node: CstNode): void {
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /**
- * Rebuild a list item's `raw`: first line gets the marker, continuation
- * lines get indentation. Blank lines stay unindented — GFM loose-list form.
+ * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Blank
+ * lines stay unindented — GFM loose-list form.
  */
 export function rebuildListItemRaw(node: CstNode): void {
 	if (!node.children || !node.metadata) return;
@@ -59,16 +58,11 @@ export function rebuildTableRowRaw(node: CstNode, lineEnding = trailingLineEndin
 }
 
 /**
- * Header + synthesized canonical delimiter + body rows.
- *
- * Rebuilds every row before assembly so the whole table normalizes to canonical
- * single-space padding on first structural mutation — matches the delimiter-row
- * normalization rule. Without the per-row rebuild, untouched rows would keep
- * their original parser-padded raw and the table would land in a mixed state.
- *
- * The table's own ending drives every emitted line (G4.20): a row minted by a
- * structural op has no authored ending to read, so per-row detection would strand
- * it on LF inside a CRLF table.
+ * Header + synthesized canonical delimiter + body rows. Every row is rebuilt before assembly, so
+ * the whole table normalizes to canonical padding on first structural mutation rather than
+ * landing half-padded. The table's own ending drives every emitted line (G4.20): a row minted by
+ * a structural op has no authored ending, so per-row detection would strand it on LF in a CRLF
+ * table.
  */
 export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;

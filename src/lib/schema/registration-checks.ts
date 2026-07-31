@@ -1,16 +1,9 @@
 /**
- * Registration-seam coherence. The registries enqueue every post-bootstrap
- * registration (via `./registration-pending`) and this seam validates them at
- * the next flush — Editor mount (`runStartupInvariantChecks`) or the parser's
- * next grammar read (`getOrderedOpeners`) — never mid-batch, so intra-batch
- * forward references (an opener before its descriptor, `reservedChrome`
- * naming a later chrome kind) stay warn-free.
- *
- * This module and block-openers reference each other (flush trigger one way,
- * `listRegisteredOpeners` the other) — a cycle whose references all sit inside
- * function bodies. Neither module calls the other during evaluation (built-in
- * openers register from `core/parsers`), so evaluation order cannot observe
- * uninitialized state.
+ * Registration-seam coherence: the registries enqueue every post-bootstrap registration and this
+ * seam validates them at the next flush — Editor mount, or the parser's next grammar read
+ * (`getOrderedOpeners`) — never mid-batch, so intra-batch forward references stay warn-free.
+ * This module and block-openers reference each other, but only inside function bodies, and
+ * neither calls the other during evaluation, so no cycle observes uninitialized state.
  */
 import { ALL_BLOCK_KINDS, type AnyBlockKind } from '../core/nodes';
 import type { ClosureCell } from './closure';
@@ -68,9 +61,8 @@ const viaOf = (cell: ClosureCell): string | undefined =>
 	cell.mode === 'implemented' ? cell.via : undefined;
 
 /**
- * Descriptor → G1.24 entry. Exported because the suites that check a live
- * descriptor project the same fields: a test-local copy that missed a column would
- * pass while the rule it claims to exercise went unread.
+ * Descriptor → G1.24 entry. Exported so the suites project the same fields: a test-local copy
+ * that missed a column would pass while the rule it claims to exercise went unread.
  */
 export const closureCoherenceEntry = (
 	kind: AnyBlockKind,
@@ -94,8 +86,8 @@ const closureEntries = (kinds: readonly AnyBlockKind[]) =>
 		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
 		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
 
-// Widened to `string` on the way out: the vocabulary check exists for the callers
-// the `MergeRole` union cannot bind (a plugin registering through a cast).
+// Widened to `string` on the way out: the vocabulary check exists for the callers the
+// `MergeRole` union cannot bind (a plugin registering through a cast).
 const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 	kinds.flatMap((kind) => {
 		const mergeRole: string | undefined = tryGetBlockKindDescriptor(kind)?.mergeRole;
@@ -105,10 +97,9 @@ const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24/30). First call sweeps the
- * whole world — bootstrap semantics; later calls validate only the kinds
- * registered since the previous flush, plus opener coherence over the full
- * registry (a new opener's priority collision is inherently cross-entry).
+ * Run the registry coherence checks (G1.2/10/11/17/18/24/30). The first call sweeps the whole
+ * world; later calls validate only the kinds registered since, plus opener coherence over the
+ * full registry (a new opener's priority collision is inherently cross-entry).
  */
 export function flushPendingRegistrationChecks(
 	report: RegistrationCheckReport = assertInvariant
@@ -120,11 +111,9 @@ export function flushPendingRegistrationChecks(
 			checkRegistryCompleteness(ALL_BLOCK_KINDS, hasDescriptor, hasComponent)
 		);
 	}
-	// The first flush's descriptor-bearing checks sweep the live registry (built-ins
-	// plus any plugin kind registered pre-mount), not just ALL_BLOCK_KINDS; later
-	// flushes validate the kinds registered since. Completeness stays built-in-scoped:
-	// a plugin kind's component may legitimately register on its own schedule, so
-	// reservedChrome coherence — not completeness — is the plugin-kind bootstrap check.
+	// The first flush sweeps the live registry, not just ALL_BLOCK_KINDS. Completeness stays
+	// built-in-scoped: a plugin kind's component may register on its own schedule, so
+	// reservedChrome coherence is the plugin-kind bootstrap check instead.
 	const kinds = work.firstFlush ? getAllRegisteredKinds() : work.kinds;
 	report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
 	report('keymap-coherence', () =>

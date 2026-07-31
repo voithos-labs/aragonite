@@ -11,8 +11,8 @@ import { devReplacesRegistration } from './register-once';
 
 const declaredPluginKinds = new Set<string>();
 
-// Structural sentinels a plugin kind must not shadow. `document` is `Document.kind`
-// (the CST root), not a BlockKind, so it escapes the BLOCK_KIND_TABLE check below.
+// Structural sentinels a plugin kind must not shadow. `document` is `Document.kind`, not a
+// BlockKind, so it escapes the BLOCK_KIND_TABLE check below.
 const RESERVED_KIND_NAMES = new Set<string>(['document']);
 
 export function declarePluginKind(name: string): PluginBlockKind {
@@ -44,10 +44,9 @@ export function declarePluginKind(name: string): PluginBlockKind {
 }
 
 /**
- * Recover the branded kind for an already-declared name, so a module that isn't
- * the one that minted it (a registration call, a node factory) reaches the brand
- * without an unchecked `as AnyBlockKind` cast. Throws for an undeclared name —
- * a typo can't silently register against a kind that doesn't exist.
+ * Recover the branded kind for an already-declared name, so a module that didn't mint it reaches
+ * the brand without an unchecked cast. Throws for an undeclared name, so a typo can't silently
+ * register against a kind that doesn't exist.
  */
 export function declaredPluginKind(name: string): PluginBlockKind {
 	if (!declaredPluginKinds.has(name)) {
@@ -82,11 +81,7 @@ export function declarePluginInlineKind(name: string): PluginInlineKind {
 	return name as PluginInlineKind;
 }
 
-/**
- * Recover the branded inline kind for an already-declared name — the inline
- * mirror of {@link declaredPluginKind}, so a recognizer or node factory reaches
- * the brand without an unchecked cast. Throws for an undeclared name.
- */
+/** The inline mirror of {@link declaredPluginKind}; throws for an undeclared name. */
 export function declaredPluginInlineKind(name: string): PluginInlineKind {
 	if (!declaredPluginInlineKinds.has(name)) {
 		throw new Error(
@@ -97,9 +92,8 @@ export function declaredPluginInlineKind(name: string): PluginInlineKind {
 }
 
 /**
- * Boolean probe for whether an inline kind is already declared — the inline
- * mirror of {@link isBlockKindRegistered}, so a plugin re-declaring idempotently
- * (HMR / re-import) guards on this instead of catching {@link declaredPluginInlineKind}'s throw.
+ * The inline mirror of {@link isBlockKindRegistered}, so a plugin re-declaring idempotently
+ * guards on this instead of catching {@link declaredPluginInlineKind}'s throw.
  */
 export function isInlineKindDeclared(name: string): boolean {
 	return declaredPluginInlineKinds.has(name);

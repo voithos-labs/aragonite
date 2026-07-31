@@ -1,8 +1,7 @@
 import { devWarn } from '../dev-warn';
 import { isValidPluginName } from './plugin-name';
-// Type-only: the runtime edge already runs editor-events → plugin-install
-// (pluginKindOwner). A value import back would close a schema→root cycle, so the
-// EditorContext view of the event surface stays a compile-time reference only.
+// Type-only: the runtime edge already runs editor-events → plugin-install, so a value import
+// back would close a schema→root cycle.
 import type { DocumentView } from '../core/node-views';
 import type { EditorEvents } from '../editor-events';
 import type { DecorationRegistry } from '../decorations/types';
@@ -16,12 +15,9 @@ export interface EditorPlugin<Options = unknown> {
 }
 
 // ── Setup-time context + per-editor subscription ─────────────────────────────
-// `setup` receives a PluginSetupContext scoped to the install; `onEditor`
-// registers a callback fired once per <Editor> instance. Option typing flows by
-// generic — a plugin author
-// writing `definePlugin<DocStatsOptions>` reads `editor.options: DocStatsOptions`
-// with no cast — but `setup` stays method syntax (bivariant params) so a typed
-// plugin remains assignable at the heterogeneous install boundary.
+// `setup` receives a PluginSetupContext scoped to the install; `onEditor` registers a callback
+// fired once per <Editor> instance. Option typing flows by generic, but `setup` stays method
+// syntax (bivariant params) so a typed plugin stays assignable at the install boundary.
 
 export interface PluginSetupContext<Options = unknown> {
 	onEditor(cb: OnEditorCallback<Options>): void;
@@ -42,18 +38,15 @@ export interface EditorContext<Options = unknown> {
 	readonly rects: EditorRects;
 	/** Getter-backed, live; the EFFECTIVE mode. Change signal: the `presentationModeChange` event. */
 	readonly presentationMode: PresentationMode;
-	/** Getter-backed, live; the editor's theme name as reflected to `data-editor-theme`
-	 *  (`'dark'`/`'light'` built in, or a consumer's own). Change signal: the
-	 *  `themeChange` event. Needed only by a plugin that PAINTS its own colors — a
-	 *  rendering engine emitting markup CSS tokens cannot reach. */
+	/** Getter-backed, live; the theme name reflected to `data-editor-theme`. Change signal: the
+	 *  `themeChange` event. Needed only by a plugin that PAINTS its own colors. */
 	readonly theme: string;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────
-// A plugin is code: its setup writes into register-once registries, so it can run
-// at most once per process. `installed` holds only successes; `failed` remembers a
-// name whose setup threw (a partial setup can't be re-run) alongside its original
-// error, so a later attempt can advise a reload without swallowing the cause.
+// A plugin is code: its setup writes into register-once registries, so it runs at most once per
+// process. `failed` remembers a name whose setup threw alongside its original error, since a
+// partial setup can't be re-run and a later attempt must advise a reload without losing the cause.
 
 const installed = new Map<string, EditorPlugin>();
 const failed = new Map<string, unknown>();
@@ -104,11 +97,9 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 export type EditorPluginEntry = EditorPlugin | { plugin: EditorPlugin; options?: unknown };
 
 /**
- * Split a `plugins` prop into the install list and a name→options map. Options
- * are per-instance (a unit installs once process-global, but two editors may pass
- * it different options); a plugin listed twice keeps the first entry and its
- * options, dev-warning the loser — the same first-wins rule installPlugins applies
- * across mounts, enforced here so the options map can't disagree with the install.
+ * Split a `plugins` prop into the install list and a name→options map. Options are per-instance
+ * even though a unit installs once process-global. A plugin listed twice keeps the first entry,
+ * the same first-wins rule installPlugins applies, so the options map can't disagree with it.
  */
 export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
 	plugins: EditorPlugin[];
@@ -174,8 +165,8 @@ function installOne(plugin: EditorPlugin): void {
 	try {
 		plugin.setup(ctx);
 	} catch (original) {
-		// A setup that threw after calling onEditor must leave no orphaned
-		// subscriptions — the plugin never installs, so its callbacks never run.
+		// A setup that threw after calling onEditor must leave no orphaned subscriptions: the
+		// plugin never installs, so its callbacks must never run.
 		onEditorSubs.delete(plugin.name);
 		failed.set(plugin.name, original);
 		const message = original instanceof Error ? original.message : String(original);
@@ -187,9 +178,8 @@ function installOne(plugin: EditorPlugin): void {
 	installed.set(plugin.name, plugin);
 }
 
-// onEditor is synchronous-only: the closer fires the moment setup returns, so a
-// context leaked past setup throws instead of silently registering into a wiped
-// install — the same boundary as kind attribution.
+// onEditor is synchronous-only: the closer fires the moment setup returns, so a context leaked
+// past setup throws instead of silently registering into a wiped install.
 function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close: () => void } {
 	let open = true;
 	const ctx: PluginSetupContext = {
@@ -207,9 +197,8 @@ function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close:
 	return { ctx, close: () => (open = false) };
 }
 
-// Install diagnostics identify a plugin as `name@version` when it carries a
-// version, bare `name` otherwise — so a two-version collision (same name, two
-// definitions) reads unambiguously in the warn and the two failure throws.
+// `name@version` when the plugin carries a version, so a two-version collision reads
+// unambiguously in the warn and the two failure throws.
 function pluginLabel(plugin: EditorPlugin): string {
 	return plugin.version ? `${plugin.name}@${plugin.version}` : plugin.name;
 }
