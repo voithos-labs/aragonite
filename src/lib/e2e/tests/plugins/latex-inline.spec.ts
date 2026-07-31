@@ -65,10 +65,11 @@ class MathPage extends PluginsPage {
 	}
 }
 
-// IME has no native Playwright driver, so a composition is
-// simulated by firing the real compositionstart/input/compositionend the editor
-// listens to and inserting the composed text at the caret as the browser would —
-// the one gesture no automation API provides. Everything else here is real input.
+// Playwright exposes no IME API, so a composition is simulated by firing the real
+// compositionstart/input/compositionend the editor listens to and inserting the
+// composed text at the caret as the browser would. Everything else here is real
+// input. The CDP driver `ime-composition.spec.ts` uses would be the honest route
+// (issue #46).
 async function composeIntoCaret(page: Page, text: string): Promise<void> {
 	await page.evaluate((composed) => {
 		const el = document.activeElement as HTMLElement | null;
