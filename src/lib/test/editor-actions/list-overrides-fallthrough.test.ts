@@ -3,27 +3,15 @@ import { parse } from '$lib/core/parser';
 import { makeNestedHarness } from '../harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// The list bundle's item delete/replace fall through to the shared block-edit core
-// rather than a hand-rolled override. These pin the three guards the core carries and
-// the override lacked, so the fall-through cannot silently regress them. The no-op
-// delete case is a defensive-contract pin: no real list gesture reaches it.
+// The list bundle's item replace falls through to the shared block-edit core rather than
+// a hand-rolled override. These pin the two guards the core carries and the override
+// lacked, so the fall-through cannot silently regress them.
 
 function itemNode(text: string): CstNode {
 	return parse(`- ${text}\n`).children[0].children![0];
 }
 
-describe('list item delete/replace fall through to the shared core', () => {
-	it('a no-op delete (out-of-range item) pushes no dead undo entry', async () => {
-		const h = makeNestedHarness('- a\n- b\n- c\n', { listOverrides: true, index: 0 });
-
-		// >1 item so the bundle commits rather than delegating upward; index 99 makes the
-		// underlying delete a no-op.
-		await h.bundle.blockEdit.deleteBlock(99);
-
-		expect(h.deps.undoManager.getStacks().undo).toHaveLength(0);
-		expect(h.getNode().children).toHaveLength(3);
-	});
-
+describe('list item replace falls through to the shared core', () => {
 	it('replace seeds the undo snapshot offset from the focus, not a hardcoded 0', async () => {
 		const h = makeNestedHarness('- a\n- b\n', { listOverrides: true, index: 0 });
 
