@@ -26,11 +26,9 @@
 		currentWidth: number;
 	} | null = $state(null);
 
-	// `md-image-broken` is toggled imperatively on the widget when the underlying
-	// `<img>` fires `error` / `load`; Svelte 5 doesn't track external class
-	// mutations, so a MutationObserver mirrors them into reactive state. Each
-	// commit rebuilds the widget DOM via text-render's `replaceChildren`, so
-	// the observer re-attaches to the current widget on every edit event.
+	// `md-image-broken` is toggled imperatively on the widget, which Svelte doesn't
+	// track, so a MutationObserver mirrors it into reactive state. Each commit rebuilds
+	// the widget DOM, so the observer re-attaches on every edit event.
 	let isBroken = $state(false);
 	$effect(() => {
 		let observer: MutationObserver | null = null;
@@ -70,8 +68,8 @@
 		const img = imgEl();
 		if (!img) return;
 		const startWidth = img.getBoundingClientRect().width;
-		// If we can't measure the current width, every snap math runs against 0 and
-		// commits a tiny image regardless of drag direction. Bail before pointer capture.
+		// Unmeasurable width makes every snap run against 0 and commit a tiny image
+		// whichever way the drag goes; bail before pointer capture.
 		if (startWidth < MIN_WIDTH || editorContentWidth < MIN_WIDTH) return;
 		e.preventDefault();
 		e.stopPropagation();
@@ -88,9 +86,9 @@
 
 	function moveDrag(e: PointerEvent) {
 		if (!dragState) return;
-		// Editor reflow mid-drag (sibling image settling, scrollbar appearing) can
-		// transiently zero the content width; writing snap-to-0 mid-drag would jump
-		// the image tiny. Hold the last good width until the next move.
+		// Reflow mid-drag (a sibling image settling, a scrollbar appearing) can
+		// transiently zero the content width; hold the last good width instead of
+		// snapping the image to nothing.
 		if (editorContentWidth < MIN_WIDTH) return;
 		const dx = e.clientX - dragState.startX;
 		const proposed = dragState.startWidth + dx;
@@ -118,9 +116,8 @@
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		// Click-and-release with no drag: skip commit so undo stack stays clean.
 		if (Math.abs(finalWidth - startWidth) < 1) return;
-		// Surface the "image suddenly becomes tiny on release" symptom with the
-		// upstream signals that would explain it (editorContentWidth=0, etc.) so
-		// the next occurrence is diagnosable without guessing.
+		// Report the "image suddenly becomes tiny on release" symptom with the upstream
+		// signals that would explain it, so the next occurrence is diagnosable.
 		if (finalWidth <= MIN_WIDTH && Math.abs(e.clientX - startX) > 50) {
 			devWarn('image-resize', 'suspicious commit', {
 				startWidth,
@@ -132,8 +129,8 @@
 				imgWidthAttr: imgEl()?.getAttribute('width')
 			});
 		}
-		// Aspect-locked drag persists `|N` (renderer derives height from natural aspect);
-		// only an unlocked drag writes the explicit `|NxM` form.
+		// Aspect-locked persists `|N` and lets the renderer derive the height; only an
+		// unlocked drag writes the explicit `|NxM` form.
 		const newHeight = aspectLocked
 			? undefined
 			: resolveAspectLockedHeight(finalWidth, naturalW, naturalH);
@@ -142,7 +139,7 @@
 
 	function cancelDrag(e: PointerEvent) {
 		if (!dragState) return;
-		// Clear inline styles so the widget falls back to its committed width/height attributes.
+		// Fall back to the widget's committed width/height attributes.
 		const img = imgEl();
 		if (img) {
 			img.style.width = '';

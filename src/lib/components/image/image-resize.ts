@@ -12,8 +12,8 @@ export function clampWidth(width: number, maxWidth: number): number {
 	return rounded;
 }
 
-// Keyboard nudge floor sits above MIN_WIDTH so a held Shift+Arrow can't shrink
-// an image to a sub-clickable sliver; the ceiling matches the drag path.
+// Above MIN_WIDTH so a held Shift+Arrow can't shrink an image to a sub-clickable
+// sliver; the ceiling matches the drag path.
 export const KEYBOARD_MIN_WIDTH = 32;
 
 export function keyboardResizeWidth(currentWidth: number, delta: number, maxWidth: number): number {
@@ -34,8 +34,8 @@ export function resolveAspectLockedHeight(
 	naturalWidth: number,
 	naturalHeight: number
 ): number | undefined {
-	// A not-yet-loaded image reports naturalWidth 0 — there's no ratio to apply,
-	// so leave the height unset (the `|N` form) instead of committing `|Nx0`.
+	// A not-yet-loaded image reports naturalWidth 0, so leave the height unset (the
+	// `|N` form) rather than committing `|Nx0`.
 	if (naturalWidth === 0) return undefined;
 	return Math.round((newWidth / naturalWidth) * naturalHeight);
 }

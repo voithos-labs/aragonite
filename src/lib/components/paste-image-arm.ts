@@ -1,14 +1,11 @@
 /**
  * The host image-import arm of a paste, shared by the editable-surface clipboard
- * skeleton and the editor-root fallback. Both callers face the same clipboard and
- * the same hook; only what they can do with the markdown differs — a surface has a
- * caret to insert at, the root has nothing but the cross-block seam — so the arm
- * ends at "here is the markdown nobody claimed" and each caller owns its policy.
+ * skeleton and the editor-root fallback. It ends at "here is the markdown nobody
+ * claimed"; each caller owns what happens next.
  *
- * Its ordering rules, stated once so no caller re-derives them: the files are read
- * before the first await (`clipboardData` is not dependably live afterwards), and
- * the multi-block selection is offered to the delete only after the hook has
- * answered, so a declined or failed import destroys nothing.
+ * Two ordering rules: files are read before the first await (`clipboardData` is not
+ * dependably live afterwards), and the multi-block selection reaches the delete only
+ * after the hook answers, so a failed import destroys nothing.
  */
 
 import type { PasteImageHook } from '../editor-keys';
@@ -16,23 +13,21 @@ import { emitClipboardError, type EditorEvents } from '../editor-events';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 
 export interface ImagePasteArmDeps {
-	/** Host import hook. Undefined leaves an image-bearing paste on the text/plain
-	 *  path, exactly as before the hook existed — `filesOf` then reports none. */
+	/** Undefined leaves an image-bearing paste on the text/plain path — `filesOf`
+	 *  then reports none. */
 	onPasteImage: PasteImageHook | undefined;
-	/** The instance event surface: a failed import reports here rather than vanishing. */
+	/** A failed import reports here rather than vanishing. */
 	events: EditorEvents;
 	crossBlock: CrossBlockHandlers;
 }
 
 export interface ImagePasteArm {
-	/** The image files this paste carries, empty when no hook is installed. Call
-	 *  before the handler's first await. */
+	/** Call before the handler's first await; empty when no hook is installed. */
 	filesOf(data: DataTransfer | null): File[];
 	/**
 	 * Import `files` in clipboard order, then offer the markdown to the cross-block
-	 * seam. Returns null when the arm is finished — nothing was imported, or a
-	 * multi-block selection took the insertion — and the markdown when no selection
-	 * claimed it, for a caller that has somewhere else to put it.
+	 * seam. Null means the arm is finished (nothing imported, or a multi-block
+	 * selection took the insertion); markdown means no selection claimed it.
 	 */
 	run(e: ClipboardEvent, files: File[]): Promise<string | null>;
 }
@@ -45,15 +40,12 @@ export function createImagePasteArm(deps: ImagePasteArmDeps): ImagePasteArm {
 			const importImage = deps.onPasteImage;
 			if (!importImage) return null;
 			const markdown = await importAll(deps, importImage, files);
-			// Empty markdown ends the arm like no markdown: there is nothing to insert
-			// either way, and it keeps the payload below non-empty for the seam.
+			// Empty markdown ends the arm like no markdown, and keeps the seam's payload
+			// below non-empty.
 			if (!markdown) return null;
-			// A multi-block selection is REPLACED, like every other paste route — and by
-			// inheriting that route rather than placing anything here, since the delete
-			// collapses start-wins and the block that received the event may be the one
-			// merged away. `isCrossBlock` is read LIVE inside the seam, so a selection
-			// made WHILE the import was in flight is the one replaced and a selection
-			// collapsed before it landed falls through to the caller.
+			// Inherit the ordinary paste route rather than placing anything here: the
+			// delete collapses start-wins and the receiving block may be merged away. The
+			// seam reads `isCrossBlock` LIVE, so a mid-import selection is the one replaced.
 			if (await deps.crossBlock.handlePaste(e, markdown)) return null;
 			return markdown;
 		}
@@ -62,17 +54,16 @@ export function createImagePasteArm(deps: ImagePasteArmDeps): ImagePasteArm {
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** A paste can carry a plain attachment alongside its text; only image files
- *  belong to the host hook, the rest stays on the text/plain path. */
+/** A paste can carry a plain attachment alongside its text; only images belong to
+ *  the host hook, the rest stays on the text/plain path. */
 function imageFilesOf(data: DataTransfer | null): File[] {
 	return Array.from(data?.files ?? []).filter((file) => file.type.startsWith('image/'));
 }
 
 /**
- * Offer each image to the hook and join what comes back into ONE insertion, not one
- * per image: a hook may return multi-line markdown, whose structural paste can split
- * the block out from under a second insertion addressed at anchor + length, and one
- * paste gesture owes the user one undo entry.
+ * One insertion, not one per image: a hook may return multi-line markdown, whose
+ * structural paste can split the block out from under a second insertion addressed at
+ * anchor + length — and one paste gesture owes the user one undo entry.
  */
 async function importAll(
 	deps: ImagePasteArmDeps,
@@ -90,9 +81,8 @@ async function importAll(
 			if (inserted) markdown.push(inserted);
 		} catch (error) {
 			// One failed import skips its image; the rest of the paste still lands. Still
-			// a clipboard failure, not a command throw: the host reads it for the same
-			// reason it reads a decline — to know an asset it started importing is not
-			// going to appear in the document.
+			// a clipboard failure, not a command throw: the host needs to know an asset
+			// it started importing will not appear in the document.
 			emitClipboardError(deps.events, { error });
 		}
 	}

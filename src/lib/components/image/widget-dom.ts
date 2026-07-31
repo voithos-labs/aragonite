@@ -1,5 +1,5 @@
-// Image widget contributes its raw bytes via data-source-start / data-source-end
-// — `cursor/widget-offset.ts` reads them. textContent stays empty so prose
+// The widget contributes its raw bytes via data-source-start/end, which
+// `cursor/widget-offset.ts` reads; textContent stays empty so prose
 // `textContent === ambientPrefix + raw` still holds.
 
 import type { InlineNode } from '../../core/nodes';
@@ -11,13 +11,9 @@ import { devWarn } from '../../dev-warn';
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
 	imageLoadPolicy?: ImageLoadPolicy;
-	/**
-	 * Resolved URLs that failed to load this session, scoped per editor instance.
-	 * Inline rebuild on every keystroke creates a fresh <img>; without this cache
-	 * the new widget renders without `md-image-broken` until the async `error`
-	 * event re-fires, producing a visible layout flicker (no min-width/min-height,
-	 * no dashed border) on each keystroke in a paragraph with a broken image.
-	 */
+	/** Resolved URLs that failed to load this session, per editor instance. Inline
+	 *  rebuild creates a fresh <img> per keystroke, which without this renders
+	 *  unbroken until the async `error` re-fires — a flicker on every keystroke. */
 	brokenUrlCache: Set<string>;
 }
 
@@ -28,36 +24,26 @@ export function buildImageWidget(
 ): HTMLSpanElement {
 	const widget = document.createElement('span');
 	widget.className = 'md-image-widget';
-	// `data-inline-widget` is the shared atomic-widget marker (cursor walker,
-	// selection painter, raw reader); `data-image-widget` is image-specific.
+	// `data-inline-widget` is the shared atomic-widget marker read by the cursor
+	// walker, selection painter and raw reader; `data-image-widget` is image-specific.
 	widget.dataset.inlineWidget = '';
 	widget.dataset.imageWidget = '';
 	widget.dataset.sourceStart = String(node.start);
 	widget.dataset.sourceEnd = String(node.end);
 	widget.setAttribute('contenteditable', 'false');
 
-	// Select on `click`, never `pointerdown`. A pointerdown listener that stops
-	// propagation (or one that selects on press) hijacks a gesture STARTING on the
-	// image: the block never sees the pointerdown, so no cross-block drag or
-	// Shift-click extension can originate here, and selecting on press mounts the
-	// overlay that then covers the block a drag is heading into. `click` fires only
-	// on a press-and-release in place — a drag off the widget produces none — so the
-	// pointerdown bubbles untouched to the block's cross-block handler and only a
-	// genuine click selects the image. A Shift-click is a cross-block extension the
-	// block owns, so decline the select (it would clear the extension).
+	// Select on `click`, never `pointerdown`: a pointerdown listener hijacks a gesture
+	// STARTING on the image, so no cross-block drag could originate here. Shift-click
+	// is a cross-block extension the block owns, so decline it.
 	widget.addEventListener('click', (e) => {
 		if (e.shiftKey) return;
-		// Resolve the paragraph path live from the enclosing block-host instead
-		// of baking it at build time. A block's path shifts whenever content is
-		// inserted/removed above it — its `raw` (and so this widget's DOM) is
-		// untouched, so the render memo skips a rebuild and a baked path would go
-		// stale, making click-to-select resolve the wrong CST node. The host's
-		// `data-block-path` is kept reactively in sync.
+		// Resolve the path live rather than baking it at build time: content inserted
+		// above shifts the block's path without touching its `raw`, so the render memo
+		// skips a rebuild and a baked path resolves the wrong CST node.
 		const paragraphPath = findBlockPathForElement(widget);
 		if (!paragraphPath) return;
-		// Click-snap consistently lands the caret at the widget's right
-		// edge (see TextEditableBlock.snapClickToWidgetEdge) — match that
-		// for the undo anchor so Ctrl+Z restores the click's visual landing.
+		// Match TextEditableBlock.snapClickToWidgetEdge, which lands the caret at the
+		// widget's right edge, so Ctrl+Z restores the click's visual landing.
 		const event = new CustomEvent('image-widget-select', {
 			bubbles: true,
 			detail: {
@@ -70,9 +56,8 @@ export function buildImageWidget(
 	});
 
 	const img = document.createElement('img');
-	// A default-draggable <img> starts a native HTML5 drag on pointerdown, which
-	// swallows the pointermove stream — a cross-block drag that begins on the image
-	// would never reach the block's drag listener.
+	// A default-draggable <img> starts a native HTML5 drag that swallows the
+	// pointermove stream a cross-block drag needs.
 	img.draggable = false;
 	img.alt = node.alt ?? '';
 	const resolvedUrl = safeResolve(opts.resolveImageUrl, node.url ?? '');
@@ -91,22 +76,18 @@ export function buildImageWidget(
 		opts.brokenUrlCache.add(resolvedUrl);
 		widget.classList.add('md-image-broken');
 	};
-	// Broken means the request finished and produced nothing to lay out. Completion is
-	// established per site: here the request may still be in flight, so `complete`
-	// gates it; inside the load listener it is finished by definition.
+	// Broken means the request finished and produced nothing to lay out, so each site
+	// establishes completion itself: `complete` here, by definition in the load listener.
 	const hasNoIntrinsicSize = (): boolean => img.naturalWidth === 0;
-	// Only an image we actually loaded can be broken. A blocked/placeholder
-	// widget leaves src unset, and an unset <img> reports complete && naturalWidth
-	// === 0 in a real browser — without this guard those would render as broken.
+	// Only a loaded image can be broken: a blocked/placeholder widget leaves src unset,
+	// and an unset <img> reports complete && naturalWidth === 0 in a real browser.
 	if (img.src && (opts.brokenUrlCache.has(resolvedUrl) || (img.complete && hasNoIntrinsicSize()))) {
 		markBroken();
 	}
 	img.addEventListener('error', markBroken);
-	// A load event is not proof of success: a 200 the decoder cannot size (empty or
-	// truncated body, an SVG with no intrinsic dimensions) resolves as `load` with
-	// naturalWidth 0. The build-time probe above already reads that state as broken,
-	// so this arm must too — deciding it only on the next rebuild is what made the
-	// placeholder arrive one render behind the failure.
+	// A load event is not proof of success: a 200 the decoder cannot size (truncated
+	// body, an SVG with no intrinsic dimensions) fires `load` with naturalWidth 0, and
+	// deferring that to the next rebuild leaves the placeholder a render behind.
 	img.addEventListener('load', () => {
 		if (hasNoIntrinsicSize()) {
 			markBroken();
