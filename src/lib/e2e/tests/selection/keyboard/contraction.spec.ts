@@ -10,10 +10,8 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 	});
 
 	test('Shift+ArrowLeft contracts a forward single-block selection without crossing block boundary', async () => {
-		// Forward selection: anchor=0, focus=5 ("Hello" highlighted left-to-right).
-		// Shift+ArrowLeft should contract to anchor=0, focus=4 ("Hell"); the bug
-		// fired cross-block extension instead because the legacy code read
-		// getCursorOffset() (range start = 0) and treated focus as already at 0.
+		// Contraction, not extension: reading the RANGE START rather than the focus treats a
+		// forward selection's focus as already at 0 and fires cross-block extension.
 		await editor.loadContent('Hello world\n\nbelow\n');
 		await editor.focusBlock(0, 0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
@@ -25,10 +23,8 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 	});
 
 	test('Shift+ArrowRight contracts a backward single-block selection without crossing block boundary', async () => {
-		// Backward selection: anchor=5, focus=0 ("Hello" selected right-to-left).
-		// Shift+ArrowRight should contract to anchor=5, focus=1 ("ello"); the bug
-		// would extend cross-block (focus=0 is at the block start so the legacy
-		// path sent us into extendFocusToPreviousBlock).
+		// The backward twin: focus sits at the block start, which a focus-unaware path mistakes
+		// for a boundary and sends into `extendFocusToPreviousBlock`.
 		await editor.loadContent('above\n\nHello world\n');
 		await editor.focusBlock(1, 5);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowLeft');

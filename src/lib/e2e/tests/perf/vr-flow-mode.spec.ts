@@ -5,12 +5,10 @@ import { primaryModifier } from '../../platform';
 import { spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Host-scroll (flow) mode on /test/flow: three journal entries in one ancestor
-// scroller plus a pane that clips rather than scrolls. Windowing never activates,
-// reveal and autoscroll resolve against whatever scrolls the editor (the root
-// spans the whole document, so measuring or scrolling IT would call an unreachable
-// block visible and leave a drag stranded), and the find bar rides the entry's own
-// top edge.
+// Host-scroll (flow) mode: several entries in one ancestor scroller, plus a pane that clips
+// rather than scrolls. The root spans the whole document here, so measuring or scrolling IT
+// would call an unreachable block visible and leave a drag stranded — every seam has to
+// resolve against whatever actually scrolls the editor.
 
 async function gotoFlow(page: Page): Promise<void> {
 	await page.goto('/test/flow');
@@ -169,12 +167,10 @@ test('scrollTo past a clipping host edge resolves false — nothing can reveal t
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
-	// The CLIP boundary is the case, not distance: block [5] sits just past the
-	// 240px-tall pane's bottom edge while still well inside the window viewport, so
-	// a window-bounded measure calls it visible. It is mounted (host mode mounts all
-	// of them), so `false` reports "not visible", not "not found" — the distinction
-	// the honest boolean carries. Its neighbour above the edge must still be `true`,
-	// or "always false in a clipping pane" would pass for the wrong reason.
+	// The CLIP boundary is the case, not distance: the target sits past the pane's bottom
+	// edge but well inside the window viewport, so a window-bounded measure calls it
+	// visible. The neighbour above the edge must still read `true`, or "always false in a
+	// clipping pane" would pass for the wrong reason.
 	const geometry = await page.evaluate(() => {
 		const pane = document.querySelector('[data-testid="entry-clipped"]')!.getBoundingClientRect();
 		const below = (window as any).__flow.blockRect('clipped', [5]) as { top: number };
@@ -263,9 +259,8 @@ test('nested scopes in a host-scroll entry mount every child and stay error-free
 	await gotoFlow(page);
 	const nested = entry(page, 'nested');
 
-	// Both nested scope shapes, each over the watermark on its own: the list is a
-	// direct-`{#each}` scope whose items are themselves BlockList-bearing scopes, and
-	// the table is the grid scope. In self mode both would window.
+	// Both nested scope shapes, each over the watermark on its own — in self mode both
+	// would window.
 	const [items, rows] = await Promise.all([
 		page.evaluate(() => (window as any).__flow.childCount('nested', [1]) as number),
 		page.evaluate(() => (window as any).__flow.childCount('nested', [2]) as number)

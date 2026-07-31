@@ -4,16 +4,11 @@ import { PluginsPage } from '../plugins/helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Reveal-anchor ownership (requirements/perf/vr-reveal-anchor.md). The anchor is
- * one slot: `scrollTo` pins its target there and the root scope's measure passes
- * re-assert it, so a late layout shift cannot clamp a resolved reveal off-screen.
- * Two properties are gated here, both cross-cutting and neither reachable from a
- * single-caller spec: the pin names the FULL target path (a nested target is not
- * its container), and a stale claimant cannot release a fresher claimant's pin.
- *
- * The reveal's own mount/scroll composition is `plugins/toc-navigation` and
- * `search/reveal-past-undecoded-images`; what those cannot see is what happens
- * AFTER the settle resolves, which is this file's subject.
+ * Reveal-anchor ownership (requirements/perf/vr-reveal-anchor.md). Two properties, both
+ * cross-cutting and neither reachable from a single-caller spec: the pin names the FULL
+ * target path (a nested target is not its container), and a stale claimant cannot release a
+ * fresher one's pin. What happens AFTER the settle resolves is this file's subject; the
+ * reveal's own composition is covered by `plugins/toc-navigation`.
  */
 
 // Capped viewport → the editor is a real scroll container, so windowing activates
@@ -40,11 +35,9 @@ async function deferImage(page: Page): Promise<() => void> {
 }
 
 /**
- * `[[toc]]`, filler, then a blockquote taller than the viewport whose LAST child
- * is the navigation target, then the deferred image, then a tail long enough to
- * activate windowing. The image sits BELOW the container on purpose: nothing
- * above the viewport moves when it decodes, so the honest top-of-viewport
- * correction is a no-op and any movement at all is the pin re-asserting.
+ * The image sits BELOW the container on purpose: nothing above the viewport moves when it
+ * decodes, so the honest top-of-viewport correction is a no-op and any movement at all is
+ * the pin re-asserting.
  */
 function tallContainerDoc(): { md: string; targetPath: number[] } {
 	const quoted = Array.from(
@@ -68,11 +61,9 @@ function tallContainerDoc(): { md: string; targetPath: number[] } {
 }
 
 /**
- * `[[toc]]`, filler, the deferred image, then the TOP-LEVEL navigation target below
- * it, then a tail. The image sits ABOVE the target on purpose: `'nearest'` lands a
- * windowed-out target near the viewport BOTTOM, so the top-of-viewport block is a
- * paragraph above the image — when the image decodes, the honest anchor holds that
- * paragraph and the target is pushed off the bottom. Only a held pin re-asserts it.
+ * The image sits ABOVE the target on purpose: `'nearest'` lands the target near the viewport
+ * BOTTOM, so when the image decodes the honest anchor holds a paragraph above it and pushes
+ * the target off the bottom. Only a held pin re-asserts it.
  */
 function growthAboveDoc(): { md: string; targetPath: number[] } {
 	const parts = [
@@ -136,9 +127,8 @@ test.describe('reveal anchor: the pin names the full target path', () => {
 		await editor.waitForResizeObserverFlush();
 		expect(await blockInView(page, targetPath)).toBe(true);
 
-		// The image decodes and grows, firing one root-scope measure pass. Holding
-		// only the container's top-level index, the pin re-asserts the CONTAINER's
-		// top here and pushes the resolved target a container-height below the fold.
+		// A pin holding only the container's top-level index re-asserts the CONTAINER's top
+		// on this measure pass, pushing the resolved target a container-height below the fold.
 		const collapsedHeight = await imageHostHeight(page);
 		releaseImage();
 		await expect.poll(() => imageHostHeight(page)).toBeGreaterThan(collapsedHeight + 50);
@@ -160,11 +150,9 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await editor.loadContent(md);
 		await editor.waitForRenderFlush();
 
-		// Two claimants inside one settle window. Issued from a single task because the
-		// window is a handful of ticks wide — narrower than a Playwright click round
-		// trip — so the entry is activated through its own handler here; the real-gesture
-		// path is `plugins/toc-navigation`. The `'center'` reveal is the arm that used to
-		// fire an unconditional release when it resolved, taking the newer pin with it.
+		// Two claimants inside one settle window, issued from a single task because that
+		// window is narrower than a Playwright click round trip (the real-gesture path is
+		// `plugins/toc-navigation`). The `'center'` reveal is the stale claimant.
 		await page.evaluate(() => {
 			const probe = window as unknown as {
 				__test: { rects: { scrollTo(p: number[], o: object): Promise<boolean> } };
@@ -178,9 +166,8 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		await expect.poll(() => blockInView(page, targetPath)).toBe(true);
 		await editor.waitForResizeObserverFlush();
 
-		// THIS is the assertion the race reddens: the undecoded image above the target
-		// keeps the document settling past the navigation's own resolve, and without the
-		// pin the stale claimant's release let go of, the target is already gone here.
+		// The assertion the race reddens: the undecoded image keeps the document settling
+		// past the navigation's resolve, so a released pin loses the target by here.
 		expect(await blockInView(page, targetPath)).toBe(true);
 
 		// A second property, and not what the race turns on: the pin outlives the settle,

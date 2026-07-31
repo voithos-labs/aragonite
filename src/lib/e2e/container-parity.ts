@@ -1,35 +1,16 @@
 /**
- * Container-parity invariant for keyed BlockList rendering (E2E side).
+ * Container-parity invariant for keyed BlockList rendering, the browser-context mirror of
+ * `test/harness/container-parity.ts`. Detects: a structural mutation that extends `children`
+ * without `childIds`, giving the trailing keyed-each entries `undefined` keys and drifting
+ * post-undo reconciliation from the CST.
  *
- * Mirrors `test/harness/container-parity.ts` for browser-context checks.
- * Every container rendered through BlockList (blockquote, list, listItem, table,
- * tableRow) must keep `node.children.length === node.childIds.length`. Svelte's
- * keyed `{#each childIds as id}` block uses `childIds` as the key source; if a
- * structural mutation extends `children` without extending `childIds`, the keys
- * for the trailing entries become `undefined`, Svelte logs `each_key_duplicate`,
- * and post-undo reconciliation drifts from CST.
+ * Deliberately tolerated: a never-mounted container, whose `childIds` is minted lazily and so
+ * reads `undefined` — not a desync, and unable to render the keyed each at all. Only a
+ * DEFINED-but-mismatched `childIds` is flagged.
  *
- * The document root has `children` but no `childIds` (top-level block ids live
- * on the editor harness, not on the doc node). The walker starts from each
- * top-level CST node and descends from there.
- *
- * Subjects come from `window.__parityDocuments` — every mounted editor on the
- * page, published by `src/routes/parity-documents.ts`. Reading the single-editor
- * `window.__test` handle instead would audit whichever editor registered first,
- * which on a two-editor route is not the one under test.
- *
- * `childIds` is minted lazily when a container's keyed BlockList mounts
- * (`createBlockListState`), so a windowed-out / never-mounted container carries
- * `childIds === undefined` — not a desync, and unable to render the keyed each
- * that would throw `each_key_duplicate`. The walk skips those and flags only a
- * DEFINED-but-mismatched `childIds` (the mounted-container drift class).
- *
- * Returns mismatches instead of asserting so the spec owns the diff: Playwright's
- * assertion output reads better when the expectation lives in the test, and
- * composing with other checks (pageerror, console filters) stays in its hands.
- *
- * Use after any structural mutation on a keyed container (M1 merge, list
- * indent/unindent, table row/column ops) to gate the invariant in tests.
+ * Subjects come from `window.__parityDocuments`, not the single-editor `window.__test`
+ * handle, which on a two-editor route audits whichever registered first. Returns mismatches
+ * rather than asserting, so the spec owns the diff and can compose it with other checks.
  */
 
 import type { Page } from '@playwright/test';

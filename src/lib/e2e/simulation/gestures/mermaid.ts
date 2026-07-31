@@ -1,13 +1,10 @@
 import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 
-// Mermaid whole-block-focus gestures (plugins route only). The opaque childless
-// diagram opts into `blockFocus: 'whole-block'`, so arrows stop on it, a
-// caret-adjacent Backspace focuses before a second press deletes, and Enter while
-// focused inserts a paragraph below. Free functions taking `ctx` first, mirroring
-// gestures/math.ts. Each drives real keyboard/mouse, gates on an observable focus
-// or structural signal, and resyncs the tracker — the diagram's source never
-// round-trips through the ExpectationTracker's end-of-doc append rule.
+// Mermaid whole-block-focus gestures (plugins route only). The opaque childless diagram opts
+// into `blockFocus: 'whole-block'`, so arrows stop on it, a caret-adjacent Backspace focuses
+// before a second press deletes, and Enter while focused inserts a paragraph below. Each
+// gates on a focus or structural signal and resyncs — never predicts.
 
 const VIEWPORT = '.mermaid-viewport';
 
@@ -38,11 +35,9 @@ async function assertUnchanged(ctx: SimContext, before: string, what: string): P
 }
 
 /**
- * ArrowUp from the block below the diagram stops on it (whole-block focus, no byte
- * change); ArrowDown steps back out below. The arrow-stop is the traversal contract
- * an opaque childless block must honour — a diagram that swallowed the arrow or let
- * it pass straight through would break navigation without touching the source, so
- * the focus landing is the load-bearing assertion, byte-identity the guard.
+ * A diagram that swallowed the arrow or let it pass straight through would break navigation
+ * WITHOUT touching the source, so the focus landing is the load-bearing assertion here and
+ * byte-identity is only the guard.
  */
 export async function arrowFocusMermaid(ctx: SimContext, belowIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -63,11 +58,9 @@ export async function arrowFocusMermaid(ctx: SimContext, belowIndex: number): Pr
 }
 
 /**
- * Focus the diagram by clicking it, then Enter to insert an empty paragraph below,
- * then undo — a net-identity structural detour. The insert is settled on the
- * `.block-host` count growing (an empty paragraph may serialize to no source delta),
- * and the undo on the count returning plus byte-exact source. Enter-below is the one
- * structural mutation the whole-block-focus model offers a childless container.
+ * Settled on the `.block-host` COUNT, not a source delta: an empty paragraph may serialize to
+ * no delta at all. Enter-below is the one structural mutation the whole-block-focus model
+ * offers a childless container.
  */
 export async function enterBelowUndoMermaid(ctx: SimContext): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -88,12 +81,9 @@ export async function enterBelowUndoMermaid(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Backspace at offset 0 in the block below the diagram: the first press focuses the
- * diagram without deleting (whole-block two-step, no byte change), the second
- * deletes it in one commit, and one undo restores it byte-exactly — a net-identity
- * delete detour. The two-step guard is what stops a stray Backspace from below from
- * silently eating an opaque block; the closing undo proves the delete is a single
- * reversible entry.
+ * The whole-block TWO-STEP: the first press only focuses, which is what stops a stray
+ * Backspace from below silently eating an opaque block; the second deletes in one commit and
+ * the closing undo proves that delete is a single reversible entry.
  */
 export async function backspaceTwoStepDeleteUndoMermaid(
 	ctx: SimContext,

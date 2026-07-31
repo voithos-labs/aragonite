@@ -3,10 +3,9 @@ import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, cstBlockCount } from '../perf/vr-helpers';
 
 /**
- * Public rect API (requirements/decorations/rect-api.md). Driven through the e2e
- * bridge's `__test.rects`, which delegates to the instance door `editor.getRects()`.
- * These live in e2e, not a unit suite, because rects are real only in a browser —
- * jsdom reports ~0-sized boxes, so geometry assertions there prove nothing.
+ * Public rect API (requirements/decorations/rect-api.md). E2E, not a unit suite, because
+ * rects are real only in a browser: jsdom reports ~0-sized boxes, so geometry assertions
+ * there prove nothing.
  */
 
 type PlainRect = { top: number; left: number; width: number; height: number } | null;
@@ -156,10 +155,9 @@ test.describe('public rect api', () => {
 		await editor.loadContent('first block\n\nsecond block\n');
 		await editor.focusBlockEnd(0);
 
-		// Subscribe before the gesture: the probe records caretRect() from inside
-		// the SYNCHRONOUS selectionChange emit, the window before the deferred
-		// data-cross-block $effect writes the attribute. If caretRect gated on the
-		// attribute it would still read unset here and leak the parked range's box.
+		// The probe records `caretRect()` from inside the SYNCHRONOUS emit, before the deferred
+		// `data-cross-block` effect writes the attribute — so a caretRect gated on that attribute
+		// would read unset here and leak the parked range's box.
 		await page.evaluate(() => (window as any).__test.startCrossBlockCaretProbe());
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -206,10 +204,9 @@ test.describe('public rect api', () => {
 
 	test('scrollTo centers a windowed-out mid-document block in the viewport', async ({ page }) => {
 		const count = await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
-		// A mid-document target has content both above and below, so 'center' can't be
-		// clamped to an edge — the discriminating case for the scroll half. `last` (used
-		// by the reveal test) can't center: the container hits max scrollTop and lands it
-		// at the bottom, ~half a viewport off, indistinguishable from a mount-only top pin.
+		// A MID-document target cannot be clamped to an edge, which is what discriminates the
+		// scroll half: `last` hits max scrollTop and lands at the bottom, indistinguishable from
+		// a mount-only top pin.
 		const mid = Math.floor(count / 2);
 		const sel = JSON.stringify([mid]);
 

@@ -3,9 +3,8 @@ import { EditorPage } from '../../editor-page';
 import { attachErrorCollector, type ErrorCollector } from '../../simulation/error-collector';
 
 /**
- * Proves the simulation's proxy-bug oracle actually trips. A green session is
- * only meaningful if the collector would have failed on a real fault — so each
- * test injects one and asserts `assertNone` throws.
+ * A green session is only meaningful if the collector would have FAILED on a real fault, so
+ * each test injects one and asserts `assertNone` throws.
  */
 async function assertThrows(errors: ErrorCollector): Promise<void> {
 	let threw = false;

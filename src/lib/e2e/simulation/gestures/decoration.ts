@@ -1,14 +1,8 @@
 import { type SimContext } from '../invariants';
 
-// Decoration-tier interaction gestures for the loaded-ops simulation (plugins
-// route, `?seed=sim`, over the decoration-ops document). The standing island
-// source paints replace/widget islands and a block badge at content-keyed
-// positions; these drive the caret/delete/typing surface those decorations own
-// and resync the tracker around it. Decorations are view-only, so painting never
-// changes the source — only the deliberate replace delete and the transparent
-// widget backspace move bytes, and both net to identity via undo so the session's
-// end-state equality still holds. Free functions taking `ctx` first, mirroring
-// gestures/table.ts.
+// Decoration-tier gestures (plugins route, `?seed=sim`). Decorations are view-only, so
+// painting never changes the source — only the replace delete and the transparent widget
+// backspace move bytes, and both net to identity via undo.
 
 const ISLAND = '[data-decoration-island]';
 const SELECTED = '.md-widget-selected';
@@ -48,10 +42,8 @@ async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number
 	);
 }
 
-// Press ArrowRight until the caret's raw offset reaches `target`. Every byte
-// before an island is real, and the atomic step-over lands the caret exactly on a
-// far edge, so each reachable offset is hit exactly — a target that never arrives
-// (an over-step past it) trips the guard and fails the gesture loudly.
+// The atomic step-over lands the caret exactly on a far edge, so every reachable offset is
+// hit exactly and an over-step past `target` trips the guard rather than looping forever.
 async function arrowRightToOffset(
 	ctx: SimContext,
 	blockIndex: number,
@@ -71,13 +63,9 @@ async function arrowRightToOffset(
 // ── Gestures ─────────────────────────────────────────────────────────────────
 
 /**
- * Walk the caret across the island in `blockIndex`, byte-unchanged. A replace
- * island steps over as one atomic unit — one ArrowRight from its leading edge
- * lands past the whole hidden range, ArrowLeft steps back to the leading edge — so
- * the exact far/near offsets are the load-bearing assertion. A zero-width widget
- * island is transparent: the caret crosses it onto the adjacent real byte without
- * ever selecting it. Either way the source is byte-identical after, and the tracker
- * resyncs to it (painting changes nothing).
+ * A replace island steps over as ONE atomic unit, so the exact far/near offsets are the
+ * load-bearing assertion; a zero-width widget island is transparent and the caret crosses
+ * onto the adjacent real byte. Either way the source must be byte-identical after.
  */
 export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -114,12 +102,9 @@ export async function walkAcrossIsland(ctx: SimContext, blockIndex: number): Pro
 }
 
 /**
- * Two-press select-then-delete of a replace island, then undo — net identity.
- * Backspace works the trailing edge, Delete the leading edge. The FIRST press
- * selects the island whole and must leave the hidden bytes byte-identical (the
- * assertion with teeth: a silent one-byte eat would fail here); the SECOND press
- * deletes the whole hidden range through the CST as one undo entry. The closing
- * undo restores the range byte-exactly, so the island returns for later gestures.
+ * Two-press select-then-delete, then undo — net identity. The assertion with teeth is on the
+ * FIRST press: it selects the island whole and must leave the hidden bytes byte-identical,
+ * so a silent one-byte eat fails here rather than hiding inside the delete.
  */
 export async function edgeDeleteReplaceIsland(
 	ctx: SimContext,
@@ -159,11 +144,9 @@ export async function edgeDeleteReplaceIsland(
 }
 
 /**
- * Backspace at a zero-width widget island's offset: the island is transparent, so
- * the press eats the ADJACENT real byte (never a no-op that strips only the island
- * DOM). The widget sits at its sentinel word's leading edge, so the eaten byte is
- * the space before it and the word survives — the source re-derives the island
- * next pass. Undo restores the byte, net identity.
+ * The island is transparent, so the press eats the ADJACENT real byte — never a no-op that
+ * strips only the island DOM. The widget sits at its sentinel word's leading edge, so the
+ * eaten byte is the space before it and the word survives to re-derive the island.
  */
 export async function backspaceThroughWidgetIsland(
 	ctx: SimContext,
@@ -193,9 +176,8 @@ export async function backspaceThroughWidgetIsland(
 }
 
 /**
- * Type a character at an island's trailing edge, then delete it — net identity.
- * The insert lands in raw adjacent to the island; the island re-derives and
- * survives (its content key is untouched), so the count holds across the edit.
+ * Net identity. The insert lands adjacent to the island, whose content key is untouched, so
+ * the island re-derives and the count holds across the edit.
  */
 export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -219,11 +201,9 @@ export async function typeAdjacentToIsland(ctx: SimContext, blockIndex: number):
 }
 
 /**
- * Reorder the block decorated by the badge source down a position and back — net
- * identity. The block decoration is source-keyed on the block's content, so after
- * the reorder the badge must follow the bytes to the new path (asserted), and after
- * the undo return to the original. The interleave under load is the sim's job; the
- * treatment-follows-path contract itself is e2e-pinned.
+ * The block decoration is source-keyed on content, so the badge must FOLLOW the bytes to the
+ * new path and back. The treatment-follows-path contract itself is e2e-pinned; this drives
+ * the interleave under load.
  */
 export async function reorderDecoratedBlock(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;

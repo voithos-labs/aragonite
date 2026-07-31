@@ -2,17 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The inline-rich note: a long-prose "feature tour" that stresses inline-parser
- * variety the structural notes deliberately skip — bold, italic, bold-italic,
- * code spans, multiple links, strikethrough in both tilde forms, bare-URL and
- * bare-email autolinks, HTML entities, backslash escapes, and a
- * trailing-backslash hard line break.
- * Every construct is typed char-by-char (the live parser forms the styled spans),
- * so the whole note is HOLD: end-state equality stays a primary oracle. Headings
- * are ATX only; the lists use single-level bullets and ordered items.
- *
- * The hard break closes the note because `hardBreakAt` reaches back into typed
- * text and leaves the caret mid-block, which nothing may type after.
+ * The inline-rich note: stresses inline-parser variety the structural notes skip. Every
+ * construct is typed char-by-char so the whole note is HOLD and end-state equality stays a
+ * primary oracle. The hard break CLOSES the note, because `hardBreakAt` leaves the caret
+ * mid-block and nothing may type after it.
  */
 export const FEATURE_TOUR_NOTE: NoteFixture = {
 	name: 'feature-tour-note',

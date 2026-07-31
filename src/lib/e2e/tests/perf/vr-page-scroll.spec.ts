@@ -2,11 +2,9 @@ import { test, expect } from '../../fixtures';
 import { cstBlockCount, gotoPageScroll, scrollPageTo, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// The page-scrolled host embedding: `scrollMode="host"` with nothing scrollable
-// between the editor and the document, so the window's own viewport is the
-// scrollport. `/test/flow` covers the other host shape (an ancestor scroller) and
-// pins its page at 100vh, which left this one — the journal shell that scrolls with
-// the page — without a route to assert against.
+// The page-scrolled host embedding: `scrollMode="host"` with nothing scrollable between the
+// editor and the document, so the window's own viewport is the scrollport. `/test/flow`
+// covers the other host shape (an ancestor scroller) and pins its page at 100vh.
 
 const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
 
@@ -35,9 +33,8 @@ test('the document owns the scroll and nothing between it and the editor does', 
 			pageOverflowPx: doc.scrollHeight - doc.clientHeight
 		};
 	});
-	// The crux of the shape: the user-scrollable walk finds no answer above the
-	// editor, so every seam that asks "what scrolls" has to fall through to the
-	// window rather than to an element.
+	// The crux of the shape: the user-scrollable walk finds nothing above the editor, so
+	// every seam that asks "what scrolls" must fall through to the window, not an element.
 	expect(geometry.scrollable).toEqual([]);
 	expect(geometry.rootOverflowY).toBe('visible');
 	expect(geometry.rootOverflowPx).toBeLessThanOrEqual(1);
@@ -60,9 +57,8 @@ test('windowing never activates, so every block stays mounted', async ({ page })
 	const pageErrors = capturePageErrors(page);
 	await gotoPageScroll(page);
 
-	// Host mode disables windowing statically — the height model would read the
-	// editor root's clientHeight as its viewport (the whole entry, since the root
-	// no longer scrolls) and a local scrollTop of 0, and mount everything anyway.
+	// Windowing is disabled statically in host mode: the height model would read the root's
+	// clientHeight (the whole entry, since it no longer scrolls) and mount everything anyway.
 	const count = await cstBlockCount(page);
 	expect(count).toBeGreaterThan(100);
 	await expect(page.locator(`.editor ${TOP_LEVEL_HOSTS}`)).toHaveCount(count);

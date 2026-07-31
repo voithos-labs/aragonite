@@ -1,14 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// The public doors a consumer can move the caret through, exercised with a
-// cross-block range live (requirements/selection/public-caret-doors.md). No
-// gesture-level spec reaches them: every built-in caret placement goes through a
-// pointer or keyboard path that ends the range on its way in.
-//
-// `focus` and `setSelection` agree — both state a new caret and end the old range.
-// `parkCaret` is the marked exception the cross-block dispatcher parks with while an
-// extend is still growing a range.
+// The public caret doors, exercised with a cross-block range LIVE
+// (requirements/selection/public-caret-doors.md). No gesture-level spec reaches them: every
+// built-in placement goes through a path that ends the range on its way in. `focus` and
+// `setSelection` both end the old range; `parkCaret` is the marked exception the cross-block
+// dispatcher uses while an extend is still growing one.
 
 test.describe('public caret doors with a cross-block range live', () => {
 	let editor: EditorPage;
@@ -38,10 +35,8 @@ test.describe('public caret doors with a cross-block range live', () => {
 		expect(source).toContain('third para');
 	});
 
-	// The structural pin for the data-loss class: the caret lands at a path INSIDE the
-	// live range, so a pass cannot come from the position happening to fall outside it.
-	// Two whole-document deletes shipped through this exact shape before `focus` owned
-	// the range-ending.
+	// The caret lands at a path INSIDE the live range, so a pass cannot come from the position
+	// happening to fall outside it — the shape two whole-document deletes shipped through.
 	test('BlockComponent.focus ends the range, so the next keystroke replaces nothing', async () => {
 		const placed = await editor.page.evaluate(() =>
 			(
@@ -61,11 +56,9 @@ test.describe('public caret doors with a cross-block range live', () => {
 		expect(source).toContain('third para');
 	});
 
-	// Park semantics, pinned so they cannot drift silently: `parkCaret` is the door
-	// `revealActiveEndpoint` uses while an extend is still growing the range, so it
-	// cannot end one. Three cross-block extend specs ride it —
-	// `extend-offwindow-endpoint`, `keyboard/vertical-skip`, and
-	// `cross-block-delete-container-survivor-caret`.
+	// `parkCaret` is the door `revealActiveEndpoint` uses while an extend is still growing the
+	// range, so it must NOT end one. Ridden by `extend-offwindow-endpoint`,
+	// `keyboard/vertical-skip`, and `cross-block-delete-container-survivor-caret`.
 	test('BlockComponent.parkCaret leaves the range live', async () => {
 		const parked = await editor.page.evaluate(() =>
 			(

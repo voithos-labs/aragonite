@@ -1,7 +1,5 @@
-// Asserts the BlockListState consistency invariant: for every container with a
-// registered BlockListState, node.children.length === innerBlockIds.length ===
-// innerBlockRefs.length. Scenarios exercise deletes touching nested containers
-// at different depths.
+// The BlockListState consistency invariant: for every registered container,
+// `children.length === innerBlockIds.length === innerBlockRefs.length`.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 

@@ -1,10 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// A cross-block clipboard gesture whose event lands on `document.body` rather than
-// on a block surface (requirements/clipboard/cross-block-clipboard-escape.md). The
-// trigger is a focus endpoint that hosts no caret: the selection seam's park is a
-// no-op there, and Chromium retargets the clipboard event to the body.
+// A cross-block clipboard event landing on `document.body` rather than a block surface
+// (requirements/clipboard/cross-block-clipboard-escape.md). The trigger is a focus endpoint
+// hosting NO caret: the park is a no-op there, so Chromium retargets to the body.
 
 const IMAGE_ONLY_DOC = 'first para\n\nsecond para\n\n![cat](/test-fixtures/sample.png)\n';
 const RULE_DOC = 'first para\n\nsecond para\n\n---\n';
@@ -82,11 +81,9 @@ test.describe('cross-block clipboard with a caret-less focus endpoint', () => {
 		expect(source).not.toContain('sample.png');
 	});
 
-	// The listeners are installed on `document`, so every copy on the page enters
-	// them. These are the two surfaces the gate's narrowness exists for, mounted for
-	// real rather than approximated by a bare <input> in jsdom: a host header inside
-	// the editor root (the `?header=on` hero, whose contenteditable puts a native
-	// caret inside the root) and the editor's own find bar.
+	// The listeners are on `document`, so every copy enters them. These are the two surfaces
+	// the gate's narrowness exists for, mounted for REAL rather than approximated by a bare
+	// <input>: a host header whose contenteditable sits inside the root, and the find bar.
 	test.describe('surfaces inside the editor root keep their own clipboard', () => {
 		test.beforeEach(async () => {
 			await editor.goto('?header=on');

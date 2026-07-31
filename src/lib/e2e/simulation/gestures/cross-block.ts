@@ -2,15 +2,10 @@ import { primaryModifier } from '../../platform';
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
- * Cross-block selection gestures — the destructive surface that held the historical
- * corruption Criticals and the invisible-selection bug. Split into BUILD gestures
- * (real Shift+Arrow / Shift+Click / double select-all that must ENGAGE a genuine
- * cross-block range — a build that silently stays single-block fails loudly here so
- * a no-op is never mistaken for coverage) and DESTROY gestures (Backspace/Delete,
- * type-over, paste-over, Cut over the live range). Every destroy is editor
- * auto-behavior — a range collapse plus a merge — so it settles on a real source
- * change, runs the structural oracle sweep on the collapsed tree, then resyncs the
- * model-free tracker from the observed source.
+ * The destructive surface that held the historical corruption Criticals. BUILDS must ENGAGE
+ * a genuine cross-block range and fail loudly if they silently stay single-block, so a no-op
+ * is never mistaken for coverage; DESTROYS settle on a real source change, run the
+ * structural oracle sweep on the collapsed tree, then resync.
  */
 
 // ── Build ──────────────────────────────────────────────────────────────────────
@@ -30,10 +25,8 @@ async function assertCrossBlockEngaged(ctx: SimContext, how: string): Promise<vo
 }
 
 /**
- * Extend the selection across the block boundary below/above the caret with real
- * Shift+ArrowDown/Up presses. The caret must already sit in a block; a single-line
- * block crosses in one press, a wrapped one may need more, so this presses up to
- * `maxSteps` until the cross-block attribute attaches, then asserts engagement.
+ * A single-line block crosses in one press and a wrapped one may need more, so this presses
+ * up to `maxSteps` until the cross-block attribute attaches, then asserts engagement.
  */
 export async function extendSelectionAcross(
 	ctx: SimContext,
@@ -61,10 +54,8 @@ export async function shiftClickAcross(
 }
 
 /**
- * Select the whole document with a double Ctrl+A: the first press selects the caret's
- * block, the second escalates to every block — the widest cross-block range there is.
- * A single-block document never escalates, so this asserts engagement and fails loud
- * if the second press stayed within one block.
+ * Double Ctrl+A: block, then whole document. A single-block document never escalates, so
+ * this asserts engagement and fails loud if the second press stayed within one block.
  */
 export async function selectWholeDocument(ctx: SimContext): Promise<void> {
 	await ctx.editor.selectAll();
@@ -77,10 +68,8 @@ export async function selectWholeDocument(ctx: SimContext): Promise<void> {
 // ── Destroy ────────────────────────────────────────────────────────────────────
 
 /**
- * Destroy the live selection with `act`, settle on the collapse + a real source
- * change, then run the structural oracle sweep and resync. A destroy that silently
- * no-ops (the range never engaged, the key fell through to the origin block) leaves
- * the source unchanged and fails here rather than recording a stale tree as truth.
+ * Settles on the collapse AND a real source change, so a destroy that silently no-ops (the
+ * range never engaged, the key fell through) fails here rather than recording a stale tree.
  */
 async function destroyThenSweep(
 	ctx: SimContext,

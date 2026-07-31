@@ -3,22 +3,16 @@ import { getContainerParityMismatches } from './container-parity';
 
 // Shared e2e `test`, carrying two independent teardown guards.
 //
-// 1. The console watch. Commit-time and startup invariants devWarn on the console
-//    (`[invariant:…]`) rather than through the structured error event, so a spec that
-//    only watches `getCapturedErrors()` lets a fire pass silently — the gap that left
-//    `column-scope-alignment` observable by no gate. A spec that INTENTIONALLY trips an
-//    invariant names the tags it requires: `test.use({ expectInvariants: ['late-opener-registration'] })`.
-//    Each named tag must fire and no other tag may, so an expected fire that stops
-//    firing is caught too — a blanket boolean waiver could not see that.
+// 1. The console watch. Commit-time and startup invariants devWarn on the console rather than
+//    through the structured error event, so a spec watching only `getCapturedErrors()` lets a
+//    fire pass silently. A spec that INTENTIONALLY trips one names its tags via
+//    `test.use({ expectInvariants: [...] })`: each named tag must fire and no other may, so
+//    an expected fire that STOPS firing is caught too — a boolean waiver could not see that.
 //
-// 2. The container-parity walk. The console watch cannot see the childIds↔children
-//    desync class: Svelte throws `each_key_duplicate` on the trailing undefined keys,
-//    BlockHost's `<svelte:boundary onerror>` swallows it into the editor's `error`
-//    event (no console line, no pageerror). So teardown also probes every live tree's
-//    container parity directly. This is orthogonal to the console watch and runs
-//    unconditionally — a spec that expects an invariant fire has no reason to waive it.
-//    Gated only on an editor having registered a document, so editor-less routes skip
-//    instead of tripping the walker's loud-on-absent throw.
+// 2. The container-parity walk, which the console watch cannot cover: Svelte's
+//    `each_key_duplicate` is swallowed by BlockHost's boundary into the editor's `error`
+//    event, with no console line and no pageerror. Runs unconditionally, gated only on an
+//    editor having registered a document so editor-less routes skip the walker's loud throw.
 
 interface InvariantFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */

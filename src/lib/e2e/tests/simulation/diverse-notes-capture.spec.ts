@@ -12,13 +12,8 @@ declare const process: { env: Record<string, string | undefined> };
 
 test.skip(!process.env.SIM_CAPTURE, 'set SIM_CAPTURE=1 to run the capture session');
 
-// Longer, more diverse notes than the headline biology note, run through the same
-// oracle suite to surface bugs over constructs the biology note skipped. Each puts
-// its distinctive construct in the EQUALITY SPINE (typing ≡ loading), so end-state
-// equality now guards it: dense inline variety (feature tour), two-level container
-// nesting (project plan), three-level bullet nesting (outline), a `> >` nested
-// blockquote (reading notes — the regression the `> >` exit fix shipped without),
-// and two diverse genres (meeting minutes, README). Distinct seeds keep the
+// Longer, more diverse notes than the headline biology note, each putting its distinctive
+// construct in the EQUALITY SPINE so end-state equality guards it. Distinct seeds keep the
 // injected-typo streams — and the seed-keyed capture directories — independent.
 test.describe('note-taking simulation: diverse-notes capture', () => {
 	let editor: EditorPage;

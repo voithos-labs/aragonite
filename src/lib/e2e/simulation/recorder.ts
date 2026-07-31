@@ -15,13 +15,10 @@ export interface ManifestEntry {
 }
 
 /**
- * Pairs a screenshot with the known editor state at each clean checkpoint so a
- * vision agent can later judge what looks broken against the recorded source.
- * The run directory is seed-derived (no timestamp) so two runs of the same seed
- * overwrite identically — determinism extends to the captured artifacts. It
- * lives OUTSIDE `test-results/` (see `runDirForSeed`) because Playwright wipes
- * `test-results/` at the start of every run — the captures must survive the
- * next test invocation for the visual review to use them.
+ * Pairs a screenshot with the known editor state at each checkpoint, so a later reviewer can
+ * judge what looks broken against the recorded source. The run directory is seed-derived with
+ * no timestamp, so determinism extends to the artifacts, and it lives OUTSIDE `test-results/`
+ * because Playwright wipes that at the start of every run.
  */
 export class Recorder {
 	private readonly entries: ManifestEntry[] = [];

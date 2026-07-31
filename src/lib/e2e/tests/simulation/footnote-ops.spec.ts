@@ -10,20 +10,13 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// Ungated footnote-ops oracle for the first-party footnotes plugin. The plugin spans two
-// tiers the corruption oracle stack (structured error + `[invariant:…]` watcher, live-CST
-// round-trip, nested-state audit, live-vs-reparse convergence) had never seen under a
-// state-accumulating watcher: the `[^label]: ` strip-container definition (a not-mergeable
-// container in the listItem mold, whose Enter-in-body split rides the shared blockquote
-// override — the boundary Task 2's review flagged untested) and the `[^label]` inline
-// reference widget (the `[^`-prefix ladder rung, reveal-to-edit). Mirrors math-ops /
-// directive-ops: a loaded document on the plugins route (the footnotes plugin is seed-gated,
-// so this navigates `?seed=footnotes` and loadContents its own document over the seed's), the
-// footnote gesture vocabulary, all oracles re-checked after every move, fixed rng.
+// Ungated footnote-ops oracle, spanning two tiers the oracle stack had never seen under a
+// state-accumulating watcher: the `[^label]: ` strip-container definition (whose Enter-in-body
+// split rides the shared blockquote override) and the `[^label]` inline reference widget.
 //
-// The reference NUMBER is derived display state the tracker never models — the reference e2e
-// (`footnotes-reference.spec.ts`) is the oracle for the live renumber; this session pins the
-// structural integrity the tier's inserts, reveals, edits, splits, and undos must preserve.
+// The reference NUMBER is derived display state the tracker never models —
+// `footnotes-reference.spec.ts` is the oracle for the live renumber; this session pins only
+// the structural integrity the tier's inserts, reveals, edits, splits and undos preserve.
 
 const FOOTNOTE_DOC =
 	'Intro paragraph here.\n\n' + // [0] — a fresh reference is typed here

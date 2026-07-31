@@ -9,17 +9,12 @@ import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
 
-// Deterministic reachability for the select-all → gesture → keystroke family: every
-// gesture fires once here over a document shaped to reach it, so coverage never
-// depends on which seed drew what. The note sessions add the fuzz dimension — a
-// gesture landing mid-session against whatever tree the build produced.
-//
-// PROBES is keyed by the gesture union, so a gesture joining the family without a probe
-// is a `npm run check` error rather than a silent hole. That is the whole enforcement — a
-// runtime assertion over the same two typed records could never fail.
-//
-// See requirements/simulation/range-interrupt-ops.md for each gesture's two
-// predictions and the one it is pinned to.
+// Deterministic reachability for the select-all → gesture → keystroke family: every gesture
+// fires once over a document shaped to reach it, so coverage never depends on which seed drew
+// what. PROBES is keyed by the gesture UNION, so a gesture joining the family without a probe
+// is an `npm run check` error rather than a silent hole — a runtime assertion over the same
+// two typed records could never fail. Per-gesture predictions:
+// requirements/simulation/range-interrupt-ops.md.
 
 const PROSE_DOC = 'first para\n\nsecond para\n\nthird para\n';
 const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sample.png)\n';

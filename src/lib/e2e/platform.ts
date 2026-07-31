@@ -1,8 +1,7 @@
 /**
- * Platform-modifier helpers for E2E specs. Centralizes the
- * `Control` (default) vs `Meta` (macOS) selection in one place so individual
- * tests don't each redeclare the Node `process` global (`@types/node` isn't
- * installed on this project, so a narrow local declaration stands in).
+ * Centralizes the `Control` vs `Meta` selection so specs need not each redeclare the Node
+ * `process` global — `@types/node` is not installed here, so a narrow local declaration
+ * stands in.
  */
 
 declare const process: { platform: string };

@@ -10,19 +10,11 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// Ungated emoji-ops oracle for the first-party emoji plugin. The `:shortcode:` rung
-// renders an atomic glyph widget whose literal bytes stay in the raw, so its byte
-// survival and mount/unmount churn are exactly the silent-corruption class the
-// simulation's oracle stack (structured error + `[invariant:…]` watcher, live-CST
-// round-trip, nested-state audit, live-vs-reparse convergence) exists to catch — and
-// until this profile no gesture drove an emoji widget under a state-accumulating
-// watcher. Mirrors decoration-ops (the decoded-entity twin): a loaded document on the
-// plugins route (`?seed=emoji` installs the bare `:` rung), the emoji gesture
-// vocabulary, all oracles re-checked after every move, fixed rng.
-//
-// The shortcode is typed MID-prose (adjacent to text on both sides), so the atomic
-// step-over and single-press delete run against real neighbours — the caret-edge
-// policy only the render path and its edge dispatch exercise.
+// Ungated emoji-ops oracle. The `:shortcode:` rung renders an atomic glyph widget whose
+// literal bytes stay in the raw, so its byte survival and mount/unmount churn are the
+// silent-corruption class the oracle stack exists to catch. The decoded-entity twin of
+// decoration-ops. The shortcode is typed MID-prose, adjacent to text on both sides, so the
+// atomic step-over and single-press delete run against real neighbours.
 
 const EMOJI_DOC = 'Alpha lead paragraph here.\n\n' + 'Beta tail paragraph here.\n';
 

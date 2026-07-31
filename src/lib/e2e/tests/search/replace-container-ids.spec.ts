@@ -2,11 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
-// Regression: Replace All on a needle inside a nested list reparsed the affected
-// top-level subtree without childIds. A reused container component was then fed
-// the fresh node, so its keyed-each rendered `undefined` keys; a list item with
-// ≥2 children collided on the duplicate key and threw ("⚠ block failed to
-// render"). SHOWCASE_CONTENT's nested lists make this reproducible end-to-end.
+// Replace All must not reparse a top-level subtree WITHOUT childIds: a reused container
+// component fed the fresh node renders `undefined` keys, and a list item with two or more
+// children then collides on the duplicate key and throws.
 test.describe('search — replace preserves container ids', () => {
 	test('Replace All over "list" never desyncs nested container ids', async ({ page }) => {
 		const editor = new EditorPage(page);

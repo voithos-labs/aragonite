@@ -2,10 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Selection toolbar (requirements/decorations/selection-toolbar.md): the demo
- * route's consumer-side rect-API example. Selections are made with real mouse
- * and keyboard gestures; assertions read the fixed bar's geometry against the
- * live selection's rects.
+ * Selection toolbar (requirements/decorations/selection-toolbar.md): the demo route's
+ * consumer-side rect-API example, driven with real mouse and keyboard gestures.
  */
 
 const TOOLBAR = '[data-testid="selection-toolbar"]';

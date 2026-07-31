@@ -1,22 +1,17 @@
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
-// Shared probes for the virtual-rendering (top-level windowing) e2e suites. Most
-// fixtures here clear the editor's height watermark, so only a window of blocks mounts
-// and the off-window reveal path runs for real; `UNWINDOWED_PROSE` is the deliberate
-// exception, for contracts whose two writers only diverge on the inactive branch.
-// Honest assertions only — a reveal that doesn't land the caret is a VR bug to report,
-// not an assertion to soften.
+// Shared probes for the virtual-rendering e2e suites. Fixtures here clear the editor's
+// height watermark so the off-window reveal path runs for real; `UNWINDOWED_PROSE` is the
+// deliberate exception. Honest assertions only — a reveal that doesn't land the caret is a
+// VR bug to report, not an assertion to soften.
 
 export const FIXTURE_BYTES = 2_000_000;
 
 /**
- * A document that SCROLLS but does not window — its estimated total sits under the
- * activation watermark, so every block mounts and no measure pass recurs after the
- * first. The other branch of a hysteresis gate, and the one where two writers of one
- * scrollTop stop agreeing: with windowing active the reveal anchor re-asserts on every
- * measure pass, which makes a writer that re-places indistinguishable from one that
- * compensates.
+ * Scrolls but does NOT window: under the activation watermark, so no measure pass recurs
+ * after the first. That is what separates two writers of one scrollTop — with windowing
+ * active the anchor re-asserts every pass, making re-place and compensate indistinguishable.
  */
 export const UNWINDOWED_PROSE = Array.from(
 	{ length: 60 },
@@ -42,11 +37,8 @@ export function editorScrollHeight(page: Page): Promise<number> {
 export type VisibleHost = { ref: string | null; top: number };
 
 /**
- * The first windowed host whose box clears the editor's viewport top (the
- * `rect.bottom > top + 1` scroll anchor). `selector` chooses the variant —
- * top-level blocks, nested comma-path hosts, or `[data-table-row-idx]` rows;
- * `cell` measures the row's own `.table-cell`, since a `display:contents` row has
- * no box. `ref` is the matched host's `attr` (a block path or a row idx).
+ * The first windowed host whose box clears the editor's viewport top. `cell` measures the
+ * row's own `.table-cell`, since a `display:contents` row has no box of its own.
  */
 export function topVisibleHostTop(
 	page: Page,
@@ -69,9 +61,8 @@ export function topVisibleHostTop(
 
 // ── Page-scrolled host embedding (`/test/page-scroll`) ──────────────
 
-/** The host shape where the walk finds nothing scrollable and the window's own
- *  viewport is the scrollport. One editor, `scrollMode="host"`, the standard
- *  `window.__test` bridge plus the fixture's late-image door. */
+/** The host shape where the scroll-host walk finds nothing scrollable and the window's own
+ *  viewport is the scrollport. */
 export async function gotoPageScroll(page: Page): Promise<void> {
 	await page.goto('/test/page-scroll');
 	await page.waitForFunction(
@@ -88,10 +79,8 @@ export async function scrollPageTo(page: Page, top: number): Promise<void> {
 	);
 }
 
-/** The first top-level block whose box reaches the WINDOW viewport's top edge —
- *  what the reader of a page-scrolled embedding is looking at. Distinct from
- *  `topVisibleHostTop`, which measures against the editor's own scrollport: in host
- *  mode that box starts far above the viewport, so it always answers block 0. */
+/** Measured against the WINDOW viewport, unlike `topVisibleHostTop`: in host mode the
+ *  editor's own scrollport starts far above it, so that probe always answers block 0. */
 export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | null> {
 	return page.evaluate(() => {
 		const hosts = Array.from(
@@ -106,10 +95,9 @@ export function topVisibleBlockInViewport(page: Page): Promise<VisibleHost | nul
 }
 
 /**
- * Scroll from the top to `target` in ~0.6-viewport steps, flushing between, so the
- * window mounts and measures every block it passes over. A direct jump leaves the
- * skipped blocks at estimate, and a rebuild's reseed is only observable where
- * measured heights have replaced them. Callers add their own trailing flush.
+ * Steps to `target` so the window mounts and measures every block it passes over: a direct
+ * jump leaves them at estimate, where a rebuild's reseed is unobservable. Callers add their
+ * own trailing flush.
  */
 export async function progressiveScrollTo(editor: EditorPage, target: number): Promise<void> {
 	const viewport = await editor.page.evaluate(

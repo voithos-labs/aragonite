@@ -66,11 +66,9 @@ const imageHostHeight = (page: Page) =>
 	});
 
 /**
- * Bring an off-window block into view, then land a real caret in it. Setting
- * `scrollTop` to the maximum is NOT equivalent: the windowed scroll height is an
- * estimate that only converges once the tail mounts, so a single scroll-to-max
- * leaves the last block a few pixels below the fold and the click lands on <body>.
- * The shipped reveal has no such gap — it is what a host calls to get there.
+ * Setting `scrollTop` to the maximum is NOT equivalent: the windowed scroll height is an
+ * estimate that converges only once the tail mounts, so one scroll-to-max leaves the last
+ * block below the fold and the click lands on <body>.
  */
 async function revealAndClick(
 	editor: EditorPage,
@@ -136,10 +134,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		const snapshot = await editor.bridge.getSelection();
 		expect(snapshot?.focus.path).toEqual([80]);
 
-		// Push the target past the fold but keep it inside the overscan band, where
-		// the mount primitive short-circuits with no scroll. This is where a host
-		// lands after an ordinary user scroll — the state every other in-view
-		// scenario skips by windowing the target out completely.
+		// Past the fold but inside the OVERSCAN band, where the mount primitive short-circuits
+		// with no scroll — the state every other in-view scenario skips by windowing the target
+		// out completely.
 		const scrolled = await page.evaluate(() => {
 			const el = document.querySelector('.editor') as HTMLElement;
 			el.scrollTop += 400;
@@ -156,10 +153,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		).not.toBe(scrolled);
 	});
 
-	// A subscriber reads the editor back on `selectionChange`, so what a restore owes
-	// it is not only the settled value but every payload of the burst — a
-	// persist-on-change host writes the FIRST one. The collapsed route's `clear()`
-	// used to notify while the caret still sat where it was leaving.
+	// A persist-on-change host writes the FIRST payload of the burst, not the settled one, so
+	// a route that notifies while the caret still sits where it is leaving corrupts what the
+	// host stores.
 	const RESTORE_ROUTES: Array<[string, EditorSelection]> = [
 		['collapsed caret', { anchor: { path: [0], offset: 3 }, focus: { path: [0], offset: 3 } }],
 		['within-block range', { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 6 } }]
@@ -176,11 +172,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 				(window as any).__test.stopSelectionChangeCapture()
 			);
 
-			// Exactly two, and the number is the contract, not an accident: the state
-			// channel's batched flush plus the browser's own `selectionchange` bridge,
-			// which is the sole emitter for intra-block caret motion and so cannot be
-			// silenced. A third would mean a mutator escaped the restore's batch; a
-			// first would mean the bridge stopped seeing the placed range.
+			// Exactly two is the CONTRACT: the state channel's batched flush plus the browser's own
+			// `selectionchange` bridge, which cannot be silenced. A third means a mutator escaped the
+			// restore's batch; one means the bridge stopped seeing the placed range.
 			expect(emissions).toHaveLength(2);
 			for (const emission of emissions) expect(emission).toEqual(restored);
 		});
@@ -305,11 +299,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		expect(pageErrors).toEqual([]);
 	});
 
-	// A host that restores a caret AND a remembered scroll position does both in that
-	// order — the scroll is the outer state, the caret the inner one. Until the reveal
-	// anchor was released on resolve, `setSelection` kept a durable top-pin on the
-	// restored block: any later measure pass (a diagram, display math or an image
-	// settling in after mount) re-asserted it and threw the host's scroll away.
+	// A host restoring both a caret and a scroll position does the scroll LAST. A durable
+	// top-pin left on the restored block would be re-asserted by any later measure pass and
+	// throw that scroll away.
 	test('hands the scroll position back once it resolves', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		// After the harness is up (beforeEach) but before any content asks for the image.
@@ -324,10 +316,9 @@ test.describe('selection — setSelection restores a getSelection snapshot', () 
 		expect(await editor.bridge.setSelection(DOCUMENT_START)).toBe(true);
 		await editor.scrollEditorTo(400);
 
-		// Read the baseline back rather than asserting the number asked for: measuring
-		// the blocks that mount on the way down legitimately nudges the top-of-viewport
-		// correction, and that is the honest landing. Far from the document top is the
-		// precondition — while the pin was held, this read was already back at block 0.
+		// The baseline is READ BACK, not asserted: measuring blocks on the way down legitimately
+		// nudges the top-of-viewport correction. Far from the document top is the precondition —
+		// a held pin puts this read back at block 0.
 		const hostTop = await scrollTopOf(page);
 		expect(hostTop).toBeGreaterThan(200);
 		const collapsedHeight = await imageHostHeight(page);

@@ -5,12 +5,10 @@ import { capturePageErrors } from '../../page-probes';
 import { cstBlockCount } from '../perf/vr-helpers';
 
 /**
- * scrollTo must land AND hold its target past undecoded images
- * (requirements/decorations/scroll-to-settle.md). The picsum requests are routed
- * to hang, so the images never decode and keep measuring ~0 — the doc-shrink that,
- * without the reveal anchor scrollTo now sets, clamps the reveal off the target.
- * The flat-prose rect-api center test has stable heights and structurally cannot
- * exercise this class; this spec is its async-height sibling.
+ * scrollTo must land AND HOLD its target past undecoded images
+ * (requirements/decorations/scroll-to-settle.md). The image requests are routed to hang, so
+ * they keep measuring ~0 and the doc shrinks — the clamp the reveal anchor exists to survive.
+ * The flat-prose rect-api center test has stable heights and cannot reach this class.
  */
 
 // A capped viewport makes the editor a real scroll container so far targets window
@@ -89,13 +87,10 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	expect(pageErrors).toEqual([]);
 });
 
-// A dense band of unsized images directly above the target fills the ~4000px activate
-// band, so the whole band mounts and collapses on the reveal — a ~4000px shrink that
-// pre-fix drags the centered target far above the viewport (the deterministic mid-doc
-// strand). The `room` prose above the band stays windowed out at its (accurate) prose
-// estimate, so it does NOT collapse: it leaves enough scrollable content above the
-// target for `'center'` to be achievable after the shrink (centering a target needs
-// ~half a viewport of room above it). Deep prose below keeps the target off max-scrollTop.
+// The dense image band above the target mounts and COLLAPSES on the reveal, the shrink
+// that strands a centered target. The `room` prose above it stays windowed out at an
+// accurate estimate, so it does not collapse and leaves the ~half viewport `'center'`
+// needs; deep prose below keeps the target off max-scrollTop.
 function imageBandDoc(): { md: string; targetIndex: number } {
 	const parts: string[] = [];
 	parts.push('# scrollTo image-band fixture');

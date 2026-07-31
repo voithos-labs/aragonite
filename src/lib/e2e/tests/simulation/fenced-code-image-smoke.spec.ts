@@ -3,15 +3,10 @@ import { EditorPage } from '../../editor-page';
 import { runSession } from '../../simulation/user-simulator';
 import { BIOLOGY_NOTE } from '../../simulation/notes/biology-note';
 
-// Ungated fenced-code + image proxy-class oracle. The headline BIOLOGY_NOTE is the
-// only note that type-builds a fenced code block AND an image (insert + resize),
-// but it ran only in the SIM_CAPTURE-gated capture suites — so the always-on
-// round-trip + nested-state oracle never covered those two block kinds in CI.
-//
-// Running it here with `capture:false` arms the cheap oracle half (the checkpoint
-// hooks are no-ops without a recorder) in the default simulation gate, at one
-// extra ungated session. The expensive screenshot capture stays behind
-// SIM_CAPTURE in diverse-notes-capture.spec.ts.
+// The headline note is the only one that type-builds a fenced code block AND an image, and
+// it ran only in the capture-gated suites — so those two kinds went uncovered in CI. Running
+// it with `capture:false` arms the cheap oracle half in the default gate; the expensive
+// screenshot capture stays gated in diverse-notes-capture.spec.ts.
 test.describe('note-taking simulation: fenced-code + image smoke', () => {
 	let editor: EditorPage;
 

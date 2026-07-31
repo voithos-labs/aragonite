@@ -12,9 +12,8 @@ import {
 	setResponses
 } from './image-paste-harness';
 
-// An image paste replaces a multi-block selection like every other paste route. The
-// cross-block seam owns the delete + insert as one undo entry and addresses by path,
-// so the surface that received the event is irrelevant to where it lands. See
+// The cross-block seam owns the delete + insert as ONE undo entry and addresses by path, so
+// the surface that received the event is irrelevant to where it lands. See
 // requirements/clipboard/image-paste-cross-block.md.
 
 const THREE_PARAGRAPHS = `${PARAGRAPH}\nsecond\n\nthird\n`;
@@ -78,10 +77,8 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.bridge.waitForBlockCount(3);
 	});
 
-	// The branch reads `isCrossBlock` LIVE, because the seam it delegates to resolves
-	// endpoints by path at call time. So the selection that gets replaced is whatever
-	// is active when the import LANDS, not when the paste fired — the deliberate
-	// asymmetry with the intra-block branch's paste-time anchor.
+	// `isCrossBlock` is read LIVE, so what gets replaced is whatever is active when the import
+	// LANDS — the deliberate asymmetry with the intra-block branch's paste-time anchor.
 	test('a selection made while the import is in flight is the one replaced', async ({ page }) => {
 		await editor.loadContent(THREE_PARAGRAPHS);
 		await setResponses(page, [{ markdown: '![[held.png]]', hold: true }]);
@@ -102,11 +99,9 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await parseConverged(page)).toBe(true);
 	});
 
-	// The event does not always reach a block surface. When the selection's focus
-	// endpoint hosts no caret — an image-only paragraph — the park is a no-op and
-	// Chromium dispatches the paste at <body>, where the editor-root fallback runs.
-	// That fallback went straight to the cross-block arm, so a pure-image paste (no
-	// text/plain to fall back on) was discarded.
+	// A focus endpoint hosting no caret (an image-only paragraph) makes the park a no-op, so
+	// Chromium dispatches at <body> and the editor-root fallback runs — the path that discarded
+	// a pure-image paste by going straight to the cross-block arm.
 	test('an image pasted over a selection ending in an image block is imported', async ({
 		page
 	}) => {
@@ -127,10 +122,9 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await parseConverged(page)).toBe(true);
 	});
 
-	// The cross-block delete has a table-specific branch (cell-index endpoints, the
-	// whole-row snap), so a selection anchored in a cell is its own shape. Asserted
-	// against the SAME string pasted as text over the SAME selection: the arm has to
-	// inherit the cross-block route, not place anything itself.
+	// The cross-block delete has a table-specific branch, so a cell-anchored selection is its
+	// own shape. Asserted against the SAME string pasted as text: the arm must INHERIT the
+	// cross-block route rather than place anything itself.
 	test('a selection anchored in a table cell is replaced, exactly as a text paste would', async ({
 		page
 	}) => {
@@ -155,11 +149,9 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await parseConverged(page)).toBe(true);
 
-		// Same document, same selection, same string — pasted as text. No image files on
-		// the clipboard, so the arm declines and the ordinary route runs. A fresh
-		// navigation, not a second loadContent: the harness drives `source` as a prop, so
-		// re-assigning the string it already holds is a no-op and would leave the mutated
-		// document in place.
+		// A fresh NAVIGATION, not a second loadContent: the harness drives `source` as a prop, so
+		// re-assigning the string it already holds is a no-op that would leave the mutated document
+		// in place.
 		await editor.goto('?imagePaste=on');
 		await editor.loadContent(TABLE);
 		await selectOutOfCell();

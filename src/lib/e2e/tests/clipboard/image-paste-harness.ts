@@ -2,10 +2,9 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Shared driving for the `onPasteImage` specs. A real image cannot be written to the
- * system clipboard from a spec, so these dispatch a synthetic `paste` carrying a
- * DataTransfer with real `File`s — the same `onPaste` entry a user's Ctrl+V reaches.
- * Caret placement, selection, undo, and typing stay real user actions.
+ * A real image cannot be written to the system clipboard from a spec, so these dispatch a
+ * synthetic `paste` carrying real `File`s — the same `onPaste` entry a user's Ctrl+V reaches.
+ * Caret placement, selection, undo and typing stay real user actions.
  */
 
 export const PARAGRAPH = 'AB\n';
@@ -47,9 +46,8 @@ export async function gotoWithHook(page: Page): Promise<EditorPage> {
 }
 
 /**
- * Dispatch a paste carrying `files` (plus optional text). `at` picks the element the
- * event lands on: `'focused'` is the ordinary Ctrl+V, `'body'` stands in for Chromium's
- * retarget when the cross-block focus endpoint hosts no caret to park in.
+ * `at` picks the landing element: `'focused'` is the ordinary Ctrl+V, `'body'` stands in for
+ * Chromium's retarget when the cross-block focus endpoint hosts no caret to park in.
  */
 export async function pasteFiles(
 	page: Page,
