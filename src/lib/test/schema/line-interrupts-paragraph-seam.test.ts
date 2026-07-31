@@ -14,9 +14,8 @@ import {
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
-// lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it
-// must carry the same seam duties: drain pending registration checks and trip
-// the grammar-consumed latch (sibling-path parity with the dispatch read).
+// lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it carries the
+// same seam duties — sibling-path parity with the dispatch read.
 
 const leaf: BlockKindRegistration = {
 	mergeRole: 'not-mergeable',

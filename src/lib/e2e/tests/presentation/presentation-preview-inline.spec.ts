@@ -3,9 +3,8 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { centerOfWord } from './helpers';
 
-// Inline-granular live preview on /test/editor: unfocused blocks render like
-// preview-block; inside the focused block each construct's markers stay hidden
-// until the caret enters its inclusive range. Editing scenarios live in
+// Inline-granular live preview: inside the focused block, each construct's markers stay
+// hidden until the caret enters its INCLUSIVE range. Editing scenarios live in
 // presentation-preview-inline-editing.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline.md.
 

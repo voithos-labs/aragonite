@@ -3,10 +3,9 @@ import { EditorPage } from '../../editor-page';
 import { count, findInput, openFind, overlays, typeQuery } from './helpers';
 
 /**
- * The find bar across a whole-document `source` swap
- * (requirements/search/source-swap-rescan.md). Search memoizes its scan on the
- * edit epoch, so a swap that leaves the epoch alone strands the counter on the
- * previous document's total and paints overlays over unmatched text.
+ * The find bar across a whole-document `source` swap (requirements/search/source-swap-rescan.md).
+ * Search memoizes its scan on the edit epoch, so a swap leaving the epoch alone strands the
+ * counter on the previous document's total and paints overlays over unmatched text.
  */
 
 test.describe('search — an open find bar across a source swap', () => {

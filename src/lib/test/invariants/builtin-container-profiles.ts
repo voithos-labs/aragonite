@@ -1,18 +1,9 @@
 /**
- * G4.3 conformance profiles for the BUILT-IN container kinds — fixture data for
- * the kit in `$lib/testing/container-conformance`. Kept out of the shipped kit:
- * a plugin author supplies their own profile, and these strings would be dead
- * weight in `aragonite/testing`.
- *
- * The completeness meta-tests in `container-conformance.test.ts` hold this map in
- * lockstep with the descriptor registry, so a new built-in container kind is
- * auto-covered the moment it registers.
- *
- * Grid containers (table/tableRow) re-derive their ENTIRE subtree raw in one
- * `rebuildRaw` (see `rebuildTableRaw` — it rebuilds every row), so the
- * innermost-first ordering invariant doesn't apply; and grid focus is
- * cell-addressed (focusCell rowIdx/colIdx) rather than innerIndex delegation.
- * Those cells are declared BOUNDARY/EXEMPT below — never a silent skip.
+ * G4.3 conformance profiles for the BUILT-IN container kinds — fixture data for the kit
+ * in `$lib/testing/container-conformance`, kept out of the shipped package because a
+ * plugin author supplies their own. `container-conformance.test.ts` holds this map in
+ * lockstep with the registry. Where a grid container's contract makes an invariant moot,
+ * the cell is declared BOUNDARY/EXEMPT with a reason — never a silent skip.
  */
 
 import type { BlockKind } from '$lib/core/nodes';

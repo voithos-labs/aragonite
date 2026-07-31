@@ -1,18 +1,15 @@
 /**
- * Per-kind block-height estimator plus a measured-height cache for virtual
- * rendering. estimate() is O(1) from `node.raw` length, including containers
- * (their raw is materialized, so no subtree walk). Measured heights, recorded
- * on mount, supersede estimates and are keyed by stable block id, so structural
- * index shifts and undo don't invalidate them.
+ * Per-kind block-height estimator plus a measured-height cache for virtual rendering.
+ * `estimate` is O(1) from `node.raw` length even for containers (their raw is
+ * materialized, so no subtree walk). Measured heights supersede estimates and are keyed by
+ * stable block id, so structural index shifts and undo don't invalidate them.
  */
 import type { NodeView } from '../core/node-views';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
-// Any image: inline `![alt](url)`, reference `![alt][ref]`, or shortcut
-// `![ref]`. Captures the alt segment so a `|WxH` size hint can be read. The
-// char-based prose estimate badly undercounts a rendered image, so an
-// image-bearing block is floored / sized off this match, not its raw length.
+// Any image form, capturing the alt segment for its `|WxH` size hint. The char-based prose
+// estimate badly undercounts a rendered image, so an image-bearing block sizes off this.
 const IMAGE_ALT = /!\[([^\]]*)\]/g;
 // Size hint inside the alt, e.g. `Square|200x200` or `photo|400` (width only).
 const SIZE_HINT = /\|(\d+)(?:x(\d+))?/;
@@ -51,10 +48,8 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 		return Math.max(1, n);
 	}
 
-	// Sum of per-image rendered heights in a prose block. Each image contributes
-	// its `|WxH` hint height when present, else the min-height floor (an unsized
-	// image's height isn't knowable until decode — the ResizeObserver corrects it
-	// post-mount). Returns 0 for image-free raw. Reads raw only, never inline.
+	// Each image contributes its `|WxH` hint height, else the min-height floor — an unsized
+	// image isn't knowable until decode, which the ResizeObserver corrects post-mount.
 	function imageHeights(raw: string): number {
 		let total = 0;
 		IMAGE_ALT.lastIndex = 0;
@@ -67,14 +62,11 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 	}
 
 	function estimate(node: NodeView, width: number): number {
-		// A collapsed container mounts only its chrome row; its body lives in `raw`
-		// but never renders, so estimating from full `raw` over-counts it several-
-		// fold. One chrome line + block chrome is the tight estimate, matching what
-		// the summary/title row actually paints. Reads the declared collapse probe,
-		// so no per-kind arm is needed (cursor/ reading schema/ is layer-legal).
+		// A collapsed container's body lives in `raw` but never renders, so estimating from
+		// full `raw` over-counts it several-fold; only the chrome row paints.
 		if (isCollapsedContainer(node)) return opts.lineHeight + opts.blockChrome;
-		// A descriptor's own O(1) estimate supersedes the built-in arms (a rendered
-		// artifact is far taller than its source text); the oracle still adds chrome.
+		// A descriptor's own O(1) estimate supersedes the built-in arms (a rendered artifact
+		// is far taller than its source text); the oracle still adds chrome.
 		const custom = tryGetBlockKindDescriptor(node.kind)?.estimateHeight;
 		if (custom) return custom(node, { width }) + opts.blockChrome;
 		const kind = node.kind;
@@ -88,8 +80,8 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 				return sourceLines(raw) * opts.codeLineHeight + opts.blockChrome;
 			case 'table':
 			case 'tableRow':
-				// Source-line count models a normal table; a wide table wraps its cells
-				// far beyond its row count, which the blob-wrap of the whole raw catches.
+				// Source lines model a normal table; a wide one wraps its cells far beyond its
+				// row count, which the blob-wrap of the whole raw catches.
 				return (
 					Math.max(sourceLines(raw), wrappedLines(raw.length, width)) * opts.lineHeight +
 					opts.blockChrome
@@ -97,11 +89,8 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			case 'blockquote':
 			case 'list':
 			case 'listItem': {
-				// O(1), no subtree walk: a container is at least one line + chrome per
-				// child, and at least its materialized text wrapped as a blob. The blob
-				// term alone ignores every newline and per-child chrome, undercounting a
-				// stacked container several-fold; the child-count term alone ignores wrap.
-				// `children` is already on the node.
+				// Max of two terms, each alone wrong: the blob term ignores newlines and
+				// per-child chrome, the child-count term ignores wrap. Still O(1), no walk.
 				const childCount = Math.max(1, node.children?.length ?? 1);
 				const byChildren = childCount * (opts.lineHeight + opts.blockChrome);
 				const byText = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;

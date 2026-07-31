@@ -62,9 +62,8 @@ const typePins = (): void => {
 void typePins;
 
 // ── Read-side wiring ──────────────────────────────────────────────────────────
-// closure is a flat (non-container) field, so it must survive normalization onto
-// the read-side descriptor whether the kind registers as a leaf or with a
-// container group — the same stripContainerOnlyKeys path blockFocus rides.
+// closure is a flat field, so stripContainerOnlyKeys must keep it whether the kind
+// registers as a leaf or with a container group — the same path blockFocus rides.
 describe('closure lands on the read-side descriptor', () => {
 	it('survives leaf registration', () => {
 		const kind = declarePluginKind('closure-leaf');
@@ -88,9 +87,8 @@ describe('closure lands on the read-side descriptor', () => {
 });
 
 // ── Preset coherence (G1.24) ────────────────────────────────────────────────
-// The type gate cannot see `mergeRole`, so the runtime cross-check is what proves
-// the baked `mergeBackspace: implemented` clears the not-mergeable rule — and what
-// goes red if someone "simplifies" a baked cell to inherit-default.
+// The type gate cannot see `mergeRole`, so only a runtime cross-check catches a baked
+// cell "simplified" back to inherit-default.
 describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 	const cells = {
 		focus: { mode: 'implemented', via: 'test leaf caret' },
@@ -118,9 +116,8 @@ describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 	});
 });
 
-// The container half of G1.24 the leaf preset cannot cover: a container's
-// roundTrip must be `implemented`, so the runtime cross-check proves containerClosure
-// bakes it there and goes red if the baked `roundTrip` mode is ever loosened.
+// The container half of G1.24 the leaf preset cannot cover: a container's roundTrip must
+// be `implemented`, and only a runtime cross-check catches that baked mode loosening.
 describe('containerClosure keeps a strip container coherent', () => {
 	const cells = {
 		roundTripVia: 'container contract=opaque — rebuildRaw',

@@ -41,10 +41,8 @@ export interface MountedHost {
 	dispose: () => Promise<void>;
 }
 
-/**
- * Mount BlockHost over `doc.children[props.index]`. `props` is filled in place
- * and handed to `mount` unwrapped, so a `$state` object stays live.
- */
+/** Mount BlockHost over `doc.children[props.index]`. `props` is filled in place and
+ *  handed to `mount` unwrapped, so a `$state` object stays live. */
 export function mountBlockHost(
 	doc: Document,
 	props: HostProps = {},
@@ -78,11 +76,8 @@ export function mountBlockHost(
 	};
 }
 
-/**
- * A plugin kind carrying only a descriptor. That is the reachable shape of
- * BlockHost's "no component" case: `registryView.descriptor` throws for a kind
- * with no descriptor at all, so a kind that reaches the host always has one.
- */
+/** A descriptor-only plugin kind: the reachable shape of BlockHost's "no component"
+ *  case, since `registryView.descriptor` throws for a kind that has none at all. */
 export function declareComponentlessKind(name: string): PluginBlockKind {
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {

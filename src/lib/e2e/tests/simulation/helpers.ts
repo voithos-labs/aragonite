@@ -6,10 +6,9 @@ import { type SimContext } from '../../simulation/invariants';
 
 // Shared bootstrap + probes for the note-taking simulation specs.
 
-// Attach the error collector, arm it, and seed an ExpectationTracker from the
-// current source — the SimContext every session runs its oracles against. Call
-// AFTER loading the fixture; sessions that must watch the load phase for errors
-// keep their own attach-before-load bootstrap instead.
+// The SimContext every session runs its oracles against. Call AFTER loading the fixture;
+// sessions that must watch the LOAD phase for errors keep their own attach-before-load
+// bootstrap instead.
 export async function makeSimContext(
 	page: Page,
 	editor: EditorPage,

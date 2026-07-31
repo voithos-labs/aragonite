@@ -128,15 +128,13 @@ beforeEach(() => {
 });
 
 // ── Dispatch order ───────────────────────────────────────────────────────────
-// The arms are not commutative: the global-chord arm opens with an unconditional
-// early return for everything below it, so a key an earlier arm claims must never
-// be reachable by a later one.
+// The arms are not commutative: the global-chord arm early-returns for everything
+// below it, so a key an earlier arm claims is unreachable by a later one.
 
 describe('editor-root keydown — dispatch order is load-bearing', () => {
 	it('a search chord with focus INSIDE a block still opens the bar', () => {
-		// The pin: the global-chord arm's focus gate (`active === root ||
-		// nothing-focused`) is false here, and it returns for everything below it.
-		// Moving the search arm under that gate drops Mod+F for every focused block.
+		// The global-chord arm's focus gate is false here and returns for everything
+		// below it, so moving the search arm under it drops Mod+F for every block.
 		const h = harness();
 		const block = document.createElement('div');
 		block.contentEditable = 'true';
@@ -385,11 +383,9 @@ describe('editor-root keydown — foreign text-entry yields Find', () => {
 });
 
 // ── The header slot ──────────────────────────────────────────────────────────
-// Host chrome mounted inside the root. `root.contains(active)` is true there, so
-// the "focus is in this editor" claims read it as their own content and a host
-// title field lost Find mid-typing. The discriminator is the case above ("a
-// text-entry surface INSIDE this editor is not foreign"): the same field one
-// level up, outside the slot, still claims.
+// `root.contains(active)` is true for host chrome, so the "focus is in this editor"
+// claims read it as their own content and a host title field loses Find mid-typing.
+// The discriminator is the slot: the same field one level up still claims.
 
 describe('editor-root keydown — host chrome owns its own keystrokes', () => {
 	it('yields a search chord to a text field in the header slot', () => {

@@ -19,7 +19,8 @@ const noopRects: EditorRects = {
 	rangeRects: () => [],
 	caretRect: () => null,
 	reveal: async () => false,
-	scrollTo: async () => false
+	scrollTo: async () => false,
+	navigateTo: async () => false
 };
 const deps = (doc: { children: unknown[] }) => ({
 	editorId: 'ed-1',
@@ -28,7 +29,8 @@ const deps = (doc: { children: unknown[] }) => ({
 	optionsFor: (name: string) => (name === 'opts' ? { max: 3 } : undefined),
 	decorations: noopDecorations,
 	rects: noopRects,
-	getPresentationMode: () => 'source' as const
+	getPresentationMode: () => 'source' as const,
+	getTheme: () => 'dark'
 });
 
 beforeEach(() => __resetInstalledPluginsForTests());
@@ -158,7 +160,8 @@ describe('createEditorPluginContexts', () => {
 			optionsFor: () => undefined,
 			decorations: registry,
 			rects: noopRects,
-			getPresentationMode: () => 'source'
+			getPresentationMode: () => 'source',
+			getTheme: () => 'dark'
 		});
 		ctxs.attachAll(() => {});
 
@@ -178,7 +181,8 @@ describe('createEditorPluginContexts', () => {
 			rangeRects: () => [],
 			caretRect: () => null,
 			reveal: async () => true,
-			scrollTo: async () => true
+			scrollTo: async () => true,
+			navigateTo: async () => true
 		};
 		let received: EditorRects | undefined;
 		installPlugins([

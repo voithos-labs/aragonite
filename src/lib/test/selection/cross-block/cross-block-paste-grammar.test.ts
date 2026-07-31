@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 //
-// The cross-block paste caller (handleCrossBlockPaste) must forward the instance
-// grammar onto the PasteDispatchContext it builds, so the join-paste reparse honors
-// per-instance enablement. dispatch.test.ts proves the apply path honors a directly
-// passed ctx.grammar; this proves the CALLER populates it from the dispatch context.
+// The cross-block paste caller must forward the instance grammar onto the PasteDispatchContext it
+// builds, so the join-paste reparse honors per-instance enablement. dispatch.test.ts proves the
+// apply path honors a passed ctx.grammar; this proves the CALLER populates it.
 import { describe, it, expect } from 'vitest';
 import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -84,8 +83,9 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		getPresentationMode: () => 'source' as const,
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
-		pasteCoordinator: createPasteCoordinator(env.controller),
+		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		grammar,
+		events: env.deps.events,
 		getCursorOffset: () => 0,
 		afterReactivity: async () => {}
 	});
@@ -98,9 +98,8 @@ function pasteEvent(text: string): ClipboardEvent {
 	} as unknown as ClipboardEvent;
 }
 
-// A cross-block paste whose collapsed caret lands at offset 0 of a `. item` block:
-// pasting `1` completes the ordered-list marker to `1. item`. The join reparse must
-// resolve through the instance grammar carried on the dispatch context.
+// A cross-block paste whose collapsed caret lands at offset 0 of a `. item` block: pasting `1`
+// completes the marker to `1. item`, and the join reparse must resolve through the grammar.
 describe('handleCrossBlockPaste forwards the instance grammar to the join reparse', () => {
 	it('a grammar that disables the list opener leaves the completion a paragraph', async () => {
 		const env = makeEnv('x\n\n. item\n');

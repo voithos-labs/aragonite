@@ -12,10 +12,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('toc lists the document headings from the document prop', async ({ page }) => {
-	// The `[[toc]]` leaf renders (folded) a nav of the document's headings, read
-	// straight off BlockComponentProps.document — the point of the toc dogfood.
-	// highlight-occurrences installs alongside it; a page error from either would
-	// have tripped the beforeEach no-error gate before this line.
+	// The toc nav is read straight off BlockComponentProps.document. highlight-occurrences
+	// installs alongside it: a page error from either trips the beforeEach no-error gate.
 	await expect(page.locator('.toc-block-item', { hasText: 'Consumer plugins' })).toBeVisible();
 	expect(await getSource(page)).toContain('[[toc]]');
 });
@@ -45,9 +43,8 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 });
 
 test('math paints once — katex.min.css rides the packaged renderer adapter', async ({ page }) => {
-	// The stylesheet's bare side-effect import rides `aragonite/plugins/latex/renderer`
-	// (sideEffects-listed so a bundler keeps it). Without it KaTeX's `.katex-mathml`
-	// a11y half lays out at glyph size beside the render, echoing the TeX as plain text.
+	// The stylesheet rides `aragonite/plugins/latex/renderer` as a bare side-effect import.
+	// Without it KaTeX's `.katex-mathml` a11y half lays out at glyph size beside the render.
 	const widget = page.locator('.math-inline-widget').first();
 	await expect(widget.locator('.katex-html')).toHaveCount(1);
 	const mathmlBox = await widget.locator('.katex-mathml').boundingBox();
@@ -59,10 +56,8 @@ test('math paints once — katex.min.css rides the packaged renderer adapter', a
 test('mermaid installs from the package and renders statically without an engine', async ({
 	page
 }) => {
-	// The consumer has no mermaid devDependency and wires no renderer, so the packaged
-	// block takes its no-engine branch: the fence code shown verbatim plus a note. This
-	// is the whole point of the core/renderer split — the plugin resolves and installs
-	// without pulling the engine.
+	// The consumer has no mermaid devDependency and wires no renderer, so the packaged block
+	// takes its no-engine branch: the core/renderer split installs without pulling the engine.
 	const block = page.locator('.mermaid-block');
 	await expect(block).toBeVisible();
 	await expect(block.locator('.mermaid-note')).toContainText('Mermaid renderer not configured');
@@ -97,10 +92,8 @@ test('unregistered directive round-trips byte-for-byte through the generic fallb
 	expect(src).toContain(':::mystery\nUnregistered directive body\n:::');
 });
 
-// The two below assert resolution, not emoji/footnote behavior — the in-repo plugin
-// e2e suites own that. What only this file can prove is that the packaged subpath
-// installs and paints from outside the repo, alongside a seed whose `:::` and `[[`
-// constructs share their trigger byte.
+// The two below assert resolution, not emoji/footnote behavior (the in-repo plugin e2e suites
+// own that): the packaged subpath installs and paints from outside the repo.
 
 test('emoji paints the glyph from the packaged subpath while the shortcode stays in the source', async ({
 	page
@@ -112,8 +105,8 @@ test('emoji paints the glyph from the packaged subpath while the shortcode stays
 });
 
 test('footnote reference derives its number and its definition round-trips', async ({ page }) => {
-	// The number is derived from first-reference order, never stored — a `1` here is
-	// the packaged numbering seam running in the consumer, not a byte from the seed.
+	// The number is derived from first-reference order, never stored: the `1` is the packaged
+	// numbering seam running in the consumer, not a byte from the seed.
 	await expect(page.locator('sup.footnote-ref')).toHaveText('1');
 	await expect(page.locator('.footnote-def')).toBeVisible();
 	const src = await getSource(page);

@@ -1,30 +1,17 @@
 /**
- * Cross-block endpoint coordinate check: an endpoint addressing a table block
- * carries `cellCoordinate: true`, so its offset reads as a row-major cell index
- * and never as a character count. A table path IS cell space; a char offset
- * stored there routes rangeDelete down the generic branch and corrupts the grid,
- * while copy silently drops rows.
- *
- * The normalizer that mints the flag walks `path.length - 1`, so a length-1 table
- * path runs zero iterations and passes through unflagged — which is how the
- * shift-click producer shipped a corrupt endpoint past a seam that looked total.
- * The producer is fixed; this is the belt that catches producer N+1.
- *
- * Same-path pairs are exempt: an intra-table rectangle's focus is unflagged by the
- * endpoint convention while its offset is still a cell index.
- *
- * Resolves on `kind === 'table'`, the same discriminant the endpoint normalizer
- * uses — not the grid contract, which would demand the flag on row paths no
- * producer ever mints.
+ * G1.29 — a cross-block endpoint addressing a table carries `cellCoordinate: true`, so its
+ * offset reads as a row-major cell index; a char offset there routes rangeDelete down the
+ * generic branch and corrupts the grid. Same-path pairs are exempt (an intra-table
+ * rectangle's focus is unflagged by convention). Resolves on `kind === 'table'`, the
+ * endpoint normalizer's discriminant, not the grid contract.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { InvariantViolation } from './assert';
 
 /**
- * The endpoint shape structurally, NOT `selection/`'s `SelectionPoint`: no
- * `invariants/` predicate takes a dependency — runtime or type — on the selection
- * model. The seam passes its own points; they satisfy this by structure.
+ * Structural, NOT `selection/`'s `SelectionPoint`: no `invariants/` predicate takes a
+ * dependency — runtime or type — on the selection model.
  */
 export interface EndpointCoordinate {
 	readonly path: readonly number[];

@@ -53,9 +53,9 @@ test.describe('live raw-HTML widget paste-while-selected', () => {
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceContains('<br>');
 
-		// Typing must land at offset 6 (preSelectOffset), not at the far widget
-		// boundary. keyboard.press fires the CST keydown intercept which routes
-		// the character through the widget-adjacency branch.
+		// Typing must land at offset 6 (preSelectOffset), not at the far widget boundary;
+		// keyboard.press fires the CST keydown intercept that routes the character through the
+		// widget-adjacency branch.
 		await page.keyboard.press('X');
 		await editor.bridge.waitForSourceContains('beforeX');
 		const src = await editor.bridge.getSource();

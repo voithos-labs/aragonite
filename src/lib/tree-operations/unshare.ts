@@ -1,24 +1,9 @@
 /**
- * Copy-path-on-write for structural-sharing undo. Before any in-place write,
- * the spine from the document root to the write target must be unshared —
- * shared nodes are still referenced by undo/redo entries, and writing through
- * them corrupts history. Copies are SHALLOW: children/childIds arrays are
- * fresh, but child refs still point at shared subtrees (unshare deeper only
- * where you write).
- *
- * Write-then-re-read: after assigning a copy (node or children array) into the
- * live tree, RE-READ it through the tree before any further use. A live $state
- * tree wraps stored values in proxies, and later writes must go through the
- * canonical wrapper or proxy readers see a stale view.
- *
- * Any layer that knows a path may call in; tree-operations ops own their own
- * spine rather than assuming an upstream unshare.
- *
- * This seam is the ONE sanctioned view→mutable door (core/node-views.ts):
- * inputs accept readonly views, returns are owned mutable nodes — the runtime
- * unshare is precisely what makes the byte write legal. The casts below are
- * that door; nowhere outside this seam and the commit ceremony may strip a
- * view back to `CstNode`.
+ * Copy-path-on-write for structural-sharing undo: unshare the root→target spine before
+ * any in-place write — undo entries still reference shared nodes. Copies are SHALLOW, so
+ * unshare deeper wherever you write. Write-then-re-read: after assigning a copy into the
+ * live tree, re-read it through the tree — the `$state` proxy wrapper is canonical, not
+ * the copy you held. Also the one sanctioned view→mutable door (`core/node-views.ts`).
  */
 import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';
@@ -28,12 +13,12 @@ import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import type { GrammarView } from '../schema/block-openers';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
+import { lineOpensAs, reclassifyContainer } from './node-ops';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
-	// The door: the copy is freshly owned; its children still alias shared
-	// subtrees, which the shallow-unshare contract already states.
 	const copy = { ...node } as CstNode;
 	if (node.children) copy.children = [...node.children] as CstNode[];
 	if (node.childIds) copy.childIds = [...node.childIds];
@@ -46,13 +31,10 @@ function copyNode(node: NodeView, sharing: SharingState): CstNode {
 }
 
 /**
- * The copy-on-write spine walk shared by `ensureUnsharedPath` and
- * `rebuildUnsharedAncestry`: descend `path` from `root`, copying every
- * still-shared node into its (already-unshared) parent, and return the owned
- * chain outermost-first. `assertInRange` is the only difference between the two
- * callers — it fires G1.22 on an index that ran off a live child (the strict
- * unshare path) or stays silent (tolerant rebuild passes hand short paths). The
- * walk stops at the first gap either way.
+ * The copy-on-write spine walk, returning the owned chain outermost-first.
+ * `assertInRange` fires G1.22 for the strict `ensureUnsharedPath` caller and stays
+ * silent for tolerant rebuild passes, which legitimately hand short paths; the walk
+ * stops at the first gap either way.
  */
 function walkUnsharing(
 	root: NodeParentView,
@@ -61,8 +43,7 @@ function walkUnsharing(
 	assertInRange: boolean
 ): CstNode[] {
 	const chain: CstNode[] = [];
-	// The door (file header): the root is the live document or a ceremony-owned
-	// array, so its children array is writable by contract.
+	// Root is the live document or a ceremony-owned array — writable by contract (file header).
 	let parentChildren = root.children as CstNode[];
 	for (const index of path) {
 		let node = parentChildren[index];
@@ -84,11 +65,9 @@ function walkUnsharing(
 }
 
 /**
- * Unshare every node along `path` (child indices from `root`), splicing
- * copies into their (already-unshared) parents. Returns the node chain,
- * outermost first. `root` is the live document for out-of-ceremony writes
- * (routine typing) or a `{ children }` view over a commit ceremony's array
- * copy — either way the caller owns the array, so the splice is safe.
+ * Unshare every node along `path` from `root`; returns the chain outermost-first.
+ * The caller owns `root.children` (live document, or a commit ceremony's array copy),
+ * which is what makes the splice safe.
  */
 export function ensureUnsharedPath(
 	root: NodeParentView,
@@ -108,9 +87,8 @@ export function ensureUnsharedChild(
 	sharing: SharingState
 ): CstNode {
 	const child = parent.children![index];
-	// G1.22, the same gate the spine walk carries: an index off the end is a caller
-	// bug either way, but reading `ownerEpoch` off the gap made it epoch-dependent —
-	// silent before the first snapshot, a TypeError inside `isShared` after one.
+	// G1.22 — an index off the end is a caller bug; fail here rather than
+	// epoch-dependently inside `isShared`.
 	assertInvariant('unshare-path-in-range', () =>
 		child ? null : { code: 'unshare-path', message: `child index ${index} out of range` }
 	);
@@ -121,11 +99,9 @@ export function ensureUnsharedChild(
 }
 
 /**
- * Standalone copy for a node being MOVED out of a parent the snapshot keeps
- * (the caller attaches the returned copy; the original stays in the old
- * parent's shared children array untouched). An unshared input passes through
- * as-is — the door (file header): unshared means live-tree-owned, so the
- * mutable return is what the runtime check just proved.
+ * Standalone copy for a node being MOVED out of a parent the snapshot keeps: the caller
+ * attaches the returned copy, the original stays in the old parent untouched. An
+ * unshared input passes through — unshared already means live-tree-owned.
  */
 export function ensureUnsharedNode(node: NodeView, sharing: SharingState): CstNode {
 	return sharing.isShared(node) ? copyNode(node, sharing) : (node as CstNode);
@@ -151,12 +127,9 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
 // ── Sharing-aware raw rebuilds ───────────────────────────────────────────────
 
 /**
- * Rebuild one owned container's raw. A grid rebuild rewrites its children's raw
- * (the table's canonical padding), so a grid's children are unshared first — read
- * off the container contract, not a `table` kind test, or a plugin grid writes
- * through shared children. Over-broad by one level (a row's rebuild only reads its
- * cells), which is the safe direction: an unnecessary copy is correct, a missed one
- * corrupts history.
+ * Rebuild one owned container's raw. A grid rebuild rewrites its children's raw, so a
+ * grid's children are unshared first — keyed off `containerContract`, not a `table` kind
+ * test, or a plugin grid writes through shared children.
  */
 export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): void {
 	if (getBlockKindDescriptor(node.kind).containerContract === 'grid') {
@@ -166,14 +139,10 @@ export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): voi
 }
 
 /**
- * Longest prefix of `chain` still attached under `root`, identity-checked level
- * by level. A commit mutation may splice one scope's node out of the tree (an
- * emptied nested list, a consumed range endpoint); rebuilding the detached
- * node's raw against its emptied children writes `raw: ''` and the commit-time
- * staleness check then fires on a node the document no longer contains.
- * Ancestors above the detachment point still need their rebuild — hence prefix,
- * not all-or-nothing. A node MOVED to a new parent counts as detached from this
- * chain: the mover owns its rebuild, and its new spine is the mover's chain.
+ * Longest prefix of `chain` still attached under `root`, identity-checked level by level.
+ * A commit mutation can splice a node out mid-ceremony; rebuilding the detached node's
+ * raw against its emptied children writes `raw: ''` and trips the commit-time staleness
+ * check. Ancestors above the detachment still need their rebuild — hence prefix.
  */
 export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode[] {
 	let parentChildren = root.children;
@@ -185,29 +154,69 @@ export function attachedChainPrefix(root: NodeParent, chain: CstNode[]): CstNode
 }
 
 /**
- * Rebuild raws along an owned spine chain (as returned by ensureUnsharedPath),
- * innermost-first. Chain-based rather than path-based so it stays correct after
- * mutations shifted sibling indices — node references survive splices. One
- * chain rebuild = one rebuild-depth histogram sample.
+ * One container slot a rebuild re-kinded. `previous` is the rollback register: a commit
+ * unwinding after the swap has already published `replacement` into a live children
+ * array, which no other rollback register reaches.
  */
-export function rebuildUnsharedChain(chain: CstNode[], sharing: SharingState): void {
-	for (let i = chain.length - 1; i >= 0; i--) {
-		rebuildOwnedContainer(chain[i], sharing);
-	}
-	if (perfEnabled()) recordRebuildDepth(chain.length);
+export interface ContainerReclassification {
+	siblings: CstNode[];
+	index: number;
+	previous: CstNode;
+	replacement: CstNode;
 }
 
 /**
- * Unshare the spine to `path` and rebuild the node at `path` (when it is a
- * container) plus every ancestor, innermost-first. Tolerates paths that ran
- * out of range mid-walk (post-delete rebuild passes). Use only when `path` is
- * still valid for the ancestors that matter; prefer rebuildUnsharedChain over
- * a chain captured at unshare time when indices may have shifted.
+ * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's
+ * kind; chain- rather than path-based so it survives sibling-index shifts. Re-derivation
+ * costs a whole-container parse, so it is gated on the opener line changing AND
+ * `lineOpensAs` no longer naming the current kind — a positive identification, so a
+ * declining opener parses rather than eliding a real kind change
+ * (`test/tree-operations/opener-verdict-agreement`).
+ */
+export function rebuildUnsharedChain(
+	root: NodeParent | CstNode,
+	chain: CstNode[],
+	sharing: SharingState,
+	grammar: GrammarView | undefined
+): ContainerReclassification[] {
+	const reclassified: ContainerReclassification[] = [];
+	for (let i = chain.length - 1; i >= 0; i--) {
+		const node = chain[i];
+		const openerLineBefore = firstLine(node.raw);
+		rebuildOwnedContainer(node, sharing);
+		const openerLineAfter = firstLine(node.raw);
+		if (openerLineAfter === openerLineBefore) continue;
+		if (lineOpensAs(openerLineAfter, grammar) === node.kind) continue;
+
+		const siblings = (i === 0 ? root : chain[i - 1]).children;
+		const index = siblings?.indexOf(node) ?? -1;
+		if (!siblings || index < 0) continue;
+		const replacement = reclassifyContainer({ children: siblings }, index, grammar);
+		if (replacement) {
+			sharing.stamp(replacement);
+			reclassified.push({ siblings, index, previous: node, replacement });
+		}
+	}
+	if (perfEnabled()) recordRebuildDepth(chain.length);
+	return reclassified;
+}
+
+/** The container's opener line. */
+function firstLine(raw: string): string {
+	const nl = raw.indexOf('\n');
+	return nl < 0 ? raw : raw.slice(0, nl);
+}
+
+/**
+ * Unshare the spine to `path` and rebuild it innermost-first, tolerating paths that ran
+ * out of range mid-walk (post-delete rebuild passes). Prefer `rebuildUnsharedChain` when
+ * indices may have shifted since the unshare.
  */
 export function rebuildUnsharedAncestry(
 	root: NodeParent,
 	path: number[],
-	sharing: SharingState
-): void {
-	rebuildUnsharedChain(walkUnsharing(root, path, sharing, false), sharing);
+	sharing: SharingState,
+	grammar: GrammarView | undefined
+): ContainerReclassification[] {
+	return rebuildUnsharedChain(root, walkUnsharing(root, path, sharing, false), sharing, grammar);
 }

@@ -1,16 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Link affordance + layout, all of which only surface under real layout/CSS
-// (jsdom has no computed cursor, no `:has()`, no element box geometry):
-//   - an inline link reads as a link (accent colour + underline), distinct from
-//     body text and matching the autolink treatment;
-//   - the pointer cursor appears only while Ctrl/Cmd is held, because a plain
-//     click edits and only a modifier-click activates the link;
-//   - an image wrapped in a link hugs the image instead of ballooning the anchor
-//     to the full content width (which parked the link's `title` tooltip over
-//     empty space beside the image);
-//   - a blocked-scheme link stays inert: no anchor, no accent, no pointer.
+// Link affordance + layout, all of which only surface under real layout/CSS — jsdom has no computed
+// cursor, no `:has()`, and no element box geometry.
 test.describe('link styling + affordance', () => {
 	let editor: EditorPage;
 
@@ -28,12 +20,11 @@ test.describe('link styling + affordance', () => {
 		const link = page.locator('a.md-link-content', { hasText: 'Example' });
 		await expect(link).toHaveCount(1);
 
-		// Underlined like a link, not plain prose.
 		await expect(link).toHaveCSS('text-decoration-line', 'underline');
 
-		// "Is the accent, non-default" without pinning a hex: the link resolves the
-		// same `--color-accent` token the autolink does, and both differ from the
-		// inherited body-text colour. Comparing tokens survives a theme change.
+		// "Is the accent, non-default" without pinning a hex: the link and the autolink resolve the
+		// same `--color-accent` token and both differ from body text, so the comparison survives a
+		// theme change.
 		const linkColor = await link.evaluate((el) => getComputedStyle(el).color);
 		const autoColor = await page
 			.locator('a.md-autolink', { hasText: 'auto.example.com' })
@@ -51,8 +42,7 @@ test.describe('link styling + affordance', () => {
 		const link = page.locator('a.md-link-content', { hasText: 'Example' });
 		const autolink = page.locator('a.md-autolink', { hasText: 'auto.example.com' });
 
-		// Default: a plain click edits, so both keep the text caret (not the UA
-		// `<a href>` pointer).
+		// A plain click edits, so both keep the text caret rather than the UA `<a href>` pointer.
 		await expect(link).toHaveCSS('cursor', 'text');
 		await expect(autolink).toHaveCSS('cursor', 'text');
 
@@ -78,9 +68,9 @@ test.describe('link styling + affordance', () => {
 		await page.keyboard.down('Control');
 		await expect(editor.editorContainer).toHaveAttribute('data-mod-active', '');
 
-		// Simulate the page losing focus while the modifier is still physically
-		// down (e.g. an OS shortcut / alt-tab). The keyup never reaches us, so the
-		// blur/visibility reset must clear the pointer affordance on its own.
+		// The page can lose focus while the modifier is physically down (OS shortcut, alt-tab): the
+		// keyup never arrives, so the blur/visibility reset must clear the pointer affordance on
+		// its own.
 		await page.evaluate(() => {
 			window.dispatchEvent(new Event('blur'));
 		});
@@ -124,8 +114,8 @@ test.describe('link styling + affordance', () => {
 
 		// The anchor hugs the image (within a couple of sub-pixel rounding px)…
 		expect(Math.abs(anchorBox!.width - imgBox!.width)).toBeLessThanOrEqual(3);
-		// …and is far narrower than the editing surface — the bug ballooned it to
-		// the full content width (~1246px around a 32px image).
+		// …and far narrower than the editing surface: the bug ballooned it to the full content
+		// width.
 		const contentWidth = await editor.editorContainer.evaluate((el) => el.clientWidth);
 		expect(anchorBox!.width).toBeLessThan(contentWidth / 2);
 	});
@@ -135,16 +125,13 @@ test.describe('link styling + affordance', () => {
 			'Real [Example](https://example.com) and blocked [x](javascript:alert(1)) here.\n'
 		);
 
-		// Only the real link is an anchor; the blocked one is an inert span.
 		await expect(page.locator('a.md-link-content')).toHaveCount(1);
 		const blocked = page.locator('span.md-link-blocked', { hasText: 'x' });
 		await expect(blocked).toHaveCount(1);
 
-		// Not underlined, not a pointer — visually inert.
 		await expect(blocked).toHaveCSS('text-decoration-line', 'none');
 		await expect(blocked).toHaveCSS('cursor', 'text');
 
-		// And not the accent colour the real link uses.
 		const blockedColor = await blocked.evaluate((el) => getComputedStyle(el).color);
 		const realColor = await page
 			.locator('a.md-link-content', { hasText: 'Example' })

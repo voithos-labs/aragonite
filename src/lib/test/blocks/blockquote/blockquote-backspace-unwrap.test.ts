@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
 //
-// Rule U2: Backspace at offset 0 of a blockquote's FIRST child lifts that child out
-// of the quote. Nothing in BlockquoteBlock.svelte says so — the behavior is selected
-// by the descriptor's `unwrapRole.firstChildBackspace: 'lift-first-child'`, read by
-// `createNestedBlockEdit` from the node's kind and dispatched into
-// `firstChildUnwrapStrategies`. Four independent parts (descriptor, dispatcher,
-// strategy table, the component's bundle wiring) have to agree, and each is unit
-// tested alone; this is the only level where their agreement is observable.
-//
-// The middle-child arm is the declared contrast (`'default-merge'`), so the same
-// keystroke one child later must merge instead of unwrap.
+// Backspace at offset 0 of a blockquote's FIRST child lifts it out; one child later the
+// same keystroke merges instead. Neither is in BlockquoteBlock.svelte — the arm is picked
+// by the descriptor's `unwrapRole.{firstChild,middleChild}Backspace`, read by
+// `createNestedBlockEdit` and dispatched into `firstChildUnwrapStrategies`. Four parts have
+// to agree, each unit tested alone; a mount is the only level where the agreement shows.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
@@ -39,8 +34,6 @@ describe('blockquote Backspace unwrap (U2)', () => {
 		expect(mounted.source()).toBe('alpha\n');
 	});
 
-	// `middleChildBackspace: 'default-merge'` — the same keystroke one child later is
-	// an ordinary interior merge, and the quote survives it.
 	it('merges a middle child into its predecessor instead of unwrapping', async () => {
 		mounted = mountEditor({ source: '> alpha\n>\n> beta\n' });
 
@@ -49,8 +42,6 @@ describe('blockquote Backspace unwrap (U2)', () => {
 		expect(mounted.source()).toBe('> alphabeta\n');
 	});
 
-	// Not at offset 0: an ordinary in-block deletion, which must not reach the
-	// unwrap dispatch at all.
 	it('leaves a mid-content Backspace to the block itself', async () => {
 		mounted = mountEditor({ source: '> alpha\n' });
 

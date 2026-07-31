@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-//
-// findFirstTextNode / findLastTextNode are pure DOM walks and need no geometry.
-// The line-position predicates depend on rect measurement, which jsdom zeroes
-// out, so the browser rect primitives are patched at the prototype level (the
-// SUT calls document.createRange() internally — per-range stubs never reach it).
-// Each mocked rect is derived from the range's (startContainer, startOffset) so
-// the SUT's real first/last-text-node walk and line-delta comparison run against
-// the injected geometry.
+// The line-position predicates need rect measurement, which jsdom zeroes out, so the browser rect
+// primitives are patched at the prototype level (the SUT calls document.createRange() internally —
+// per-range stubs never reach it). Each mocked rect derives from the range's (startContainer,
+// startOffset), so the SUT's real text-node walk and line-delta comparison run against it.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -41,7 +37,6 @@ describe('findFirstTextNode / findLastTextNode', () => {
 	});
 
 	it('descends into nested elements and respects document order', () => {
-		// <div><span>a</span>mid<b><i>z</i></b></div>
 		const el = document.createElement('div');
 		el.innerHTML = '<span>a</span>mid<b><i>z</i></b>';
 		const first = findFirstTextNode(el);
@@ -201,10 +196,8 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 	}
 
 	it('resolves via the fallback offset when the selection range is dropped', () => {
-		// Chromium drops the caret range adjacent to atomic contenteditable=false
-		// islands under load; a hard-false there strands the caret at the boundary
-		// forever. With no range the reader trusts the snapped fallback offset —
-		// the same shape the geometry-null branch already uses.
+		// Chromium drops the caret range adjacent to atomic contenteditable=false islands under load,
+		// and a hard-false there strands the caret forever; trust the snapped fallback offset instead.
 		window.getSelection()?.removeAllRanges();
 		expect(isAtFirstVisualLine(block, 0)).toBe(true);
 		expect(isAtFirstVisualLine(block, 5)).toBe(false);

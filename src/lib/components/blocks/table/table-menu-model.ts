@@ -1,10 +1,9 @@
 /**
- * Pure model for the table affordance menu: which items a target cell, row, or
- * column offers and whether each is enabled. The component renders this and
- * dispatches `context[action](arg)` on click; enablement reuses the context's
- * own refusal predicates so a disabled item can never reach a no-op commit.
+ * Pure model for the table affordance menu: which items a target cell, row, or column
+ * offers and whether each is enabled. Enablement reuses the context's own refusal
+ * predicates, so a disabled item can never reach a no-op commit.
  */
-import type { CellShortcutAction } from './cell-keydown-plan';
+import type { TableAxisAction } from '../../../action-contracts';
 import type { TableAlignment } from '../../../core/nodes';
 import {
 	tableRowReorderTarget,
@@ -15,10 +14,8 @@ import { canDeleteRow, canDeleteColumn } from '../../../tree-operations/table-mu
 export type ClipboardAction = 'cut' | 'copy' | 'paste';
 
 /**
- * Clamp a fixed-position menu's desired top-left so the whole menu stays within
- * the viewport (minus `margin`). Menus open at a raw pointer/grip coordinate;
- * near the right/bottom edge part of the menu would otherwise render off-screen
- * and unreachable. A menu larger than the viewport pins to the top/left margin.
+ * Clamp a fixed-position menu's top-left into the viewport (minus `margin`) — menus
+ * open at a raw pointer/grip coordinate. Larger than the viewport pins to top/left.
  */
 export function clampMenuToViewport(
 	desired: { x: number; y: number },
@@ -35,10 +32,9 @@ export function clampMenuToViewport(
 }
 
 export type TableMenuItem =
-	// `index` is the action's own axis index (rowIdx for row-group actions, colIdx
-	// for column-group actions), so a both-axes cell menu can route each item to the
-	// right coordinate without the dispatcher tracking which group it came from.
-	| { kind: 'action'; action: CellShortcutAction; label: string; enabled: boolean; index: number }
+	// `index` is the action's own axis index, so a both-axes cell menu routes each item
+	// to the right coordinate without the dispatcher tracking which group it came from.
+	| { kind: 'action'; action: TableAxisAction; label: string; enabled: boolean; index: number }
 	| { kind: 'clipboard'; action: ClipboardAction; label: string; enabled: boolean }
 	| { kind: 'alignment'; current: TableAlignment }
 	| { kind: 'separator' };
@@ -47,9 +43,8 @@ export function tableMenuItems(
 	target: { rowIdx?: number; colIdx?: number },
 	dims: { rowCount: number; colCount: number },
 	alignments: readonly TableAlignment[],
-	// Present only for a cell right-click (both axes); drives the clipboard group,
-	// which grip menus never show. `hasRect` is a live intra-table rectangle, which
-	// suppresses the cell-local selection but is exactly what Cut/Copy serve.
+	// Present only for a cell right-click; grip menus never show the clipboard group. A
+	// live rectangle (`hasRect`) suppresses the cell-local selection but still serves Cut/Copy.
 	clipboard?: { hasSelection: boolean; hasRect?: boolean }
 ): TableMenuItem[] {
 	const items: TableMenuItem[] = [];
@@ -64,9 +59,7 @@ export function tableMenuItems(
 	return items;
 }
 
-// Cut/Copy act on the cell selection or the live rectangle, so they're inert
-// without either; Paste always applies (clipboard contents aren't readable
-// synchronously to gate it).
+// Paste always applies: clipboard contents aren't readable synchronously to gate it.
 function clipboardGroup(hasContent: boolean): TableMenuItem[] {
 	return [
 		{ kind: 'clipboard', action: 'cut', label: 'Cut', enabled: hasContent },

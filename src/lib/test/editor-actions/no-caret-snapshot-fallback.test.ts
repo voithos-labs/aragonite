@@ -13,10 +13,9 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
-// jsdom has no native selection, so every commit here exercises the no-caret
-// fallback — the path stored must resolve to the operated child in the
-// snapshot it restores (the reorder-action "deep restore path" contract,
-// extended to every container commit).
+// jsdom has no native selection, so every commit here exercises the no-caret fallback:
+// the stored path must resolve to the operated child in the snapshot it restores
+// (reorder-action's "deep restore path" contract, extended to every container commit).
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -86,8 +85,7 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 	});
 
 	it('container delete stores the deleted item path', async () => {
-		// The list item delete falls through to the shared core (via the list bundle),
-		// which still seeds the snapshot with the deleted item's deep path.
+		// The list item delete falls through to the shared core, which still seeds the deep path.
 		const h = makeNestedHarness([listOf(['one\n', 'two\n'])], { listOverrides: true, index: 0 });
 
 		await h.bundle.blockEdit.deleteBlock(1);

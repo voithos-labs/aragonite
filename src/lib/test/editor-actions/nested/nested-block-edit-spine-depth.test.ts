@@ -1,16 +1,9 @@
 // @vitest-environment jsdom
 //
-// G1.20 — unshared-spine depth. The routine-typing path asks `withUnsharedSpine` for
-// an owned chain down to the leaf, then writes through `chain[leafPath.length - 2]`.
-// If the chain comes back shorter than the path, that index addresses a node the
-// caller does NOT own, and the write lands on a snapshot-shared node — silent history
-// corruption that surfaces at a later undo, far from its cause.
-//
-// The invariant is an inline closure at this seam rather than a registered predicate,
-// so nothing could call it directly and no test asserted it fired; its only net was
-// the e2e console watcher. `assertInvariant` routes to `devWarn`, which vitest
-// suppresses, so the fire is observed by mocking that module — the convention the
-// other devWarn suites use.
+// G1.20 — unshared-spine depth. A chain shorter than the leaf path makes
+// `chain[leafPath.length - 2]` address a node the caller does NOT own, so the write lands
+// on a snapshot-shared node and corrupts history at a later undo. The invariant is an
+// inline closure, so its fire is observed by mocking `$lib/dev-warn`.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('$lib/dev-warn', () => ({ devWarn: vi.fn() }));
@@ -38,17 +31,15 @@ function item(): CstNode {
 	} as CstNode;
 }
 
-/**
- * `chainDepth` is what the (stubbed) container edit hands back. The honest depth is
- * the leaf path's own — CONTAINER_PATH plus the inner index — so anything shorter is
- * the violation G1.20 exists to catch.
- */
+/** `chainDepth` is what the stubbed container edit hands back; the honest depth is
+ *  CONTAINER_PATH plus the inner index. */
 function typeInto(node: CstNode, chainDepth: number): void {
 	const containerEdit = makeStubContainerEdit();
 	vi.mocked(containerEdit.withUnsharedSpine).mockImplementation(
 		(_path: number[], run: (chain: CstNode[]) => void) => {
 			const chain = Array.from({ length: chainDepth }, () => node);
 			run(chain);
+			return false;
 		}
 	);
 	const deps = {
@@ -87,9 +78,8 @@ describe('G1.20 unshared-spine depth', () => {
 		expect(violations()[0][1]).toContain(`chain depth ${CONTAINER_PATH.length} != leaf path depth`);
 	});
 
-	// A chain that is too LONG is equally a mismatch: the ownedContainer index would
-	// address the wrong ancestor. The predicate is an equality, not a lower bound,
-	// and a `<` written where `!==` belongs would let this through.
+	// The predicate is an equality, not a lower bound: a `<` written where `!==` belongs
+	// would let an over-long chain address the wrong ancestor.
 	it('fires when the chain comes back deeper than the leaf path', () => {
 		typeInto(item(), CONTAINER_PATH.length + 2);
 

@@ -1,10 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Paste into a code block: fence-length bumping when clipboard content
-// contains matching fence runs, and literal absorption of multi-block
-// markdown (no structural splitting, no kind change).
-
 test.describe('code block paste — fence bumping', () => {
 	let editor: EditorPage;
 
@@ -16,11 +12,15 @@ test.describe('code block paste — fence bumping', () => {
 	test('paste containing ``` into a code block bumps outer fence to ````', async ({ page }) => {
 		await editor.loadContent('```\nfirst\n```\n');
 		await editor.getBlock(0).click();
-		await editor.focusBlockEnd(0);
+		// End of the body line, not of the block: the block's last offset sits inside the closer,
+		// where writes are refused.
+		await editor.focusBlock(0, 9);
 
-		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```pasted code```\n');
+		// The run has to be a LINE to threaten the fence, so an inline `` ```pasted code``` `` is
+		// ordinary body text.
+		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```\npasted code\n');
 		await editor.page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceContains('```pasted code```');
+		await editor.bridge.waitForSourceContains('pasted code');
 
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^````/m);

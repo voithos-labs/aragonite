@@ -1,17 +1,9 @@
 /**
- * A bounded, LRU-evicting memo for expensive render work — the cache primitive
- * a plugin renderer builds on instead of hand-rolling one (see the plugin guide's
- * renderer recipe). Sync and async are one primitive: the async caller stores a
- * Promise as the value, so an in-flight render is shared and a rejection is cached
- * verbatim (same key, same failure) — no separate async variant needed.
- *
- * `cloneOnRead` covers the one case a bare cache cannot: a single DOM node cannot
- * occupy two places, so a caller whose value holds a live node clones it on every
- * read while the cached entry stays pristine.
- *
- * Bounded because a render surface commonly mints a fresh key per keystroke, so an
- * unbounded map is a leak. Map iteration is insertion-ordered — re-inserting on a
- * hit makes the first key the least recently used.
+ * A bounded, LRU-evicting memo for expensive render work — the cache primitive a plugin
+ * renderer builds on (see the plugin guide's renderer recipe). Async needs no variant:
+ * the caller stores the Promise, so an in-flight render is shared and a rejection is
+ * cached verbatim. `cloneOnRead` covers the one case a bare cache cannot — a value
+ * holding a live DOM node, which cannot occupy two places at once.
  */
 
 import { devWarn } from './dev-warn';
@@ -27,9 +19,8 @@ export function createBoundedMemo<K, V>(
 	options: BoundedMemoOptions<V>
 ): (key: K, compute: () => V) => V {
 	const { cloneOnRead } = options;
-	// Reported at creation, not per read: a non-positive cap already behaved as 1
-	// (evict-then-insert), so the author who meant "no caching" got caching anyway
-	// with nothing to read in the console.
+	// Reported at creation, not per read: a non-positive cap would otherwise behave as 1
+	// unnoticed, so the author who meant "no caching" gets caching with nothing to read.
 	if (options.cap < 1) {
 		devWarn('bounded-memo', `cap must be at least 1; got ${options.cap} — using 1`);
 	}

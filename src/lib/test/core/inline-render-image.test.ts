@@ -7,9 +7,8 @@ import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-re
 import type { InlineNode } from '$lib/core/nodes';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
 
-// The component layer injects buildImageWidget; core owns no image-widget code
-// and renders alt-only without it. The component supplies a per-editor broken-URL
-// cache via a closure; mirror that here with one fresh Set per options object.
+// Core owns no image-widget code; the component injects it along with a per-editor
+// broken-URL cache, mirrored here as one fresh Set per options object.
 const withWidget = (opts: RenderInlineOptions = {}): RenderInlineOptions => {
 	const brokenUrlCache = new Set<string>();
 	return {
@@ -30,7 +29,7 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 
 	it('without an injected buildImageWidget, images render alt-only even with widgets enabled', () => {
 		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw); // renderImagesAsWidgets defaults true; no builder
+		const frag = renderInlineNodes(nodes, raw);
 		expect(frag.querySelector('[data-image-widget]')).toBeNull();
 		expect(frag.textContent).toBe(raw);
 	});
@@ -218,9 +217,8 @@ describe('inline-render image — alt-only fallback', () => {
 		).toHaveLength(0);
 	});
 
-	// The predicate's empty boundary, both shapes: with no alt there is nothing to
-	// leave behind when markers collapse, so the whole construct is markers — never a
-	// split placed over bytes nothing can name.
+	// With no alt there is nothing to leave behind when markers collapse, so the whole
+	// construct is markers rather than a split placed over bytes nothing can name.
 	it('renders an alt-less image as markers alone', () => {
 		const gfm = '![](u)';
 		const gfmFrag = renderFallback(parseInline(gfm, 0, gfm.length), gfm);

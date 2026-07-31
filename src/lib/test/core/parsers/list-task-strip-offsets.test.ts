@@ -6,13 +6,9 @@ import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset'
 import { resetEditorEnv } from '../../../env';
 import type { ParsedLine } from '../../../core/lines';
 
-// A task-list item's body is reparsed from a marker-stripped ParsedLine stream. The
-// stripped lines carry `start`/`end` offsets that the parser hands to any block
-// opener as `OpenContext.lines` — the documented public seam a plugin opener reads.
-// The task-checkbox strip once rewrote line 0's `raw` (dropping `[ ] `) while
-// spreading its OLD offsets, so line 0's span overstated by the marker length and the
-// whole stream desynced from its own bytes. The offsets are unobservable through the
-// CST (parsers key on `raw`/`text`), so this pins them at the opener seam.
+// A strip that rewrites a line's `raw` while spreading its OLD offsets desyncs the whole
+// stream from its own bytes. The offsets are unobservable through the CST, since parsers
+// key on `raw`/`text`, so they are pinned at the `OpenContext.lines` seam instead.
 
 function offsetPairs(lines: ParsedLine[]): [number, number][] {
 	return lines.map((l) => [l.start, l.end]);
@@ -45,8 +41,8 @@ describe('task-checkbox strip recomputes stripped-line offsets', () => {
 			[5, 10]
 		]);
 
-		// The ParsedLine contract, stated for intent: each span equals its own bytes
-		// and the stream is gap-free from 0. The stale-offset bug broke the first.
+		// The ParsedLine contract: each span equals its own bytes, and the stream is
+		// gap-free from 0.
 		let cursor = 0;
 		for (const line of lines) {
 			expect(line.start).toBe(cursor);

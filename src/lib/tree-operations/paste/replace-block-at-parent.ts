@@ -1,8 +1,7 @@
 /**
- * Replace a single block at `blockPath` with `replacement` blocks, committing at
- * the block's parent scope (`parent-scope.ts`) rather than through the caller's
- * blockEdit — paste-into-cell has to mutate doc.children while holding the
- * row-level nested bundle.
+ * Replace the block at `blockPath`, committing at its parent scope (`parent-scope.ts`)
+ * rather than through the caller's blockEdit — paste-into-cell must mutate `doc.children`
+ * while holding the row-level nested bundle.
  */
 
 import type { UndoEntryMode } from '../../action-contracts';
@@ -56,8 +55,8 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		snapshot: undoEntry === 'join' ? 'skip' : { path: docPathFrom(blockPath), offset: 0 },
 		mutate: ([scopeView]) => {
 			scopeView.children.splice(blockIdx, 1, ...replacement);
-			// Identity preservation only helps when the kind matches — different
-			// kinds remount anyway because BlockHost dispatches by kind.
+			// Identity preservation only helps on a kind match; BlockHost dispatches by kind,
+			// so a different kind remounts anyway.
 			const change: StructuralChange = sameKindFirst
 				? replacePreservingFirst(blockIdx, 1, replacement.length)
 				: { op: 'replace', at: blockIdx, count: 1, newCount: replacement.length };
@@ -69,9 +68,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			detail: { source },
 			eventPath: docPathFrom(blockPath)
 		},
-		afterTick: () => {
-			const focusIdx = blockIdx + focusReplacementIndex;
-			scope.state.innerBlockRefs[focusIdx]?.focus(focusOffset);
-		}
+		afterTick: () =>
+			controller.landCaret([...scope.path, blockIdx + focusReplacementIndex], focusOffset)
 	});
 }

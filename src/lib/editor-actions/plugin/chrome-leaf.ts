@@ -1,17 +1,9 @@
 /**
- * Register a container-chrome leaf kind — editable text living at a reserved
- * child slot of a plugin container (a callout title, a details summary) —
- * through one call. Inside a container this needs exactly one component
- * (TextEditableBlock, passed in by the plugin.ts seam so editor-actions holds
- * no upward value edge to components/): the container seam already threads
- * every editor context, so the leaf mediates none. Chrome kinds are `contextDependentKind`
- * so a content edit keeps the kind, and `supportsInline` stays off because the tier is
- * defined as plain text: the reserved-chrome contract is a single-line, plain-text child
- * (see `docs/design/plugin-contract.md`). Inline chrome would be an additive widening of
- * that contract, not a blocked one.
- * Chrome only — not a seam for standalone recognizer-backed leaf kinds.
- * Composition: the container declares its chrome via `reservedChrome` on its
- * descriptor; this seam supplies the leaf.
+ * Register a container-chrome leaf kind: editable text at a reserved child slot of a
+ * plugin container (a callout title, a details summary). The container declares the
+ * slot via `reservedChrome`; this seam supplies the leaf. Chrome only, never a seam
+ * for standalone recognizer-backed kinds — the reserved-chrome contract is a
+ * single-line, plain-text child (`docs/design/plugin-contract.md`).
  */
 
 import type { Component } from 'svelte';
@@ -27,11 +19,8 @@ import { makeBlockNode, type AnyBlockKind, type CstNode } from '../../core/nodes
 import type { BlockComponent, BlockComponentProps } from '../../block-component';
 
 /**
- * Build the reserved child-0 node a directive container mints for its chrome leaf
- * (a callout title, a details summary) — single-line text plus its trailing
- * newline, empty title collapsing to a bare newline so the empty leaf still holds
- * a line. Pair of `registerChromeLeaf`: that registers the kind, this mints an
- * instance of it.
+ * Mint the reserved child-0 node for a chrome leaf. An empty title collapses to a
+ * bare newline, so the empty leaf still holds a line.
  */
 export function chromeChild(kind: AnyBlockKind, text: string): CstNode {
 	return makeBlockNode({ kind, leadingTrivia: '', raw: text ? `${text}\n` : '\n' });
@@ -40,7 +29,7 @@ export function chromeChild(kind: AnyBlockKind, text: string): CstNode {
 export interface ChromeLeafOptions {
 	/** CSS class on the leaf's surface, for chrome styling. */
 	blockClass?: string;
-	/** Chord→command overrides: a binding replaces the seam default for its chord; defaults fill the rest. */
+	/** A binding replaces the seam default for its chord; the defaults fill the rest. */
 	keymap?: KeyBinding[];
 	/** Defaults to 'not-mergeable' (chrome: body prose cannot merge into it). */
 	mergeRole?: MergeRole;
@@ -72,8 +61,7 @@ export function registerChromeLeaf<
 		supportsInline: false,
 		contextDependentKind: true,
 		keymap: mergeChromeKeymap(opts.keymap),
-		// One block for every chrome kind — the Chrome-leaf matrix row. No
-		// conformanceFixture: the container opener mints child-0, so a chrome leaf
+		// No conformanceFixture: the container opener mints child-0, so a chrome leaf
 		// never stands alone as a document scan's result.
 		closure: {
 			roundTrip: {
@@ -97,7 +85,7 @@ export function registerChromeLeaf<
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a copy starting mid-chrome into the body drops the container wrapper (issues.md)'
+				via: 'byte-slice copy; a slice touching the chrome re-emits the container — a mid-chrome start reopens it around the collected body, a mid-chrome end yields a chrome-only container'
 			},
 			simOracle: {
 				mode: 'implemented',
@@ -109,8 +97,7 @@ export function registerChromeLeaf<
 		kind,
 		defineBlockComponent(component, () => ({ blockClass: opts.blockClass }))
 	);
-	// Inline-only surface: no structural hooks, so `surfaceForcesInline` holds if a
-	// paste ever reaches surface resolution — defense behind the dispatch gate that
-	// already flattens chrome pastes.
+	// Inline-only surface, so `surfaceForcesInline` holds if a paste ever reaches
+	// surface resolution — defense behind the gate that already flattens chrome pastes.
 	registerPasteSurface({ kind, onInlinePaste: defaultInlineHook });
 }

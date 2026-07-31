@@ -3,11 +3,9 @@ import { type Page } from '@playwright/test';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
 /**
- * Decoration dogfoods (requirements/decorations/dogfoods.md): two reference
- * plugins built on public doors only. `highlight-occurrences` drives the mark
- * overlay from a selection-subscribed source; `ghost-text` drives the widget-
- * island render path with a Svelte-component widget at the focused paragraph's
- * end. Both run on the /test/plugins harness under their own seed.
+ * Decoration dogfoods (requirements/decorations/dogfoods.md): two reference plugins built on
+ * PUBLIC doors only — `highlight-occurrences` over the mark overlay, `ghost-text` over the
+ * widget-island render path.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
@@ -121,10 +119,8 @@ test.describe('ghost-text dogfood', () => {
 		await editor.clickBlock(0);
 		await expect(page.locator(GHOST)).toHaveCount(1);
 
-		// No text node follows the island at block end. The island keydown branch
-		// is retained as cross-browser defence for engines that drop printable keys
-		// at an element-level caret; Chromium types natively here, masking the
-		// branch's absence — the unit suite pins the branch itself.
+		// The island keydown branch is cross-browser defence for engines that drop printable keys
+		// at an element-level caret; Chromium types natively here, so only the unit suite pins it.
 		await placeCaretAfterIsland(page);
 		await editor.typeSlowly('z');
 		await editor.bridge.waitForSourceContains('Hello worldz');
@@ -152,9 +148,9 @@ test.describe('ghost-text dogfood', () => {
 
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('x');
-		// The split-trivia shape ("\nx" with no blank line) is the plain editor's
-		// own Enter-at-end result, verified ghost-free; this pins that the ghost
-		// island changes none of those bytes and the empty block still takes input.
-		expect(await editor.bridge.getSource()).toBe('Hello world\nx\n\nSecond paragraph\n');
+		// The split-trivia shape is the plain editor's own Enter result, verified
+		// ghost-free; this pins that the ghost island changes none of those bytes
+		// and the empty block still takes input.
+		expect(await editor.bridge.getSource()).toBe('Hello world\n\nx\n\nSecond paragraph\n');
 	});
 });

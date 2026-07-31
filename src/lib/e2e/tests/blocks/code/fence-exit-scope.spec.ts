@@ -1,13 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The closed-fence Enter-exit lands the new paragraph in the fence's OWN container
-// scope — never delegated outside the container. A fence that is the last child of a
-// blockquote mints its paragraph INSIDE the quote (unified with the unclosed
-// auto-close), and a second Enter on that empty paragraph breaks out of the quote
-// (the shared empty-trailing-line exit). Root scope and next-sibling landings are
-// unchanged. Full escape ladders are pinned end-to-end with byte-exactness and
-// parse-convergence.
+// The closed-fence Enter-exit lands the new paragraph in the fence's OWN container scope, never
+// delegated outside it: a fence last in a blockquote mints its paragraph INSIDE the quote, and a
+// second Enter on that empty paragraph breaks out (the shared empty-trailing-line exit).
 
 const parseConverged = (editor: EditorPage) =>
 	editor.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
@@ -37,9 +33,9 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(3); // quote + fence + minted paragraph
 
-		// The paragraph landed INSIDE the quote: the document still has one top-level
-		// block, which now holds [fence, paragraph]. Pre-fix this delegated upward and
-		// appended the paragraph at root (top-level count 2, quote still one child).
+		// The paragraph landed INSIDE the quote: one top-level block holding [fence, paragraph].
+		// Pre-fix this delegated upward and appended at root (top-level count 2, quote still one
+		// child).
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(2);
 	});
@@ -70,8 +66,8 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.page.keyboard.press('Enter'); // exitWithEdit: strip the blank, exit downward
 		await editor.waitForBlockHostCount(3);
 
-		// The stripped-blank exit minted its paragraph INSIDE the quote (top-level
-		// count unchanged), and the fence still holds its closer.
+		// The stripped-blank exit minted its paragraph INSIDE the quote, and the fence kept its
+		// closer.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');

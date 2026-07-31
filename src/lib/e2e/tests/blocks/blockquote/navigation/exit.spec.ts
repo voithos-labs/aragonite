@@ -1,10 +1,8 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-// Enter on a blockquote's empty trailing line exits the quote. The exited
-// source must collapse the empty continuation marker at every nesting depth —
-// the inner quote rebuilds its own raw, and the ancestor quotes must rebuild too
-// or their stale raw leaks a stranded `> >` / `> > >` line.
+// The exited source must collapse the empty continuation marker at every nesting depth: ancestor
+// quotes must rebuild too, or their stale raw leaks a stranded `> >` / `> > >` line.
 test.describe('blockquote navigation — exit on empty trailing line', () => {
 	let editor: EditorPage;
 
@@ -13,8 +11,6 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.goto();
 	});
 
-	// Two consecutive inner paragraphs with no blank `>` separator is a transient
-	// CST state CommonMark won't load directly, so build it via real Enter splits.
 	test('top-level quote exit leaves no stranded empty marker', async () => {
 		await editor.loadContent('\n');
 		await editor.clickBlock(0);
@@ -24,21 +20,21 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(4);
 		await editor.page.keyboard.press('Enter');
-		// The exit is a top-level structural change, not a textual one: the empty
-		// paragraph leaves the quote, so the document gains a second root block.
-		// A source predicate can't see it — the whole fixture was typed, so every
-		// shape it could name is already present before the exiting Enter.
+		// A source predicate can't see this exit — the fixture was typed, so every shape it could
+		// name is already present; the second root block is the only observable.
 		await editor.bridge.waitForBlockCount(2);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> first');
 		expect(source).toContain('> second');
-		expect(source).not.toMatch(/^>\s*$/m);
+		// A bare `>` BETWEEN quoted lines is the paragraph separator Enter mints;
+		// the stranded marker this guards is one the quote ends on.
+		expect(source).not.toMatch(/^>[ \t]*\n(?!>)/m);
 		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
 	});
 
-	// Regression (note-taking simulation): exiting a NESTED quote rebuilt the
-	// inner quote's raw but left the outer quote's raw stale, stranding `> >`.
+	// Exiting a NESTED quote once rebuilt the inner quote's raw but left the outer's stale,
+	// stranding `> >`.
 	test('nested quote (depth 2) exit leaves no stranded "> >" line', async () => {
 		await editor.loadContent('> Outer\n> > Inner\n');
 		const inner = editor.page.locator('[contenteditable="true"]', { hasText: /^Inner$/ });

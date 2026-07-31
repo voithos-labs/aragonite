@@ -19,9 +19,8 @@ function registerStubState(node: CstNode): void {
 	} as unknown as Parameters<typeof registerBlockListState>[1]);
 }
 
-// A controller whose commitMultiScope mirrors the real primitive's owned-scope
-// protocol (attach working children, run mutate, rebuild scope raws) — enough
-// to exercise the splice + ancestry raw rebuild that the bug corrupts.
+// Mirrors the real primitive's owned-scope protocol: attach working children, run
+// mutate, rebuild scope raws.
 function runningController(): UndoController & PasteCommitCoordinator {
 	return {
 		...makeStubController(),
@@ -50,7 +49,7 @@ describe('container-matching paste — empty-target newline-termination (A1)', (
 	it('pasting a list without a trailing newline into a non-last empty item keeps the following sibling separate', async () => {
 		const doc = parse('- a\n- keep\n');
 		const list = doc.children[0];
-		// Empty the first item's content to simulate a post-cross-block-delete stub.
+		// An emptied first item stands in for a post-cross-block-delete stub.
 		list.children![0].children![0].raw = '';
 		registerStubState(list);
 
@@ -59,34 +58,28 @@ describe('container-matching paste — empty-target newline-termination (A1)', (
 			{ doc, blockEdit: makeStubBlockEdit(), controller: runningController(), undoEntry: 'join' }
 		);
 
-		// The bug mashed the un-terminated last pasted item ("- y") into the
-		// following sibling ("- keep") → "- y- keep" on one line.
+		// An un-terminated last pasted item mashes into the following sibling on one line.
 		expect(list.raw).toBe('- x\n- y\n- keep\n');
 	});
 });
 
 describe('findContainerMatchingUnwrap — blockquote non-empty target (no wholesale replace)', () => {
 	it('returns null for a single-blockquote clipboard pasted into a non-empty blockquote paragraph', () => {
-		// Target: a blockquote with one non-empty paragraph. Caret at end of "hello".
 		const doc = parse('> hello\n');
 		const blockquote = doc.children[0];
 		expect(blockquote.kind).toBe('blockquote');
 		expect(blockquote.children![0].kind).toBe('paragraph');
 
-		// Clipboard: a single blockquote whose child is a paragraph.
 		const clipboard = parse('> world\n');
 
-		// Caret path is [blockquoteIdx, paragraphIdx] = [0, 0]; offset = end of "hello".
 		const unwrap = findContainerMatchingUnwrap(doc, [0, 0], 'hello'.length, clipboard, false);
 
-		// The non-empty paragraph must NOT classify as an empty stub. With
-		// crossBlockContext=false the merge-first branch can't fire either, so the
-		// router defers to default structural paste — no wholesale splice.
+		// A non-empty paragraph must not classify as an empty stub, and crossBlockContext=false
+		// keeps the merge-first branch from firing, so the router defers to structural paste.
 		expect(unwrap).toBeNull();
 	});
 
 	it('still unwraps when the blockquote paragraph is genuinely empty', () => {
-		// A blank blockquote stub (post-cross-block-delete) keeps the empty-target path.
 		const doc = parse('> hello\n');
 		const blockquote = doc.children[0];
 		blockquote.children![0].raw = '';

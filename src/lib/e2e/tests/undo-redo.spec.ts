@@ -72,13 +72,10 @@ test.describe('undo and redo', () => {
 	});
 
 	test('undo across a paragraph→htmlBlock flip restores the rendered DOM, not just the source', async () => {
-		// The block starts as the paragraph '<di'. Typing 'v' makes '<div', which
-		// reparses to an htmlBlock in the same (non-prose) render path — and the
-		// browser has already inserted the char, so the DOM matches the display
-		// before the render runs. Undo returns the paragraph, and the DOM must
-		// follow the CST. Asserting source alone passes while the bug is live (the
-		// CST is correct after undo); only the rendered DOM goes stale, so the next
-		// keystroke would commit the undone byte back.
+		// Typing the last char of `<div` reparses the paragraph to an htmlBlock, and the browser
+		// has already inserted it, so the DOM matches before the render runs. Asserted on the
+		// rendered DOM, not the source: the CST is correct after undo either way, and only the
+		// stale DOM would commit the undone byte back on the next keystroke.
 		await editor.loadContent('<di\n');
 		await editor.focusBlockEnd(0);
 		await editor.typeText('v');

@@ -8,7 +8,6 @@ test.describe('list Backspace — forward Delete behavior', () => {
 		await editor.goto();
 	});
 
-	// Contract pin: forward-delete at end of a non-last item is a silent no-op.
 	// List items are structural peers, not prose continuations.
 	test('Delete at end of non-last item is a no-op (list items do not concat via forward delete)', async () => {
 		await editor.loadContent('- first\n- middle\n- last\n');

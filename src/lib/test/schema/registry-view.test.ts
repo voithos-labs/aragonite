@@ -91,9 +91,8 @@ describe('enablement filter', () => {
 
 	it('built-ins are never disableable — the predicate domain is plugin kinds', () => {
 		const disableEverything = createRegistryView({ isEnabled: () => false });
-		// Every built-in opener survives; only the one plugin opener is dropped, so a
-		// blanket "disable all" cannot strip the grammar down to the built-ins losing
-		// their openers.
+		// A blanket "disable all" must drop only the plugin opener — a built-in losing its
+		// opener here would be the predicate escaping its domain.
 		const builtinOpenerCount = defaultRegistryView.grammar.orderedOpeners().length - 1;
 		expect(disableEverything.grammar.orderedOpeners().length).toBe(builtinOpenerCount);
 		expect(builtinOpenerCount).toBeGreaterThan(0);

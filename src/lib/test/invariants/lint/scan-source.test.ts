@@ -1,12 +1,8 @@
 /**
- * The scan harness's own coverage guard. Every repo-wide lint inherits its blind
- * spots from `collectEditorSources()`, so a root silently dropping out of the
- * default set would quietly narrow a dozen guards at once — the 2026-07 review's
- * finding was exactly that shape, with the reference plugins invisible to six
- * lints that claim to be repo-wide.
- *
- * A missing root throws in `readdirSync` (fail-closed). What needs asserting is
- * the softer regression: a root still present but no longer reached, or the same
+ * The scan harness's own coverage guard. Every repo-wide lint inherits its blind spots
+ * from `collectEditorSources()`, so a root silently dropping out of the default set
+ * narrows a dozen guards at once. A MISSING root throws in `readdirSync`; what needs
+ * asserting is the softer regression — a root still present but no longer reached, or a
  * file collected twice because a lint re-adds a root the default already covers.
  */
 
@@ -33,7 +29,9 @@ describe('repo-wide scan roots', () => {
 
 	it('sees the reference plugin the external-author rules are modelled on', () => {
 		expect(paths).toContain('src/routes/test/plugins/callout/callout-kind.ts');
-		expect(paths).toContain('examples/consumer/src/plugins/callout/callout-kind.ts');
+		// The synced copy under examples/consumer/src/plugins is generated and absent on a
+		// fresh checkout; the consumer root is pinned through a tracked file instead.
+		expect(paths).toContain('examples/consumer/src/plugin-probe.ts');
 	});
 
 	it('collects each file exactly once (no root nested inside another)', () => {

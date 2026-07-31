@@ -1,9 +1,6 @@
 /**
- * Shared cross-block landing tail for the focus dispatchers: skip vertically-
- * transparent blocks on sticky moves, prefer edge-widget select over a no-op
- * caret at a widget edge, consume captured sticky X (null-handling lives here
- * — focusAtColumn receivers always get a finite x), else land at the
- * requested offset/extremum.
+ * Shared cross-block landing tail for the focus dispatchers. Sticky-X null handling
+ * lives here, so `focusAtColumn` receivers always get a finite x.
  */
 
 import { CURSOR_END, type BlockComponent, type FocusPosition } from '../../block-component';
@@ -18,17 +15,16 @@ export async function consumeStickyLanding(
 ): Promise<void> {
 	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
 
-	// Vertical-only skip: widget-only blocks contribute no column landing, so
-	// ArrowUp/Down passes through in the same direction. Horizontal moves
-	// still stop at the widget edge / select it.
+	// Widget-only blocks contribute no column landing, so ArrowUp/Down passes through.
+	// Horizontal moves still stop at the widget edge.
 	if (isStickyMove && block.isVerticallyTransparent?.()) {
 		const direction = position.stickyColumnFrom === 'below' ? -1 : 1;
 		await retryAt(index + direction);
 		return;
 	}
 
-	// Enter an edge widget rather than dropping a no-op caret at its boundary —
-	// reveal-capable widgets open their source, images select (one visible step).
+	// Enter an edge widget rather than dropping a no-op caret at its boundary, so the
+	// arrow key produces one visible step.
 	if (position === 'start' && block.enterEdgeWidget?.('start')) return;
 	if (position === 'end' && block.enterEdgeWidget?.('end')) return;
 

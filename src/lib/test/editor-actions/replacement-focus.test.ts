@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
-import { focusMovedOutsideReplacement } from '$lib/editor-actions/replacement-focus';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import {
+	focusMovedOutsideReplacement,
+	previewContentReparse
+} from '$lib/editor-actions/replacement-focus';
+import { parse } from '$lib/core/parser';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { declaredPluginKind } from '$lib/schema/plugin-kind';
 
 function focusBlockAt(path: number[]): void {
 	focusHostWithRawPath(JSON.stringify(path));
@@ -45,12 +53,35 @@ describe('focusMovedOutsideReplacement', () => {
 		expect(focusMovedOutsideReplacement([2], 1, 2)).toBe(false);
 	});
 
-	// A plugin may own data-block-path with a non-JSON value; the parse runs inside
-	// afterTick, outside the commit ceremony's catch, so a throw there is an unhandled
-	// rejection. Treat an unparseable attr like the fell-to-body case and run the restore.
+	// A plugin may own data-block-path with a non-JSON value, and the parse runs inside
+	// afterTick — outside the ceremony's catch, so a throw is an unhandled rejection.
 	it('restores without throwing when data-block-path is non-JSON', () => {
 		focusHostWithRawPath('plugin-owned-token');
 		expect(() => focusMovedOutsideReplacement([], 1, 2)).not.toThrow();
 		expect(focusMovedOutsideReplacement([], 1, 2)).toBe(false);
+	});
+});
+
+// The preview picks between the structural commit and the routine typing path and
+// nothing re-decides it, so it must answer about the bytes the write actually lands —
+// which a container that rewrites its body's bytes makes differ.
+describe('previewContentReparse reads the owning container', () => {
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+		registerDetailsKind();
+	});
+
+	const bodyParagraph = () => parse('body\n').children[0];
+
+	it('reports a kind change for a bare terminator with no owner to escape it', () => {
+		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined).op).not.toBe('noop');
+	});
+
+	it('reports a same-kind edit once the details owner escapes the same text', () => {
+		const owner = declaredPluginKind(DETAILS);
+		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined, owner).op).toBe(
+			'noop'
+		);
 	});
 });

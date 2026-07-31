@@ -1,9 +1,8 @@
 import { type Locator, type Page } from '@playwright/test';
 
-// Shared pointer + clipboard helpers for the table block e2e specs. The drag
-// gesture IS the real mouse path (down → interpolated moves → up), so it honors
-// the simulate-real-user-actions rule; the 10-step interpolation matches
-// EditorPage's own dragMouseTo and the majority of the table specs.
+// Shared pointer + clipboard helpers for the table block e2e specs. The drag gesture IS the real
+// mouse path (down → interpolated moves → up); the 10-step interpolation matches EditorPage's own
+// dragMouseTo.
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -18,9 +17,8 @@ export async function boxesOf(a: Locator, b: Locator): Promise<readonly [Box, Bo
 	return [ab, bb] as const;
 }
 
-// Press at the center of `from`, drag through 10 interpolated steps to the center
-// of `to`, release. The synthetic zero-size box a caller builds around a point
-// collapses to that point.
+// Press at the center of `from`, drag through 10 interpolated steps to the center of `to`, release.
+// A synthetic zero-size box built around a point collapses to that point.
 export async function dragBetweenBoxes(page: Page, from: Box, to: Box): Promise<void> {
 	const sx = from.x + from.width / 2;
 	const sy = from.y + from.height / 2;

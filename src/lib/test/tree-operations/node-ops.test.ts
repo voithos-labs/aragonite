@@ -20,8 +20,8 @@ describe('emptyParagraph', () => {
 		expect(emptyParagraph('', '\r\n').raw).toBe('\r\n');
 	});
 
-	// A shared/module-level node would alias across tree positions and break the
-	// snapshot/unshare model (G1.9). Every call must hand back a fresh object.
+	// A shared node would alias across tree positions and break the snapshot/unshare
+	// model (G1.9).
 	it('returns a distinct object on every call', () => {
 		const first = emptyParagraph('', '\n');
 		const second = emptyParagraph('', '\n');
@@ -31,11 +31,9 @@ describe('emptyParagraph', () => {
 	});
 });
 
-// Every caller reads `nodeAt` as total — an unresolvable path returns null. It
-// bounded the high side only, so a negative index read `children[-1]`: undefined
-// as a final step (returned as if it were a node) and a TypeError as a walked one.
-// Path composers arithmetic their way to negatives (`index - 1` at a boundary, a
-// decoded coordinate), so this is reachable from any of them, not one subsystem.
+// Every caller reads `nodeAt` as total, so an unresolvable path must return null.
+// Bounding only the high side let a negative index read `children[-1]`, which path
+// composers reach by arithmetic (`index - 1` at a boundary, a decoded coordinate).
 describe('nodeAt — an out-of-range index resolves to nothing, either side', () => {
 	const doc = parse('- alpha\n- beta\n');
 
@@ -115,12 +113,9 @@ describe('ensureEditableContainers', () => {
 	});
 });
 
-// A whole-block-focus kind is childless BY DESIGN — the block itself is the
-// caret target, so the backfill's "cursor always has a target" rationale does
-// not apply. A backfilled phantom paragraph makes the opaque node permanently
-// fail checkOpaqueStaleRaw (raw can never account for a child it doesn't
-// contain), which fired on the first commits to ever run the checker over a
-// live mermaid node (Enter-split, Alt-arrow reorder).
+// A whole-block-focus kind is childless BY DESIGN, so the backfill's "cursor always has
+// a target" rationale does not apply. A phantom paragraph makes the opaque node
+// permanently fail checkOpaqueStaleRaw: raw can never account for a child it omits.
 describe('ensureEditableContainers — whole-block-focus kinds stay childless', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
@@ -147,9 +142,8 @@ describe('ensureEditableContainers — whole-block-focus kinds stay childless', 
 	it('a backfilled-then-committed node would fire opaque-stale-raw; skipping keeps it clean', () => {
 		const node = wholeBlockNode();
 		ensureEditableContainers(node);
-		// The staleness checker reparses raw through the registry; without an
-		// opener for the test kind it bails on the reparse branch — so assert the
-		// faithfulness precondition directly: children contribute zero bytes.
+		// The staleness checker bails on its reparse branch without an opener for the test kind,
+		// so the faithfulness precondition is asserted directly instead.
 		expect((node.children ?? []).map((c) => c.raw).join('')).toBe('');
 		expect(checkOpaqueStaleRaw(node)).toBeNull();
 	});
@@ -162,8 +156,8 @@ describe('parse + backfill + edit + rebuild — round-trip after empty-item edit
 		const item = list.children![0];
 		ensureEditableContainers(item);
 
-		// Simulate the edit pipeline: the synthesized paragraph receives content,
-		// then the container's raw is rebuilt from children.
+		// The edit pipeline's shape: the synthesized paragraph receives content, then the
+		// container's raw is rebuilt from children.
 		item.children![0].raw = 'X\n';
 		rebuildListItemRaw(item);
 		expect(item.raw).toBe('- X\n');

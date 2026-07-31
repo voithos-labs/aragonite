@@ -1,19 +1,9 @@
 /**
- * Per-instance resolution over the process-global block definitions.
- *
- * Kind definitions stay global (the `customElements` model — register-once, one
- * definition per process; docs/design/plugin-contract.md § Schema registries). An
- * editor instance reads them through a `RegistryView` whose default resolves every
- * kind VERBATIM — the module-level registry functions ARE the default view — so an
- * editorless `parse()` pipeline and every bare component mount stay byte-identical.
- *
- * Enablement is the additive policy layer the frozen contract pre-authorizes: a
- * view built with an `isEnabled` predicate resolves NO component for a disabled
- * plugin kind (BlockHost's raw-editable fallback renders it — the unknown-kind
- * rule) and drops its opener from the grammar. Built-ins are never disableable —
- * the predicate's domain is plugin kinds. The DESCRIPTOR is never filtered: it is
- * required infrastructure (isContainer, merge role, rebuild), and a disabled kind
- * still needs it to degrade rather than throw.
+ * Per-instance resolution over the process-global block definitions (docs/design/plugin-contract.md
+ * § Schema registries). The default view resolves every kind VERBATIM, so an editorless `parse()`
+ * and every bare component mount stay byte-identical. An `isEnabled` view resolves no component
+ * for a disabled plugin kind and drops its opener; the DESCRIPTOR is never filtered, since a
+ * disabled kind still needs it to degrade rather than throw.
  */
 // TODO(limestone): public enablement prop — the predicate that sources enablement
 // has no public door yet; it firms up with limestone (docs/design/plugin-contract.md).

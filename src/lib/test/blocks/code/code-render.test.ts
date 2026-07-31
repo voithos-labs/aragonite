@@ -103,9 +103,8 @@ describe('renderCodeBlock', () => {
 	});
 });
 
-// Each fence line is wrapped so reading/preview modes can collapse the whole line
-// (marker + its `\n`) with `display: none`; the wrappers must keep every raw byte
-// in document order, so textContent stays equal to trimTrailingLineEnding(raw).
+// Each fence line is wrapped so reading/preview modes can collapse the whole line with
+// `display: none`; the wrappers must keep every raw byte in document order.
 describe('renderCodeBlock — fence-line wrappers', () => {
 	function fenceLines(frag: DocumentFragment): HTMLElement[] {
 		return Array.from(frag.querySelectorAll('.md-fence-line'));
@@ -154,11 +153,8 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 });
 
 describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces)', () => {
-	// The fence-open grammar admits 0–3 leading spaces before the run. Those
-	// indent bytes must render ahead of the fence marker so textContent stays
-	// equal to trimTrailingLineEnding(raw): CodeBlock reads the block back through
-	// el.textContent and commits it, so any drift corrupts the fence on the first
-	// keystroke (indent 0 is the control that passes regardless).
+	// CodeBlock reads the block back through el.textContent and commits it, so indent bytes
+	// rendered out of order corrupt the fence on the first keystroke (indent 0 is the control).
 	for (const marker of ['`', '~'] as const) {
 		const fence = marker.repeat(3);
 		for (let indent = 0; indent <= 3; indent++) {
@@ -182,11 +178,8 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 	});
 });
 
-// A CRLF-authored fence must keep textContent === trimTrailingLineEnding(raw): the
-// block reads its rendered textContent back as raw on commit (CodeBlock.readText),
-// so a stray trailing `\r` — or a dropped one — is a CRLF round-trip corruption.
-// No-grammar shapes isolate the trailing-line-ending strip; the language path's
-// interior-`\r` normalization is a separate ledgered defect, pinned below.
+// CodeBlock reads its rendered textContent back as raw on commit (CodeBlock.readText), so a
+// stray or dropped trailing `\r` is a CRLF round-trip corruption; interiors are pinned below.
 describe('renderCodeBlock — CRLF trailing line ending', () => {
 	const shapes: Array<[string, CstNode]> = [
 		['closed no-info', makeFencedCodeNode('```\r\nhello\r\nworld\r\n```\r\n')],
@@ -215,10 +208,8 @@ describe('renderCodeBlock — all-blank body byte parity', () => {
 	}
 });
 
-// A closer with no final line ending (the block ends `…\n```` with nothing after)
-// hits the trimTrailingLineEnding no-op branch in trimSliceTail — the tail carries
-// no ending to strip. textContent must still equal the raw verbatim (LF and CRLF) so
-// the closer survives CodeBlock's textContent readback on commit.
+// A closer with no final line ending hits trimTrailingLineEnding's no-op branch in
+// trimSliceTail; textContent must still equal the raw verbatim or the closer dies on readback.
 describe('renderCodeBlock — closer without a final line ending', () => {
 	for (const [name, raw] of [
 		['LF', '```\ncode\n```'],
@@ -233,13 +224,8 @@ describe('renderCodeBlock — closer without a final line ending', () => {
 	}
 });
 
-// The language-highlight path keeps textContent === trimTrailingLineEnding(raw) for
-// CRLF bodies too: tokenizeBody highlights an LF copy (the HTML parser behind
-// template.innerHTML would otherwise drop every interior `\r`) and restores each
-// line's original ending positionally. The restore reaches `\n` INSIDE token spans
-// (multi-line strings, block comments), not just between tokens, and mixed `\r\n`/`\n`
-// lines each keep their own ending. CodeBlock reads this textContent back as raw on
-// commit, so a dropped interior `\r` is a CRLF round-trip corruption.
+// tokenizeBody highlights an LF copy (template.innerHTML would drop every interior `\r`) and
+// restores each line's own ending positionally, reaching `\n` INSIDE token spans too.
 describe('renderCodeBlock — CRLF interior in the language path', () => {
 	const shapes: Array<[string, CstNode]> = [
 		[

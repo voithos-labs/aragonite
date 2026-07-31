@@ -2,24 +2,12 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The structurally-deep note: a project plan that pushes container nesting and
- * variety the inline-rich note skips — two-level nested bullets, an ordered list
- * with nested ordered sub-items, a mixed checked/unchecked task list, a multi-line
- * blockquote, a fenced code block, several headings, and an image. All HOLD: built
- * char-by-char so end-state equality stays a primary oracle.
- *
- * Nesting follows the biology note's indent/outdent-around-content cadence: type
- * an item at its creation level, `indent` it to nest, then `outdent` the empty
- * trailing item back to top level before typing the next. That shape reaches two
- * levels and no further, which is what this note wants — three-level nesting needs
- * the empty-item cadence (`pressEnter` → `indentEmptyItem` → `typeFreshItem`) and
- * lives in the outline note.
- *
- * Indenting under an ordered item inherits the ordered type, so the nested
- * sub-items are ordered, not bullets — typing a `- ` marker into an ordered item
- * doesn't convert it (it stays literal text). The blockquote is multi-line
- * single-paragraph via `continueQuote`; a true multi-paragraph blockquote
- * (`> p1\n>\n> p2`) isn't reachable by typing.
+ * The structurally-deep note: container nesting and variety the inline-rich note skips. All
+ * HOLD, so end-state equality stays a primary oracle. Nesting uses the indent-around-content
+ * cadence, which reaches two levels and no further — three needs the empty-item cadence and
+ * lives in the outline note. Indenting under an ordered item INHERITS ordered, and a typed
+ * `- ` marker stays literal text; Enter inside a quote separates paragraphs, so a multi-line
+ * single paragraph is a `hardBreakAt` shape.
  */
 export const PROJECT_PLAN_NOTE: NoteFixture = {
 	name: 'project-plan-note',
@@ -86,7 +74,6 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 
 		await g.typeText('Reference architecture below.');
 		await g.pressEnter();
-		await g.softEnter();
 		await g.insertImage('architecture diagram', '/test-fixtures/sample.png');
 		await g.resizeImage('left', 2);
 		await g.checkpoint('image', 'image');
@@ -116,6 +103,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Q3 Editor Project Plan\n' +
 		'Scope, milestones, and open risks for the next quarter.\n' +
+		'\n' +
 		'## Workstreams\n' +
 		'- Parser hardening\n' +
 		'  - Fuzz the block scanner\n' +
@@ -132,6 +120,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		'- [ ] Tag the release branch\n' +
 		'\n' +
 		'> Risk: the nested-list rewrite touches selection,\n' +
+		'>\n' +
 		'> so we sequence it after the schema seam lands.\n' +
 		'\n' +
 		'## Build snippet\n' +

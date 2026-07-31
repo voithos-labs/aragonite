@@ -1,9 +1,7 @@
-// The `/` showcase seed: one readable document exercising every built-in block
-// kind next to every bundled plugin's syntax, so a developer opening the dev app
-// sees the whole surface at once. Array-joined rather than a template literal
-// because the code/mermaid fences and inline code carry backticks; the block-math
-// backslashes are doubled for the JS string, not the Markdown. This is the basic
-// shell — the polished pitch document is roadmap item 7's, not this file's.
+// The `/` showcase seed: one readable document exercising every built-in block kind next
+// to every bundled plugin's syntax. Array-joined rather than a template literal because
+// the code/mermaid fences and inline code carry backticks; the block-math backslashes are
+// doubled for the JS string, not the Markdown.
 export const SHOWCASE_DOCUMENT = [
 	'# aragonite',
 	'',

@@ -1,16 +1,9 @@
 /**
- * The model-free oracle: a single expected-source string, not a shadow CST.
- * It predicts exactly one thing — printable-character insertion at the caret —
- * because the typed character is literal source regardless of how the editor
- * reclassifies the block. Every auto-behavior gesture (Enter, Tab, paste,
- * resize…) calls `resync` to adopt the observed source instead of predicting.
- *
- * Insertion lands before a single trailing newline. The editor keeps each
- * document's source ending in exactly one `\n` (empty baseline `'\n'`), so a
- * char typed at end-of-content slots in front of it. After an Enter the source
- * carries a second `\n` (the materialized empty block); inserting before the
- * last newline lands the char in that gap, matching the editor's collapse of
- * the blank line into the new block.
+ * The model-free oracle: one expected-source string, not a shadow CST. It predicts exactly
+ * ONE thing — printable insertion at the caret — because the typed character is literal
+ * source regardless of how the editor reclassifies the block; every auto-behavior gesture
+ * calls `resync` instead. Insertion lands before the single trailing newline the editor
+ * keeps, which is also the gap an Enter's materialized empty block leaves.
  */
 export class ExpectationTracker {
 	private src: string;

@@ -2,15 +2,12 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
 
 /**
- * The `[^label]` reference as a first-class inline widget: a superscript rendering
- * the derived footnote number, revealed to its raw source for editing. The load-
- * bearing pin is the LIVE renumber — an earlier reference typed into another block
- * shifts a widget's number though its own block is never edited and its source
- * (the pool key) never changes. That reactive read is exactly what a mount-time
- * snapshot could not deliver, so it can only be proven through the real render path.
- *
- * Seed `footnotes-ref`: block 0 "Intro line here.", block 1 "Body has [^a] and
- * [^b] here." (two references), then the two definitions.
+ * The `[^label]` reference as a first-class inline widget: a superscript rendering the derived
+ * footnote number, revealed to its raw source for editing. The load-bearing pin is the LIVE
+ * renumber — an earlier reference typed into another block shifts a widget's number though its own
+ * block is never edited and its source (the pool key) never changes, which a mount-time snapshot
+ * could not deliver. Seed `footnotes-ref`: block 1 holds `[^a]` and `[^b]`, then the two
+ * definitions.
  */
 
 const refsInBlock = (editor: PluginsPage, block: number) =>
@@ -40,9 +37,9 @@ test.describe('plugin inline footnote references', () => {
 	}) => {
 		await expect(refsInBlock(editor, 1).nth(0)).toHaveText('1');
 
-		// Type an EARLIER reference into block 0. Block 1 is never touched, and each
-		// block-1 widget's source (`[^a]`, `[^b]`) is unchanged, so the pool keeps the
-		// same instances — only the reactive number derivation can move them.
+		// Type an EARLIER reference into block 0. Block 1 is never touched, and each block-1
+		// widget's source (`[^a]`, `[^b]`) is unchanged, so the pool keeps the same instances —
+		// only the reactive number derivation can move them.
 		await editor.focusBlockStart(0);
 		await editor.typeText('[^z] ');
 		await editor.bridge.waitForSourceContains('[^z] Intro');
@@ -119,9 +116,9 @@ test.describe('plugin inline footnote references', () => {
 		await page.keyboard.press('Delete');
 		await editor.waitForRenderFlush();
 
-		// The reveal policy folds the widget out to editable source — a view toggle, so
-		// the four `[^a]` bytes are intact and only the 'a' widget is gone (revealed to
-		// text). An atomic policy would have deleted all four bytes in this one press.
+		// The reveal policy folds the widget out to editable source — a view toggle, so the four
+		// `[^a]` bytes are intact and only the 'a' widget is gone. An atomic policy would have
+		// deleted all four bytes in this one press.
 		expect(await editor.bridge.getSource()).toContain('Body has [^a] and [^b] here.');
 		await expect(refsInBlock(editor, 1)).toHaveCount(1);
 

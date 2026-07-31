@@ -6,9 +6,8 @@ import { parse } from '$lib/core/parser';
 import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
-// Regression (a11y): choosing an alignment from the table menu dropped keyboard
-// focus to <body> and announced nothing. setColumnAlignment now refocuses the
-// originating cell and announces via the live region.
+// a11y: an alignment choice must refocus the originating cell and announce via the live
+// region, rather than dropping keyboard focus to <body> silently.
 
 const TABLE = '| a | b |\n| --- | --- |\n| c | d |\n';
 

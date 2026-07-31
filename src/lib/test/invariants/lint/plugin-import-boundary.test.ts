@@ -1,15 +1,10 @@
 /**
- * Bundled-plugin import boundary. Every `.ts`/`.svelte` file under
- * `src/lib/plugins/**` may import only from the public authoring barrel
- * (`$lib/plugin`), relative paths inside its own plugin directory, and
- * `svelte` / `svelte/*`. This is the dogfood proof that the barrel is complete:
- * a bundled plugin reaching into `$lib` deep paths or a sibling plugin means the
- * public surface is missing something — fix the barrel, not the import.
- *
- * One exception: a file named `renderer.ts` may import its declared rendering
- * engine (`katex` for `plugins/latex`, `mermaid` for `plugins/mermaid`) — the
- * engine-adapter split keeps the heavy dependency off the plugin's core. The latex
- * and mermaid adapters exercise it; every other file in each plugin stays engine-free.
+ * Bundled-plugin import boundary: a file under `src/lib/plugins/**` may import only the
+ * public authoring barrel, relative paths inside its own plugin, and `svelte`. This is
+ * the dogfood proof that the barrel is complete — a bundled plugin reaching into `$lib`
+ * deep paths means the public surface is missing something, so fix the barrel, not the
+ * import. One exception: a `renderer.ts` may import its declared rendering engine, an
+ * adapter split that keeps the heavy dependency off the plugin's core.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -24,9 +19,8 @@ const PLUGIN_ENGINES: Record<string, RegExp> = {
 	mermaid: /^mermaid(\/.*)?$/
 };
 
-// Line-anchored so a CSS `@import` in a <style> block (which lacks the leading
-// `import` at column 0) can't read as a JS side-effect import. `[\s\S]*?` spans a
-// multi-line named-import list up to its `from`.
+// Line-anchored so a CSS `@import` inside a <style> block can't read as a JS
+// side-effect import.
 const FROM_IMPORT = /^\s*(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm;
 const SIDE_EFFECT_IMPORT = /^\s*import\s+['"]([^'"]+)['"]/gm;
 const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"]([^'"]+)['"]/g;

@@ -1,22 +1,17 @@
 /**
- * URL scheme allowlist for rendered href/src. Enforced at the render sinks
- * (inline-render link/autolink, image widget src) so author-controlled URLs
- * can't smuggle script execution into the DOM. The scheme predicates are pure;
- * `defaultLinkActivation` is the one DOM sink (it gates `window.open`).
+ * URL scheme allowlist for rendered href/src, enforced at the render sinks so author-controlled
+ * URLs cannot smuggle script execution into the DOM. `defaultLinkActivation` is the one DOM sink.
  */
 
 const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
-// `asset:` is a desktop shell's local-file protocol off Windows, where the same URL
-// arrives as `http://asset.localhost/…` — omitting it makes the policy platform-dependent,
-// passing on the developer's box and blocking every image on macOS and Linux. It carries
-// no script capability: no browser resolves it, and a webview that does serves bytes off disk.
+// `asset:` is a desktop shell's local-file protocol off Windows, where the same URL arrives as
+// `http://asset.localhost/...`, so omitting it blocks every image on macOS and Linux while
+// passing on a Windows dev box. It carries no script capability: no browser resolves it.
 const ALLOWED_IMG_SCHEMES = new Set(['http', 'https', 'data', 'asset']);
 
-// Match the WHATWG URL parser's pre-scheme normalization: it strips ASCII
-// tab/newline anywhere and leading C0-control-or-space before resolving the
-// scheme. `java\tscript:` and a leading-control `javascript:` both run in the
-// browser, so normalize the same way here or the allowlist is trivially
-// bypassed by prefixing a control byte.
+// Matches the WHATWG URL parser's pre-scheme normalization: it strips ASCII tab/newline anywhere
+// and leading C0-control-or-space. `java\tscript:` runs in the browser, so normalizing the same
+// way here is what stops a control byte from trivially bypassing the allowlist.
 function schemeOf(url: string): string | null {
 	const stripped = url.replace(/[\t\n\r]/g, '');
 	let i = 0;
@@ -25,7 +20,7 @@ function schemeOf(url: string): string | null {
 	return match ? match[1].toLowerCase() : null;
 }
 
-/** No scheme (relative / fragment / protocol-relative) is allowed; otherwise must be allowlisted. */
+/** A schemeless URL (relative, fragment, protocol-relative) is allowed. */
 export function isAllowedHrefScheme(url: string): boolean {
 	const scheme = schemeOf(url);
 	return scheme === null || ALLOWED_HREF_SCHEMES.has(scheme);
@@ -37,10 +32,7 @@ export function isAllowedImageSrcScheme(url: string): boolean {
 	return scheme === null || ALLOWED_IMG_SCHEMES.has(scheme);
 }
 
-/**
- * Safe-by-default link open used when the consumer supplies no `onLinkActivate`.
- * Gated on the href allowlist so a `javascript:` link can't execute on Ctrl/Cmd+click.
- */
+/** The default when a consumer supplies no `onLinkActivate`, gated on the href allowlist. */
 export function defaultLinkActivation(url: string, _event: MouseEvent): void {
 	if (isAllowedHrefScheme(url)) {
 		window.open(url, '_blank', 'noopener,noreferrer');

@@ -18,11 +18,9 @@ import {
 } from '../harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-// A structural op that changes nothing (a rebound Enter → block.split on a
-// single-line chrome leaf; a no-target merge) must not mint an undo entry or
-// emit an edit event. The container path is the residue risk: its discard runs
-// the full in-place mutate (spine unshare, per-scope publish, raw rebuild) then
-// rolls it all back — so the doc must come out byte-identical.
+// A structural op that changes nothing must mint no undo entry and emit no edit event.
+// The container path is the residue risk: its discard runs the full in-place mutate
+// then rolls it back, so the doc must come out byte-identical.
 
 const DETAILS = '<details>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 
@@ -35,7 +33,7 @@ describe('noop structural commit discards its snapshot', () => {
 
 	it('splitting a chrome leaf (container scope) mints no entry and leaves bytes untouched', async () => {
 		const details = parse(DETAILS).children[0];
-		expect(details.children?.[0].kind).toBe('details-summary'); // contextDependentKind chrome
+		expect(details.children?.[0].kind).toBe('details-summary');
 
 		const { deps, events, getBlockIds } = makeEditorActionsDeps([details]);
 		const controller = createUndoController(deps);
@@ -58,7 +56,7 @@ describe('noop structural commit discards its snapshot', () => {
 		const edits: EditEvent[] = [];
 		events.on('edit', (e) => edits.push(e));
 
-		// Simulate a plugin that rebound the summary's Enter to block.split.
+		// A plugin that rebound the summary's Enter to block.split.
 		await bundle.blockEdit.splitBlock(0, 3);
 
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
@@ -68,9 +66,7 @@ describe('noop structural commit discards its snapshot', () => {
 		expect(deps.doc.children[0].childIds ?? []).toEqual(beforeChildIds);
 	});
 
-	// Positive control: the discard is scoped to genuine no-ops. A real split
-	// still mints exactly one entry and one event — a "discard everything"
-	// regression fails here.
+	// Positive control: a "discard everything" regression fails here.
 	it('a real paragraph split still mints one undo entry and one edit event', async () => {
 		const doc = parse('hello world\n');
 		const { deps, events } = makeEditorActionsDeps(doc.children);
@@ -88,16 +84,13 @@ describe('noop structural commit discards its snapshot', () => {
 	});
 });
 
-// The M1 middle-item merge (Backspace at a non-first list item's start) can find
-// no target when the previous item's deepest leaf is opaque (a fenced code block).
-// That no-op must discard like its block-edit-core sibling — no dead undo entry, no
-// phantom `merge` event.
+// The M1 middle-item merge finds no target when the previous item's deepest leaf is
+// opaque, and that no-op must discard like its block-edit-core sibling.
 describe('no-target list middle-item merge discards its commit', () => {
 	it('Backspace above an opaque prev leaf mints no entry and no merge event', async () => {
 		const doc = parse('- ```\n  code\n  ```\n- text\n');
 		const list = doc.children[0];
-		// Precondition: item 0's deepest leaf is opaque, so the merge finds no target
-		// (RED ≠ GREEN — a reachable prose leaf would merge and legitimately commit).
+		// RED ≠ GREEN: a reachable prose leaf would merge and legitimately commit.
 		expect(list.children?.[0].children?.[0].kind).toBe('fencedCode');
 		expect(findMergeTarget(list.children![0])).toBeNull();
 

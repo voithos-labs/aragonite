@@ -4,14 +4,10 @@ import { materializeBlankLines } from '$lib/tree-operations/paste/strategy';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
-// A block-boundary structural paste routes through the same two steps dispatch
-// uses: materializeBlankLines turns the clipboard's internal blank line into a
-// real empty-paragraph row, then buildPastedReplacement splices it against the
-// target leaf. The row is a live block (it renders — see the
-// paste-materializes-blank-lines E2E), so the live-CST count exceeds the
-// reparse count, which folds blank lines back into trivia. These pins guard the
-// two ends: the blank-line row survives, and no empty-raw ('') node is ever
-// minted — an end-of-block paste has no trailing residue to append.
+// A materialized blank-line row is a live block (it renders, per the
+// paste-materializes-blank-lines E2E), so the live-CST count exceeds the reparse count,
+// which folds blank lines back into trivia. These guard both ends: the row survives, and
+// no empty-raw ('') node is ever minted.
 
 const para = (raw: string): CstNode => parse(raw).children[0];
 const clipboard = (): CstNode[] =>
@@ -27,8 +23,8 @@ describe('structural paste at a block boundary', () => {
 			'paragraph', // materialized blank-line row
 			'paragraph' // New paragraph
 		]);
-		expect(result.replacement[2].raw).toBe('\n'); // the row is a blank line, not empty
-		expect(raws(result.replacement)).not.toContain(''); // no phantom node
+		expect(result.replacement[2].raw).toBe('\n');
+		expect(raws(result.replacement)).not.toContain('');
 		expect(result.focusReplacementIndex).toBe(3); // last node — no trailing residue
 	});
 

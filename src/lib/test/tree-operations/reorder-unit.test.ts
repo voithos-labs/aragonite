@@ -39,7 +39,7 @@ describe('resolveReorderUnit', () => {
 	});
 
 	it('walks past the nearest non-reorderable parent to the list', () => {
-		// listItem is not reorderable on its own — the unit is the item under the list.
+		// listItem is not reorderable on its own: the unit is the item under the list.
 		const doc = parse('- one\n- two\n- three\n');
 		expect(resolveReorderUnit(doc, [0, 2])).toEqual({
 			parentPath: [0],
@@ -50,8 +50,7 @@ describe('resolveReorderUnit', () => {
 	});
 
 	it('resolves a table cell up to the table as a top-level document block', () => {
-		// table/tableRow/tableCell are not reorderable, but the table itself is a
-		// top-level block — the resolver climbs to the document slot it occupies.
+		// The grid kinds are not reorderable, so the resolver climbs to the table's document slot.
 		const doc = parse('| a | b |\n| - | - |\n| c | d |\n');
 		expect(resolveReorderUnit(doc, [0, 0, 0])).toEqual({
 			parentPath: [],
@@ -67,11 +66,8 @@ describe('resolveReorderUnit', () => {
 	});
 
 	it('a nested node whose kind is "document" is not the reorderable root', () => {
-		// The root is identified STRUCTURALLY (parentPath.length === 0), never by the
-		// kind string. A plugin kind that happens to be named 'document' sitting at a
-		// non-root slot must not be mistaken for the sibling-permutable document.
-		// Deliberately an invalid kind — the whole point is a non-root node aliasing
-		// the root's name, which the CstNode union rightly won't type.
+		// The root is identified STRUCTURALLY (parentPath.length === 0), never by kind string. The
+		// invalid kind is deliberate: the CstNode union rightly will not type a root-name alias.
 		const nested = {
 			kind: 'document',
 			leadingTrivia: '',
@@ -79,8 +75,7 @@ describe('resolveReorderUnit', () => {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]
 		} as unknown as CstNode;
 		const doc: Document = { kind: 'document', prefix: '', children: [nested], suffix: '' };
-		// Pre-fix this returned the alias as a reorderable parent. It now walks past to
-		// the real root, moving the nested node as a top-level unit.
+		// The alias must not be returned as a reorderable parent.
 		expect(resolveReorderUnit(doc, [0, 0])).toEqual({
 			parentPath: [],
 			index: 0,
@@ -90,15 +85,13 @@ describe('resolveReorderUnit', () => {
 	});
 });
 
-// A plugin (opaque) container is not a reorderable parent: the resolver stops at
-// its boundary and declines rather than walking past it to the document slot (the
-// teleport). A native reorderable parent NESTED in the body still wins first, so
-// the decline can't over-reach a legitimate inner list/blockquote.
+// An opaque container is not a reorderable parent: the resolver declines at its boundary
+// rather than teleporting to the document slot. A native reorderable parent nested in
+// the body still wins first, so the decline cannot over-reach.
 describe('resolveReorderUnit — plugin (opaque) container', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	// TOP paragraph + an opaque container whose child 0 is reserved chrome and whose
-	// remaining children are the passed body. Container sits at document index 1.
+	// An opaque container at document index 1 whose child 0 is reserved chrome.
 	function opaqueContainer(body: CstNode[]): Document {
 		const chromeKind = declarePluginKind('spec-chrome');
 		const containerKind = declarePluginKind('spec-container');
@@ -132,8 +125,7 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 
 	it('a body leaf declines to null — no walk-past to the document slot', () => {
 		const doc = opaqueContainer([{ kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }]);
-		// Pre-fix this returned { parentPath: [], index: 1, parentKind: 'document' } —
-		// the whole container's slot, which is the teleport.
+		// The teleport: returning { parentPath: [], index: 1 }, the whole container's slot.
 		expect(resolveReorderUnit(doc, [1, 1])).toBeNull();
 	});
 
@@ -154,7 +146,6 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 			]
 		};
 		const doc = opaqueContainer([blockquote]);
-		// Leaf-first: the blockquote wins before the opaque boundary is reached.
 		expect(resolveReorderUnit(doc, [1, 1, 1])).toEqual({
 			parentPath: [1, 1],
 			index: 1,

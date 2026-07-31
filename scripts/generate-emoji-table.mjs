@@ -1,21 +1,14 @@
 // Regenerates `src/lib/plugins/emoji/emoji-table.ts` from github/gemoji's canonical
-// `db/emoji.json`. Run explicitly by a developer — the emoji plugin ships the
-// generated table checked in and pulls no data at build or runtime.
-//
-//   node scripts/generate-emoji-table.mjs                 # fetch the pinned gemoji db
-//   node scripts/generate-emoji-table.mjs --input db.json # regenerate from a local copy
-//
-// The output is deterministic (aliases sorted), so a regen against the same input
-// reproduces the file byte-for-byte. The table is `.prettierignore`d — the emitted
-// form is the committed form. `scripts/verify-emoji-table.mjs` gates that equality.
+// `db/emoji.json`. Run explicitly by a developer; the plugin ships the table checked in
+// and pulls no data at build or runtime. `--input <file>` regenerates from a local copy.
+// The output is deterministic (aliases sorted) and `.prettierignore`d — the emitted form
+// is the committed form, and `scripts/verify-emoji-table.mjs` gates that equality.
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Pinned to a commit, not `master`: a moving ref makes a regen unreproducible and
-// lets an upstream glyph or alias change arrive unreviewed and undated. Bumping it
-// is the deliberate act of adopting a new upstream revision — bump, regenerate, and
-// review the table diff together.
+// Pinned to a commit, not `master`: a moving ref makes a regen unreproducible and lets an
+// upstream glyph or alias change arrive unreviewed. Bump, regenerate, and review together.
 export const GEMOJI_DB_URL =
 	'https://raw.githubusercontent.com/github/gemoji/0eca75db9301421efc8710baf7a7576793ae452a/db/emoji.json';
 export const EMOJI_TABLE_PATH = 'src/lib/plugins/emoji/emoji-table.ts';
@@ -23,9 +16,8 @@ export const EMOJI_TABLE_PATH = 'src/lib/plugins/emoji/emoji-table.ts';
 // ── Pure core (unit-tested) ───────────────────────────────────────────────────
 
 /**
- * Flatten gemoji entries to `[shortcode, glyph]` pairs — one per alias — sorted by
- * shortcode so the output is independent of upstream ordering. An entry missing a
- * glyph or aliases is skipped rather than emitting a broken key.
+ * One pair per alias, sorted by shortcode so the output is independent of upstream
+ * ordering. An entry missing a glyph or aliases is skipped, not emitted as a broken key.
  * @param {Array<{ emoji?: string; aliases?: string[] }>} db
  * @returns {Array<[string, string]>}
  */
@@ -41,7 +33,6 @@ export function emojiTableEntries(db) {
 }
 
 /**
- * Render the checked-in `emoji-table.ts` source for a set of entries.
  * @param {Array<[string, string]>} entries
  * @returns {string}
  */

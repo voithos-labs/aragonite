@@ -42,7 +42,7 @@ headers, section names, and signatures alone.
 
 ## Comments
 
-Default to none. Explain **why** — the non-obvious choice, the workaround, the deliberate exclusion — never **what**; names and types carry the _what_. The test: if removing the comment wouldn't confuse a reader, delete it. You own a file's signal-to-noise when you touch it — prune failing comments even when you didn't write them.
+Default to none. Explain **why** — the non-obvious choice, the workaround, the deliberate exclusion — never **what**; names and types carry the _what_. Budget: a comment is 1-2 lines, and a file or contract header is at most ~5. A why that needs more moves to a design doc, with a one-line pointer left behind. The test: if removing the comment wouldn't confuse a reader, delete it. You own a file's signal-to-noise when you touch it — prune failing comments even when you didn't write them.
 
 Delete on sight:
 
@@ -51,6 +51,7 @@ Delete on sight:
 - Narrating the next line (`// now set the flag`) or restating a name in prose — no information beyond the code.
 - Naming callers or the current task (`used by the X flow`, `added for #123`) — belongs in the commit or issue tracker.
 - Multi-paragraph docstrings on internal functions — the name and signature carry the load.
+- Design-rationale essays (incidents, rejected alternatives, review history): that context lives in git log, issues, and `docs/`; the code keeps one line of why at most.
 
 ## Directories
 

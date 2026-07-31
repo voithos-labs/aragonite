@@ -8,13 +8,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * Fork-A spike gate: the `:::note` callout reserves child 0 as an editable
- * `note-title` chrome leaf (see src/routes/test/plugins/callout).
- *
- * Gate 1 — selection parity. A cross-block selection from the paragraph above
- *   the callout paints continuously INTO the title, and caret/undo land there.
- *   Prediction: passes with zero new selection machinery (the title carries a
- *   char offset, so none of the seven `kind === 'table'` coordinate gates fire).
+ * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * src/routes/test/plugins/callout). Gate 1 — selection parity: a cross-block selection from the
+ * paragraph above paints continuously INTO the title, and caret/undo land there, with zero new
+ * selection machinery (the title carries a char offset, so none of the `kind === 'table'`
+ * coordinate gates fire).
  */
 test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () => {
 	let editor: PluginsPage;
@@ -107,10 +105,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () =
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		// Collapse to the focus edge (the title), then type — the character must land
-		// in the child-0 leaf, proving it is a real caret target. (The note-title kind
-		// survives the edit via contextDependentKind, characterized separately — this
-		// gate is about the caret reaching path [1, 0].)
+		// Collapse to the focus edge (the title), then type — the character must land in the
+		// child-0 leaf, proving it is a real caret target. (The note-title kind survives the edit
+		// via contextDependentKind, characterized separately; this gate is about the caret reaching
+		// path [1, 0].)
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.typeText('Z');
@@ -131,9 +129,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () =
 		await editor.bridge.waitForSourceContains(':::note Title!');
 		await editor.waitForUndoBatchFlush();
 
-		// Poll the CST child text, not the source bytes: this Gate-1 epilogue is where
-		// the source-bytes wait once won the race a beat before the title child
-		// re-materialized, so readNote saw a childless note.
+		// Poll the CST child text, not the source bytes: this epilogue is where the source-bytes
+		// wait once won the race a beat before the title child re-materialized, so readNote saw a
+		// childless note.
 		await editor.undo();
 		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		// Undo's selection restore returns the caret to the title leaf.

@@ -4,16 +4,9 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
-// G2.5: the inline tree tiles the content range. NOT leaf-exhaustive — a wrapped
-// node's open/close markers live in the gap between its `start` and its first
-// child's `start` (and last child's `end`..its `end`); the renderer pulls them
-// from exactly there (`raw.slice(node.start, children[0].start)`). The real,
-// load-bearing invariant is:
-//   - siblings at every level are contiguous and non-overlapping (prev.end === next.start)
-//   - every parent's range contains its children's (start <= firstChild.start, lastChild.end <= end)
-//   - the TOP level covers [contentStart, contentEnd) with no edge gap
-// Inner levels legitimately have edge gaps (markers); the top level does not.
-// Cursor mapping (findNodeAtOffset) depends on this holding for every input.
+// G2.5: the inline tree tiles the content range, which cursor mapping depends on. NOT
+// leaf-exhaustive — a wrapped node's markers live in the edge gaps its children leave, and
+// the renderer pulls them from exactly there. Only the TOP level has no edge gap.
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
@@ -85,9 +78,8 @@ describe('G2.5 inline-tree offset partition', () => {
 	});
 });
 
-// Counterexamples the generator missed before its destinations could contain
-// backticks: a link destination terminating inside a code span made the link
-// end mid-span, leaving overlapping top-level siblings.
+// A link destination terminating inside a code span ends the link mid-span, leaving
+// overlapping top-level siblings — unreachable until destinations could hold backticks.
 describe('G2.5 pinned counterexamples', () => {
 	const cases = ['[a](u`)`)', '![a](u`)`)'];
 

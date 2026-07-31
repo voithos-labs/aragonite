@@ -5,9 +5,8 @@ import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
 
-// Forward mirror of keyboard-extend-leaf-walk.test.ts (which covers
-// extendFocusToPreviousBlock). Anchor cross-block up front so the leaf walk runs
-// without a DOM caret; the element argument is only read on cross-block entry.
+// Forward mirror of keyboard-extend-leaf-walk.test.ts. Anchor cross-block up front so the leaf
+// walk runs without a DOM caret; the element argument is only read on cross-block entry.
 function stateAt(doc: Document, path: number[]) {
 	const s = createSelectionState({ getDoc: () => doc });
 	s.enterCrossBlock({ path: path.slice(), offset: 0 }, { path: path.slice(), offset: 0 });

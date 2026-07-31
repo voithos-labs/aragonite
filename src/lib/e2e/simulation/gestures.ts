@@ -10,6 +10,7 @@ import {
 } from './gestures/selection';
 import {
 	continueQuote,
+	hardBreakAt,
 	indent,
 	indentEmptyItem,
 	nestQuote,
@@ -82,6 +83,7 @@ import {
 	typeOverSelection
 } from './gestures/cross-block';
 import { mergeBackspaceAtStart } from './gestures/merge';
+import { type RangeInterruptGesture, rangeInterrupt } from './gestures/range-interrupt';
 import {
 	backspaceThroughWidgetIsland,
 	edgeDeleteReplaceIsland,
@@ -100,11 +102,10 @@ import {
 import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
 
 /**
- * The human-gesture vocabulary atop EditorPage. Each gesture performs a real
- * keyboard/mouse action, then either predicts (printable typing) or resyncs
- * the tracker (auto-behavior), and settles on an observable state predicate —
- * never a bare sleep. The surface is frozen: new gestures arrive as new methods,
- * existing signatures don't change, so a note fixture never has to be rewritten.
+ * The human-gesture vocabulary atop EditorPage. Each gesture performs a real keyboard/mouse
+ * action, then either PREDICTS the bytes (printable typing) or RESYNCS the tracker
+ * (auto-behavior), and settles on an observable predicate — never a bare sleep. The surface
+ * is frozen: new gestures arrive as new methods, so a note fixture is never rewritten.
  */
 export interface GestureOpts {
 	typoRate?: number;
@@ -114,6 +115,8 @@ export interface GestureOpts {
 export class Gestures {
 	private readonly typoRate: number;
 	private readonly onCheckpoint?: (label: string, gesture: string) => Promise<void>;
+	/** Set by a gesture that parks the caret away from the document end (see `hardBreakAt`). */
+	private caretParkedMidBlock = false;
 
 	constructor(
 		private readonly ctx: SimContext,
@@ -125,10 +128,8 @@ export class Gestures {
 	}
 
 	/**
-	 * Annotate a build boundary so the recorder can capture mid-build state. The
-	 * fixture marks structural units as it authors them; the orchestrator decides
-	 * whether anything is listening (only the capture run wires a hook). A no-op
-	 * when unwired, so it mutates nothing and stays out of the deterministic spine.
+	 * Annotate a build boundary for the recorder. A no-op when unwired (only the capture run
+	 * hooks it), so it mutates nothing and stays out of the deterministic spine.
 	 */
 	async checkpoint(label: string, gesture: string): Promise<void> {
 		await this.onCheckpoint?.(label, gesture);
@@ -138,6 +139,15 @@ export class Gestures {
 
 	async typeText(text: string): Promise<void> {
 		const { editor, tracker } = this.ctx;
+		// The tracker predicts insertion at the document end, so a mid-block caret would
+		// surface as a source mismatch naming the wrong culprit. Fail at the real cause.
+		if (this.caretParkedMidBlock) {
+			throw new Error(
+				`[${this.ctx.label}] typeText after hardBreakAt: the caret is parked mid-block, ` +
+					`which the tracker's document-end model cannot predict. hardBreakAt must be a ` +
+					`note's last build gesture.`
+			);
+		}
 		for (const ch of text) {
 			if (this.typoRate > 0 && isLetter(ch) && this.rng.chance(this.typoRate)) {
 				await this.injectCancellingTypo(ch);
@@ -148,9 +158,8 @@ export class Gestures {
 	}
 
 	/**
-	 * Type the first line of a freshly-created list item. The first char resyncs
-	 * around the marker materialization; the rest predicts. Lets a fixture nest
-	 * past the two-level ceiling that char-by-char `typeText` hits on a nested item.
+	 * Type the first line of a fresh list item: the first char resyncs around the marker
+	 * materialization, the rest predicts. Nests past the ceiling char-by-char `typeText` hits.
 	 */
 	typeFreshItem(text: string): Promise<void> {
 		return typeFreshItem(this.ctx, text);
@@ -159,13 +168,10 @@ export class Gestures {
 	// ── Navigation / repositioning ──────────────────────────────────────────────
 
 	/**
-	 * Real pointer click into a top-level block to reposition the caret, then
-	 * assert the focus block landed where intended — a wrong-block landing must
-	 * never be silently recorded as truth. The caret offset is accepted for the
-	 * frozen signature but the click lands at the block's natural hit point: the
-	 * block path is the load-bearing assertion; the offset resyncs to whatever the
-	 * click produced. Gestures needing an offset-precise or nested click go through
-	 * `editor.clickBlockAtPath` instead.
+	 * Real pointer click to reposition the caret, asserting the landing — a wrong-block
+	 * landing must never be silently recorded as truth. The block PATH is the load-bearing
+	 * assertion; the offset resyncs to whatever the click produced. Offset-precise or nested
+	 * clicks go through `editor.clickBlockAtPath`.
 	 */
 	async clickToReposition(targetBlockPath: number[], _offset: number): Promise<void> {
 		const { editor, tracker } = this.ctx;
@@ -176,9 +182,8 @@ export class Gestures {
 	}
 
 	/**
-	 * Jump back into an earlier top-level block and make a net-identity edit there —
-	 * models noticing an earlier typo and going to fix it. Reuses clickToReposition's
-	 * block-path assertion; leaves the document unchanged, so end-state equality holds.
+	 * Models noticing an earlier typo and going back to fix it. Net-identity, so end-state
+	 * equality still holds.
 	 */
 	lateCorrection(targetBlockPath: number[]): Promise<void> {
 		return lateCorrection(this.ctx, this, targetBlockPath);
@@ -196,9 +201,8 @@ export class Gestures {
 	}
 
 	// ── Delegators ──────────────────────────────────────────────────────────────
-	// Thin facade over the per-concern free functions in gestures/. They take the
-	// SimContext explicitly so they stay unit-addressable and the frozen class
-	// surface grows without bloating this file.
+	// Thin facade over gestures/. Those take SimContext explicitly so they stay
+	// unit-addressable and the frozen class surface grows without bloating this file.
 
 	/** Extend a selection `count` chars from the caret (leftward; negative = rightward). */
 	selectChars(count: number): Promise<void> {
@@ -229,14 +233,18 @@ export class Gestures {
 		return softEnter(this.ctx);
 	}
 
+	async hardBreakAt(blockPath: number[], offset: number): Promise<void> {
+		await hardBreakAt(this.ctx, blockPath, offset);
+		this.caretParkedMidBlock = true;
+	}
+
 	indent(): Promise<void> {
 		return indent(this.ctx);
 	}
 
 	/**
-	 * Nest the empty item just created by `pressEnter` one level deeper. The cadence
-	 * `pressEnter` → `indentEmptyItem` → `typeFreshItem` builds bullet nesting past
-	 * the two-level ceiling that indenting a filled item hits.
+	 * The `pressEnter` → `indentEmptyItem` → `typeFreshItem` cadence nests past the
+	 * two-level ceiling that indenting a FILLED item hits.
 	 */
 	indentEmptyItem(): Promise<void> {
 		return indentEmptyItem(this.ctx);
@@ -252,19 +260,16 @@ export class Gestures {
 	}
 
 	/**
-	 * Attempt a reorder on a body leaf inside a plugin (opaque) container. The
-	 * boundary declines, so it is a byte-exact no-op; a regression to the teleport
-	 * changes the source and the gesture throws.
+	 * The opaque-container boundary declines, so this is a byte-exact no-op; a regression to
+	 * the teleport changes the source and the gesture throws.
 	 */
 	reorderInContainer(bodyPath: number[]): Promise<void> {
 		return reorderInContainer(this.ctx, bodyPath);
 	}
 
 	/**
-	 * Lift the empty item just created by `pressEnter` back out one level — the mirror
-	 * of `indentEmptyItem`, used to return to a shallower branch after typing a deeper
-	 * one. Settles on the focused item's path shortening; the next `typeFreshItem`
-	 * materializes its marker.
+	 * The mirror of `indentEmptyItem`. Settles on the focused item's path shortening; the
+	 * next `typeFreshItem` materializes its marker.
 	 */
 	outdentEmptyItem(): Promise<void> {
 		return outdentEmptyItem(this.ctx);
@@ -278,10 +283,7 @@ export class Gestures {
 		return continueQuote(this.ctx, text);
 	}
 
-	/**
-	 * Nest one level deeper inside an open blockquote, producing a `> > ${text}` line —
-	 * the typed nested-quote the equality spine needs to guard the `> >` exit fix.
-	 */
+	/** The typed `> >` nested quote the equality spine needs to guard the quote-exit fix. */
 	nestQuote(text: string): Promise<void> {
 		return nestQuote(this.ctx, text);
 	}
@@ -338,10 +340,8 @@ export class Gestures {
 		return backspaceRevealEditInlineMath(this.ctx, blockIndex, insert);
 	}
 
-	// A ```math fence is its own `mathFence` kind on the shared render-primary
-	// component. Both fence gestures act from a flanking prose block and never focus
-	// the fence, whose render would reveal its source on pointerdown; they put its raw
-	// bytes under a sibling permutation and a range delete that spans it.
+	// Both fence gestures act from a FLANKING prose block and never focus the fence, whose
+	// render would reveal its source on pointerdown.
 
 	/** Alt+Arrow the prose above the fence past it and back — a net-identity sibling
 	 *  permutation the fence's raw and kind must survive unchanged. */
@@ -356,9 +356,8 @@ export class Gestures {
 	}
 
 	// ── Mermaid (whole-block focus, plugins route) ──────────────────────────────
-	// ArrowUp-stop, Enter-below, and the Backspace-from-below two-step delete on an
-	// opaque childless diagram. Each gates on a focus/structural signal and resyncs;
-	// the delete and Enter detours net to identity via undo.
+	// Opaque childless diagram: each gates on a focus/structural signal and resyncs; the
+	// delete and Enter detours net to identity via undo.
 
 	arrowFocusMermaid(belowIndex: number): Promise<void> {
 		return arrowFocusMermaid(this.ctx, belowIndex);
@@ -373,11 +372,9 @@ export class Gestures {
 	}
 
 	// ── Table ─────────────────────────────────────────────────────────────────
-	// Real cell-click + keyboard row/column ops. Each resyncs around the table's
-	// canonical cell auto-padding. Cells are addressed by row-major rendered
-	// index, which shifts after an insert/delete — the caller sequences against
-	// the current grid. A live interactive table only exists after a load, so
-	// these run over a loaded table, not a typed one.
+	// Each resyncs around the table's canonical cell auto-padding. Cells are addressed by
+	// row-major rendered index, which SHIFTS after an insert/delete — the caller sequences
+	// against the current grid.
 
 	editCell(cellIndex: number, text: string): Promise<void> {
 		return editCell(this.ctx, cellIndex, text);
@@ -400,17 +397,15 @@ export class Gestures {
 	}
 
 	// ── Plugin containers ───────────────────────────────────────────────────────
-	// Real click on a `<details>` collapse toggle. Resyncs around the opener-byte
-	// rewrite and body mount/unmount (auto-behavior). Only reachable on the plugins
-	// route, over a loaded document holding a details container.
+	// Resyncs around the opener-byte rewrite and body mount/unmount. Only reachable over a
+	// loaded document holding a details container.
 
 	toggleCollapse(): Promise<void> {
 		return toggleCollapse(this.ctx);
 	}
 
-	// Real minted-command chord (Mod+7/Mod+8) that bubbles from a callout leaf to
-	// the container handler and commits the new type. Resyncs around the opener-byte
-	// rewrite. Only reachable over a loaded document holding a `:::note` callout.
+	// A minted-command chord that bubbles from a callout leaf to the container handler.
+	// Resyncs around the opener-byte rewrite; needs a loaded `:::note` callout.
 	setCalloutKind(): Promise<void> {
 		return setCalloutKind(this.ctx);
 	}
@@ -421,19 +416,15 @@ export class Gestures {
 		return pasteGithubAlert(this.ctx);
 	}
 
-	// Real global-command chord (Mod+Shift+S) for the doc-stats plugin. A read-only
-	// command: it republishes `window.__docStats` from the per-instance context and
-	// commits nothing, so the caller nets it to identity. Only reachable where the
-	// doc-stats plugin is installed (the plugins route).
+	// A READ-ONLY global chord: it republishes `window.__docStats` and commits nothing, so
+	// the caller nets it to identity. Needs the doc-stats plugin installed.
 	publishDocStats(): Promise<void> {
 		return publishDocStats(this.ctx);
 	}
 
 	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────
-	// Insert / edit / reveal-commit across the container, leaf, and text tiers. Each
-	// gates on the promotion or widget swap the editor performs and resyncs around
-	// the reparse — container inserts arrive by paste (a multi-line fence never forms
-	// from live single-block typing), so they compose the selection/clipboard gestures.
+	// Each gates on the promotion or widget swap and resyncs around the reparse. Container
+	// inserts arrive by PASTE — a multi-line fence never forms from live single-block typing.
 
 	insertTextDirective(name: string, label: string): Promise<void> {
 		return insertTextDirective(this.ctx, name, label);
@@ -461,10 +452,8 @@ export class Gestures {
 
 	// ── Footnotes (first-party plugin, `?seed=footnotes`) ────────────────────────
 	// Two tiers: the `[^label]: ` strip-container definition and the `[^label]` inline
-	// reference widget. Definition gestures gate on the container promotion; reference
-	// gestures on the widget mount/reveal swap. Each resyncs around the reparse — the
-	// derived reference number is display state the tracker never models, so nothing here
-	// predicts it. The delete degrades to text and nets to identity via a trailing undo.
+	// reference widget. Everything here RESYNCS — the derived reference number is display
+	// state the tracker never models, so nothing may predict it.
 
 	typeFootnoteDefinition(targetIndex: number, label: string, body: string): Promise<void> {
 		return typeFootnoteDefinition(this.ctx, targetIndex, label, body);
@@ -495,9 +484,7 @@ export class Gestures {
 	}
 
 	// ── Cross-block selection + destruction ──────────────────────────────────────
-	// Build a real cross-block range (Shift+Arrow / Shift+Click / double select-all)
-	// then destroy over it (Backspace/Delete, Cut, type-over, paste-over). Builds
-	// fail loud if the range never engaged; destroys settle on the collapse, run the
+	// Builds fail loud if the range never engaged; destroys settle on the collapse, run the
 	// structural oracle sweep on the merged tree, and resync. The caller nets them to
 	// identity with a trailing undo — cross-block destruction is byte-reversible.
 
@@ -534,24 +521,31 @@ export class Gestures {
 	// ── Block merge ───────────────────────────────────────────────────────────────
 
 	/**
-	 * Backspace at the start of the block at `targetPath` — merges it into its
-	 * predecessor (para→para, heading absorb, container deepest leaf) or delegates to
-	 * the container-exit unwrap (list U1, blockquote U2). Fails loud on a no-op (the
-	 * document's first block has no predecessor); runs the structural oracle sweep and
-	 * resyncs. The caller nets it to identity with a trailing undo.
+	 * Backspace at block start: merges into the predecessor or delegates to the container-exit
+	 * unwrap. Fails loud on a no-op (the first block has no predecessor), runs the structural
+	 * oracle sweep, and resyncs; the caller nets it to identity with a trailing undo.
 	 */
 	mergeBackspaceAtStart(targetPath: number[]): Promise<void> {
 		return mergeBackspaceAtStart(this.ctx, targetPath);
 	}
 
+	// ── Range interrupt ───────────────────────────────────────────────────────────
+
+	/**
+	 * Fire `gesture` over a live cross-block range, then one printable key, asserting the
+	 * bytes against the outcome that gesture is pinned to — the precondition that hid two
+	 * whole-document losses. Outcome vocabulary: `gestures/range-interrupt.ts`.
+	 */
+	rangeInterrupt(gesture: RangeInterruptGesture): Promise<void> {
+		return rangeInterrupt(this.ctx, this, gesture);
+	}
+
 	// ── History ───────────────────────────────────────────────────────────────
 
 	/**
-	 * Flush the input batcher at a semantic boundary so the next gesture starts a
-	 * fresh undo entry. Without this, the batcher coalesces keystrokes within ~250ms
-	 * into one entry; a note that wants a real multi-entry undo stack calls this
-	 * between the units it wants separately undoable. A fixed deterministic wait, not
-	 * wall-clock-variable — it is the proven undo-batch fence the differential uses.
+	 * Flush the input batcher so the next gesture starts a FRESH undo entry — without it the
+	 * batcher coalesces keystrokes within ~250ms into one. A deterministic fence, not a
+	 * wall-clock wait.
 	 */
 	pause(): Promise<void> {
 		return this.ctx.editor.waitForUndoBatchFlush();
@@ -570,19 +564,16 @@ export class Gestures {
 	// ── Presentation ────────────────────────────────────────────────────────────
 
 	/**
-	 * Flip the presentation mode to `mode` and back to source mid-session, asserting
-	 * the note round-trips byte-identical across the flip. A mode flip is auto-behavior
-	 * (reading commits/inerts, preview re-renders), so it settles on the mode attribute
-	 * and resyncs — the byte-stability oracle the loaded-ops battery otherwise never sees.
+	 * Flip to `mode` and back mid-session, asserting the note round-trips byte-identical.
+	 * Auto-behavior, so it settles on the mode attribute and resyncs — the byte-stability
+	 * oracle the loaded-ops battery otherwise never sees.
 	 */
 	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
 		return flipPresentationMode(this.ctx, mode);
 	}
 
 	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────
-	// The standing island source paints replace/widget islands and a block badge at
-	// content-keyed positions; these drive the caret/delete/typing surface they own.
-	// Painting never changes bytes, so each resyncs; the replace delete and the
+	// Painting islands never changes bytes, so each resyncs; the replace delete and the
 	// transparent widget backspace net to identity via undo.
 
 	/** Walk the caret across an island — step-over for replace, transparency for widget. */
@@ -611,9 +602,7 @@ export class Gestures {
 	}
 
 	// ── Decoded-entity atomic widget ─────────────────────────────────────────────
-	// Type a character reference mid-prose (an atomic glyph widget), later delete it
-	// whole in one atomic Backspace. The widget contributes its glyph not its raw, so
-	// both resync rather than predict.
+	// The widget contributes its GLYPH, not its raw, so both resync rather than predict.
 
 	typeEntityWidget(blockIndex: number, offset: number, reference: string): Promise<void> {
 		return typeEntityWidget(this.ctx, blockIndex, offset, reference);
@@ -624,9 +613,8 @@ export class Gestures {
 	}
 
 	// ── Emoji shortcode atomic widget (first-party plugin, `?seed=emoji`) ─────────
-	// Type a `:shortcode:` mid-prose (an atomic glyph widget), step the caret over it
-	// both ways, delete it whole in one atomic Backspace. The widget contributes its
-	// glyph not its raw, and the insert is mid-prose, so all three resync.
+	// The widget contributes its GLYPH, not its raw, and the insert is mid-prose, so all
+	// three resync.
 
 	typeEmojiShortcode(blockIndex: number, offset: number, shortcode: string): Promise<void> {
 		return typeEmojiShortcode(this.ctx, blockIndex, offset, shortcode);
@@ -641,10 +629,8 @@ export class Gestures {
 	}
 
 	// ── Native GitHub alerts (admonitions plugin, `?seed=admonitions`) ────────────
-	// Form a `> [!TYPE]` alert container from live typing, merge a middle body child
-	// staying inside the container, unwrap the first child to drop the marker to a
-	// plain blockquote. Each gates on the promotion / structural change and resyncs;
-	// the merge and unwrap assert containment and marker-drop internally.
+	// Each gates on the promotion or structural change and resyncs; the merge and unwrap
+	// assert containment and marker-drop internally.
 
 	typeGithubAlert(
 		targetIndex: number,
@@ -667,9 +653,8 @@ export class Gestures {
 	}
 
 	// ── IME composition (CDP-threaded) ───────────────────────────────────────────
-	// Compose a multibyte candidate and commit (or abort). The compose window is
-	// DOM-only, so the source stays byte-stable until commit; the tracker resyncs
-	// around the committed bytes. Requires `ctx.ime`, threaded once per session.
+	// The compose window is DOM-only, so the source stays byte-stable until commit and the
+	// tracker resyncs around the committed bytes. Requires `ctx.ime`.
 
 	composeCommit(blockIndex: number, composition: CompositionCase): Promise<void> {
 		return composeCommit(this.ctx, blockIndex, composition);

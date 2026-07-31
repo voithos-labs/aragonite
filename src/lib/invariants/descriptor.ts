@@ -6,9 +6,8 @@ import type { InvariantViolation } from './assert';
 
 /**
  * G1.8 — a prose kind's content range stays within its raw:
- * `0 <= start <= end <= displayLength(raw)`. Non-prose kinds are exempt.
- * `getRange` is a parameter (real `getContentRange` default) so a negative
- * test injects an out-of-bounds range without touching the descriptor registry.
+ * `0 <= start <= end <= displayLength(raw)`. `getRange` is a parameter so a negative test
+ * can inject an out-of-bounds range without touching the descriptor registry.
  */
 export function checkContentRange(
 	node: CstNode,

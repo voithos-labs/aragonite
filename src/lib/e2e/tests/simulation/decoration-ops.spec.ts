@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -10,16 +10,11 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// Ungated decoration-ops oracle. The standing mark source already runs the
-// decoration ENGINE under the corruption oracles on every edit (plugin-ops); this
-// drives the decoration INTERACTION surface — island caret/delete/typing and
-// block-decoration chrome — which had no gesture and was scripted-e2e only. The
-// content-keyed island source (installed under `?seed=sim`, inert without the
-// sentinels below) paints a replace island, a zero-width widget island, and a
-// block badge at fixed positions in this document; every gesture nets to identity
-// (view-only painting changes no bytes; the replace delete and widget backspace
-// undo), so end-state equality holds. The decoded-entity atomic widget rides the
-// same session — a widget-island sibling that carries its glyph, not its raw.
+// Ungated decoration-ops oracle. plugin-ops already runs the decoration ENGINE under the
+// corruption oracles; this drives the INTERACTION surface — island caret/delete/typing and
+// block-decoration chrome — which had no gesture and was scripted-e2e only. Every gesture
+// nets to identity, so end-state equality holds. The decoded-entity atomic widget rides the
+// same session as a widget-island sibling carrying its glyph, not its raw.
 
 const DECORATION_DOC =
 	'Alpha lead with a [>hidden gem<] fold inline.\n\n' +
@@ -27,25 +22,15 @@ const DECORATION_DOC =
 	'BADGE marks this whole block below.\n\n' +
 	'Tail line for entity and neutral edits.\n';
 
-class DecorationSimPage extends EditorPage {
-	// `?seed=sim` installs the standing mark source plus the content-keyed island
-	// source; loadContent overrides the seed's (absent) document with DECORATION_DOC,
-	// whose sentinels (`[>…<]`, `WIDGET`, `BADGE`) light up the island source.
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=sim');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('decoration-ops simulation', () => {
-	let editor: DecorationSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new DecorationSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		// `?seed=sim` installs the standing mark source plus the content-keyed island
+		// source; loadContent overrides the seed's (absent) document with DECORATION_DOC,
+		// whose sentinels (`[>…<]`, `WIDGET`, `BADGE`) light up the island source.
+		await editor.gotoPlugins('sim');
 	});
 
 	test('island caret/delete/typing + block-badge reorder + entity widget stay corruption-free', async ({
@@ -58,10 +43,8 @@ test.describe('decoration-ops simulation', () => {
 		await editor.waitForRenderFlush();
 		const loaded = await editor.bridge.getSource();
 
-		// Decoration sources run on the engine's per-edit pass, and loadContent fires no
-		// edit event (the same reason plugin-ops's mark-liveness pin sits after its first
-		// edit) — so a neutral net-identity edit primes the engine before the island
-		// gestures need the decorations painted.
+		// `loadContent` fires no edit event and decoration sources run on the per-edit pass, so a
+		// neutral net-identity edit is what primes the engine before the island gestures.
 		await editor.focusBlockEnd(3);
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceWith((s, prev) => s !== prev, loaded);

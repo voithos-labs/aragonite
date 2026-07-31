@@ -24,11 +24,8 @@ export interface UndoManager {
 	clear(): void;
 	/** Snapshots of both stacks for inspection. */
 	getStacks(): { undo: UndoEntry[]; redo: UndoEntry[] };
-	/**
-	 * Restore both stacks in place to a snapshot captured via `getStacks()`.
-	 * A wholesale restore (not a pop) because `push` may have evicted the oldest
-	 * entry at MAX_UNDO.
-	 */
+	/** Restore both stacks from a `getStacks()` snapshot. Wholesale, not a pop, because
+	 *  `push` may have evicted the oldest entry at MAX_UNDO. */
 	restoreStacks(stacks: { undo: UndoEntry[]; redo: UndoEntry[] }): void;
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;

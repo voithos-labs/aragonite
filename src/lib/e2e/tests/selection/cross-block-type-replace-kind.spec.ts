@@ -3,11 +3,9 @@ import { EditorPage } from '../../editor-page';
 
 /**
  * Cross-block type-replace re-derives the surviving leaf's kind
- * (requirements/selection/cross-block-type-replace-kind.md). Typing a block
- * marker over a cross-block range that collapses to offset 0 must re-parse the
- * survivor inside the commit — parity with the single-block type path. Pre-fix
- * the raw carried the marker while the kind stayed stale (paragraph), so the
- * block classified and rendered wrong until the next full re-parse.
+ * (requirements/selection/cross-block-type-replace-kind.md). A block marker typed over a
+ * range collapsing to offset 0 must re-parse the survivor INSIDE the commit, at parity with
+ * the single-block path — otherwise the raw carries the marker while the kind stays stale.
  */
 
 async function nestedKind(page: EditorPage['page'], path: number[]): Promise<string | undefined> {

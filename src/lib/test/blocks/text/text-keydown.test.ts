@@ -74,10 +74,8 @@ describe('insertHardBreak', () => {
 		expect(r.caretOffset).toBe(2);
 	});
 
-	// At end-of-display the break's own line ending becomes the block's trailing
-	// ending, so the original is not reattached (reattaching would double it into a
-	// blank line). The break is transitional there; the caret clamps to the new
-	// display length — one past the trailing `\`, valid immediately.
+	// At end-of-display the break's own line ending becomes the block's trailing ending, so the
+	// original is not reattached — the caret clamps to the new display length, valid immediately.
 	it('emits the transitional break at end of display text, caret clamped', () => {
 		const r = insertHardBreak('abc\n', 3);
 		expect(r.newRaw).toBe('abc\\\n');

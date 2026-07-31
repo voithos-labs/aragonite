@@ -6,20 +6,11 @@ import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { assignIds } from '../block-id';
 
 /**
- * Compute the result of unwrapping a quote-shaped container's first child (Rule
- * U2). Returns [liftedChild] or [liftedChild, remainingBlockquote]. Input is not
- * mutated; returned blocks are fresh clones.
- *
- * Eligibility is the container descriptor's `unwrapRole.quoteShaped` capability,
- * not a kind name: a chrome container sharing `lift-first-child` but omitting the
- * flag no-ops here (its reserved chrome is preserved), so a future quote-shaped
- * kind opts in by declaration alone.
- *
- * The remainder is always a plain blockquote: a GitHub alert's `[!TYPE]` marker
- * lives only on its opener line, so lifting a body child out drops the marker and
- * the rest reparses as an ordinary quote (the model's "unwrap legitimately
- * reparses to a plain blockquote"). A source that already carries blockquote depth
- * metadata keeps it; a marker-only container defaults to depth 1.
+ * Unwrap a quote-shaped container's first child (Rule U2), returning fresh clones without
+ * mutating the input. Eligibility is `unwrapRole.quoteShaped`, not a kind name, so a
+ * future quote-shaped kind opts in by declaration alone. The remainder is always a plain
+ * blockquote: a marker like `[!TYPE]` lives only on the opener line, so lifting a body
+ * child out drops it and the rest reparses as an ordinary quote.
  */
 export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
 	const quoteShaped = tryGetBlockKindDescriptor(container.kind)?.unwrapRole?.quoteShaped;

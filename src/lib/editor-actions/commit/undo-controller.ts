@@ -1,7 +1,7 @@
 /**
- * Undo/snapshot controller. Exposes snapshot pushers and commit primitives
- * that wrap structural mutations with undo + reactivity ceremony; the
- * keystroke-batch lifecycle is delegated to text-batch.ts.
+ * The commit ceremony: snapshot capture, copy-path-on-write unshare, rollback.
+ * Owns G1.9 — snapshot-shared nodes stay byte-readonly until this seam unshares
+ * them. Keystroke batching is delegated to text-batch.ts.
  */
 
 import { tick } from 'svelte';
@@ -20,7 +20,8 @@ import { nodeAt } from '../../tree-operations/node-ops';
 import {
 	attachedChainPrefix,
 	ensureUnsharedPath,
-	rebuildUnsharedChain
+	rebuildUnsharedChain,
+	type ContainerReclassification
 } from '../../tree-operations/unshare';
 import { createTextBatch } from './text-batch';
 import type {
@@ -31,6 +32,7 @@ import type {
 	UndoController
 } from '../deps';
 import type {
+	CommitAfterTick,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
 	MultiScopeTarget
@@ -57,11 +59,7 @@ import {
 
 // ── Dev invariant scoping (DEV-only paths) ────────────────────────────────────
 
-/**
- * Top-level nodes a document-scope commit produced. Insert/replace name their
- * new positions in the StructuralChange; a `noop` (in-place kind change) names
- * nothing, so the caller passes the leaf via `explicit`.
- */
+/** A `noop` change names no new positions, so the caller passes its leaf via `explicit`. */
 function touchedFromChange(
 	change: StructuralChange,
 	children: CstNode[],
@@ -72,7 +70,7 @@ function touchedFromChange(
 	return explicit ?? [];
 }
 
-/** A directly-mutated container plus its direct children (the changed leaves a strip rebuild concatenates). */
+/** Direct children ride along: a strip rebuild concatenates them into the container. */
 function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNode[] {
 	if (!containers) return [];
 	const out: CstNode[] = [];
@@ -99,10 +97,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Snapshot pushers ─────────────────────────────────────────────────────
 
 	/**
-	 * Snapshots share the live tree's nodes (epoch-marked) instead of deep
-	 * cloning — only the top-level children array is copied. Mutations must
-	 * copy-path-on-write before touching any shared node (tree-operations/
-	 * unshare.ts); the DEV integrity digest catches writes that don't.
+	 * Snapshots share the live tree's nodes; only the top-level children array is
+	 * copied. G1.9: mutations copy-path-on-write first (`tree-operations/unshare.ts`).
 	 */
 	function shareSnapshot(): Pick<UndoEntry, 'snapshot' | 'integrity'> {
 		deps.sharing.markSnapshotTaken();
@@ -136,15 +132,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		recordSnapshotPerf();
 	}
 
-	// Top-level coordinate wrapper; deep-path callers (nested replace, __commit
-	// fallback) use pushUndoSnapshotPath directly so their no-caret fallback
-	// seeds the real leaf, not the top-level block.
+	// Top-level only: a deep-path caller must route through pushUndoSnapshotPath, or its
+	// no-caret fallback restores to the top-level block instead of the edited leaf.
 	function pushUndoSnapshot(blockIndex: number, offset: number): void {
 		pushUndoSnapshotPath([blockIndex], offset);
 	}
 
-	// Path from the live focused leaf; offset from the caller (pre-edit). The
-	// live cursor is post-edit but its path still points at the same leaf.
+	// Path from the live focused leaf, offset from the caller: the live cursor is
+	// post-edit, but its path still points at the same leaf.
 	function pushTypingSnapshot(leafPath: number[], offset: number): void {
 		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
 		const liveIsCollapsed =
@@ -174,98 +169,57 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	});
 
 	// ── Internal commit primitive ────────────────────────────────────────────
-	/**
-	 * Universal commit ceremony: snapshot push, mutation, atomic publish, edit
-	 * event emission, tick, post-tick callback. Public wrappers
-	 * (`commitStructural`, `commitContainerStructural`, `commitMultiScope`)
-	 * delegate here via one of the two kind-specific shapes. Document-kind
-	 * owns top-level children/ids/refs and auto-syncs them from the returned
-	 * StructuralChange; container-kind owns its own per-scope state inside
-	 * the mutate callback and only needs the ceremony to fire the snapshot,
-	 * event, and reactivity nudge around it.
-	 */
 
 	type CommitArgs =
 		| {
 				kind: 'document';
 				snapshot: CommitSnapshotArg;
-				/**
-				 * Mutate `children` in place; return a StructuralChange describing the
-				 * array-shape mutation. The primitive auto-syncs ids/refs from the
-				 * descriptor — do NOT splice them inside `mutate`.
-				 */
+				/** The primitive auto-syncs ids/refs from the returned change — do NOT splice them here. */
 				mutate: (children: CstNode[]) => StructuralChange;
 				publish: (children: CstNode[], ids: string[], refs: (BlockComponent | undefined)[]) => void;
 				op?: ScopedOpDescriptor;
-				afterTick?: () => void;
-				/**
-				 * Nodes for the dev invariant check when the StructuralChange doesn't
-				 * name them. Split/insert/replace are derived from the change; an
-				 * in-place kind change (`op: 'noop'`) must point at its leaf here.
-				 */
+				afterTick?: CommitAfterTick;
+				/** Nodes for the DEV check when the change names none (an in-place `op: 'noop'`). */
 				touchedNodes?: CstNode[];
 				discardIfNoop?: boolean;
 		  }
 		| {
 				kind: 'container';
 				snapshot: CommitSnapshotArg;
-				/**
-				 * Apply the inner mutation directly to container state; return whether
-				 * anything actually changed (false when every scope no-op'd — the
-				 * `discardIfNoop` twin of a document-branch `op: 'noop'`). Callbacks own
-				 * their own scope copies + atomic publish back to node.children and
-				 * the scope's BlockListState. No StructuralChange is returned to the
-				 * primitive — descriptor application happens inside the callback.
-				 */
+				/** False when every scope no-op'd. Callbacks own their scope copies and publish. */
 				mutate: () => boolean;
-				/** Post-mutation reactivity nudge (e.g. doc.children = [...doc.children]). */
 				publish: () => void;
 				op?: ScopedOpDescriptor;
-				afterTick?: () => void;
-				/**
-				 * Directly-mutated containers (innermost scopes) for the dev invariant
-				 * check. Thunk: the owned nodes only exist after `mutate` unshares.
-				 */
+				afterTick?: CommitAfterTick;
+				/** Thunk: the owned nodes only exist once `mutate` has unshared them. */
 				touchedNodes?: () => CstNode[];
 				/**
-				 * Restore each scope's pre-mutate children/childIds on throw. The
-				 * top-level array swap can't reach an in-place splice into a node
-				 * already unshared this undo unit; this thunk does. Closes over the
-				 * scopes `mutate` prepared, so it only resolves after `mutate` ran.
+				 * Restores in-place splices into nodes already unshared this undo unit,
+				 * which the top-level array swap can't reach.
 				 */
 				rollback?: () => void;
 				discardIfNoop?: boolean;
 		  };
 
-	/** Every register a throwing (or discardIfNoop-bailing) commit must roll back, in one place. */
 	interface RollbackFrame {
 		restore(): void;
 	}
 
 	/**
-	 * Capture the commit's recovery state once. A throw or a discardIfNoop bail
-	 * calls restore(); the catch and discard sites hold no loose registers of
-	 * their own, so a future ceremony register lives in this frame or it visibly
-	 * won't recover. The container's per-scope registers can't live here — the
-	 * owned children/ids aren't minted until `mutate` unshares the spine, and the
-	 * scope state readers ride the scopes CommitArgs doesn't carry — so restore()
-	 * delegates to the `rollback` thunk `commitMultiScope` prepared for them.
+	 * Every register a throwing or discardIfNoop-bailing commit rolls back, in one
+	 * place. Container per-scope registers aren't minted until `mutate` unshares, so
+	 * restore() delegates those to the `rollback` thunk.
 	 */
 	function captureRollbackFrame(args: CommitArgs): RollbackFrame {
-		// Wholesale stack restore, not a pop (the push may evict the oldest at cap).
-		// Must be captured before the push mutates the stacks.
+		// Wholesale restore, not a pop: the push may evict the oldest at cap.
 		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
-		// The container branch mutates the live tree in place (its scope views are
-		// windows onto live nodes); capture the top-level array so restore() discards
-		// it. copy-path-on-write copied every touched node before writing it, so this
-		// pre-mutation array reaches an intact tree at every depth. The document branch
-		// builds on a copy and publishes only on success — nothing to restore.
+		// The container branch mutates the live tree in place; the document branch
+		// publishes only on success, so it has nothing to restore.
 		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
 		return {
 			restore() {
-				// Structure top-down: stacks, then the top-level array, then the
-				// container thunk recovers an in-place splice into a node already
-				// unshared this undo unit — the array swap can't reach it.
+				// Top-down: stacks, top-level array, then the thunk for the in-place splices
+				// the array swap can't reach.
 				if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
 				if (savedDocChildren) deps.doc.children = savedDocChildren;
 				if (args.kind === 'container') args.rollback?.();
@@ -273,11 +227,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		};
 	}
 
-	/**
-	 * The one place a contained ceremony failure reaches the `error` channel, so
-	 * every throw site attributes the same way (editor.md §12). Both the
-	 * synchronous ceremony and the post-tick callback route here.
-	 */
+	/** The one door to the `error` channel, so every throw site attributes alike (editor.md §12). */
 	function reportCommitError(args: CommitArgs, error: unknown): void {
 		deps.events.emit('error', {
 			origin: 'commit',
@@ -291,10 +241,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		textBatch.interrupt();
 
 		if (import.meta.env.DEV) {
-			// Pre-mutate: both declared coordinates must be doc-absolute — a
-			// scope-local index leaking in fails here, not at some distant undo.
-			// The mint gates the guard's DocPath entry; invariants stays a runtime
-			// leaf, so the number[]→DocPath mint lives here at the commit ceremony.
+			// Both declared coordinates must be doc-absolute; `invariants` stays a runtime
+			// leaf, so the number[]→DocPath mint lives here at the ceremony.
 			assertCommitPaths(
 				deps.doc,
 				args.snapshot === 'skip' ? null : asDocPath(args.snapshot.path),
@@ -302,23 +250,16 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			);
 		}
 
-		// Captured outside the try: the stack registers must be read BEFORE the push
-		// below mutates them.
+		// Outside the try: the stack registers must be read BEFORE the push below.
 		const rollback = captureRollbackFrame(args);
 
-		// A `discardIfNoop` structural op that changed nothing (chrome split, a
-		// no-target merge) rolls back the snapshot pushed below — the benign twin
-		// of the throw path: same stack/tree restore, minus the error emit. Skips
-		// publish and the edit event; afterTick still runs (caret is a view
-		// concern, so the no-target merge's focus fallback survives).
+		// A `discardIfNoop` op that changed nothing takes the throw path's restore minus
+		// the error emit. afterTick still runs.
 		let discarded = false;
 		try {
 			if (args.snapshot !== 'skip') {
-				// Inside the try: readCurrentSelection walks live block refs, including
-				// plugin-authored leaves, so this is a reporting throw site like every
-				// other one in the ceremony. With no live caret (e.g. a handle drag) the
-				// snapshot restores to the declared coordinate. (When a caret IS live —
-				// every keyboard path — it wins and this fallback is unused.)
+				// Inside the try: readCurrentSelection walks live block refs, plugin leaves
+				// included, so it throws like every other ceremony site.
 				pushUndoSnapshotPath(args.snapshot.path, args.snapshot.offset);
 			}
 			if (args.kind === 'document') {
@@ -341,8 +282,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			} else {
 				const changed = args.mutate();
 				if (args.discardIfNoop && !changed) {
-					// The in-place mutation ran (spine unshare, per-scope publish, raw
-					// rebuild) but every scope no-op'd — unwind it exactly as a throw would.
+					// The in-place mutation ran but every scope no-op'd — unwind as a throw would.
 					rollback.restore();
 					discarded = true;
 				} else {
@@ -353,18 +293,15 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				}
 			}
 			if (!discarded && import.meta.env.DEV) {
-				// G1.9 commit seam: a missed copy-path-on-write in this commit's
-				// mutations corrupts the freshest entry — catch it here, not at
-				// some distant undo. assertInvariant routes to devWarn (never
-				// throws), so this won't enter the catch.
+				// G1.9 commit seam: a missed copy-path-on-write here corrupts the freshest
+				// entry — catch it at the commit, not at some distant undo. Never throws.
 				assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
 			}
 		} catch (err) {
 			rollback.restore();
 			reportCommitError(args, err);
-			// Loud for developers; production swallows so a single failed mutation
-			// doesn't kill the editor (the tree stays intact: the document branch
-			// publishes only on success, the container branch is rolled back above).
+			// Loud in dev; production swallows so one failed mutation doesn't kill the
+			// editor. The tree is intact either way: rolled back, or never published.
 			if (import.meta.env.DEV) throw err;
 			return false;
 		}
@@ -376,9 +313,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		return true;
 	}
 
-	// Bracket the synchronous ceremony (DEV-only) so the decoration engine can assert
-	// no source runs inside a half-applied commit. Cleared before the first await, so a
-	// deferred notifyEdit — always ≥1 tick behind the edit event — never false-fires.
+	// Bracket the synchronous ceremony (DEV-only) so the decoration engine can assert no
+	// source runs inside a half-applied commit. Cleared before the first await.
 	async function __commit(args: CommitArgs): Promise<void> {
 		beginCommit();
 		let committed: boolean;
@@ -390,14 +326,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		if (!committed) return;
 		await tick();
 		try {
-			args.afterTick?.();
+			// Awaited: a landing that reveals an off-window target is async, and this
+			// promise is what every caller treats as "the caret has settled".
+			await args.afterTick?.();
 		} catch (err) {
-			// No rollback: the commit succeeded and the tree is correct — a post-tick
-			// view callback failing is not a reason to unwind it. Contained
-			// unconditionally, like the block-command seam: a plugin callback (the
-			// public `updateOwnMetadata(patch, afterTick)` threads one straight here)
-			// becomes a reported no-op, never an unhandled rejection on a promise
-			// every caller voids.
+			// No rollback: the commit succeeded and the tree is correct. Contained so a
+			// plugin's afterTick is a reported no-op, not an unhandled rejection.
 			reportCommitError(args, err);
 		}
 	}
@@ -423,7 +357,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		});
 	}
 
-	/** Single-scope case of commitMultiScope; kept as a named entry for its callers. */
 	async function commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void> {
 		const { containerNode, path, state, snapshot, mutate, op, afterTick, discardIfNoop } = args;
 		await commitMultiScope({
@@ -446,33 +379,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		view: ContainerScope;
 		ids: string[];
 		refs: (BlockComponent | undefined)[];
-		/**
-		 * The owned node's pre-swap children/childIds arrays — the rollback target
-		 * when this scope was already unshared earlier in the same undo unit, so
-		 * copy-path-on-write was a no-op and the mutate spliced in place (the
-		 * top-level array swap can't reach an in-place mutation). Pre-swap because
-		 * `prepareScopeView` replaces `owned.children` with a fresh working array
-		 * the mutate then dirties; the array that sat there before is an untouched
-		 * snapshot of the post-prior-op state.
-		 */
+		/** Pre-swap arrays: the rollback target when the mutate spliced this scope in place. */
 		savedChildren: CstNode[] | undefined;
 		savedChildIds: string[] | undefined;
-		/**
-		 * Pre-publish snapshots of the reactive ids/refs this scope publishes into.
-		 * publishScopeView writes the MUTATED ids/refs (doc-scope ids route through
-		 * the setter to top-level blockIds; every scope's refs into innerBlockRefs)
-		 * before the ancestor-raw rebuild — a throw there must restore them, else
-		 * top-level blockIds/refs keep reflecting the rolled-back mutation until the
-		 * next commit. (Container ids live on childIds, restored via savedChildIds.)
-		 */
+		/** publishScopeView writes the MUTATED ids/refs before the ancestor-raw rebuild can throw. */
 		savedStateIds: string[];
 		savedStateRefs: (BlockComponent | undefined)[];
-		/**
-		 * Pre-mutate bytes for every node this scope's commit writes in place. The
-		 * structural registers above recover the shape; without this the restored
-		 * children disagree with the serialized raw and the next `serialize()`
-		 * emits a half-applied document.
-		 */
+		/** Pre-mutate bytes; without them `serialize()` emits a half-applied document. */
 		savedRaws: SavedRaw[];
 	}
 
@@ -481,14 +394,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		raw: string;
 	}
 
-	/**
-	 * Bytes at risk for one scope: the unshared spine (every target of the chain
-	 * rebuild, which runs after all scopes' writes and dispatches into a
-	 * descriptor's `rebuildRaw`) plus the scope's direct children (a grid rebuild
-	 * rewrites its rows; renumber and marker passes rewrite its items). Depth
-	 * mirrors the structural register — one level below the owned node, the same
-	 * granularity `savedChildren` restores.
-	 */
+	/** Bytes at risk: the unshared spine plus direct children — `savedChildren`'s granularity. */
 	function captureScopeRaws(chain: CstNode[], owned: CstNode): SavedRaw[] {
 		const saved: SavedRaw[] = chain.map((node) => ({ node, raw: node.raw }));
 		for (const child of owned.children ?? []) saved.push({ node: child, raw: child.raw });
@@ -496,10 +402,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Verify a scope's path still resolves to its node. Runs over ALL scopes
-	 * BEFORE any spine is unshared: preparing an earlier scope copies spine
-	 * nodes that a later, overlapping scope's captured reference still points
-	 * at, so checking mid-preparation false-fires on the ceremony's own copies.
+	 * Runs over ALL scopes BEFORE any spine is unshared: preparing an earlier scope
+	 * copies nodes a later, overlapping scope still points at.
 	 */
 	function assertScopeIdentity(s: MultiScopeTarget): void {
 		if ((s.node as unknown) === (deps.doc as unknown)) return;
@@ -514,21 +418,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		);
 	}
 
-	/**
-	 * Resolve one scope into an owned mutation view: unshare its spine, attach
-	 * a working children array (write-then-re-read contract —
-	 * tree-operations/unshare.ts header), and copy ids/refs for descriptor
-	 * application. Path identity is asserted by the pristine pre-pass.
-	 */
+	/** Unshares the spine and attaches a working children array (`tree-operations/unshare.ts`). */
 	function prepareScopeView(s: MultiScopeTarget): PreparedScope {
 		const isDoc = (s.node as unknown) === (deps.doc as unknown);
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		if (!isDoc && chain.length !== s.path.length) {
-			// The unshare walk ran off a live child, so the chain has no scope node to
-			// hand over. Falling back to the caller's node would give the mutation a
-			// still-shared node and corrupt the snapshot entry that shares it (G1.9) —
-			// silently, since G1.19/G1.22 are dev-only warnings. Bail the commit, the
-			// answer the sibling seam (`withUnsharedSpine`, G1.20) already gives.
+			// Falling back to the caller's still-shared node would silently corrupt the
+			// snapshot entry sharing it (G1.9); G1.19/G1.22 are dev-only. Bail, as the
+			// sibling seam (`withUnsharedSpine`, G1.20) does.
 			const message = `commitMultiScope: unshared chain depth ${chain.length} != scope path depth ${s.path.length} (path [${s.path.join(',')}])`;
 			assertInvariant('multi-scope-scope-depth', () => ({
 				code: 'multi-scope-scope-depth',
@@ -536,13 +433,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			}));
 			throw new Error(message);
 		}
-		// The ceremony's view→mutable door (core/node-views.ts): the unshared
-		// chain owns the scope node; the doc scope owns the root by construction.
+		// The ceremony's view→mutable door (core/node-views.ts): the unshared chain owns
+		// the scope node, and the doc scope owns the root by construction.
 		const owned = isDoc ? (s.node as CstNode) : chain[chain.length - 1];
 		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
 		const refs = [...s.state.innerBlockRefs];
-		// Distinct copies: `ids`/`refs` above are mutated in place by
-		// publishScopeView; these stay frozen as the rollback target.
+		// Distinct copies: publishScopeView mutates `ids`/`refs` above in place.
 		const savedStateIds = [...s.state.innerBlockIds];
 		const savedStateRefs = [...s.state.innerBlockRefs];
 		const savedChildren = owned.children;
@@ -566,10 +462,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Apply one scope's StructuralChange to its ids/refs and publish them.
-	 * Doc-scope ids route through deps setters (top-level ids are per-snapshot
-	 * copies); container ids live on the owned node — the state bundle's setter
-	 * would write the stale shared node prop.
+	 * Doc-scope ids route through deps setters; container ids live on the owned node,
+	 * because the state bundle's setter would write the stale shared node prop.
 	 */
 	function publishScopeView(p: PreparedScope, change: StructuralChange): void {
 		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
@@ -582,33 +476,29 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	}
 
 	/**
-	 * Atomic structural commit spanning multiple container scopes — one undo
-	 * snapshot, per-scope children views, one edit event. Use for operations
-	 * touching ≥2 container nodes (e.g., indent across parent + nested list).
-	 *
-	 * Copy-path-on-write: each scope's spine is unshared before `mutate`, the
-	 * owned nodes get their working children arrays attached (so rebuild /
-	 * renumber helpers reading node.children see live shape mid-mutate), and
-	 * the owned spine chains are raw-rebuilt afterwards, deepest scope first.
-	 * Mutate through the provided scope views, never pre-commit captures.
+	 * Atomic structural commit across container scopes — one undo snapshot, one edit
+	 * event. Each spine is unshared before `mutate` and raw-rebuilt after, deepest
+	 * first. Mutate through the provided scope views, never pre-commit captures.
 	 */
 	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<void> {
 		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop } = args;
 		const prepared: PreparedScope[] = [];
+		// Container slots the chain rebuild re-kinded: the replacements are what the DEV
+		// probes check, and the slot is what an unwind restores.
+		const reclassified: ContainerReclassification[] = [];
 		await __commit({
 			kind: 'container',
 			snapshot,
 			mutate: () => {
 				for (const s of scopes) assertScopeIdentity(s);
-				// Pushed as each scope resolves, not assigned at the end: a scope that
-				// fails to prepare must still leave the frame holding the registers of
-				// the scopes prepared before it.
+				// Pushed as each resolves, so a scope that fails to prepare still leaves the
+				// frame holding the registers of the scopes prepared before it.
 				for (const s of scopes) prepared.push(prepareScopeView(s));
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
-				// Dynamically-built scope arrays degrade to array typing, so the
-				// runtime arity check stays as the backstop behind the tuple types.
+				// Dynamically-built scope arrays degrade to array typing, so this runtime
+				// check backstops the tuple types.
 				const changeList: readonly StructuralChange[] = changes;
 				if (changeList.length !== scopes.length) {
 					throw new Error(
@@ -618,13 +508,18 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				for (let i = 0; i < prepared.length; i++) {
 					publishScopeView(prepared[i], changeList[i]);
 				}
-				// Deepest chains first: an inner scope's raw must be current before
-				// an outer chain's rebuild concatenates it. Chains truncate to their
-				// attached prefix: a scope the mutation spliced out (emptied nested
-				// list, consumed endpoint) must not have its raw rebuilt from its
-				// emptied children — its live ancestors still get theirs.
+				// Deepest chains first: an inner scope's raw must be current before an outer
+				// chain concatenates it. Truncating to the attached prefix keeps a
+				// spliced-out scope from being rebuilt off its emptied children.
 				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
-					rebuildUnsharedChain(attachedChainPrefix(deps.doc, p.chain), deps.sharing);
+					reclassified.push(
+						...rebuildUnsharedChain(
+							deps.doc,
+							attachedChainPrefix(deps.doc, p.chain),
+							deps.sharing,
+							deps.grammar
+						)
+					);
 				}
 				return changeList.some((c) => c.op !== 'noop');
 			},
@@ -635,27 +530,29 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			op,
 			afterTick,
 			discardIfNoop,
-			// Detached scopes are no longer committed tree state — checking one
-			// would fire stale-raw on a node the document no longer contains. The
-			// doc scope's node has no block descriptor — excluded by the kind filter.
+			// Detached scopes are no longer committed tree state — checking one would fire
+			// stale-raw on a node the document no longer contains.
 			touchedNodes: () =>
-				prepared
-					.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
-					.map((p) => p.owned)
-					.filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
+				[
+					...prepared
+						.filter((p) => attachedChainPrefix(deps.doc, p.chain).length === p.chain.length)
+						.map((p) => p.owned),
+					...reclassified.map((r) => r.replacement)
+				].filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
 			rollback: () => {
+				// Reverse of the landing order, so a slot is never restored under a node the
+				// next restore is about to replace.
+				for (let i = reclassified.length - 1; i >= 0; i--) {
+					const { siblings, index, previous } = reclassified[i];
+					siblings[index] = previous;
+				}
 				for (const p of prepared) {
 					p.owned.children = p.savedChildren;
 					p.owned.childIds = p.savedChildIds;
-					// Bytes as well as shape: the chain rebuild runs after every scope's
-					// writes and dispatches into `descriptor.rebuildRaw` (plugin code at
-					// the freeze boundary), so both a throw there and the discardIfNoop
-					// bail behind it unwind raws the restored children no longer justify.
+					// Bytes as well as shape: the chain rebuild dispatches into plugin
+					// `rebuildRaw`, so an unwind leaves raws the children no longer justify.
 					for (const { node, raw } of p.savedRaws) node.raw = raw;
-					// publishScopeView may have written the mutated ids/refs into reactive
-					// state before the throw; restore them so top-level blockIds/refs don't
-					// reflect the rolled-back mutation. Doc-scope ids route through the
-					// setter to top-level blockIds; container ids restored via childIds above.
+					// Without this, ids/refs published before the throw keep reflecting it.
 					if (p.isDoc) p.target.state.innerBlockIds = p.savedStateIds;
 					p.target.state.innerBlockRefs = p.savedStateRefs;
 				}
@@ -665,11 +562,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Doc scope adapter ────────────────────────────────────────────────────
 
-	/**
-	 * The document root standing in as a scope: forwards top-level ids/refs
-	 * through deps setters so publish-time assignments reach the Svelte $state
-	 * proxies. The indirection is the adaptation, not a Middle-Man.
-	 */
+	/** Forwards top-level ids/refs through deps setters, so publishes reach the `$state` proxies. */
 	function createDocScopeAdapter(): BlockListState {
 		return {
 			get innerBlockIds() {
@@ -687,10 +580,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		};
 	}
 
-	/**
-	 * Expose the document root as a MultiScopeTarget so cross-scope ops with
-	 * an LCA at doc level can include it.
-	 */
+	/** The document root as a MultiScopeTarget, for cross-scope ops whose LCA is doc level. */
 	function getDocScope(): MultiScopeTarget {
 		return { node: deps.doc as unknown as NodeView, path: [], state: createDocScopeAdapter() };
 	}

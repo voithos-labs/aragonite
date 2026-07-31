@@ -1,26 +1,10 @@
 /**
- * CodeBlock's edit paths take their text from the CST (`getDisplayText()` =
- * `trimTrailingLineEnding(node.raw)`), never from the rendered DOM. Design rule 1
- * is that CST wins when the two disagree, and `renderCodeBlock` + the trailing-
- * newline anchor are the only reason they agree today — a renderer change that
- * added a textContent-visible affix would make a `el.textContent` read silently
- * edit the wrong string.
- *
- * Tab/Shift+Tab were the last two paths reading the DOM while four siblings read
- * the node. This guard fails the day edit path N+1 reaches for the DOM again,
- * instead of at the next audit.
- *
- * Scope is CodeBlock.svelte alone. `code-renderer.ts` reads `child.textContent`
- * while BUILDING the fragment (there is no node to read at that point), and the
- * plain-text leaf backend edits its contenteditable in place by design — both are
- * legitimate and deliberately unscanned.
- *
- * READS only: a `.textContent = …` write is not matched. The renderer owns this
- * element through `replaceChildren`, so a write would be a different question
- * than the one this guard answers. `stripComments` is TS-shaped, so on a `.svelte`
- * file it can blank more than it should (a `//` inside the `<style>` block takes
- * the rest of that line); that can only make the scan miss a violation, never
- * invent one.
+ * CodeBlock's edit paths take their text from the CST, never the rendered DOM (design
+ * rule 1: CST wins) — a textContent-visible affix would make an `el.textContent` read
+ * silently edit the wrong string. Scope is CodeBlock.svelte and READS only;
+ * `code-renderer.ts` legitimately reads `textContent` while BUILDING its fragment. The
+ * TS-shaped `stripComments` can over-blank a `.svelte` file, which only loses a
+ * violation, never invents one.
  */
 
 import { describe, it, expect } from 'vitest';

@@ -2,12 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readContainer, activeBlockPath, capturedErrors } from './helpers';
 
 /**
- * The GFM footnote definition as a strip container in the listItem mold — the
- * definition side of the first-party footnotes plugin. This gate proves the three
- * things a unit test cannot see: the ambient `[^label]: ` marker renders as a dimmed
- * prefix on the body, a body edit rebuilds the container raw live, and a Backspace at
- * the body's start delegates upward instead of unwrapping the container into loose
- * paragraphs (the not-mergeable contract).
+ * The GFM footnote definition as a strip container in the listItem mold — the definition side of
+ * the first-party footnotes plugin. This gate proves the three things a unit test cannot see: the
+ * ambient `[^label]: ` marker renders as a dimmed prefix on the body, a body edit rebuilds the
+ * container raw live, and a Backspace at the body's start delegates upward instead of unwrapping
+ * the container into loose paragraphs (the not-mergeable contract).
  */
 const SEED = 'A note reference [^a] in prose.\n\n[^a]: The note body.\n';
 
@@ -89,10 +88,10 @@ test.describe('plugin container: footnote definition', () => {
 		await editor.waitForRenderFlush();
 
 		// Per keystroke: the `[^b]` prefix mounts a transient inline reference widget on its
-		// closing `]`, and the body is typed against that widget's trailing edge before the
-		// reparse resolves the line to a definition marker. The separating space is not
-		// typed — `:` auto-completes the marker to `[^b]: `, and the atomic `insertText`
-		// this replaced never ran that completion, so it hid the difference.
+		// closing `]`, and the body is typed against that widget's trailing edge before the reparse
+		// resolves the line to a definition marker. The separating space is not typed — `:`
+		// auto-completes the marker to `[^b]: `, which the atomic `insertText` this replaced never
+		// ran.
 		await editor.typeSlowly('[^b]:');
 		await editor.typeSlowly('brand new note');
 		await editor.bridge.waitForSourceContains('[^b]: brand new note');

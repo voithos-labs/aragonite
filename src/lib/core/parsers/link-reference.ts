@@ -1,8 +1,6 @@
 /**
- * Link reference definition parser. CommonMark §4.7 — `[label]: url "title"`,
- * with URL and optional title allowed on continuation lines.
- *
- * Footnote labels (`[^...]:`) are excluded — they parse as paragraphs.
+ * Link reference definition parser, CommonMark §4.7 (`[label]: url "title"`, URL and title
+ * allowed on continuation lines). Footnote labels (`[^...]:`) are excluded; they stay paragraphs.
  */
 
 import type { ParsedLine } from '../lines';
@@ -22,8 +20,7 @@ export function parseLinkReferenceDefinition(
 	const { label, afterColon } = opener;
 	if (label.startsWith('^')) return null;
 
-	// The destination sits on the definition line or the one after it; resolve which
-	// first, then run one url + title tail regardless of which line it came from.
+	// Resolve which line the destination sits on first, then run one url + title tail over it.
 	const destination = resolveDestinationSegment(afterColon, lines, startIndex, endIndex);
 	if (!destination) return null;
 
@@ -59,10 +56,8 @@ function stripLeadingSpaces(s: string): string {
 }
 
 /**
- * The destination segment and the line it lives on. Same-line `[label]: url` uses the
- * definition line; an empty tail defers to the next line (CommonMark §4.7 allows one
- * line ending before the destination). Bare `[label]:` with no URL, a next line that
- * opens another block, or an empty next line all decline.
+ * CommonMark §4.7 allows one line ending before the destination, so an empty same-line tail
+ * defers to the next line. A next line that opens a block, or an empty one, declines.
  */
 function resolveDestinationSegment(
 	afterColon: string,
@@ -82,9 +77,8 @@ function resolveDestinationSegment(
 	return { segment, segmentLine: nextLineIndex };
 }
 
-// CommonMark §4.7: brackets inside a label may be backslash-escaped. Walks one
-// line for `[label]:` honoring escapes. Multi-line labels and unescaped-`[`
-// rejection are out of scope (status quo of the line-oriented parser).
+// CommonMark §4.7: brackets inside a label may be backslash-escaped. Multi-line labels and
+// unescaped-`[` rejection are out of scope for this line-oriented parser.
 function matchLabelOpener(line: string): { label: string; afterColon: string } | null {
 	let i = 0;
 	while (i < line.length && i < 3 && line[i] === ' ') i++;
@@ -135,10 +129,9 @@ function matchTitleSingleLine(s: string): { title: string; consumed: number } | 
 }
 
 /**
- * Resolve the optional title after a destination. `null` invalidates the whole
- * definition (CommonMark §4.7): non-whitespace after the destination that isn't
- * a well-formed title — or a title trailed by junk — means it is not a
- * definition at all. An absent title (next line consumed, or nothing) succeeds.
+ * `null` invalidates the whole definition (CommonMark §4.7): non-whitespace after the
+ * destination that isn't a well-formed title means it was never a definition. An absent
+ * title succeeds.
  */
 function resolveTitle(
 	afterUrl: string,

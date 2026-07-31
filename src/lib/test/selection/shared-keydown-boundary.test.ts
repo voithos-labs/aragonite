@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// The 206-line dispatch prelude had exactly one unit test. These pin its
-// boundary-detection asymmetry: Shift+Arrow reads the FOCUS offset, not the
-// anchor, so a forward selection whose anchor sits mid-block still crosses the
-// boundary once the focus reaches the edge. Spy on the cross-block extenders to
-// observe the decision without a live SelectionState or DOM geometry.
+// The dispatch prelude's boundary-detection asymmetry: Shift+Arrow reads the FOCUS offset, not the
+// anchor, so a forward selection whose anchor sits mid-block still crosses once the focus reaches
+// the edge. Spy on the cross-block extenders to observe the decision without DOM geometry.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),

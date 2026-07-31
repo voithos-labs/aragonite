@@ -7,9 +7,8 @@ import type { CstNode } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 
 /**
- * Rebuild `raw` for every container along `path`, innermost first. The leaf
- * at the tail of `path` is NOT rebuilt — callers mutate its raw before calling.
- * Empty path: rebuild just `root`.
+ * Rebuild `raw` for every container along `path`, innermost first. The leaf at the tail of
+ * `path` is NOT rebuilt — callers mutate its raw before calling. Empty path rebuilds `root`.
  */
 export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 	if (path.length === 0) {
@@ -31,9 +30,8 @@ export function rebuildAncestryRaw(root: CstNode, path: number[]): void {
 }
 
 /**
- * Dispatch via the kind's descriptor `rebuildRaw`. Throws when the kind has
- * no rebuildRaw (i.e. is a leaf) — callers that walk ancestry chains should
- * use {@link rebuildContainerRawIfContainer} instead.
+ * Dispatch via the kind's descriptor `rebuildRaw`; throws on a leaf. Callers walking ancestry
+ * chains use {@link rebuildContainerRawIfContainer} instead.
  */
 export function rebuildContainerRaw(node: CstNode): void {
 	const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;

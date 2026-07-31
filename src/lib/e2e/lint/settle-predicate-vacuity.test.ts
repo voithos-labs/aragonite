@@ -1,30 +1,13 @@
 /**
- * G4.18 — settle-predicate vacuity. A `waitForSource*` predicate that is already
- * true on the document the test just loaded returns on its first poll, so it
- * synchronizes on nothing: the assertions after it race the commit, and a
- * regression in which the gesture under test silently no-ops satisfies the whole
- * chain. The 2026-07-24 review found four of these, two of which made the spec
- * written to catch a silent no-op pass under exactly that no-op.
+ * G4.22 — settle-predicate vacuity. THE RULE: inside one `test()` body, a settle predicate
+ * must describe the POST-operation shape, something no preceding `loadContent` document
+ * already satisfies. A predicate already true on the loaded document returns on its first
+ * poll and synchronizes on nothing, so a gesture that silently no-ops satisfies the chain.
  *
- * The rule: inside one `test()` body, a settle predicate must describe the
- * POST-operation shape — something no preceding `loadContent` document already
- * satisfies. Wait for the disappearance, or for the full expected document.
- *
- * Scope and its limits, stated so a reader knows what a green run proves:
- * - Only `loadContent(<literal>)` seeds the "already true" set; a fixture built
- *   by a helper call makes the test's document opaque, and the whole test is
- *   skipped rather than guessed at.
- * - The loaded document describes the live state only until a settle predicate
- *   that was NOT already true passes — that one observed a real transition, and
- *   everything after it is a state this scan cannot model. So checking stops at
- *   the first discriminating settle after each load. A chain whose every link is
- *   vacuous is reported whole, which is the shape that matters: the later links
- *   are vacuous *because* the first one was.
- * - `waitForSource` / `waitForSourceWith` take function predicates and are not
- *   analyzable; they are out of scope.
- * - Comment stripping is line-based (a whole line that starts with `//`), not
- *   general: spec fixtures carry markdown links, and `https://` inside a string
- *   would make a generic `//` scan blank the rest of the line.
+ * Limits of a green run: only `loadContent(<literal>)` seeds the already-true set, and a
+ * helper-built fixture skips the test rather than guessing. Checking stops at the first
+ * DISCRIMINATING settle after each load, since everything past a real transition is a state
+ * this scan cannot model. Function-predicate variants are out of scope.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -41,7 +24,8 @@ interface SettleSite {
 	argument: string;
 }
 
-/** Whole-line comments only — see the header for why a general strip is wrong here. */
+/** Whole-line comments only: a general `//` strip would blank the rest of any line holding
+ *  an `https://` inside a spec fixture's markdown. */
 function stripCommentLines(text: string): string {
 	return text
 		.split('\n')
@@ -110,10 +94,9 @@ function readRegexLiteral(text: string, i: number): { value: RegExp; end: number
 }
 
 /**
- * Module-level `const NAME = '<literal>';` bindings, so fixtures named once resolve.
- * A concatenated fixture (`'row\n' + 'row\n'`) is skipped rather than truncated to
- * its first segment: a partial value would clear predicates that a later segment
- * satisfies, under-reporting the very thing this scan exists to find.
+ * A concatenated fixture is SKIPPED rather than truncated to its first segment: a partial
+ * value would clear predicates a later segment satisfies, under-reporting the very thing this
+ * scan exists to find.
  */
 function collectStringConstants(code: string): Map<string, string> {
 	const constants = new Map<string, string>();
@@ -133,10 +116,7 @@ function isConcatenated(code: string, end: number): boolean {
 	return code[i] === '+';
 }
 
-/**
- * Resolve a call's first argument to a string, a regex, or `undefined` when it is
- * an expression this scan cannot evaluate.
- */
+/** `undefined` means an expression this scan cannot evaluate, not an absent argument. */
 function readArgument(
 	code: string,
 	openParen: number,
@@ -159,9 +139,8 @@ function readArgument(
 }
 
 /**
- * Split a spec into `test()` / `beforeEach()` segments. A segment runs to the next
- * declaration, which is what "earlier in the same test body" means for this scan;
- * the most recent preceding `beforeEach` contributes its loads as ambient.
+ * A segment runs to the next declaration, which is what "earlier in the same test body" means
+ * here; the most recent preceding `beforeEach` contributes its loads as ambient.
  */
 interface Segment {
 	kind: 'test' | 'beforeEach';
@@ -205,9 +184,8 @@ const OPAQUE_SETTLES = [
 ] as const;
 
 /**
- * A predicate is vacuous when a document loaded earlier in the same test already
- * satisfies it. `NotContains` inverts: it is vacuous when NO loaded document ever
- * carried the forbidden text, so its disappearance was never observable.
+ * `NotContains` INVERTS: it is vacuous when no loaded document ever carried the forbidden
+ * text, so its disappearance was never observable.
  */
 export function isVacuous(
 	call: string,
@@ -317,7 +295,7 @@ function scanSettleSites(): { vacuous: SettleSite[]; total: number } {
 
 // ── The gate ────────────────────────────────────────────────────────────
 
-describe('G4.18 settle-predicate vacuity', () => {
+describe('G4.22 settle-predicate vacuity', () => {
 	const { vacuous, total } = scanSettleSites();
 
 	// Non-vacuity: the scan proves something only if it actually resolved sites.
@@ -336,7 +314,7 @@ describe('G4.18 settle-predicate vacuity', () => {
 	});
 });
 
-describe('G4.18 settle-predicate vacuity — classifier self-tests', () => {
+describe('G4.22 settle-predicate vacuity — classifier self-tests', () => {
 	const table = '| A | B | C | D |\n| --- | --- | --- | --- |\n';
 
 	it('flags a substring of the loaded document and clears the post-op shape', () => {

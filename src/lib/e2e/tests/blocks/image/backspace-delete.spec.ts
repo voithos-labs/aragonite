@@ -60,16 +60,12 @@ test.describe('image backspace/delete + type-replace', () => {
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
-	// Regression (undo anchor): when widget selection is entered from the
-	// LEFT side (ArrowRight/Delete with caret at widget.start), the undo
-	// snapshot must anchor the caret at widget.start — not widget.end. Pre-
-	// fix, the third arg to updateBlockContent was hardcoded to widget.end,
-	// so Ctrl+Z restored the caret on the far side of where the user was.
+	// Entering widget selection from the LEFT (ArrowRight/Delete at widget.start) must anchor the
+	// undo snapshot at widget.start; a hardcoded widget.end restored the caret on the far side.
 	test('undo after Delete from widget.start restores caret at widget.start', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)trail\n');
 		await editor.focusBlockStart(0);
-		// ArrowRight from offset 0 enters widget selection via the
-		// atRight=false branch (pre-select caret was at widget.start = 0).
+		// ArrowRight from offset 0 enters widget selection via the atRight=false branch.
 		await page.keyboard.press('ArrowRight');
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();
 		await page.keyboard.press('Delete');

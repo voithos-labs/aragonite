@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { makeHarness, runOp } from '$lib/test/undo/restoration-ops';
 
-// A row reorder rebuilds the WHOLE table raw to canonical padding. Undo must
-// restore the original bytes — including the original NON-canonical padding —
-// proving the reorder commit pushes a snapshot and the round-trip is byte-exact
-// for a table whose pre-edit raw is not already canonical.
+// A row reorder rebuilds the WHOLE table raw to canonical padding, so a table whose
+// pre-edit raw is NOT canonical is what proves undo restores the original bytes.
 const NON_CANONICAL = '| h1 | h2 |\n|---|---|\n|a|b|\n|c|d|\n';
 
 describe('table row reorder — undo restoration', () => {

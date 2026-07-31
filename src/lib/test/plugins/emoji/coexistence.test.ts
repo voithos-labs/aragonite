@@ -8,12 +8,9 @@ import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 
-// Both grammars ride the bare `:` trigger on their own rungs — the directive text
-// tier at the default `plugin` rung (consulted first), emoji at `plugin + 10`. The
-// register-once grain forbids the same (trigger, prefix, priority) twice, so the
-// +10 is what lets them coexist. Their grammars are disjoint (emoji needs a closing
-// colon and a table hit; a directive name needs a following `[`/`{`), so the order
-// only decides first refusal, never a contested claim.
+// Both grammars ride the bare `:` trigger, and register-once forbids the same
+// (trigger, prefix, priority) twice — so emoji's `plugin + 10` rung is what lets them
+// coexist. The grammars are disjoint, so the order decides first refusal only.
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	activateDirectiveGrammar();
@@ -44,6 +41,25 @@ describe('emoji and the directive text tier coexist on `:`', () => {
 	// directive tier already had first refusal, so a miss leaves ordinary prose.
 	it('an unknown :notaname: stays literal after both rungs decline', () => {
 		expect(kindsIn(':notaname:')).toEqual(['text']);
+	});
+});
+
+// The other install order a consumer can write: emoji claims `:` first, so an
+// activation asking "does anyone own `:`" rather than "did I already register" skips
+// its own recognizer and leaves the tier dead. Byte round-trip is blind to it.
+describe('the directive text tier survives a plugin that took `:` first', () => {
+	beforeEach(() => {
+		resetPluginPlatformForTests();
+		installPlugins([emojiPlugin()]);
+		activateDirectiveGrammar();
+	});
+
+	it('recognizes :name[label] with emoji already on the trigger', () => {
+		expect(scan(':name[label]')[0].kind).toBe(DIRECTIVE_TEXT);
+	});
+
+	it('leaves emoji claiming its own shortcodes', () => {
+		expect(scan(':smile:').find((n) => n.kind === EMOJI_KIND)).toBeDefined();
 	});
 });
 

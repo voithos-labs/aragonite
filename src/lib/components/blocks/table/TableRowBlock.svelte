@@ -68,11 +68,9 @@
 
 	useMountGauge();
 
-	// A `display: contents` row has no box, so measure a cell: every cell stretches
-	// to the grid row track (no grid gap), so a cell's border-box height is the row
-	// height. Enroll in the table scope's batched pass (mirrors BlockHost) so a fling
-	// over a giant table reads every mounted row before writing any subtotal — one
-	// reflow, not one per row. Re-registers on index change; re-measures on edit.
+	// A `display: contents` row has no box, so measure a cell: every cell stretches to
+	// the grid row track, making its border-box height the row height. Enrolling in the
+	// table scope's batched pass keeps a fling to one reflow, not one per mounted row.
 	$effect(() => {
 		void index;
 		if (!parentSink) return;
@@ -87,11 +85,9 @@
 		);
 	});
 
-	// Skip the mount run (mirrors BlockHost): on a fling many rows mount in one frame,
-	// and a per-row read here interleaved with the prior row's subtotal write forces one
-	// reflow per mounted row (VR-4). The table scope's batched pass owns mount
-	// measurement (the `registerRow` effect above enrolled this row); this effect
-	// re-measures only on a subsequent real edit.
+	// Skip the mount run (mirrors BlockHost): a read here interleaved with the prior row's
+	// subtotal write forces one reflow per row mounted in the frame (VR-4). The batched
+	// pass owns mount measurement; this effect re-measures only on a later edit.
 	let firstRun = true;
 	$effect(() => {
 		void node.raw;
@@ -136,6 +132,10 @@
 		cellsState.innerBlockRefs[0]?.focus(0);
 	}
 
+	export function parkCaret(_offset: number): void {
+		cellsState.innerBlockRefs[0]?.parkCaret?.(0);
+	}
+
 	export function getCursorOffset(): number | null {
 		return null;
 	}
@@ -168,6 +168,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		getCursorPosition,
 		focusByPath,
@@ -180,6 +181,7 @@
 			editable,
 			focusable,
 			focus,
+			parkCaret,
 			getCursorOffset,
 			getCursorPosition,
 			focusByPath,
@@ -196,10 +198,9 @@
 	}
 </script>
 
-<!-- The grip is the row's first child so it lands in the table's zero-width gutter
-	track (col 1) and the cells fill cols 2..N+1; its dots overflow right into cell A's
-	left padding. No whitespace between it and the cells: a stray text node here joins
-	the table's raw-offset walk and misplaces a parked cross-block caret. -->
+<!-- The grip is the row's first child so it lands in the table's zero-width gutter track
+	and the cells fill the rest. No whitespace between it and the cells: a stray text node
+	joins the table's raw-offset walk and misplaces a parked cross-block caret. -->
 <div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
 	<TableGrip
 		axis="row"

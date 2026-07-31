@@ -1,7 +1,6 @@
 // Dogfood for an inline rung that mints a BUILT-IN kind over syntax of its own:
-// `![[path|width]]` becomes a real `image`, so the widget renders it, the caret
-// addresses it and the resize handles appear. `rewriteImage` is the point of the
-// battery — without it a resize writes GFM back over the embed's bytes.
+// `![[path|width]]` becomes a real `image`, so widget, caret, and resize handles all
+// work. `rewriteImage` is the point — without it a resize writes GFM over the embed.
 import {
 	definePlugin,
 	registerInlineSyntax,
@@ -40,11 +39,9 @@ function recognizeEmbed(raw: string, pos: number, end: number): InlineNode | nul
 	};
 }
 
-// An embed names a target and an optional width, so a title, a reference label, or
-// an alt edited away from the target has no form here and declines rather than
-// escaping into GFM. The alt case earns its line: ignoring it instead would return
-// byte-identical bytes, which the commit's equality guard drops silently — the
-// quiet failure this dogfood must not model for a reader.
+// An embed names only a target and a width, so a title, a label, or an alt edited away
+// from the target has no form here and declines rather than escaping into GFM. Ignoring
+// the alt case instead would return byte-identical bytes the commit's guard drops silently.
 function rewriteImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;

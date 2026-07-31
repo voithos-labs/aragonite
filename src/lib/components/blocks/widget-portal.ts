@@ -1,14 +1,8 @@
 /**
- * The reuse pool that makes `component` inline widgets churn-safe. The editor
- * rebuilds a block's whole inline-DOM on every keystroke; without a pool each
- * rebuild would unmount and remount every widget's Svelte component (losing its
- * state and paying KaTeX-scale render cost per character). The pool keys live
- * instances by `${kind} ${source}` and adopts an unchanged widget's instance
- * across a rebuild instead of remounting it.
- *
- * Two pieces: the framework-free pool logic (`createWidgetPool`, unit-tested with
- * a fake adapter) and its Svelte binding (`createSvelteWidgetPool`), which owns the
- * atomic-island wrapper and `mount`/`unmount`. `mount`/`unmount` from 'svelte' are
+ * The reuse pool that makes `component` inline widgets churn-safe. The editor rebuilds
+ * a block's whole inline-DOM on every keystroke; without a pool each rebuild would
+ * remount every widget's Svelte component (losing state, paying KaTeX-scale cost per
+ * character). Instances key by `${kind} ${source}`. `mount`/`unmount` from 'svelte' are
  * used nowhere else in the repo — kept contained here on purpose.
  */
 
@@ -32,13 +26,10 @@ export interface WidgetPoolAdapter<H> {
 
 export interface WidgetPool {
 	/**
-	 * Adopt the oldest un-adopted live instance for the key, marking it adopted
-	 * this pass; else build a new one. Null when the adapter cannot build.
-	 *
-	 * Render-pass only: every acquire must sit inside a beginPass/sweep bracket.
-	 * Key-only lookup cannot distinguish byte-identical duplicates, so any
-	 * out-of-pass caller holding a specific element (the source-reveal fold-back)
-	 * must restore that element itself, never re-look it up here.
+	 * Adopt the oldest un-adopted live instance for the key, marking it adopted this
+	 * pass; else build a new one. Render-pass only — every acquire sits inside a
+	 * beginPass/sweep bracket. Key-only lookup cannot distinguish byte-identical
+	 * duplicates, so an out-of-pass caller holding a specific element must restore it.
 	 */
 	acquire(kind: AnyInlineKind, inline: InlineNode, source: string): HTMLElement | null;
 	/** Open a rebuild pass: un-adopt every instance so this pass re-earns them. */
@@ -83,9 +74,8 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 		if (reused) {
 			reused.adopted = true;
 			passAdopt++;
-			// The source (and so the rendered body) is identical by key; only the
-			// widget's position in the block may have shifted, so re-stamp the offsets
-			// the cursor/selection machinery reads.
+			// Source and rendered body are identical by key; only the widget's position
+			// may have shifted, so re-stamp the offsets cursor/selection reads.
 			const el = adapter.element(reused.handle);
 			el.dataset.sourceStart = String(inline.start);
 			el.dataset.sourceEnd = String(inline.end);
@@ -139,24 +129,29 @@ interface PortalHandle {
 	instance: Record<string, unknown>;
 }
 
+/** The live channels a mounted widget reads beside its frozen `{ inline, source }`
+ *  snapshot. Every member is optional so a bare harness can mount without a shell. */
+export interface SvelteWidgetPoolDeps {
+	/** A widget component's synchronous mount throw goes here (the editor's `error`
+	 *  channel). Absent leaves the caller falling back to the raw span silently. */
+	reportError?: (error: unknown) => void;
+	getPresentationMode?: () => PresentationMode;
+	/** The editor's theme name — the mode read's sibling, for a widget whose body an
+	 *  engine paints (its own colors, unreachable from CSS) rather than CSS styles. */
+	getTheme?: () => string;
+	getDocument?: () => DocumentView | undefined;
+	getContentVersion?: () => number;
+}
+
 /**
- * The pool wired to Svelte mounting. `create` builds the atomic-island wrapper
- * carrying the attributes the cursor/selection machinery keys on, then mounts the
- * kind's component inside it with frozen `{ inline, source }` props. A synchronous
- * mount throw is caught, reported through `reportError` (the editor's `error`
- * channel), and surfaced as null so the caller falls back to the raw span.
- *
- * `getPresentationMode` and `getDocument` ride ALONGSIDE the frozen snapshot as
- * live getter props: pool reuse keys on `${kind} ${source}`, so an instance
- * survives a mode flip or a document edit elsewhere — a frozen value would go
- * stale where the getter stays current (the footnote-number derivation depends on
- * the live document, unchanged in source).
+ * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported, and
+ * surfaced as null so the caller falls back to the raw span. The getters ride ALONGSIDE
+ * the frozen `{ inline, source }` snapshot as live props: reuse keys on
+ * `${kind} ${source}`, so an instance outlives a mode flip or an edit elsewhere, where a
+ * frozen value would go stale.
  */
-export function createSvelteWidgetPool(
-	reportError?: (error: unknown) => void,
-	getPresentationMode?: () => PresentationMode,
-	getDocument?: () => DocumentView | undefined
-): WidgetPool {
+export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
+	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion } = deps;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind);
@@ -169,7 +164,7 @@ export function createSvelteWidgetPool(
 			try {
 				const instance = mount(component, {
 					target: wrapper,
-					props: { inline, source, getPresentationMode, getDocument }
+					props: { inline, source, getPresentationMode, getTheme, getDocument, getContentVersion }
 				});
 				return { wrapper, instance };
 			} catch (error) {

@@ -22,7 +22,8 @@ function makeEnv(revealPath?: CrossBlockMutationContext['revealPath']) {
 		getBlockElByPath: () => null,
 		revealPath: revealPath ?? harness.deps.revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0)
+		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
+		grammar: undefined
 	};
 	return { ...harness, controller, mutCtx };
 }
@@ -40,9 +41,8 @@ describe('performCrossBlockDelete — re-entrancy across the reveal await', () =
 		let release!: () => void;
 		const gate = new Promise<null>((r) => (release = () => r(null)));
 		const env = makeEnv(() => gate);
-		// Every op, unfiltered: nothing on this path emits the debounced `input`
-		// (no typing precedes the delete), so the previous filter only weakened the
-		// assertion — a spurious second event of ANY op now fails it.
+		// Every op, unfiltered: nothing on this path emits the debounced `input` (no typing precedes
+		// the delete), so a spurious second event of ANY op fails the assertion.
 		const editOps: string[] = [];
 		env.events.on('edit', (e: EditEvent) => editOps.push(e.op));
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 1 }, { path: [2], offset: 2 });

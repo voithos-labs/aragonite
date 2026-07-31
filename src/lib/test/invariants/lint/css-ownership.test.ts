@@ -24,19 +24,16 @@ function readEditorCss(rel: string): string {
 }
 
 // ── Token families ────────────────────────────────────────────────────────────
-// Editor-owned tokens (declared in editor-theme.css) vs host-chrome tokens
-// (consumer-provided; reads must carry fallbacks). Every var() read in the
+// Editor-owned tokens vs consumer-provided host-chrome tokens. Every var() read in the
 // editor must belong to exactly one family.
 const OWNED_TOKEN =
 	/^--(?:(?:syntax|code-tok|md|search-match)-[a-z0-9-]+|selection-overlay-bg|reorder-scope-bg|vr-spacer-bg|font-editor|editor-font-size)$/;
 const HOST_TOKEN = /^--(?:color|radius)-[a-z0-9-]+$/;
 const ANY_READ = /var\(\s*(--[a-z0-9-]+)/g;
 
-// Bundled plugins own private token palettes (admonitions' --adm-*), guarded by
-// plugin-css-ownership.test.ts — those are off-family here by design. This exclusion
-// is scoped to the family-membership check ALONE: plugins stay under the owned-token
-// completeness (G4.6c) and host-fallback (G4.6b) guards, which they pass, so a shipped
-// plugin reading a fallback-less --color-* still fails G4.6b.
+// Bundled plugins own private palettes, guarded by plugin-css-ownership.test.ts, so they
+// are off-family here by design. The exclusion is scoped to family membership ALONE:
+// plugins stay under the G4.6b/G4.6c guards.
 const isPluginSource = (relPath: string): boolean => relPath.startsWith('src/lib/plugins/');
 
 function editorCssSurfaces(): Array<{ rel: string; text: string }> {
@@ -91,9 +88,8 @@ describe('G4.6 CSS ownership — app.css holds no editor-owned rules', () => {
 });
 
 // ── G4.6b: every host-token read carries a fallback ──────────────────────────
-// Host tokens (--color-*, --radius-*) are consumer-provided; a read without a
-// fallback renders nothing in an extracted editor. Editor-owned token reads are
-// exempt (editor-theme.css declares them).
+// A consumer-provided token read without a fallback renders nothing in an extracted
+// editor. Editor-owned reads are exempt, since editor-theme.css declares them.
 const HOST_READ_NO_FALLBACK = /var\(\s*--(?:color|radius)-[a-z0-9-]+\s*\)/;
 
 describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
@@ -110,8 +106,8 @@ describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
 });
 
 // ── G4.6: no off-family token reads ──────────────────────────────────────────
-// A read outside both families is invisible to the guards above and can never
-// be declared by the theme — it renders its inline fallback forever.
+// A read outside both families is invisible to the guards above and can never be declared
+// by the theme, so it renders its inline fallback forever.
 
 describe('G4.6 CSS ownership — every token read belongs to a declared family', () => {
 	it('no var() read falls outside the owned and host families', () => {
@@ -129,8 +125,8 @@ describe('G4.6 CSS ownership — every token read belongs to a declared family',
 });
 
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
-// Without these, a regex that silently stops matching would let every guard
-// above pass on an empty match set.
+// Without these, a regex that silently stops matching lets every guard above pass on an
+// empty match set.
 
 describe('G4.6 CSS ownership — matcher non-vacuity', () => {
 	it('ANY_READ + OWNED_TOKEN match a synthetic owned read and the completeness check flags it missing', () => {

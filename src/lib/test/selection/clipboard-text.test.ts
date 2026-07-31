@@ -40,14 +40,11 @@ describe('collectCrossBlockText', () => {
 		expect(text).toContain('after');
 	});
 
-	// Cross-block table endpoints snap to whole rows (table-endpoint-snap.ts), so
-	// the clipboard captures the same rows the highlight paints and the delete
-	// clears. Production endpoints carry cellCoordinate:true (normalizeTableEndpoint
-	// / pointer drag); the offset is a row-major cell index.
+	// Cross-block table endpoints snap to whole rows (table-endpoint-snap.ts), so the clipboard
+	// captures the same rows the highlight paints and the delete clears; the offset is a cell index.
 	describe('through tables', () => {
-		// 3 columns × (header + 2 body rows). Cell indices: header 0..2, row 1 = 3..5,
-		// row 2 = 6..8. A mid-row endpoint (e.g. cell 4) lets the snap show: a partial
-		// row is pulled to the whole row.
+		// 3 columns × (header + 2 body rows). Cell indices: header 0..2, row 1 = 3..5, row 2 = 6..8. A
+		// mid-row endpoint (e.g. cell 4) lets the snap show: a partial row is pulled to the whole row.
 		const fixture =
 			'Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\nAfter.\n';
 		const tableRaw = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -68,9 +65,8 @@ describe('collectCrossBlockText', () => {
 		});
 
 		it('table-as-end: snaps the focus cell to its whole row so the row is fully captured', () => {
-			// Focus in cell 4 (row 1) → snaps up to the row's last cell; emits whole
-			// rows 0..1 (header + row 1), including the trailing cells the user did not
-			// drag across. Pre-snap this dropped row 1 entirely.
+			// Focus in cell 4 (row 1) → snaps up to the row's last cell, emitting whole rows 0..1
+			// including cells the user did not drag across. Pre-snap this dropped row 1 entirely.
 			const doc = parse(fixture);
 			const text = collectCrossBlockText(doc, { path: [0], offset: 0 }, cell(4));
 			expect(text).toBe('Before.\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');

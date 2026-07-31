@@ -7,15 +7,13 @@ import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { BOUNDED_GROWTH_CEILING, measureScanGrowth } from '../../harness/scan-growth';
 
-activateDirectiveGrammar(); // declares directiveText + the ':' recognizer, before any parse
+activateDirectiveGrammar(); // before any parse
 
 const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 
-// An unbalanced `:name[` searched to the end of the block before declining, so a
-// paragraph carrying many of them paid one full block scan per `:`. Bracket runs are
-// matched once per block instead — the container opener's closer-index shape, one
-// layer down.
+// An unbalanced `:name[` that searches to the end of the block before declining costs one
+// full block scan per `:`; bracket runs are matched once per block instead.
 describe('text directive decline bounds', () => {
 	it('an unbalanced-label flood scans within a bounded growth ratio', () => {
 		const { times, ratio } = measureScanGrowth(scan, ':a[', [32, 128]);

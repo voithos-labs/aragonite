@@ -1,11 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Paste of a list whose ordered flag does not match any ancestor list should
-// not land as a nested sub-list. The previous behavior nested the pasted list
-// inside the target listItem and placed the trailing slice at item-continuation
-// indent, producing a confusing structure. Desired behavior: split the
-// enclosing list at the caret and splice the paste between the halves.
+// A list whose ordered flag matches no ancestor must SPLIT the enclosing list at the caret
+// and splice between the halves — nesting it inside the target item leaves the trailing
+// slice at item-continuation indent.
 test.describe('paste: mismatched-type list into list item breaks out', () => {
 	let editor: EditorPage;
 

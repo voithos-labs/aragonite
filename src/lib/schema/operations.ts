@@ -1,8 +1,7 @@
 /**
- * Single source of truth for the structural-operation vocabulary.
- * `OperationKind`, `OpDescriptor`, and `EditEvent` (editor-events.ts) all
- * derive from `OperationDetailMap`, so adding an op or changing a detail
- * shape is a one-place edit and drift is a compile error.
+ * Single source of truth for the structural-operation vocabulary: `OperationKind`,
+ * `OpDescriptor`, and `EditEvent` all derive from `OperationDetailMap`, so drift is a compile
+ * error rather than a one-place-missed edit.
  */
 
 export interface OperationDetailMap {
@@ -61,8 +60,7 @@ export type OpDescriptor = {
 }[OperationKind];
 
 /**
- * OpDescriptor plus the doc-absolute event path container/multi-scope commits
- * carry. `eventPath` is `DocPath` so the op families composing it can't decay
- * to a raw `number[]`; it widens back to `number[]` at the public `EditEvent`.
+ * OpDescriptor plus the doc-absolute event path container/multi-scope commits carry. `eventPath`
+ * is `DocPath` so the op families composing it can't decay to a raw `number[]`.
  */
 export type ScopedOpDescriptor = OpDescriptor & { eventPath: DocPath };

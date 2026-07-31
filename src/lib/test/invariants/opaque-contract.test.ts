@@ -11,10 +11,8 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import type { AnyBlockKind, CstNode } from '../../core/nodes';
 
 // ── Callout-shaped opaque kind with a registered opener ────────────────────
-// `::note Title` carries a chrome title child at index 0, so
-// `strip(raw) !== serialize(children)`. The opener accepts extra whitespace
-// (`::note  Title`) and stores raw verbatim — a faithful, NON-canonical
-// parse — while the rebuilder always emits a single space.
+// A chrome title child at index 0 makes `strip(raw) !== serialize(children)`, and the
+// opener stores extra whitespace verbatim — a faithful but NON-canonical parse.
 
 const OPEN = /^::note(?:[ \t]+(.*\S))?[ \t]*$/;
 const CLOSE = /^::$/;
@@ -122,9 +120,8 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 describe('checkOpaqueStaleRaw (opaque containers)', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
-	// The regression pin for the byte-fixpoint false-fire: a faithful parse may
-	// be non-canonical (double space stored verbatim), so raw must never be
-	// byte-compared against a rebuild output.
+	// The byte-fixpoint false-fire: a faithful parse may be non-canonical, so raw must
+	// never be byte-compared against a rebuild output.
 	it('passes for a faithful non-canonical parse whose rebuild would emit different bytes', () => {
 		const note = registerNoteKind();
 		const node = parseNote('::note  Title\nbody\n::\n');
@@ -160,10 +157,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 	});
 
 	// ── Declared reservedChrome: chrome bytes live in the opener line ────────
-	// A reparse mints the chrome child BEFORE any body trivia, while the live
-	// tree can legally hold an unrepresentable transient blank (the empty body
-	// paragraph the Enter/descend gesture mints) AFTER it — so the chrome raw is
-	// compared positionally and the body bytes as a unit, never interleaved.
+	// A reparse mints chrome before any body trivia, while the live tree may legally hold
+	// a transient blank after it — so chrome and body are compared separately.
 
 	it('passes for a declared-chrome container holding a transient empty body paragraph', () => {
 		registerNoteKind({ declareChrome: true });
@@ -189,9 +184,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		expect(checkOpaqueStaleRaw(node)?.code).toBe('opaque-stale-raw');
 	});
 
-	// The chrome-aware comparison slices the chrome off and diffs the body bytes
-	// as a unit, so a body child added or removed without a rebuild still drifts
-	// the body-vs-raw byte match — the count mismatch alone must fire.
+	// Slicing chrome off and diffing the body as a unit must still catch a child added or
+	// removed without a rebuild — the count mismatch alone has to fire.
 	for (const mutation of ['added', 'removed'] as const) {
 		it(`fires when a body child is ${mutation} without a rebuild (chrome declared)`, () => {
 			registerNoteKind({ declareChrome: true });
@@ -205,8 +199,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		});
 	}
 
-	// The bail split: a kind WITH a registered opener whose raw no longer reparses
-	// to that kind is genuine drift, not the openerless can't-validate case.
+	// The bail split: with an opener registered, a raw that no longer reparses to its kind
+	// is genuine drift, not the openerless can't-validate case.
 	it('fires when a registered-opener kind reparses to a divergent kind', () => {
 		const note = registerNoteKind();
 		const node = parseNote('::note Title\nbody\n::\n');
@@ -217,9 +211,8 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 		expect(violation?.detail).toMatchObject({ reason: 'reparse-diverges' });
 	});
 
-	// The check can only validate kinds whose raw reparses standalone to the
-	// same kind; without a registered opener the raw reparses to a paragraph,
-	// so even genuinely stale children must not fire.
+	// Without a registered opener the raw reparses to a paragraph, so the check cannot
+	// validate the kind at all — even genuinely stale children must not fire.
 	it('bails for a kind whose raw does not reparse standalone (no opener)', () => {
 		const kind = declarePluginKind('spec-openerless');
 		registerBlockKind(kind, {

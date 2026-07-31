@@ -1,10 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Syntax-highlight rendering for code blocks: .code-tok-* spans for known
-// languages, .md-lang info-string styling, unknown-language fallthrough, and
-// alias resolution (js === javascript).
-
 test.describe('code block highlighting', () => {
 	let editor: EditorPage;
 

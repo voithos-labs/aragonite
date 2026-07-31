@@ -4,18 +4,11 @@ import { spliceChildren } from './children';
 import { ensureUnsharedPath } from './unshare';
 
 /**
- * Walk from `deletedPath`'s parent up toward the document root, removing
- * any container whose last child was the subject being cleaned up. Stops
- * when the walk reaches `lcaPath` — the lowest common ancestor of the
- * original `start.path` and `end.path` of the range operation — because
- * containers at or above the LCA still have startBlock (or its merged
- * replacement) in their descendant tree and can't legitimately be empty.
- *
- * `lcaPath = []` means "walk all the way to the document root if needed".
- *
- * Takes `sharing` because it splices at arbitrary depth and so owns its spine
- * (unshare.ts header): each level is unshared before its child is removed, or the
- * splice lands on a node an undo entry still references.
+ * Walk up from `deletedPath`'s parent, removing containers emptied by the cleanup. Stops
+ * at `lcaPath` (the range operation's lowest common ancestor, `[]` for the document root)
+ * because containers at or above it still hold the start block and cannot legitimately be
+ * empty. Owns its spine — each level is unshared before its child is removed, or the
+ * splice lands on a node an undo entry still references (`unshare.ts` header).
  */
 export function cascadeCleanupEmptyAncestors(
 	doc: Document,

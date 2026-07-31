@@ -18,7 +18,6 @@ test.describe('table block: clipboard cut', () => {
 	test('intra-cell Ctrl+X removes selected text from cell and writes it to clipboard', async ({
 		page
 	}) => {
-		// Cell raw is "hello" — select all and cut.
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
@@ -55,7 +54,6 @@ test.describe('table block: clipboard cut', () => {
 		await page.keyboard.press('Control+x');
 
 		await expect.poll(() => readClipboard(page)).toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
-		// Header row cells (A, B) and body row 1 cells (1, 2) cleared; structure preserved.
 		await editor.bridge.waitForSourceContains('|  |  | C |');
 		await editor.bridge.waitForSourceContains('|  |  | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
@@ -69,9 +67,8 @@ test.describe('table block: clipboard cut', () => {
 		// Anchor inside cell "1" (row 1, col 0), extend down into the paragraph below.
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
-		// Drag instead of Shift+ArrowDown: cross-block entry from inside a cell
-		// routes through the table's keyboard-extend path which is not the focus
-		// of this test. Drag is the cleanest way to land cross-block here.
+		// Drag rather than Shift+ArrowDown: keyboard entry from inside a cell routes through the
+		// table's keyboard-extend path, which is not what this test is about.
 		const from = page.locator('[role="cell"]').nth(2);
 		const to = page.getByText('follow paragraph');
 		const fromBox = await from.boundingBox();
@@ -107,12 +104,10 @@ test.describe('table block: clipboard cut', () => {
 	test('partial-column cross-block Cut keeps clipboard and surviving cells complementary', async ({
 		page
 	}) => {
-		// Drag from the paragraph above into a mid-row, mid-column cell (a2 = row 1,
-		// col 1). Whole-row snap captures rows 0..1 in full; the paired delete clears
-		// the same whole rows. Every body cell must be EITHER copied (and gone) OR
-		// surviving (and not copied) — never both, never neither. Pre-snap the copy
-		// row-rounded while the delete cleared only columns, so a2/a3 ended up both
-		// on the clipboard AND in the table (this assertion failed).
+		// Drag from the paragraph above into a mid-row, mid-column cell (a2). Whole-row snap
+		// captures rows 0..1 in full and the paired delete clears the same rows, so every body cell
+		// is EITHER copied (and gone) OR surviving (and not copied). Pre-snap the copy row-rounded
+		// while the delete cleared only columns, so a2/a3 were both.
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
@@ -152,11 +147,9 @@ test.describe('table block: clipboard cut', () => {
 	test('partial-column cross-block Cut anchored in a mid-cell keeps clipboard and surviving cells complementary', async ({
 		page
 	}) => {
-		// Inverse of the test above: the drag STARTS in a mid-row, mid-column cell
-		// (a2 = row 1, col 1) and exits to the paragraph above. The drag-start anchor
-		// is the table endpoint here, not the focus. Without cellCoordinate:true on
-		// that anchor the whole-row snap never fires, so the copy row-rounds while the
-		// delete clears from the mid-cell — a2/a3 land on the clipboard AND survive.
+		// Inverse of the test above: the drag STARTS in the mid-cell (a2) and exits upward, so the
+		// drag-start anchor is the table endpoint. Without cellCoordinate:true there the whole-row
+		// snap never fires and a2/a3 land on the clipboard AND survive.
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);

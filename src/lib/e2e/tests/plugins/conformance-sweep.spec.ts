@@ -3,10 +3,10 @@ import type { Locator, Page } from '@playwright/test';
 import { PluginsPage, activeBlockPath } from './helpers';
 import { primaryModifier } from '../../platform';
 
-// The three DOM-only closure columns, executed per registered kind. One test per
-// COLUMN iterates the live registry entries, soft-collects a failure line per kind,
-// and rolls them into a final hard assert — Playwright can't parametrize on runtime
-// data across workers, and a per-kind roll-up names every offender in one failure.
+// The three DOM-only closure columns, executed per registered kind. One test per COLUMN iterates
+// the live registry entries, soft-collects a failure line per kind, and rolls them into a final
+// hard assert — Playwright can't parametrize on runtime data across workers, and a per-kind roll-up
+// names every offender in one failure.
 
 interface SweepEntry {
 	kind: string;
@@ -19,25 +19,24 @@ interface SweepEntry {
 	};
 }
 
-// Neighbour paragraphs the fixture is sandwiched between. They share the word
-// `filler` (the not-supported search degradation navigates between the two neighbour
-// matches) and carry no letter that collides with a single-char fixture token
-// (`a`, `x`), so a token drawn from a block is never a substring of a neighbour.
+// Neighbour paragraphs the fixture is sandwiched between. They share the word `filler` (the
+// not-supported search degradation navigates between the two neighbour matches) and carry no letter
+// that collides with a single-char fixture token, so a token drawn from a block is never a
+// substring of a neighbour.
 const BEFORE = 'top filler';
 const AFTER = 'end filler';
 const NEIGHBOUR_TOKEN = 'filler';
 
-// `admonition`'s `:::note` fixture is shadowed by the co-registered callout dogfood
-// (it claims `:::note` first) on /test/plugins, so no admonition node mounts. The
-// callout `note` entry sweeps the same container-directive DOM behaviours. Any OTHER
-// unreachable kind is a real regression.
+// `admonition`'s `:::note` fixture is shadowed by the co-registered callout dogfood on
+// /test/plugins, so no admonition node mounts; the callout `note` entry sweeps the same
+// container-directive DOM behaviours. Any OTHER unreachable kind is a real regression.
 const FIXTURE_UNREACHABLE = new Set(['admonition']);
 
 const WALK_LIMIT = 30;
 
-// Every column test iterates whatever the bridge returns, so a kind silently
-// dropped from enrollment (a lost fixture, a broken registrar) would vanish
-// green. Subset, not equality: new kinds enroll without touching this floor.
+// Every column test iterates whatever the bridge returns, so a kind silently dropped from
+// enrollment (a lost fixture, a broken registrar) would vanish green. Subset, not equality: new
+// kinds enroll without touching this floor.
 const ENROLLMENT_FLOOR = [
 	'paragraph',
 	'heading',
@@ -63,16 +62,15 @@ test('enrollment covers the known-kind floor', async ({ page }) => {
 
 // ── Locate ──────────────────────────────────────────────────────────────────
 
-// Every load gets a unique leading-trivia prefix: the harness's setSource writes a
-// `source` $state, and a same-value write is a Svelte no-op — with two kinds sharing
-// a byte-identical fixture doc (table/tableRow), a prior iteration's typed mutation
-// would otherwise survive into the next kind's run. Blank lines are lossless
-// leadingTrivia: no block, no searchable text, block indices unchanged.
+// Every load gets a unique leading-trivia prefix: the harness's setSource writes a `source` $state
+// and a same-value write is a Svelte no-op, so with two kinds sharing a byte-identical fixture doc
+// a prior iteration's typed mutation would survive into the next kind's run. Blank lines are
+// lossless leadingTrivia — no block, no searchable text, block indices unchanged.
 let loadSeq = 0;
 
-// Load `BEFORE \n\n <fixture> \n\n AFTER` and resolve the fixture block. The kind is
-// sought only among the MIDDLE blocks (indices 1 .. len-2): `paragraph`'s fixture is
-// itself a paragraph, so a whole-document scan would match the BEFORE neighbour.
+// Load `BEFORE / fixture / AFTER` and resolve the fixture block. The kind is sought only among the
+// MIDDLE blocks: `paragraph`'s fixture is itself a paragraph, so a whole-document scan would match
+// the BEFORE neighbour.
 async function loadAndLocate(
 	page: Page,
 	plugins: PluginsPage,
@@ -80,9 +78,9 @@ async function loadAndLocate(
 ): Promise<{ topIndex: number | null; afterIndex: number }> {
 	const doc = `${'\n'.repeat(loadSeq++)}${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
 	await page.evaluate((d) => (window as any).__test.setSource(d), doc);
-	// Exact-source settle (loadContent's pattern): every sweep document carries both
-	// fillers, so an includes() predicate is satisfiable by the PRIOR kind's stale
-	// document. serialize() normalizes trailing whitespace; compare trimmed forms.
+	// Exact-source settle: every sweep document carries both fillers, so an includes() predicate is
+	// satisfiable by the PRIOR kind's stale document. serialize() normalizes trailing whitespace;
+	// compare trimmed forms.
 	await page.waitForFunction(
 		(expected) => {
 			const actual = (window as any).__test.getSource() as string;
@@ -134,14 +132,11 @@ async function openSearch(page: Page, plugins: PluginsPage, find: Locator): Prom
 	await find.waitFor({ state: 'visible' });
 }
 
-// fill('') then fill(token): the bar retains its query across close/open, and a
-// same-value fill fires no input event, so clearing first forces the re-scan. Then
-// settle on the count reaching `expectMatches` before any overlay read — a fixed
-// frame yield races the document scan, which would leave the not-supported "block
-// stays clean" assertion vacuous (nothing painted anywhere yet) and flake the paint
-// branches. One flush after the count settles lets the decoration paint commit.
-// Returns whether the count reached `expectMatches` — a false is a soft failure the
-// caller records, not a thrown timeout, so the degradation branch can name it.
+// fill('') then fill(token): the bar retains its query across close/open and a same-value fill
+// fires no input event, so clearing first forces the re-scan. Settle on the count reaching
+// `expectMatches` before any overlay read — a fixed frame yield races the document scan and would
+// leave the not-supported "block stays clean" assertion vacuous. Returns false rather than
+// throwing, so the caller can name the soft failure.
 async function runQuery(
 	page: Page,
 	plugins: PluginsPage,
@@ -168,9 +163,8 @@ async function runQuery(
 	return true;
 }
 
-// Poll until a sized match overlay paints in the block subtree (the painted-kind
-// signal), bounded — mirrors the selection loop's shape so a slow paint flush is
-// waited on, not read once and flaked.
+// Poll until a sized match overlay paints in the block subtree (the painted-kind signal), bounded —
+// mirrors the selection loop's shape so a slow paint flush is waited on, not read once and flaked.
 async function waitForMatchOverlayIn(
 	page: Page,
 	topIndex: number,
@@ -337,10 +331,10 @@ test('search paints or degrades per kind', async ({ page }) => {
 		await openSearch(page, plugins, find);
 
 		if (entry.cells.searchPaint.mode === 'not-supported') {
-			// Degradation: a token shared by both neighbours (>= 2 matches) paints on
-			// them but never inside the block, and navigation cycles between them
-			// without trapping. Settling on >= 2 matches first is what makes "block
-			// stays clean" non-vacuous — the neighbours are proven to carry matches.
+			// Degradation: a token shared by both neighbours paints on them but never inside the
+			// block, and navigation cycles between them without trapping. Settling on >= 2 matches
+			// first is what makes "block stays clean" non-vacuous — the neighbours are proven to
+			// carry matches.
 			if (!(await runQuery(page, plugins, find, NEIGHBOUR_TOKEN, 2))) {
 				failures.push(
 					`${entry.kind} [searchPaint]: the neighbour matches never appeared — degradation unverifiable`

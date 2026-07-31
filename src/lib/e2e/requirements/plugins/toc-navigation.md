@@ -2,11 +2,13 @@
 
 The `[[toc]]` block renders the document's heading outline: entries indented by
 heading level, labels projected to clean text, each entry a click-to-navigate
-target that scrolls its heading into view. Navigation is view-only (it never
-touches the CST), so it works in every presentation mode. Driven through real
-mouse and the presentation-mode probe. (Label-projection field rules and the
-level/path walk are unit-pinned in `heading-outline-*`; this file covers the
-user-facing outline + navigation behavior.)
+target that scrolls its heading into view AND lands the caret there. Navigation
+mutates no CST bytes, so it works in every presentation mode; what it does write
+is the selection, through the same restore road undo uses — otherwise focus stays
+on the entry `<button>`, where the editor's own chords do not reach. Driven
+through real mouse and the presentation-mode probe. (Label-projection field rules
+and the level/path walk are unit-pinned in `heading-outline-*`; this file covers
+the user-facing outline + navigation behavior.)
 
 ## Happy paths
 
@@ -15,6 +17,9 @@ user-facing outline + navigation behavior.)
   increasing indent while the list keeps its `<ol>` semantics
 - Clicking an entry scrolls its heading into view; the folded list stays shown
   (the entry click navigates, it does not reveal the raw source)
+- Clicking an entry lands the caret in the target heading, so the next keystroke
+  edits that heading instead of dying on the entry button. Reading mode places the
+  same selection but leaves no editable target, which is what reading mode means.
 
 ## Edge cases
 
@@ -45,5 +50,6 @@ user-facing outline + navigation behavior.)
 ## Error cases
 
 - Rapid double-click on two different entries settles on the last-clicked target,
-  with no error (navigation is serialized per block so overlapping scrolls cannot
-  strand the later target)
+  with no error (navigation is serialized per block, so one block never has two
+  carets landing and two scrolls competing; which PIN survives when claimants race
+  across blocks is the reveal anchor's, in `perf/vr-reveal-anchor`)

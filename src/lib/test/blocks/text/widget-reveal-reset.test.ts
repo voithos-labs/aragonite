@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 //
-// Canonical reset: every reveal exit path funnels through the one resetReveal, so
-// all of them land in the same observable idle state, and the machine is reusable
-// afterward. Guards the audit's "a fourth exit path has no teardown to call"
-// finding — a residual a hand-picked subset clear would leave behind (a wedged
-// `settling` flag that permanently disables the escape-fold, a stale record)
-// surfaces here as a broken second cycle.
+// Canonical reset: every reveal exit path funnels through the one resetReveal, so all of them
+// land in the same observable idle state and the machine is reusable afterward. Guards the audit's
+// "a fourth exit path has no teardown to call" finding — a residual a hand-picked subset clear
+// would leave behind (a wedged `settling` flag, a stale record) surfaces as a broken second cycle.
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -124,10 +122,8 @@ describe('canonical reset — cancel nulls the record before awaiting the kernel
 		await b.reveal();
 		expect(b.interaction.isRevealing()).toBe(true);
 
-		// resetReveal() runs synchronously ahead of `await kernel.commit()`, so the
-		// record reads idle the moment the call returns — the ordering that keeps
-		// showRendered's selectionchange from re-entering the escape-fold mid-swap.
-		// Observe WITHOUT awaiting: awaiting would mask a null-after-await regression.
+		// resetReveal() runs synchronously ahead of `await kernel.commit()`, which is what keeps
+		// showRendered's selectionchange out of the escape-fold mid-swap. Observed WITHOUT awaiting.
 		const pending = b.interaction.handleRevealingKeydown(key('Escape'));
 		expect(b.interaction.isRevealing()).toBe(false);
 		await pending;

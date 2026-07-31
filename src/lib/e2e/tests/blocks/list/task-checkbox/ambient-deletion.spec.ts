@@ -12,12 +12,9 @@ test.describe('task checkbox — selection crossing ambient region', () => {
 	test('Backspace with selection extending into ambient checkbox region deletes text', async () => {
 		await editor.loadContent('- [ ] pending\n');
 
-		// Simulate the mouse-drag repro: Range.setStart inside the
-		// contenteditable="false" checkbox text, setEnd at the end of
-		// "pending". Selection direction forward (anchor=ambient, focus=text);
-		// Chromium keeps this shape since forward ranges rooted inside a
-		// non-editable island are permitted — it's the DELETE that the browser
-		// then refuses silently without the fix.
+		// Simulate the mouse-drag repro: Range.setStart inside the contenteditable="false" checkbox
+		// text, setEnd at the end of "pending". Chromium permits that forward range (rooted in a
+		// non-editable island); it is the DELETE it then refuses silently without the fix.
 		const selState = await editor.page.evaluate((contentSelector) => {
 			const wrapper = document.querySelector(`[data-block-path='[0,0,0]']`);
 			const paragraph = wrapper?.querySelector(contentSelector) as HTMLElement | null;

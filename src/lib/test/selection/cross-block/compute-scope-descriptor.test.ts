@@ -1,10 +1,7 @@
 /**
- * Mixed-depth cross-block delete + cascade cleanup. Exercises
- * every documented branch of computeScopeDescriptor with the shapes that
- * actually arise from rangeDelete + cascade — both-descend, only-end-descends
- * (with and without surviving siblings past endIdx), only-start-descends,
- * and outside-selection-path. Pins the invariants the commit primitive's
- * StructuralChange applicator depends on.
+ * Mixed-depth cross-block delete + cascade cleanup: every documented branch of
+ * computeScopeDescriptor against the shapes rangeDelete + cascade actually produce. Pins the
+ * invariants the commit primitive's StructuralChange applicator depends on.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -88,9 +85,8 @@ describe('computeScopeDescriptor — mixed-depth audit', () => {
 	// ── No net removal in the scope ───────────────────────────────────────
 
 	it('noop when the scope lost no children: every slot survived in place', () => {
-		// Doc scope for start=[0] truncated in place, end=[1] a surviving table
-		// (or a replaced-in-slot leaf): ids/refs must be kept as-is, matching
-		// the pure top-level path's convention.
+		// Doc scope for start=[0] truncated in place, end=[1] a surviving table (or a replaced-in-slot
+		// leaf): ids/refs stay as-is, matching the pure top-level path's convention.
 		const d = computeScopeDescriptor([], [0], [1], 2, 2);
 		expect(d).toEqual({ op: 'noop' });
 	});
@@ -98,9 +94,8 @@ describe('computeScopeDescriptor — mixed-depth audit', () => {
 	// ── Table endpoint (caller passes the endpoint one level deeper) ──────
 
 	it('surviving end table keeps its id past a removed middle block', () => {
-		// start=[0], end table at [2] — the caller deepens the cell-coordinate
-		// endpoint to [2,0] so the table counts as "descends deeper" (survives
-		// in place unless fully consumed). Middle [1] removed.
+		// start=[0], end table at [2] — the caller deepens the cell-coordinate endpoint to [2,0] so the
+		// table counts as "descends deeper" (survives unless fully consumed). Middle [1] removed.
 		const d = computeScopeDescriptor([], [0], [2, 0], 3, 2);
 		expect(d).toEqual({
 			op: 'replace',
@@ -114,10 +109,8 @@ describe('computeScopeDescriptor — mixed-depth audit', () => {
 	// ── Invariant audit across the mixed-depth branch ────────────────────
 
 	it('descriptor stays in bounds for every realistic mixed-depth shape', () => {
-		// endIdxInScope, beforeLen, removed — derived from betweenPaths coverage.
-		// beforeLen ≥ endIdx + 1 always (the endpoint's ancestor is present).
-		// removed ≤ endIdx + 1 at the only-end-descends scope (items past endIdx
-		// are after the selection in doc order and never in betweenPaths).
+		// beforeLen ≥ endIdx + 1 always (the endpoint's ancestor is present), and removed ≤ endIdx + 1
+		// at the only-end-descends scope (items past endIdx are never in betweenPaths).
 		const cases: Array<[number, number, number]> = [
 			[0, 1, 1], // lone item, fully removed
 			[2, 3, 3], // all 3 removed (end descends through last)
@@ -130,12 +123,9 @@ describe('computeScopeDescriptor — mixed-depth audit', () => {
 			const d = computeScopeDescriptor([1], [0], [1, endIdx, 0], beforeLen, afterLen);
 			expect(d.op).toBe('replace');
 			if (d.op === 'replace') {
-				// The applicator's net array shrink must match `removed`.
 				expect(d.count - d.newCount).toBe(removed);
-				// The descriptor window must fit inside the pre-mutation array.
 				expect(d.at).toBeGreaterThanOrEqual(0);
 				expect(d.at + d.count).toBeLessThanOrEqual(beforeLen);
-				// newCount cannot go negative.
 				expect(d.newCount).toBeGreaterThanOrEqual(0);
 			}
 		}

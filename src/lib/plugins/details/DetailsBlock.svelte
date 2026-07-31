@@ -1,74 +1,57 @@
 <script lang="ts">
-	// The `<details>` collapsible on `createContainerBlock` — the same public seam
-	// the callout uses, plus a disclosure toggle. Collapse-ness has ONE definition:
-	// the descriptor's `reservedChrome.isCollapsed` probe. The factory derives its
-	// window/focus clamp from that probe, so this component threads no collapse dep;
-	// it reads `isCollapsedContainer` only for its own disclosure UI.
+	// Collapse-ness has one definition, the descriptor's `reservedChrome.isCollapsed`
+	// probe. The reader's transient disclosure layers over it by feeding the factory
+	// the effective state, so the window clamp, focus clamp and caret never disagree.
 	import {
 		BlockList,
 		createContainerBlock,
 		isCollapsedContainer,
-		type ContainerBlockComponent,
 		type NodeView
 	} from '$lib/plugin';
+	import { createReaderDisclosure } from './details-disclosure.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	const open = $derived(!isCollapsedContainer(node));
+	const documentOpen = $derived(!isCollapsedContainer(node));
 
 	const { blockListProps, containerApi, updateOwnMetadata, getPresentationMode } =
 		createContainerBlock({
 			getNode: () => node,
 			getIndex: () => index,
 			getPath: () => myPath,
-			getBoxEl: () => boxEl
+			getBoxEl: () => boxEl,
+			// The effective state, so a transiently-opened section actually mounts and
+			// measures its body.
+			isCollapsed: () => !open
 		});
 
-	function toggle() {
-		// The disclosure commits an `open` metadata edit (the source bytes change),
-		// so reading mode makes it inert like the task checkbox — read off the
-		// container factory's mode getter.
-		if (getPresentationMode() === 'reading') return;
+	const reading = $derived(getPresentationMode() === 'reading');
+	const reader = createReaderDisclosure({ isDocumentOpen: () => documentOpen });
+	// Leaving reading mode discards the flip: with the bytes editable again, a view
+	// state they disagree with would be a live lie.
+	$effect(() => {
+		if (!reading) reader.reset();
+	});
+	const open = $derived(reading ? reader.open : documentOpen);
+
+	function commitDisclosure() {
 		const isOpen = open;
-		// Collapsing while the caret sits in a body child orphans it — the clamp
-		// unmounts the body and kills the window pin — so move it to the summary in
-		// the commit's afterTick. Read the caret BEFORE the commit; the toggle's
-		// mousedown default is suppressed, so a mouse toggle leaves it in the body.
+		// Collapsing while the caret sits in a body child orphans it (the clamp unmounts
+		// the body), so move it to the summary in the commit's afterTick. Read the caret
+		// before the commit: the toggle suppresses mousedown, so a mouse toggle leaves it
+		// in the body.
 		const pos = isOpen ? (containerApi.getCursorPosition?.() ?? null) : null;
 		const caretInBody = pos != null && pos.path[0] >= 1;
 		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
 	}
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
+	// Reading mode gets the handler that cannot write, not one that declines to: this
+	// is the only mode read, and the toggle keeps working for a reader either way.
+	const onToggle = $derived(reading ? reader.toggle : commitDisclosure);
 
-	// Completeness guard: `bind:this` reads each instance export individually, so the
-	// block above cannot be collapsed — but this `satisfies` fails `npm run check` if a
-	// new ContainerBlockComponent member is added and left un-forwarded above.
-	void ({
-		editable,
-		focusable,
-		focus,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <div class="details-block" bind:this={boxEl}>
@@ -79,15 +62,13 @@
 		aria-expanded={open}
 		aria-label="Toggle details"
 		onmousedown={(e) => e.preventDefault()}
-		onclick={toggle}
+		onclick={onToggle}
 	></button>
 	<BlockList {...blockListProps} />
 </div>
 
 <style>
-	/* Sibling of the admonition gutter-rail: a neutral hairline rail plus a
-	   disclosure caret in the gutter — restrained, but clearly interactive. Mirrors
-	   the admonition's rail gap and caret column so the two read as a family. */
+	/* Mirrors the admonition's rail gap and caret column so the two read as a family. */
 	.details-block {
 		position: relative;
 		margin: 0.8em 0;
@@ -95,20 +76,17 @@
 		border-left: 3px solid var(--color-border, #3d4047);
 	}
 
-	/* The toggle is a real focusable button (keyboard disclosure), so unlike the
-	   callout's pseudo-element icon it is a sibling of BlockList. That is fine:
-	   the windowing lookup resolves `:scope > .block-list`, which tolerates a
-	   sibling — it only needs BlockList to stay a DIRECT child, not the sole one. */
+	/* A real focusable button (keyboard disclosure), so it is a sibling of BlockList.
+	   Safe: the windowing lookup resolves `:scope > .block-list`, which only needs
+	   BlockList to stay a direct child, not the sole one. */
 	.details-toggle {
 		position: absolute;
 		left: 0.45em;
-		/* `font: inherit` anchors this <button>'s em geometry to the editor font;
-		   without it a button takes a smaller UA font-size, so the line-box math
-		   below resolves too short and floats the caret above the summary title. */
+		/* Anchors the button's em geometry to the editor font; without it the UA font-size
+		   shrinks the line-box math below and floats the caret above the summary title. */
 		font: inherit;
-		/* Overlay the summary's first line box exactly — the block's 0.15em top
-		   padding plus the summary leaf's 2px, one line-height (1.6) tall — then
-		   flex-center the caret so it lands on the title line by construction. */
+		/* Overlays the summary's first line box exactly (block padding + the leaf's 2px,
+		   one line-height tall), so flex-centering lands the caret on the title line. */
 		top: calc(0.15em + 2px);
 		width: 1.1em;
 		height: 1.6em;
@@ -140,9 +118,8 @@
 		border-radius: 3px;
 	}
 
-	/* Reserved child-0 chrome: the summary leaf, CSS-promoted to a bold title row.
-	   It stays a real block inside the sole `.block-list`, so selection/windowing
-	   treat it as an ordinary child. */
+	/* The summary leaf is promoted to a title row by CSS alone; it stays a real block
+	   inside `.block-list`, so selection and windowing treat it as an ordinary child. */
 	.details-block :global(.details-summary) {
 		font-weight: 600;
 	}

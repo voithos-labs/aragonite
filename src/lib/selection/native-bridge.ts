@@ -1,11 +1,8 @@
 /**
- * Bridge between the browser's native Selection API and SelectionPoint.
- * Pure: callers provide target block elements and paths; no tree walking.
- *
- * SelectionPoint offsets are raw-semantic (they index into the block's raw
- * content). When a block's first child is an ambient marker span
- * (contenteditable="false"), its textContent contributes to DOM offsets but
- * not to raw; DOM→raw conversion subtracts that ambient length.
+ * Bridge between the browser's native Selection API and SelectionPoint. Pure: callers provide
+ * target elements and paths, no tree walking. SelectionPoint offsets are raw-semantic, so
+ * DOM→raw conversion subtracts the length of a leading ambient marker span, whose textContent
+ * counts toward DOM offsets but not raw.
  */
 
 import type { SelectionPoint, EditorSelection } from './primitives';
@@ -29,11 +26,9 @@ export function readNativeCaretInBlock(
 	const sel = window.getSelection();
 	if (!sel || sel.rangeCount === 0) return null;
 	const range = sel.getRangeAt(0);
-	// The anchor is the fixed end the selection grew from; for a BACKWARD
-	// selection (anchor after focus) it sits at range.end, so reading range.start
-	// captures the moving focus instead and cross-block entry drops the
-	// highlighted span. Read the real anchor when it's a resolvable node inside
-	// this block; a collapsed caret (or an anchor in a sibling) keeps range.start.
+	// The anchor is the fixed end the selection grew from; for a BACKWARD selection it sits at
+	// range.end, so reading range.start would capture the moving focus and drop the highlighted
+	// span. Use the real anchor when it resolves inside this block, else keep range.start.
 	const useAnchor = !sel.isCollapsed && sel.anchorNode !== null && blockEl.contains(sel.anchorNode);
 	const node = useAnchor ? sel.anchorNode! : range.startContainer;
 	const nodeOffset = useAnchor ? sel.anchorOffset : range.startOffset;
@@ -47,12 +42,10 @@ export function readNativeCaretInBlock(
 // ── Apply SelectionPoint → native ───────────────────────────────────────────
 
 /**
- * Place a collapsed native caret at a raw-semantic SelectionPoint. Translates
- * through the block's ambient length (0 when no marker island is present).
- * Raw offset 0 under an ambient marker is placed at the sibling boundary AFTER
- * the marker span — the offset walk would otherwise land in the marker's
- * contenteditable="false" text node, and Chromium bounces the caret out of
- * scope. Same landing as the ambient cursor IO's `setToAmbientBoundary`.
+ * Place a collapsed native caret at a raw-semantic SelectionPoint, translating through the
+ * block's ambient length. Raw offset 0 under an ambient marker goes to the boundary AFTER the
+ * marker span: the offset walk would land inside its contenteditable="false" text node, which
+ * Chromium bounces out of scope. Same landing as the ambient cursor IO's `setToAmbientBoundary`.
  */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);
@@ -66,10 +59,8 @@ export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint)
 }
 
 /**
- * Resolve `point.path` to its mounted block element and place a focused collapsed
- * caret there — the place-caret-and-focus idiom every cross-block arm runs once a
- * mutation settles. Returns whether an element was found; a missing target is a
- * no-op, which one caller turns into a native-selection clear.
+ * Resolve `point.path` to its mounted block element and place a focused collapsed caret there.
+ * Returns whether an element was found; a missing target is a no-op.
  */
 export function focusCollapsedCaret(
 	getBlockElByPath: (path: number[]) => HTMLElement | null,
@@ -104,30 +95,25 @@ export function clearNativeSelection(): void {
 }
 
 /**
- * When an editable block holding native focus is windowed out, focus would
- * fall to <body> (outside `.editor`) and the editor-root keydown listener's
- * activeElement guard would still route — but focusing the editor root keeps
- * the focused state inside the editor and avoids body-scoped quirks. The root
- * is non-editable (`tabindex="-1"`), so focusing it creates no native range to
- * sync. No-op unless this block actually holds focus and the root is still in
- * the document (skips full-editor teardown, where the root is gone too).
+ * Keep focus inside the editor when an editable block holding it is windowed out; it would
+ * otherwise fall to <body>. The root is non-editable (`tabindex="-1"`), so focusing it creates
+ * no native range to sync. No-op unless this block holds focus and the root is still connected.
  */
 export function parkFocusOnEditorRoot(
 	blockEl: HTMLElement | null,
 	editorRoot: HTMLElement | null
 ): void {
 	if (!blockEl || !editorRoot?.isConnected) return;
-	// preventScroll: the root is the scroll container, so a default focus scroll
-	// would fight the reveal path's scrollIntoView.
+	// preventScroll: the root is the scroll container, so a default focus scroll would fight the
+	// reveal path's scrollIntoView.
 	if (document.activeElement === blockEl) editorRoot.focus({ preventScroll: true });
 }
 
 // ── Selection read/restore for undo ─────────────────────────────────────────
 
 /**
- * Cross-block from SelectionState if active; otherwise the focused block's
- * cursor as a deep path (via getCursorPosition) or shallow path (fallback).
- * Null when no block reports a cursor.
+ * Cross-block from SelectionState if active; otherwise the focused block's cursor as a deep
+ * path (via getCursorPosition) or a shallow one. Null when no block reports a cursor.
  */
 export function readCurrentSelection(
 	selectionState: SelectionState,
@@ -160,16 +146,13 @@ function collapsedSelectionAt(path: number[], offset: number): EditorSelection {
 }
 
 /**
- * The focused block's native selection as distinct anchor/focus raw offsets, so
- * getSelection() reports a within-block range instead of collapsing it to the
- * caret. Null when the selection is collapsed or not inside the active block —
- * callers fall back to the single caret offset. `path` addresses the leaf whose
- * contenteditable holds native focus; offsets convert through its ambient length,
- * the single offset-arithmetic home.
+ * The focused block's native selection as distinct anchor/focus raw offsets, so getSelection()
+ * reports a within-block range instead of collapsing it to the caret. Null when collapsed or
+ * outside the active block. Offsets convert through that block's ambient length.
  */
 function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
-	// Node-env callers (undo snapshot capture in unit tests) have no DOM; fall
-	// back to the single caret offset rather than touching document/window.
+	// Node-env callers (undo snapshot capture in unit tests) have no DOM; fall back to the
+	// single caret offset rather than touching document/window.
 	if (typeof document === 'undefined' || typeof window === 'undefined') return null;
 	const active = document.activeElement;
 	if (!(active instanceof HTMLElement)) return null;
@@ -191,9 +174,8 @@ function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
 	};
 }
 
-// A restored table endpoint must keep cellCoordinate, or it skips the whole-row
-// snap and the deep-cell collapse routing; the two-branch copy carries the union
-// variant through the undo snapshot.
+// A restored table endpoint must keep cellCoordinate, or it skips the whole-row snap and the
+// deep-cell collapse routing; the two-branch copy carries the union variant through undo.
 function copySelectionPoint(point: SelectionPoint): SelectionPoint {
 	if (point.cellCoordinate) {
 		return { path: point.path.slice(), offset: point.offset, cellCoordinate: true };
@@ -202,20 +184,30 @@ function copySelectionPoint(point: SelectionPoint): SelectionPoint {
 }
 
 /**
- * Restore an EditorSelection to the DOM. Custom-rendered selections
- * (intra-table multi-cell, cross-block) route through SelectionState's
- * overlay; same-path prose ranges use native browser selection.
- *
- * Returns whether the placement landed — false means the target block resolved
- * in the model but is not in the DOM.
+ * Restore an EditorSelection to the DOM: custom-rendered selections (intra-table, cross-block)
+ * route through SelectionState's overlay, same-path prose uses the native selection. State
+ * write and caret landing run inside ONE SelectionState batch, so the single notification
+ * carries the settled selection. False = the target resolved in the model but not in the DOM.
  */
 export function applySelectionToDom(
 	selection: EditorSelection,
 	selectionState: SelectionState,
 	getBlockElByPath: (path: number[]) => HTMLElement | null
 ): boolean {
-	// Classify before mutating state so a single-block restore never emits a
-	// phantom transient cross-block selectionChange (enterCrossBlock → clear).
+	let placed = false;
+	selectionState.batch(() => {
+		placed = placeRestoredSelection(selection, selectionState, getBlockElByPath);
+	});
+	return placed;
+}
+
+function placeRestoredSelection(
+	selection: EditorSelection,
+	selectionState: SelectionState,
+	getBlockElByPath: (path: number[]) => HTMLElement | null
+): boolean {
+	// Classify before mutating state so a single-block restore never mints a phantom transient
+	// cross-block state (enterCrossBlock → clear).
 	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
 	if (route === 'collapsed') {
@@ -232,11 +224,9 @@ export function applySelectionToDom(
 		return true;
 	}
 
-	// Custom: cross-block or intra-table cell rect → the overlay paints. Park a
-	// collapsed caret in the focus block as a paste/key-dispatch anchor (Chromium
-	// otherwise routes paste to <body>). A cell-coordinate focus addresses the
-	// table wrapper by linear cell index, so park in its deep cell — a char-walk
-	// with the cell index would land the caret in the wrong place.
+	// Custom: the overlay paints. Park a collapsed caret in the focus block as a paste/key
+	// dispatch anchor (Chromium otherwise routes paste to <body>). A cell-coordinate focus
+	// addresses the table wrapper by cell index, so park in its deep cell instead.
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	const cellPath = selectionState.cellDeepPath(selection.focus);
 	const parkPath = cellPath ?? selection.focus.path;

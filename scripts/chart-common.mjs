@@ -1,13 +1,10 @@
-// Shared building blocks for the README chart renderers (render-perf-chart,
-// render-loc-chart): the dataviz base palette, the SVG entity escaper, and the
-// `<text>` element builder. Each renderer spreads its chart-specific colors over
-// the base theme, so a palette change lands in one place instead of drifting the
-// two chart pairs apart.
+// Shared building blocks for the README chart renderers: the dataviz base palette, the
+// SVG entity escaper, and the `<text>` builder. Each renderer spreads its chart-specific
+// colors over the base theme, so a palette change lands in one place.
 
 const FONT = 'system-ui, sans-serif';
 
-// Base theme tokens common to both charts. Renderers extend these per mode with
-// their own series colors (perf: axis/bundle/accent, loc: bar).
+// Renderers extend these per mode with their own series colors.
 export const THEMES = {
 	light: {
 		surface: '#fcfcfb',
@@ -27,8 +24,7 @@ export const THEMES = {
 
 export const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// Returns a `text(x, y, s, opts)` helper bound to a theme's default ink; each call
-// appends one `<text>` element to `sink`.
+// The returned helper appends one `<text>` element to `sink` per call.
 export function textBuilder(theme, sink) {
 	return (
 		x,

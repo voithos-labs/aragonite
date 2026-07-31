@@ -16,12 +16,16 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 1. **Limestone internal integration — remaining scope.** The integration ran (2026-07) and paid
    as predicted: the editor is the app's editor, the findings landed as 0.9.36 refinements, and
-   the consumer-lens directions below are its architectural residue. What has NOT yet run, and
-   stays here as forward work: the 0.9.25 **field-report workflow** end to end (the diagnostics
-   door: reproduce → `serializeDiagnostics()` → attach — no real report has been filed yet); the
-   **overridable-history-seam joint design** (§ Downstream boundary — the integration is named as
-   the design table, and the table has not convened); and landing whatever the consumer's
-   remaining manual passes (journal surface, real-webview gestures) surface before the freeze.
+   the consumer-lens directions below are its architectural residue. The 0.9.25 **field-report
+   workflow** has now run end to end against the real app (reproduce → `serializeDiagnostics()` →
+   attach), so the door is proven rather than assumed; what it left forward is narrower — the
+   embedder must hold and expose the editor instance for the diagnostics door to be reachable at
+   all (an example-app requirement), and the trace behind the report covers the inline layer only.
+   What has NOT yet run, and stays here as forward work: the **overridable-history-seam joint
+   design** (§ Downstream boundary — the integration is named as the design table, and the table
+   has not convened); and landing whatever the consumer's remaining manual passes (journal
+   surface, real-webview gestures) surface before the freeze.
+
 2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
    current tarball and public docs only, building something the new seams carry — **and
    writing tests for their plugin**, so the run probes the third-party testing story the
@@ -45,9 +49,15 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    toggles** — reading mode plus block- and inline-granular live preview beside styled
    source — so the first impression is not markers-everywhere, and the freeze litmus "the
    contract must not preclude a rendered reading mode" is a working proof, not a paper check.
+   The showcase also gains a `/changelog` route rendering `docs/changelog.md` with the editor
+   itself in reading mode, the toc plugin as navigation, and Mod+F search: the changelog page
+   is the dogfood.
 4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
-     audits before milestones, not after incidents.
+     audits before milestones, not after incidents. Accumulated freeze-review pointers from the
+     2026-07 burn-down: container `conformanceFixture` requiredness; forbid a `terminatorCollision`
+     exemption where `bodyWrite` is declared; `chordsForCommand` lands with the 1.2 unified command
+     registry; `EditorRects` naming.
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
@@ -73,15 +83,6 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      parts of the frozen contract are not yet frozen, so `grep -c pre-freeze src/lib/plugin.ts`
      returning nonzero after the cut means the API is lying about its own stability; pending
      owner decisions land:
-     **the `BlockComponent.focus` verb split** (one verb carries two meanings — park-without-clearing
-     for the extend paths, place-and-end-range for user gestures; seating the clear in one verb was
-     measured impossible, two whole-document data losses were the cost of the ambiguity, and the fix
-     is breaking on a frozen export, so it is decided AT the cut, not after — `docs/issues.md`
-     carries the entry and G2.12 holds the line meanwhile),
-     **reveal-anchor claimant identity** (the single slot compares paths, never claimants or block
-     modes — a same-path claimant can lose its band mid-settle and the terminal clears are
-     path-blind; decide claimant tokens vs per-instance slots together with the mount-waiter keying
-     beside it),
      per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
      toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
      the claim), grouping `BlockComponent`'s optional capability probes into named facets, an
@@ -120,7 +121,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      CSS construct-reveal over the existing marker spans, not marker islands). The caret-affinity
      contract shipped with 0.9.26 and dissolved to raw offsets + inclusive reveal edges — no
      stored-marks machinery; the litmus reads satisfied-by-construction at the cut, with the
-     reading-gate parity residual and interactive-reading question living in `docs/issues.md`.
+     reading-gate parity residual tracked as issue #38.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
@@ -146,36 +147,34 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 What the limestone run taught that no in-repo battery could, recorded as direction so the next
 milestone that touches each area inherits it rather than rediscovering it:
 
-- **Inline-widget _editing_ wants to become one surface.** The integration's defect density
-  concentrated overwhelmingly in one region: what happens when a caret, a keystroke, or a command
-  meets an inline widget (the reveal-fold seam, caret mutual exclusion, collapsed-caret formatting,
-  the syntax-of-origin family and its `rewriteImage` hook). Each fix was right, but the editing
-  capabilities a rung can carry have accreted as separate options across registrations — recognizer
-  options, widget descriptors, editing policies, the rewrite hook. Direction for 1.2: gather them
-  into one named per-rung editing facet, and ship the **inline-kind conformance kit** the block
-  kinds already have (`runKindConformance` is block-only; the overlap-decline rule is
-  documented-not-guarded today, and a kit would enroll a rung in the behavioral battery the way the
-  closure matrix does for blocks). Validator: the bundled rungs enroll; the kit reds a rung that
-  swallows the grammar overlap.
+- **Inline-widget _editing_ is where a consumer's defect density concentrates.** The integration's
+  finds clustered overwhelmingly in one region: what happens when a caret, a keystroke, or a
+  command meets an inline widget (the reveal-fold seam, caret mutual exclusion, collapsed-caret
+  formatting, the syntax-of-origin family and its `rewriteImage` hook). Gathering the editing
+  capabilities a rung carries into one facet was assessed and rejected: they sit in two key
+  spaces, rung and kind, and the split is the design, so what 1.2 inherits is the layering
+  direction (§ 1.2) rather than a consolidation. Standing direction: a new inline-editing
+  capability picks its key space deliberately and enrolls in the inline conformance kit, which
+  is where a rung's behavior is held now.
 - **The webview host boundary is where consumer bugs live, and the in-repo harness cannot see it.**
   Three integration finds were invisible to any Chromium-driven battery: clipboard events
   retargeting to `document.body` off a caret-less endpoint, the host webview's built-in
   accelerator keys consuming chords before the page, and the image-src scheme policy meeting
-  a real host protocol. Direction: the consumer guide grows a **webview-host section** (what the
-  page never sees, which chords a browser may claim, the scheme policy's shape), and post-1.0 a
-  minimal **Tauri example consumer** joins `examples/` so this class is exercised by a gate rather
-  than discovered by a user. Validator: each webview find of the next integration lands as a row
-  in that example's checklist, not a surprise.
+  a real host protocol. The consumer guide's webview-host section is the documented half.
+  Direction: post-1.0 a minimal **Tauri example consumer** joins `examples/`, so this class is
+  exercised by a gate rather than discovered by a user. Validator: each webview find of the next
+  integration lands as a row in that example's checklist, not a surprise.
 - **Singletons earn their keep only until the second claimant arrives.** The process-global
-  reveal anchor produced two consumer-visible defects and still carries a claimant-identity gap;
-  the interaction trace interleaves instances by design. The freeze-cut list now carries the
-  anchor decision. Standing direction for anything new: a process-global slot is a deliberate
-  choice with a written second-claimant story, not a default.
+  reveal anchor produced two consumer-visible defects; the interaction trace interleaves
+  instances by design, and per-scope keying for the reveal mount-waiter registry is still on
+  the freeze-cut list. Standing direction for anything new: a process-global slot is a
+  deliberate choice with a written second-claimant story, not a default.
 - **Every gesture that places a caret is a data-loss candidate until proven otherwise.** The
   precondition no suite had ever built — a live cross-block range before a caret-placing
-  gesture — hid two whole-document losses. G2.12 now fails new pointer gestures at birth, but its
-  perimeter is pointer-only by design; the simulation habit (§ Standing posture) should treat
-  select-all → gesture → keystroke as a first-class corruption probe alongside the byte oracles.
+  gesture — hid two whole-document losses. G2.12 fails new pointer gestures at birth, but its
+  perimeter is pointer-only by design and a caret can land through doors it cannot see at all
+  (the navigation API is the shipped example), so a new caret-placing door joins the simulation's
+  range-interrupt family by hand or goes unprobed.
 
 ### The two plugin systems
 
@@ -285,7 +284,7 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
 load-bearing contract climbs as high as it can: prefer types/seams that make the violation
 inexpressible; where types can't reach, a dev guard that fails at the gate; prose only for what
 neither can hold. Two habits keep the ladder honest: every bug fix records a one-line miss-analysis
-("what test should have caught this, and why didn't it") in its commit or requirement file, and every
+("what test should have caught this, and why didn't it") in its regression test's requirement file, and every
 new feature class adds a simulation gesture so the corruption oracle's coverage tracks the product's
 surface. The complexity is essential — cap the downside, don't simplify.
 
@@ -321,10 +320,11 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 
 - **DX system:** plugin scaffold, hot-reload dev loop, in-repo reference-plugin fleet (each exercising a different extension shape — callout, KaTeX, export command, image gallery, smart-HTML-paste), plugin docs site, plugin DX test suite — plus a declarative-manifest overload on the shipped `definePlugin` unit if a consumer wants one.
 - **Unified command registry + palette** — migrate built-in block commands off `component.runCommand` onto the `(kind,id)` registry so dispatch has one home (the CodeMirror/ProseMirror model — a command is a function of a context, not a method on the view); a command palette enumerates the registry. Ships on the command-mint foundation (0.9.7) and the pre-1.0 global-command mint; `KeybindingOverride.kind` already spans plugin kinds (0.9.16). Mermaid v2 — its plugin-owned textarea edit mode rebuilt on the shipped editable-leaf surface — is the recipe upgrade to fold in here when wanted.
-- **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` precedent. The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
+- **Selection coordinate-addressing hooks** — retire the selection layer's `kind === 'table'` gates (and the chrome×table composition) into descriptor hooks dispatched by presence, mirroring the `foreignDragHitTest` / `caretTargetAtPoint` precedent (two hooks now, and their split is the pattern: one answers the exact hit a drag needs, the other the nearest target a caret gesture needs). The _public rect API_ half pulled forward to pre-1.0 (the decoration tier bottlenecks on it); what remains here is retiring the internal kind gates.
 - **Trigger-character suggest seam** — a `/` menu, `@`-mentions, `[[`-completion. Table stakes for a notes app, and the class Obsidian carries with `registerEditorSuggest`. Deferred deliberately: the pre-1.0 rect API makes a suggest popup _consumer_-buildable (caret geometry plus `getSelection()`), so the question 1.2 answers is whether it deserves a first-class editor seam or stays a consumer pattern. Decide against a real consumer, not on paper.
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
-- **Plugin renderers get a theme seam** — injected renderers (mermaid is the live case) have no way to learn or follow the editor's theme: initialization is memoized process-once and the render memo carries no theme term, so a consumer's dark editor draws light diagrams and a theme flip recolors nothing. The mode contract solved this for components and widgets; renderers are the unfinished third leg. Direction: a theme term in the renderer contract plus a re-render path on theme change; the ledger carries the mechanism notes.
+- **The math render seam still carries no theme term** — the mermaid renderer took one pre-1.0 (a theme in its render context, a theme-keyed memo, a redraw on flip); the injected `MathRenderer` did not, and its memo key has no theme term either. Latent rather than live: the shipped KaTeX adapter emits CSS-styled markup that inherits the editor's colors, where a drawn diagram carries its own. An injected engine emitting color literals would repeat the mermaid case exactly. Direction: when a second engine asks, the math seam takes the shape the mermaid one already has rather than a second design.
+- **Per-rung editing policy for a borrowed built-in kind** — a rung that mints a built-in kind can re-serialize its own bytes (`rewriteImage`) but cannot give its own instances an editing behavior distinct from the built-in's. The caret-edge dispatch resolves policy by kind, so an Obsidian-style `![[embed]]` minted as an `image` necessarily edits like a GFM image: same edge policy, same delete granularity, same selected-key handling. The only lever today is `augmentInlineWidgetKind('image', …)`, which changes behavior for **every** image in the document, including ones the plugin never claimed. Direction: a claim-keyed policy lookup layered over the kind-keyed one (consult the node's syntax claim first, fall back to the kind), which preserves both key spaces instead of merging them, and is additive rather than breaking. Deliberately not taken pre-1.0: no consumer has asked, the layering is straightforward whenever one does, and the merged-facet alternative would break the built-in widget kinds (which carry policies and have no rung at all) to reach the same place.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
@@ -353,3 +353,15 @@ design decision the editor and its first consumer must make together). Working d
 shape is an **overridable history seam** — the undo/redo module behind an interface a consumer
 can replace — decided at the limestone integration, scheduled deliberately rather than ambient
 (the longer the decision floats, the more code accretes against the snapshot shape).
+
+A second named joint decision: **host-scrollport windowing (the journal shape).** Windowing is
+deliberately inactive in host-scroll mode today; the height model reads its viewport and offset
+from the editor root, which a page-scrolled shell never scrolls. The port is characterized: a
+scrollport abstraction supplying rect, offset, writer, change signal, and content width, which
+converges on the `UserScrollport` resolution the autoscroll seam already owns. A
+single-editor-per-scrollport version is mechanical plus one stated trade (native scroll
+anchoring and windowing's manual correction cannot coexist on one editor, so the mode drives
+the declaration). The open design, and the journal's actual shape, is N editors sharing one
+scrollport: N windowing roots correcting one scroll offset needs a coordinator that owns the
+write. Sequenced after the owner exercises the real journal surface; the coordinator is decided
+jointly with the consumer, not sketched ahead of it.

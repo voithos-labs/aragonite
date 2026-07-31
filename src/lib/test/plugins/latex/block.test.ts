@@ -78,9 +78,8 @@ describe('block math recognition', () => {
 	});
 });
 
-// Leaf round-trip is the load-bearing guarantee: serialize re-emits
-// `leadingTrivia + raw`, so a `raw` built from the exact fence bytes round-trips
-// byte-for-byte. The unterminated rows prove the decline path preserves bytes too.
+// Serialize re-emits `leadingTrivia + raw`, so a `raw` built from the exact fence bytes
+// round-trips. The unterminated rows prove the decline path preserves bytes too.
 describe('block math round-trip', () => {
 	beforeEach(registerMathBlock);
 
@@ -110,11 +109,9 @@ describe('latexPlugin wires the block opener', () => {
 	});
 });
 
-// latexPlugin's renderer is a REQUIRED option — no baked-in default engine, unlike
-// mermaid's optional renderer. The contract lives at the type level; the two
-// compile-time assertions below turn a regression to an optional/defaulted renderer
-// into an `npm run check` failure (an unused-directive error). Never invoked — the
-// compile error is the guard, not any runtime behavior.
+// The renderer is REQUIRED (no baked-in engine, unlike mermaid's optional one), and the
+// contract lives at the type level — so the `@ts-expect-error` directives below are the
+// assertions: a regression to an optional renderer fails `npm run check`.
 describe('latexPlugin requires an injected renderer', () => {
 	it('rejects a missing or empty renderer option at compile time', () => {
 		// @ts-expect-error - renderer is required; a bare call omits it
@@ -126,11 +123,9 @@ describe('latexPlugin requires an injected renderer', () => {
 	});
 });
 
-// Guard policy: a schema reset clears the block registry + installed-plugin set but
-// leaves the inline syntax/widget registries live. A reinstall must re-register the
-// block kind (mathBlock was cleared) yet NOT re-register inline — its guard is keyed
-// on the surviving declared-inline-kind, so a mis-keyed guard would re-run
-// declarePluginInlineKind / registerInlineSyntax('$') and throw on the survivor.
+// A schema reset clears the block registry but leaves the inline registries live, so a
+// reinstall must re-register the block kind yet NOT the inline one. The inline guard is
+// keyed on the surviving declared kind; mis-key it and the re-register throws.
 describe('latexPlugin reinstall after a schema reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);

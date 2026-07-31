@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
 /**
- * The ambient-marker pin (`.md-marker[contenteditable=false]` absolutely placed at
- * the image's bottom-left) and the image-only `min-height: 0` are pure CSS, so the
- * only thing that can pin them is the real cascade. These drive the real parser and
- * the real inline renderer into a paragraph under the real editor.css and read
- * computed style back.
- *
- * The class under guard is sibling-path parity across wrapper shapes: `renderInlineNodes`
- * wraps its children in an element for emphasis, strong, strikethrough, and both link
- * forms, which puts the widget one level deeper than a bare `![img](x)` — and
- * `- [![badge](x)](url)` is the commonest list-image shape in real Markdown.
+ * The ambient-marker pin (`.md-marker[contenteditable=false]` absolutely placed at the image's
+ * bottom-left) and the image-only `min-height: 0` are pure CSS, so only the real cascade can pin
+ * them. The class under guard is sibling-path parity across wrapper shapes: `renderInlineNodes`
+ * wraps children for emphasis, strong, strikethrough and both link forms, putting the widget one
+ * level deeper than a bare `![img](x)`.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -56,9 +51,8 @@ function ambientMarkerOf(paragraph: HTMLElement): Element {
 	return marker;
 }
 
-// Every wrapper shape `renderInlineNodes` can put between the paragraph and the
-// widget. The bare case is the control that already worked; a regression that
-// re-tightens the combinator turns the other five red and leaves it green.
+// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget. The bare
+// case is the control that already worked; a re-tightened combinator turns the other five red.
 const WRAPPED_IMAGES: Array<[string, string]> = [
 	['bare (control — already worked)', '![b](i.png)'],
 	['emphasis', '*![b](i.png)*'],

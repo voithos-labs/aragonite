@@ -13,8 +13,7 @@ describe('autolink interactions with other constructs', () => {
 	});
 
 	it('autolink does not start inside a code span', () => {
-		// `https://x.com` is occupied as a code span before the autolink
-		// scanner runs, so no autolink should be found inside it.
+		// The code span claims those bytes before the autolink scanner runs.
 		const raw = 'pre `https://x.com` post';
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
@@ -24,14 +23,12 @@ describe('autolink interactions with other constructs', () => {
 	});
 
 	it('entity inside angle-bracket inner is not interpreted', () => {
-		// The angle scanner regex-tests its sliced inner without re-invoking
-		// the entity scanner, so &copy; here remains literal text inside the
-		// failed-match angle pair (not a valid email or URL).
+		// The angle scanner regex-tests its sliced inner without re-invoking the entity
+		// scanner, so `&copy;` stays literal inside the failed-match angle pair.
 		const raw = 'see <foo&copy;bar> end';
 		const nodes = inlineOf(raw);
 		const autolinks = nodes.filter((n) => n.kind === 'autolink');
 		expect(autolinks).toHaveLength(0);
-		// The entity should still be recognized as a sibling of the angle text.
 		const refs = nodes.filter((n) => n.kind === 'entityReference');
 		expect(refs).toHaveLength(1);
 		expect(refs[0].decoded).toBe('©');
@@ -39,10 +36,8 @@ describe('autolink interactions with other constructs', () => {
 });
 
 describe('parseInline — fast-bail output shape', () => {
-	// Both cases pin the SHAPE of an output that contains an autolink, so both open
-	// by asserting the autolink is there. Without that precondition neither can fail:
-	// a degenerate single-text-node output has no adjacent pair to find, and it
-	// reconstructs the raw bytes just as well as the real tiling does.
+	// Both cases open by asserting the autolink is there: without that precondition a
+	// degenerate single-text-node output would satisfy both shape checks vacuously.
 	it('fast path output has no adjacent text siblings', () => {
 		const input = 'before  \nhttps://example.com after';
 		const nodes = inlineOf(input);

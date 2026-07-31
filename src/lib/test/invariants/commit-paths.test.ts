@@ -6,8 +6,8 @@ import { asDocPath } from '$lib/selection/path-math';
 // Doc shape: [paragraph, blockquote[list[item, item]]]
 const doc = parse('pad\n\n> - one\n> - two\n');
 
-// asDocPath is an unchecked boundary mint — the runtime guard is what actually
-// validates the dialect, so a minted-but-invalid path still gets rejected here.
+// asDocPath is an unchecked boundary mint, so the runtime guard is what validates the
+// dialect — a minted-but-invalid path still gets rejected.
 const check = (path: number[], role: 'eventPath' | 'snapshot.path') =>
 	checkCommitPathAddressable(doc, asDocPath(path), role);
 
@@ -30,9 +30,8 @@ describe('checkCommitPathAddressable (G1.16)', () => {
 	});
 
 	it('rejects the append slot when it is not the final hop (prefix strictness)', () => {
-		// [2, 0]: index 2 is the doc's append slot — legal as a FINAL index (above)
-		// but not as a prefix, which must resolve to a real child. The only fixture
-		// that fails if the isLast one-past-end allowance leaks to every hop.
+		// The append slot is legal as a FINAL index but not as a prefix, so this is the
+		// fixture that fails if the one-past-end allowance leaks to every hop.
 		expect(check([2, 0], 'eventPath')).toMatchObject({
 			code: 'commit-path-dialect',
 			detail: { failedAt: 0 }
@@ -40,8 +39,7 @@ describe('checkCommitPathAddressable (G1.16)', () => {
 	});
 
 	it('rejects a childless final hop reached through several resolving prefixes', () => {
-		// [1, 0, 1, 0, 5]: every prefix resolves (blockquote → list → item "two" →
-		// its paragraph); the paragraph is a leaf, so the final index has no child.
+		// Every prefix resolves down to a leaf paragraph, so only the final index dangles.
 		expect(check([1, 0, 1, 0, 5], 'snapshot.path')).toMatchObject({
 			code: 'commit-path-dialect',
 			detail: { failedAt: 4 }

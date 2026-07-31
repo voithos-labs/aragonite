@@ -1,11 +1,7 @@
-// The standard editor context a block component reads when mounted in isolation.
-//
-// A bare `mount(SomeBlock, ...)` needs every root-provided context the component
-// pulls: the action triple + history (per-key) and the three facets (services,
-// policies, document). This assembles that Map with sensible stubs so a test
-// mounts one block without hand-enumerating the interface, and re-collapses onto
-// it whenever a new required context is added. Override any per-key value or a
-// subset of a facet's members through `overrides`.
+// The standard editor context a block component reads when mounted in isolation,
+// so a test mounts one block without hand-enumerating the root-provided interface
+// and re-collapses onto this file whenever a new required context appears.
+// `overrides` takes a per-key value or a subset of a facet's members.
 
 import { vi } from 'vitest';
 import {
@@ -85,6 +81,7 @@ function stubbedPolicies(): EditorPolicies {
 		imageLoadPolicy: () => 'auto',
 		blockDragHandles: () => false,
 		presentationMode: () => 'source',
+		theme: () => 'dark',
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,
 		brokenImageUrls: new Set<string>()
@@ -92,8 +89,13 @@ function stubbedPolicies(): EditorPolicies {
 }
 
 function stubbedDoc(emptyDoc: Document): EditorDoc {
+	// Fresh on every read: a bare mount has no reactive graph to invalidate a
+	// derived on, so "always a memo miss" is the only stub that can't hand a
+	// consumer a stale answer. A test measuring memo hits supplies its own.
+	let version = 0;
 	return {
 		doc: () => emptyDoc,
+		contentVersion: () => ++version,
 		linkRef: {},
 		pluginEditor: (() => undefined) as unknown as EditorDoc['pluginEditor'],
 		lifetime: new AbortController().signal,

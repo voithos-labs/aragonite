@@ -1,9 +1,7 @@
 /**
- * Content-keyed, pre-parse paste transforms. A plugin registers a named
- * transform that inspects the raw clipboard text and either rewrites it or
- * declines; `applyPasteTransforms` runs the whole pipeline at the two sites
- * where clipboard text reaches `parse()`. Register-once, throw-on-duplicate —
- * the `customElements` model shared with `paste-surfaces.ts`.
+ * Content-keyed, pre-parse paste transforms: a plugin registers a named transform that
+ * rewrites the raw clipboard text or declines. Register-once, throw-on-duplicate — the
+ * `customElements` model shared with `paste-surfaces.ts`.
  */
 import { currentInstallingPlugin } from '../../schema/plugin-install';
 import { registerOnce } from '../../schema/register-once';
@@ -13,8 +11,7 @@ import { editorEnv } from '../../env';
 export interface PasteTransform {
 	/** Unique across the process; a duplicate registration throws. */
 	readonly name: string;
-	/** Return a replacement for `text`, or null to decline ("not mine"). A throw
-	 *  is contained and read as a decline. */
+	/** A replacement for `text`, or null to decline. A throw is contained as a decline. */
 	transform(text: string): string | null;
 }
 
@@ -23,8 +20,8 @@ interface RegisteredTransform {
 	owner: string | null;
 }
 
-// Map iteration is insertion order, so `.values()` is the pipeline order and the
-// keyed lookup guards duplicates — one structure, no parallel array.
+// Map iteration is insertion order, so `.values()` is the pipeline order while the keyed
+// lookup guards duplicates — one structure, no parallel array.
 const transforms = new Map<string, RegisteredTransform>();
 
 export function registerPasteTransform(transform: PasteTransform): void {
@@ -39,9 +36,8 @@ export function registerPasteTransform(transform: PasteTransform): void {
 }
 
 /**
- * Run every registered transform over `text` in registration order — each sees
- * the prior transform's output; a null return leaves the running text untouched.
- * The empty registry returns the input with no allocation (paste's hot path).
+ * Run every transform over `text` in registration order, each seeing the prior's output;
+ * a null return leaves the running text untouched.
  */
 export function applyPasteTransforms(text: string): string {
 	if (transforms.size === 0) return text;
@@ -60,15 +56,11 @@ export function __resetPasteTransformsForTests(): void {
 }
 
 /**
- * The one door `transform()` (plugin code, run on a user gesture) is called
- * through. On the cross-block route the covering range delete has already
- * committed by the time the pipeline runs, so an escaping throw leaves the
- * selection deleted, nothing pasted, and the consumer's error seam silent. A
- * throw becomes the same null a decline returns, which also keeps the dev probe
- * below honest: a re-run that throws reads as "declined", so it can never be
- * misreported as a non-idempotent rewrite. The phase is named in the warning
- * because the two sites cost the author different things, and a probe-time
- * throw reported as a decline would send them debugging a paste that worked.
+ * The one door plugin `transform()` code is called through. On the cross-block route the
+ * covering range delete has already committed, so an escaping throw would leave the
+ * selection deleted and nothing pasted; a throw becomes the null a decline returns. The
+ * warning names its phase because a probe-time throw read as a decline would send the
+ * author debugging a paste that worked.
  */
 function runContained(
 	transform: PasteTransform,
@@ -87,9 +79,8 @@ function runContained(
 	}
 }
 
-// A transform whose own output feeds back into a further rewrite drives a paste
-// feedback loop. In dev, re-run the firing transform on its result: it must
-// decline or reproduce it. The extra call is dev-only, so production never pays.
+// A transform whose own output feeds back into a further rewrite drives a paste feedback
+// loop, so in dev it is re-run on its result: it must decline or reproduce it.
 function warnIfNonIdempotent(transform: PasteTransform, result: string): void {
 	if (!editorEnv.isDev) return;
 	const again = runContained(transform, result, 'probe');

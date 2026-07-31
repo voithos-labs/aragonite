@@ -24,17 +24,12 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	// Settle the route navigation before the baseline `setSource`. Unlike the
-	// neighbours that go straight to `loadLargeFixture` (whose 90s probe rides out
-	// a still-committing nav), this test's first post-goto interaction is the
-	// 2s-timeout baseline load — under CPU contention it can fire mid-navigation
-	// and abort with "navigated to /test/editor".
+	// This test's first post-goto interaction is a 2s-timeout load, not the 90s probe its
+	// neighbours ride; under CPU contention it can fire mid-navigation and abort.
 	await page.waitForURL(/\/test\/editor/);
 
-	// The running mounted-block balance is polluted by the showcase mounted
-	// before perf was armed. Reset to a known 1-block baseline and settle, THEN
-	// enable+reset, so post-load the balance reflects the window (≈ census), not
-	// window minus showcase.
+	// Reset to a 1-block baseline BEFORE arming perf: the running balance is otherwise
+	// polluted by the showcase mounted while the gauge was off, reading window-minus-showcase.
 	await editor.loadContent('baseline\n');
 	await page.evaluate(() => {
 		(window as any).__test.perf.enable();
@@ -56,17 +51,13 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	// Cross-check the gauge against the live census; they should agree within the
 	// 1-block baseline the balance was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
-	// Heaviest windowed reconcile path — a render-phase throw (e.g. a
-	// state_unsafe_mutation) must fail the test, not pass silently green.
+	// Without this a render-phase throw (state_unsafe_mutation) passes silently green.
 	expect(pageErrors).toEqual([]);
 });
 
-// VR-8 mitigation #1 (skeleton background). A real compositor fling can outrun the
-// window recompute and paint a bare spacer for one frame; the blank-gap itself is
-// not harness-drivable (a main-thread scroll driver flushes the new slice before
-// paint), so this guards the MITIGATION — the spacer carries a non-transparent
-// placeholder tint — not the unreachable gap. Removing the editor.css rule or the
-// --vr-spacer-bg token drops the alpha to 0 and fails this.
+// VR-8 mitigation #1. The blank gap itself is not harness-drivable (a main-thread scroll
+// driver flushes the new slice before paint), so this guards the MITIGATION instead: the
+// spacer's placeholder tint, which the editor.css rule and --vr-spacer-bg token supply.
 test('windowed spacers carry a placeholder background (VR-8 skeleton)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -95,9 +86,8 @@ test('mounted set stays bounded as document size grows (O(viewport), not O(doc))
 	const editor = new EditorPage(page);
 	await editor.goto();
 
-	// `many-small-blocks` is flat, so the top-level DOM census IS the mounted
-	// window — no perf-gauge reset dance needed between loads. Two modest sizes
-	// that both clearly activate windowing.
+	// `many-small-blocks` is flat, so the top-level DOM census IS the mounted window —
+	// no perf-gauge reset dance needed between loads.
 	const cstSmall = await editor.loadLargeFixture('many-small-blocks', 500_000);
 	const mountedSmall = await editor.getDomBlockCount();
 	const cstBig = await editor.loadLargeFixture('many-small-blocks', 1_500_000);
@@ -154,8 +144,7 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 	// paragraph count. getDomBlockCount excludes nested hosts, so census all paths.
 	expect(await allHostCount(page)).toBeLessThan(150);
 
-	// A render-phase throw (e.g. state_unsafe_mutation in the windowed reconcile)
-	// must fail, not pass green.
+	// Without this a render-phase throw in the windowed reconcile passes silently green.
 	expect(pageErrors).toEqual([]);
 });
 
@@ -206,10 +195,8 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 		await page.evaluate(() => document.querySelectorAll('[data-table-row-idx]').length)
 	).toBeLessThan(120);
 
-	// Grid still lays out: a mounted row's cells form ONE horizontal band (shared
-	// top) spanning the table width. Deleting the spacers' `grid-column: 1 / -1`
-	// shifts the cells one grid track, splitting a row across two row bands — the
-	// shared-top assertion (not a width check, which survives the shift) catches it.
+	// Deleting the spacers' `grid-column: 1 / -1` shifts cells one track and splits a row
+	// across two bands. Asserted on shared top, not width — a width check survives the shift.
 	const band = await page.evaluate(() => {
 		const table = document.querySelector('.table-block') as HTMLElement;
 		const row = document.querySelector('[data-table-row-idx]') as HTMLElement | null;
@@ -230,7 +217,6 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 	expect(band!.leftGap).toBeLessThan(4);
 	expect(band!.rightGap).toBeLessThan(4);
 
-	// A render-phase throw (e.g. state_unsafe_mutation / effect_update_depth_exceeded)
-	// must fail the test, not pass silently green.
+	// Without this a render-phase throw (effect_update_depth_exceeded) passes silently green.
 	expect(pageErrors).toEqual([]);
 });

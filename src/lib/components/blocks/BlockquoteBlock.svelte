@@ -1,8 +1,5 @@
 <script lang="ts">
-	import {
-		createContainerBlock,
-		type ContainerBlockComponent
-	} from '../../editor-actions/plugin/container';
+	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import type { NodeView } from '../../core/node-views';
 	import BlockList from '../BlockList.svelte';
 
@@ -10,10 +7,8 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// Blockquote is a plain strip container, so the seam wires it end to end. Its
-	// collapse gates and kind-command target stay inert (no reservedChrome probe, no
-	// keymap), and `handleKeydown` is deliberately left unwired — a blockquote never
-	// bubbled kind commands, and attaching it would add that behavior.
+	// A plain strip container: the seam wires it end to end. `handleKeydown` stays
+	// unwired on purpose — a blockquote never bubbled kind commands.
 	const { blockListProps, containerApi } = createContainerBlock({
 		getNode: () => node,
 		getIndex: () => index,
@@ -21,33 +16,7 @@
 		getBoxEl: () => boxEl
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-	// Completeness guard: `bind:this` reads each instance export individually, so a
-	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
-	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
-	void ({
-		editable,
-		focusable,
-		focus,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <div class="blockquote-block" bind:this={boxEl}>

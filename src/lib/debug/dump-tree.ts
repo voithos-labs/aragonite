@@ -46,9 +46,8 @@ function renderNode(
 			: null;
 
 	if (rawDisplay.includes('\n')) {
-		// Continuation lines are offset one extra column so they align after
-		// the opening quote and aren't mistaken for child entries (which start
-		// with `[` at the same indent).
+		// Continuation lines take one extra column so they align after the opening quote
+		// instead of reading as child entries, which start with `[` at the same indent.
 		if (triviaStr) header.push(triviaStr);
 		lines.push(header.join(' '));
 		const rawLines = rawDisplay.split('\n');
@@ -76,9 +75,8 @@ function formatMetadata(node: NodeView, opts: Required<DumpTreeOptions>): string
 	const m = node.metadata;
 	if (!m) return '';
 	const frags: string[] = [];
-	// Narrowing to the built-in union lets each arm read its own metadata directly
-	// — no `'field' in m` probing. Metadata-less arms exit above; the plugin arm
-	// (branded kind) and built-in arms with nothing to print fall through.
+	// Narrowing to the built-in union lets each arm read its own metadata directly, with no
+	// `'field' in m` probing.
 	if (isBuiltinBlockNode(node)) {
 		switch (node.kind) {
 			case 'heading':

@@ -4,37 +4,69 @@ import {
 	EDITOR_SERVICES_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
+	type BlockElLookup,
 	type BlockMeasureChannel,
 	type EditorDoc,
 	type EditorServices,
 	type ParentScopeSink
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
-import { createListWindowing, type ListWindowing } from './list-windowing.svelte';
+import type { RevealTarget } from '../cursor/reveal-anchor';
+import {
+	createListWindowing,
+	type ListWindowing,
+	type RevealAnchorPlacement
+} from './list-windowing.svelte';
 
 export interface ContainerWindowingOpts {
-	/** Live read of this container's index in its PARENT scope, for the upward subtotal report. A getter (not a value) so reorders report under the current slot. Ignored at the root (no parent sink). */
+	/** This container's index in its PARENT scope, for the upward subtotal report. A getter, so
+	 *  reorders report under the current slot. Ignored at the root (no parent sink). */
 	getIndex: () => number;
 	/** This scope's path; the leaf-channel depth is its length. `[]` at the root. */
 	getParentPath: () => number[];
 	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
-	/** The content-origin element that scrolls WITH this scope's children (inner `.block-list` / `.list-block` / `.table-block`). Never the viewport. */
+	/** The content-origin element that scrolls WITH this scope's children. Never the viewport. */
 	getListEl: () => HTMLElement | null;
-	/** The element the PARENT measures for this scope's height. Omit at the root (nothing measures it). */
+	/** The element the PARENT measures for this scope's height. Omit at the root. */
 	getOwnEl?: () => HTMLElement | null;
-	/** True when this scope's DIRECT children are `BlockHost`s (editor / blockquote / list-item) → shadow the leaf channel. False for direct-`{#each}` scopes (list / table). */
+	/** True when this scope's DIRECT children are `BlockHost`s → shadow the leaf channel.
+	 *  False for direct-`{#each}` scopes (list / table). */
 	provideLeafChannel: boolean;
-	/** Collapse clamp — while true this scope mounts only its chrome row (child 0). See `ListWindowingDeps.isCollapsed`. */
+	/** Collapse clamp; see `ListWindowingDeps.isCollapsed`. */
 	isCollapsed?: () => boolean;
 }
 
 /**
- * One windowing wiring unit per BlockList-bearing OR direct-each container scope.
- * Reads the windowing contexts, builds `createListWindowing` with the shared
- * constants, and provides the subtotal sink (+ the leaf channel for hosted
- * children). Call it synchronously during component init. Returns the handle the
- * component passes to its sliced render and to `createContainerBlockComponent`.
+ * Resolve the reveal target into the ROOT scope's coordinates. The model addresses
+ * top-level children only, so a nested target contributes its ancestor's index plus the
+ * measured drop down to itself — without which the pin re-asserts the CONTAINER's top and
+ * pushes an already-resolved nested target back out of view.
+ */
+function placementOf(
+	target: RevealTarget | null,
+	blockEl: BlockElLookup
+): RevealAnchorPlacement | null {
+	if (!target || target.path.length === 0) return null;
+	const shallow = { index: target.path[0], block: target.block, innerOffset: 0, height: null };
+	if (target.path.length === 1) return shallow;
+	const ancestorEl = blockEl([shallow.index]);
+	const targetEl = blockEl(target.path);
+	// An unmounted nested target has no geometry yet: hold the ancestor until it mounts.
+	if (!ancestorEl || !targetEl) return shallow;
+	const targetRect = targetEl.getBoundingClientRect();
+	return {
+		index: shallow.index,
+		block: target.block,
+		innerOffset: targetRect.top - ancestorEl.getBoundingClientRect().top,
+		height: targetRect.height
+	};
+}
+
+/**
+ * One windowing wiring unit per BlockList-bearing or direct-each container scope: reads
+ * the windowing contexts, builds `createListWindowing` with the shared constants, and
+ * provides the subtotal sink plus the leaf channel. Call synchronously during component init.
  */
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
 	const {
@@ -42,14 +74,14 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		editorRoot: getEditorRoot,
 		focusedPath: getFocusPath,
 		widthVersion: getWidthVersion,
-		windowingEnabled
+		windowingEnabled,
+		blockElLookup
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
-	// Single-claimant: only the ROOT scope holds the reveal anchor (path[0]); nested
-	// scopes keep top-of-viewport anchoring, or their deltas would fight over one scrollTop.
-	// Host-scroll mode has no claimant at all: the anchor's re-assertion writes scrollTop
-	// on an element that doesn't scroll, and with windowing off nothing needs the pin.
+	// Single-claimant: nested scopes keep top-of-viewport anchoring, or their deltas would
+	// fight over one scrollTop. Host-scroll mode has no claimant at all — the re-assertion
+	// would write scrollTop on an element that doesn't scroll.
 	const claimsRevealAnchor = opts.getParentPath().length === 0 && windowingEnabled();
 
 	const windowing = createListWindowing({
@@ -61,12 +93,7 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getScrollEl: () => getEditorRoot?.() ?? null,
 		getFocusPath: () => getFocusPath?.() ?? null,
 		getRevealAnchorTarget: claimsRevealAnchor
-			? () => {
-					const target = revealAnchor?.get() ?? null;
-					return target && target.path.length > 0
-						? { index: target.path[0], block: target.block }
-						: null;
-				}
+			? () => placementOf(revealAnchor?.get() ?? null, blockElLookup)
 			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
 		windowingEnabled,
@@ -75,11 +102,9 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)
 			: undefined,
 		isCollapsed: opts.isCollapsed,
-		// A fling can outrun the deferred window recompute by more than the overscan
-		// band, briefly painting an empty spacer (VR-8). 6 widens the band without
-		// breaching the mounted-set ceiling (the < 60 flat e2e bound is the guard); a
-		// skeleton spacer background covers the residual one-frame gap a compositor
-		// fling can still open.
+		// A fling can outrun the deferred window recompute and briefly paint an empty spacer
+		// (VR-8). 6 widens the band without breaching the mounted-set ceiling (the < 60 flat
+		// e2e bound guards that); a skeleton background covers the residual one-frame gap.
 		overscan: 6,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
@@ -87,9 +112,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	});
 
 	if (opts.provideLeafChannel) {
-		// A DIRECT child (path one deeper than this scope) measures into this model via
-		// the scope's batched pass. Nested hosts (path deeper than this scope) belong to
-		// their own scope's channel, so register is a no-op here.
+		// Only a DIRECT child measures into this model; a deeper host belongs to its own
+		// scope's channel, so register is a no-op here.
 		setContext(RECORD_BLOCK_HEIGHT_KEY, {
 			register(path, index, id, readHeight) {
 				const depth = opts.getParentPath().length;

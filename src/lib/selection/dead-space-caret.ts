@@ -1,24 +1,13 @@
 /**
- * Caret placement for a click in the editor's dead space — the root's own padding
- * beside a block, or the empty area below the last one. Both used to land focus on
- * the root and place no caret at all, so the click did nothing a user could see.
- *
- * The rule is one sentence: clamp the point into the nearest block's box and let the
- * existing hit test resolve the leaf under it. Nothing here knows a block kind — the
- * clamp turns "beside a line" into a point ON that line and "below everything" into
- * the last block's trailing corner, and `blockAtPoint` descends into containers by
- * itself. Surfaces that address something other than characters (a table, whose
- * offset is a cell index) decline rather than guess; see `docs/issues.md`.
- *
- * "Below the last block" means below the last MOUNTED one: the bands come from the
- * live DOM, which under virtual rendering is the window, not the document. Harmless
- * as the gesture stands — the dead space below the document is only visible when you
- * are scrolled to the bottom, where the last block is mounted — but anything built on
- * these bands must not assume the whole document is in them.
+ * Caret placement for a click in the editor's dead space: the root's padding beside a block, or
+ * the area below the last one. The rule is one sentence: clamp the point into the nearest
+ * block's box and let `blockAtPoint` resolve the leaf under it, so nothing here knows a block
+ * kind. "Below the last block" means the last MOUNTED one, since the bands come from the live
+ * DOM, which under virtual rendering is the window rather than the document.
  */
 
 import type { BlockComponent } from '../block-component';
-import { blockAtPoint } from './block-hit-test';
+import { blockAtPoint, type BlockHit } from './block-hit-test';
 import { offsetFromViewportPoint } from './native-bridge';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -29,14 +18,10 @@ export interface BlockBand {
 }
 
 /**
- * The band a dead-space `y` belongs to. `belowAll` marks a click past the last
- * band — the end-of-document gesture, which lands at a trailing corner rather than
- * under the click's own x. A y in a gap between bands (or above the first) resolves
- * to the nearest band, so no dead-space click is left unanswered.
- *
- * Bands arrive in document order and may nest (a container's band contains its
- * children's), so containment scans forward and the outermost match wins; the hit
- * test then descends to the leaf.
+ * The band a dead-space `y` belongs to. `belowAll` marks a click past the last band, the
+ * end-of-document gesture, which lands at a trailing corner rather than under the click's own
+ * x. A y in a gap resolves to the nearest band, so no dead-space click is left unanswered.
+ * Bands arrive in document order and may nest, so containment scans forward, outermost wins.
  */
 export function nearestBand(
 	bands: BlockBand[],
@@ -65,9 +50,8 @@ export function nearestBand(
 export interface DeadSpaceCaretDeps {
 	getBlockComponent(path: number[]): BlockComponent | null;
 	/**
-	 * The shared pointerdown preamble (`cross-block/pointer.ts`), pre-bound to a
-	 * non-shift press. A dead-space click is a caret-placing gesture and must end a
-	 * live cross-block range exactly as a click on a block does.
+	 * The shared pointerdown preamble (`cross-block/pointer.ts`), pre-bound to a non-shift press:
+	 * a dead-space click must end a live cross-block range exactly as a click on a block does.
 	 */
 	resetSelectionForClick(): void;
 }
@@ -80,17 +64,15 @@ export interface DeadSpaceCaret {
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
-	// The press half of the gesture, because `click` alone cannot tell a dead-space
-	// click from a drag that STARTED on a block and released in the margin — both
-	// report the root as their target, since the click event fires on the common
-	// ancestor of press and release.
+	// The press half of the gesture, because `click` alone cannot tell a dead-space click from a
+	// drag that STARTED on a block and released in the margin: both report the root as target.
 	let pressedOnRoot = false;
 
 	return {
 		notePress(root, event) {
-			// The root is the only target that means "dead space": every overlay, handle,
-			// badge and header-slot node is a descendant with its own target identity,
-			// and a press on a block reports the block.
+			// The root is the only target that means "dead space": every overlay, handle, badge
+			// and header-slot node is a descendant with its own identity, and a press on a block
+			// reports the block.
 			pressedOnRoot =
 				event.target === root &&
 				event.button === 0 &&
@@ -102,11 +84,9 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			const pressed = pressedOnRoot;
 			pressedOnRoot = false;
 			if (!pressed || event.target !== root) return false;
-			// A drag that ended in the margin leaves a real range behind; collapsing it
-			// to a caret would throw away what the user just selected. This sees only
-			// NATIVE ranges — a cross-block range is overlay-painted with the native
-			// selection empty, and that one is ended below rather than declined, which
-			// is what a click means.
+			// A drag that ended in the margin leaves a real range behind; collapsing it would
+			// throw away what the user just selected. This sees only NATIVE ranges: a cross-block
+			// range is overlay-painted with the native selection empty, and is ended below instead.
 			const native = root.ownerDocument.defaultView?.getSelection();
 			if (native && native.rangeCount > 0 && !native.isCollapsed) return false;
 
@@ -123,28 +103,48 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			const probeY = clamp(event.clientY, rect.top + 1, rect.bottom - 1);
 
 			const hit = blockAtPoint(root, probeX, probeY);
-			if (!hit || hit.foreignDragHitTest) return false;
-			// Reading mode flips contenteditable off, and a non-editable leaf (a rule, a
-			// rendered diagram) has no character position to land on — both decline here.
-			if (!hit.element.matches('[contenteditable="true"]')) return false;
-
-			const offset = offsetFromViewportPoint(hit.element, probeX, probeY);
-			if (offset === null) return false;
+			if (!hit) return false;
+			const landing = landingFor(hit, probeX, probeY);
+			if (!landing) return false;
 
 			const component = deps.getBlockComponent(hit.path);
 			if (!component?.focusable) return false;
+			// An internal landing needs the deep door; a block declaring the hook without it
+			// can't be reached, and declining here keeps the selection intact.
+			if (landing.path.length > 0 && !component.focusByPath) return false;
 
-			// Only once the landing is known: a declined click leaves the selection as it
-			// found it. Left live, the range would still be painted over a caret placed
-			// elsewhere, and the next printable key would type-replace the whole of it.
+			// Only once the landing is known, so a declined click leaves the selection as it
+			// found it: a live range stays painted over a caret placed elsewhere, and the next
+			// printable key type-replaces the whole of it.
 			deps.resetSelectionForClick();
-			component.focus(offset);
+			// Both doors end the live range (`selection/caret-doors.ts`); `focusByPath` reaches
+			// the leaf's own `focus`.
+			if (landing.path.length === 0) component.focus(landing.offset);
+			else component.focusByPath!(landing.path, landing.offset);
 			return true;
 		}
 	};
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * Where the caret goes for a resolved hit: an internal child path (empty for a
+ * character-addressed surface) plus the offset within that leaf. Null declines the click.
+ */
+function landingFor(
+	hit: BlockHit,
+	probeX: number,
+	probeY: number
+): { path: number[]; offset: number } | null {
+	if (hit.caretTargetAtPoint) return hit.caretTargetAtPoint(probeX, probeY);
+	// A kind with only the drag hook addresses cells and named no caret landing.
+	if (hit.foreignDragHitTest) return null;
+	// Reading mode flips contenteditable off, and a non-editable leaf has no character position.
+	if (!hit.element.matches('[contenteditable="true"]')) return null;
+	const offset = offsetFromViewportPoint(hit.element, probeX, probeY);
+	return offset === null ? null : { path: [], offset };
+}
 
 function clamp(value: number, low: number, high: number): number {
 	return Math.min(Math.max(value, low), high);

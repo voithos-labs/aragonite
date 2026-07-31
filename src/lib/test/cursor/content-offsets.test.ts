@@ -7,6 +7,7 @@ import {
 	createRangeFromOffsets,
 	setCursorOffset,
 	getCursorOffset,
+	getRangeOffsets,
 	getSelectionOffsets,
 	hasSelection
 } from '../../cursor/content-offsets';
@@ -100,6 +101,39 @@ describe('content-offsets', () => {
 			container.focus();
 			setCursorOffset(container, asDomTextOffset(1));
 			expect(getSelectionOffsets(container)).toBeNull();
+		});
+
+		// An endpoint outside the container is not this container's to measure: the old 0 fallback
+		// read as a real offset. Surfaces treat null as "not mine" and decline.
+		it('returns null when the selection reaches outside the container', () => {
+			container.textContent = 'abcdef';
+			const outside = document.createElement('div');
+			outside.textContent = 'xyz';
+			document.body.appendChild(outside);
+
+			const range = document.createRange();
+			range.setStart(container.firstChild!, 2);
+			range.setEnd(outside.firstChild!, 2);
+			const sel = window.getSelection()!;
+			sel.removeAllRanges();
+			sel.addRange(range);
+
+			expect(getSelectionOffsets(container)).toBeNull();
+			document.body.removeChild(outside);
+		});
+	});
+
+	describe('getRangeOffsets', () => {
+		it('measures a range the selection does not hold — the pending-edit case', () => {
+			container.textContent = 'abcdef';
+			const range = createRangeFromOffsets(container, asDomTextOffset(1), asDomTextOffset(4));
+			expect(getRangeOffsets(container, range!)).toEqual({ start: 1, end: 4 });
+		});
+
+		it('measures a collapsed range, unlike getSelectionOffsets', () => {
+			container.textContent = 'abcdef';
+			const range = createRangeFromOffsets(container, asDomTextOffset(3), asDomTextOffset(3));
+			expect(getRangeOffsets(container, range!)).toEqual({ start: 3, end: 3 });
 		});
 	});
 

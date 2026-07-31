@@ -2,23 +2,21 @@ import { test, expect } from '../../fixtures';
 import { type Locator, type Page } from '@playwright/test';
 import { PluginsPage, readContainer, readDoc } from './helpers';
 
-// Opaque plugin containers (admonition, <details>, callout) decline nested reorder
-// at their boundary: the resolver returns no unit, so drag/keyboard reorder inside
-// them is a no-op, and the inner BlockList renders no drag handle on the reserved
-// chrome row OR the body rows. The container itself stays a top-level reorder unit.
-// Handles are existence-gated on being a reorder unit (opacity only reveals on
-// hover), so handle COUNT is the affordance oracle. CST/source read via __test.
+// Opaque plugin containers (admonition, <details>, callout) decline nested reorder at their
+// boundary: the resolver returns no unit, so drag/keyboard reorder inside them is a no-op and the
+// inner BlockList renders no drag handle on the reserved chrome row OR the body rows. The container
+// itself stays a top-level reorder unit. Handles are existence-gated on being a reorder unit
+// (opacity only reveals on hover), so handle COUNT is the affordance oracle.
 
-// The handle is a direct child of the block-host wrapper; the `>` combinator
-// isolates a row's OWN handle from any nested descendants'.
+// The handle is a direct child of the block-host wrapper; the `>` combinator isolates a row's OWN
+// handle from any nested descendants'.
 function ownHandle(page: Page, path: number[]): Locator {
 	return page.locator(`[data-block-path='${JSON.stringify(path)}'] > .block-drag-handle`);
 }
 
-// Reveal + real-pointer drag of a top-level container's OWN handle to a drop target.
-// Hovering anywhere in the container reveals its own grip once no inner row is a
-// reorder unit (the `:not(:has(.reorder-host:hover))` rule), which is exactly the
-// post-fix state.
+// Reveal + real-pointer drag of a top-level container's OWN handle to a drop target. Hovering
+// anywhere in the container reveals its own grip once no inner row is a reorder unit (the
+// `:not(:has(.reorder-host:hover))` rule), which is exactly the post-fix state.
 async function dragContainerHandle(
 	page: Page,
 	containerKind: string,
@@ -40,9 +38,9 @@ async function dragContainerHandle(
 }
 
 const ADMONITION = ':::tip Pro tip\nBody one\n\nBody two\n:::\n';
-// Siblings ABOVE and below so a mis-scoped reorder would teleport the container to
-// a different document index (the pre-fix bug) — a lone container clamps to a no-op
-// and would hide the teleport. Admonition sits at doc index 1, body one at [1, 1].
+// Siblings ABOVE and below so a mis-scoped reorder would teleport the container to a different
+// document index — a lone container clamps to a no-op and would hide the teleport. Admonition sits
+// at doc index 1, body one at [1, 1].
 const ADMONITION_SIBLINGS = 'TOP\n\n:::tip Pro tip\nBody one\n\nBody two\n:::\n\nTAIL\n';
 const ADMONITION_TAIL = ':::tip Pro tip\nBody one\n:::\n\nTAIL\n';
 const DETAILS = '<details open>\n<summary>Summary</summary>\n\nDetails body\n\n</details>\n';

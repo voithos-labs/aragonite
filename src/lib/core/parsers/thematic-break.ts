@@ -2,8 +2,7 @@
 // dispatch only reaches here after a blank line or a non-paragraph state.
 
 export function matchThematicBreak(text: string): string | null {
-	// CommonMark §4.1: 0–3 columns of leading indentation; 4+ make the line
-	// indented code, not a thematic break (tabs advance to the next stop of 4).
+	// CommonMark §4.1: 0-3 columns of indent; 4+ is indented code (tabs advance to the next 4).
 	let col = 0;
 	for (let i = 0; i < text.length && (text[i] === ' ' || text[i] === '\t'); i++) {
 		col += text[i] === '\t' ? 4 - (col % 4) : 1;

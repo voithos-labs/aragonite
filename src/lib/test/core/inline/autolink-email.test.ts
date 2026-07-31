@@ -1,98 +1,69 @@
 import { describe, it, expect } from 'vitest';
 import { inlineOf } from './inline-test-helpers';
 
+/**
+ * GFM §6.9's extended email autolink. The domain half answers to cmark-gfm, which is what
+ * GitHub runs and what settles the corners the spec's prose leaves loose. The one place
+ * this module keeps the spec against cmark-gfm is the leading boundary — see the two
+ * boundary rows, which cmark-gfm links because it guards only the `www.` form.
+ */
+
+function emailAutolinks(source: string) {
+	return inlineOf(source).filter((node) => node.kind === 'autolink');
+}
+
+const LINKS: [string, string, string][] = [
+	['at sentence position', 'Email me at foo@bar.com please', 'foo@bar.com'],
+	['at start of region', 'foo@bar.com', 'foo@bar.com'],
+	['dot, plus, underscore, hyphen in the local part', 'a.b+c_d-e@x.com', 'a.b+c_d-e@x.com'],
+	['multi-label domain', 'foo@a.b.c.example.com', 'foo@a.b.c.example.com'],
+	['hyphen inside a domain label', 'foo@bar-baz.example.com', 'foo@bar-baz.example.com'],
+	['underscore inside a domain label', 'a@b_c.com', 'a@b_c.com'],
+	['label ending in a hyphen, mid-domain', 'foo@bar-.com', 'foo@bar-.com'],
+	['trailing period is outside the address', 'Email me at foo@bar.com.', 'foo@bar.com'],
+	['spec example: dots and dashes both sides', 'a.b-c_d@a.b', 'a.b-c_d@a.b'],
+	['spec example: only a period may end it', 'a.b-c_d@a.b.', 'a.b-c_d@a.b']
+];
+
+const STAYS_LITERAL: [string, string][] = [
+	['spec example: domain ending in a hyphen', 'a.b-c_d@a.b-'],
+	['spec example: domain ending in an underscore', 'a.b-c_d@a.b_'],
+	['underscore after an otherwise complete domain', 'foo@bar.com_'],
+	['last label ending in a hyphen', 'foo@bar.baz-'],
+	['single-label domain', 'foo@bar'],
+	['empty local part', '@bar.com'],
+	// Boundary rows: the local-part scan walks back to `x` / `bar`, then the
+	// preceding `/` and `@` fail the §6.9 leading boundary.
+	['local part preceded by a non-boundary character', 'a/xfoo@bar.com'],
+	['two @ characters', 'foo@bar@example.com']
+];
+
 describe('bare email autolink (GFM §6.9)', () => {
-	it('autolinks foo@bar.com at sentence position', () => {
-		const raw = 'Email me at foo@bar.com please';
-		const nodes = inlineOf(raw);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
-		expect(raw.slice(autolinks[0].start, autolinks[0].end)).toBe('foo@bar.com');
+	it.each(LINKS)('links %s', (_label, source, linked) => {
+		const links = emailAutolinks(source);
+		expect(links).toHaveLength(1);
+		expect(source.slice(links[0].start, links[0].end)).toBe(linked);
+		expect(links[0].url).toBe(`mailto:${linked}`);
 	});
 
-	it('autolinks email at start-of-region', () => {
-		const nodes = inlineOf('foo@bar.com');
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+	it.each(STAYS_LITERAL)('leaves %s literal', (_label, source) => {
+		expect(emailAutolinks(source)).toEqual([]);
+	});
+});
+
+// Three domain-scan corners no spec example settles, so each is pinned against the
+// implementation GitHub runs rather than against the prose.
+describe('email domain corners the spec prose leaves to cmark-gfm', () => {
+	it.each([
+		['a domain ending in a digit', 'a@b.c1'],
+		['a period followed by a non-alphanumeric', 'a@b._c']
+	])('leaves %s literal', (_label, source) => {
+		expect(emailAutolinks(source)).toEqual([]);
 	});
 
-	it('accepts dots, plus, underscore, hyphen in local part', () => {
-		const raw = 'a.b+c_d-e@example.com';
-		const nodes = inlineOf(raw);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:a.b+c_d-e@example.com');
-	});
-
-	it('accepts multi-segment domain', () => {
-		const raw = 'foo@a.b.c.example.com';
-		const nodes = inlineOf(raw);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:foo@a.b.c.example.com');
-	});
-
-	it('accepts hyphen inside domain segments', () => {
-		const raw = 'foo@bar-baz.example.com';
-		const nodes = inlineOf(raw);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:foo@bar-baz.example.com');
-	});
-
-	it('rejects email when last domain char is hyphen (GFM rule)', () => {
-		const nodes = inlineOf('foo@bar-.com');
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
-
-	it('excludes trailing underscore from domain (GFM)', () => {
-		const raw = 'foo@bar.com_';
-		const nodes = inlineOf(raw);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
-		// Trailing _ is outside EMAIL_DOMAIN_CHAR; the segment scan halts at 'm'
-		// and the underscore lands as text, same as a trailing whitespace.
-	});
-
-	it('rejects when an inner segment ends in hyphen', () => {
-		// Inner-segment trailing dash exercises the in-loop break — distinct from
-		// the first-segment dash check covered above.
-		const raw = 'foo@bar.baz-';
-		const nodes = inlineOf(raw);
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
-
-	it('rejects single-segment domain', () => {
-		const nodes = inlineOf('foo@bar');
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
-
-	it('rejects when local-part preceded by non-boundary char', () => {
-		// 'a/' supplies a leading '/' outside the boundary allow-list. The
-		// local-part scan walks back to 'x', then isValidLeadingBoundary sees
-		// '/' at the position before and rejects.
-		const nodes = inlineOf('a/xfoo@bar.com');
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
-
-	it('rejects email with empty local-part', () => {
-		const nodes = inlineOf('@bar.com');
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
-
-	it('rejects email-shaped string with two @ chars', () => {
-		const nodes = inlineOf('foo@bar@example.com');
-		expect(nodes.every((n) => n.kind !== 'autolink')).toBe(true);
-	});
-
-	it('strips trailing period at sentence end', () => {
-		const raw = 'Email me at foo@bar.com.';
-		const nodes = inlineOf(raw);
-		const autolinks = nodes.filter((n) => n.kind === 'autolink');
-		expect(autolinks).toHaveLength(1);
-		expect(autolinks[0].url).toBe('mailto:foo@bar.com');
+	it('links a domain whose first label is empty', () => {
+		const links = emailAutolinks('a@.b');
+		expect(links).toHaveLength(1);
+		expect(links[0].url).toBe('mailto:a@.b');
 	});
 });

@@ -3,16 +3,11 @@ import { primaryModifier } from '../../platform';
 import { DetailsPage, activeBlockPath, bodyHostCount, capturedErrors } from './details-helpers';
 
 /**
- * Reveal into a collapsed body, from the search side: the caret half. Searching for
- * text that lives in a clamped-out body child drives the real reveal path
- * (`revealPath` → container `revealByPath` → `revealChildOrWait`) against a collapsed
- * details, which now opens the kind's expand door and commits it. This e2e is NOT the
- * no-hang proof: that seam (a reveal into a body no scroll can mount must terminate —
- * VR-5) is unit-covered in `list-windowing-collapse.svelte.test.ts` and
- * `reveal-child-or-wait.test.ts`. What this gate proves is that the expansion leaves a
- * LIVE editor behind it: the search closes onto a real caret and the next keystroke
- * edits. The expansion's own bytes, geometry, and undo entry are pinned in
- * `details-reveal-expand.spec.ts`.
+ * Reveal into a collapsed body from the search side: the caret half. Searching for text in a
+ * clamped-out body child drives the real reveal path against a collapsed details, which opens its
+ * expand door and commits it. NOT the no-hang proof (VR-5) — that is unit-covered in
+ * `list-windowing-collapse.svelte.test.ts` and `reveal-child-or-wait.test.ts`. What this proves is
+ * that the expansion leaves a LIVE editor behind it (bytes + undo: details-reveal-expand.spec.ts).
  */
 
 // A closed details whose body holds a needle found only there, plus a sibling below.
@@ -49,9 +44,9 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		await page.getByRole('textbox', { name: 'Find' }).click();
 		await page.keyboard.type('Zebra');
 
-		// The needle is found (the scan reaches the unmounted body), so the reveal of
-		// [0, 1] was genuinely attempted — the count proves the path ran, not that it hung
-		// (rescan is synchronous; the reveal is fire-and-forget).
+		// The needle is found (the scan reaches the unmounted body), so the reveal of [0, 1] was
+		// genuinely attempted — the count proves the path ran, not that it hung (rescan is
+		// synchronous; the reveal is fire-and-forget).
 		await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*1/);
 
 		// The expand door opened and committed: the body child mounts and `open` is now
@@ -75,9 +70,9 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		// and takes an edit (which touches only the summary bytes).
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('<summary>Sum!</summary>');
-		// The expansion survives that edit: `rebuildDetailsRaw` regenerates the opener
-		// line from metadata on every child write, so a summary keystroke is exactly
-		// where a committed `open` would silently be rebuilt away.
+		// The expansion survives that edit: `rebuildDetailsRaw` regenerates the opener line from
+		// metadata on every child write, so a summary keystroke is exactly where a committed `open`
+		// would silently be rebuilt away.
 		expect(await editor.bridge.getSource()).toContain('<details open>\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});

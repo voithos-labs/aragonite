@@ -16,7 +16,7 @@ describe('reorderChildren', () => {
 
 	it('moves up across a gap with a full-window permutation', () => {
 		const children = [node('a'), node('b'), node('c'), node('d')];
-		const change = reorderChildren(children, 3, 0); // d to front
+		const change = reorderChildren(children, 3, 0);
 		expect(children.map((c) => c.raw)).toEqual(['d', 'a', 'b', 'c']);
 		expect(change).toEqual({
 			op: 'replace',
@@ -33,8 +33,8 @@ describe('reorderChildren', () => {
 		expect(children.map((c) => c.raw)).toEqual(['a', 'b']);
 	});
 
-	// A stale `from` (e.g. a mid-drag delete shrank the table) must never splice
-	// `undefined` into the $state tree — the invariant backstop no-ops instead.
+	// A stale `from` (a mid-drag delete shrinking the table) must never splice `undefined`
+	// into the $state tree.
 	it('is a guarded noop when `from` is out of bounds', () => {
 		const children = [node('a'), node('b')];
 		expect(reorderChildren(children, 5, 0)).toEqual({ op: 'noop' });
@@ -52,9 +52,8 @@ describe('reorderChildrenWithTrivia', () => {
 	const sharing = () => createSharingState();
 
 	it('keeps separators on the slot when a node moves to the front', () => {
-		// First slot has no separator; the rest each carry a leading blank line.
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n'), triviaNode('\n', 'c\n')];
-		reorderChildrenWithTrivia(children, 2, 0, sharing()); // c to front
+		reorderChildrenWithTrivia(children, 2, 0, sharing());
 
 		expect(children.map((c) => c.raw)).toEqual(['c\n', 'a\n', 'b\n']);
 		expect(children.map((c) => c.leadingTrivia)).toEqual(['', '\n', '\n']);
@@ -76,28 +75,25 @@ describe('reorderChildrenWithTrivia', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
 		const originals = children.slice();
 		const s = sharing();
-		s.markSnapshotTaken(); // children predate the epoch → shared
+		s.markSnapshotTaken();
 
 		reorderChildrenWithTrivia(children, 0, 1, s);
 
-		// The shared originals keep their pre-move trivia; the working array holds copies.
 		expect(originals.map((c) => c.leadingTrivia)).toEqual(['', '\n']);
 		expect(children.every((c) => !originals.includes(c))).toBe(true);
 		expect(children.map((c) => c.leadingTrivia)).toEqual(['', '\n']);
 	});
 
-	// The OOB backstop must fire BEFORE the per-slot unshare loop — otherwise a
-	// stale index reads `.leadingTrivia` off `undefined` and throws before the
-	// guard in the delegated reorderChildren can no-op.
+	// The OOB backstop must fire BEFORE the per-slot unshare loop, or a stale index reads
+	// `.leadingTrivia` off `undefined` and throws before the delegated guard can no-op.
 	it('is a guarded noop when `from` is out of bounds, before any unshare', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
 		const originals = children.slice();
 		const s = sharing();
-		s.markSnapshotTaken(); // any unshare would replace the shared nodes in place
+		s.markSnapshotTaken();
 
 		expect(reorderChildrenWithTrivia(children, 5, 0, s)).toEqual({ op: 'noop' });
 		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
-		// No slot was unshared: the array still holds the original shared nodes.
 		expect(children.every((c, i) => c === originals[i])).toBe(true);
 	});
 

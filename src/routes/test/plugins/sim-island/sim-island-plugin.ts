@@ -1,16 +1,8 @@
-// Deterministic, content-keyed decoration source for the loaded-ops simulation.
-// It reads three sentinels out of leaf raws so the seeded gesture stream can
-// create or meet each decoration tier at a stable position:
-//
-//   `[>…<]`   → a replace island covering the bracketed bytes (the fold shape)
-//   `WIDGET`  → a zero-width widget island at the word's leading edge
-//   `BADGE`   → a block decoration (class + badge) on the whole block
-//
-// The sentinels are absent from the other `?seed=sim` documents (PLUGIN_DOC,
-// DIRECTIVE_DOC), so installing this alongside the standing mark source leaves
-// those sessions unperturbed — it emits nothing there and only lights up under
-// the decoration-ops document. Every position is re-derived from content on each
-// per-edit pass, so a decoration follows its bytes across typing and reorder.
+// Deterministic, content-keyed decoration source for the loaded-ops simulation. Three
+// sentinels in leaf raws anchor one decoration tier each: `[>…<]` a replace island,
+// `WIDGET` a zero-width widget island, `BADGE` a block decoration. They are absent from
+// the other `?seed=sim` documents, so this stays inert there. Every position is re-derived
+// from content each per-edit pass, so a decoration follows its bytes across typing.
 import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
 import { forEachLeaf } from '../walk-views';
 
@@ -66,9 +58,8 @@ function collectReplaceIslands(node: NodeView, path: number[], out: Decoration[]
 	}
 }
 
-// The widget sits at the sentinel word's leading edge, never inside it, so an
-// adjacent insert or delete moves the anchor by one without dissolving the word —
-// the source re-finds `WIDGET` and re-places the zero-width island next pass.
+// The widget sits at the sentinel word's leading edge, never inside it, so an adjacent
+// insert or delete moves the anchor by one without dissolving the word.
 function collectWidgetIslands(node: NodeView, path: number[], out: Decoration[]): void {
 	let from = 0;
 	for (;;) {

@@ -1,14 +1,9 @@
 import { type SimContext } from '../invariants';
 
-// Emoji shortcode atomic-widget gestures for the first-party emoji plugin (plugins
-// route, `?seed=emoji` — the bare `:` rung is seed-gated). A `:smile:` shortcode
-// renders as an atomic `.md-emoji-widget` glyph (😄) while the raw stays the literal
-// seven bytes on `data-source-*`. The widget contributes its glyph, not its raw, to
-// textContent, and the shortcode is typed MID-prose, so the ExpectationTracker's
-// end-of-doc append rule can predict neither the insert nor the atomic delete — both
-// perform, settle on the widget swap, and resync. The `deleteGranularity: 'atomic'`
-// /`onEdge: 'step-over'` policy is the decoded-entity mold, so these mirror
-// gestures/entity.ts, adding a both-directions step-over the entity gesture omits.
+// Emoji shortcode atomic-widget gestures (plugins route, `?seed=emoji`). The widget
+// contributes its GLYPH, not its raw, and the shortcode is typed MID-prose, so the tracker's
+// end-of-doc append rule can predict neither the insert nor the atomic delete — both settle
+// on the widget swap and resync. The decoded-entity mold, so these mirror gestures/entity.ts.
 
 const EMOJI = '.md-emoji-widget';
 
@@ -51,11 +46,8 @@ async function walkTo(ctx: SimContext, blockIndex: number, target: number): Prom
 }
 
 /**
- * Type a `:shortcode:` mid-prose in `blockIndex`, materializing an atomic glyph
- * widget. The caret is placed at `offset` (mid-block) with the Selection API for
- * setup, then the shortcode is typed with real per-key input; the widget appears on
- * the closing `:`. Settles on the glyph mounting plus the literal bytes landing in the
- * source, then resyncs. `shortcode` is the bare name (no colons), e.g. `tada`.
+ * The caret is placed with the Selection API for SETUP only; the shortcode itself is typed
+ * per-key, so the widget appears on the closing `:`. `shortcode` is the bare name, no colons.
  */
 export async function typeEmojiShortcode(
 	ctx: SimContext,
@@ -77,13 +69,8 @@ export async function typeEmojiShortcode(
 }
 
 /**
- * Step the caret over the emoji widget in `blockIndex` in BOTH directions with plain
- * arrows — the `onEdge: 'step-over'` policy crosses the whole atomic island in one
- * press each way. Walks to the widget's leading edge, then one ArrowRight must land on
- * the trailing edge (the full span crossed in a single press) and one ArrowLeft must
- * return to the leading edge. A press that landed inside the island (offset between
- * start and end) fails loud. Arrows move no byte, so the tracker resyncs to the
- * unchanged source rather than predicting.
+ * The `onEdge: 'step-over'` policy must cross the whole atomic island in ONE press each way,
+ * so a press that lands inside the island (an offset between start and end) fails loud.
  */
 export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -106,12 +93,8 @@ export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promis
 }
 
 /**
- * Delete the emoji widget in `blockIndex` with a single atomic Backspace from its
- * trailing edge — `deleteGranularity: 'atomic'` removes the whole shortcode in one
- * press and one undo entry. The caret walks to the trailing edge with real arrows
- * (widget-aware: one ArrowRight steps over the whole glyph), so the press lands on the
- * atomic-delete branch. Settles on the glyph unmounting and the shortcode leaving the
- * source, then resyncs.
+ * `deleteGranularity: 'atomic'` removes the whole shortcode in one press and one undo entry.
+ * The caret reaches the trailing edge with REAL arrows so the press lands on that branch.
  */
 export async function atomicDeleteEmoji(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;

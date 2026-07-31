@@ -1,10 +1,8 @@
 /**
- * Dev-mode performance counters for the profiling harness. A leaf module like
- * invariants/ — imports only core types, so the seams that record into it can
- * depend on it from anywhere. Recording is off until an explicit runtime
- * switch that itself only arms in dev/Vitest, so production builds and
- * non-profiling dev runs pay one boolean check per record call. Internal —
- * never exported from the editor barrel.
+ * Dev-mode performance counters for the profiling harness. A leaf module, so the seams that
+ * record into it can depend on it from anywhere. Recording stays off until a runtime switch
+ * that only arms in dev/Vitest, leaving production one boolean check per record call.
+ * Internal — never exported from the editor barrel.
  */
 import type { DocumentView } from '../core/node-views';
 
@@ -14,6 +12,8 @@ export interface PerfSnapshot {
 	snapshotCount: number;
 	snapshotCloneBytes: number;
 	rebuildDepths: Record<number, number>;
+	/** Container reparses the kind re-derivation gate let through (see rebuildUnsharedChain). */
+	containerKindReparses: number;
 	parseCount: number;
 	parseMsTotal: number;
 	parseBlockCount: number;
@@ -39,6 +39,7 @@ function emptySnapshot(): PerfSnapshot {
 		snapshotCount: 0,
 		snapshotCloneBytes: 0,
 		rebuildDepths: {},
+		containerKindReparses: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
 		parseBlockCount: 0,
@@ -99,6 +100,11 @@ export function recordRebuildDepth(depth: number): void {
 	counters.rebuildDepths[depth] = (counters.rebuildDepths[depth] ?? 0) + 1;
 }
 
+export function recordContainerKindReparse(): void {
+	if (!enabled) return;
+	counters.containerKindReparses++;
+}
+
 export function recordParse(ms: number, blockCount: number): void {
 	if (!enabled) return;
 	counters.parseCount++;
@@ -124,21 +130,19 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
-// One decoration source's provide() ran once. notifyEdit runs every source, so a
-// typing pass records edits × sources — the ceiling that catches a per-block cascade.
+// notifyEdit runs every source, so a typing pass records edits × sources — the ceiling
+// that catches a per-block cascade.
 export function recordDecorationRun(): void {
 	if (!enabled) return;
 	counters.decorationRuns++;
 }
 
-// The prose render path tore down and rebuilt an island-bearing block's islands.
 export function recordIslandRebuild(): void {
 	if (!enabled) return;
 	counters.islandRebuilds++;
 }
 
-// The island key handler walked a text block's DOM for islands (one querySelectorAll
-// per destructive/printable keystroke, even when the block holds none).
+// One querySelectorAll per destructive/printable keystroke, even when the block holds none.
 export function recordIslandKeyScan(): void {
 	if (!enabled) return;
 	counters.islandKeyScans++;
@@ -166,9 +170,8 @@ export function markKeystrokeSettle(): void {
 }
 
 /**
- * Serialized-byte proxy without building the string: document serialization
- * is prefix + Σ(leadingTrivia + raw) + suffix. Counts UTF-16 code units —
- * exact vs `serialize().length`, approximate vs on-disk bytes for non-ASCII.
+ * Serialized-byte proxy without building the string. Counts UTF-16 code units: exact
+ * against `serialize().length`, approximate against on-disk bytes for non-ASCII.
  */
 export function docByteLength(doc: DocumentView): number {
 	let length = doc.prefix.length + doc.suffix.length;

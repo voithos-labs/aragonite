@@ -1,14 +1,11 @@
 /**
- * Pointer drag-to-reorder. One delegated capture-phase pointerdown on the editor
- * root starts a drag from any `.block-drag-handle`; a shared
- * `createPointerDragSession` then tracks the pointer, paints a ghost + a single
- * insertion line (no tree mutation, no reflow), and commits ONE move on drop.
- *
- * Baseline targeting only: the drop index is resolved against currently-mounted
- * siblings; autoscroll brings off-viewport siblings into the window. Precise
- * off-window (spacer-region) targeting is a separate layer.
+ * Pointer drag-to-reorder: one delegated capture-phase pointerdown on the editor
+ * root, a ghost + insertion line while dragging (no tree mutation, no reflow), and
+ * ONE move committed on drop. The drop index resolves against currently-mounted
+ * siblings only; autoscroll brings off-viewport ones into the window.
  */
 
+import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { ReorderAction } from './reorder-action';
 import { createPointerDragSession } from '../selection/pointer-session';
 import { readBlockPath } from '../selection/path-lookup';
@@ -21,9 +18,9 @@ export interface ReorderDragOverlay {
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
 	/** What autoscrolls when the drag reaches an edge: the root in self mode, the
-	 *  host's scroller in host mode (where the root doesn't scroll), null when
-	 *  nothing does. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
-	getScrollHost: () => HTMLElement | null;
+	 *  host's scroller in host mode (where the root doesn't scroll), the window when
+	 *  the page scrolls. Never `editorRoot` directly — see `cursor/scroll-ancestors`. */
+	getScrollHost: () => UserScrollport | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;
 	/** Aborted on editor unmount — tears down a drag whose pointerup can't fire. */
@@ -41,9 +38,8 @@ export function installReorderDrag(ctx: ReorderDragContext): { dispose(): void }
 		if (!dragHost) return;
 		const session = startSession(ctx, dragHost);
 		if (!session) return;
-		// Capture-phase + stopPropagation so the block's own pointerdown (which
-		// would start a cross-block text selection) never fires; preventDefault
-		// keeps the handle from stealing focus / starting a native selection.
+		// Capture-phase + stopPropagation so the block's own pointerdown never starts a
+		// cross-block text selection; preventDefault keeps the handle from taking focus.
 		e.preventDefault();
 		e.stopPropagation();
 		session.begin(e);
@@ -81,9 +77,8 @@ function startSession(
 		? '.list-item-block'
 		: '.block-host';
 	const label = ghostLabel(dragHost);
-	// The container this unit reorders within (null for a top-level block, whose
-	// scope IS the document). Marked for the drag's duration so the scope-locked
-	// reorder reads as "reorder within this list/quote" rather than broken.
+	// The container this unit reorders within (null at top level). Marked for the
+	// drag's duration so the scope-locked reorder reads as intentional, not broken.
 	const scopeEl = dragHost.closest('.list-block, .blockquote-block') as HTMLElement | null;
 
 	let dropTo: number | null = null;
@@ -102,10 +97,9 @@ function startSession(
 
 	function process(clientX: number, clientY: number): void {
 		const sibs = siblings();
-		// rawR = the original index before which to drop (first sibling whose
-		// vertical midpoint is below the pointer; else past the last). Removing the
-		// dragged item shifts later indices down by one, hence the `> fromIndex`
-		// adjustment so a downward drop lands where the line showed.
+		// rawR = the original index to drop before. Removing the dragged item shifts
+		// later indices down by one, hence the adjustment so a downward drop lands
+		// where the line showed.
 		let rawR = sibs.length ? sibs[sibs.length - 1].index + 1 : fromIndex! + 1;
 		let line = sibs.length
 			? {
@@ -131,8 +125,7 @@ function startSession(
 			scopeEl?.classList.add('reorder-scope');
 			createPointerDragSession(down, {
 				onMove: (p) => process(p.clientX, p.clientY),
-				// A drop commits only on release (never cancel/Escape/unmount); dropTo
-				// is the flushed value the session's final onMove settled.
+				// A drop commits only on release, never on cancel/Escape/unmount.
 				onEnd: (reason) => {
 					if (reason === 'up' && dropTo !== null && dropTo !== fromIndex) {
 						void ctx.moveReorderUnit(fromPath!, dropTo);
@@ -153,8 +146,8 @@ function startSession(
 				disableUserSelect: true,
 				lifetimeSignal: ctx.lifetimeSignal
 			});
-			// Paint the initial line from the press point before any move; a no-move
-			// release then commits this drop just like a dragged one.
+			// Paint from the press point before any move, so a no-move release still
+			// commits a drop.
 			process(down.clientX, down.clientY);
 		}
 	};
@@ -162,16 +155,15 @@ function startSession(
 
 // ── Element → path / index ───────────────────────────────────────────────────
 
-// A `.block-host` carries its own `data-block-path`; a `.list-item-block` does
-// not, so we borrow a descendant block-host's path — the action's
-// resolveReorderUnit climbs from it to the list item either way.
+// A `.list-item-block` carries no `data-block-path`, so borrow a descendant
+// block-host's — resolveReorderUnit climbs back to the list item either way.
 function pathFor(host: HTMLElement): number[] | null {
 	if (host.getAttribute('data-block-path')) return readBlockPath(host);
 	return readBlockPath(host.querySelector('[data-block-path]'));
 }
 
-// The unit's index among its siblings: a block-host's own path tail; a list
-// item's inner content path's second-to-last entry (the item index).
+// A block-host's own path tail; for a list item, its inner content path's
+// second-to-last entry.
 function indexOf(host: HTMLElement): number | null {
 	if (host.getAttribute('data-block-path')) return readBlockPath(host)?.at(-1) ?? null;
 	return readBlockPath(host.querySelector('[data-block-path]'))?.at(-2) ?? null;

@@ -14,9 +14,8 @@ import {
 	textNode
 } from './scan-test-helpers';
 
-// GFM §6.9 bare/www/email autolinks over text runs. The reference has no
-// autolink extension, so these shapes are pinned here rather than by the
-// conformance ratchet.
+// GFM §6.9 autolinks. The conformance reference has no autolink extension, so these
+// shapes are pinned here rather than by the ratchet.
 
 describeScanCases('bare autolinks as the only content (fast-bail seam)', [
 	// These inputs contain no unconditional special character: if the bail
@@ -133,12 +132,8 @@ describeScanCases('autolinks interleave with emphasis and links', [
 
 describe('child walk under deep image nesting (DoS guard)', () => {
 	it('pathological nesting parses without overflow and stays near-linear', () => {
-		// 20k-deep `![…](u)` nesting — commonmark semantics build one image per
-		// level. A per-level recursion in the autolink child walk overflows the
-		// call stack here; the wall-clock bound is a coarse DoS backstop for
-		// gross super-linear blowups (the dimension-suffix quadratic this depth
-		// once exposed is pinned exactly by the bounded-suffix edge case in
-		// core/inline/image-dimensions.test.ts, not by this clock).
+		// A per-level recursion in the autolink child walk overflows the call stack here. The
+		// wall clock is a coarse backstop only; core/inline/image-dimensions.test.ts is exact.
 		const depth = 20000;
 		const raw = '!['.repeat(depth) + 'a' + '](u)'.repeat(depth);
 		const startedAt = performance.now();
@@ -146,8 +141,8 @@ describe('child walk under deep image nesting (DoS guard)', () => {
 		const elapsed = performance.now() - startedAt;
 		expect(elapsed).toBeLessThan(2000);
 		expect(nodes).toHaveLength(1);
-		// Iterative descent with conditional throws: 20k expect() calls are
-		// pure overhead, and a recursive assertion would itself overflow.
+		// Conditional throws, not 20k expect() calls: a recursive assertion would itself
+		// overflow, and the per-call overhead would dominate the timing above.
 		let node = nodes[0];
 		let imagesSeen = 0;
 		while (node.kind === 'image') {

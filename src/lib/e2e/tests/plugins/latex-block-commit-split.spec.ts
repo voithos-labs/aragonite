@@ -2,11 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 
 /**
- * Block math commit kernel (requirements/plugins/latex-block-commit-split.md):
- * a revealed source committed with text that parses to multiple blocks must
- * re-split the document — the stuck-fence class. Real keyboard/mouse only;
- * Enter inside the source inserts a literal newline (never splits live), so
- * the split happens at blur-commit time.
+ * Block math commit kernel (requirements/plugins/latex-block-commit-split.md): a revealed source
+ * committed with text that parses to multiple blocks must re-split the document — the stuck-fence
+ * class. Real keyboard/mouse only; Enter inside the source inserts a literal newline (never splits
+ * live), so the split happens at blur-commit time.
  */
 
 class BlockMathCommitPage extends PluginsPage {
@@ -70,9 +69,9 @@ test.describe('block math commit kernel: multi-block source re-splits', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.press('Enter');
 		await page.keyboard.type('hello');
-		// The fold's relayout during the click consumes the click's own focus
-		// (Chromium drops it to <body>), so the commit restores the caret to the
-		// edit position in the split-off paragraph — never a dead caret.
+		// The fold's relayout during the click consumes the click's own focus (Chromium drops it to
+		// <body>), so the commit restores the caret to the edit position in the split-off paragraph
+		// — never a dead caret.
 		await editor.getBlock(0).click();
 
 		await waitForDoc(page, (s) => s.rootCount === 4);

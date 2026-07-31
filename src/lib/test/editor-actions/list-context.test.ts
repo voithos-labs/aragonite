@@ -14,10 +14,6 @@ const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).
 
 describe('list-context — splitItemAtOffset', () => {
 	it('keeps state ids/refs aligned with item.children after trailing-children split', async () => {
-		// `- a\n\n  b\n\n  c\n` is a list with one item whose inner children are
-		// three paragraphs. Enter mid-content of the first paragraph splits the
-		// item into two items — the original keeps the first half, a new sibling
-		// holds the second half plus paragraphs b and c.
 		const doc = parse('- a\n\n  b\n\n  c\n');
 		const list = doc.children[0];
 		expect(list.kind).toBe('list');
@@ -41,8 +37,7 @@ describe('list-context — splitItemAtOffset', () => {
 
 		await listContext.splitItemAtOffset(0, 0, 1);
 
-		// Post-split invariant: every BlockListState's id array must match the
-		// corresponding node.children length — drift desyncs the keyed {#each}.
+		// An id array that drifts from its node.children length desyncs the keyed {#each}.
 		expect(liveItem().children).toHaveLength(1);
 		expect(itemState.innerBlockIds).toHaveLength(1);
 		expect(itemState.innerBlockIds[0]).toBe('para-a');
@@ -54,7 +49,6 @@ describe('list-context — splitItemAtOffset', () => {
 		const newItem = liveList().children![1];
 		expect(newItem.kind).toBe('listItem');
 		expect(newItem.children).toHaveLength(3);
-		// Unordered split: marker mirrors the source, taskMarker stays null.
 		expect(newItem.metadata).toMatchObject({ marker: '- ', taskItem: false, taskMarker: null });
 		expect(newItem.raw.startsWith('- ')).toBe(true);
 	});
@@ -100,13 +94,11 @@ describe('list-context — splitItemAtOffset', () => {
 
 		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
 
-		// Split "foobar" after "foo": the new sibling inherits the task identity.
 		await listContext.splitItemAtOffset(0, 0, 3);
 
 		const newItem = liveList().children![1];
 		expect(newItem.kind).toBe('listItem');
-		// taskItem and taskMarker must agree — a `taskItem:true / taskMarker:null`
-		// pair renders plain and trips the dev metadata guard.
+		// A `taskItem:true / taskMarker:null` pair renders plain and trips the dev metadata guard.
 		expect(newItem.metadata).toMatchObject({
 			taskItem: true,
 			taskChecked: false,
@@ -130,8 +122,6 @@ describe('list-context — splitItemAtOffset', () => {
 			ids: ['item-0', 'item-1']
 		});
 
-		// Split item 0 ("1. a") mid-word: the new sibling takes marker "2. " and
-		// the following original item renumbers to "3. ".
 		await listContext.splitItemAtOffset(0, 0, 1);
 
 		const items = liveList().children!;
@@ -160,7 +150,6 @@ describe('list-context — insertItemAfter', () => {
 
 		const items = liveList().children!;
 		expect(items).toHaveLength(2);
-		// New item bumps "1. " -> "2. " and inherits the unchecked task marker.
 		expect(items[1].metadata).toMatchObject({
 			marker: '2. ',
 			taskItem: true,
@@ -170,9 +159,8 @@ describe('list-context — insertItemAfter', () => {
 		expect(items[1].raw).toBe('2. [ ] \n');
 	});
 
-	// The new item's body is nothing but a line ending, and rebuildListItemRaw
-	// derives the item's raw from it — so a defaulted `\n` reaches the document's
-	// bytes as a lone LF inside a CRLF list (G4.20).
+	// The new item's body is nothing but a line ending, so a defaulted `\n` reaches
+	// the document's bytes as a lone LF inside a CRLF list (G4.20).
 	it('the new item takes the list’s line ending', async () => {
 		const doc = parse('1. a\r\n');
 		const list = doc.children[0];
@@ -197,9 +185,7 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
 
 	it('indent: a "1. " item moved into a "1) " sublist adopts ") "', async () => {
-		// item0 ("1. a") already holds an ordered "1) x" sublist; item1 ("2. b")
-		// indents into it. The moved item must adopt the sublist's ") " suffix —
-		// not keep its own ". " — matching paste-absorb.
+		// Parity with paste-absorb: the destination's suffix wins over the moved item's own.
 		const doc = parse('1. a\n   1) x\n2. b\n');
 		const list = doc.children[0];
 
@@ -215,17 +201,13 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 
 		await listContext.indentItem(1);
 
-		// b joined the sublist as its second item, renumbered to "2) " (not "2. ").
 		expect(markersOf(liveSublist())).toEqual(['1) ', '2) ']);
 		expect(liveSublist().children![1].raw.startsWith('2) ')).toBe(true);
-		// Outer list lost item1, item0 stays "1. ".
 		expect(markersOf(liveList())).toEqual(['1. ']);
 	});
 
 	it('promote: a "1) " sub-item moved to a "1. " outer list adopts ". "', async () => {
-		// Two-item sublist so promoting the first leaves a survivor — proving the
-		// survivor renumbers within the sublist (") " preserved) while the moved
-		// item adopts the outer ". ".
+		// Two-item sublist so a survivor is left behind to renumber within the sublist.
 		const doc = parse('1. a\n   1) x\n   2) y\n');
 		const list = doc.children[0];
 
@@ -240,10 +222,8 @@ describe('list-context — ordered suffix adopts destination on move', () => {
 
 		await listContext.promoteNestedItem(0, sublist, 0);
 
-		// x promoted to outer position 1, adopting ". " and renumbering to "2. ".
 		expect(markersOf(liveList())).toEqual(['1. ', '2. ']);
 		expect(liveList().children![1].raw.startsWith('2. ')).toBe(true);
-		// Survivor y stays in the sublist, renumbered to "1) " — ") " preserved.
 		expect(markersOf(liveSublist())).toEqual(['1) ']);
 	});
 });
@@ -254,8 +234,6 @@ describe('list-context — unordered glyph adopts destination on move', () => {
 	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
 
 	it('indent: a "- " item moved into a "* " sublist adopts "* "', async () => {
-		// item0 ("- a") holds an unordered "* x" sublist; item1 ("- b") indents into
-		// it and must adopt the sublist's "* " glyph, not keep its own "- ".
 		const doc = parse('- a\n  * x\n- b\n');
 		const list = doc.children[0];
 
@@ -271,10 +249,8 @@ describe('list-context — unordered glyph adopts destination on move', () => {
 
 		await listContext.indentItem(1);
 
-		// b joined the sublist as its second item, adopting the "* " glyph.
 		expect(markersOf(liveSublist())).toEqual(['* ', '* ']);
 		expect(liveSublist().children![1].raw.startsWith('* ')).toBe(true);
-		// Outer list lost item1; item0 stays "- ".
 		expect(markersOf(liveList())).toEqual(['- ']);
 	});
 
@@ -294,10 +270,8 @@ describe('list-context — unordered glyph adopts destination on move', () => {
 
 		await listContext.promoteNestedItem(0, sublist, 0);
 
-		// x promoted to outer position 1, adopting "- ".
 		expect(markersOf(liveList())).toEqual(['- ', '- ']);
 		expect(liveList().children![1].raw.startsWith('- ')).toBe(true);
-		// Survivor y stays in the sublist, keeping "* ".
 		expect(markersOf(liveSublist())).toEqual(['* ']);
 	});
 });

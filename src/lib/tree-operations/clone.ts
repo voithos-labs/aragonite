@@ -41,10 +41,8 @@ export function cloneNode(node: NodeView): CstNode {
 	return cloned;
 }
 
-// Snapshot must not share mutable references (arrays) with the live tree —
-// otherwise an in-place splice on the live tree's metadata would also mutate
-// the snapshot. Metadata is one level deep across all kinds today: primitives,
-// strings, and at most one array (TableMetadata.alignments).
+// Snapshots must share no mutable reference with the live tree, or an in-place splice on
+// live metadata reaches the snapshot. One level deep suffices — G1.6 forbids deeper.
 export function cloneMetadata(
 	meta: NonNullable<NodeView['metadata']>
 ): NonNullable<CstNode['metadata']> {

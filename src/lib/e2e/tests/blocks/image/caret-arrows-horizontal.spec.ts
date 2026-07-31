@@ -14,8 +14,7 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		await editor.goto();
 	});
 
-	// Bug B regression — Left: 4-press flow with two invisible steps. Now
-	// 2 presses: select widget, then caret at end of paragraph above.
+	// Pre-fix this was a 4-press flow with two invisible steps.
 	test('ArrowLeft from below a standalone image: press 1 selects, press 2 lands above', async ({
 		page
 	}) => {
@@ -44,8 +43,6 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		expect(src).toContain('Xafter paragraph');
 	});
 
-	// Bug A reference: 2 presses for inline-image Left works the same way
-	// (text both before and after the image in the same paragraph).
 	test('ArrowLeft from after an inline image: select then land at end of preceding text', async ({
 		page
 	}) => {
@@ -69,14 +66,12 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		await expect(page.locator('[data-image-overlay]')).toHaveCount(0);
 		await editor.typeText('X');
 		const src = await editor.bridge.getSource();
-		// X lands immediately before the image; trailing whitespace from
-		// "lead text " may sit on either side depending on offset choice.
+		// Trailing whitespace from "lead text " may sit on either side of X, hence the loose match.
 		expect(src).toMatch(/lead text\s*X\s*!\[pic\]/);
 	});
 
-	// Cursor-trap regression: the hidden source span used to attract the
-	// caret on cross-block focusAtColumn. Verify the caret lands at a
-	// visible widget edge rather than inside the source span.
+	// Cursor-trap regression: the hidden source span used to attract the caret on cross-block
+	// focusAtColumn.
 	test('cross-block ArrowUp landing on standalone image leaves a visible caret', async ({
 		page
 	}) => {
@@ -89,13 +84,11 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		// vertically-transparent, so we move PAST it — but if there's nothing
 		// past it (last block), creating a new paragraph is acceptable.
 		await page.keyboard.press('ArrowUp');
-		// We're back at first paragraph; the test's real assertion is that no
-		// step left a caret inside the widget's hidden source span — verified
-		// by typing and confirming the resulting source.
+		// The real assertion: no step left a caret inside the widget's hidden source span, verified
+		// by typing and reading the source back.
 		await editor.typeText('X');
 		const src = await editor.bridge.getSource();
-		// The X must appear in actual text, not as a malformed splice into the
-		// image source bytes.
+		// The X must land in real text, not spliced into the image's source bytes.
 		expect(src).not.toMatch(/!\[.*X.*\]/);
 		expect(src).not.toMatch(/X.*\(\/test-fixtures/);
 	});

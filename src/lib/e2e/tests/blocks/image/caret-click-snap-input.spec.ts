@@ -12,12 +12,9 @@ test.describe('typing and paste after click-snap', () => {
 		await editor.goto();
 	});
 
-	// Regression: typing at the start of a wrapped line *after* an inline
-	// image used to teleport the caret. Chromium parks the caret at offset
-	// = image.end when clicking at the wrap boundary; the snap-fallback
-	// keydown intercept misfired and routed typing through the CST when
-	// Chromium could have inserted natively. The fix narrows the intercept
-	// to the "Chromium dropped the caret" case only.
+	// Chromium parks the caret at image.end when clicking at the wrap boundary; the snap-fallback
+	// keydown intercept used to route typing through the CST there and teleport it. It now fires
+	// only when Chromium dropped the caret.
 	test('typing at the wrap boundary after an inline image inserts natively (no teleport)', async ({
 		page
 	}) => {
@@ -25,9 +22,8 @@ test.describe('typing and paste after click-snap', () => {
 			'Lorem ipsum dolor sit amet ![inline](/test-fixtures/sample.png) consectetur.\n'
 		);
 		await waitForFirstImageLoaded(page);
-		// Place the caret immediately before the leading space of " consectetur"
-		// — i.e., right after the image's source bytes. This is the position
-		// Chromium picks when the user clicks at the start of the wrapped line.
+		// Right after the image's source bytes, before the leading space of " consectetur" — the
+		// position Chromium picks when the user clicks at the start of the wrapped line.
 		await page.evaluate(() => {
 			const w = document.querySelector('[data-image-widget]') as HTMLElement;
 			const para = w.closest('[contenteditable="true"]') as HTMLElement;
@@ -44,18 +40,13 @@ test.describe('typing and paste after click-snap', () => {
 		await page.keyboard.press('a');
 		await page.keyboard.press('b');
 		const src = await editor.bridge.getSource();
-		// Both `a` and `b` must land contiguously immediately after the
-		// image's source bytes.
 		expect(src).toMatch(/!\[inline\]\(\/test-fixtures\/sample\.png\)ab /);
 		expect(src.startsWith('Lorem')).toBe(true);
 	});
 
-	// Regression: typing twice after click-snap used to put the second char
-	// before the image. Cause was `pendingCursorOffset` not being restored
-	// after the snap-fallback intercept's CST update — Svelte re-rendered
-	// without restoring the caret, leaving it at the contenteditable's
-	// element-level offset 0. The next keystroke matched offset 0 against
-	// image.start and inserted the character at the start of the paragraph.
+	// Typing twice after click-snap put the second char before the image: `pendingCursorOffset` was
+	// not restored after the intercept's CST update, so the caret fell back to element-level offset
+	// 0.
 	test('typing twice after click-snap appends to the same position (no caret jump)', async ({
 		page
 	}) => {
@@ -69,14 +60,10 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src.startsWith('- !')).toBe(true);
 	});
 
-	// Regression for the real-browser shape of the click-snap typing bug.
-	// Chromium often preserves the live caret at the element-level position
-	// the snap installed (parent + idx-after-widget), unlike Playwright
-	// which drops it entirely. cursor.getRaw() then returns image.end but
-	// startContainer is the paragraph element, not a text node — Chromium
-	// silently drops printable-key insertions at that position. The
-	// keydown intercept must fire even when liveCursor is non-null, gated
-	// on whether the caret sits in a real text node.
+	// Chromium often preserves the live caret at the element-level position the snap installed,
+	// unlike Playwright which drops it: getRaw() returns image.end but startContainer is the
+	// paragraph element, where Chromium silently drops printable keys. The intercept must fire even
+	// when liveCursor is non-null.
 	test('typing inserts after image even when caret is preserved at element-level', async ({
 		page
 	}) => {
@@ -98,8 +85,7 @@ test.describe('typing and paste after click-snap', () => {
 		const widgetBox = await widget.boundingBox();
 		if (!widgetBox) throw new Error();
 		await page.mouse.click(widgetBox.x + widgetBox.width + 30, widgetBox.y + widgetBox.height / 2);
-		// Re-install the element-level caret (mouse.click might have left
-		// it text-node-anchored or null depending on layout).
+		// Re-install the element-level caret: mouse.click may leave it text-node-anchored or null.
 		await page.evaluate(() => {
 			const ce = document.querySelector('[contenteditable="true"]') as HTMLElement;
 			const widget = ce.querySelector('[data-image-widget]') as HTMLElement;
@@ -116,14 +102,9 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src).toContain(')z');
 	});
 
-	// Regression: with the caret parked at image.end (between widget and end of
-	// contenteditable), Chromium silently drops printable-key insertions when
-	// the caret sits between contenteditable=false neighbors — neither
-	// `beforeinput` nor `input` fires. The keydown branch in TextEditableBlock
-	// detects "caret at widget boundary" and routes the character through the
-	// CST instead of relying on the browser default. Test uses
-	// `keyboard.press` (not `insertText`) because production-bug repro
-	// requires keydown to fire.
+	// With the caret parked at image.end between contenteditable=false neighbors, Chromium drops
+	// printable keys silently — neither `beforeinput` nor `input` fires — so keydown routes the
+	// char through the CST. `keyboard.press`, not `insertText`: the repro needs keydown.
 	test('typing after click-snap to image.end inserts the character into the source', async ({
 		page
 	}) => {
@@ -132,16 +113,13 @@ test.describe('typing and paste after click-snap', () => {
 		await clickPastImageRightEdge(page);
 		await page.keyboard.press('X');
 		const src = await editor.bridge.getSource();
-		// Image source ends at offset 41; the typed X must land immediately
-		// after, not be silently dropped.
+		// The image source ends at offset 41; X must land immediately after it.
 		expect(src).toContain(')X');
 	});
 
-	// Pre-fix: keydown's `preEditOffset` re-read `cursor.getRaw()` at the
-	// branch site, but the click-snap caret at element-level past the image
-	// doesn't survive Chromium's pre-keydown event-loop yield, so getRaw
-	// returned null and Shift+Enter inserted the hard break at offset 0 —
-	// dragging the image into a continuation line under a `\` first-line.
+	// keydown's `preEditOffset` re-read `cursor.getRaw()` at the branch site, but the click-snap
+	// caret does not survive Chromium's pre-keydown yield, so Shift+Enter inserted the break at
+	// offset 0.
 	test('Shift+Enter at image.end inserts the hard break after the image, not at offset 0', async ({
 		page
 	}) => {
@@ -154,17 +132,15 @@ test.describe('typing and paste after click-snap', () => {
 		await page.keyboard.press('Shift+Enter');
 		await editor.bridge.waitForSourceContains(')\\');
 		const src = await editor.bridge.getSource();
-		// Hard-break marker `\` belongs immediately after the image source,
-		// not at the start of the inner paragraph.
+		// The hard-break marker belongs after the image source, not at the start of the inner
+		// paragraph.
 		expect(src).toMatch(/!\[pic\|300x200\]\(\/test-fixtures\/sample\.png\)\\/);
 		expect(src).not.toMatch(/^- \\\n {2}!/m);
 	});
 
-	// Pre-fix: paste read `cursor.getRaw() ?? 0` directly; with the click-snap
-	// caret parked at element-level past the image, getRaw returned null and
-	// the paste landed at offset 0 of the inner paragraph instead of at the
-	// snap target. Closed by routing all callers through cursor's snap-aware
-	// getRaw rather than chaining the fallback at every read site.
+	// Paste read `cursor.getRaw() ?? 0` directly; with the click-snap caret parked at element level
+	// getRaw returned null and the paste landed at offset 0. Every caller now goes through the
+	// snap-aware getRaw.
 	test('paste in click-snap state lands at snap target, not offset 0', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);
@@ -172,11 +148,9 @@ test.describe('typing and paste after click-snap', () => {
 		const ib = await img.boundingBox();
 		if (!ib) throw new Error('image missing');
 		await page.mouse.click(ib.x + ib.width + 20, ib.y + ib.height / 2);
-		// Drop the live range before the paste handler reads it — emulates the
-		// Chromium event-loop-yield behaviour where element-level carets past
-		// an atomic widget go to rangeCount=0 between keydown and the post-
-		// await branch. Then dispatch a synthetic paste; the handler must
-		// recover the offset from the snap target.
+		// Drop the live range before the paste handler reads it: this emulates Chromium's
+		// event-loop yield, where element-level carets past an atomic widget go to rangeCount=0.
+		// The handler must recover it from the snap target.
 		await page.evaluate(() => {
 			window.getSelection()?.removeAllRanges();
 			const dt = new DataTransfer();

@@ -1,5 +1,5 @@
-// Paragraph-interruption guard is dispatch-context, not a line-level match —
-// it lives with the opener registration, not the matcher.
+// The paragraph-interruption guard is dispatch context, not a line-level match, so it lives
+// with the opener registration rather than the matcher.
 
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';

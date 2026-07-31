@@ -21,34 +21,28 @@
 		path,
 		blockRef,
 		blockEl,
-		isContainer = false,
-		hasChildHosts = false
+		delegatesPainting = false,
+		containerPaintsRects = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
-		/** Container blocks skip overlays — their children paint their own. */
-		isContainer?: boolean;
-		/** False for a childless container (render-primary plugin block): no child
-		 *  block-hosts exist to paint, so this block takes the full-block overlay
-		 *  itself, like a non-text leaf. */
-		hasChildHosts?: boolean;
+		/** This container's children paint their own overlays, so it paints none. */
+		delegatesPainting?: boolean;
+		/** This container measures its own rects instead of delegating. Both are decided
+		 *  at BlockHost, which hands the same pair to DecorationOverlay. */
+		containerPaintsRects?: boolean;
 	} = $props();
 
-	// Optional, like every context BlockHost itself reads: a bare mount (unit
-	// harness, conformance kit) provides no shell, and every use below is already
-	// written for absence. Destructuring these threw before those reads ran.
+	// Optional, like every context BlockHost reads: a bare mount provides no shell,
+	// and every use below is written for absence. Destructuring these threw first.
 	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
 	const getEditorRoot = editorDoc?.editorRoot;
 	const getDoc = editorDoc?.doc;
 
-	// Containers that supply their own measurePartialRects (table) paint cell
-	// rects from this overlay; their children don't render BlockHost wrappers.
-	const containerPaintsRects = $derived(isContainer && !!blockRef?.measurePartialRects);
-
 	const classification = $derived.by<BlockSelectionClass>(() => {
-		if (isContainer && !containerPaintsRects && hasChildHosts) return 'outside';
+		if (delegatesPainting) return 'outside';
 		if (!selection?.isCustomRendered || !selection.anchor || !selection.focus) {
 			return 'outside';
 		}
@@ -58,9 +52,8 @@
 		});
 	});
 
-	// This block paints endpoint rects (its own partial selection). The measuring
-	// effect and the template read the one predicate, so a rendered rect is always
-	// one the effect measured — the reverse renders a stale box.
+	// The measuring effect and the template read this one predicate, so a rendered
+	// rect is always one the effect measured; two predicates render a stale box.
 	const paintsEndpoints = $derived(
 		classification === 'start' ||
 			classification === 'end' ||
@@ -127,10 +120,9 @@
 					: start.cellCoordinate
 						? cellIndexOf(start, 'SelectionOverlay:start')
 						: charOffsetOf(start, 'SelectionOverlay:start');
-			// measurePartialRects paints [start, end) exclusive. The +1 that turns a
-			// snapped table end (inclusive last cell of its row) into an exclusive
-			// whole-row bound lives in the cell branch only; the char branch carries a
-			// raw offset. Both decay to number at the public door.
+			// measurePartialRects paints [start, end) exclusive, so the +1 turning a
+			// snapped table end (inclusive last cell) into an exclusive whole-row bound
+			// belongs to the cell branch only.
 			const endOffset =
 				classification === 'start'
 					? SELECTION_END

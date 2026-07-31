@@ -3,22 +3,17 @@ import { arbInlineSource } from './inline';
 import { arbGfmDoc } from './gfm';
 
 /**
- * Source fragments for the grammars the bundled plugins add. No built-in
- * arbitrary can emit any of them, so every rung shipped as a plugin — the
- * newest and least-audited scanner and opener code — sat outside the property
- * suites entirely and was covered by hand-written per-kind fixtures only.
- *
- * These are SOURCE strings; the suites that draw them install the matching
- * plugins first. Drawn without a plugin installed they are still valid input —
- * the text simply parses as prose, which is itself the coexistence case.
+ * Source fragments for the grammars the bundled plugins add — no built-in arbitrary can
+ * emit any of them, so plugin scanner and opener code is otherwise outside the property
+ * suites. Drawn without the matching plugin installed the text parses as prose, which is
+ * itself the coexistence case.
  */
 
 // ── Inline rungs ─────────────────────────────────────────────────────────────
 
 /**
- * Tokens that reach each rung's claim AND its decline: a bare `[^` and a lone
- * `:` exercise the prefix-match and bare-trigger paths that a well-formed token
- * never does, and those declines are where a rung perturbs a neighbour's scan.
+ * Tokens reaching each rung's claim AND its decline — the bare-trigger paths a
+ * well-formed token never takes, and where a rung perturbs a neighbour's scan.
  */
 const inlineRungToken = fc.constantFrom(
 	'[^1]',
@@ -82,10 +77,9 @@ const directive = fc
 	);
 
 /**
- * A GFM document with plugin block syntax mixed in. The unterminated and
- * malformed arms (`$$` with no closer, `[!BOGUS]`, a nameless `:::`) matter as
- * much as the well-formed ones: an opener that mis-declines still has to leave
- * the bytes it refused untouched.
+ * A GFM document with plugin block syntax mixed in. The unterminated and malformed arms
+ * carry the weight: an opener that mis-declines still has to leave the refused bytes as
+ * authored.
  */
 export const arbPluginGfmDoc = fc
 	.array(

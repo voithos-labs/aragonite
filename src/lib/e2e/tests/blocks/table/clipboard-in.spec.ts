@@ -44,10 +44,9 @@ test.describe('table block: paste in', () => {
 
 	// ── Structural ──────────────────────────────────────────────────────
 	//
-	// Exact-source assertions are load-bearing here: the bug they catch (a doc-level
-	// splice routed through the cell's row-level blockEdit, corrupting the row's cells)
-	// leaves the substrings a `waitForSourceContains` checks intact while the
-	// surrounding structure rots. Compare full sources so structure is verified too.
+	// Exact-source assertions are load-bearing here: the bug they catch (a doc-level splice routed
+	// through the cell's row-level blockEdit) leaves the substrings a `waitForSourceContains`
+	// checks intact while the surrounding structure rots.
 
 	test('pasting a markdown table breaks and splices around the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
@@ -187,7 +186,6 @@ test.describe('table block: paste in', () => {
 		// "hello" in the anchor cell is the only shape the pre-paste document does not
 		// already have, so it is the one predicate that can settle on the paste.
 		await editor.bridge.waitForSourceContains('| hello |  |');
-		// Header row untouched, the rest of the rectangle cleared, structure preserved.
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['| A | B |', '| --- | --- |', '| hello |  |', '|  |  |'].join('\n')
 		);

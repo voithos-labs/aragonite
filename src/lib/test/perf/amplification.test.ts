@@ -21,9 +21,8 @@ for (const shape of ['nested-containers', 'table-heavy'] as const) {
 	}
 }
 
-// Deep-nesting amplification grows with depth (≈ chain length ÷ 2): the write-
-// amplification factor an ancestry rebuild pays per keystroke. Reported across
-// the verdict's depth × per-level envelope.
+// Deep-nesting amplification grows with depth (≈ chain length ÷ 2) — the write
+// amplification an ancestry rebuild pays per keystroke.
 for (const [depth, bytes] of [
 	[4, 10_000],
 	[8, 10_000],

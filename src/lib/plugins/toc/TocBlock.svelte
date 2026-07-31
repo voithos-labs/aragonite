@@ -1,10 +1,6 @@
 <script lang="ts">
-	// Render-primary table of contents: the folded view is a `<nav>` outline of the
-	// document's headings — indented by level, labels projected to clean text, each
-	// entry a click-to-navigate target. A click on the block's non-entry area reveals
-	// the raw `[[toc]]` source in a contenteditable; blur folds back. All editing
-	// behavior (caret, IME, undo, cross-block selection, commit) lives in
-	// `createEditableLeaf`; this component owns the list↔source swap and navigation.
+	// Render-primary editable leaf: all editing behavior lives in `createEditableLeaf`,
+	// so this component owns only the list↔source swap and navigation.
 	import {
 		createEditableLeaf,
 		type BlockComponent,
@@ -46,20 +42,20 @@
 		}
 	});
 
-	// Live-derived from the document prop: the walk reads each heading's bytes through
-	// the prop, subscribing to the CST's $state proxy, so an edit above re-runs it. The
-	// projection is synchronous and uncached, so the derived stays reactive-safe.
+	// The walk reads heading bytes through the prop, subscribing to the CST's $state
+	// proxy, so an edit above re-runs it; it stays uncached to keep the derived
+	// reactive-safe.
 	const headings = $derived(collectHeadings(document, maxDepth));
 
-	// Serialize navigation per block (see `navigation-queue.ts` for why). No rect
-	// surface (a bare harness) → `scrollTo` resolves immediately, so entries are inert.
+	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the
+	// caret as well as scrolling, so the entry button does not keep focus where the
+	// editor's chords cannot reach it. Without a rect surface, entries are inert.
 	const navigation = createNavigationQueue({
-		scrollTo: (path) => rects?.scrollTo(path) ?? Promise.resolve()
+		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve()
 	});
 
-	// Suppress the leaf's reveal-on-pointerdown so an entry activation navigates instead
-	// of folding the block open; a `<button>` entry then navigates on click AND on
-	// Enter/Space (native activation). View-only in every mode, so it works in reading.
+	// Suppresses the leaf's reveal-on-pointerdown so an entry activation navigates
+	// instead of folding the block open. View-only, so it works in reading mode too.
 	function onEntryPointerDown(e: PointerEvent): void {
 		e.stopPropagation();
 	}
@@ -70,6 +66,7 @@
 	export const focusable = true;
 
 	export const focus = leaf.focus;
+	export const parkCaret = leaf.parkCaret;
 	export const focusAtColumn = leaf.focusAtColumn;
 	export const getCursorOffset = leaf.getCursorOffset;
 	export const getSelectedText = leaf.getSelectedText;
@@ -81,6 +78,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		focusAtColumn,
 		getCursorOffset,
 		getSelectedText,
@@ -110,10 +108,8 @@
 			{:else}
 				<ol>
 					{#each headings as heading (heading.id)}
-						<!-- A real `<button>`, not a role-tagged `<li>`: native focus, tab order,
-						     and Enter/Space activation, valid now the container carries no
-						     `role="button"`. Its pointerdown is suppressed so the click
-						     navigates instead of revealing the block's raw source. -->
+						<!-- A real `<button>`, not a role-tagged `<li>`: native focus, tab order
+						     and Enter/Space activation for free. -->
 						<li>
 							<button
 								type="button"
@@ -168,8 +164,8 @@
 		list-style: none;
 	}
 
-	/* Reset the native button chrome to a plain, full-row text entry — the accent
-	   hover and focus ring are the only affordances. */
+	/* Native button chrome reset to a plain full-row entry: the accent hover and focus
+	   ring are the only affordances. */
 	.toc-block-item {
 		display: block;
 		width: 100%;
@@ -195,8 +191,7 @@
 		outline-offset: 1px;
 	}
 
-	/* Indent by heading level — a flat `<ol>` keeps list semantics while the padding
-	   makes the hierarchy visible. */
+	/* A flat `<ol>` keeps list semantics; the padding is what shows the hierarchy. */
 	.toc-block-level-1 {
 		padding-left: 0;
 	}

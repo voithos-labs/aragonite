@@ -33,10 +33,7 @@ export interface ScopedStructuralPasteInput {
 
 export interface PasteSurface {
 	kind: AnyBlockKind;
-	/**
-	 * Splice `text` into `node` at `offset` (optionally pre-deleting a range).
-	 * Pure data transform.
-	 */
+	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. */
 	onInlinePaste?(
 		node: CstNode,
 		offset: number,
@@ -51,10 +48,8 @@ export interface PasteSurface {
 		preDelete?: PasteRange
 	): StructuralPasteResult;
 	/**
-	 * Structural paste whose splice scope is an ancestor (e.g. tableCell slices
-	 * its table at the row and splices at the table's parent). The hook owns the
-	 * whole mutation — dispatch routes here instead of `onStructuralPaste` and
-	 * does nothing afterward.
+	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the
+	 * table's parent). The hook owns the whole mutation; dispatch does nothing afterward.
 	 */
 	onScopedStructuralPaste?(input: ScopedStructuralPasteInput): Promise<void>;
 }

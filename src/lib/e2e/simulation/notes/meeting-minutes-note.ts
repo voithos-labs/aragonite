@@ -2,12 +2,9 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The meeting-minutes note: a genre the structural and inline notes skip —
- * headings, an attendee bullet list, a decision quote, an ordered agenda, and a
- * task list with a nested action item under one task. All HOLD (typed char by
- * char), so end-state equality stays a primary oracle. The nested action item
- * uses the empty-item cadence (`pressEnter` → `indentEmptyItem` → `typeFreshItem`)
- * so a task and its sub-action sit one level apart in the equality spine.
+ * The meeting-minutes note. All HOLD, so end-state equality stays a primary oracle. The
+ * nested action item uses the empty-item cadence, putting a task and its sub-action one level
+ * apart in the equality spine.
  */
 export const MEETING_MINUTES_NOTE: NoteFixture = {
 	name: 'meeting-minutes-note',

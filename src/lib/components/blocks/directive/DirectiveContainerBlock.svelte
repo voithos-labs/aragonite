@@ -1,20 +1,16 @@
 <script lang="ts">
-	// The generic render surface for an unregistered `:::name` directive, built on
-	// the public `createContainerBlock` seam (as CalloutBlock/DetailsBlock are). The
-	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
-	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
-	// (a document should feel like a document, not a pile of blocks).
-	import { BlockList, createContainerBlock, type ContainerBlockComponent } from '$lib/plugin';
+	// The generic render surface for an unregistered `:::name` directive, built on the
+	// public `createContainerBlock` seam. Chrome stays a dimmed marker over a gutter
+	// rail, not a card box — a document should feel like a document.
+	import { BlockList, createContainerBlock } from '$lib/plugin';
 	import type { NodeView } from '$lib/core/node-views';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// The opener line sliced verbatim, not rebuilt from metadata: the metadata
-	// carries the colon count and the name, but the line can also hold an indent,
-	// attributes, or trailing spaces. Reconstructing renders bytes the document does
-	// not have, and this marker sits directly above the body it labels.
+	// The opener line sliced verbatim, not rebuilt from metadata: the line can also
+	// carry an indent, attributes, or trailing spaces the metadata does not hold.
 	const marker = $derived.by(() => {
 		const end = node.raw.indexOf('\n');
 		const line = end === -1 ? node.raw : node.raw.slice(0, end);
@@ -28,33 +24,7 @@
 		getBoxEl: () => boxEl
 	});
 
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-	// Completeness guard: `bind:this` reads each instance export individually, so a
-	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
-	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
-	void ({
-		editable,
-		focusable,
-		focus,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
+	export { containerApi };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

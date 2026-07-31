@@ -7,14 +7,11 @@ import { emptyParagraph } from '../node-ops';
 import { assembleListHalf, orderedBaseOf } from './list-builders';
 
 /**
- * Compute the parent-level replacement when a list item exits the list (Enter
- * on an empty-first-paragraph item). Layout:
- *   [firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]
- *
- * Matching-type nested list items rejoin the surviving list halves; everything
- * else lifts as separate top-level blocks in document order. `paragraphIndex`
- * is the exit paragraph's position in the returned array — callers pass it as
- * the focus target. Input is not mutated.
+ * The parent-level replacement when a list item exits its list, laid out as
+ * `[firstHalfList?, exitParagraph, ...liftedBlocks, secondHalfList?]`. Matching-type
+ * nested items rejoin the surviving halves; everything else lifts as a top-level block.
+ * `paragraphIndex` is the exit paragraph's slot, the caller's focus target. Input is not
+ * mutated.
  */
 export function buildExitReplacement(
 	list: NodeView,
@@ -24,8 +21,6 @@ export function buildExitReplacement(
 	const exitedItem = items[itemIndex];
 	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
-	// Matching-type nested lists flatten into `promotedItems` for re-merge
-	// into the surviving halves; everything else lifts as a top-level block.
 	const promotedItems: CstNode[] = [];
 	const liftedBlocks: CstNode[] = [];
 	if (exitedItem?.children && exitedItem.children.length > 1) {
@@ -73,8 +68,7 @@ export function buildExitReplacement(
 	blocks.push(exitParagraph);
 	for (const lifted of liftedBlocks) blocks.push(lifted);
 	if (secondHalfItems.length > 0) {
-		// Continue the sequence across the gap: base, base+1, [exit], base+2 —
-		// the exited slot doesn't burn a number.
+		// Continue the sequence across the gap: the exited slot doesn't burn a number.
 		const secondHalfStart = base + firstHalfItems.length;
 		blocks.push(assembleListHalf(list, secondHalfItems, secondHalfStart));
 	}

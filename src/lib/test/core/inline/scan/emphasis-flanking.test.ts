@@ -13,9 +13,8 @@ import {
 	INTRA_WORD_UNDERSCORE_CASES
 } from '../../../support/flanking-corpus';
 
-// The §6.2 corpus is single-sourced in test/support/flanking-corpus.ts and run
-// here against scanInline; inline-conformance.test.ts runs the same cases through
-// the full parseInline pipeline. Same corpus, different SUT — never drift.
+// The §6.2 corpus is single-sourced in test/support/flanking-corpus.ts so this suite and
+// inline-conformance.test.ts run the same cases against different SUTs, never drifting.
 
 const sortedSpans = (nodes: InlineNode[], source: string): string[] =>
 	collectKind(nodes, 'emphasis')
@@ -54,8 +53,7 @@ describeFlankingCases(
 
 describe('astral punctuation flanking (code points, not UTF-16 units)', () => {
 	it('astral punctuation neighbors flank like BMP punctuation', () => {
-		// U+10100 (AEGEAN WORD SEPARATOR LINE, category Po) must flank like `.`:
-		// `._x_.` emphasizes, so this must too. Reading UTF-16 units instead of
+		// U+10100 is category Po, so it must flank like `.`. Reading UTF-16 units instead of
 		// code points classifies the lone surrogate as "other" and drops the pair.
 		const source = '\u{10100}_x_\u{10100}';
 		const nodes = scanInline(source, 0, source.length);

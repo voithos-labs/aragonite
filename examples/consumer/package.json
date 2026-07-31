@@ -27,5 +27,8 @@
 	},
 	"dependencies": {
 		"aragonite": "file:../.."
+	},
+	"overrides": {
+		"cookie": "^0.7.2"
 	}
 }

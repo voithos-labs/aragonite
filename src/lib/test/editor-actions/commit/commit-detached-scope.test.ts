@@ -1,9 +1,6 @@
-// A multi-scope commit whose mutation splices one of its own scope nodes out
-// of the tree (an emptied nested list under promoteNestedItem, a consumed
-// endpoint item or blockquote under a cross-container rangeDelete) must not
-// rebuild or invariant-check the detached node — and preparing overlapping
-// scopes must not false-fire the identity assert on the ceremony's own copies.
-// The armed channel below is the same console channel the e2e watcher fails on.
+// A commit whose mutation splices one of its own scope nodes out of the tree must not
+// rebuild or invariant-check the detached node, and overlapping scopes must not
+// false-fire the identity assert on the ceremony's own copies.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -22,8 +19,7 @@ import {
 	makeListContextAt
 } from '$lib/test/harness/editor-actions';
 
-// devWarn mutes itself under Vitest, which is why no unit test ever saw these
-// fires; un-mute for the duration and capture invariant lines only.
+// devWarn mutes itself under Vitest, which is why no unit test ever saw these fires.
 function armInvariantChannel(): string[] {
 	const fires: string[] = [];
 	configureEditorEnv({ isTest: false });
@@ -94,7 +90,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const beforeLens = views.map((v) => v.children.length);
-				rangeDelete(deps.doc, start, end, views[0].sharing);
+				rangeDelete(deps.doc, start, end, views[0].sharing, undefined);
 				return views.map((v, i) =>
 					__computeScopeDescriptorForTests(
 						paths[i],
@@ -131,7 +127,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const beforeLens = views.map((v) => v.children.length);
-				rangeDelete(deps.doc, start, end, views[0].sharing);
+				rangeDelete(deps.doc, start, end, views[0].sharing, undefined);
 				return views.map((v, i) =>
 					__computeScopeDescriptorForTests(
 						paths[i],

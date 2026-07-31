@@ -1,25 +1,17 @@
 import type { Page } from '@playwright/test';
 
 export interface ErrorCollector {
-	/**
-	 * Subscribe to the editor's structured `error` event seam. Call once at
-	 * session start, before any gesture. Async because it reaches into the page.
-	 */
+	/** Call once at session start, before any gesture. */
 	start(): Promise<void>;
 	/** Throw if any channel recorded a failure since `start`. */
 	assertNone(): Promise<void>;
 }
 
 /**
- * No global console/pageerror gate exists in the harness, so a long session
- * owns its own. It watches three channels the session must stay clean on:
- * console errors + pageerrors; `[invariant:…]`-marked dev warnings (the
- * commit/bootstrap invariant seam); and the editor's structured `error` event
- * (caught render / commit / subscriber failures the editor contains rather than
- * throws). The shared `fixtures.ts` watcher also fails on an invariant fire, but
- * only at spec teardown — `assertNone` runs at the session's checkpoints, so a
- * fire surfaces mid-session instead. Attach before any gesture, then `await
- * start()`.
+ * Three channels a long session must stay clean on: console errors + pageerrors,
+ * `[invariant:…]` dev warnings, and the editor's structured `error` event (failures the
+ * editor CONTAINS rather than throws). `fixtures.ts` also fails on an invariant fire, but
+ * only at spec teardown — `assertNone` runs at checkpoints, so a fire surfaces mid-session.
  */
 export function attachErrorCollector(page: Page): ErrorCollector {
 	const errors: string[] = [];

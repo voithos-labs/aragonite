@@ -37,7 +37,10 @@ through a windowed document — the flush ordering no unit test can assume.
 
 - **one undo collapses it back:** a single Ctrl+Z after the navigation restores the
   document byte-for-byte (`<details>` closed again) and the body unmounts — the
-  expansion is one undo entry, not a silent view flip and not two entries
+  expansion is one undo entry, not a silent view flip and not two entries. The
+  chord is typed straight after the click, with nothing put the caret back first:
+  the navigation lands it in the revealed heading, so the gesture that makes the
+  edit leaves focus where the undo for it can be typed.
 - **an already-open container is not re-committed:** navigating to a heading inside an
   open `<details>` scrolls to it without touching the source bytes
 - **reading mode does not expand:** the same toc click in reading mode leaves the

@@ -129,9 +129,8 @@ test.describe('reading mode — inertness', () => {
 	test('a focused code block dead-keys its kind commands (dispatch-ctx parity)', async ({
 		page
 	}) => {
-		// The per-component dispatch sites each supply the mode getter to the reading
-		// gate; a code block is a distinct dispatch site from a paragraph. Enter (a code
-		// command) must dead-key under reading — a missing mode thread would insert a line.
+		// A code block is a distinct dispatch site from a paragraph, and each supplies the mode
+		// getter itself — so a missing thread here would let Enter insert a line under reading.
 		await ep.loadContent('```js\nconst x = 1;\n```\n'); // reading mode (beforeEach)
 		const before = await ep.bridge.getSource();
 		await ep.clickBlock(0);

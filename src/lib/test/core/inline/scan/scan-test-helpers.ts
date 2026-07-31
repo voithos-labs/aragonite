@@ -43,9 +43,8 @@ const FIXED_MARKER_LEN: Partial<Record<InlineNode['kind'], number>> = {
 	strong: 2
 };
 
-// Emphasis and strong carry a fixed marker width; strikethrough runs are 1 or 2
-// tildes (cmark-gfm), so its width is derived from the leading child boundary and
-// checked for symmetry, catching a parser that mis-sized one side.
+// Strikethrough runs are 1 or 2 tildes (cmark-gfm), so its width is derived rather than
+// fixed, and checked for symmetry to catch a parser that mis-sized one side.
 function emphasisMarkerLen(node: InlineNode): number | undefined {
 	const fixed = FIXED_MARKER_LEN[node.kind];
 	if (fixed !== undefined) return fixed;
@@ -61,9 +60,9 @@ function emphasisMarkerLen(node: InlineNode): number | undefined {
 }
 
 /**
- * Every emphasis-family, link, and image node in the tree tiles as leading
- * marker + children + trailing marker. A link's trailing marker `](…)` starts
- * where its last child ends (children cover only the label interior).
+ * Every emphasis-family, link, and image node tiles as leading marker + children +
+ * trailing marker; a link's `](…)` starts where its last child ends, since children
+ * cover only the label interior.
  */
 export function assertConstructCoverage(nodes: InlineNode[]): void {
 	for (const node of nodes) {

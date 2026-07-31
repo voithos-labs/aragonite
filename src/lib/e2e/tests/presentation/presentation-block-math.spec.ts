@@ -1,11 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from '../plugins/helpers';
 
-// Render-primary reveal + reading-mode flip on /test/plugins?seed=mathblock. A flip
-// while a BlockMath source reveal holds an uncommitted edit commits through the
-// blur-class mode effect (mode already reading — commitSource is not reading-gated).
-// The header toggle preserves editor focus, so the commit is driven by the flip, not
-// a focus-stealing blur. Requirements: e2e/requirements/presentation/presentation-block-math.md.
+// A mode flip while a reveal holds an uncommitted edit commits through the blur-class mode
+// effect. The header toggle PRESERVES editor focus, so the commit is driven by the flip, not
+// by a focus-stealing blur. Requirements:
+// e2e/requirements/presentation/presentation-block-math.md.
 
 const RENDER = '.math-block-render';
 const SOURCE = '.math-block-source';

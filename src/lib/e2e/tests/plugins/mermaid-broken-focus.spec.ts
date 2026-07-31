@@ -2,11 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, waitForDoc, activeBlockPath } from './helpers';
 
 /**
- * Whole-block focus on a BROKEN mermaid fence (requirements/plugins/
- * mermaid-broken-focus.md). The error card is still THE block: arrows stop and
- * focus it, the two-step delete works, Enter-below works, reorder works, and
- * both edit affordances stay reachable — the user's recovery path to fix the
- * source. Fixture: `Above text`, one invalid diagram, `tail text`.
+ * Whole-block focus on a BROKEN mermaid fence (requirements/plugins/mermaid-broken-focus.md). The
+ * error card is still THE block: arrows stop and focus it, the two-step delete works, Enter-below
+ * works, reorder works, and both edit affordances stay reachable — the user's recovery path to fix
+ * the source.
  */
 
 const DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';

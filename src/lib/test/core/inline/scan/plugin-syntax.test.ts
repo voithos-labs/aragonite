@@ -45,10 +45,8 @@ describe('inline-syntax registry', () => {
 		expect(() => registerInlineSyntax('$$', recognizeMath)).toThrow(/single character/);
 	});
 
-	// The scanner consults the registry only in its `default` arm, so a trigger the
-	// built-in switch already claims would register cleanly and then never fire.
-	// Registration is the only place that can see the collision; a silent no-op in a
-	// public API is the failure mode to make impossible.
+	// The scanner consults the registry only from its `default` arm, so a trigger the
+	// built-in switch claims would register cleanly and then never fire.
 	it.each(['\\', '`', '&', '*', '_', '~', '[', ']', '!', '<', '\n'])(
 		'rejects %j — a trigger the built-in scanner already claims',
 		(trigger) => {
@@ -63,10 +61,8 @@ describe('inline-syntax registry', () => {
 	});
 });
 
-// The fast bail's probe is a cost switch, not a correctness one — it only decides
-// whether ordinary characters pay a lookup before the bail answers. A rung on a
-// trigger SPECIAL_CHARS already visits must leave it off, or every character of every
-// footnote-bearing document pays for a visit the bail was always going to make.
+// The probe is a cost switch, not a correctness one: a rung on a trigger SPECIAL_CHARS
+// already visits must leave it off, or every character pays for a visit the bail makes.
 describe('inline-syntax registry — what the fast bail must probe', () => {
 	it('reports nothing to probe until a trigger is registered', () => {
 		expect(hasScanProbeRungs()).toBe(false);
@@ -113,9 +109,8 @@ describe('inline-syntax recognition', () => {
 	});
 
 	it('throws when a recognizer returns a node that starts off the cursor', () => {
-		// appendNode flushes pending text to node.start; a start past the trigger would
-		// gap coverage (and a start before it would overlap the prior run), so the seam
-		// fails loud instead of tiling a torn tree.
+		// appendNode flushes pending text to node.start, so an off-cursor start gaps or
+		// overlaps coverage; the seam fails loud instead of tiling a torn tree.
 		registerInlineSyntax('$', (_raw, pos) => mathNode(pos + 1, pos + 2));
 		expect(() => parseInline('a$b', 0, 3)).toThrow(/started at 2, expected 1/);
 	});

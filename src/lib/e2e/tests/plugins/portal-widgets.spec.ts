@@ -2,11 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter } from './helpers';
 
 /**
- * The component-portal seam guarantee: a keyed reuse pool keeps one live instance
- * per `(kind, source)` across the editor's rebuild-everything-per-keystroke render.
- * `MathInline`'s `data-mount-id` is the oracle — stable when a widget is adopted
- * (unchanged source), new when it is remounted (source edited). Only a real browser
- * proves it: the pool, the mount, and the render survival are all runtime.
+ * The component-portal seam guarantee: a keyed reuse pool keeps one live instance per `(kind,
+ * source)` across the editor's rebuild-everything-per-keystroke render. `MathInline`'s
+ * `data-mount-id` is the oracle — stable when a widget is adopted (unchanged source), new when it
+ * is remounted (source edited). Only a real browser proves it: the pool, the mount, and the render
+ * survival are all runtime.
  */
 
 class PortalPage extends PluginsPage {
@@ -89,9 +89,9 @@ test.describe('component-portal inline widgets', () => {
 		await expect(editor.mathWidget).toHaveCount(1);
 		const idBefore = await editor.mountId();
 
-		// Two reveal→cancel cycles with no render between. The cancel swap restores the
-		// exact detached element, so no pool state is disturbed and no duplicate can
-		// mount — the id must hold through both cycles and the next real render.
+		// Two reveal→cancel cycles with no render between. The cancel swap restores the exact
+		// detached element, so no pool state is disturbed and no duplicate can mount — the id must
+		// hold through both cycles and the next real render.
 		for (let cycle = 0; cycle < 2; cycle++) {
 			await clickWidgetCenter(editor.mathWidget);
 			await expect(editor.mathWidget).toHaveCount(0);
@@ -120,9 +120,9 @@ test.describe('component-portal inline widgets', () => {
 		const secondId = await editor.mountId(1);
 		expect(firstId).not.toBe(secondId);
 
-		// Reveal the SECOND widget, then Escape. A key-only fold-back lookup returns the
-		// oldest pooled instance, and replaceWith MOVES the first widget's element into
-		// the second's slot — the first formula vanishes and DOM diverges from the CST.
+		// Reveal the SECOND widget, then Escape. A key-only fold-back lookup returns the oldest
+		// pooled instance, and replaceWith MOVES the first widget's element into the second's slot
+		// — the first formula vanishes and the DOM diverges from the CST.
 		await clickWidgetCenter(editor.mathWidget.nth(1));
 		await expect(editor.mathWidget).toHaveCount(1);
 		await page.keyboard.press('Escape');

@@ -1,10 +1,9 @@
 # Feature: Virtual rendering — post-paste caret under container windowing
 
-The container-matching paste lands the caret at the end of the pasted run. Its
-landing index scales with the CLIPBOARD's item count, not with where the caret was,
-so a paste larger than the container window's overscan targets an unmounted item.
-The sync focus dispatcher cannot reveal an off-window head (VR-12), so it returns
-silently and the caret is lost.
+A structural paste lands the caret at the end of the pasted run. That landing index
+scales with the CLIPBOARD's item count, not with where the caret was, so a paste
+larger than the container window's overscan targets an unmounted item. The landing
+reveals the target (scroll, mount) before placing the caret (VR-12).
 
 Focus is asserted by typing a marker and reading where it appears. A source
 assertion cannot cover this: the pasted bytes are identical whatever the caret did.
@@ -12,18 +11,20 @@ assertion cannot cover this: the pasted bytes are identical whatever the caret d
 ## User interactions
 
 - Paste a list of many items into an item near the top of a windowed list: after the
-  paste, typing appends to the end of the last pasted item.
+  paste, the caret is in the last PASTED item (never the split residue) and typing
+  appends there.
 
 ## Error cases
 
-- The typed marker must reach the document at all. Losing it entirely is the shape
-  the defect produces today: a real user pastes, types, and nothing happens.
+- The typed marker must reach the document at all. Losing it entirely was the shape
+  the defect produced: a real user pasted, typed, and nothing happened.
 
-## Known defect
+## Synchronization
 
-This scenario currently FAILS. The spec pins it by asserting the INVERTED outcome (the
-marker reaches the document nowhere), with every precondition left as a hard assertion,
-so the file turns red the day the focus path is fixed. Re-inverting it is part of that fix. Ledger entry: `docs/issues.md` § Virtual rendering.
+The source is final at commit time, before the reveal has scrolled and mounted the
+landing item. The spec therefore gates its typing on the caret — polling the landing
+block's cursor surface — not on the pasted bytes. Waiting on the source alone would
+type into whatever still held focus and pass or fail on scheduling luck.
 
 ## Non-vacuity
 

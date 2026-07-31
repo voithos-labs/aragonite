@@ -9,10 +9,9 @@ test.describe('image popover anchoring', () => {
 		await editor.goto();
 	});
 
-	// Regression: the popover previously had `position: absolute` with no
-	// offsets, sitting at its static-flow position (bottom of `.editor`'s
-	// content). For long documents the popover rendered far below the widget,
-	// off-screen — invisible to the user even though the test could find it.
+	// The popover was `position: absolute` with no offsets, so it sat at its static-flow position
+	// at the bottom of `.editor` — in long documents it rendered off-screen while tests could still
+	// find it.
 	test('popover is anchored just below the widget, not at end of editor flow', async ({ page }) => {
 		await editor.loadContent(
 			'# heading\n\nfiller paragraph one.\n\nfiller paragraph two.\n\n![cat|200](/test-fixtures/sample.png)\n'
@@ -28,13 +27,9 @@ test.describe('image popover anchoring', () => {
 		expect(popoverBox.y).toBeLessThan(widgetBottom + 50);
 	});
 
-	// Pre-fix the overlay listened only for ResizeObserver (target widget),
-	// `edit` events, and window resize. A sibling image's slow async reload
-	// (e.g., the user edits image-1's URL then clicks image-2) reflows the
-	// document and shifts the selected widget's y without resizing it; the
-	// overlay's anchor was set when image-1 still had its old dimensions and
-	// stayed there as image-1 grew, leaving the popover stranded over the
-	// wrong image until the next user-driven update.
+	// The overlay listened only for ResizeObserver, `edit`, and window resize. A sibling image's
+	// slow reload shifts the selected widget's y without resizing it, stranding the popover over
+	// the wrong image.
 	test('overlay re-anchors when a sibling image finishes loading and reflows', async ({ page }) => {
 		await editor.loadContent(
 			'![one|400](/test-fixtures/sample.png)\n\n![two|200](/test-fixtures/sample.png)\n'
@@ -50,8 +45,8 @@ test.describe('image popover anchoring', () => {
 		await page.locator('.md-image-properties').waitFor({ state: 'visible' });
 		await editor.waitForResizeObserverFlush();
 
-		// Cause a layout shift only image-1 sees (its rendered height grows).
-		// Then dispatch the load event — the production fix re-anchors the overlay.
+		// Shift the layout only image-1 sees, then dispatch its load event: the overlay must
+		// re-anchor.
 		await page.evaluate(
 			() =>
 				new Promise<void>((resolve) =>

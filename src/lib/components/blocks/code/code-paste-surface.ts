@@ -1,7 +1,6 @@
 /**
- * PasteSurface for fenced code blocks. Paste is always literal text, so the
- * structural hook is omitted — pasteDispatch falls through to the inline path
- * and computeCodePaste handles the fence-bump invariant.
+ * PasteSurface for fenced code blocks. Paste is always literal text, so the structural
+ * hook is omitted and pasteDispatch falls through to the inline path.
  */
 
 import { metadataOf } from '../../../core/nodes';

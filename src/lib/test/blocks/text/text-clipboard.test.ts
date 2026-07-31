@@ -6,6 +6,7 @@
 // getInlineContent resolution, a captured ClipboardEvent stand-in, and the real
 // widget-selection state — no kind === 'image' branch (policy-agnostic).
 import { describe, it, expect } from 'vitest';
+import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import {
 	createTextClipboard,
@@ -124,5 +125,80 @@ describe('createTextClipboard — selected-widget cut', () => {
 		await handlers.onCut(e as never);
 		expect(e.payload()).toBe('![a](x)');
 		expect(commits[0]).toEqual({ index: 0, raw: 'trail\n', before: 0, after: 0 });
+	});
+});
+
+// A fold whose commit changes the block's kind takes the structural path, whose completion is a
+// promise; both clipboard mutations must hold or they splice bytes the fold is still replacing.
+function foldSettleHarness() {
+	const node: CstNode = parse('lead![cat](x)\n').children[0];
+	const order: string[] = [];
+	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
+	widgetSelection.select({ paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
+
+	let releaseWrite!: () => void;
+	const writeGate = new Promise<void>((resolve) => {
+		releaseWrite = resolve;
+	});
+
+	const deps = {
+		get node() {
+			return node;
+		},
+		get index() {
+			return 0;
+		},
+		get myPath() {
+			return [0];
+		},
+		cursor: { getRaw: () => null, getRawSelection: () => null },
+		selection: { isCrossBlock: false, anchor: null, focus: null },
+		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
+		stickyColumn: { reset: () => {} },
+		blockEdit: { updateBlockContent: () => void order.push('seam-commit') },
+		pasteCoordinator: {},
+		getDoc: () => null,
+		widgetSelection,
+		setPendingCursor: () => {},
+		isReadOnly: () => false,
+		foldRevealBeforeMutation: () => ({
+			caret: 4,
+			settled: writeGate.then(() => void order.push('fold-write'))
+		}),
+		get linkRef() {
+			return undefined;
+		}
+	} as unknown as TextClipboardDeps;
+
+	return { handlers: createTextClipboard(deps), order, releaseWrite };
+}
+
+describe('createTextClipboard — a mutation waits for the reveal fold it triggered', () => {
+	it('holds the cut splice until the fold’s write settles', async () => {
+		const { handlers, order, releaseWrite } = foldSettleHarness();
+		const cut = handlers.onCut(capturingEvent() as never);
+		await tick();
+		await tick();
+
+		expect(order).toEqual([]);
+
+		releaseWrite();
+		await cut;
+		expect(order).toEqual(['fold-write', 'seam-commit']);
+	});
+
+	it('holds the paste splice until the fold’s write settles', async () => {
+		const { handlers, order, releaseWrite } = foldSettleHarness();
+		const e = capturingEvent();
+		e.clipboardData.setData('text/plain', 'pasted');
+		const paste = handlers.onPaste(e as never);
+		await tick();
+		await tick();
+
+		expect(order).toEqual([]);
+
+		releaseWrite();
+		await paste;
+		expect(order).toEqual(['fold-write', 'seam-commit']);
 	});
 });

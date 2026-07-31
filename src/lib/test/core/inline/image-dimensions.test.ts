@@ -16,9 +16,8 @@ describe('parseImageDimensions', () => {
 		['alt|99999', { displayAlt: 'alt|99999', width: undefined, height: undefined }],
 		['alt|400x', { displayAlt: 'alt|400x', width: undefined, height: undefined }],
 		['alt|400x0', { displayAlt: 'alt|400x0', width: undefined, height: undefined }],
-		// The pipe search is bounded to the longest zero-free decodable suffix
-		// (`|10000x10000`); a digit run padded past it deliberately stops
-		// decoding so nested-label floods stay linear.
+		// The pipe search is bounded to the longest decodable suffix, so a padded digit run
+		// deliberately stops decoding and nested-label floods stay linear.
 		['alt|10000x10000', { displayAlt: 'alt', width: 10000, height: 10000 }],
 		['alt|000000000001', { displayAlt: 'alt|000000000001', width: undefined, height: undefined }]
 	])('parses %s correctly', (input, expected) => {

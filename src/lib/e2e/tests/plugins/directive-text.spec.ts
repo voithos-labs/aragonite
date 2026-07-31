@@ -2,16 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 
 /**
- * Text-tier directive widget: `:name[label]{attrs}` renders as an atomic
- * `.directive-text-widget` and edits via source-reveal-on-focus — the same shared
- * primitive the inline-math `$…$` widget uses (latex-inline.spec.ts). The reveal
- * swap and commit re-render are driven through real mouse/keyboard only.
- *
- * DOM assumption for the reveal signal: unlike math (which renders KaTeX, so the
- * `$…$` source appears in block text only once revealed), this widget renders its
- * source verbatim-but-dimmed, so the `:abbr[HTML]` string is in the block text in
- * BOTH states. The reveal signal is therefore the widget COUNT (1 rendered → 0
- * revealed), not the presence of the source string.
+ * Text-tier directive widget: `:name[label]{attrs}` renders as an atomic `.directive-text-widget`
+ * and edits via source-reveal-on-focus — the same shared primitive the inline-math `$…$` widget
+ * uses (latex-inline.spec.ts). Reveal signal: unlike math, this widget renders its source
+ * verbatim-but-dimmed, so `:abbr[HTML]` sits in the block text in BOTH states — the signal is the
+ * widget COUNT (1 rendered → 0 revealed), not the presence of the source string.
  */
 
 const SEED = 'see :abbr[HTML] here\n\nNext\n';
@@ -27,7 +22,6 @@ class DirectiveTextPage extends PluginsPage {
 		return this.page.locator('.directive-text-widget');
 	}
 
-	/** Click the rendered widget to reveal its source, settling on the swap. */
 	async revealByClick(): Promise<void> {
 		await revealWidget(this.widget);
 	}

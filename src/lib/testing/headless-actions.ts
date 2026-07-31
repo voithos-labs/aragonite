@@ -1,13 +1,8 @@
 /**
- * Headless editor-actions environment for the published conformance kit.
- *
- * Runner-agnostic on purpose. `aragonite/testing` is imported INTO an author's
- * own test case, so it must not import a test runner: a plain thrown `Error` is
- * reported correctly by Vitest, Jest and `node:test` alike, and a static
- * `vitest` import would eagerly load the runner for anyone reaching for
- * `resetPluginPlatformForTests` alone. That is why these stubs restate, rather
- * than reuse, the in-repo `test/harness` mocks — those are `vi.fn()`-based and
- * stay internal.
+ * Headless editor-actions environment for the published conformance kit. These stubs
+ * restate rather than reuse the in-repo `test/harness` mocks, which are `vi.fn()`-based:
+ * `aragonite/testing` is imported into an author's own suite, so a static runner import
+ * would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
  */
 
 import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -26,6 +21,7 @@ import { createUndoManager } from '../undo/manager';
 export function stubBlockComponent(): BlockComponent {
 	return {
 		focus: () => {},
+		parkCaret: () => {},
 		getCursorOffset: () => null,
 		editable: true,
 		focusable: true
@@ -62,8 +58,7 @@ export function recordingFocus(): RecordingFocus {
 		moveFocus: (...args: unknown[]) => {
 			moveFocusCalls.push(args);
 		},
-		// The focus-bubble consumers assert on moveFocus, not on a resolved
-		// component, and model no render window.
+		// The focus-bubble consumers assert on moveFocus, never on a resolved component.
 		revealPath: async () => null
 	};
 }
@@ -71,10 +66,9 @@ export function recordingFocus(): RecordingFocus {
 // ── Block-list state ─────────────────────────────────────────────────────────
 
 /**
- * A BlockListState seeded with one ref per child. `getNode` must read the LIVE
- * node — the commit primitives replace the spine's nodes, so a captured
- * reference goes stale after the first commit. The `$effect` that fills refs in
- * a mounted editor never runs headlessly, hence the manual seed.
+ * A BlockListState seeded with one ref per child (the `$effect` that fills refs never
+ * runs headlessly). `getNode` must read the LIVE node: the commit primitives replace the
+ * spine's nodes, so a captured reference goes stale after the first commit.
  */
 export function mountBlockListState(getNode: () => CstNode): BlockListState {
 	const state = createBlockListState(() => getNode());

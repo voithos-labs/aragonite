@@ -4,11 +4,9 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 
-// The table branch rides the chrome branch's deletion ceremony: a covered
-// container strictly between the endpoints dies as ONE splice with children
-// intact — never a child-by-child emptying — so a commit scope or undo entry
-// holding the detached node stays invariant-clean. Mirrors the chrome-branch
-// pins in range-delete-chrome-table.test.ts ("one splice, children intact").
+// The table branch rides the chrome branch's deletion ceremony: a covered container strictly
+// between the endpoints dies as ONE splice with children intact, never a child-by-child emptying,
+// so a commit scope or undo entry holding the detached node stays invariant-clean.
 
 const TWO_COL_THREE_ROW = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -24,7 +22,8 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [2], offset: 1 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(blockquote.children).toHaveLength(1);
@@ -42,7 +41,8 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [2], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(blockquote.children).toHaveLength(1);
@@ -61,7 +61,8 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 			doc,
 			{ path: [0], offset: 0 },
 			{ path: [2], offset: 1 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		expect(blockquote.children).toHaveLength(1);

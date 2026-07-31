@@ -1,30 +1,24 @@
 /**
- * The container-authoring seam a plugin block component builds on. Collapses the
- * built-in container wiring — block-list state, nested actions + the ancestor
- * contexts, container-exit override, nested windowing, and the `BlockComponent`
- * shim — into one factory, so a plugin never touches an editor context key or the
- * internal helpers. Mirrors `BlockquoteBlock`'s wiring exactly; the plugin supplies
- * only its own chrome around the returned `BlockList` props.
- *
- * Call synchronously during component init — `getContext` reads the ancestor
- * contexts and `useContainerWindowing` sets its own.
+ * The container-authoring seam a plugin block component builds on: the built-in
+ * container wiring collapsed into one factory, so a plugin never touches an editor
+ * context key. Call synchronously during component init — `getContext` reads the
+ * ancestor contexts and `useContainerWindowing` sets its own.
  */
 
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
-// Type-only, erased at build: there is no runtime edge to `components/` here. It
-// buys the two-way conformance check below, which is what makes an internal
-// BlockList prop edit fail `npm run check` instead of silently rewriting the
-// public container contract. Inverting it to a registration would delete that.
+// Type-only, erased at build: no runtime edge to `components/` here. It buys the
+// two-way conformance check below.
 import type BlockList from '../../components/BlockList.svelte';
 import type {
 	BlockEditActions,
+	CommitAfterTick,
 	ContainerEditActions,
 	FocusActions,
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
-import type { AmbientPrefix, BlockComponent } from '../../block-component';
+import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -52,8 +46,7 @@ import {
 	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
 	handleWholeBlockKeys,
-	isEditableEventTarget,
-	type ContainerBlockComponent
+	isEditableEventTarget
 } from '../container-block-component';
 import {
 	createStandardNestedActions,
@@ -63,15 +56,10 @@ import {
 } from '../nested/nested-actions';
 
 /**
- * The frozen inputs the host component feeds in. A function-valued field is a
- * **live read**, re-evaluated on every use, so a parent structural op or undo
- * replacement is observed rather than snapshotted; a plain-valued field is static
- * configuration captured at the factory call. Passing a value where the contract
- * means "re-read live" no longer compiles — value-capture is unrepresentable here
- * (`docs/roadmap.md` freeze-surface liveness). `getBoxEl` returns the component's
- * chrome box — the element whose direct `.block-list` child the windowing lookups
- * walk (`:scope > .block-list`, so chrome siblings beside the list are fine; it need
- * not be the sole child).
+ * The frozen inputs the host component feeds in. A function-valued field is a **live
+ * read**, re-evaluated on every use; a plain-valued field is static configuration.
+ * `getBoxEl` returns the chrome box whose direct `.block-list` child the windowing
+ * lookups walk, so chrome siblings beside the list are fine.
  */
 export interface ContainerBlockDeps {
 	getNode(): NodeView;
@@ -79,53 +67,23 @@ export interface ContainerBlockDeps {
 	getPath(): number[];
 	getBoxEl(): HTMLElement | undefined;
 	/**
-	 * Opt into editor-level whole-block focus for an opaque, childless container
-	 * (a render-primary plugin diagram): the getter returns the element that takes
-	 * DOM focus (e.g. a `tabindex=0` viewport). When supplied, `containerApi.focus`
-	 * lands here instead of walking absent children, `getCursorOffset` reads 0
-	 * while it holds focus, and the factory keydown gains the ThematicBreak-style
-	 * whole-block affordances (focus-then-delete, Enter-below, arrow traversal,
-	 * Alt-arrow reorder). The kind must also declare `blockFocus: 'whole-block'`.
-	 * Read live, never snapshotted. Supply a surface for EVERY steady state (error,
-	 * loading, static fallback included) — a null degrades to focusing the box
-	 * element with a dev warning, so the block stays keyboard-reachable rather
-	 * than a caret trap; only a plugin editable holding focus keeps a null null.
+	 * Opt into whole-block focus for an opaque, childless container: the element that
+	 * takes DOM focus. The kind must also declare `blockFocus: 'whole-block'`. Supply
+	 * a surface for EVERY steady state — a null degrades to the box with a dev warning.
 	 */
 	getFocusEl?: () => HTMLElement | null | undefined;
-	/**
-	 * Collapse clamp — while true only the chrome row (child 0) mounts; body
-	 * children genuinely unmount. Optional: a container that declares
-	 * `reservedChrome.isCollapsed` needs no dep — the factory derives the clamp
-	 * from that one probe. Supply it only as an escape hatch (dev-warns when it
-	 * disagrees with the declared probe). Read live so a toggle or its undo
-	 * re-renders reactively.
-	 */
+	/** Escape hatch only: the clamp derives from a declared `reservedChrome.isCollapsed`. */
 	isCollapsed?: () => boolean;
-	/**
-	 * The mounted component's view-state hooks, handed to a minted block command as
-	 * `ctx.hooks` — so a command opens the plugin's edit mode or focus overlay
-	 * without a node-keyed side map. Read live at dispatch: return a getter over the
-	 * component's own handlers, never a captured value. The platform treats it as
-	 * `unknown`; the plugin casts it to its own type.
-	 */
+	/** View-state hooks handed to a minted block command as `ctx.hooks`; typed `unknown`. */
 	commandHooks?: () => unknown;
-	/**
-	 * The read-only ambient prefix this container contributes to its FIRST child's
-	 * rendered content — a dimmed marker the child paints before its own bytes, the
-	 * listItem `- ` model (a footnote definition's `[^label]: `). The offset walk and
-	 * marker DOM are the child leaf's existing ambient-prefix machinery; the factory
-	 * only forwards the string. Read live so a marker derived from label metadata
-	 * re-renders after an edit or its undo. Absent = no prefix (blockquote/details).
-	 */
+	/** Ambient prefix painted before the FIRST child's bytes — the listItem `- ` model. */
 	getAmbientPrefix?: () => AmbientPrefix;
 }
 
 /**
  * The `BlockList` props the host spreads onto its rendered `<BlockList>`. Authored
- * as the fixed public contract rather than derived from `BlockList`'s internal
- * props: an internal prop edit that breaks the container seam now fails
- * `npm run check` at the conformance check below, with this exported type as the
- * fixed point — it can no longer silently rewrite the public contract.
+ * rather than derived, so an internal prop edit fails the check below instead of
+ * silently rewriting this contract.
  */
 export interface ContainerBlockListProps {
 	children: readonly NodeView[];
@@ -138,7 +96,8 @@ export interface ContainerBlockListProps {
 	ambientPrefixForFirst?: AmbientPrefix;
 }
 
-// BlockList must accept everything the contract promises (contract ⊆ component)…
+// Two-way: BlockList accepts everything the contract promises (contract ⊆ component),
+// and its props for those keys still satisfy the contract (component ⊆ contract).
 type _BlockListAccepts =
 	ContainerBlockListProps extends Pick<
 		ComponentProps<typeof BlockList>,
@@ -146,7 +105,6 @@ type _BlockListAccepts =
 	>
 		? true
 		: never;
-// …and the component's props for those keys must still satisfy the contract (component ⊆ contract).
 type _ContractCovers =
 	Pick<
 		ComponentProps<typeof BlockList>,
@@ -156,38 +114,32 @@ type _ContractCovers =
 		: never;
 const _conforms: [_BlockListAccepts, _ContractCovers] = [true, true];
 
-// `ContainerBlockComponent` is defined at the shim (`container-block-component`),
-// which now types every container member as required, and re-exported here so the
-// plugin barrel surfaces it from the container seam.
+// Re-exported so the plugin barrel surfaces it from the seam an author actually calls.
 export type { ContainerBlockComponent };
 
 export interface ContainerBlock {
 	/** Spread onto `<BlockList {...blockListProps} />` inside the chrome box. */
 	blockListProps: ContainerBlockListProps;
-	/**
-	 * The live EFFECTIVE presentation mode — the container tier's mode read,
-	 * mirroring `createEditableLeaf`'s getter. A component gates its own edit
-	 * affordances on it (a disclosure toggle, an edit button go inert in reading
-	 * mode). The documented DOM-tier probe (`el.closest('[data-presentation]')`)
-	 * stays valid for a component holding only a DOM handle; this is the preferred
-	 * path when the factory is already in hand.
-	 */
+	/** The live EFFECTIVE mode, for gating edit affordances. Preferred over the DOM probe. */
 	getPresentationMode(): PresentationMode;
+	/**
+	 * The live editor theme name (`data-editor-theme`). A body painted by an engine
+	 * rather than CSS must key its render on this and re-render when it changes.
+	 */
+	getTheme(): string;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
-	 * Commit a shallow metadata patch on THIS container node as one undoable
-	 * entry, round-tripping through the kind's `rebuildRaw`. `afterTick` runs
-	 * once the commit's DOM has settled — a collapse toggle moves the orphaned
-	 * body caret to the chrome row here (the clamp kills the window pin).
+	 * Commit a shallow metadata patch on THIS container as one undoable entry, through
+	 * the kind's `rebuildRaw`. `afterTick` runs once the commit's DOM has settled.
 	 */
-	updateOwnMetadata(patch: Record<string, unknown>, afterTick?: () => void): void | Promise<void>;
+	updateOwnMetadata(
+		patch: Record<string, unknown>,
+		afterTick?: CommitAfterTick
+	): void | Promise<void>;
 	/**
-	 * Attach to the container's chrome box. A chord that bubbles from an inner
-	 * leaf (declined there without `preventDefault`) resolves against this kind's
-	 * keymap and runs its registered command, consuming the key on a hit. Kind-only
-	 * — the global tier stays with the focused leaf, so a bubbled undo/redo never
-	 * double-fires (mirrors `ListItemBlock`'s bubble handler).
+	 * Attach to the chrome box: a chord bubbling from an inner leaf resolves against
+	 * this kind's keymap. Kind-only, so a bubbled undo/redo never double-fires.
 	 */
 	handleKeydown(e: KeyboardEvent): void;
 }
@@ -196,19 +148,22 @@ export interface ContainerBlock {
 
 /**
  * Collapse-ness has ONE definition: the descriptor's `reservedChrome.isCollapsed`
- * probe. The window/focus clamp derives from it, so a container that declares the
- * probe needn't also thread a dep. An explicit dep stays an escape hatch; in dev
- * it's cross-checked against the probe so a half-collapsed hybrid (model says
- * collapsed, view stays open, or vice versa) is loud, not silent.
+ * probe. An explicit dep is dev-cross-checked against it, except in reading mode,
+ * which cannot write — a reader's open section is legitimately ahead of the document.
  */
 export function composeCollapseProbe(
 	explicit: (() => boolean) | undefined,
-	getNode: () => NodeView
+	getNode: () => NodeView,
+	getPresentationMode?: () => PresentationMode
 ): () => boolean {
 	if (!explicit) return () => isCollapsedContainer(getNode());
 	return () => {
 		const value = explicit();
-		if (import.meta.env.DEV && value !== isCollapsedContainer(getNode())) {
+		if (
+			import.meta.env.DEV &&
+			value !== isCollapsedContainer(getNode()) &&
+			!isReadingMode(getPresentationMode)
+		) {
 			devWarn(
 				'plugin-container',
 				`isCollapsed dep disagrees with the declared reservedChrome.isCollapsed probe for kind "${getNode().kind}"`
@@ -219,13 +174,9 @@ export function composeCollapseProbe(
 }
 
 /**
- * The expand door a reveal opens before descending into a collapsed body. Reads the
- * SAME declaration the window clamp reads — `reservedChrome.expandPatch`, beside the
- * collapse probe — and commits it through this container's own metadata path, so an
- * expansion is a real undoable document edit, not a view-only divergence from the CST.
- * Declines (leaving the reveal to degrade exactly as it did before the door existed)
- * when the container is already open, its kind declares no patch, or the mode is
- * reading, which commits nothing.
+ * The expand door a reveal opens before descending into a collapsed body. Commits
+ * `reservedChrome.expandPatch` as a real undoable edit, not a view-only divergence
+ * from the CST; declines in reading mode, which commits nothing.
  */
 export function composeExpandDoor(deps: {
 	getNode: () => NodeView;
@@ -242,12 +193,7 @@ export function composeExpandDoor(deps: {
 	};
 }
 
-/**
- * M3 collapse gate for a chrome leaf's Enter → `descendToBody`. While the
- * container is collapsed its body children are unmounted, so descending would
- * mint an invisible body paragraph (the existing-body branch already no-ops on
- * the unmounted ref). Consume the key and change nothing; delegate otherwise.
- */
+/** While collapsed the body is unmounted, so `descendToBody` would mint an invisible one. */
 export function gateDescendOnCollapse(
 	isCollapsed: (() => boolean) | undefined,
 	descend: (innerIndex: number) => void | Promise<void>
@@ -259,12 +205,9 @@ export function gateDescendOnCollapse(
 }
 
 /**
- * I-1 collapse gate for the interior `moveFocus`. While collapsed only the
- * chrome row (child 0) is mounted, so a move targeting a body index dead-ends
- * on the unmounted ref inside `dispatchMoveFocus` (its in-range branch finds no
- * focusable block and returns). Route body targets past the container instead —
- * the same exit an open container's past-end move takes. Upward moves and the
- * chrome row itself keep the inner dispatch.
+ * While collapsed only the chrome row is mounted, so an interior `moveFocus`
+ * targeting a body index dead-ends on the unmounted ref. Route body targets past the
+ * container instead — the same exit an open container's past-end move takes.
  */
 export function gateMoveFocusOnCollapse(
 	isCollapsed: (() => boolean) | undefined,
@@ -274,8 +217,7 @@ export function gateMoveFocusOnCollapse(
 ): FocusActions['moveFocus'] {
 	return async (innerIndex, position, options?: MoveFocusOptions) => {
 		if (innerIndex >= 1 && isCollapsed?.()) {
-			// Omit the options arg when unset so the common path stays a two-arg
-			// call, mirroring dispatchMoveFocus's own upward delegation.
+			// Omit the options arg when unset, mirroring dispatchMoveFocus's own delegation.
 			if (options) await parentFocus.moveFocus(getIndex() + 1, position, options);
 			else await parentFocus.moveFocus(getIndex() + 1, position);
 			return;
@@ -286,12 +228,7 @@ export function gateMoveFocusOnCollapse(
 
 export type NestedActionsOverrides = ReturnType<NestedActionsOverrideFactory>;
 
-/**
- * Layer the two collapse gates onto a base override map. Each surface spreads its
- * base first: a gate ADDS one member, it never replaces what the base declared
- * there. Extracted from the factory so the rule is checkable without mounting a
- * container — the two lines are otherwise free to drift, and one of them had.
- */
+/** Each surface spreads its base first: a gate ADDS a member, never replaces one. */
 export function composeCollapseGates(
 	base: NestedActionsOverrides,
 	gates: {
@@ -311,12 +248,8 @@ export function composeCollapseGates(
 /**
  * The kind-command target a plugin container bubbles into `dispatchKindCommand`.
  * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
- * chord resolves only through a registered command, whose context routes
- * `updateMetadata` back to this container's own metadata commit and carries the
- * component's `commandHooks`. `kind`, the context `node`, `hooks`, and `editor` are
- * read through `deps`' thunks at dispatch, so a node swap or hook rebind is observed
- * live. `pluginEditor` resolves the per-plugin EditorContext by the kind's recorded
- * owner; a kind with no owner gets the base per-instance context (the `?? ''` arm).
+ * chord resolves only through a registered one. The `?? ''` arm gives an unowned kind
+ * the base per-instance EditorContext.
  */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'getNode' | 'commandHooks'>,
@@ -348,19 +281,22 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const {
 		controller,
 		stickyColumn,
+		selection,
 		reorder,
 		events: editorEvents,
 		registryView
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, presentationMode: getPresentationMode } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		keybindingOverrides,
+		presentationMode: getPresentationMode,
+		theme: getTheme
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 
 	const listState = createBlockListState(deps.getNode);
 
-	// One live scope over the frozen thunks, shared by every factory this seam
-	// wires. Bridges the public thunk deps to the getter shape the factories read;
-	// passed by reference, never spread.
+	// One live scope over the frozen thunks, shared by every factory this seam wires.
+	// Passed by reference, never spread — spreading would snapshot the getters.
 	const scope: NodeScope = {
 		get index() {
 			return deps.getIndex();
@@ -373,7 +309,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		}
 	};
 
-	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode);
+	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
 
 	const blockquoteOverrides = createBlockquoteOverrides({
 		scope,
@@ -383,11 +319,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		controller
 	});
 
-	// Compose the collapse gates onto the blockquote exit override: a collapsed
-	// container's chrome Enter must not mint an invisible body (M3), and its
-	// chrome ArrowDown/ArrowRight must exit past the unmounted body (I-1). All
-	// override the same `defaults`, so the blockquote's `splitBlock` and the two
-	// gates coexist. For a non-collapsing container the gates are inert.
+	// All three override the same `defaults`, so they coexist; for a non-collapsing
+	// container the gates are inert.
 	const overrideFactory: NestedActionsOverrideFactory = (defaults) =>
 		composeCollapseGates(blockquoteOverrides(defaults), {
 			descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
@@ -427,8 +360,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		isCollapsed: collapsed
 	});
 
-	// One composed surface feeds the shim AND the keydown gate below, so a
-	// fallback-focused box passes the same containment check the affordances use.
+	// One composed surface feeds the shim AND the keydown gate, so a fallback-focused
+	// box passes the same containment check the affordances use.
 	const wholeBlockSurface = deps.getFocusEl
 		? composeWholeBlockFocusSurface(
 				deps.getFocusEl,
@@ -437,8 +370,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			)
 		: undefined;
 
-	// The commit is reached through a closure, not the `updateOwnMetadata` value:
-	// that const is declared below and only ever read at reveal time.
+	// Through a closure, not the `updateOwnMetadata` value: that const is declared
+	// below, and is only ever read at reveal time.
 	const expandCollapsed = composeExpandDoor({
 		getNode: deps.getNode,
 		isCollapsed: collapsed,
@@ -447,6 +380,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	});
 
 	const containerApi = createContainerBlockComponent({
+		selection,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
@@ -479,9 +413,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get window() {
 			return windowing.window;
 		},
-		// Opaque containers are a reorder boundary (resolveReorderUnit declines inside
-		// them), so a handle on a chrome or body row would be a dead affordance. The
-		// container itself stays reorderable through its parent's BlockList.
+		// Opaque containers are a reorder boundary, so a handle on a chrome or body row
+		// would be dead; the container itself reorders through its parent's BlockList.
 		reorderable: false,
 		get ambientPrefixForFirst() {
 			return deps.getAmbientPrefix?.() ?? '';
@@ -512,16 +445,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleWholeBlockKeydown(e);
 	};
 
-	// The whole-block-focus affordances for a viewport-focused container, dispatched
-	// from the wrapper's bubble phase so a viewport-focused key reaches them. Gated
-	// three ways so a child-bearing container or a plugin's own editing surface is
-	// never touched:
-	//   1. the kind opted in (getFocusEl supplied),
-	//   2. the whole-block focus element actually holds focus — excludes a focused
-	//      toolbar button (a sibling of the focus element), which would otherwise
-	//      double-fire its click and an Enter split, and
-	//   3. the event did not originate in an editable surface (belt-and-suspenders
-	//      for a plugin that mounts a textarea/contenteditable inside the block).
+	// The whole-block-focus affordances, dispatched from the wrapper's bubble phase.
+	// The three gates keep a focused sibling (a toolbar button would double-fire its
+	// click and an Enter split) and a plugin's own editable surface untouched.
 	function handleWholeBlockKeydown(e: KeyboardEvent): void {
 		if (!wholeBlockSurface) return;
 		const focusEl = wholeBlockSurface();
@@ -532,11 +458,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// so this path is live in reading mode: arrows stay, edits gate.
 		const reading = isReadingMode(getPresentationMode);
 
-		// Alt-arrow reorder is this container's own: its runCommand is inert (a plugin
-		// container owns no built-in kind command), so unlike ThematicBreak — which
-		// routes reorder through the kind keymap — it can't come from dispatchKindCommand
-		// and is handled inline here. The congruent Enter/Backspace/Delete/arrow tail is
-		// the shared handleWholeBlockKeys.
+		// Alt-arrow reorder is inline because `runCommand` is inert here, so unlike
+		// ThematicBreak it cannot come from dispatchKindCommand.
 		if (e.key === 'ArrowUp' && e.altKey) {
 			e.preventDefault();
 			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), -1);
@@ -558,5 +481,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		});
 	}
 
-	return { blockListProps, containerApi, updateOwnMetadata, handleKeydown, getPresentationMode };
+	return {
+		blockListProps,
+		containerApi,
+		updateOwnMetadata,
+		handleKeydown,
+		getPresentationMode,
+		getTheme
+	};
 }

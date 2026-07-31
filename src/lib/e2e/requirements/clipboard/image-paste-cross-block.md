@@ -16,6 +16,11 @@ addresses the survivor by path.
   pasted: the covered blocks are gone, the markdown stands at the collapse point, and
   the document is one block.
 - A selection anchored in a table cell is replaced too — the covered body row goes.
+- A selection whose LAST block is an image-only paragraph, image pasted: the focus
+  endpoint hosts no caret, so the browser dispatches the event at the body and the
+  editor-root fallback runs — the host hook is still offered the files, and the
+  replacement lands. Both paste entry paths share one image arm; only the intra-block
+  landing differs, because the root has no caret to insert at.
 
 ## User interactions
 
@@ -34,6 +39,10 @@ addresses the survivor by path.
 - Mirror of the above: a cross-block selection collapsed before the import lands falls
   through to the intra-block path and inserts at the caret captured at paste time.
   Pinned by `test/blocks/editable-surface-image-paste.test.ts`.
+- At the editor root the mirror has no intra-block fall-through: a selection collapsed
+  while the import was in flight leaves the imported markdown with nowhere to land, and
+  the seam reports it on the `error` channel (`origin: 'clipboard'`) so the host can
+  release the asset. Pinned by `test/components/editor-root-clipboard.test.ts`.
 - The hook still decides first: an import that returns `null` for every image destroys
   nothing — the selection is only replaced once there is markdown to insert. The
   rejects half of that guarantee shares the same code path and is pinned against a

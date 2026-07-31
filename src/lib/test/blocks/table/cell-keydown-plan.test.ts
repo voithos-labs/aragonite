@@ -3,8 +3,7 @@ import {
 	cellKeydownPlan,
 	type CellKeyInput,
 	type CellKeyPlan,
-	type CellKeyState,
-	type CellShortcutAction
+	type CellKeyState
 } from '../../../components/blocks/table/cell-keydown-plan';
 
 const key = (k: string, mods: Partial<CellKeyInput> = {}): CellKeyInput => ({
@@ -39,50 +38,38 @@ const cell = (
 	position
 });
 
-describe('cellKeydownPlan: structural shortcuts', () => {
-	const cases: Array<[CellKeyInput, CellShortcutAction, number]> = [
-		[key('Enter', { ctrlOrMeta: true }), 'insertRowBelow', 1],
-		[key('Enter', { ctrlOrMeta: true, shiftKey: true }), 'insertRowAbove', 1],
-		[key('ArrowRight', { altKey: true, shiftKey: true }), 'insertColumnRight', 1],
-		[key('ArrowLeft', { altKey: true, shiftKey: true }), 'insertColumnLeft', 1],
-		[key('Backspace', { ctrlOrMeta: true, shiftKey: true }), 'deleteRow', 1],
-		[key('Backspace', { altKey: true, shiftKey: true }), 'deleteColumn', 1],
-		[key('A', { ctrlOrMeta: true, shiftKey: true }), 'cycleAlignment', 1]
-	];
-	for (const [input, action, arg] of cases) {
-		it(`${[input.ctrlOrMeta && 'ctrl', input.altKey && 'alt', input.shiftKey && 'shift', input.key]
-			.filter(Boolean)
-			.join('+')} → ${action}`, () => {
-			expect(cellKeydownPlan(input, state())).toEqual({ kind: 'shortcut', action, arg });
-		});
-	}
-});
-
-// Alt+Arrow column reorder is matched before the boundary arrow-nav branches,
-// which (unlike ArrowUp/Down) do not gate on altKey — without precedence the same
-// key would hop a cell at the edge instead of moving the column.
-describe('cellKeydownPlan: alt+arrow column reorder', () => {
-	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellShortcutAction, number]> = [
-		['Alt+ArrowRight mid-text', key('ArrowRight', { altKey: true }), {}, 'moveColumnRight', 1],
-		['Alt+ArrowLeft mid-text', key('ArrowLeft', { altKey: true }), {}, 'moveColumnLeft', 1],
+// The structural chords are keymap bindings now (cell-table-chords.test.ts); an arrow reaching
+// the plan is unclaimed and must navigate — `native` hands it to the prose sibling-index walk.
+describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
+	const cases: Array<[string, CellKeyInput, Partial<CellKeyState>, CellKeyPlan]> = [
 		[
-			'Alt+ArrowRight at right edge beats the cell hop',
-			key('ArrowRight', { altKey: true }),
-			{ offset: 3 },
-			'moveColumnRight',
-			1
+			'Alt+ArrowUp',
+			key('ArrowUp', { altKey: true }),
+			{},
+			{ ...cell(0, 1, 'start'), setStickyColumn: 1 }
 		],
 		[
-			'Alt+ArrowLeft at left edge beats the cell hop',
+			'Mod+ArrowDown',
+			key('ArrowDown', { ctrlOrMeta: true }),
+			{},
+			{ ...cell(2, 1, 'start'), setStickyColumn: 1 }
+		],
+		[
+			'Alt+ArrowLeft at the left edge',
 			key('ArrowLeft', { altKey: true }),
 			{ offset: 0 },
-			'moveColumnLeft',
-			1
+			cell(1, 0, 'end')
+		],
+		[
+			'Mod+ArrowRight at the right edge',
+			key('ArrowRight', { ctrlOrMeta: true }),
+			{ offset: 3 },
+			cell(1, 2, 'start')
 		]
 	];
-	for (const [name, input, over, action, arg] of cases) {
-		it(name, () => {
-			expect(cellKeydownPlan(input, state(over))).toEqual({ kind: 'shortcut', action, arg });
+	for (const [name, input, over, plan] of cases) {
+		it(`${name} → ${plan.kind}`, () => {
+			expect(cellKeydownPlan(input, state(over))).toEqual(plan);
 		});
 	}
 });

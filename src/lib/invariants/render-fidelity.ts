@@ -1,15 +1,8 @@
 /**
- * G1.28 — rendered text fidelity. A block renderer that round-trips its bytes
- * through an HTML parser (`template.innerHTML`) inherits that parser's
- * normalizations, which are outside this project's control and differ between
- * engines: the HTML tree-construction algorithm drops U+0000 outright, and
- * line-ending and surrogate handling is engine-defined. jsdom (parse5) preserves
- * all of them, so a unit suite cannot see a loss that a browser would produce.
- *
- * The code block reads `el.textContent` back on Tab-indent, dedent, and cut, so a
- * character the parser ate would be committed away on the next such gesture —
- * byte loss on a byte the user pasted. This predicate is the runtime belt that
- * fires in the browser the day an engine normalizes something.
+ * G1.28 — rendered text fidelity. A renderer round-tripping bytes through an HTML parser
+ * inherits engine-defined normalizations (U+0000, line endings, surrogates), and a gesture
+ * that reads `textContent` back would commit the loss away. jsdom preserves all of them,
+ * so this runtime belt is the only thing that can catch it — a unit suite cannot.
  */
 
 import type { InvariantViolation } from './assert';

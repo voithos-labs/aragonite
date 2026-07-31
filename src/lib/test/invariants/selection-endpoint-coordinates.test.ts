@@ -51,9 +51,8 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 	});
 });
 
-// The belt exists because #normalizePoint cannot see this shape: its walk runs
-// `path.length - 1` iterations, so a length-1 table path passes through with its
-// character offset intact — the exact producer defect that shipped.
+// #normalizePoint's walk runs `path.length - 1` iterations, so a length-1 table path
+// passes through with its character offset intact — the shape the belt exists for.
 describe('G1.29 fires from the storing seam', () => {
 	it('warns when a length-1 table path is stored with a character offset', () => {
 		vi.stubEnv('DEV', true);

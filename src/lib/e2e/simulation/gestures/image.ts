@@ -1,9 +1,7 @@
 import { type SimContext, settleTypedSource } from '../invariants';
 
-// Image gestures. Free functions taking `ctx` first so the Gestures class can
-// delegate to them without growing its frozen surface. Each types or resizes
-// through real keyboard/mouse, gates on the loaded widget, and resyncs the
-// tracker after the editor's `|N` auto-rewrite.
+// Image gestures. Each gates on the LOADED widget and resyncs after the editor's `|N`
+// auto-rewrite.
 
 const IMAGE_WIDGET = '[data-image-widget]';
 const RIGHT_HANDLE = '.md-resize-handle-right';
@@ -16,10 +14,8 @@ const KEYBOARD_MIN_WIDTH = 32;
 const FALLBACK_DEFAULT_WIDTH = 400;
 
 /**
- * Type `![alt](url)` char-by-char (each char predicted via the tracker), then
- * gate on the loaded widget — select it and wait for the right resize handle,
- * which only renders on a non-broken image — before returning. The load gate
- * keeps a caller from resizing a widget whose `load` event hasn't fired.
+ * Gates on the resize handle, which only renders on a non-broken image: without that a
+ * caller could resize a widget whose `load` event has not fired.
  */
 export async function insertImage(ctx: SimContext, alt: string, url: string): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -33,12 +29,10 @@ export async function insertImage(ctx: SimContext, alt: string, url: string): Pr
 }
 
 /**
- * Select the image widget, then Shift+Arrow `steps` times to grow (right) or
- * shrink (left) the width by 20px each. Settles on the new `|N` after every
- * press: the keydown handler recomputes width from the freshly-serialized node,
- * so a press that lands before the prior commit flushed would read a stale
- * width and under-count. One select suffices for all presses — widget selection
- * is keyed on the image's source offset, which a width change doesn't move.
+ * Settles on the new `|N` after EVERY press: the keydown handler recomputes width from the
+ * freshly-serialized node, so a press landing before the prior commit flushed reads a stale
+ * width. One select suffices — widget selection is keyed on the source offset, which a width
+ * change does not move.
  */
 export async function resizeImage(
 	ctx: SimContext,
@@ -58,10 +52,8 @@ export async function resizeImage(
 		// Match the full `|N]` token — a bare `|420` is a prefix of `|4200`.
 		await editor.bridge.waitForSourceContains(`|${expected}]`);
 	}
-	// Settle on the RENDERED width, not just the source `|N`: the widget re-renders
-	// from the new raw on a reactive effect that can lag the source commit, so a
-	// checkpoint screenshot taken on the source alone may catch the image still at
-	// its pre-resize size.
+	// The RENDERED width, not just the source `|N`: the widget re-renders on an effect that
+	// can lag the commit, so a checkpoint screenshot could catch the pre-resize size.
 	await page.waitForFunction(
 		(w) => {
 			const img = document.querySelector('[data-image-widget] img') as HTMLImageElement | null;

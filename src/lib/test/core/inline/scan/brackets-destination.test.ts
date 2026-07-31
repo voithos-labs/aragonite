@@ -9,10 +9,8 @@ import {
 	textNode
 } from './scan-test-helpers';
 
-// Destination/title grammar and the spec url/title processing chain
-// (backslash escapes resolved + entities decoded, destinations then
-// percent-encoded mdurl-style). Every expected url/title is a probed
-// commonmark.js 0.31.2 AST value — the conformance differ's target.
+// Destination/title grammar plus the spec url/title processing chain. Every expected
+// url/title is a probed commonmark.js 0.31.2 AST value — the conformance differ's target.
 
 /** The whole input parses as exactly one bracket node spanning it; returns the node. */
 function scanWholeInputBracket(input: string, kind: 'link' | 'image' = 'link'): InlineNode {

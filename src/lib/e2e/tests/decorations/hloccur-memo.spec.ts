@@ -3,11 +3,9 @@ import { type Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
 
 /**
- * highlight-occurrences hardening (requirements/decorations/hloccur-memo.md): the
- * epoch-memoized scan and the inline-prose capability skip, end to end. The seed
- * installs an observability wrapper over the shipped createOccurrenceSource that
- * publishes the index-rebuild count to `window.__hloccurScans`, so "a caret move
- * does not re-scan" is a real counter assertion, not a timing guess.
+ * highlight-occurrences hardening (requirements/decorations/hloccur-memo.md). The seed wraps
+ * the shipped source to publish its index-rebuild count, so "a caret move does not re-scan"
+ * is a real COUNTER assertion rather than a timing guess.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';
@@ -73,10 +71,8 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		});
 	}
 
-	// Reading mode makes the surface inert and clears the caret, so the caret-driven
-	// highlight clears with it — occurrence highlighting follows the selection. (The
-	// decoration paint path itself is view-only and still works in reading; a static
-	// source paints there — mark-overlay coverage owns that.)
+	// Reading clears the caret, and occurrence highlighting FOLLOWS the selection. The paint
+	// path itself still works in reading — a static source paints there (mark-overlay owns it).
 	test('reading mode clears the caret-driven highlight (inert surface)', async ({ page }) => {
 		await editor.clickBlockAtPath([0], 0);
 		await expect(page.locator(OCCURRENCE)).toHaveCount(3);

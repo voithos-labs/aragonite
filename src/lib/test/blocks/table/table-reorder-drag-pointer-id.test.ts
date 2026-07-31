@@ -5,9 +5,8 @@ import {
 	type TableReorderDragContext
 } from '$lib/components/blocks/table/table-reorder-drag';
 
-// A second touch's pointerup must not end a drag it didn't start: the shared
-// controller filters up/cancel to the pointerId that opened the drag. Without the
-// filter a foreign pointerup commits someone else's reorder.
+// A second touch's pointerup must not end a drag it did not start: the shared controller filters
+// up/cancel to the pointerId that opened the drag.
 
 interface TestLine {
 	left: number;

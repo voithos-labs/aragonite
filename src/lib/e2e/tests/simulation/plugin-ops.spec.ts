@@ -1,30 +1,18 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 import { topLevelIndexOf } from './helpers';
-import { activeBlockPath } from '../plugins/helpers';
+import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
-// Ungated plugin-container ops oracle. The simulation's oracle stack (structured
-// error + `[invariant:…]` console watcher, live-CST round-trip, nested-state
-// audit) is the project's only continuous net for silent stale-`$state`/opaque-
-// container corruption, and until this profile it never ran a gesture against a
-// plugin container. The three opaque-only invariants (opaque-stale-raw,
-// opaque-rebuild-nondeterminism, reserved-chrome-slot) were observable only
-// through the plugins project's scripted per-feature scenarios; this brings them
-// under a state-accumulating watcher for the first time.
-//
-// Loaded-ops session (the table-ops pattern): a mixed document holds a `:::note`
-// callout and an OPEN `<details>` with prose and a list between them, then the
-// gesture vocabulary drives chrome/body typing, Enter-descend, collapse toggle,
-// merge-from-below into both collapsed and open containers, a cross-container
-// selection copy/paste, and undo/redo — re-checking all three oracles after every
-// move. Deterministic like table-ops (fixed rng); run under `--repeat-each` to
-// shake out timing flakiness.
+// Ungated plugin-container ops oracle. The three opaque-only invariants (opaque-stale-raw,
+// opaque-rebuild-nondeterminism, reserved-chrome-slot) were observable only through scripted
+// per-feature scenarios; this brings them under a STATE-ACCUMULATING watcher for the first
+// time. A loaded-ops session on the table-ops pattern, deterministic under a fixed rng — run
+// with `--repeat-each` to shake out timing flakiness.
 
 const PLUGIN_DOC =
 	'Intro paragraph.\n\n' +
@@ -32,19 +20,6 @@ const PLUGIN_DOC =
 	'- alpha\n- beta\n\n' +
 	'<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n\n' +
 	'Tail paragraph.\n';
-
-class PluginsSimPage extends EditorPage {
-	// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
-	// the base plugins, so the oracle stack watches the decoration engine run on every
-	// edit. loadContent overrides the seed's (absent) document with PLUGIN_DOC.
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=sim');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
 
 // ── Spec-local probes ─────────────────────────────────────────────────────────
 
@@ -117,11 +92,14 @@ async function mergeFromBelow(
 }
 
 test.describe('plugin-container ops simulation', () => {
-	let editor: PluginsSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new PluginsSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		// `?seed=sim` installs the standing decoration source (sim-mark-plugin) on top of
+		// the base plugins, so the oracle stack watches the decoration engine run on every
+		// edit. loadContent overrides the seed's (absent) document with PLUGIN_DOC.
+		await editor.gotoPlugins('sim');
 	});
 
 	test('chrome/body edits, collapse, cross-boundary merges, and undo stay corruption-free', async ({
@@ -158,11 +136,9 @@ test.describe('plugin-container ops simulation', () => {
 		expect(await containerRaw(page, 'note')).toContain(':::note Title!');
 		await checkOracles('note-title-edit');
 
-		// Liveness pin for the standing decoration source: the first edit ran the
-		// engine's per-edit pass, so the source's overlays must now paint. Otherwise a
-		// source that silently stopped emitting would leave the battery green with zero
-		// decoration coverage. (loadContent alone fires no edit event, so the source
-		// cannot paint before this first commit — hence the pin sits here, not at load.)
+		// Liveness pin: a source that silently stopped emitting would leave the battery green
+		// with zero decoration coverage. It sits after the FIRST EDIT, not at load, because
+		// `loadContent` fires no edit event and the source cannot paint before that commit.
 		await expect
 			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
 			.toBeGreaterThan(0);
@@ -178,10 +154,8 @@ test.describe('plugin-container ops simulation', () => {
 		await checkOracles('note-set-kind');
 
 		// ── Read-only global-command detour (net identity) ──────────────────────
-		// A plugin-registered global chord (doc-stats' Mod+Shift+S) fires mid-session,
-		// reads the per-instance EditorContext, and republishes `window.__docStats`. It
-		// commits nothing, so the source and the undo stack must be byte-identical
-		// across it — the plugin command spine under the corruption oracle without
+		// A plugin-registered GLOBAL chord commits nothing, so source and undo stack must be
+		// byte-identical across it — the command spine under the corruption oracle without
 		// disturbing the equality spine.
 		await g.pause();
 		const beforeDocStats = await editor.bridge.getSource();

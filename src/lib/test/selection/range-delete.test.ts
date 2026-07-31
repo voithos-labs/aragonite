@@ -10,7 +10,7 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState());
+	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -126,44 +126,34 @@ describe('rangeDelete — boundary offsets', () => {
 });
 
 describe('rangeDelete — cascade identity discipline (Tier 2 G2)', () => {
-	// Cascade and delete share one identity check: an iteration whose path
-	// resolves to a different node (a survivor slid into the slot via a deeper
-	// cascade) must skip both the splice AND the ancestor walk. Asymmetry was
-	// the original bug (cascade ran on stale paths). These fixtures exercise
-	// slide-in shapes; they pin the post-delete tree so any future loop change
-	// that re-introduces stale-path cascade shows up here.
+	// Cascade and delete share one identity check: an iteration whose path resolves to a different
+	// node (a survivor slid into the slot via a deeper cascade) must skip both the splice AND the
+	// ancestor walk. The asymmetry was the original bug — cascade ran on stale paths.
 
 	it('post-end top-level survivor that slides into a vacated outer slot is preserved', () => {
-		// After the delete chain: [1, 0, 0]=A → cascade removes inner_bq [1, 0]
-		// and outer_bq [1]. doc.children becomes [start, post-end], so the
-		// outer_bq slot path [1] now resolves to the post-end paragraph. The
-		// identity check fires here. Cascade must not walk that survivor's
-		// ancestry.
+		// The delete chain removes inner_bq [1, 0] and outer_bq [1], so the slot path [1] now resolves
+		// to the post-end paragraph. The identity check fires here; cascade must not walk the survivor.
 		const src = 'start\n\n> > A\n\nend\n\npost-end\n';
 		const { source } = run(src, { path: [0], offset: 5 }, { path: [2], offset: 3 });
 		expect(source).toBe('start\n\npost-end\n');
 	});
 
 	it('post-end nested survivor that slides through cascade levels is preserved', () => {
-		// outer_bq holds two inner blockquotes. The first wraps the deletion
-		// target A; the second is post-end and survives. After A's delete +
-		// cascade, the second inner blockquote slides into [1, 0]'s slot.
+		// outer_bq holds two inner blockquotes: the first wraps the deletion target A, the second is
+		// post-end and slides into [1, 0]'s slot after A's delete + cascade.
 		const src = 'start\n\n> > A\n>\n> > B\n';
-		// end at end of "A\n" line: path [1, 0, 0], offset = displayLength("A\n")
-		// = 2. Then walkBetween adds [1, 0, 0] as end.path only (the inner_bq
-		// and outer_bq are ancestors of end and excluded by isPathSubtreeBetween).
+		// end at the end of the "A\n" line, offset = displayLength("A\n") = 2. walkBetween adds only
+		// the end path — the two blockquotes are ancestors of end, excluded by isPathSubtreeBetween.
 		const { source } = run(src, { path: [0], offset: 5 }, { path: [1, 0, 0], offset: 2 });
-		// "A\n" is fully consumed (start.offset=5 trims newline of "start",
-		// end.offset=2 trims everything from inner_bq's leaf). Survivor inner_bq
-		// containing B must remain.
+		// "A\n" is fully consumed (start.offset trims the newline of "start", end.offset trims
+		// inner_bq's leaf), so the survivor inner_bq containing B must remain.
 		expect(source).toContain('B');
 		expect(source).toMatch(/^start/);
 	});
 
 	it('deeply-nested chain cleanup leaves doc-root tail blocks intact', () => {
-		// Multiple top-level blocks after end. After the merge + cascade chain,
-		// each post-end block has shifted index, and a stale ancestor path
-		// could (pre-fix) walk into them. Assert all post-end blocks survive.
+		// Multiple top-level blocks after end: each has shifted index after the merge + cascade
+		// chain, and a stale ancestor path could walk into them.
 		const src = 'start\n\n> > > deep\n\nend\n\ntail1\n\ntail2\n';
 		const { source } = run(src, { path: [0], offset: 5 }, { path: [2], offset: 3 });
 		expect(source).toBe('start\n\ntail1\n\ntail2\n');

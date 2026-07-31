@@ -16,9 +16,8 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { metadataOf, type CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 
-// Regression guards for the stale-table-row-ids class: a cross-block delete
-// whose whole-row snap splices table.children must commit the table as its
-// own scope, keeping the row BlockListState ids/refs in lockstep with children.
+// The stale-table-row-ids class: a cross-block delete whose whole-row snap splices table.children
+// must commit the table as its own scope, keeping row BlockListState ids/refs in lockstep.
 
 const HEADER_PLUS_TWO = '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
@@ -34,7 +33,8 @@ function makeEnv(source: string) {
 		getBlockElByPath: () => null,
 		revealPath: harness.deps.revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0)
+		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
+		grammar: undefined
 	};
 	return {
 		...harness,
@@ -170,9 +170,8 @@ describe('performCrossBlockDelete — endpoint table as a commit scope', () => {
 	});
 });
 
-// A row registers its BlockListState on mount; a row windowed out of the mounted
-// slice never does. A full-column delete splices every row's cells, but only the
-// mounted rows need a reactive scope — the unmounted ones just need copy-on-write.
+// A row registers its BlockListState on mount, so a windowed-out row never does. A full-column
+// delete splices every row's cells, but only the mounted rows need a reactive scope.
 describe('commitColumnDelete — a windowed-out row has no registered state', () => {
 	// Three columns so canDeleteColumn permits removing one (≥2 must remain).
 	const THREE_COL = '| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -205,11 +204,9 @@ describe('commitColumnDelete — a windowed-out row has no registered state', ()
 
 		const table = env.deps.doc.children[0];
 		expect(metadataOf(table, 'table').columnCount).toBe(2);
-		// Every row — including the never-mounted middle one — lost its column.
 		for (const row of table.children!) expect(row.children).toHaveLength(2);
 		const out = serialize(env.deps.doc);
 		expect(serialize(parse(out))).toBe(out);
-		// Mounted rows keep their cell state in lockstep with the two survivors.
 		expect(header.innerBlockIds).toHaveLength(2);
 		expect(lastRow.innerBlockIds).toHaveLength(2);
 	});

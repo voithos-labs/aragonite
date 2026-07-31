@@ -1,16 +1,11 @@
-// Single concern: same-type list paste flattens into the enclosing list with continuous renumbering.
-// Each test exercises a paste-position / shape variant (start/middle/end, mismatched marker suffix,
-// trailing-newline absence, DOM ambient sync, single-item) of the one invariant; they cluster as
-// parametric variants and stay together for cohesion.
+// One invariant — same-type list paste flattening into the enclosing list — parametrized
+// across paste positions and shapes, which is why these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Same-type list paste (ordered into ordered, unordered into unordered) should
-// flatten pasted items as siblings in the enclosing list with continuous
-// renumbering — not produce three separate lists (break-out) and not nest as
-// a sub-list under the target item. Matches Obsidian / Google Docs convention.
-// The complementary mismatched-type case is covered by
-// list-paste-mismatched-breaks-out.spec.ts.
+// Flattens pasted items as SIBLINGS with continuous renumbering — neither three separate
+// lists nor a nested sub-list, matching the Obsidian / Google Docs convention. The
+// mismatched-type complement is list-paste-mismatched-breaks-out.spec.ts.
 test.describe('paste: same-type list into list item flattens into enclosing list', () => {
 	let editor: EditorPage;
 
@@ -122,10 +117,8 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		expect(src).not.toMatch(/^\d+\) /m);
 	});
 
-	// Regression: when the clipboard lacks a trailing newline, the parser
-	// produces a last pasted item whose raw has no trailing \n. Splicing that
-	// item into a non-tail position caused rebuildListRaw to concatenate it
-	// with the next sibling, mashing them into one item like "6. Ordered7. third".
+	// A clipboard without a trailing newline yields a last item whose raw lacks one, which
+	// `rebuildListRaw` concatenates with the next sibling when spliced into a non-tail position.
 	test('ordered paste without trailing newline still absorbs as separate items', async () => {
 		await editor.loadContent('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 		await editor.page.evaluate(() =>
@@ -148,13 +141,9 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		expect(src).not.toMatch(/^6\. Ordered7\./m);
 	});
 
-	// Regression: Svelte 5's $state proxies wrap entries lazily on access.
-	// Mutations to freshly-inserted (un-proxied) items bypass the set trap,
-	// so a post-splice renumberOrderedList didn't propagate to the DOM —
-	// the source reflected new markers (1..7) but rendered ambient prefixes
-	// stayed on the cloned-original values (1,2,3,1,2,3,3). Pre-computing
-	// final markers before splice keeps all reactive mutations on existing
-	// (already-proxied) items.
+	// `$state` proxies wrap entries LAZILY, so mutating freshly-inserted items bypasses the
+	// set trap and a post-splice renumber never reaches the DOM. Pre-computing final markers
+	// before the splice keeps every reactive mutation on already-proxied items.
 	test('DOM ambient markers match source markers after absorb', async () => {
 		await editor.loadContent('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 		await editor.page.evaluate(() =>

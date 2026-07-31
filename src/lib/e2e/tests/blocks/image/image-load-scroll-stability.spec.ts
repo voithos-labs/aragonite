@@ -3,15 +3,14 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { capturePageErrors } from '../../../page-probes';
 
-// A short, fixed viewport makes the editor a real (capped) scroll container so the
-// image can be scrolled above the fold; the e2e-blocks project sets no viewport.
+// A short fixed viewport makes the editor a real (capped) scroll container; the e2e-blocks project
+// sets none.
 test.use({ viewport: { width: 1000, height: 600 } });
 
-// A remote image with no width/height reserves no box until it decodes, then grows
-// asynchronously. The editor disables native overflow-anchor, so that growth — when it
-// happens above the viewport — slides the visible content unless the editor re-measures
-// the block and anchor-corrects the scroll on load. This guards that correction in both
-// windowing modes (see requirements/blocks/image/image-load-scroll-stability.md).
+// A remote image with no width/height reserves no box until it decodes, then grows asynchronously.
+// The editor disables native overflow-anchor, so growth above the viewport slides the visible
+// content unless the editor re-measures and anchor-corrects on load
+// (requirements/blocks/image/image-load-scroll-stability.md).
 
 // Held until releaseImage() so load timing is deterministic. No |WxH hint in the alt,
 // so the <img> gets no dimension attributes and reserves no height before it loads.
@@ -37,9 +36,8 @@ const INACTIVE_DOC = [
 	'PROBE ANCHOR TAIL'
 ].join('\n\n');
 
-// ~160 blocks clears the 4000px watermark, so windowing ACTIVATES (off-window blocks
-// unmount, spacers appear); the image sits a few blocks down so it can be scrolled into
-// the overscan band just above the viewport while staying mounted.
+// ~160 blocks clears the 4000px watermark, so windowing ACTIVATES; the image sits a few blocks down
+// so it can scroll into the overscan band above the viewport while staying mounted.
 const ACTIVE_DOC = [
 	'# Active windowing',
 	...paragraphs('Above', 4),
@@ -55,9 +53,8 @@ function imageHostHeight(page: Page): Promise<number | null> {
 	});
 }
 
-// Resolve a scrollTop that puts the (still-collapsed) image fully above the viewport.
-// Inactive: scroll to the bottom. Active: scroll just past the image so it lands in the
-// overscan band above the fold — mounted, but off-screen.
+// Resolve a scrollTop that puts the still-collapsed image fully above the viewport: to the bottom
+// when windowing is inactive, just past the image (overscan band, still mounted) when it is active.
 type ScrollTarget = (page: Page) => Promise<number>;
 
 const SCROLL_TO_BOTTOM: ScrollTarget = (page) =>
@@ -143,7 +140,6 @@ async function expectNoShiftOnImageLoad(
 	});
 	expect(refBefore).not.toBeNull();
 
-	// Let the image decode and grow.
 	releaseImage();
 	await page.waitForFunction(
 		() => {
@@ -161,8 +157,6 @@ async function expectNoShiftOnImageLoad(
 	const imageHeightAfter = (await imageHostHeight(page))!;
 	expect(imageHeightAfter - imageHeightBefore).toBeGreaterThan(100);
 
-	// The reading position held: the top-of-viewport block did not slide despite the
-	// image growing well above it.
 	const refTopAfter = await page.evaluate((path) => {
 		const host = document.querySelector(`[data-block-path='${path}']`) as HTMLElement | null;
 		return host ? host.getBoundingClientRect().top : null;

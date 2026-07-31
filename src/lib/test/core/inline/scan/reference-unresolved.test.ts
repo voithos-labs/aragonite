@@ -6,10 +6,8 @@ import {
 	unresolvedRefNode
 } from './scan-test-helpers';
 
-// unresolvedReference (editor-specific, invisible to commonmark): a full or
-// collapsed reference whose label misses the resolver commits to one opaque
-// node over the whole construct — inner nodes are discarded, matching the old
-// parser. Shortcut misses stay literal; without a resolver nothing commits.
+// unresolvedReference is editor-specific and invisible to commonmark: a full or collapsed
+// label miss commits to one opaque node over the construct, discarding inner nodes.
 
 const MISSES = resolverOf({ other: { url: '/other' } });
 

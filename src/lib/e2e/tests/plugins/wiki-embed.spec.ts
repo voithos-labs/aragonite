@@ -2,12 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * An inline rung that mints a BUILT-IN `image` over `![[path|width]]`. Every read
- * path treats it as an image, which is the point; the write paths must not, and
- * before `rewriteImage` existed a resize replaced the embed with
- * `![/test-fixtures/sample.png|420](/test-fixtures/sample.png)`. Only the real
- * gesture proves it: the corruption is invisible to a round-trip check, because
- * the document round-trips perfectly — as something else.
+ * An inline rung that mints a BUILT-IN `image` over `![[path|width]]`. Every read path treats it as
+ * an image, which is the point; the write paths must not, and before `rewriteImage` existed a
+ * resize replaced the embed with a plain inline image. Only the real gesture proves it: the
+ * corruption is invisible to a round-trip check, because the document round-trips perfectly — as
+ * something else.
  */
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';

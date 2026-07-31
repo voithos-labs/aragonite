@@ -14,11 +14,9 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
-// A content update whose text parses to MULTIPLE blocks must replace the block
-// with all of them — at both levels — with ids/refs resynced and one undo entry.
-// The pre-fix behavior crammed the extra blocks into the first node's raw
-// (the block-math stuck-fence class), leaving the live CST disagreeing with
-// parse(serialize(doc)).
+// Text parsing to MULTIPLE blocks must replace the block with all of them at both levels.
+// Cramming the extras into the first node's raw (the stuck-fence class) leaves the live
+// CST disagreeing with parse(serialize(doc)).
 
 function makeTop(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
@@ -56,7 +54,7 @@ describe('top-level updateBlockContent with multi-block text', () => {
 		expect(h.deps.doc.children[0].raw).toBe('foo\\\n');
 		expect(h.getBlockIds()).toHaveLength(2);
 		expect(h.getBlockRefs()).toHaveLength(2);
-		expect(h.getBlockIds()[0]).toBe('block-0'); // first block keeps its identity
+		expect(h.getBlockIds()[0]).toBe('block-0');
 		expect(serialize(h.deps.doc)).toBe('foo\\\n# bar\n');
 	});
 

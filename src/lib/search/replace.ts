@@ -1,7 +1,6 @@
-/** Expand `$1`..`$9`, `$&`/`$0` (full match), `$$` (literal $), and `\n`/`\t`/`\\`
- *  escapes against a regex match's groups. Literal mode passes `undefined` groups
- *  → verbatim (a single-line replace input can't carry a real newline, so escapes
- *  are the only way to inject one — regex mode only, matching VS Code). */
+/** Expand `$1`..`$9`, `$&`/`$0`, `$$`, and `\n`/`\t`/`\\` escapes against a regex match's
+ *  groups; literal mode passes `undefined` groups and is verbatim. A single-line replace
+ *  input can't carry a real newline, so escapes are regex-mode only, matching VS Code. */
 export function expandReplacement(template: string, groups: string[] | undefined): string {
 	if (!groups) return template;
 	return template.replace(/\\([nt\\])|\$(\$|&|\d+)/g, (_, esc: string, token: string) => {
@@ -20,12 +19,9 @@ export interface ReplaceRange {
 }
 
 /**
- * Apply ranges to `text`, substituting right-to-left so earlier offsets stay valid.
- *
- * Deliberately has no per-replacement escape hook. A structural leaf's delimiters
- * have to be escaped over the WHOLE post-splice raw — a freeing backslash usually
- * comes from the surrounding text, not the inserted fragment — so that step is the
- * caller's `toLegalRaw` pass over the result, not a callback fired per fragment.
+ * Apply ranges to `text`, substituting right-to-left so earlier offsets stay valid. No
+ * per-replacement escape hook: a structural leaf's delimiters escape over the WHOLE
+ * post-splice raw, so that is the caller's `toLegalRaw` pass over the result.
  */
 export function applyRangesToText(text: string, ranges: ReplaceRange[], template: string): string {
 	let out = text;

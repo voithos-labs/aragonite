@@ -121,7 +121,6 @@ describe('UndoManager', () => {
 	});
 
 	it('full undo-redo-undo cycle', () => {
-		// State progression: empty → "A" → "AB"
 		const manager = createUndoManager();
 		manager.push(makeEntry('\n'));
 		manager.push(makeEntry('A\n'));

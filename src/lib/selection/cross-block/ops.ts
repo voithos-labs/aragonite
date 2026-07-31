@@ -1,21 +1,14 @@
 /**
- * Cross-block mutation operations. Delete a range, push undo, collapse, and
- * restore the native caret in the merged block.
- *
- * Commit paths:
- *   - Pure top-level (both endpoints at doc.children, neither a table unless
- *     the paths are equal) → commitStructural.
- *   - Cross-container (an endpoint nested, or a cross-path table endpoint —
- *     the whole-row snap splices table.children, so the table must commit as
- *     its own scope) → commitMultiScope with one scope per touched container,
- *     so every affected BlockListState stays in sync with node.children.
- *   - Intra-table full-table/row/column coverage (Backspace only) routes to
- *     range-delete-table-coverage; subset coverage falls through to the
- *     pure-top-level path's cell-clear primitive.
+ * Cross-block mutation: delete a range, push undo, collapse, restore the caret. Commit
+ * routing: pure top-level (both endpoints at doc.children, no cross-path table) commits
+ * structurally; anything nested or with a cross-path table endpoint needs one scope per
+ * spliced container, since the whole-row snap splices `table.children`. Intra-table
+ * full-table/row/column coverage routes to `range-delete-table-coverage`.
  */
 
 import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
+import type { GrammarView } from '../../schema/block-openers';
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
@@ -40,41 +33,35 @@ export interface CrossBlockMutationContext {
 	controller: CommitController;
 	/** Push an undo snapshot immediately, bypassing the debounce. */
 	pushUndoSnapshot: () => void;
+	/** Block grammar for the delete's ancestry rebuild. Required-nullable so a new construction
+	 *  site can't silently skip the thread; `undefined` = global. */
+	grammar: GrammarView | undefined;
 }
 
-/**
- * Options for {@link performCrossBlockDelete}. Absent = a plain destructive
- * delete with its own undo snapshot and caret restore.
- */
+/** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
 export interface CrossBlockDeleteOptions {
 	/** `'join'`: the caller already pushed a snapshot covering this delete. */
 	undoEntry?: UndoEntryMode;
 	/** The caller installs a final caret after further mutations. */
 	skipCaretRestore?: boolean;
 	/**
-	 * Route intra-table full-table/row/column coverage to a structural delete.
-	 * Backspace opts in; type-replace/paste/cut stay on cell-clear so the
-	 * follow-up insert lands in the anchor cell.
+	 * Route intra-table full/row/column coverage to a structural delete. Backspace opts in;
+	 * type-replace/paste/cut stay on cell-clear so the follow-up insert lands in the anchor cell.
 	 */
 	tableCoverageDelete?: boolean;
 }
 
 /**
- * Run rangeDelete on the current cross-block selection, commit via the
- * controller, collapse, and restore the native caret. Returns the collapsed
- * caret position, or null if the selection wasn't cross-block. See
- * {@link CrossBlockDeleteOptions} for the option semantics.
+ * rangeDelete the current cross-block selection, commit, collapse, restore the caret.
+ * Returns the collapsed caret, or null when the selection wasn't cross-block.
  */
 export async function performCrossBlockDelete(
 	ctx: CrossBlockMutationContext,
 	options?: CrossBlockDeleteOptions
 ): Promise<SelectionPoint | null> {
-	// Key auto-repeat, paste, or a composition can re-enter while a delete is
-	// parked on its reveal await; both calls would resolve the SAME endpoints
-	// and the second would delete against the mutated tree. Serialize per
-	// selection: the follow-up waits out the in-flight commit, then re-resolves
-	// — the collapsed selection makes it a no-op. When nothing is in flight
-	// this adds no await, preserving the sync variant's no-yield window.
+	// A re-entrant delete (auto-repeat, paste, composition) parked on the reveal await would
+	// resolve the SAME endpoints and delete against the mutated tree. Serialize per selection;
+	// with nothing in flight this adds no await, preserving the sync variant's no-yield window.
 	let inFlight: Promise<SelectionPoint | null> | undefined;
 	while ((inFlight = inFlightDeletes.get(ctx.selection))) {
 		await inFlight.catch(() => {});
@@ -99,10 +86,8 @@ async function runCrossBlockDelete(
 	if (!start || !end) return null;
 
 	const doc = ctx.getDoc();
-	// A cross-path table endpoint leaves the pure path: the whole-row snap
-	// splices table.children, which only the multi-scope commit can sync to
-	// the table's row state. Same-path (intra-table) deletes only clear cell
-	// raws — no row splice — so they stay pure.
+	// A cross-path table endpoint leaves the pure path: the whole-row snap splices
+	// table.children, which only the multi-scope commit syncs. Intra-table clears only raws.
 	const samePath = pathsEqual(start.path, end.path);
 	const isPureTopLevel =
 		start.path.length === 1 &&
@@ -115,11 +100,9 @@ async function runCrossBlockDelete(
 			}
 		: undefined;
 
-	// The collapse is start-wins: the merged block lands at start.path[0], which
-	// the delete leaves in place (blocks above it don't move). Mount it now, while
-	// caretRestore (running in the commit's non-awaited afterTick) still needs a
-	// live element. Gated on caretRestore so the IME path (skipCaretRestore) never
-	// yields before its synchronous commit — see performCrossBlockDeleteSync.
+	// Start-wins collapse: the merged block lands at start.path[0] and stays put. Mount it now,
+	// while caretRestore (a sync post-tick landing) still needs a live element. Gated on
+	// caretRestore so the IME path never yields before its synchronous commit.
 	if (caretRestore) {
 		await ctx.revealPath(start.path);
 	}
@@ -146,12 +129,9 @@ async function runCrossBlockDelete(
 }
 
 /**
- * compositionstart variant — the IME swallows the composition if the handler
- * yields, so this must not await. The commit ceremony runs snapshot, mutate
- * (which collapses the selection), publish, and the edit event synchronously,
- * suspending only at its post-publish `await tick()` — so firing the async
- * path without awaiting keeps the whole delete inside the no-await window.
- * Caret restore stays skipped: the IME inserts at the browser's caret.
+ * compositionstart variant: the IME swallows the composition if the handler yields, so this
+ * must not await. The commit ceremony is synchronous up to its post-publish `await tick()`,
+ * so firing without awaiting keeps the whole delete inside the no-await window.
  */
 export function performCrossBlockDeleteSync(ctx: CrossBlockMutationContext): void {
 	void performCrossBlockDelete(ctx, { skipCaretRestore: true });
@@ -165,9 +145,8 @@ function isTableAt(doc: Document, path: number[]): boolean {
 }
 
 /**
- * Pure top-level commit path. Both paths have length 1, so rangeDelete
- * never reaches into a nested container and the proxy-doc (children copy)
- * is a safe mutation target.
+ * Pure top-level commit path. Both paths have length 1, so rangeDelete never reaches into a
+ * nested container and the proxy-doc (children copy) is a safe mutation target.
  */
 async function commitPureTopLevelDelete(
 	ctx: CrossBlockMutationContext,
@@ -194,7 +173,7 @@ async function commitPureTopLevelDelete(
 				suffix: ''
 			};
 			const beforeLen = topLevelChildren.length;
-			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing);
+			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing, ctx.grammar);
 			collapsedCaret = result.collapsedCaret;
 			const afterLen = topLevelChildren.length;
 			ctx.selection.collapse();
@@ -208,11 +187,8 @@ async function commitPureTopLevelDelete(
 }
 
 /**
- * Cross-container commit path. Runs rangeDelete once on the live doc inside
- * a commitMultiScope whose scope list covers every container whose children
- * array was spliced. After mutation, each scope's children copy is
- * splice-synced to the live state so commitMultiScope can publish it and
- * run the StructuralChange descriptor against innerBlockIds/innerBlockRefs.
+ * Cross-container commit path: one rangeDelete on the live doc inside a commitMultiScope
+ * whose scope list covers every container whose children array was spliced.
  */
 async function commitCrossContainerDelete(
 	ctx: CrossBlockMutationContext,
@@ -226,16 +202,13 @@ async function commitCrossContainerDelete(
 	const scopes: MultiScopeTarget[] = [];
 	const containerPaths: number[][] = [];
 
-	// A table endpoint addresses the table block itself (cell-index offset).
-	// For ancestor-scope descriptors it behaves like a point one level deeper —
-	// the table survives in place unless fully consumed, exactly like a
-	// container an endpoint descends into — so deepen it before computing.
+	// A table endpoint addresses the table block itself (cell-index offset). For ancestor-scope
+	// descriptors it behaves like a point one level deeper, so deepen it before computing.
 	const effStartPath = isTableAt(doc, start.path) ? [...start.path, 0] : start.path;
 	const effEndPath = isTableAt(doc, end.path) ? [...end.path, 0] : end.path;
 
-	// Doc scope goes first when the LCA is doc-level, so commitMultiScope
-	// publishes doc.children / blockIds / blockRefs atomically with the
-	// container scopes.
+	// Doc scope goes first when the LCA is doc-level, so commitMultiScope publishes
+	// doc.children / blockIds / blockRefs atomically with the container scopes.
 	const lcaIsDocRoot = start.path[0] !== end.path[0];
 	if (lcaIsDocRoot) {
 		scopes.push(ctx.controller.getDocScope());
@@ -251,28 +224,24 @@ async function commitCrossContainerDelete(
 
 	await ctx.controller.commitMultiScope({
 		scopes,
-		// The selection start survives the delete (start-wins collapse), so its
-		// deep path is a resolving restore coordinate.
+		// The selection start survives the delete (start-wins collapse), so its deep path is a
+		// resolving restore coordinate.
 		snapshot:
 			options?.undoEntry === 'join'
 				? 'skip'
 				: { path: docPathFrom(start.path), offset: start.offset },
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
-			// Read lengths BEFORE mutation. Paths go stale as rangeDelete
-			// splices (middle top-level block shifts indices); the owned scope
-			// views stay valid because splices happen in place — rangeDelete's
-			// own spine unsharing reuses the already-owned scope nodes.
+			// Read lengths BEFORE mutation: paths go stale as rangeDelete splices, while the owned
+			// scope views stay valid because splices happen in place.
 			const beforeLens = scopeViews.map((v) => v.children.length);
 
-			const result = rangeDelete(doc, start, end, sharing);
+			const result = rangeDelete(doc, start, end, sharing, ctx.grammar);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 
-			// An endpoint-table scope takes its descriptor from the row splice
-			// the table branch actually performed — matched on the owned node
-			// (prepareScopeView unshared the spine before rangeDelete ran, so
-			// identities agree) — never from re-derived snap math.
+			// An endpoint-table scope takes its descriptor from the row splice the table branch
+			// actually performed, matched on the owned node, never from re-derived snap math.
 			const rowSplices = result.tableRowSplices ?? [];
 			return containerPaths.map((p, i): StructuralChange => {
 				const rowSplice = rowSplices.find((s) => s.table === scopeViews[i].node);
@@ -294,12 +263,9 @@ async function commitCrossContainerDelete(
 }
 
 /**
- * Enumerate every mounted container on start.path or end.path whose children
- * array gets spliced: strict ancestors of each endpoint, plus the endpoint
- * itself when it is a table (the whole-row snap splices table.children;
- * every other endpoint kind mutates raw only). Document root is excluded;
- * callers add it via `getDocScope()`. Returned outermost-first, de-duplicated
- * when start and end share ancestors.
+ * Every mounted container on either endpoint path whose children array gets spliced: strict
+ * ancestors, plus a table endpoint itself (the whole-row snap splices its children). Document
+ * root excluded; callers add it via `getDocScope()`. Outermost-first, de-duplicated.
  */
 function collectTouchedContainers(
 	doc: Document,
@@ -353,10 +319,8 @@ export function __computeScopeDescriptorForTests(
 }
 
 /**
- * Compute a StructuralChange for one scope. Generalization of
- * topLevelStructuralChange to arbitrary depth. Table endpoints must be
- * passed one level deeper than the table path (the cell dimension), so a
- * surviving table counts as a descended-into container.
+ * StructuralChange for one scope, at arbitrary depth. Table endpoints must arrive one level
+ * deeper than the table path so a surviving table counts as a descended-into container.
  */
 function computeScopeDescriptor(
 	ancestorPath: number[],
@@ -366,8 +330,7 @@ function computeScopeDescriptor(
 	afterLen: number
 ): StructuralChange {
 	const D = ancestorPath.length;
-	// Only count start/end that actually descend through this scope; scope
-	// [2] isn't an ancestor of start=[0,1].
+	// Only count start/end that actually descend through this scope: [2] isn't an ancestor of [0,1].
 	const startDescends = pathHasPrefix(startPath, ancestorPath);
 	const endDescends = pathHasPrefix(endPath, ancestorPath);
 	const startIdx = startDescends && D < startPath.length ? startPath[D] : -1;
@@ -388,15 +351,12 @@ function computeScopeDescriptor(
 
 	const removed = beforeLen - afterLen;
 
-	// No net removal in this scope: every slot in the window survived in
-	// place (endpoint truncation/reparse happens in-slot). Noop keeps the
-	// existing ids/refs — the pure top-level path's convention.
+	// No net removal in this scope: every slot in the window survived in place, so noop keeps
+	// the existing ids/refs (the pure top-level path's convention).
 	if (removed === 0) return { op: 'noop' };
 
-	// Mixed-depth case: only one endpoint descends, but cascade-cleanup
-	// removed siblings from the other side. Extend the touched range so the
-	// descriptor reports the real splice and idMap[0]=0 preserves the
-	// descending endpoint's id.
+	// Mixed-depth: only one endpoint descends, but cascade-cleanup removed siblings from the
+	// other side. Extend the window so the descriptor reports the real splice.
 	if (startDescends !== endDescends) {
 		if (startDescends) {
 			rightIdx = Math.max(rightIdx, startIdx + removed);
@@ -409,13 +369,11 @@ function computeScopeDescriptor(
 	const newCount = Math.max(0, count - removed);
 
 	const idMap: Record<number, number> = {};
-	// Leftmost carries the start block's id (merged block or in-place-modified
-	// ancestor of it).
+	// Leftmost carries the start block's id (merged, or an in-place-modified ancestor of it).
 	if (newCount > 0 && startIdx === leftIdx) {
 		idMap[0] = 0;
 	}
-	// Rightmost carries the end container's id when end descends strictly
-	// deeper (end's direct child here survives as in-place-modified).
+	// Rightmost carries the end container's id when end descends strictly deeper.
 	const endSurvives = endIdx >= 0 && endIdx === rightIdx && D + 1 < endPath.length;
 	if (endSurvives && newCount > 1) {
 		idMap[newCount - 1] = count - 1;
@@ -424,10 +382,7 @@ function computeScopeDescriptor(
 	return { op: 'replace', at: leftIdx, count, newCount, idMap };
 }
 
-/**
- * StructuralChange descriptor for the top-level children array after an
- * in-place rangeDelete.
- */
+/** StructuralChange for the top-level children array after an in-place rangeDelete. */
 function topLevelStructuralChange(
 	startPath: number[],
 	endPath: number[],
@@ -443,8 +398,7 @@ function topLevelStructuralChange(
 	const count = endTop - startTop + 1;
 	const newCount = count - removed;
 
-	// Item at startTop always survives (merged block or in-place-modified
-	// container); if end is nested, endTop also survives in-place.
+	// startTop always survives (merged, or in-place-modified); a nested end keeps endTop too.
 	const endIsTopLevel = endPath.length === 1;
 	const idMap: Record<number, number> = { 0: 0 };
 	if (!endIsTopLevel && newCount > 1) {

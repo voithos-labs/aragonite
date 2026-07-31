@@ -5,6 +5,7 @@ import { ExpectationTracker } from './expectation';
 import { attachErrorCollector } from './error-collector';
 import { Gestures } from './gestures';
 import { Recorder, runDirForSeed } from './recorder';
+import { availableRangeInterrupts } from './gestures/range-interrupt';
 import type { NoteFixture } from './notes/types';
 import {
 	type SimContext,
@@ -24,9 +25,8 @@ export interface SessionOpts {
 	note: NoteFixture;
 	capture?: boolean;
 	/**
-	 * Run the whole-session undo-unwind oracle after the build. Off by default — it
-	 * drives one undo/redo per stack entry, so it is wired into the smoke note and a
-	 * single multi-seed seed rather than every session.
+	 * Off by default: it drives one undo/redo per stack entry, so it is wired into the smoke
+	 * note and a single multi-seed seed rather than every session.
 	 */
 	undoUnwind?: boolean;
 }
@@ -34,13 +34,11 @@ export interface SessionOpts {
 const EMPTY_BASELINE = '\n';
 
 /**
- * Drives one full note-taking session through real gestures and runs the
- * oracle suite continuously. The canonical end-state target is computed up
- * front by loading the note's markdown (typing ≡ loading), then the editor is
- * cleared to the empty baseline to begin authoring. Never call `loadContent(x)`
- * when the prop already holds `x` — the test route's `setSource` is a no-op on
- * an unchanged value, so the two-hop start sequence below (showcase → markdown
- * → empty) relies on each hop being a real value change.
+ * Drives one full note-taking session through real gestures, running the oracle suite
+ * continuously. The end-state target is computed up front by LOADING the note's markdown
+ * (typing ≡ loading), then the editor is cleared to author into. Never call `loadContent(x)`
+ * when the prop already holds `x`: `setSource` is a no-op on an unchanged value, so each hop
+ * of the start sequence must be a real value change.
  */
 export async function runSession(page: Page, editor: EditorPage, opts: SessionOpts): Promise<void> {
 	const errors = attachErrorCollector(page);
@@ -88,10 +86,8 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 		await assertContainsInOrder(ctx, opts.note.landmarks);
 		await recorder?.checkpoint('note-built', 'build');
 
-		// Whole-session undo integrity: unwind the entire authoring stack to its floor
-		// and rewind it. Placed here, not at note end, because it needs an empty redo
-		// stack — the net-identity detours below each close with an undo that leaves
-		// dangling redo residue, which would make "rewind to the top" ill-defined.
+		// Placed HERE, not at note end, because it needs an empty redo stack: the detours below
+		// each close with an undo whose redo residue would make "rewind to the top" ill-defined.
 		if (opts.undoUnwind) {
 			ctx.label = 'undo-unwind';
 			await runFullSessionUndoUnwind(ctx, baseline);
@@ -120,9 +116,8 @@ export async function runSession(page: Page, editor: EditorPage, opts: SessionOp
 }
 
 /**
- * Validate exact undo + redo around a transient edit, then drop the edit so the
- * note returns to its clean built state — the differential must not leave a
- * residual char that would fail the end-state equality oracle.
+ * Drops the edit afterward: the differential must not leave a residual char that would fail
+ * the end-state equality oracle.
  */
 async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 	const clean = await ctx.editor.bridge.getSource();
@@ -139,15 +134,10 @@ async function runRevertingDifferential(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Seeded realism detours that each NET TO IDENTITY: a user pausing, then noticing a
- * stray earlier edit and reverting it. Every detour restores the exact pre-detour
- * source (asserted before continuing), so the end-state equality oracle still holds
- * for every note and seed. The seed gates which fire, so different seeds exercise
- * different undo-batch shapes — the multi-seed runner fuzzes those interleavings.
- *
- * The `pause()`s are the load-bearing piece, not decoration: each flushes the input
- * batcher so the delete that follows lands in its own undo entry. Without the fence
- * a single Ctrl+Z could overshoot into the prior edit's batch and miss the restore.
+ * Seeded realism detours that each NET TO IDENTITY, so the end-state equality oracle still
+ * holds for every note and seed. The seed gates which fire, spreading undo-batch shapes across
+ * runs. The `pause()`s are load-bearing, not decoration: each flushes the input batcher so the
+ * following delete lands in its own undo entry, without which one Ctrl+Z overshoots.
  */
 async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	if (rng.chance(0.5)) await g.pause();
@@ -190,16 +180,29 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 	if (rng.chance(0.6)) {
 		await mergeUndoDetour(ctx, g);
 	}
+
+	// Appended last for the same reason as the pair above: every draw before it keeps
+	// its existing seed→detour mapping.
+	if (rng.chance(0.7)) {
+		await rangeInterruptDetour(ctx, g, rng);
+	}
 }
 
 /**
- * Move the title block down a position, then undo — net identity. This drives a
- * reorder BETWEEN edits and undo/redo, the interleaving that surfaces the
- * aliasing/unshare/stamp corruption a reorder can introduce (the simulation is the
- * only oracle that catches that class — `docs/contributing/culture.md` § Testing
- * shape). Block 0 is a heading or paragraph in every note and every note has a
- * sibling below it, so the move is never a no-op; the closing assertion proves the
- * single undo restores byte-exact.
+ * The precondition behind two whole-document losses. The seed picks which gesture fires from
+ * the set THIS document can reach, so seeds spread across the interrupt surface.
+ */
+async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
+	const available = await availableRangeInterrupts(ctx);
+	if (available.length === 0) return;
+	await g.rangeInterrupt(rng.pick(available));
+}
+
+/**
+ * Drives a reorder BETWEEN edits and undo/redo — the interleaving that surfaces the
+ * aliasing/unshare/stamp corruption a reorder can introduce, which the simulation is the only
+ * oracle for (`docs/contributing/culture.md` § Testing shape). Block 0 is a heading or
+ * paragraph with a sibling below it in every note, so the move is never a no-op.
  */
 async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -212,11 +215,9 @@ async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 }
 
 /**
- * Click into the title block, select a few chars from end-of-line, Delete them, then
- * undo. Block 0 is a heading or paragraph in every note, so `End` + a small leftward
- * selection always has chars to remove. The pre-delete `pause` fences the delete into
- * its own undo batch so one Ctrl+Z reverses exactly it; the closing assertion proves
- * the restore is byte-exact (a failure here would be a real undo bug, not a flake).
+ * Block 0 is a heading or paragraph in every note, so `End` plus a small leftward selection
+ * always has chars to remove. The pre-delete `pause` fences the delete into its own undo
+ * batch, so one Ctrl+Z reverses exactly it.
  */
 async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -231,10 +232,8 @@ async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): P
 }
 
 /**
- * Copy a few chars from the title, paste them at the caret, then undo the paste —
- * net identity. Like the delete detour it fences with `pause` and asserts byte-exact
- * restoration. Copy/paste leaves the clipboard dirty but the source unchanged once
- * the paste is undone, which is all the end-state oracle observes.
+ * Net identity, fenced with `pause` like the delete detour. The clipboard is left dirty, but
+ * the source is unchanged once the paste is undone — all the end-state oracle observes.
  */
 async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -252,14 +251,9 @@ async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> 
 }
 
 /**
- * Build a cross-block selection over the first two top-level blocks with real input,
- * destroy over it, then undo — net identity. Cross-block destruction is the surface
- * that held the historical corruption Criticals; driving it here puts a range collapse
- * + merge under the full oracle sweep on every seed, and the closing undo proves the
- * collapse is byte-reversible. The seed picks the build (Shift+Arrow / Shift+Click /
- * double select-all) and the destroy (Backspace / Delete / Cut / type-over /
- * paste-over) so seeds spread across the entry×exit matrix. The gesture's own
- * sweep — convergence included — covers the merged tree.
+ * Cross-block destruction is the surface that held the historical corruption Criticals, so
+ * driving it here puts a range collapse + merge under the full oracle sweep on every seed.
+ * The seed picks both the build and the destroy, spreading across the entry×exit matrix.
  */
 async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
@@ -297,9 +291,7 @@ async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rn
 	ctx.tracker.resync(before);
 }
 
-// A paragraph is the only kind eligible to merge on Backspace (mergeRole=prose); its
-// predecessor must be able to receive it (prose / prose-absorber / container). Scanning
-// for that pair keeps the merge detour a real merge on any note instead of a
+// Scanning for an eligible pair keeps the detour a REAL merge on any note, instead of a
 // move-focus no-op that would trip the gesture's loud guard.
 const MERGEABLE_PREV_KINDS = new Set([
 	'paragraph',
@@ -322,11 +314,8 @@ async function findMergeableParagraph(ctx: SimContext): Promise<number | null> {
 }
 
 /**
- * Merge a paragraph into its predecessor with a real Backspace at its start, then undo
- * — net identity. Backspace-at-offset-0 drives the merge-rules dispatch (para→para,
- * para→heading absorb, or para→container deepest leaf depending on the note's shape),
- * the subsystem the corruption oracle otherwise never fuzzes. The target is chosen at
- * runtime so the Backspace always merges; the closing undo proves it is byte-reversible.
+ * Backspace-at-offset-0 drives the merge-rules dispatch, the subsystem the corruption oracle
+ * otherwise never fuzzes. The target is chosen at RUNTIME so the Backspace always merges.
  */
 async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const target = await findMergeableParagraph(ctx);
@@ -342,13 +331,10 @@ async function mergeUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 }
 
 /**
- * The whole-session undo integrity oracle: unwind the entire authoring stack to its
- * floor and prove it lands byte-exact on the session's initial source, then rewind to
- * the top and prove it reconstructs the built note. The mid-session
- * `undoRedoDifferential` fences one gesture; this fences the whole stack the build
- * produced. Deterministic — it drives undo/redo by the stack depth read from the
- * bridge, no wall-clock waits. The redo stack must be empty on entry (the caller runs
- * this right after the build, before the net-identity detours perturb it).
+ * Unwinds the whole authoring stack to its floor and rewinds it, where `undoRedoDifferential`
+ * fences a single gesture. Deterministic: driven by the stack depth read from the bridge, not
+ * wall-clock waits. The redo stack must be EMPTY on entry, so the caller runs this right after
+ * the build, before the net-identity detours perturb it.
  */
 async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string): Promise<void> {
 	const preUnwind = await ctx.editor.bridge.getSource();

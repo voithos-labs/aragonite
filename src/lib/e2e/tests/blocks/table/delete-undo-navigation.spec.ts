@@ -36,7 +36,6 @@ test.describe('table block: delete + undo + arrow navigation', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('| A | B | C |');
 
-		// Click into the paragraph above and ArrowDown into the restored table.
 		await page.locator('[contenteditable="true"]', { hasText: 'Above paragraph' }).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowDown');

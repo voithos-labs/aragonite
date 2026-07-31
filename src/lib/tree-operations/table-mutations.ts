@@ -1,8 +1,6 @@
-// In-place table CST mutations. Callers own the commit ceremony
-// (commitContainer / commitMultiScope) and rebuildContainerRaw; these helpers
-// touch neither reactivity, undo, nor raw. Column mutators emit exactly one
-// StructuralChange per row, in row order — multi-scope callers pair them with
-// their row scopes, and the ceremony arity-checks the pairing.
+// In-place table CST mutations; the caller owns the commit ceremony and the raw rebuild,
+// so these touch neither reactivity, undo, nor raw. Column mutators emit exactly one
+// StructuralChange per row, in row order, for multi-scope callers to pair with row scopes.
 
 import type { CstNode, TableRowMetadata, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
@@ -47,9 +45,7 @@ export function insertEmptyColumn(
 	return changes;
 }
 
-// Unconditional mutators: they will happily delete the last row/column.
-// Refusal (>=1 header + >=1 body row, >=1 column) is the wrapper's job.
-// deleteRow promotes the next row to header status when the header is removed.
+// Unconditional: refusal (>=1 header + >=1 body row, >=1 column) is the wrapper's job.
 export function deleteRow(table: CstNode, rowIdx: number): void {
 	const rows = table.children ?? [];
 	const willRemoveHeader = rowIdx === 0;
@@ -71,9 +67,8 @@ export function deleteColumn(table: CstNode, colIdx: number): StructuralChange[]
 	return changes;
 }
 
-// Per-row cell permute keeps keyed cell identity (reorderChildren's idMap);
-// the alignments splice mirrors that permutation byte-for-byte so the two stay
-// in lockstep for any from/to. columnCount is untouched — a move adds no column.
+// The per-row cell permute keeps keyed cell identity (reorderChildren's idMap); the
+// alignments splice must mirror that permutation exactly to stay in lockstep.
 export function moveColumn(table: CstNode, fromCol: number, toCol: number): StructuralChange[] {
 	const meta = metadataOf(table, 'table');
 	const changes: StructuralChange[] = [];
@@ -94,9 +89,8 @@ export function setAlignment(table: CstNode, colIdx: number, alignment: TableAli
 export function cycleAlignment(table: CstNode, colIdx: number): void {
 	const meta = metadataOf(table, 'table');
 	const current = meta.alignments[colIdx];
-	// 'none' renders identically to 'left' (no text-align override), so stepping
-	// through it would look like a stuck press. From 'none' jump straight to
-	// 'center'; once cycling begins the column never re-enters 'none'.
+	// 'none' renders identically to 'left', so stepping through it would look like a stuck
+	// press; jump to 'center' instead. Once cycling begins the column never re-enters it.
 	if (current === 'none') {
 		meta.alignments[colIdx] = 'center';
 		return;
@@ -106,17 +100,13 @@ export function cycleAlignment(table: CstNode, colIdx: number): void {
 }
 
 // ── Delete-enablement predicates ─────────────────────────────────────────────
-// Single source of truth for the deletion-refusal rules, shared by the action
-// menu, the commit wrappers (editor-actions/table-context), and the
-// selection-layer coverage delete (selection/range-delete-table-coverage). They
-// live here — the layer all three import — so selection/ never reaches into
-// editor-actions/ for them.
+// Single source of truth for the deletion-refusal rules, here rather than in
+// editor-actions/ so selection/ never has to reach across for them.
 
 /**
- * Whether a row delete is allowed. rowCount is the FULL row count (header at
- * index 0 + body rows). A header delete promotes the next row, so it only needs
- * a second row; a body delete needs a second body row, else the last body row
- * would leave a header-only table.
+ * Whether a row delete is allowed. `rowCount` is the FULL count including the header. A
+ * header delete promotes the next row so it needs only a second row; a body delete needs
+ * a second body row, else it would leave a header-only table.
  */
 export function canDeleteRow(rowIdx: number, rowCount: number): boolean {
 	if (rowCount <= 1) return false;

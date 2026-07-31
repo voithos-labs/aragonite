@@ -3,14 +3,14 @@ import {
 	tableMenuItems,
 	type TableMenuItem
 } from '../../../components/blocks/table/table-menu-model';
-import type { CellShortcutAction } from '../../../components/blocks/table/cell-keydown-plan';
+import type { TableAxisAction } from '../../../action-contracts';
 
 type ActionItem = Extract<TableMenuItem, { kind: 'action' }>;
 
-const actionItem = (items: TableMenuItem[], action: CellShortcutAction): ActionItem | undefined =>
+const actionItem = (items: TableMenuItem[], action: TableAxisAction): ActionItem | undefined =>
 	items.find((i): i is ActionItem => i.kind === 'action' && i.action === action);
 
-const hasAction = (items: TableMenuItem[], action: CellShortcutAction): boolean =>
+const hasAction = (items: TableMenuItem[], action: TableAxisAction): boolean =>
 	items.some((i) => i.kind === 'action' && i.action === action);
 
 describe('tableMenuItems: delete enablement', () => {
@@ -113,14 +113,14 @@ describe('tableMenuItems: inserts and alignment', () => {
 });
 
 describe('tableMenuItems: action items carry their own axis index', () => {
-	const rowActions: CellShortcutAction[] = [
+	const rowActions: TableAxisAction[] = [
 		'insertRowAbove',
 		'insertRowBelow',
 		'moveRowUp',
 		'moveRowDown',
 		'deleteRow'
 	];
-	const colActions: CellShortcutAction[] = [
+	const colActions: TableAxisAction[] = [
 		'insertColumnLeft',
 		'insertColumnRight',
 		'moveColumnLeft',
@@ -128,9 +128,8 @@ describe('tableMenuItems: action items carry their own axis index', () => {
 		'deleteColumn'
 	];
 
-	// A both-axes cell menu mixes the groups, so the dispatcher routes each item by
-	// its own index — row actions to rowIdx, column actions to colIdx — not one
-	// shared target. Distinct rowIdx/colIdx catch a crossed-wires regression.
+	// A both-axes cell menu mixes the groups, so the dispatcher routes each item by its own index —
+	// row actions to rowIdx, column actions to colIdx. Distinct values catch a crossed-wires bug.
 	it('routes a both-axes cell target by group: rowIdx for rows, colIdx for columns', () => {
 		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
 			'none',

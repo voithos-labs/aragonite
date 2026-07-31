@@ -1,8 +1,7 @@
 /**
- * Shared keydown prelude for contenteditable blocks — Ctrl+A counter,
- * cross-block dispatch, sticky-column capture/reset, undo/redo, and arrow
- * boundary navigation. Block-specific handlers (Enter, Backspace, Tab,
- * formatting shortcuts) stay in each component.
+ * Shared keydown prelude for contenteditable blocks: Ctrl+A counter, cross-block dispatch,
+ * sticky-column capture/reset, undo/redo, arrow boundary navigation. Block-specific handlers
+ * (Enter, Backspace, Tab, formatting) stay in each component.
  */
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
@@ -41,16 +40,13 @@ export interface SharedKeydownContext {
 	getBlockElByPath: BlockElLookup;
 }
 
-/**
- * Returns true if the event was fully handled — caller must return
- * immediately and skip its block-specific branches.
- */
+/** True when the event was fully handled; the caller must skip its block-specific branches. */
 export async function handleSharedKeydown(
 	e: KeyboardEvent,
 	ctx: SharedKeydownContext
 ): Promise<boolean> {
-	// Bare modifier keys don't reset the Ctrl+A doubling counter — pressing
-	// Control before 'a' is part of the chord, not a separate action.
+	// Bare modifier keys don't reset the Ctrl+A doubling counter: pressing Control before 'a' is
+	// part of the chord, not a separate action.
 	const isCtrlA = (e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey;
 	const isBareModifier =
 		e.key === 'Control' ||
@@ -70,13 +66,10 @@ export async function handleSharedKeydown(
 
 	ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
 
-	// The editor owns every editor-global chord — undo/redo and plugin-global
-	// commands alike: native contenteditable history stays suppressed
-	// (preventDefault on keydown — Ctrl+Y doesn't fire beforeinput historyRedo in
-	// Chromium/WebView2, so keydown is the reliable layer). Precise chord matching
-	// (not a loose key check, which also caught Ctrl+Alt+Y) then defers the command
-	// to the block's own override-aware dispatchKeyCommand, so a consumer can rebind
-	// or disable these chords like any other binding.
+	// The editor owns every editor-global chord (undo/redo and plugin globals alike): native
+	// contenteditable history stays suppressed on keydown, since Ctrl+Y doesn't fire beforeinput
+	// historyRedo in Chromium/WebView2. Precise chord matching, not a loose key check, then
+	// defers the command to the block's override-aware dispatch so a consumer can rebind it.
 	const historyChord = eventToChord(e);
 	if (historyChord && isEditorGlobalChord(historyChord)) {
 		e.preventDefault();
@@ -87,16 +80,15 @@ export async function handleSharedKeydown(
 	const index = ctx.getIndex();
 	const myPath = ctx.getMyPath();
 
-	// Read the focus offset (not the anchor) for Shift+Arrow: when the user
-	// has extended forward, the anchor stays mid-block while the focus sits
-	// at the boundary. Reading the anchor would fail to enter cross-block mode.
+	// Read the focus offset (not the anchor) for Shift+Arrow: after a forward extension the
+	// anchor stays mid-block while the focus sits at the boundary.
 	const shiftOffset = e.shiftKey ? ctx.getFocusOffset() : null;
 
 	if (e.key === 'ArrowUp') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
 		if (isAtFirstVisualLine(el, offset)) {
-			// Cross the boundary only when focus is already at 0, so native
-			// Shift+ArrowUp extension has nowhere left to go within the block.
+			// Cross the boundary only when focus is already at 0, so native Shift+ArrowUp
+			// extension has nowhere left to go within the block.
 			if (e.shiftKey && offset === 0) {
 				e.preventDefault();
 				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), el, myPath, 'start');
@@ -115,8 +107,8 @@ export async function handleSharedKeydown(
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
 		const textLen = ctx.getTextLen();
 		if (isAtLastVisualLine(el, offset, textLen)) {
-			// Cross the boundary only when focus is already at textLen, so
-			// native Shift+ArrowDown extension has nowhere left to go.
+			// Cross the boundary only when focus is already at textLen, so native
+			// Shift+ArrowDown extension has nowhere left to go.
 			if (e.shiftKey && offset === textLen) {
 				e.preventDefault();
 				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), el, myPath, 'vertical');
@@ -132,12 +124,9 @@ export async function handleSharedKeydown(
 	}
 
 	if (e.key === 'ArrowLeft') {
-		// Shift+Arrow reads focus, not anchor: a forward selection's anchor
-		// stays mid-block while focus advances to the boundary. Reading
-		// getCursorOffset() (range start = anchor for forward, focus for
-		// backward) would (a) trigger cross-block extension on Shift+ArrowLeft
-		// while focus is contracting toward a non-zero anchor, and (b) misfire
-		// for backward selections where range start sits at 0 but focus does not.
+		// Shift+Arrow reads focus, not anchor: getCursorOffset() gives the range start, which is
+		// the anchor for a forward selection. That would extend cross-block while focus is
+		// contracting toward a non-zero anchor, and misfire for backward selections.
 		const offset = e.shiftKey ? (ctx.getFocusOffset() ?? 0) : ctx.getCursorOffset();
 		if (offset === 0) {
 			if (e.shiftKey) {
@@ -174,9 +163,8 @@ export async function handleSharedKeydown(
 // ── Shared beforeinput prelude ─────────────────────────────────────────────
 
 /**
- * Routes historyUndo/historyRedo through the undo controller and delegates
- * cross-block paste/type-replace. Returns true when the caller should return
- * early from its own `onBeforeInput`.
+ * Routes historyUndo/historyRedo through the undo controller and delegates cross-block
+ * paste/type-replace. True when the caller should return early from its own `onBeforeInput`.
  */
 export async function handleSharedBeforeInput(
 	e: InputEvent,

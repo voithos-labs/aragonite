@@ -1,7 +1,6 @@
-// Pick the column whose horizontal range contains an editor-relative pixel X.
-// Used for boundary entry — when the user arrows down out of a paragraph into
-// the table, we land them in the cell closest to where they were horizontally.
-// The result is a column index (a plain number), not a row-major cell index.
+// Pick the column whose horizontal range contains an editor-relative pixel X, so
+// arrowing into the table lands near where the caret was horizontally. The result is
+// a column index, not a row-major cell index.
 
 import type { EditorX } from '../../../cursor/coordinate-spaces';
 

@@ -2,19 +2,14 @@ import type { AnyBlockKind, BlockKind } from '../core/nodes';
 import type { InvariantViolation } from './assert';
 
 /**
- * Registry predicates take every lookup as a parameter — pure by construction.
- * The registries they validate call back into this module at the registration
- * seam (`schema/registration-checks.ts`), so a schema import here would cycle;
- * that seam supplies the real registries, and negative tests inject their own.
+ * Registry predicates take every lookup as a parameter — pure by construction, and a
+ * schema import here would cycle with the registration seam
+ * (`schema/registration-checks.ts`) that supplies the real registries.
  */
 
 /**
- * `listItem` is the one BlockKind with no component-registry entry by design:
- * items render inside their parent `ListBlock`, never via a `BlockHost` kind
- * lookup, so `getBlockComponent('listItem')` is intentionally undefined (the
- * `BlockHost` visible-raw fallback covers any stray lookup). `tableRow`/`tableCell`
- * are registered (raw-block fallbacks), so `listItem` is the sole exemption —
- * exempting it keeps the bootstrap invariant channel free of a benign warning.
+ * `listItem` renders inside its parent `ListBlock`, never via a `BlockHost` kind lookup,
+ * so it is the one BlockKind with no component-registry entry by design.
  */
 const NO_STANDALONE_COMPONENT: ReadonlySet<BlockKind> = new Set(['listItem']);
 
@@ -47,10 +42,9 @@ export function checkRegistryCompleteness(
 }
 
 /**
- * G1.10 — opener-registry coherence: every registered opener belongs to a
- * registered kind, and priorities are unique (equal priorities are deterministic
- * — dispatch falls back to kind name — but a shared priority is usually
- * unintended, so it still warns).
+ * G1.10 — opener-registry coherence: every registered opener belongs to a registered kind,
+ * and priorities are unique. Equal priorities are deterministic (dispatch falls back to
+ * kind name) but usually unintended, so they still warn.
  */
 export function checkOpenerRegistry(
 	entries: readonly { kind: AnyBlockKind; priority: number }[],
@@ -84,12 +78,10 @@ export interface KeymapCoherenceEntry {
 }
 
 /**
- * G1.11 — keymap coherence: every keymap binding uses a well-formed chord
- * (modifiers Mod/Alt/Shift, non-empty key — else a mistyped `Ctrl+B` collapses to
- * a bare `B` that fires on every keypress) naming a known command, and a kind's
- * chords are unique after normalization (duplicates make dispatch order
- * declaration-dependent). Chords are scoped per kind — two kinds may bind the
- * same chord to different commands. Reports the first offending binding.
+ * G1.11 — keymap coherence: every binding uses a well-formed chord naming a known command,
+ * and a kind's chords are unique after normalization. A mistyped `Ctrl+B` collapses to a
+ * bare `B` that fires on every keypress; duplicates make dispatch order
+ * declaration-dependent. Chords are scoped per kind.
  */
 export function checkKeymapCoherence(
 	entries: readonly KeymapCoherenceEntry[],
@@ -130,9 +122,8 @@ export function checkKeymapCoherence(
 }
 
 /**
- * G1.17 — opener registered after the grammar was consumed. Parsed documents
- * never re-parse, so the new kind silently misses every open document; the
- * registration seam records the lateness and the next flush reports it.
+ * G1.17 — opener registered after the grammar was consumed. Parsed documents never
+ * re-parse, so the new kind silently misses every open document.
  */
 export function checkLateOpenerRegistration(
 	kind: AnyBlockKind,
@@ -153,12 +144,9 @@ export interface ReservedChromeCoherenceEntry {
 }
 
 /**
- * G1.18 — reservedChrome bootstrap coherence: a kind declaring `reservedChrome`
- * must be a container, and its chrome kind must resolve to both a descriptor and
- * a component (both registered by `registerChromeLeaf`). Catches a declarer that
- * put chrome on a leaf, or one whose chrome leaf was never registered. Distinct
- * from the per-commit slot check (G1.14): this validates the registration shape
- * at bootstrap, not a live tree. Reports the first offending declarer.
+ * G1.18 — reservedChrome bootstrap coherence: a declaring kind must be a container, and
+ * its chrome kind must resolve to both a descriptor and a component. Validates the
+ * registration shape at bootstrap, unlike the per-commit slot check (G1.14).
  */
 export function checkReservedChromeCoherence(
 	entries: readonly ReservedChromeCoherenceEntry[],
@@ -210,10 +198,9 @@ export interface ClosureCoherenceEntry {
 }
 
 /**
- * The vocabulary a closure cell uses to claim the focus-then-delete model. Fixed
- * phrases rather than a loose pattern: the claim is what a plugin author copies out
- * of the shipped descriptors, and "moves focus" (what an ordinary not-mergeable leaf
- * does at its edge) must stay outside the set.
+ * Fixed phrases rather than a loose pattern: the claim is what a plugin author copies out
+ * of the shipped descriptors, and "moves focus" (what an ordinary not-mergeable leaf does
+ * at its edge) must stay outside the set.
  */
 const FOCUS_THEN_DELETE_CLAIMS = ['focus-then-delete', 'a second press deletes'] as const;
 
@@ -221,24 +208,10 @@ const claimsFocusThenDelete = (via: string | undefined): boolean =>
 	via !== undefined && FOCUS_THEN_DELETE_CLAIMS.some((phrase) => via.includes(phrase));
 
 /**
- * G1.24 — closure-block coherence: the cross-checks between a kind's closure cells
- * and the rest of its descriptor that a compiler can't reach.
- *
- * (a) A container (declares `container.contract`) cannot claim `roundTrip:
- * inherit-default` — its `rebuildRaw` IS the round-trip mechanism, so the cell must
- * name it. (b) A `not-mergeable` kind cannot claim `mergeBackspace:
- * inherit-default` — the default merge does not apply to it, so the cell must name
- * the non-merge behavior (`implemented`) or mark it `not-supported`. (c) A cell
- * claiming focus-then-delete must be backed by `blockFocus: 'whole-block'`, the one
- * declaration that routes the caret-adjacent merge fallbacks to a focus move —
- * without it the block deletes on the first press and the cell is prose that the
- * published docs pack repeats. (d) A `reservedChrome` container cannot leave
- * `clipboard: inherit-default`: its chrome bytes live in the container's opener
- * line, so a slice starting mid-chrome has semantics the default cannot state.
- *
- * The fixture-parses-to-kind check runs in the unit sweep, not here: a `parse`
- * import would close a `schema → core/parser → schema` cycle. Reports the first
- * offending kind.
+ * G1.24 — closure-block coherence: cross-checks between a kind's closure cells and the
+ * rest of its descriptor that a compiler can't reach. Each violation message below states
+ * its own rule. The fixture-parses-to-kind check runs in the unit sweep instead — a
+ * `parse` import here would close a `schema → core/parser → schema` cycle.
  */
 export function checkClosureCoherence(
 	entries: readonly ClosureCoherenceEntry[]
@@ -297,11 +270,9 @@ const MERGE_ROLES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * G1.30 — every registered kind declares a `mergeRole` from the known vocabulary.
- * A per-KIND fact, so it is validated once at registration: an unknown role makes
- * the merge dispatcher fall through silently on every gesture that reaches the
- * kind, and a plugin reaching the field through a widened cast is the only way to
- * get one. Reports the first offender.
+ * G1.30 — every registered kind declares a `mergeRole` from the known vocabulary. A
+ * per-KIND fact, validated once at registration: an unknown role makes the merge
+ * dispatcher fall through silently on every gesture that reaches the kind.
  */
 export function checkMergeRoleVocabulary(
 	entries: readonly MergeRoleEntry[]

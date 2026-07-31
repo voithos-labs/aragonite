@@ -66,10 +66,10 @@ export function makeStickyColumn(x: number | null = null): StickyColumnState {
 // ── BlockListState stub ──────────────────────────────────────────────────────
 
 // Mirrors production createBlockListState minus Svelte reactivity: ids are
-// node-backed (read/written through getNode().childIds, so they follow the
-// commit primitives' copy-path-on-write node replacement), refs are local.
-// `getNode` must read the LIVE node (e.g. () => doc.children[0]) — a captured
-// node reference goes stale after the first commit unshares its spine.
+// node-backed so they follow copy-path-on-write node replacement, refs are local.
+// `getNode` must read the LIVE node (e.g. () => doc.children[0]) — a captured node
+// goes stale the first time a commit unshares its spine (tree-operations/unshare.ts).
+// Every harness below carries the same getter rule for the same reason.
 export function makeBlockListState(getNode: () => CstNode, ids?: string[]): BlockListState {
 	const node = getNode();
 	if (ids) node.childIds = [...ids];
@@ -106,8 +106,8 @@ export function makeStubBlockEdit(): BlockEditActions {
 	};
 }
 
-// revealPath resolves null: these focus-bundle consumers assert on moveFocus,
-// not on the resolved component, and don't model render-window mounting.
+// revealPath resolves null: these consumers assert on moveFocus, not on the
+// resolved component, and don't model render-window mounting.
 export function makeStubFocus(): FocusActions {
 	return { moveFocus: vi.fn(), revealPath: async () => null };
 }
@@ -117,7 +117,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		commitContainer: vi.fn(),
 		pushDebouncedCheckpoint: vi.fn(),
 		nudgeReactivity: vi.fn(),
-		withUnsharedSpine: vi.fn()
+		withUnsharedSpine: vi.fn(() => false)
 	};
 }
 
@@ -148,10 +148,13 @@ export interface EditorActionsHarness {
 	getBlockRefs: () => (BlockComponent | undefined)[];
 }
 
-// Builds an EditorActionsDeps over `docChildren` with the standard mutable
-// id/ref slots (setBlockIds / setBlockRefs reassign internal arrays so tests
-// can read post-mutation state via the returned getters).
-export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarness {
+// `onSelectionChange` has to be supplied here rather than attached later:
+// SelectionState takes it at construction, so a test counting emissions cannot
+// install one afterwards.
+export function makeEditorActionsDeps(
+	docChildren: CstNode[],
+	options: { onSelectionChange?: () => void } = {}
+): EditorActionsHarness {
 	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
 	let blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
@@ -178,7 +181,9 @@ export function makeEditorActionsDeps(docChildren: CstNode[]): EditorActionsHarn
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn: makeStickyColumn(),
-		selectionState: createSelectionState(),
+		selectionState: createSelectionState(
+			options.onSelectionChange ? { onChange: options.onSelectionChange } : undefined
+		),
 		getBlockElByPath: () => null,
 		// No render window in unit tests: every block is "mounted", so reveal is the
 		// production fast path — resolve from the live ref slots, descend if nested.
@@ -217,10 +222,8 @@ export interface ListContextAtOptions {
 	parentListContext?: ListContext;
 }
 
-// Builds a ListContext over the list at `deps.doc.children[listIndex]`, minting and
-// registering its node-backed BlockListState. index/node/path are LIVE getters —
-// the node is never captured by value (getter scar; see makeBlockListState). Owns
-// only the list-level state + context; child-item states stay the caller's to register.
+// Owns only the list-level state + context; child-item states stay the caller's
+// to register.
 export function makeListContextAt(
 	deps: EditorActionsDeps,
 	listIndex: number,
@@ -262,10 +265,8 @@ export interface NestedActionsDepsInput {
 	grammar?: GrammarView;
 }
 
-// Mints the createStandardNestedActions input whose node reads LIVE — `get node()`
-// re-invokes getNode() on every access, never capturing the node by value (the
-// corruption class documented on makeBlockListState). Every call site routes its
-// input through here so the scope shape is minted once.
+// Every call site routes its input through here so the live-getter scope shape is
+// minted once rather than re-derived per test.
 export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActionsInput {
 	return {
 		scope: {
@@ -301,10 +302,9 @@ export interface NestedHarnessOptions {
 	grammar?: GrammarView;
 }
 
-// Full nested-container setup over `source` (parsed) or an explicit node list:
-// deps → undo controller → container edit → reactive BlockListState → nested
-// bundle, wired to the container at `index`. The state is the production
-// createBlockListState (reactive, self-registering) — a mounted container's shape.
+// Full nested-container setup over `source` (parsed) or an explicit node list. The
+// state is the production createBlockListState (reactive, self-registering), so the
+// container under test has a mounted container's shape.
 export function makeNestedHarness(
 	input: string | CstNode[],
 	opts: NestedHarnessOptions = {}

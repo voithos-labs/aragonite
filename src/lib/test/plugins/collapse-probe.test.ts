@@ -7,9 +7,8 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { configureEditorEnv, resetEditorEnv } from '../../env';
 
-// A collapsible container kind whose declared `reservedChrome.isCollapsed` probe
-// reads an `open` metadata flag — the dogfood details declaration shape without
-// its rendering.
+// The dogfood details declaration shape without its rendering: a `reservedChrome`
+// collapse probe reading an `open` metadata flag.
 function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	const chrome = declarePluginKind('collapse-probe-chrome');
 	const kind = declarePluginKind('collapse-probe-container');
@@ -75,7 +74,8 @@ describe('composeCollapseProbe', () => {
 
 		const probe = composeCollapseProbe(
 			() => false,
-			() => node
+			() => node,
+			() => 'source'
 		); // explicit disagrees
 
 		expect(probe()).toBe(false); // the explicit dep still wins the value
@@ -83,6 +83,45 @@ describe('composeCollapseProbe', () => {
 		expect(warnSpy.mock.calls[0][0]).toMatch(/plugin-container/);
 		expect(warnSpy.mock.calls[0][0]).toMatch(/disagrees/);
 		expect(warnSpy.mock.calls[0][0]).toMatch(/collapse-probe-container/);
+		warnSpy.mockRestore();
+	});
+
+	// Reading mode is the ONE place a view/document divergence is legitimate, because a
+	// reader's flip writes no bytes by construction. Without the carve-out the
+	// affordance dev-warns for as long as the reader leaves the section open.
+	it('allows a reading-mode view divergence without warning', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false });
+		const kind = registerCollapsible();
+		const node = containerNode(kind, false); // the document says collapsed
+
+		const probe = composeCollapseProbe(
+			() => false, // the reader transiently opened it
+			() => node,
+			() => 'reading'
+		);
+
+		expect(probe()).toBe(false);
+		expect(warnSpy).not.toHaveBeenCalled();
+		warnSpy.mockRestore();
+	});
+
+	// Scoped to reading, not "any mode with a getter": a preview mode edits, so a
+	// divergence there is still the half-collapsed hybrid the cross-check catches.
+	it('still warns in a live preview mode', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		configureEditorEnv({ isDev: true, isTest: false });
+		const kind = registerCollapsible();
+		const node = containerNode(kind, false);
+
+		const probe = composeCollapseProbe(
+			() => false,
+			() => node,
+			() => 'preview-block'
+		);
+
+		expect(probe()).toBe(false);
+		expect(warnSpy).toHaveBeenCalledTimes(1);
 		warnSpy.mockRestore();
 	});
 });

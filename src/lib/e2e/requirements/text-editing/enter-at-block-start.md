@@ -2,8 +2,8 @@
 
 Enter with the caret at raw offset 0 of a non-empty text block splits like any
 other offset: an empty block appears above, the content keeps its bytes below,
-and the caret stays on the content. Symmetric with Enter-at-end and with the
-list item's split-at-start path.
+and the caret stays on the content. The empty half absorbs no following line, so
+this is the one split that mints no blank-line separator.
 
 ## Happy paths
 

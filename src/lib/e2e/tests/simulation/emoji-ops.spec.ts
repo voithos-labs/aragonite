@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -10,38 +10,20 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// Ungated emoji-ops oracle for the first-party emoji plugin. The `:shortcode:` rung
-// renders an atomic glyph widget whose literal bytes stay in the raw, so its byte
-// survival and mount/unmount churn are exactly the silent-corruption class the
-// simulation's oracle stack (structured error + `[invariant:…]` watcher, live-CST
-// round-trip, nested-state audit, live-vs-reparse convergence) exists to catch — and
-// until this profile no gesture drove an emoji widget under a state-accumulating
-// watcher. Mirrors decoration-ops (the decoded-entity twin): a loaded document on the
-// plugins route (`?seed=emoji` installs the bare `:` rung), the emoji gesture
-// vocabulary, all oracles re-checked after every move, fixed rng.
-//
-// The shortcode is typed MID-prose (adjacent to text on both sides), so the atomic
-// step-over and single-press delete run against real neighbours — the caret-edge
-// policy only the render path and its edge dispatch exercise.
+// Ungated emoji-ops oracle. The `:shortcode:` rung renders an atomic glyph widget whose
+// literal bytes stay in the raw, so its byte survival and mount/unmount churn are the
+// silent-corruption class the oracle stack exists to catch. The decoded-entity twin of
+// decoration-ops. The shortcode is typed MID-prose, adjacent to text on both sides, so the
+// atomic step-over and single-press delete run against real neighbours.
 
 const EMOJI_DOC = 'Alpha lead paragraph here.\n\n' + 'Beta tail paragraph here.\n';
 
-class EmojiSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=emoji');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('emoji-ops simulation', () => {
-	let editor: EmojiSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new EmojiSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('emoji');
 	});
 
 	test('mid-prose shortcode insert, both-directions step-over, atomic delete, and undo stay corruption-free', async ({

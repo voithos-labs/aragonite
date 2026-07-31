@@ -1,6 +1,5 @@
-// Single concern: sticky-column landing-X symmetry on code-block entry. Each test exercises a different
-// code-block shape (single body line, multi-body, info string, js-highlighted, default-content);
-// they share helpers and one invariant, so they read better as parametric variants in one file than as a directory.
+// One invariant — sticky-column landing-X symmetry on code-block entry — parametrized across
+// code-block shapes, which is why these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../editor-page';
 import { DEFAULT_CONTENT } from '../../test-content';
@@ -181,13 +180,10 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.waitForRenderFlush();
 		const landBelowX = await editor.getCaretPixelX();
 
-		// This block has two body lines: entry from above lands on the first,
-		// from below on the last. Across two lines with different content and
-		// highlight spans, nearest-column quantization can legitimately disagree
-		// by up to one character cell, with platform font metrics setting the
-		// phase — so the bound is a measured cell, not the same-line
-		// PIXEL_TOLERANCE the sibling tests use. A sticky regression lands
-		// multiple cells apart and still fails.
+		// Entry from above and below land on DIFFERENT body lines, where nearest-column
+		// quantization can legitimately disagree by a character cell — so the bound is a measured
+		// cell, not the same-line PIXEL_TOLERANCE the sibling tests use. A sticky regression
+		// lands multiple cells apart and still fails.
 		const cellWidth = await editor.getBlock(codeBlockIndex).evaluate((el) => {
 			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 			let node: Node | null;

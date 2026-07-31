@@ -2,25 +2,17 @@ import { primaryModifier } from '../../platform';
 import type { SimContext } from '../invariants';
 
 /**
- * Selection, clipboard, and inline-format gestures atop the frozen Gestures
- * surface. Each performs a real keyboard chord and settles on an observable
- * predicate; the ones that mutate the source resync the tracker afterward
- * because the resulting markers/deletion are editor auto-behavior, not
- * printable typing the tracker can predict.
- *
- * The mutating gestures settle on a SOURCE DELTA against the pre-chord source,
- * never on a marker substring: the fixtures these run against already contain
- * `*`/`**`, so a containment predicate would fire before the format committed
- * and resync a stale source.
+ * Selection, clipboard, and inline-format gestures. The mutating ones settle on a SOURCE
+ * DELTA against the pre-chord source, never on a marker substring: the fixtures already
+ * contain `*`/`**`, so a containment predicate would fire before the format committed and
+ * resync a stale source.
  */
 
 // ── Selection ───────────────────────────────────────────────────────────────
 
 /**
- * Extend a selection from the caret by holding Shift and pressing Arrow.
- * Leftward by default — after typing, the caret sits at end-of-content, so a
- * leftward extension selects what was just typed. Negative `count` extends
- * rightward. Pure selection moves no source, so it settles on a render flush.
+ * Leftward by default: after typing the caret sits at end-of-content, so a leftward extension
+ * selects what was just typed. Negative `count` extends rightward.
  */
 export async function selectChars(ctx: SimContext, count: number): Promise<void> {
 	const key = count < 0 ? 'Shift+ArrowRight' : 'Shift+ArrowLeft';
@@ -40,10 +32,7 @@ export async function selectAndDelete(ctx: SimContext, count: number): Promise<v
 
 // ── Clipboard ───────────────────────────────────────────────────────────────
 
-/**
- * Copy the current selection. Copy does not mutate the source, so it settles on
- * the synthetic clipboard write rather than a source delta and skips resync.
- */
+/** Copy mutates nothing, so it settles on the clipboard write and skips the resync. */
 export async function copySelection(ctx: SimContext): Promise<void> {
 	await ctx.page.keyboard.press(`${primaryModifier}+c`);
 	await ctx.editor.waitForClipboardWrite();
@@ -69,9 +58,8 @@ export async function applyItalic(ctx: SimContext): Promise<void> {
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Capture the source, run a chord that mutates it, settle on the change, resync.
- * The delta predicate marshals `before` into the browser via `waitForSourceWith`
- * — a closure over `before` would serialize as `undefined` and resolve instantly.
+ * The delta predicate MARSHALS `before` into the browser via `waitForSourceWith`: a closure
+ * over it would serialize as `undefined` and resolve instantly.
  */
 async function mutateThenResync(ctx: SimContext, chord: () => Promise<void>): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();

@@ -1,5 +1,4 @@
-// Regression: cross-list-item paste (see docs/issues.md). Drives pure layers
-// independent of Svelte reactivity.
+// Regression: cross-list-item paste, driven through pure layers independent of Svelte reactivity.
 
 import { describe, it, expect } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
@@ -26,7 +25,8 @@ describe('intra-list cross-item paste pipeline', () => {
 			doc,
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 		expect(serialize(doc)).toBe('1. \n');
 		expect(collapsedCaret).toEqual({ path: [0, 0, 0], offset: 0 });
@@ -38,7 +38,8 @@ describe('intra-list cross-item paste pipeline', () => {
 			doc,
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 		const pasted = 'HELLO';
 		const targetNode = nodeAt(doc, collapsedCaret.path) as CstNode;

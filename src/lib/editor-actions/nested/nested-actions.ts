@@ -1,9 +1,7 @@
 /**
- * Composer for container nestedActions bundles — produces a complete
- * { blockEdit, focus, containerEdit } triple from a state bundle and the
- * container's raw rebuild. HistoryActions is deliberately absent: containers
- * never override history; Svelte context delivers the document-level
- * HISTORY_KEY to any descendant.
+ * Composer for container nestedActions bundles. HistoryActions is deliberately
+ * absent: containers never override history, and Svelte context delivers the
+ * document-level HISTORY_KEY to any descendant.
  */
 
 import { setContext } from 'svelte';
@@ -30,10 +28,9 @@ export interface NestedActionsBundle {
 }
 
 /**
- * The three container coordinates every nested factory reads live. A component
- * mints ONE of these and passes it BY REFERENCE to each factory it wires — never
- * spread (`{ ...scope }` invokes the getters and captures stale values, the
- * value-capture incident class).
+ * The three container coordinates every nested factory reads live. A component mints
+ * ONE of these and passes it BY REFERENCE to each factory it wires — never spread,
+ * which invokes the getters and captures stale values.
  */
 export interface NodeScope {
 	get index(): number;
@@ -48,9 +45,8 @@ export interface NestedActionsDeps {
 	/** Doc-absolute path of `node`; spine unsharing + ancestry rebuilds key off it. */
 	path: number[];
 	stickyColumn: StickyColumnState;
-	/** The instance's block grammar, threaded to this
-	 *  container's content-commit reparse so a disabled kind's opener stays skipped when a
-	 *  nested block re-parses — parity with the top-level factory. Absent = the global grammar. */
+	/** The instance's block grammar, so a disabled kind's opener stays skipped when a
+	 *  nested block re-parses. Absent = the global grammar. */
 	grammar?: GrammarView;
 	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
@@ -62,19 +58,14 @@ export interface NestedActionsDeps {
 }
 
 /**
- * `createStandardNestedActions`'s public input: the shared `NodeScope` by
- * reference plus the same static config `NestedActionsDeps` carries. Adapted
- * internally to the inline-scope `NestedActionsDeps` the sub-factories read, so
- * their contract (and the sibling factories importing it) stays untouched.
+ * `createStandardNestedActions`'s public input: the shared `NodeScope` by reference
+ * plus the static config `NestedActionsDeps` carries.
  */
 export type NestedActionsInput = Omit<NestedActionsDeps, 'index' | 'node' | 'path'> & {
 	scope: NodeScope;
 };
 
-/**
- * Receives stable default bundle references and returns per-sub-interface
- * partial overrides. Chain via `defaults.blockEdit.foo(...)`.
- */
+/** Receives stable default bundle references; chain via `defaults.blockEdit.foo(...)`. */
 export type NestedActionsOverrideFactory = (defaults: NestedActionsBundle) => {
 	blockEdit?: Partial<BlockEditActions>;
 	focus?: Partial<FocusActions>;
@@ -86,10 +77,8 @@ export function createStandardNestedActions(
 	input: NestedActionsInput,
 	overrideFactory?: NestedActionsOverrideFactory
 ): NestedActionsBundle {
-	// Adapt the shared `scope` to the inline-scope shape the sub-factories read.
-	// The trio is re-spelled once here, at the choke point, instead of at every
-	// container call site; the getters stay live (each read walks back to the
-	// component's own scope getters), and destructuring `scope` would snapshot.
+	// Adapt `scope` to the inline shape the sub-factories read, once at the choke point
+	// rather than at every call site. Getters stay live; destructuring would snapshot.
 	const deps: NestedActionsDeps = {
 		get index() {
 			return input.scope.index;
@@ -107,9 +96,8 @@ export function createStandardNestedActions(
 	};
 	const blockEdit = createNestedBlockEdit(state, deps);
 	const focus = createNestedFocus(state, deps);
-	// Commit coordinates are doc-absolute at their mint point (block-edit-scope
-	// factories / context callers), so intermediate containers have nothing to
-	// remap — the parent's containerEdit passes through every level unchanged.
+	// Commit coordinates are doc-absolute at their mint point (block-edit-scope), so
+	// intermediate containers have nothing to remap and this passes straight through.
 	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };

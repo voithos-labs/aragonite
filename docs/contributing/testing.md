@@ -119,7 +119,7 @@ The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither
 
 Every spec under `src/lib/e2e/tests/` pairs with a requirement file under `src/lib/e2e/requirements/` — a plain-English list of scenarios, written _before_ the spec. The requirements mirror the spec tree: `tests/plugins/callout-container.spec.ts` pairs with `requirements/plugins/callout-container.md`. When a subdirectory's specs split further, the requirements split with them.
 
-The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it.
+The filesystem is the authoritative list of what's covered. A spec with no requirement file, or a requirement file with no spec, means one of the two is out of lockstep — fix it, don't work around it. G4.23 (`src/lib/e2e/lint/requirement-spec-lockstep.test.ts`) enforces it: both directions, the stem collision two specs could hide behind, per-file shape, and a requirement list that ran 3× ahead of its spec's test count. That last rule is allowlisted, and an entry there states its reason: count EQUALITY is refuted by measurement (most pairs diverge legitimately, since one test routinely walks several bullets), so padding the suite to satisfy a count is never the fix.
 
 `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec: `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts` directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong family and it silently stops running in the suite you meant; G4.17 catches a basename in neither. Requirement files pair by the stem with the `.perf` suffix stripped.
 
@@ -173,7 +173,7 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 ## Conformance harness (commonmark.js differ)
 
-`src/lib/test/gfm-conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note. Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
+`src/lib/test/gfm-conformance/` diffs the inline parser against commonmark.js, pinned to an exact version — bumping the reference is a deliberate re-bless with a changelog note (`scripts/extract-spec-examples.mjs` regenerates `spec-examples.json` from the new version's downloaded spec.json). Both trees normalize to one minimal shape; an unmapped construct throws rather than being silently absorbed, and the few deliberate reconciliations are recorded in the baseline's audit array. A like-for-like guard accepts an input only when the reference's single paragraph spans the whole input — so a divergence always means the _inline_ parsers disagree, never that the block layers trimmed differently.
 
 | Tier       | Command                    | Scope                                                                                                               |
 | ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------- |

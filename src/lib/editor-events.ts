@@ -1,8 +1,7 @@
 /**
- * Observer-pattern event surface reached via the editor component's
- * `getEvents()` accessor. Events fire synchronously; handlers must NOT mutate
- * the document. An `edit` event fires after its mutation is published, so its
- * handler sees the updated document.
+ * Observer-pattern event surface reached via `getEvents()`. Events fire synchronously
+ * and handlers must NOT mutate the document; an `edit` event fires after its mutation
+ * is published, so its handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';
@@ -20,10 +19,8 @@ export type EditEvent = {
 		: { op: K; path: number[]; detail: OperationDetailMap[K]; timestamp: number };
 }[OperationKind];
 
-/**
- * OpDescriptor → EditEvent. The cast is sound by construction: both types
- * derive from OperationDetailMap, TS just can't narrow the correlated union.
- */
+/** The cast is sound by construction: both types derive from OperationDetailMap, which
+ *  TS cannot narrow as a correlated union. */
 export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number): EditEvent {
 	return { op: op.kind, path, detail: op.detail, timestamp } as EditEvent;
 }
@@ -31,14 +28,15 @@ export function toEditEvent(op: OpDescriptor, path: number[], timestamp: number)
 export type SelectionChangeEvent = EditorSelection | null;
 
 export interface EditorError {
-	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration';
-	error: unknown;
 	/**
-	 * Origin-specific context: block path for render, op kind + event path for
-	 * commit, the block kind + command id (+ owning plugin, when recorded) for a
-	 * contained plugin block-command throw, and the source name for a decoration
-	 * provide that threw.
+	 * `clipboard` is a failure on the paste route — the channel a host needs to release
+	 * an asset `onPasteImage` already imported for it.
 	 */
+	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard';
+	error: unknown;
+	/** Origin-specific: `path` for render, `op`+`path` for commit, `kind`+`command`
+	 *  (+`plugin`) for a command throw, `source` for decoration, and the paste's start
+	 *  path for clipboard when it was aimed at a range. */
 	context?: {
 		path?: number[];
 		op?: OperationKind;
@@ -57,6 +55,9 @@ export interface EditorEventMap {
 	error: EditorError;
 	/** The EFFECTIVE mode after a `presentationMode` prop change (never fired at mount). */
 	presentationModeChange: PresentationMode;
+	/** The theme name after a `theme` prop change (never fired at mount), for a plugin
+	 *  that paints its own colors and so cannot pick the change up from CSS. */
+	themeChange: string;
 }
 
 export interface EditorEvents {
@@ -71,10 +72,8 @@ export interface EditorEvents {
 // ── Factory ──────────────────────────────────────────────────────────────
 
 export function createEditorEvents(): EditorEvents {
-	// Uniform value type sidesteps the generic-K indexed-write unsoundness on
-	// mapped types (TS would otherwise require the write to satisfy the
-	// intersection of every slot type). Per-event type safety is preserved at
-	// the public on/emit boundary via a single cast where K is concrete.
+	// Uniform value type sidesteps the generic-K indexed-write unsoundness on mapped
+	// types; per-event safety is preserved at the public on/emit boundary.
 	type AnyHandler = (payload: unknown) => void;
 	const handlers: Partial<Record<keyof EditorEventMap, Set<AnyHandler>>> = {};
 
@@ -99,9 +98,8 @@ export function createEditorEvents(): EditorEvents {
 			try {
 				(handler as (p: EditorEventMap[K]) => void)(payload);
 			} catch (err) {
-				// Recursion guard + never-silently-drop: an error-channel subscriber
-				// that throws logs (no re-emit, would loop); a non-error throw routes
-				// to the error channel when someone listens, else falls back to log.
+				// Recursion guard: an error-channel subscriber that throws only logs,
+				// since re-emitting would loop.
 				if (event === 'error') {
 					console.error('[EditorEvents] error-channel subscriber threw:', err);
 				} else if (handlers.error?.size) {
@@ -116,19 +114,14 @@ export function createEditorEvents(): EditorEvents {
 	return { on, emit };
 }
 
-// ── Command-error routing ──────────────────────────────────────────────────
+// ── Contained-failure routing ──────────────────────────────────────────────
+// One envelope minter per origin with more than one emission site, living here so the
+// shell that owns the channel owns the payload shape too.
 
 /**
- * Route a contained command throw to the `error` channel as an `origin: 'command'`
- * event, attributing the command id and its owning plugin. The single place the
- * dispatch seam's `CommandErrorSink` reaches the editor's event surface; no-ops
- * when no events surface is present (a mount without the context). Kept here, not
- * in the schema dispatch layer, so the attribution + emit live with the shell that
- * owns the channel.
- *
- * Attribution: a global command reports its own `plugin` and carries no kind, so
- * that owner wins; a block command reports its `kind`, and the owner is resolved
- * by kind lookup. The direct `plugin` therefore never gets clobbered by a lookup.
+ * Route a contained command throw to the `error` channel, attributing the command and
+ * its owning plugin; no-ops when no events surface is present. A direct `plugin` wins
+ * over the kind lookup, so a global command's own owner is never clobbered by one.
  */
 export function emitCommandError(
 	events: EditorEvents | undefined,
@@ -143,5 +136,21 @@ export function emitCommandError(
 			plugin:
 				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
 		}
+	});
+}
+
+/**
+ * Route a contained clipboard-route failure to the `error` channel. `path` addresses the
+ * range the paste was aimed at and is OMITTED where there is none to name — `[]` would
+ * report the document root, which holds no caret.
+ */
+export function emitClipboardError(
+	events: EditorEvents,
+	report: { error: unknown; path?: number[] }
+): void {
+	events.emit('error', {
+		origin: 'clipboard',
+		error: report.error,
+		...(report.path ? { context: { path: report.path } } : {})
 	});
 }

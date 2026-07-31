@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 //
-// BlockHost is the kind→component dispatcher every block reaches the DOM
-// through, and until now only a source scan read it (invariants/lint/
-// block-host-prop-thread). Mounted here per kind class, so a registry mis-wire
-// or a lost fallback fails as a missing surface instead of surviving to review.
+// Mounts the kind→component dispatcher per kind class, so a registry mis-wire or a
+// lost fallback fails as a missing surface rather than surviving to review — the
+// source scan (invariants/lint/block-host-prop-thread) cannot see either.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import type { Document } from '$lib/core/nodes';
@@ -37,8 +36,7 @@ function docOf(source: string): Document {
 }
 
 // One source per kind class the dispatcher distinguishes, with the selector its
-// registered component owns. Parameterized rather than copied: the claim is the
-// same for every row, and a new kind class is one line.
+// registered component owns.
 const KIND_CLASSES: Array<{ label: string; source: string; kind: string; selector: string }> = [
 	{ label: 'prose leaf', source: 'hello\n', kind: 'paragraph', selector: '.paragraph-block' },
 	{
@@ -77,9 +75,8 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 	});
 
 	it('renders a plugin kind’s registered component, same as a built-in', () => {
-		// The positive control for the fallback pair below: a plugin kind reaches the
-		// host through the same lookup, so "no component rendered" only means
-		// something when this case shows one does.
+		// Positive control for the fallback pair below: "no component rendered" only
+		// means something once a plugin kind is shown to render one.
 		const kind = declareComponentlessKind('host-plugin');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
 		const doc = docOf('plugin text\n');
@@ -112,9 +109,8 @@ describe('BlockHost falls back to a raw-editable surface when no component resol
 	});
 
 	it('renders a kind whose component this instance’s registry view disables', () => {
-		// The enablement path is the other door to "no component", and it reaches
-		// BlockHost through the per-instance registry view rather than the globals —
-		// a host reading the global registry would render the plugin component here.
+		// The enablement door to "no component" reaches BlockHost through the
+		// per-instance registry view: a host reading the globals would render it.
 		const kind = declareComponentlessKind('host-disabled');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
 		const doc = docOf('disabled text\n');

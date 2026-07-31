@@ -1,8 +1,7 @@
 /**
- * Path-addressed child splices for the range-delete ceremony. Both go through
- * `spliceChildren`, the lockstep door: these address a container at arbitrary
- * depth, which is exactly where a desynced `childIds` becomes permanent (see
- * children.ts).
+ * Path-addressed child splices for the range-delete ceremony. Both route through
+ * `spliceChildren` (`children.ts`): they address containers at arbitrary depth, which is
+ * exactly where a desynced `childIds` becomes permanent.
  */
 import type { CstNode, Document } from '../core/nodes';
 import { spliceChildren } from './children';

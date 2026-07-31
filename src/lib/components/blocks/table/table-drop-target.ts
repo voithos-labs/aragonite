@@ -1,8 +1,6 @@
-// Map a reorder drag's pointer to the insertion gap it sits nearest. `edges` are
-// the row/column boundary coordinates in pointer space: N rows/columns yield N+1
-// edges (leading edge, the inter-track boundaries, trailing edge). The returned
-// index is the gap to drop into — distinct from table-drag-hit-test, which maps a
-// point to an occupied cell for selection.
+// Map a reorder drag's pointer to the insertion gap it sits nearest. `edges` are the
+// row/column boundaries in pointer space, so N tracks yield N+1 edges. The result is a
+// gap index, not the occupied cell `table-drag-hit-test` returns.
 
 function nearestEdgeIndex(pointer: number, edges: number[]): number {
 	let nearest = 0;

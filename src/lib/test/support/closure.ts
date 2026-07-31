@@ -1,13 +1,10 @@
 import type { ClosureBlock } from '$lib/schema/closure';
 
 /**
- * A coherent closure block for throwaway test kinds. `closure` is required on
- * every registration, and the flush's G1.24 coherence check sweeps test kinds
- * too, so a fixture needs cells that satisfy every cross-check regardless of its
- * mergeRole/contract/chrome: `roundTrip: implemented` clears the container rule,
- * `mergeBackspace: not-supported` clears the not-mergeable rule, and
- * `clipboard: implemented` clears the reservedChrome rule. Real kinds author
- * honest blocks — this is only for kinds that exist to exercise a seam.
+ * A closure block that clears G1.24's coherence check for any throwaway test kind,
+ * whatever its mergeRole/contract/chrome: `roundTrip: implemented` clears the
+ * container rule, `mergeBackspace: not-supported` the not-mergeable rule, and
+ * `clipboard: implemented` the reservedChrome rule. Real kinds author honest blocks.
  */
 export const testClosure: ClosureBlock = {
 	roundTrip: { mode: 'implemented', via: 'test fixture' },

@@ -1,13 +1,7 @@
-// Where the caret goes when every block the range covered is gone, driven
-// through `tableAwareRangeDelete` directly.
-//
-// Two claims the existing table-caret suite reaches the shapes of but never
-// checks. First, the placeholder minted when the document empties IS a line
-// ending (G4.20): the table-caret suite asserts a paragraph appears, not what
-// its bytes are, so a defaulted LF there would strand a lone LF in a CRLF file.
-// Second, the descent into a surviving container is collapse-aware — a
-// collapsed container clamps its body out of view, so the caret belongs on its
-// chrome child, not on the last body leaf the walk would otherwise reach.
+// Where the caret goes when every block the range covered is gone. Two claims the table-caret
+// suite reaches the shapes of but never checks: the placeholder minted when the document empties
+// IS a line ending (G4.20), and the descent into a surviving container is collapse-aware, so the
+// caret belongs on a collapsed container's chrome child rather than its last body leaf.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -38,7 +32,8 @@ function deleteBothTables(source: string, firstTableIndex: number) {
 		doc,
 		cell([firstTableIndex], 0),
 		cell([firstTableIndex + 1], 3),
-		createSharingState()
+		createSharingState(),
+		undefined
 	);
 }
 

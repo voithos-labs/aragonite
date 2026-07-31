@@ -2,11 +2,8 @@
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
 
 	// Module scope so the entry arrays stay identity-stable across (SSR) renders:
-	// installPlugins skips a same-object re-install silently, and per-instance
-	// options ride the entries — one plugin object, two labels. This page is the
-	// doc-stats e2e's multi-instance driver: distinct editorIds/options/block
-	// counts, per-instance chord resolution, and the unmount-runs-the-disposer
-	// scenario via the toggle below.
+	// installPlugins skips a same-object re-install silently, and per-instance options
+	// ride the entries — one plugin object, two labels.
 	const leftPlugins = [{ plugin: docStatsPlugin, options: { label: 'left' } }];
 	const rightPlugins = [{ plugin: docStatsPlugin, options: { label: 'right' } }];
 </script>

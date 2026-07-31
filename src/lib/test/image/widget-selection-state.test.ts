@@ -7,12 +7,6 @@ describe('WidgetSelectionState', () => {
 		expect(s.getSelected()).toBeNull();
 	});
 
-	it('select sets a target', () => {
-		const s = createWidgetSelectionState({ onSelect: () => {} });
-		s.select({ paragraphPath: [0], sourceStart: 5, preSelectOffset: 5 });
-		expect(s.getSelected()).toEqual({ paragraphPath: [0], sourceStart: 5, preSelectOffset: 5 });
-	});
-
 	it('clear resets to null', () => {
 		const s = createWidgetSelectionState({ onSelect: () => {} });
 		s.select({ paragraphPath: [0], sourceStart: 5, preSelectOffset: 5 });

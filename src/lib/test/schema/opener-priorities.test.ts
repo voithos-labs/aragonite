@@ -1,11 +1,8 @@
 /**
- * Parity guard for the published opener ladder: `OPENER_PRIORITIES` (the plugin
- * barrel's constant, and the source the built-in registration sites consume) must
- * equal the built-in openers the registry actually holds. Importing the parser
- * registers the built-ins as a side effect; the registry read is filtered to
- * built-in kinds so a plugin opener from a leaked earlier registration can't
- * pollute the comparison. Bidirectional `toEqual` catches both a new built-in
- * opener that skips the constant and a constant key with no registration.
+ * Parity guard for the published opener ladder: `OPENER_PRIORITIES` must equal the
+ * built-in openers the registry holds, in both directions — a new built-in opener that
+ * skips the constant, and a constant key with no registration, are the same defect.
+ * Importing the parser is what registers the built-ins.
  */
 import { describe, it, expect } from 'vitest';
 import '../../core/parser';
@@ -22,9 +19,8 @@ describe('OPENER_PRIORITIES ↔ registry parity', () => {
 		);
 		expect(registered).toEqual({ ...OPENER_PRIORITIES });
 
-		// Non-vacuity: the comparison must discriminate. `paragraph` is a built-in
-		// with no opener, so a table claiming it can't match the live registry — a
-		// new built-in opener priced with a bare literal would fail here the same way.
+		// Non-vacuity: `paragraph` is a built-in with no opener, so a table claiming it
+		// must not match — the same way a built-in opener priced with a bare literal fails.
 		expect({ ...OPENER_PRIORITIES, paragraph: 5 }).not.toEqual(registered);
 	});
 

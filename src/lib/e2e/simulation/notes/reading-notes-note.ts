@@ -2,12 +2,9 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The nested-blockquote note: reading notes where a quotation carries a nested
- * inner quote (`> > ...`). The `> >` line sits in the equality spine, so end-state
- * equality (typing ≡ loading) now guards the nested-blockquote-exit path — the
- * regression the original `> >` exit bug shipped without. Built with `startQuote`
- * then `nestQuote`; the editor materializes both canonical spaces as the body
- * arrives, and Enter-then-soft-Enter exits the quote into the closing paragraph.
+ * The nested-blockquote note. The `> >` line sits in the equality spine, so end-state
+ * equality guards the nested-quote-exit path — the regression guard the original exit bug
+ * shipped without.
  */
 export const READING_NOTES_NOTE: NoteFixture = {
 	name: 'reading-notes-note',
@@ -39,8 +36,10 @@ export const READING_NOTES_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Reading Notes: On Style\n' +
 		'Passages worth keeping, with my own comment nested under each.\n' +
+		'\n' +
 		'## Clarity\n' +
 		'> Omit needless words.\n' +
+		'>\n' +
 		'> > Even the ones that feel load-bearing usually are not.\n' +
 		'\n' +
 		'The nested aside is where the real editing happens.\n'

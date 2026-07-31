@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type { AmbientPrefix, BlockComponent } from '../block-component';
+	import {
+		resolveBlockSurface,
+		type AmbientPrefix,
+		type BlockComponent,
+		type BlockComponentExports
+	} from '../block-component';
 	import type { NodeView } from '../core/node-views';
 	import type { BlockDecoration } from '../decorations/types';
 	import { mountDecorationWidget } from '../decorations/widget-dom';
@@ -43,28 +48,22 @@
 		reorderable?: boolean;
 	} = $props();
 
-	// Absent in bare unit harnesses that mount BlockHost without the editor shell.
-	// The optional reads below (and the two overlays') are what keep THIS component
-	// from throwing there; the leaf it mounts is a separate question, and today every
-	// one of them destructures the action and facet contexts as required. So a
-	// shell-less mount reaches the render boundary, not a rendered block — bare
-	// mounting is a property of the host, not yet of the subtree.
+	// Optional throughout: bare unit harnesses mount BlockHost without the editor
+	// shell, so every read here (and both overlays') is written for absence.
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
-	// The instance's registry view resolves component + descriptor, so per-instance
-	// enablement reaches the render path. Bare mounts (unit harnesses, conformance
-	// kit) get no provider and read the global default — behavior-preserving.
+	// Per-instance enablement reaches the render path through the view; bare mounts
+	// read the global default.
 	const registryView = services?.registryView ?? defaultRegistryView;
 	const getDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.doc;
-	// The instance's rect surface, delivered to the block as a prop. Stable object,
-	// so a plain read (not a getter); bare mounts without the shell get undefined.
+	// Stable object, so a plain read rather than a getter.
 	const rects = services?.rects;
 	const getDragHandles = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.blockDragHandles;
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
-	// that window in and out after the change, not just those mounted at mount.
+	// that window in after the change.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
 
 	let myPath = $derived([...parentPath, index]);
@@ -74,28 +73,38 @@
 		engine ? engine.blockDecorationsForPath(myPath) : NO_BLOCK_DECORATIONS
 	);
 
-	let isContainer = $derived(registryView.descriptor(node.kind).isContainer);
-	// A childless container (render-primary plugin block) mounts no child hosts,
-	// so overlay painting can't be delegated downward — see SelectionOverlay.
-	let hasChildHosts = $derived(isContainer && (node.children?.length ?? 0) > 0);
+	let descriptor = $derived(registryView.descriptor(node.kind));
+	let isContainer = $derived(descriptor.isContainer);
+	// Who paints this block's rects, decided ONCE here and handed to both overlays —
+	// duplicated, the two drift and a container paints over its own children. Delegation
+	// needs children with hosts: a childless container and a grid have none.
+	let delegatesPainting = $derived(
+		isContainer && (node.children?.length ?? 0) > 0 && descriptor.containerContract !== 'grid'
+	);
 
 	let hostEl: HTMLElement | null = $state(null);
-	let ref: BlockComponent | undefined = $state();
+	// The one point that resolves a block's published surface (leaf exports vs
+	// containerApi); every consumer of this host's ref reads what it returns.
+	let instance: BlockComponentExports | undefined = $state();
+	let ref: BlockComponent | undefined = $derived(resolveBlockSurface(instance));
+
+	// Neither conjunct is redundant though both look it: the shim gives every container
+	// `measurePartialRects`, so that term guards only a hand-rolled one omitting it, and
+	// the delegation term guards a hand-rolled child-bearing non-grid container.
+	let containerPaintsRects = $derived(
+		isContainer && !delegatesPainting && !!ref?.measurePartialRects
+	);
 
 	let entry = $derived(registryView.component(node.kind));
 
-	// A kind with no registered component falls back to a visible raw-editable
-	// surface (below) rather than silently rendering nothing.
+	// A kind with no registered component falls back to the raw-editable surface below
+	// rather than silently rendering nothing.
 	$effect(() => {
 		if (!entry) devWarn('block-host', 'no component for kind, rendering raw', node.kind);
 	});
 
-	// A component that throws leaves <svelte:boundary> on the fallback for the life of
-	// this mounted host — it never re-renders its content until reset() runs. When
-	// undo/redo restores DIFFERENT bytes to this same instance (windowing would remount
-	// and heal it; a small doc never windows it out), retry the render. A re-throw
-	// safely re-enters the fallback — onerror recaptures the fresh reset and failing
-	// raw — and an unchanged raw never resets, so a genuinely broken block can't loop.
+	// The error boundary sticks on its fallback until reset() runs, so restoring
+	// DIFFERENT bytes retries the render while an unchanged raw can't loop.
 	// Plain lets, not $state: the effect keys on node.raw alone and reads these live.
 	let failedRaw: string | null = null;
 	let retryFailedRender: (() => void) | null = null;
@@ -121,15 +130,20 @@
 		return publishRefSlot(index, ref, setRef, getRef);
 	});
 
+	// No `focus` means neither sanctioned shape was published. `defineBlockComponent`
+	// types this; the guard catches a registration that got in through a cast.
+	$effect(() => {
+		if (ref && typeof ref.focus !== 'function')
+			devWarn('block-host', 'component published no BlockComponent surface', node.kind);
+	});
+
 	const measureChannel = getContext<BlockMeasureChannel | undefined>(RECORD_BLOCK_HEIGHT_KEY);
 
 	useMountGauge();
 
-	// Enroll in the scope's batched measure pass instead of measuring inline — a
-	// per-block read interleaved with a sibling's model write forces one reflow per
-	// mounted block on a fling (VR-4). The scope reads every pending block then writes,
-	// so the batch costs one reflow. Re-registers on path change (reorder re-binds the
-	// write to the new index); jsdom reports 0 height, guarded inside the batch.
+	// Enroll in the scope's batched measure pass rather than measuring inline: a
+	// per-block read interleaved with a sibling's model write costs one reflow per
+	// mounted block on a fling (VR-4). Re-registers on path change.
 	$effect(() => {
 		void myPath;
 		if (!measureChannel) return;
@@ -138,12 +152,9 @@
 		);
 	});
 
-	// An edit grows/shrinks this one block; re-measure it directly (convergence-guarded,
-	// so it can't spin the graph). Skip the MOUNT run: the batched pass above already owns
-	// mount measurement, and a per-block read on a fling interleaved with a sibling's model
-	// write is exactly the one-reflow-per-block thrash this design removes (VR-4). `firstRun`
-	// resetting on remount is intended — a block re-entering the window is a fresh mount the
-	// batch measures.
+	// An edit resizes this one block; re-measure it directly. Skip the MOUNT run — the
+	// batched pass above owns mount measurement, and a per-block read on a fling is the
+	// thrash it exists to remove (VR-4).
 	let firstRun = true;
 	$effect(() => {
 		void node.raw;
@@ -154,13 +165,9 @@
 		measureChannel?.measureNow(id);
 	});
 
-	// A block can grow AFTER mount without its `raw` changing — an image (or other async
-	// content) decoding in. The `raw` effect above never sees it, and native overflow-anchor
-	// is off, so the growth would slide the viewport. Observe the box and hand the scope the
-	// observer-reported border-box height; it gates on the height it already recorded, so the
-	// mount resize (and the cached-then-remounted case, where the grown size can arrive in
-	// the very first callback) is handled without a `settled`-flag timing race, and the
-	// no-op fling case does no DOM read. Genuine growth re-measures and anchor-corrects.
+	// A block can grow after mount without its `raw` changing (async content decoding
+	// in), which the effect above never sees, and overflow-anchor is off so the growth
+	// would slide the viewport. The scope gates on the height it already recorded.
 	$effect(() => {
 		if (!hostEl || !measureChannel) return;
 		const observer = new ResizeObserver((entries) => {
@@ -172,9 +179,8 @@
 		return () => observer.disconnect();
 	});
 
-	// Decoration attrs are set imperatively (not spread) so a source change or
-	// dispose removes exactly the keys it applied, leaving the host's own
-	// attributes untouched.
+	// Set imperatively, not spread, so a source change or dispose removes exactly the
+	// keys it applied and leaves the host's own attributes alone.
 	$effect(() => {
 		const decs = blockDecs;
 		const el = hostEl;
@@ -191,10 +197,9 @@
 		};
 	});
 
-	// Badges prepend BEFORE the block component; the first-non-overlay-child lookups
-	// (Editor.getBlockElByPath and the e2e helpers) exclude `.decoration-badge` via
-	// BLOCK_CONTENT_SELECTOR (block-content-selector.ts) — keep that constant in step
-	// if this wrapper class ever changes.
+	// Badges prepend BEFORE the block component, so BLOCK_CONTENT_SELECTOR
+	// (block-content-selector.ts) excludes `.decoration-badge` — keep it in step if
+	// this wrapper class changes.
 	$effect(() => {
 		const decs = blockDecs;
 		const el = hostEl;
@@ -245,7 +250,7 @@
 				{ambientPrefix}
 				document={getDoc?.()}
 				{rects}
-				bind:this={ref}
+				bind:this={instance}
 				{...entry.extraProps?.(node) ?? {}}
 			/>
 		{:else}
@@ -256,7 +261,7 @@
 				{ambientPrefix}
 				document={getDoc?.()}
 				{rects}
-				bind:this={ref}
+				bind:this={instance}
 				blockClass="raw-block"
 			/>
 		{/if}
@@ -268,13 +273,24 @@
 			</div>
 		{/snippet}
 	</svelte:boundary>
-	<!-- hostEl is null until mount; safe because SelectionState is only
-		 populated by user gesture, never synchronously during structural
-		 mount. The overlay's $effect guards on !blockEl. -->
-	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
-	<DecorationOverlay path={myPath} blockRef={ref} blockEl={hostEl} {isContainer} {hasChildHosts} />
-	<!-- Rendered LAST so the block-el lookup (`:scope >` excluding overlays and
-		 decoration badges) still resolves the block content as its first match. -->
+	<!-- hostEl is null until mount; safe because SelectionState is only populated by
+		 user gesture, and the overlay's $effect guards on !blockEl. -->
+	<SelectionOverlay
+		path={myPath}
+		blockRef={ref}
+		blockEl={hostEl}
+		{delegatesPainting}
+		{containerPaintsRects}
+	/>
+	<DecorationOverlay
+		path={myPath}
+		blockRef={ref}
+		blockEl={hostEl}
+		{isContainer}
+		{containerPaintsRects}
+	/>
+	<!-- Rendered LAST so the block-el lookup still resolves block content as its
+		 first match. -->
 	{#if reorderable && dragHandles}
 		<BlockDragHandle />
 	{/if}
@@ -285,13 +301,9 @@
 		position: relative;
 	}
 
-	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost
-	   scales with mounted-component count. Global (not scoped) because
-	   reorder hosts nest across components (blockquote > child, list item >
-	   sub-item). `.reorder-host` marks any host that renders a handle (BlockHost
-	   when reorderable, plus ListItemBlock); `:not(:has(.reorder-host:hover))`
-	   reveals only the INNERMOST hovered unit's handle, so a deep hover shows one
-	   handle, not a staircase of ancestor handles. */
+	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost scales
+	   with mounted-component count. Global because reorder hosts nest; the `:not(:has(
+	   ...))` reveals the innermost hovered handle, not a staircase of ancestors. */
 	:global(.reorder-host:hover:not(:has(.reorder-host:hover)) > .block-drag-handle) {
 		opacity: 1;
 		pointer-events: auto;

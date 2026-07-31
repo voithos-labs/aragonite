@@ -1,8 +1,6 @@
 /**
- * Table's `foreignDragHitTest`: translate a foreign drag's viewport point into
- * a row-major cellIdx for the cross-block selection focus. Owns the cellIdx
- * encoding so the selection layer stays free of table-DOM knowledge — it
- * dispatches here via the block-kind descriptor registry.
+ * Table's `foreignDragHitTest`: a foreign drag's viewport point → a row-major cellIdx.
+ * Owns the encoding so the selection layer stays free of table-DOM knowledge.
  */
 
 import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';

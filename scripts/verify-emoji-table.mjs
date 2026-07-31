@@ -1,14 +1,8 @@
-// Gates the committed `emoji-table.ts` against its generator: re-renders the table
-// from the pinned gemoji revision and byte-compares. A hand-edit, a half-finished
-// regen, or a merge conflict resolved by hand fails here instead of shipping a table
-// nothing can reproduce. Exits non-zero (naming the first divergent line) on drift.
-//
-//   node scripts/verify-emoji-table.mjs                 # fetch the pinned gemoji db
-//   node scripts/verify-emoji-table.mjs --input db.json # verify against a local copy
-//
-// Deliberately NOT a unit test: it reaches the network, and the unit suite must not.
-// CI runs it as its own job (.github/workflows/ci.yml) so a drift reads as drift
-// rather than as a mystery failure inside the editor suites.
+// Gates the committed `emoji-table.ts` against its generator: re-renders from the pinned
+// gemoji revision and byte-compares, so a hand-edit or half-finished regen fails here
+// instead of shipping a table nothing can reproduce. `--input <file>` uses a local copy.
+// Deliberately NOT a unit test: it reaches the network, and the unit suite must not. It is
+// its own job in .github/workflows/ci.yml, so a drift reads as drift.
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -19,8 +13,8 @@ import {
 } from './generate-emoji-table.mjs';
 
 /**
- * Report where the two renderings part company. A bare "they differ" is unactionable
- * across ~1,900 rows; the first divergent line names the offending shortcode.
+ * A bare "they differ" is unactionable across thousands of rows, so name the first
+ * divergent line and with it the offending shortcode.
  * @param {string} generated
  * @param {string} committed
  */

@@ -1,7 +1,7 @@
 /**
- * Cross-block paste: delete the active range inside a single undo snapshot,
- * dispatch the paste onto the collapsed caret, then restore the caret via
- * DOM (the originating block may have been removed, invalidating pendingCursor).
+ * Cross-block paste: delete the active range inside a single undo snapshot, dispatch the paste
+ * onto the collapsed caret, then restore the caret via DOM, since the originating block may be
+ * gone and pendingCursor with it.
  */
 
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -22,6 +22,7 @@ import { pathsEqual } from '../path-math';
 import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
+import { emitClipboardError } from '../../editor-events';
 
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
@@ -34,9 +35,8 @@ export async function handleCrossBlockPaste(
 	ctx.stickyColumn.reset();
 	ctx.selection.resetSelectAllCount();
 	e.preventDefault();
-	// `!== undefined`, not `??`: a caller that supplied its own payload must never
-	// reach the clipboard read, whatever that payload is. With `??` the guarantee
-	// would depend on callers never passing '', which is not a property of this seam.
+	// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
+	// clipboard read, and `??` would make that depend on callers never passing ''.
 	const pasted =
 		replacement !== undefined
 			? replacement
@@ -45,24 +45,35 @@ export async function handleCrossBlockPaste(
 
 	const doc = ctx.getDoc();
 
-	// Whole-table selection (Ctrl+A 2nd press inside a cell): replace the table
-	// block with the pasted content at the parent position, single undo. The
-	// sub-rectangle path can't reach this — clearing every cell leaves the
-	// table behind, but the spec calls for the table to be removed entirely.
+	// Whole-table selection (Ctrl+A 2nd press inside a cell): replace the table block at the
+	// parent position, single undo. The sub-rectangle path only clears cells, leaving the table.
 	if (isWholeTableSelection(ctx.selection, doc)) {
 		await replaceTableWithPaste(ctx, mutCtx, pasted);
 		return true;
 	}
 
-	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave
-	// an intermediate "selection-deleted but blocks-not-inserted" state.
+	// Read before the delete collapses the selection: the only coordinate an error report on the
+	// declined branch below could still name.
+	const rangeStartPath = ctx.selection.start?.path.slice();
+
+	// One snapshot covers the whole delete-then-paste so Ctrl+Z doesn't leave an intermediate
+	// "selection-deleted but blocks-not-inserted" state.
 	mutCtx.pushUndoSnapshot();
 
 	const caret = await performCrossBlockDelete(mutCtx, {
 		undoEntry: 'join',
 		skipCaretRestore: true
 	});
-	if (!caret) return true;
+	// The gesture was consumed (preventDefault above) and there is nowhere to put the payload:
+	// another cross-block mutation collapsed the selection while this paste waited it out. Text
+	// survives on the clipboard, but a host-imported image does not, so report it.
+	if (!caret) {
+		emitClipboardError(ctx.events, {
+			error: new Error('cross-block paste resolved no caret; nothing inserted'),
+			...(rangeStartPath ? { path: rangeStartPath } : {})
+		});
+		return true;
+	}
 
 	const result = await pasteDispatch(
 		{
@@ -84,11 +95,9 @@ export async function handleCrossBlockPaste(
 }
 
 /**
- * Land the caret after a cross-block paste commit. Inline pastes place the
- * caret via DOM (pendingCursor may address a block the range delete
- * unmounted); structural pastes rely on pasteDispatch's internal focus and
- * only DOM-focus the caret block if focus escaped the editor (cascade
- * cleanup can destroy the parent state the internal focus targets).
+ * Land the caret after a cross-block paste commit. Inline pastes place it via DOM, since
+ * pendingCursor may address a block the range delete unmounted; structural pastes rely on
+ * pasteDispatch's internal focus and only step in when focus escaped the editor.
  */
 async function landCaretAfterPaste(
 	ctx: CrossBlockDispatchContext,
@@ -117,19 +126,16 @@ function isWholeTableSelection(selection: SelectionState, doc: Document): boolea
 	if (!node || !isBlockNode(node) || node.kind !== 'table') return false;
 	const cellCount = tableCellCount(node);
 	if (cellCount === 0) return false;
-	// Same-path intra-table selection: cell offsets are context-established
-	// (same table, unflagged), so read directly.
+	// Same-path intra-table selection: cell offsets are context-established, so read directly.
 	const lo = Math.min(anchor.offset, focus.offset);
 	const hi = Math.max(anchor.offset, focus.offset);
 	return lo === 0 && hi === cellCount - 1;
 }
 
 /**
- * Replace the selected table block with the pasted content at the table's
- * parent position. Routes through replaceBlockAtParent so the splice lands at
- * the doc/enclosing-container scope rather than the row-level blockEdit
- * propagated by TableRowBlock. One snapshot covers the whole replace — Ctrl+Z
- * restores the original table in a single press.
+ * Replace the selected table block with the pasted content at the table's parent position.
+ * Routes through replaceBlockAtParent so the splice lands at the doc/enclosing-container scope
+ * rather than the row-level blockEdit TableRowBlock propagates. One snapshot covers the replace.
  */
 async function replaceTableWithPaste(
 	ctx: CrossBlockDispatchContext,
@@ -139,8 +145,8 @@ async function replaceTableWithPaste(
 	const tablePath = ctx.selection.anchor!.path;
 	const doc = ctx.getDoc();
 
-	// This whole-table-selection route never reaches pasteDispatch, so the paste
-	// transforms run here too — the rule lives in the helper, applied at both sites.
+	// This route never reaches pasteDispatch, so the paste transforms run here too; the rule
+	// lives in the helper, applied at both sites.
 	const parsed = parse(applyPasteTransforms(pasted));
 	if (parsed.children.length === 0) return;
 

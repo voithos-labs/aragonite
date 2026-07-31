@@ -1,8 +1,6 @@
-// A range delete that consumes both endpoints whole leaves nothing to reparse, so
-// every branch falls back to a minted empty paragraph. That paragraph's raw IS a
-// line ending, and in a CRLF document it must be CRLF (G4.20) — a bare `\n` there
-// strands a lone LF in an otherwise-CRLF file. One case per branch: generic, table,
-// and reserved chrome each own a copy of the fallback.
+// A range delete that consumes both endpoints whole leaves nothing to reparse, so every branch
+// falls back to a minted empty paragraph. That paragraph's raw IS a line ending, and in a CRLF
+// document it must be CRLF (G4.20). One case per branch: generic, table, and reserved chrome.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
@@ -14,7 +12,7 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import type { SelectionPoint } from '../../selection/primitives';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
-	return serialize(rangeDelete(parse(source), start, end, createSharingState()).newDoc);
+	return serialize(rangeDelete(parse(source), start, end, createSharingState(), undefined).newDoc);
 }
 
 describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => {
@@ -51,9 +49,8 @@ describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => 
 	});
 });
 
-// Paths: [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below.
-// Both endpoints are prose, so the wall branch reparses each surviving slice — and
-// both slices are empty, so both take the minted-paragraph fallback.
+// Paths: [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below. Both endpoints
+// are prose and both surviving slices are empty, so both take the minted-paragraph fallback.
 describe('chromeAwareRangeDelete keeps CRLF on both truncated endpoints', () => {
 	beforeEach(() => {
 		// registerChromeLeaf registers a paste surface; the schema reset alone leaves

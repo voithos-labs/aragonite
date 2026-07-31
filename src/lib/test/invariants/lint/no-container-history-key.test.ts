@@ -1,10 +1,9 @@
 /**
  * G1.4 — only the editor root may `setContext(HISTORY_KEY, ...)`. A container
- * re-providing HISTORY_KEY would give descendants a second history actions
- * object, splitting the undo stack (see invariants.md G1.4). The runtime guard
- * in nested-actions.ts inspects a fixed key set that can't contain HISTORY_KEY,
- * so it never trips on a real container author's stray provide — this scan is
- * the channel that catches it.
+ * re-providing it would give descendants a second history actions object, splitting the
+ * undo stack (invariants.md G1.4). The runtime guard in nested-actions.ts inspects a
+ * fixed key set that cannot contain HISTORY_KEY, so this scan is the only channel that
+ * catches a container author's stray provide.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -43,8 +42,7 @@ describe('G1.4 no container provides HISTORY_KEY source-scan', () => {
 
 	// ── Non-vacuity guards ──────────────────────────────────────────────────
 
-	// Proves the pattern matches real provider code and that the allowlist is
-	// load-bearing — breaks loudly if the provider moves out of Editor.svelte.
+	// Proves the pattern matches real provider code and that the allowlist is load-bearing.
 	it('finds the editor-root provider in real source', () => {
 		const providers = sources.filter((f) => PROVIDE_HISTORY_KEY_RE.test(f.code));
 		expect(providers.map((f) => f.relPath)).toEqual([ALLOWED_PROVIDER]);

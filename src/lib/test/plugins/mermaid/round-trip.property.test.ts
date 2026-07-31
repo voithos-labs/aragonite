@@ -7,12 +7,9 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
 import { freshOrFixedSeed } from '../../invariants/arbitraries';
 
-// Adversarial fence-shape generator for the master invariant
-// serialize(parse(src)) === src, run in BOTH install states (uninstall safety is
-// by construction — the same bytes must round-trip as fencedCode). Pure byte
-// identity, so even a code line that closes the fence early is a legal draw.
-// Reachability of the bug-carrying shapes is pinned below (culture rule: an
-// arbitrary that can't produce the class proves nothing).
+// Adversarial fence shapes for serialize(parse(src)) === src, run in BOTH install
+// states so uninstall safety comes out by construction. Pure byte identity, so even a
+// code line that closes the fence early is a legal draw; reachability is pinned below.
 
 const arbLineEnding = fc.constantFrom('\n', '\r\n');
 

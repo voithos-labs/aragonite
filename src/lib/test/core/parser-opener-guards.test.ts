@@ -11,10 +11,8 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { configureEditorEnv, resetEditorEnv } from '../../env';
 import type { Document } from '../../core/nodes';
 
-// A synthetic opener matching lines that start with `sentinel`, returning a
-// caller-shaped result — drives the parser's DEV trust checks on a plugin
-// opener's return without a real misbehaving plugin. The kind name is decoupled
-// from the sentinel because kind names may not contain the sentinel's symbols.
+// Drives the parser's DEV trust checks without a real misbehaving plugin. The kind name is
+// decoupled from the sentinel because kind names may not contain the sentinel's symbols.
 function registerSyntheticOpener(
 	kindName: string,
 	sentinel: string,
@@ -32,9 +30,8 @@ describe('parser opener trust guards', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 	afterEach(() => resetEditorEnv());
 
-	// Two consecutive stuck dispatches, not one: a single decline proves the branch,
-	// while a second one proves the loop still terminates when every dispatch declines
-	// — the shape that hangs a tab if the decline is missing.
+	// Two consecutive stuck dispatches, not one: the second proves the loop still terminates
+	// when every dispatch declines, the shape that hangs a tab without the decline.
 	it('declines a non-advancing opener instead of spinning the parse loop', () => {
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		configureEditorEnv({ isDev: true, isTest: false });
@@ -62,7 +59,7 @@ describe('parser opener trust guards', () => {
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		configureEditorEnv({ isDev: true, isTest: false });
 		registerSyntheticOpener('synthetic-drift', '@@drift@@', (ctx, kind) => ({
-			node: { kind, leadingTrivia: ctx.leadingTrivia, raw: 'UNRELATED\n' }, // != consumed line
+			node: { kind, leadingTrivia: ctx.leadingTrivia, raw: 'UNRELATED\n' },
 			consumed: 1
 		}));
 

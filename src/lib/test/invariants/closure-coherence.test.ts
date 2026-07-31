@@ -6,9 +6,8 @@ import { closureCoherenceEntry } from '$lib/schema/registration-checks';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 // G1.24 — the closure-vs-descriptor cross-checks a compiler can't reach. The
-// predicate is pure (entries injected); the fixture-parses-to-kind rule is a
-// separate sweep — see closure-fixtures.test.ts — because a `parse` import here
-// would close a schema → core/parser → schema cycle.
+// fixture-parses-to-kind rule is a separate sweep (closure-fixtures.test.ts) because a
+// `parse` import here would close a schema → core/parser → schema cycle.
 
 const entry = (over: Partial<ClosureCoherenceEntry>): ClosureCoherenceEntry => ({
 	kind: 'k' as AnyBlockKind,
@@ -118,8 +117,8 @@ describe('checkClosureCoherence — focus-then-delete claim rule', () => {
 		).toBeNull();
 	});
 
-	// The near-miss that must stay outside the vocabulary: an ordinary
-	// not-mergeable leaf moves focus at its edge and deletes on the first press.
+	// The near-miss that must stay outside the vocabulary: an ordinary not-mergeable leaf
+	// moves focus at its edge and deletes on the first press.
 	it('leaves an edge-focus-moving leaf alone', () => {
 		expect(
 			checkClosureCoherence([
@@ -193,9 +192,8 @@ describe('checkClosureCoherence — reporting', () => {
 	});
 });
 
-// Integration: the shipped built-in descriptors must all be coherent, so a
-// future edit that regresses a real cell (a container downgraded to
-// inherit-default round-trip, say) fails here even before the flush runs.
+// Integration over the shipped descriptors, so an edit that regresses a real cell fails
+// here even before the flush runs.
 describe('every built-in descriptor is closure-coherent', () => {
 	it('produces no violation over ALL_BLOCK_KINDS', () => {
 		const entries = ALL_BLOCK_KINDS.map((kind) =>

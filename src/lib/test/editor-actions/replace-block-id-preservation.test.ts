@@ -125,9 +125,8 @@ describe('nested replaceBlock ensureEditableContainers', () => {
 	it('synthesized empty list/listItem replacement gets a child paragraph cursor target', async () => {
 		const { bundle, deps } = makeNestedSetup();
 
-		// Synthesize a list with an empty listItem — no child paragraph would
-		// leave the cursor with nowhere to land. ensureEditableContainers must
-		// backfill the inner paragraph during the splice.
+		// An empty listItem leaves the cursor nowhere to land, so ensureEditableContainers
+		// must backfill the inner paragraph during the splice.
 		const synthList: CstNode = {
 			kind: 'list',
 			leadingTrivia: '',
@@ -148,7 +147,7 @@ describe('nested replaceBlock ensureEditableContainers', () => {
 
 		await bundle.blockEdit.replaceBlock(0, [synthList]);
 
-		// The commit replaced the container node — read through the live doc.
+		// The commit replaced the container node, so read through the live doc.
 		const placedList = deps.doc.children[0].children?.[0];
 		expect(placedList?.kind).toBe('list');
 		const listItem = placedList?.children?.[0];
@@ -160,8 +159,7 @@ describe('nested replaceBlock ensureEditableContainers', () => {
 
 // ── List-overrides replaceBlock preserves the surviving item's id ────────────
 
-// The surviving first item must keep its id so Svelte's keyed {#each} preserves
-// the component (IME / pending input) instead of destroy+recreate.
+// A changed id destroys and recreates the component, losing IME / pending input.
 function makeListSetup() {
 	const listNode = parse('- a\n- b\n').children[0];
 	expect(listNode.kind).toBe('list');

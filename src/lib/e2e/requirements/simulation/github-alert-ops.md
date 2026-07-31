@@ -16,8 +16,9 @@ single-newline lazy-merge divergence — convergence runs unconditionally.
 
 ## Happy paths
 
-- typing `> [!TYPE]` on a fresh line promotes the block to an empty `githubAlert` with
-  the caret in its body, so typing the body straight on (no second Enter, which exits the
+- typing `> [!TYPE]` on a fresh line one key at a time promotes the block to a blockquote
+  at `>` and reclassifies it to an empty `githubAlert` when the marker closes, leaving the
+  caret in its body, so typing the body straight on (no second Enter, which exits the
   quote) lands a `githubAlert` root child whose body carries the typed text, bytes
   reading `> [!TYPE]\n> …`
 - editing inside the alert body rebuilds the container's raw through the `> [!TYPE]`
@@ -45,10 +46,9 @@ single-newline lazy-merge divergence — convergence runs unconditionally.
 ## User interactions
 
 - the alert is formed after a real Enter opens a fresh line, then the `> [!TYPE]` marker
-  arrives as ONE input event and the body is typed per keystroke. The marker is not typed
-  key by key, which is what a user does: per-keystroke formation leaves the block a
-  `blockquote` that never reclassifies and drives `parseConverged()` false, so the
-  keystroke stream is blocked on that defect rather than covered here
+  and the body are typed per keystroke — so the blockquote promotion at `>`, the inline
+  recognizer's `[` rung, and the container reclassification at `]` each arrive as their
+  own input event, the way a user produces them
 - the inner edit clicks the body child, jumps to its end, and types
 - the merge and unwrap are real Home + Backspace at the targeted body-block start
 - undo uses the real cross-platform shortcut around a forced batch boundary; undoing the

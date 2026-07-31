@@ -8,12 +8,9 @@ const tiles = (source: string) =>
 		.map((n) => source.slice(n.start, n.end))
 		.join('');
 
-// Stopgap bounds for three super-linear inline scans: the entity `;` search is
-// capped at the longest possible reference body, the autolink paren trim keeps a
-// running balance instead of recounting per `)`, and the code-span matcher
-// indexes backtick runs once instead of rescanning to EOF per opener. Wall-time
-// bounds are generous (~20x post-fix headroom at these sizes) so they fail on a
-// super-linear regression (>10s) without flaking on slow machines.
+// Three inline scans that go super-linear when unbounded: the entity `;` search, the
+// autolink paren trim, and the code-span backtick matcher. The wall-time bounds are
+// generous, so they fail on a super-linear regression without flaking on slow machines.
 
 describe('adversarial scan bounds', () => {
 	it('entity-candidate flood parses in bounded time with output unchanged', () => {
@@ -47,14 +44,11 @@ describe('adversarial scan bounds', () => {
 	}, 60_000);
 });
 
-// The GFM autolink pass hands two shapes to the same code: the delimiter prune it
-// runs after claiming, and the array surgery that splices claims into the node list.
-// Each fails on a different axis, and neither is reachable from the round-trip
-// property generator (capped at a few hundred bytes).
+// Two failure axes in the autolink pass — the delimiter prune and the splice surgery —
+// neither reachable from the round-trip generator, which caps at a few hundred bytes.
 describe('GFM autolink pass bounds', () => {
-	// Neither input alone is superlinear — it is the pairing. A prune that asks every
-	// delimiter about every match is O(delimiters x matches); the matches are sorted
-	// and disjoint, so an overlap is one lookup.
+	// Neither input alone is superlinear; it is the pairing. A prune that asks every
+	// delimiter about every match is O(delimiters × matches).
 	it('prunes delimiters against matches within a bounded growth ratio', () => {
 		const source = (raw: string) => parseInline(raw, 0, raw.length);
 		const { times, ratio } = measureScanGrowth(source, 'www.a.bc _x ', [48, 192]);
@@ -64,9 +58,7 @@ describe('GFM autolink pass bounds', () => {
 	}, 300_000);
 
 	// Spreading a match array as call arguments dies on V8's argument limit, and the
-	// resulting RangeError takes the whole block to the failed-block fallback, which
-	// cannot heal: the error boundary resets on a `raw` change the block can no longer
-	// receive. Well past the limit so the guard holds whatever the runner's stack size.
+	// RangeError strands the block in the failed-block fallback, which cannot heal.
 	it('splices a match count past the argument limit without throwing', () => {
 		const source = 'www.a.bc '.repeat(120_000);
 		expect(tiles(source)).toBe(source);

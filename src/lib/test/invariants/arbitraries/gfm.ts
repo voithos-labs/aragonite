@@ -1,10 +1,8 @@
 import fc from 'fast-check';
 
-// Recursive generator of valid-ish GFM SOURCE strings. Round-trip is byte-
-// preserving regardless of structural validity, so this can't yield false
-// failures — its job is exercising the structured parser paths (tables, lists,
-// LRDs, nested blockquotes) that raw garbage rarely reaches. Depth is bounded
-// via fc.letrec's tie so blockquote/list nesting stays shallow and fast.
+// Valid-ish GFM SOURCE strings, whose job is reaching the structured parser paths raw
+// garbage rarely does. Structural validity is never required: round-trip is byte-preserving
+// either way, so a malformed draw is signal, not a false failure.
 
 // ── Leaf-block source fragments ─────────────────────────────────────────────
 
@@ -90,7 +88,6 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 		{ arbitrary: thematicBreak, weight: 1 },
 		{ arbitrary: linkRefDef, weight: 1 },
 		{ arbitrary: table, weight: 2 },
-		// blockquote: prefix every line of an inner block with "> "
 		{
 			arbitrary: tie('block').map((inner) =>
 				inner
@@ -100,7 +97,6 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 			),
 			weight: 2
 		},
-		// list item: indent every line of an inner block under a marker
 		{
 			arbitrary: fc
 				.tuple(fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '), tie('block'))
@@ -123,18 +119,12 @@ const lfDoc = fc
 	.map((parts) => parts.map(([trivia, b]) => trivia + b).join(''));
 
 /**
- * Valid-ish GFM source with bounded nesting depth (~3). Emits a source STRING;
- * round-trip tests parse it. Structural validity is not guaranteed — round-trip
- * holds either way — so generation favors breadth over correctness.
+ * Valid-ish GFM source with bounded nesting depth (~3), emitted as a source STRING.
  *
- * The line ending is a document-level draw. Before it, this was the only lane
- * reaching tables, fences and nested containers and it was LF-only, while the
- * lanes that did emit CRLF topped out below the size a structured block needs —
- * so "a CRLF document containing a structured block" was unreachable by every
- * lane at once. Two shipped byte-corruption defects lived in exactly that hole
- * (a table rebuilt with LF endings, a hard break downgrading its block's CRLF).
- * Mapped at the top because the container arms split on `'\n'` internally;
- * rewriting after they compose keeps the result byte-exact.
+ * The line ending is a document-level draw because "a CRLF document containing a
+ * structured block" is otherwise unreachable by every lane at once — the hole two shipped
+ * byte-corruption defects lived in. Mapped at the top: the container arms split on `'\n'`
+ * internally, so rewriting after they compose is what keeps the result byte-exact.
  */
 export const arbGfmDoc = fc
 	.tuple(lfDoc, fc.boolean())
@@ -143,11 +133,9 @@ export const arbGfmDoc = fc
 // ── Leading-indent dimension ────────────────────────────────────────────────
 
 /**
- * Indents that straddle the CommonMark block-indent boundary: up to three
- * spaces a block marker still opens its block, at four the line is indented
- * code instead, and a tab counts as four columns. Every block this generator
- * composed sat at column 0, so the 0-3-versus-4 rule — the boundary that decides
- * between a blockquote and a code block — was outside the reachable input space.
+ * Indents straddling the CommonMark block-indent boundary — up to three spaces a marker
+ * still opens its block, at four the line is indented code, and a tab counts as four
+ * columns. Every composed block sits at column 0, so that rule is otherwise unreachable.
  */
 const blockIndent = fc.constantFrom('', ' ', '  ', '   ', '    ', '     ', '\t', ' \t', '   \t');
 
@@ -165,10 +153,9 @@ function indentBlock(source: string, indent: string, firstLineOnly: boolean): st
 }
 
 /**
- * GFM documents with a leading indent per block. `firstLineOnly` matters
- * independently: indenting only the opener leaves the continuation lines at
- * column 0, which is where a container's prefix re-derivation and a lazy
- * continuation disagree about what the block's indent was.
+ * GFM documents with a leading indent per block. `firstLineOnly` is its own dimension:
+ * indenting only the opener leaves continuation lines at column 0, which is where a
+ * container's prefix re-derivation and a lazy continuation disagree about the indent.
  */
 export const arbIndentedGfmDoc = fc
 	.array(fc.tuple(blankTrivia, blockIndent, block, fc.boolean()), {

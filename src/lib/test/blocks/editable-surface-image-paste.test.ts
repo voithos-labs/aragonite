@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
 //
-// The image-paste arm of the clipboard skeleton. `onPasteImage` is a host hook, so
-// the arm's whole job is the ceremony around it: read the clipboard's files inside
-// the synchronous event window, prevent before anything awaits, call the hook once
-// per image in clipboard order, and insert what comes back at the caret the paste
-// STARTED from — a hook that takes seconds to upload must not follow a caret the
-// user moved meanwhile. Driven through createClipboardHandlers, the one place the
-// four editable surfaces share the arm; each surface's own insertion tail is
-// exercised by its own suite.
+// The image-paste arm of the clipboard skeleton. `onPasteImage` is a host hook, so the arm's
+// whole job is the ceremony around it: read the clipboard's files inside the synchronous event
+// window, prevent before anything awaits, call the hook once per image in clipboard order, and
+// insert at the caret the paste STARTED from — a hook that takes seconds to upload must not
+// follow a caret the user moved meanwhile. Driven through createClipboardHandlers.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
@@ -132,9 +129,8 @@ describe('image paste — replacing a cross-block selection', () => {
 		expect(h.seated).toEqual([]);
 	});
 
-	// The branch reads the selection LIVE, so a cross-block selection the user
-	// collapsed while the host uploaded leaves nothing for the seam to claim — and the
-	// paste falls back to the anchor captured when it fired.
+	// The branch reads the selection LIVE, so a cross-block selection collapsed while the host
+	// uploaded leaves nothing to claim — the paste falls back to the anchor captured when it fired.
 	it('a selection collapsed before the import lands falls through to the caret', async () => {
 		let stillCrossBlock = true;
 		const h = harness({
@@ -207,7 +203,13 @@ describe('image paste — where the markdown lands', () => {
 	// widget's element-level edge — so the committed caret has to carry the anchor.
 	it('after a reveal fold, the committed caret anchors the insertion', async () => {
 		const state: SurfaceState = { caret: null, el: document.createElement('div') };
-		const h = harness({ foldReveal: () => 3, onPasteImage: async () => '![[a.png]]' }, state);
+		const h = harness(
+			{
+				foldReveal: () => ({ caret: 3, settled: Promise.resolve() }),
+				onPasteImage: async () => '![[a.png]]'
+			},
+			state
+		);
 		await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
 		expect(h.seated).toEqual([3]);
 		expect(h.folds).toEqual([3]);
@@ -238,7 +240,7 @@ describe('image paste — declining and failing', () => {
 		expect(h.errors).toEqual([]);
 	});
 
-	it('a rejected import reports as origin `command` and its sibling still lands', async () => {
+	it('a rejected import reports as origin `clipboard` and its sibling still lands', async () => {
 		const boom = new Error('asset import failed');
 		const h = harness({
 			onPasteImage: async (image) => {
@@ -249,7 +251,7 @@ describe('image paste — declining and failing', () => {
 		await createClipboardHandlers(h.deps).onPaste(
 			pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
 		);
-		expect(h.errors).toEqual([{ origin: 'command', error: boom }]);
+		expect(h.errors).toEqual([{ origin: 'clipboard', error: boom }]);
 		expect(h.inserted).toEqual(['![[b.png]]']);
 	});
 

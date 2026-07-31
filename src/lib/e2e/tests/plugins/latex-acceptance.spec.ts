@@ -2,30 +2,24 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter } from './helpers';
 
 /**
- * Acceptance-axis coverage for the LaTeX extension, each test labelled with the
- * spec's axis id. These assert the differentiators that only a real browser can
- * prove: A1 (reveal transition holds scroll + geometry + caret), A2 (editing one
- * of N live equations re-renders only that one), A7 (every multiline environment
- * renders), A5 (invalid math shows a legible message, not KaTeX's raw strip). The
- * A2 memo primitive is also unit-pinned (math-renderer.test.ts); this file adds the
- * live edit-one-of-N pin. Round-trip (A11) is unit-covered; not re-tested here.
- *
- * A1 flakiness watch: the block-reveal fixture is tall enough that folding a block
- * can trip a windowing geometry re-estimate. Read an A1 failure here as a
- * windowing-geometry interaction FIRST, before suspecting a reveal regression.
+ * Acceptance-axis coverage for the LaTeX extension, each test labelled with the spec's axis id.
+ * These assert what only a real browser can prove: A1 (reveal holds scroll + geometry + caret), A2
+ * (one of N equations re-renders alone; memo primitive unit-pinned in math-renderer.test.ts), A7
+ * (every multiline environment renders), A5 (invalid math shows a legible message). A1 flakiness
+ * watch: folding a tall block can trip a windowing geometry re-estimate — suspect that FIRST.
  */
 
-// A pad tall enough that the block-math fixture scrolls in a default viewport, so
-// the A1 "no view-jump" assertion measures a genuine scroll position, not a
-// constant zero on a doc that never scrolls.
+// A pad tall enough that the block-math fixture scrolls in a default viewport, so the A1 "no
+// view-jump" assertion measures a genuine scroll position, not a constant zero on a doc that never
+// scrolls.
 const PAD_ABOVE = Array.from({ length: 30 }, (_, i) => `Above padding line ${i}.`).join('\n\n');
 const PAD_BELOW = Array.from({ length: 30 }, (_, i) => `Below padding line ${i}.`).join('\n\n');
 const TALL_BLOCK_MATH = `${PAD_ABOVE}\n\n$$x^2$$\n\n${PAD_BELOW}\n`;
 const INLINE_MATH = 'Before $x^2$ after\n\nNext\n';
 
-// Inner LaTeX per multiline environment (A7). `\\` is the row separator; the
-// dedicated "line breaks" row exercises `\\` where it is meaningful (\substack),
-// since a bare `\\` in display mode is inert.
+// Inner LaTeX per multiline environment (A7). `\\` is the row separator; the dedicated "line
+// breaks" row exercises it where it is meaningful (\substack), since a bare `\\` in display mode is
+// inert.
 const A7_ENVIRONMENTS: Array<[name: string, inner: string]> = [
 	['aligned', '\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}'],
 	['cases', 'f(x) = \\begin{cases}\n1 & x > 0 \\\\\n0 & x \\le 0\n\\end{cases}'],
@@ -52,9 +46,11 @@ class AcceptancePage extends PluginsPage {
 		return this.page.locator('.math-inline-widget');
 	}
 
-	/** Scroll the block-math render to the viewport's vertical middle, so a reveal-
-	 *  driven height change can't push it off-screen (which would force its own
-	 *  scroll-into-view and mask the axis under test). Returns the settled scrollTop. */
+	/**
+	 * Scroll the block-math render to the viewport's vertical middle, so a reveal-driven height
+	 * change cannot push it off-screen (which would force its own scroll-into-view and mask the
+	 * axis under test). Returns the settled scrollTop.
+	 */
 	async centerBlockMathAndReadScroll(): Promise<number> {
 		const scrollTop = await this.page.evaluate(() => {
 			const editor = document.querySelector('.editor') as HTMLElement | null;
@@ -100,10 +96,9 @@ test.describe('latex acceptance axes', () => {
 		await editor.gotoPlugins();
 	});
 
-	// A1 — block reveal transition: revealing then folding the block math must not
-	// jump the scroll position (Obsidian's documented view-jump) and must return the
-	// render to its exact prior geometry. Measured on a scrolling fixture so the
-	// scroll assertion is falsifiable.
+	// A1 — block reveal transition: revealing then folding the block math must not jump the scroll
+	// position (Obsidian's documented view-jump) and must return the render to its exact prior
+	// geometry. Measured on a scrolling fixture so the scroll assertion is falsifiable.
 	test('A1: block reveal→fold holds scroll position and render geometry', async ({ page }) => {
 		await editor.loadContent(TALL_BLOCK_MATH);
 		await expect(editor.blockRender).toHaveCount(1);
@@ -134,9 +129,9 @@ test.describe('latex acceptance axes', () => {
 		);
 	});
 
-	// A1 — inline reveal transition: the caret survives reveal→commit (a char typed
-	// after commit lands past the widget, not at a block edge) and the following
-	// block does not shift vertically across the round-trip.
+	// A1 — inline reveal transition: the caret survives reveal→commit (a char typed after commit
+	// lands past the widget, not at a block edge) and the following block does not shift vertically
+	// across the round-trip.
 	test('A1: inline reveal→edit→commit preserves the caret with no vertical shift', async ({
 		page
 	}) => {
@@ -161,11 +156,11 @@ test.describe('latex acceptance axes', () => {
 		expect(Math.abs(nextTopAfter - nextTopBefore)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE);
 	});
 
-	// A2 — editing one of N live block equations re-renders only that one. The memo
-	// primitive is unit-proven; this binds it to the live document, where the concern
-	// is redundant KaTeX work across untouched blocks. Distinct formulas so a stray
-	// cross-block render is unambiguous. Paragraphs separate the equations so blurring
-	// the edited one commits to a paragraph, not by revealing a neighbouring block.
+	// A2 — editing one of N live block equations re-renders only that one. The memo primitive is
+	// unit-proven; this binds it to the live document, where the concern is redundant KaTeX work
+	// across untouched blocks. Distinct formulas so a stray cross-block render is unambiguous, and
+	// paragraphs between the equations so blurring the edited one commits to a paragraph rather
+	// than revealing a neighbour.
 	test('A2: editing one block equation re-renders only that equation', async ({ page }) => {
 		await editor.loadContent(
 			'Para 0.\n\n$$a^2$$\n\nPara 1.\n\n$$b^2$$\n\nPara 2.\n\n$$c^2$$\n\nPara 3.\n'
@@ -211,9 +206,9 @@ test.describe('latex acceptance axes', () => {
 		});
 	}
 
-	// A5 — invalid math renders a legible inline message through the live widget-build
-	// path, never KaTeX's raw `.katex-error` source strip. The adapter swap is unit-
-	// proven; this binds it to the browser render the user actually sees.
+	// A5 — invalid math renders a legible inline message through the live widget-build path, never
+	// KaTeX's raw `.katex-error` source strip. The adapter swap is unit-proven; this binds it to
+	// the browser render the user actually sees.
 	test('A5: invalid inline math shows a legible error, not a raw strip', async () => {
 		await editor.loadContent('Before $\\frac{$ after\n');
 		await expect(editor.inlineWidget).toHaveCount(1);

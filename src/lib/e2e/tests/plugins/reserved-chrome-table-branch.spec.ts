@@ -9,13 +9,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * Fork-A spike gate: the `:::note` callout reserves child 0 as an editable
- * `note-title` chrome leaf (see src/routes/test/plugins/callout).
- *
- * Gate 6 — the chrome wall × the table branch. `involvesTable` dispatches
- *   before `involvesReservedChrome`, so a range with a table endpoint takes the
- *   table branch — the wall must hold there too: covered chrome clears, chrome
- *   endpoints truncate in place, and a consumed container unit-deletes.
+ * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * src/routes/test/plugins/callout). Gate 6 — the chrome wall × the table branch: `involvesTable`
+ * dispatches before `involvesReservedChrome`, so a range with a table endpoint takes the table
+ * branch, and the wall must hold there too — covered chrome clears, chrome endpoints truncate in
+ * place, and a consumed container unit-deletes.
  */
 test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', () => {
 	let editor: PluginsPage;
@@ -72,10 +70,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Drop in header cell "a": the whole-row snap covers row 0, so the table
-		// takes its table-branch semantics (header removed, "1|2" promoted) while
-		// the strictly-between title must CLEAR in place — the pre-fix table branch
-		// node-deleted it and the rebuild hoisted the table into the opener line.
+		// Drop in header cell "a": the whole-row snap covers row 0, so the table takes its
+		// table-branch semantics (header removed, "1|2" promoted) while the strictly-between title
+		// must CLEAR in place — the pre-fix table branch node-deleted it and the rebuild hoisted
+		// the table into the opener line.
 		await editor.dragFromTo([0], 2, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -86,19 +84,18 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		expect(note.childKinds).toEqual(['note-title', 'table']);
 		expect(note.childTexts[0]).toBe('');
 		expect(note.raw).toBe(':::note\n| 1 | 2 |\n| --- | --- |\n:::\n');
-		// The truncated prose head keeps its line ending, so the blank line the
-		// source had between it and the container survives — matching the
-		// chrome-start case below, whose arm always terminated its head.
+		// The truncated prose head keeps its line ending, so the blank line the source had between
+		// it and the container survives — matching the chrome-start case below, whose arm always
+		// terminated its head.
 		expect(await editor.bridge.getSource()).toBe(
 			'Ab\n\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
-		// Child-level undo: the clear went through an unshared copy (G1.9), so the
-		// title node itself is restored — getSource alone is blind to a corrupted child.
-		// Poll the CST children (not the source bytes) so the reads below wait for the
-		// tree to re-materialize, not just the serialized bytes to match.
+		// Child-level undo: the clear went through an unshared copy (G1.9), so the title node
+		// itself is restored — getSource alone is blind to a corrupted child. Poll the CST children
+		// (not the source bytes) so the reads below wait for the tree to re-materialize.
 		await editor.undo();
 		await expect
 			.poll(() => readNote(page, 1).then((n) => n.childKinds))
@@ -190,9 +187,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		page
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
-		// Body cell "1" → the container's last byte (end of "Body"): the whole
-		// subtree is covered from outside, so the container dies as ONE unit —
-		// not the pre-fix husk (`:::note\n:::\n` with the title node-deleted).
+		// Body cell "1" → the container's last byte (end of "Body"): the whole subtree is covered
+		// from outside, so the container dies as ONE unit — not the pre-fix husk with the title
+		// node-deleted.
 		await dragPoints(page, await cellCenter(page, 2), await editor.pointForOffset([1, 1], 4));
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');

@@ -1,7 +1,6 @@
-// Fixture for ReplaceDecoration.widget on public doors only: `[>…<]` ranges in
-// leaf raws fold to a clickable `…` island (interactive DOM inside an island is
-// native), and the click reopens the range through invalidate(). Folded bytes
-// live only in the CST — the island stands for them in the DOM.
+// Fixture for ReplaceDecoration.widget on public doors only: `[>…<]` ranges fold to a
+// clickable `…` island that reopens through invalidate(). Folded bytes live only in the
+// CST — the island stands for them in the DOM.
 import { definePlugin, type Decoration, type DocumentView } from '$lib/plugin';
 import { forEachLeaf } from '../walk-views';
 
@@ -24,28 +23,26 @@ export const foldPlugin = definePlugin({
 				provide: (doc) =>
 					findFoldRanges(doc)
 						.filter((range) => !opened.has(keyOf(range)))
-						.map(
-							(range): Decoration => ({
-								type: 'replace',
-								path: range.path,
-								start: range.start,
-								end: range.end,
-								class: 'fold-island',
-								widget: {
-									buildDom: () => {
-										const el = document.createElement('span');
-										el.className = 'fold-ellipsis';
-										el.textContent = '…';
-										el.style.cursor = 'pointer';
-										el.addEventListener('click', () => {
-											opened.add(keyOf(range));
-											handle.invalidate();
-										});
-										return el;
-									}
+						.map((range): Decoration => ({
+							type: 'replace',
+							path: range.path,
+							start: range.start,
+							end: range.end,
+							class: 'fold-island',
+							widget: {
+								buildDom: () => {
+									const el = document.createElement('span');
+									el.className = 'fold-ellipsis';
+									el.textContent = '…';
+									el.style.cursor = 'pointer';
+									el.addEventListener('click', () => {
+										opened.add(keyOf(range));
+										handle.invalidate();
+									});
+									return el;
 								}
-							})
-						)
+							}
+						}))
 			});
 			return () => handle.dispose();
 		});

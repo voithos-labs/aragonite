@@ -1,14 +1,9 @@
 /**
- * Plugin CSS token ownership. Plugins own their own token palettes, so G4.6
- * (css-ownership.test.ts) excludes `src/lib/plugins` and this guard owns that
- * domain instead — for both the in-package bundled plugins (`src/lib/plugins`)
- * and the dev fixtures (`src/routes/test/plugins`). It exists because a dead
- * `--color-text-secondary` reference once survived in a dogfood plugin, reading
- * its inline fallback forever, unreachable by any theme override. Every `var(--…)`
- * a plugin component reads must resolve either to a token declared in
- * editor-theme.css (either theme block) or to a custom property the plugin
- * declares itself (admonitions owns its `--adm-*` palette). A read in neither
- * set is a dead token.
+ * Plugin CSS token ownership — the domain G4.6 (css-ownership.test.ts) excludes, covering
+ * both the bundled plugins and the dev fixtures. Every `var(--…)` a plugin reads must
+ * resolve to a token editor-theme.css declares or one the plugin declares itself; a read
+ * in neither set is dead, rendering its inline fallback forever with no theme override
+ * able to reach it.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -33,10 +28,8 @@ function pluginComponentSources(): Array<{ rel: string; code: string }> {
 }
 
 // ── Non-vacuity: the scan is actually wired to the plugin tree ────────────────
-// The matcher self-tests below prove the regexes work; this proves the walk
-// reached the components. A path/glob miss (or an unexpected dir skip) would let
-// every assertion pass on an empty set — so pin a known real read from each of
-// the two allow-sets (host token, locally-declared token).
+// The matcher self-tests prove the regexes work; this proves the WALK reached the
+// components, pinning one real read from each allow-set.
 
 describe('plugin CSS ownership — the scan collected the plugin components', () => {
 	it('sees the dogfood plugin components and their real token reads', () => {
@@ -54,10 +47,8 @@ describe('plugin CSS ownership — every var() read resolves to a real token', (
 	it('no read falls outside editor-theme.css and the plugin-local declarations', () => {
 		const themeTokens = new Set(declsIn(readEditorFile('styles/editor-theme.css').code));
 		const sources = pluginComponentSources();
-		// Local declarations pool across the whole plugin tree, not per file: custom
-		// properties cascade from ancestors, so a read resolving to a property declared
-		// in a sibling/parent component is legitimate — per-file scoping would be the
-		// stricter but wrong approximation.
+		// Local declarations pool tree-wide, not per file: custom properties cascade from
+		// ancestors, so per-file scoping would be the stricter but wrong approximation.
 		const localTokens = new Set(sources.flatMap((f) => declsIn(f.code)));
 		const allowed = new Set([...themeTokens, ...localTokens]);
 

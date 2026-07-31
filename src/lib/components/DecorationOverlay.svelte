@@ -16,29 +16,25 @@
 		blockRef,
 		blockEl,
 		isContainer = false,
-		hasChildHosts = false
+		containerPaintsRects = false
 	}: {
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
-		/** Containers paint nothing — children self-paint — EXCEPT grid surfaces
-		 *  (table) whose cells aren't BlockHosted; those paint whole-cell marks. */
+		/** Containers paint nothing — children self-paint — except grids, whose cells
+		 *  aren't BlockHosted and so paint whole-cell marks here. */
 		isContainer?: boolean;
-		/** False for a childless container (render-primary plugin block): no child
-		 *  block-hosts exist to paint, so the block takes the mark overlay itself
-		 *  (SelectionOverlay carries the same route). */
-		hasChildHosts?: boolean;
+		/** Decided at BlockHost, which hands the same value to SelectionOverlay. */
+		containerPaintsRects?: boolean;
 	} = $props();
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const engine = services?.decorations;
-	// Optional for the same reason `services` above is: a bare mount provides no
-	// shell, and the one use below already optional-calls it.
+	// Optional for the same reason `services` is: a bare mount provides no shell.
 	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	/** A mark's `interactive.onClick` is author code on a user gesture, so it routes
-	 *  to the same seam every other decoration entry point uses (editor.md §12)
-	 *  rather than surfacing as an unattributed window error. */
+	/** A mark's `interactive.onClick` is author code on a user gesture, so it routes to
+	 *  the same error seam as every other decoration entry point (editor.md §12). */
 	function runInteraction(run: () => void): void {
 		try {
 			run();
@@ -47,14 +43,9 @@
 		}
 	}
 
-	// A grid container (table) supplies cellRect, so its descendant cell marks —
-	// which never get their own BlockHost overlay — paint as whole cells here.
+	// A grid supplies cellRect, so its descendant cell marks — which get no BlockHost
+	// overlay of their own — paint as whole cells here.
 	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
-	// A childless container has no child hosts to delegate to; when its shim can
-	// measure a range (opaque single-unit) it paints the mark on itself.
-	const containerPaintsSelf = $derived(
-		isContainer && !hasChildHosts && !!blockRef?.measurePartialRects
-	);
 
 	interface Painted {
 		left: number;
@@ -71,9 +62,9 @@
 		const eng = engine,
 			ref = blockRef,
 			el = blockEl;
-		// Read the owning bucket up front so this effect registers the reactive
-		// decoration set as a dependency: `sourceCount` is a plain counter, so a
-		// source added after mount would otherwise never re-run this effect.
+		// Read the bucket up front so this effect registers the reactive decoration set
+		// as a dependency: `sourceCount` is a plain counter, so a source added after
+		// mount would otherwise never re-run it.
 		const marks = eng
 			? containerPaintsCells
 				? eng.marksForDescendants(path)
@@ -83,7 +74,7 @@
 			rects = [];
 			return;
 		}
-		if (isContainer && !containerPaintsCells && !containerPaintsSelf) {
+		if (isContainer && !containerPaintsCells && !containerPaintsRects) {
 			rects = [];
 			return;
 		}
@@ -105,8 +96,8 @@
 			const out: Painted[] = [];
 			for (const { dec } of leafMarks) {
 				for (const r of leaf.measurePartialRects(dec.start, dec.end)) {
-					// A collapsed range can still emit a degenerate zero-width client
-					// rect (a line-boundary fragment); it would paint an invisible sliver.
+					// A collapsed range still emits a degenerate zero-width rect at a line
+					// boundary, which would paint an invisible sliver.
 					if (r.width <= 0) continue;
 					out.push(toLocal(r, blockRect, dec));
 				}
@@ -114,8 +105,7 @@
 			return out;
 		}
 
-		// A grid's descendant cell marks paint as whole cells; several marks in one
-		// cell collapse to a single rect whose class is their union (collapseCellMarks).
+		// Several marks in one cell collapse to a single rect whose class is their union.
 		function measureCells(
 			descMarks: IndexedDecoration<MarkDecoration>[],
 			blockRect: DOMRect

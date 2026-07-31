@@ -1,16 +1,9 @@
 /**
- * Lazy `inlineContent` accessor for non-render consumers, backed by a
- * node-keyed, non-reactive WeakMap. Non-reactive by design: never call from the
- * render path (which uses computeInlineContent) — a reactive read+write here
- * would re-introduce the keyed-`{#each}` corruption that invariant G4.2 guards
- * against.
- *
- * Each node holds one sub-entry per signature space so the resolver-less callers
- * and the signature-bearing callers stop evicting each other on a bracket-
- * bearing block: `plain` keys on raw alone (signature ''), `resolved` keys on
- * raw plus the live LRD signature. A raw change invalidates each side through
- * its own raw check. Memory: up to two content arrays per node, and the second
- * only for a bracket block actually read through both signature spaces.
+ * Lazy `inlineContent` accessor for non-render consumers, over a node-keyed WeakMap.
+ * Non-reactive by design: never call from the render path (which uses computeInlineContent),
+ * since a reactive read+write here re-introduces the keyed-`{#each}` corruption G4.2 guards.
+ * One sub-entry per signature space, so resolver-less and signature-bearing callers cannot
+ * evict each other on a bracket-bearing block.
  */
 import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
@@ -30,9 +23,8 @@ export function getInlineContent(
 	signature = ''
 ): InlineNode[] {
 	if (!isProseKind(node.kind)) return [];
-	// A block resolves through an LRD only if it contains a bracket — mirror the
-	// render gate so a bracketless block neither passes the resolver nor keys on
-	// the signature.
+	// A block resolves through an LRD only if it holds a bracket; mirroring the render gate keeps
+	// a bracketless block off both the resolver and the signature.
 	const hasRef = node.raw.includes('[');
 	const sig = hasRef ? signature : '';
 	const effectiveResolver = hasRef ? resolver : undefined;
@@ -54,14 +46,9 @@ export function getInlineContent(
 }
 
 /**
- * Resolver-aware inline read for the non-render text-surface consumers (widget
- * interaction, edge dispatch, construct reveal, clipboard): the one spelling of
- * `getInlineContent(node, ref.current, ref.signature)` so a call site can't drop
- * the signature and silently desync widget detection from what render drew.
- *
- * The `linkRef` shape matches editor-keys' `LinkReferenceResolverRef`, but is kept
- * structural: naming it would pull `core/inline` onto `editor-keys`, which already
- * imports back into this layer.
+ * The one spelling of `getInlineContent(node, ref.current, ref.signature)`, so a non-render
+ * call site cannot drop the signature and silently desync from what render drew. `linkRef`
+ * stays structural: naming editor-keys' type would cycle that module back onto this layer.
  */
 export function resolvedInlineContent(
 	node: NodeView,

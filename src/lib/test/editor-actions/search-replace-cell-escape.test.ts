@@ -6,13 +6,9 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
-// `docs/design/editor.md` §10: a replacement into a table cell escapes the
-// delimiters the cell's raw reserves, so it can't split the row. The escape used
-// to run over the replacement string alone and escape every pipe blindly, so an
-// already-escaped `\|` in the template became an escaped BACKSLASH plus a bare
-// pipe, and a plain `|` landing after a backslash already in the cell did the
-// same — either way the row reparsed one cell wider and the last column's
-// content was truncated away.
+// `docs/design/editor.md` §10: a replacement into a table cell escapes the delimiters the
+// cell's raw reserves so it cannot split the row. Escaping the replacement string alone
+// mis-handles a backslash on either side of the seam, and the row reparses one cell wider.
 
 /** Literal matches inside table cells, as `{path, start, end}` scan results. */
 function scanCells(doc: Document, needle: string) {
@@ -62,9 +58,8 @@ describe('search/replace into a table cell', () => {
 		expect(bodyCells(deps)).toEqual(['a\\|b', 'keep']);
 	});
 
-	// The freeing backslash comes from the cell, not the replacement: escaping the
-	// replacement alone turns the authored `\` into an escaped backslash and leaves
-	// the pipe bare, so the escape has to see the whole substituted raw.
+	// The freeing backslash comes from the cell, not the replacement, so the escape has to
+	// see the whole substituted raw.
 	it('does not double-escape a pipe that follows a backslash already in the cell', async () => {
 		const { deps, replace } = makeTable('| h1 | h2 |\n| --- | --- |\n| a\\X | keep |\n');
 

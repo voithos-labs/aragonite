@@ -56,12 +56,8 @@ export interface MountedWidgetBlock {
 	inlineWidgets: InlineNode[];
 }
 
-// Mounts `source` as a contenteditable block the way TextEditableBlock renders it:
-// each atomic widget island of `kind` stamped between the surrounding prose text
-// nodes. Zero-length prose is omitted, so a leading- or trailing-edge widget has no
-// empty text node beside it — matching the render layer's child structure.
-// `kind` is the raw kind string (comparison-only) — callers hold raw literals like
-// MATH_INLINE, not the branded AnyInlineKind.
+// Mounts `source` the way TextEditableBlock renders it: each atomic widget island of `kind`
+// stamped between the surrounding prose (zero-length prose omitted). `kind` is the raw string.
 export function mountWidgetBlock(source: string, kind: string): MountedWidgetBlock {
 	const node = parse(source).children[0];
 	const inlineWidgets = computeInlineContent(node).filter((n) => n.kind === kind);
@@ -84,12 +80,8 @@ export function mountWidgetBlock(source: string, kind: string): MountedWidgetBlo
 	return { el, node, widgets, inlineWidgets };
 }
 
-// Passive-only base for a WidgetInteractionDeps: node/index/path wiring, element
-// access, ambient/width zeros, a fresh widget-selection, and DOM-reading readRawText.
-// EVERY behaviour a test asserts on — commit recorder, pending-cursor sink, reveal
-// mirror, cross-block flag, cursor/focus handles, rect stubs — must be supplied by
-// the caller's `overrides` (which win), never defaulted here: a baked behaviour
-// default would let a test assert against this stub instead of its own spy.
+// Passive-only base for a WidgetInteractionDeps. EVERY behaviour a test asserts on must come
+// from the caller's `overrides` — a baked default would let a test assert against this stub.
 export function widgetInteractionDeps(
 	base: { node: CstNode; el: HTMLElement },
 	overrides: Record<string, unknown>

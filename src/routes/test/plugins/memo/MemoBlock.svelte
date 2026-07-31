@@ -1,9 +1,6 @@
 <script lang="ts">
-	// Plain-mode editable leaf: a `%%`-prefixed memo that is always an editable
-	// text surface. All editing behavior (caret, IME, per-keystroke commits, undo
-	// batching, cross-block selection) — and the text-sync, focus-park, and
-	// mode-gated `contenteditable` — lives in `createEditableLeaf`; spreading
-	// `leaf.surfaceProps` wires the whole source surface.
+	// Plain-mode editable leaf: every editing behavior lives in `createEditableLeaf`, and
+	// spreading `leaf.surfaceProps` wires the whole source surface.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -24,6 +21,7 @@
 	export const focusable = true;
 
 	export const focus = leaf.focus;
+	export const parkCaret = leaf.parkCaret;
 	export const focusAtColumn = leaf.focusAtColumn;
 	export const getCursorOffset = leaf.getCursorOffset;
 	export const getSelectedText = leaf.getSelectedText;
@@ -35,6 +33,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		focusAtColumn,
 		getCursorOffset,
 		getSelectedText,
@@ -44,9 +43,8 @@
 	} satisfies BlockComponent);
 </script>
 
-<!-- The leaf-tier reference wiring: one spread carries every handler, the
-	attributes, the text-sync + focus-park attachments, and the mode-gated
-	contenteditable a plain leaf's always-mounted source needs. -->
+<!-- The leaf-tier reference wiring: one spread carries every handler, attribute, and
+	attachment a plain leaf's always-mounted source needs. -->
 <div bind:this={el} {...leaf.surfaceProps} class="memo-block" aria-label="Memo"></div>
 
 <style>

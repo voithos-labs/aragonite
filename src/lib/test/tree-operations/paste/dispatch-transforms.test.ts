@@ -100,8 +100,8 @@ describe('pasteDispatch — paste transforms', () => {
 			mutate([{ children: [...doc.children], node: doc, sharing: createSharingState() }]);
 		});
 
-		// A single-paragraph clipboard would paste inline; the transform makes it a
-		// heading, so dispatch must route structural instead.
+		// The transform turns a would-be inline paste into a heading, so dispatch must
+		// re-route structural.
 		await pasteDispatch(
 			{ pastedText: 'plain prose', targetPath: [0], offset: 6 },
 			{ doc, blockEdit, controller }

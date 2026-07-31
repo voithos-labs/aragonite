@@ -1,12 +1,9 @@
 /**
- * Synthetic `new KeyboardEvent(...)` is banned in editor runtime source: it was
- * the cross-block delete-then-redispatch hack, now retired in favor of direct
- * command dispatch. Re-firing a key at document.activeElement re-enters a
- * block's onKeyDown — opaque control flow that bypasses the command registry.
- *
- * Scope excludes `test/` and `e2e/` (the keybindings unit test legitimately
- * fabricates events to exercise eventToChord). No allowlist: no runtime source
- * has a sanctioned reason to construct a keyboard event.
+ * Synthetic `new KeyboardEvent(...)` is banned in editor runtime source: re-firing a key
+ * at document.activeElement re-enters a block's onKeyDown, opaque control flow that
+ * bypasses the command registry. Scope excludes `test/` and `e2e/`, where fabricating
+ * events is how `eventToChord` is exercised. No allowlist: no runtime source has a
+ * sanctioned reason to construct one.
  */
 
 import { describe, it, expect } from 'vitest';

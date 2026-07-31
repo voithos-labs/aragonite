@@ -1,11 +1,9 @@
 /**
- * G4.2 (perf-hygiene) — the prose render path must compute inline content via
- * the pure `computeInlineContent`, never the caching `getInlineContent`
- * accessor. The cache is a non-reactive WeakMap: a render that read it would
- * skip render-relevant changes the pure compute always sees. Non-render
- * consumers (event handlers, exported methods, click-snap) may use the cached
- * accessor — so this scan is scoped to the render path only: the DOM-build file
- * plus the render `$effect`.
+ * G4.2 (perf-hygiene) — the prose render path computes inline content via the pure
+ * `computeInlineContent`, never the caching accessor. The cache is a non-reactive
+ * WeakMap, so a render reading it would skip render-relevant changes the pure compute
+ * always sees. Non-render consumers may use the accessor, hence the scope: the DOM-build
+ * file plus the render `$effect`.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,10 +19,9 @@ function callsCachingAccessor(code: string): boolean {
 }
 
 /**
- * Extract a render `$effect` block by anchoring on its render dispatch (e.g.
- * `textRender.render`), walking back to the enclosing `$effect(`, and
- * brace-matching to its close. Returns null if the anchor is absent — callers
- * must treat null as a hard failure so a rename can't silently disable the scan.
+ * Extract a render `$effect` block by anchoring on its render dispatch. Returns null if
+ * the anchor is absent; callers must treat that as a hard failure, or a rename silently
+ * disables the scan.
  */
 export function extractRenderEffect(rawText: string, anchor = 'textRender.render'): string | null {
 	const code = stripComments(rawText);
@@ -58,8 +55,7 @@ describe('G4.2 render path computes inline, never the caching accessor', () => {
 	it('TextEditableBlock render $effect does not call getInlineContent', () => {
 		const file = readEditorFile(TEXT_BLOCK_FILE);
 		const effect = extractRenderEffect(file.text);
-		// Fail loud if the anchor vanished (rename/refactor) — a silent pass would
-		// leave the render path unguarded.
+		// Fail loud if the anchor vanished: a silent pass leaves the render path unguarded.
 		expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
 		expect(callsCachingAccessor(effect!)).toBe(false);
 	});

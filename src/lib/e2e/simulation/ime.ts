@@ -1,13 +1,9 @@
 import { type CDPSession, type Page } from '@playwright/test';
 
-// Real IME composition surface for the simulation, threaded through the
-// SimContext instead of a global. Chromium's `Input.imeSetComposition` fires
-// genuine compositionstart/update events against the focused contenteditable,
-// and `Input.insertText` commits through a real compositionend — the same
-// wiring `tests/ime-composition.spec.ts` pins at the browser level. Mid
-// composition there is no source change to settle on, so `compose` settles on
-// the composed text arriving in the focused element's DOM; the caller resyncs
-// the tracker around the commit.
+// Real IME composition via CDP: `Input.imeSetComposition` fires genuine
+// compositionstart/update events and `Input.insertText` commits through a real
+// compositionend — the wiring `tests/ime-composition.spec.ts` pins at the browser level.
+// Mid-composition there is no source change, so `compose` settles on the DOM instead.
 
 export interface ImeDriver {
 	/** Set the in-flight composition text and settle on its DOM arrival. */

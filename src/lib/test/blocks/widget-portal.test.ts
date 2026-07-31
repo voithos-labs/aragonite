@@ -9,9 +9,8 @@ import {
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 
-// The pool churn-proofs component widgets under the editor's rebuild-everything-
-// per-keystroke render: a rebuild pass re-acquires by `${kind} ${source}` key,
-// reusing the live instance for an unchanged widget instead of remounting it.
+// The pool churn-proofs component widgets under the editor's rebuild-everything-per-keystroke
+// render: a pass re-acquires by `${kind} ${source}` key, reusing the live instance unchanged.
 
 const KIND = 'math' as AnyInlineKind;
 const at = (start: number, end: number): InlineNode => ({ kind: KIND, start, end }) as InlineNode;
@@ -23,9 +22,8 @@ interface FakeHandle {
 	destroyed: boolean;
 }
 
-/** A DOM-backed fake adapter: real spans so offset re-stamping is observable, an
- *  id per instance so adoption (same id) is distinguishable from a remount (new
- *  id). `failCreate` models the Svelte adapter's caught mount-throw → null. */
+/** A DOM-backed fake adapter: real spans so offset re-stamping is observable, an id per
+ *  instance so adoption is distinguishable from a remount. `failCreate` models a mount-throw. */
 function fakeAdapter(failCreate = false): {
 	adapter: WidgetPoolAdapter<FakeHandle>;
 	created: FakeHandle[];

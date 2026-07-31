@@ -4,10 +4,10 @@ import { PluginsPage } from './helpers';
 import { primaryModifier } from '../../platform';
 
 // The doc-stats dogfood publishes one record per live editor to `window.__docStats`
-// (requirements/plugins/doc-stats-context.md) — the observable every gate here
-// reads. Single-instance scenarios run on `/test/plugins?seed=docstats` (docStats
-// is a bare entry there, so its label is the 'default' options fallback);
-// multi-instance scenarios on `/test/plugins/multi` (labels left/right).
+// (requirements/plugins/doc-stats-context.md) — the observable every gate here reads.
+// Single-instance scenarios run on `/test/plugins?seed=docstats` (docStats is a bare entry there,
+// so its label is the 'default' options fallback); multi-instance scenarios on
+// `/test/plugins/multi` (labels left/right).
 
 interface StatsRecord {
 	label: string;
@@ -39,10 +39,10 @@ async function waitForStats(
 	return readStats(page);
 }
 
-// `publish()` copies the registry's record REFERENCES into `window.__docStats`, so
-// this write poisons the plugin's own registry entries. Only a recompute for an
-// instance replaces its record — which is what makes "the chord recomputed THIS
-// instance" observable: its blocks recover, a bystander's stay at -1.
+// `publish()` copies the registry's record REFERENCES into `window.__docStats`, so this write
+// poisons the plugin's own registry entries. Only a recompute for an instance replaces its record —
+// which is what makes "the chord recomputed THIS instance" observable: its blocks recover, a
+// bystander's stay at -1.
 async function poisonStats(page: Page): Promise<void> {
 	await page.evaluate(() => {
 		for (const record of Object.values(window.__docStats ?? {})) record.blocks = -1;
@@ -90,10 +90,10 @@ test.describe('doc-stats context spine: single instance', () => {
 });
 
 // ── The regression pin: attach survives a structural edit ───────────────────
-// A tracking-effect mount attach would dispose + re-fire the spine on the first
-// `children` mutation, resetting the closure's cumulative edit counter (and
-// transiently dropping the record). Cumulative growth across split + undo +
-// input, then a still-resolving chord, pins the non-tracking attach.
+// A tracking-effect mount attach would dispose + re-fire the spine on the first `children`
+// mutation, resetting the closure's cumulative edit counter (and transiently dropping the record).
+// Cumulative growth across split + undo + input, then a still-resolving chord, pins the
+// non-tracking attach.
 
 test.describe('doc-stats context spine: attach survives a structural edit', () => {
 	test('Enter split + undo leave the subscription live and the chord resolving', async ({

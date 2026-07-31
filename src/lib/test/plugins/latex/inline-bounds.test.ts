@@ -22,10 +22,9 @@ afterEach(resetInlineState);
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const mathIn = (raw: string) => scan(raw).filter((n) => n.kind === MATH_INLINE);
 
-// `$HOME $PATH $USER …` is ordinary shell prose, and every one of those `$`
-// declines — no later `$` has a non-whitespace char before it, so nothing closes.
-// A decline that searches to the end of the block costs one full block scan per
-// `$`: seconds per keystroke on a large paragraph.
+// Every `$` in shell prose declines, because no later `$` has a non-whitespace char
+// before it. A decline that searches to the end of the block therefore costs one full
+// block scan per `$` — seconds per keystroke on a large paragraph.
 describe('inline math decline bounds', () => {
 	it('a $-flood scans within a bounded growth ratio', () => {
 		const { times, ratio } = measureScanGrowth(scan, '$x ', [32, 128]);

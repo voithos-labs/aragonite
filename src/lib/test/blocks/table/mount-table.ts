@@ -13,11 +13,8 @@ import { parse } from '$lib/core/parser';
 import { makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
 import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
 
-/**
- * jsdom implements neither the caret geometry an exit gesture measures nor the
- * observer a windowed scope constructs. Range rect measurement THROWS rather
- * than reporting zeros, so an exit without this takes down the whole handler.
- */
+/** jsdom implements neither the caret geometry an exit gesture measures nor a windowed scope's
+ *  observer. Range rect measurement THROWS, so an exit without this takes down the handler. */
 export function installTableLayoutStubs(): () => void {
 	const rangeRects = Range.prototype.getClientRects;
 	const rangeBox = Range.prototype.getBoundingClientRect;
@@ -49,13 +46,8 @@ export interface MountedTable {
 	dispose: () => Promise<void>;
 }
 
-/**
- * Mount the table parsed from `source` at document index 0.
- *
- * Read-only questions only — what the table reports, renders, and asks its
- * context for. Anything that COMMITS needs a real parent to re-render the
- * component with the replaced node (`blocks/editor-mount.ts`).
- */
+/** Mount the table parsed from `source` at document index 0. Read-only questions only — a
+ *  COMMIT needs a real parent to re-render with the replaced node (`blocks/editor-mount.ts`). */
 export function mountTable(source: string, overrides: MountContextOverrides = {}): MountedTable {
 	const target = document.createElement('div');
 	document.body.appendChild(target);

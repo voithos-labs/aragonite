@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCodePaste, scanLongestFenceRun } from '../../../components/blocks/code/code-paste';
+import { computeCodePaste } from '../../../components/blocks/code/code-paste';
 
 // ── computeCodePaste: no fence bump ─────────────────────────────────────────
 
@@ -88,15 +88,41 @@ describe('computeCodePaste — fence bump', () => {
 
 	it('bumps opener only when the fence is unclosed', () => {
 		const result = computeCodePaste({
-			display: '```\nfoo',
-			selection: { start: 7, end: 7 },
+			display: '```\nfoo\n',
+			selection: { start: 8, end: 8 },
 			pasted: '```',
 			fenceMarker: '`',
 			fenceLength: 3,
 			closed: false
 		});
-		expect(result.text).toBe('````\nfoo```');
-		expect(result.cursor).toBe(11);
+		expect(result.text).toBe('````\nfoo\n```');
+		expect(result.cursor).toBe(12);
+	});
+
+	// The rule reads the LINES the paste leaves behind, not the run inside it: a run landing
+	// mid-line threatens nothing, one formed at the splice seam threatens everything.
+	it('leaves the fence alone when the pasted run lands mid-line', () => {
+		const result = computeCodePaste({
+			display: '```\nfoo\n```',
+			selection: { start: 7, end: 7 },
+			pasted: '```',
+			fenceMarker: '`',
+			fenceLength: 3,
+			closed: true
+		});
+		expect(result.text).toBe('```\nfoo```\n```');
+	});
+
+	it('bumps for a closer run the splice FORMS against the bytes already there', () => {
+		const result = computeCodePaste({
+			display: '```\n`\n```',
+			selection: { start: 4, end: 4 },
+			pasted: '``',
+			fenceMarker: '`',
+			fenceLength: 3,
+			closed: true
+		});
+		expect(result.text).toBe('````\n```\n````');
 	});
 
 	it('leaves non-closer body lines alone even when they contain fence runs', () => {
@@ -121,48 +147,5 @@ describe('computeCodePaste — fence bump', () => {
 			closed: true
 		});
 		expect(result.text).toBe('~~~~\n~~~\n~~~~');
-	});
-});
-
-// ── scanLongestFenceRun ─────────────────────────────────────────────────────
-
-describe('scanLongestFenceRun', () => {
-	it('returns 0 for text with no fence characters', () => {
-		expect(scanLongestFenceRun('hello world', '`')).toBe(0);
-		expect(scanLongestFenceRun('no tildes here', '~')).toBe(0);
-	});
-
-	it('returns the length of a single fence run', () => {
-		expect(scanLongestFenceRun('some ``` code', '`')).toBe(3);
-		expect(scanLongestFenceRun('~~~~ tildes', '~')).toBe(4);
-	});
-
-	it('returns the longest run when multiple are present', () => {
-		expect(scanLongestFenceRun('``` short and ```` longer ```', '`')).toBe(4);
-	});
-
-	it('ignores the other fence character', () => {
-		expect(scanLongestFenceRun('backticks ``` and tildes ~~~~', '`')).toBe(3);
-		expect(scanLongestFenceRun('backticks ``` and tildes ~~~~', '~')).toBe(4);
-	});
-
-	it('handles a run at the start of text', () => {
-		expect(scanLongestFenceRun('```js\nconst x = 1\n```', '`')).toBe(3);
-	});
-
-	it('handles a run at the end of text', () => {
-		expect(scanLongestFenceRun('const x = 1\n```', '`')).toBe(3);
-	});
-
-	it('handles an empty string', () => {
-		expect(scanLongestFenceRun('', '`')).toBe(0);
-	});
-
-	it('handles a single character', () => {
-		expect(scanLongestFenceRun('`', '`')).toBe(1);
-	});
-
-	it('counts inline code single backticks as runs of length 1', () => {
-		expect(scanLongestFenceRun('see `foo` and `bar`', '`')).toBe(1);
 	});
 });

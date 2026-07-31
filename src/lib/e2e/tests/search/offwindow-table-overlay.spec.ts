@@ -6,10 +6,9 @@ import { capturePageErrors } from '../../page-probes';
 
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
 
-// Needle in many spread-out rows so the ACTIVE (first) match is revealed at the
-// top while DEEP matching rows start off-window. Search auto-reveals only the
-// active match; the off-window ones must repaint when scrolled into view (#3).
-// ~200 body rows clears the 4000px row-window watermark.
+// The needle is spread across rows so the ACTIVE match is revealed at the top while deep
+// matching rows start off-window: search auto-reveals only the active match, and the rest
+// must repaint when scrolled into view (#3).
 function bigTable(): string {
 	const head = '| Col A | Col B |\n| :--- | :--- |\n';
 	const rows = Array.from({ length: 200 }, (_, i) =>

@@ -20,16 +20,13 @@ import {
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 
-activateDirectiveGrammar(); // :::/:: openers + the ':' recognizer, before any parse
+activateDirectiveGrammar(); // before any parse
 
-// The acceptance gate for the directive primitive: a fast-check arbitrary that
-// spans the whole construct space (all three tiers, colon counts, nesting,
-// non-ASCII info/label, registered + unregistered names, trailing-newline
-// variants) and asserts the master invariant serialize(parse(src)) === src.
-// Curated non-ASCII pools (not fc.unicode) keep the boundary shapes — CJK, astral
-// emoji, combining marks — reliably reachable, mirroring the invariants inline
-// arbitrary. Reachability of the bug-carrying shapes is proven below, per the
-// culture rule that an arbitrary which can't produce the class proves nothing.
+// The acceptance gate for the directive primitive: an arbitrary spanning the whole
+// construct space, asserting serialize(parse(src)) === src. Curated non-ASCII pools
+// (not fc.unicode) keep CJK / astral / combining boundary shapes reliably reachable, and
+// the reachability self-tests below are the culture.md evidence that the arbitrary can
+// actually produce the bug-carrying shapes.
 
 const isNonAscii = (s: string): boolean => [...s].some((ch) => (ch.codePointAt(0) ?? 0) > 0x7f);
 
@@ -42,9 +39,8 @@ const arbGenericName = fc
 	.tuple(fc.constantFrom(...NAME_START), fc.array(fc.constantFrom(...NAME_CHAR), { maxLength: 6 }))
 	.map(([head, tail]) => head + tail.join(''));
 
-// `note`/`warning` are registered on the container arm (below); every other name
-// falls to the generic lossless kind. A generic draw may also land on those two —
-// both the registry-dispatch and the fallback path must round-trip.
+// `note`/`warning` are registered on the container arm below; a generic draw may also
+// land on them, so both the registry-dispatch and the fallback path must round-trip.
 const arbName = fc.oneof(
 	{ arbitrary: arbGenericName, weight: 4 },
 	{ arbitrary: fc.constantFrom('note', 'warning'), weight: 1 },
@@ -74,9 +70,8 @@ const INNER_PUNCT = [
 const infoToken = fc.constantFrom(...NON_ASCII, ...INNER_PUNCT, 'word', 'x', '42', 'Title', '');
 const arbInfoText = fc.array(infoToken, { maxLength: 4 }).map((tokens) => tokens.join(' '));
 
-// The callout flavor needs a non-name-char boundary so the name/info split lands
-// where intended (and a registered name still resolves); the attrs flavor opens
-// with `[`/`{`, which already breaks the greedy name match.
+// The callout flavor needs a non-name-char boundary so the name/info split lands where
+// intended; the attrs flavor opens with `[`/`{`, which already breaks the greedy match.
 const arbSeparator = fc.constantFrom(' ', '  ', '\t', ' \t ');
 const arbCalloutInfo = fc.tuple(arbSeparator, arbInfoText).map(([sep, text]) => sep + text);
 const arbAttrsInfo = fc
@@ -129,9 +124,8 @@ const arbTextDirective = fc
 	)
 	.map(([name, rest]) => `:${name}${rest}`);
 
-// A paragraph interleaving text directives with real links, images, emphasis and
-// code — the adjacency the block/inline boundary must keep coexisting. The lead
-// word keeps the line from starting with `::` (which would open a leaf instead).
+// Interleaves text directives with real links, images, emphasis and code — the adjacency
+// the block/inline boundary must keep. The lead word keeps the line from opening a leaf.
 const arbParaFragment = fc.oneof(
 	{ arbitrary: fc.constantFrom('word', 'lorem', '42', '日本語', '🎉', 'café'), weight: 4 },
 	{ arbitrary: arbTextDirective, weight: 4 },
@@ -160,10 +154,8 @@ const ensureTrailingNewline = (source: string): string =>
 
 const arbLeaf = fc.tuple(arbName, arbInfo).map(([name, info]) => `::${name}${info}\n`);
 
-// A container body ends in a newline (or is empty) so the closer lands on its own
-// line. Nesting draws an inner container strictly shorter than its parent: an
-// inner colon run < parent never satisfies the parent's `isDirectiveCloser`
-// (count >= parent), so the parent closes at its real closer, not the inner one.
+// A body ends in a newline (or is empty) so the closer lands on its own line, and a nested
+// container draws strictly shorter so it never satisfies the parent's `isDirectiveCloser`.
 function arbContainerBody(parentColon: number): fc.Arbitrary<string> {
 	const arms: { arbitrary: fc.Arbitrary<string>; weight: number }[] = [
 		{ arbitrary: fc.constant(''), weight: 1 },
@@ -184,8 +176,7 @@ function arbContainerBody(parentColon: number): fc.Arbitrary<string> {
 }
 
 // `cap` bounds this container's opener AND closer colon runs so a nested one stays
-// strictly under its parent. Top level passes a cap above the 6-colon opener max,
-// leaving room for a matched-or-longer closer (up to opener + 2).
+// strictly under its parent; the top-level cap leaves room for a longer closer.
 function arbContainer(cap: number): fc.Arbitrary<string> {
 	const maxColon = Math.min(6, cap);
 	return fc.integer({ min: 3, max: Math.max(3, maxColon) }).chain((colon) => {
@@ -255,9 +246,8 @@ function collectContainerInfos(nodes: CstNode[], out: string[]): void {
 // ── Properties ────────────────────────────────────────────────────────────────
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(424242) } as const;
-// SAMPLE_PARAMS feeds fc.sample for the reachability self-tests, which must stay
-// deterministic (a fresh seed could miss a rare shape and flake), so it is left
-// fixed rather than threaded through the fresh lane.
+// Fixed rather than threaded through the fresh lane: the reachability self-tests must
+// stay deterministic, since a fresh seed could miss a rare shape and flake.
 const SAMPLE_PARAMS = { numRuns: 3000, seed: 20260709 } as const;
 
 describe('directive total-coverage round-trip', () => {
@@ -285,9 +275,8 @@ describe('directive total-coverage round-trip', () => {
 		);
 	});
 
-	// The opaque contract makes serialize emit node.raw verbatim, so the round-trip
-	// above passes even if the opener mis-captured metadata. Rebuilding raw from the
-	// captured fields (the post-edit inverse) pins that the capture is faithful.
+	// serialize emits node.raw verbatim, so the round-trip above passes even on mis-captured
+	// metadata. Rebuilding raw from the captured fields pins that the capture is faithful.
 	it('generic container rebuild reproduces the opener bytes', () => {
 		fc.assert(
 			fc.property(arbDirectiveDoc, (src) => {
@@ -331,10 +320,8 @@ describe('directive total-coverage round-trip', () => {
 	});
 });
 
-// Hand-picked nasty shapes the generator under-weights, each pinned as a byte
-// round-trip plus the structural fact the round-trip alone can't see (the
-// serializer emits raw verbatim, so a wrong kind still round-trips). Names are
-// unregistered here, so a container is always the generic kind.
+// Shapes the generator under-weights, each pinning the structural fact the round-trip
+// cannot see: the serializer emits raw verbatim, so a wrong kind still round-trips.
 describe('directive round-trip — adversarial interleaving + edge cases', () => {
 	const containerBodies: Array<[label: string, src: string]> = [
 		['list', ':::box\n- a\n- b\n:::\n'],

@@ -2,10 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// The caret-affinity contract, verified as shipped: the caret is a raw offset, a
-// revealed construct's bytes are visible, and typing lands at that offset — no
-// stored-marks machinery. Distinct from presentation-preview-inline-editing.spec.ts
-// (mid-construct typing, marker-text typing, dissolve).
+// The caret-affinity contract: the caret is a raw offset, a revealed construct's bytes are
+// visible, and typing lands at that offset — no stored-marks machinery.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-affinity.md.
 
 const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();

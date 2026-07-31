@@ -1,9 +1,8 @@
 /**
- * Plugin-facing global commands: mint a process-wide command id, register a
- * handler that receives the dispatching instance's EditorContext, optionally
- * bind a chord in the plugin-global tier (last in precedence; built-in chords
- * unstealable). Lives beside block-commands, not in commands.ts, for the same
- * cycle reason (commands ← command-id must stay one-directional).
+ * Plugin-facing global commands: mint a process-wide command id, register a handler receiving
+ * the dispatching instance's EditorContext, optionally bind a chord in the plugin-global tier
+ * (last in precedence). Beside block-commands, not in commands.ts, for the same cycle reason —
+ * commands ← command-id must stay one-directional.
  */
 import { mintCommandId, type PluginCommandId } from './command-id';
 import {
@@ -22,14 +21,12 @@ export function registerGlobalCommand(
 	handler: (editor: EditorContext) => boolean,
 	opts?: { chord?: string }
 ): PluginCommandId {
-	// Validate the chord BEFORE the mint — a chord collision must not leave a
-	// minted name and a registered handler behind a failed registration. The name
-	// IS the id the mint returns, so it doubles as the same-command candidate that
-	// lets a dev re-eval replace its own prior binding instead of throwing.
+	// Validate the chord BEFORE the mint: a collision must not leave a minted name and a
+	// registered handler behind a failed registration.
 	if (opts?.chord) assertPluginGlobalChordAvailable(opts.chord, name);
 	const owner = currentInstallingPlugin();
-	// Owner-attributed like the block sibling: it is what lets a plugin re-mint its
-	// own name and what names the prior owner in a cross-plugin collision.
+	// Owner-attributed: it is what lets a plugin re-mint its own name, and what names the prior
+	// owner in a cross-plugin collision.
 	const id = mintCommandId(name, owner);
 	owners.set(id, owner);
 	registerCommand(id, (ctx) => {

@@ -1,28 +1,23 @@
 /**
- * Per-run indexes of a merged decoration set — by owning leaf path, and by
- * ancestor prefix for grid surfaces. Built once when the set changes so each
- * overlay reads only its own bucket instead of scanning every decoration on
- * every render.
+ * Per-run indexes of a merged decoration set, built once when the set changes so each
+ * overlay reads only its own bucket instead of scanning every decoration per render.
  */
 
 import type { Decoration, MarkDecoration } from './types';
 
-/** A decoration paired with its position in the flat merged list — the stable
- *  key overlays render against. */
+/** A decoration paired with its flat-list position — the stable key overlays render against. */
 export interface IndexedDecoration<D extends Decoration = Decoration> {
 	dec: D;
 	index: number;
 }
 
-/** Stable string key for a block path. Distinct paths never collide: elements
- *  are numbers joined by a separator that can't appear within one. */
+/** Stable key for a block path; distinct paths never collide, elements being numbers. */
 export function pathKey(path: readonly number[]): string {
 	return path.join(',');
 }
 
-/** Bucket `{ path }`-bearing items by their block path, preserving flat order.
- *  `wrap` builds each bucket element from the item and its flat index — the one
- *  grouping loop shared by decorations and search. */
+/** Bucket `{ path }`-bearing items by block path, preserving flat order. Shared by
+ *  decorations and search. */
 export function groupByPathKey<T extends { path: readonly number[] }, E>(
 	items: readonly T[],
 	wrap: (item: T, index: number) => E
@@ -45,11 +40,9 @@ export function groupDecorationsByPath(
 }
 
 /**
- * Group decorations under every strict ancestor prefix of their owning path (the
- * root prefix excluded — that bucket would be the whole list). Grid surfaces
- * (table) paint descendant cell decorations themselves because cells have no
- * BlockHost overlay; this lets them read one bucket instead of scanning the full
- * list.
+ * Group decorations under every strict ancestor prefix of their owning path. Grid
+ * surfaces paint descendant cell decorations themselves, cells having no BlockHost
+ * overlay, so this lets them read one bucket instead of the full list.
  */
 export function groupDecorationsByAncestor(
 	decs: readonly Decoration[]
@@ -76,8 +69,8 @@ function push(
 
 // ── Grid cell collapse ─────────────────────────────────────────────────────
 
-/** One whole-cell rect for a grid cell: the union of every mark's class tokens,
- *  plus a representative decoration for the rect's attrs/interactive. */
+/** One whole-cell rect: the union of every mark's class tokens, plus a representative
+ *  decoration for the rect's attrs/interactive. */
 export interface CollapsedCellMark {
 	rowIdx: number;
 	colIdx: number;
@@ -86,15 +79,10 @@ export interface CollapsedCellMark {
 }
 
 /**
- * Collapse a grid's descendant cell marks to one entry per `(row, col)`. A cell
- * holding several marks paints a single whole-cell rect whose class is the UNION
- * of their class tokens — for search this degenerates to exactly the active rect
- * (the active class string already contains the base token), and two unrelated
- * sources in one cell cascade-compose instead of stacking translucent rects.
- * `containerDepth` is the grid container's path length: the cell coordinates sit
- * at `path[depth]` (row) and `path[depth + 1]` (col). The representative dec is
- * the last one seen — cell marks carry no attrs/interactive on the reachable
- * (search) path, so its identity only decides a cascade tiebreak.
+ * Collapse a grid's descendant cell marks to one entry per `(row, col)`, unioning their
+ * class tokens so two sources in one cell cascade-compose instead of stacking translucent
+ * rects. `containerDepth` is the grid container's path length; the cell coordinates sit at
+ * `path[depth]` and `path[depth + 1]`.
  */
 export function collapseCellMarks(
 	descMarks: readonly IndexedDecoration<MarkDecoration>[],

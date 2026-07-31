@@ -31,7 +31,6 @@ test.describe('table block: column affordance menu', () => {
 		await page.locator('[data-table-col-grip]').nth(0).click();
 		await page.getByRole('menuitem', { name: /insert column right/i }).click();
 
-		// Header gains a third column: | A |  | B |
 		await editor.bridge.waitForSourceMatches(/^\|[^|\n]*\|[^|\n]*\|[^|\n]*\|\s*$/m);
 		expect(await editor.bridge.getSource()).toContain('| A |  | B |');
 		await expect(page.getByRole('menu')).toHaveCount(0);
@@ -172,19 +171,15 @@ test.describe('table block: column affordance menu', () => {
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 
-	// Finding 5.2 (a11y): keyboard alignment once dropped focus to <body> and
-	// announced nothing. The cell menu (Shift+F10) → activate a segment must return
-	// focus to a cell and announce via the live region. Driven through the menu's
-	// real roving focus, not a programmatic .press on the segment.
+	// Keyboard alignment once dropped focus to <body> and announced nothing: activating a segment
+	// must return focus to a cell and announce via the live region. Driven through the menu's real
+	// roving focus, not a programmatic press on the segment.
 	test('keyboard-driven alignment restores focus to a cell and announces', async ({ page }) => {
 		await editor.loadContent('| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n');
 		await page.locator('[role="cell"]').nth(4).click(); // body row, column B ("2")
 		await page.keyboard.press('Shift+F10');
 		await expect(page.getByRole('menu')).toBeVisible();
 
-		// Walk the roving focus to the alignment trio: ArrowUp from the first item
-		// wraps to the last stop (the Right segment); ArrowLeft steps to Center;
-		// Enter activates it. This is the keyboard path a real user takes.
 		const focused = page.locator('[role="menu"] :focus');
 		await page.keyboard.press('ArrowUp');
 		await expect(focused).toHaveAttribute('aria-label', 'Right');
@@ -349,7 +344,6 @@ test.describe('table block: cell right-click menu', () => {
 	test('right-click within an active intra-table rectangle preserves the rectangle', async ({
 		page
 	}) => {
-		// Build a 2x2 rectangle: click a body cell, shift+click the diagonal one.
 		await page.locator('[role="cell"]').nth(2).click(); // body ("1"), row 1 col 0
 		await page
 			.locator('[role="cell"]')
@@ -357,8 +351,7 @@ test.describe('table block: cell right-click menu', () => {
 			.click({ modifiers: ['Shift'] }); // ("4"), row 2 col 1
 		expect(await page.evaluate(() => (window as any).__test.isCrossBlockActive())).toBe(true);
 
-		// Right-clicking a cell inside the rectangle opens the menu without collapsing
-		// the selection (before the fix, onPointerDown's clear ran for any button).
+		// Before the fix, onPointerDown's selection clear ran for any button.
 		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		expect(await page.evaluate(() => (window as any).__test.isCrossBlockActive())).toBe(true);
@@ -366,11 +359,9 @@ test.describe('table block: cell right-click menu', () => {
 });
 
 test.describe('table block: grid markup structure', () => {
-	// The grip markup adds elements between the grid's dynamic block regions. A
-	// whitespace-only text node directly under a raw-walk container joins the
-	// raw-offset walk (cursor/widget-offset.ts counts every text node, incl.
-	// aria-hidden) and shifts a parked cross-block caret. This guards the whole
-	// table/row markup so later drag tasks can't reintroduce one.
+	// A whitespace-only text node directly under a raw-walk container joins the raw-offset walk
+	// (cursor/widget-offset.ts counts every text node, incl. aria-hidden) and shifts a parked
+	// cross-block caret.
 	test('no whitespace-only direct text nodes under the table containers (raw-offset-walk contract)', async ({
 		page
 	}) => {

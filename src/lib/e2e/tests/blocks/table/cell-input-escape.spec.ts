@@ -20,13 +20,11 @@ test.describe('table block: cell input escapes pipes', () => {
 		// Row 0's original bytes are gone once the commit lands.
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 
-		// The typed pipe escaped — same bytes a paste writes; the neighbor survives.
 		const afterType = await editor.bridge.getSource();
 		expect(afterType).toContain('| 1\\| | 2 |');
 
-		// Post-reload equivalence: re-parsing the serialized source is a fixed point.
-		// Pre-fix the raw held "| 1| | 2 |", which reparses to three cells and
-		// truncates "2" away.
+		// Post-reload equivalence: re-parsing the serialized source must be a fixed point. Pre-fix
+		// the raw held "| 1| | 2 |", which reparses to three cells and truncates "2" away.
 		await page.evaluate((src) => (window as any).__test.setSource(src), afterType);
 		await editor.waitForRenderFlush();
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(

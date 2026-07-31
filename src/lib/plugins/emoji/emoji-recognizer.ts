@@ -1,13 +1,8 @@
 /**
- * GitHub `:shortcode:` emoji: a first-class inline kind recognized on the bare `:`
- * trigger and rendered as an atomic glyph widget. The literal `:smile:` bytes stay
- * in the block's raw, so round-trip and portability are untouched; the glyph is the
- * widget's only visible text while `data-source-*` carries the source span.
- *
- * Recognition is gated on registration: with the plugin absent `:smile:` is ordinary
- * prose. The `:` rung sits at `INLINE_PRIORITIES.plugin + 10`, one rung ABOVE the
- * directive text tier's default rung, so both coexist on the same trigger — the
- * disjoint grammars never contest a claim (see the why-comment on the register call).
+ * GitHub `:shortcode:` emoji as an inline kind with an atomic glyph widget. The
+ * literal `:smile:` bytes stay in the block's raw, so round-trip and portability are
+ * untouched; the glyph is only what the widget paints. Recognition is gated on
+ * registration, so with the plugin absent `:smile:` is ordinary prose.
  */
 
 import {
@@ -24,9 +19,8 @@ import { EMOJI_TABLE } from './emoji-table';
 
 export const EMOJI_KIND = 'emoji';
 
-// `[a-z0-9_+-]` — the gemoji shortcode alphabet. Uppercase is excluded, matching
-// GitHub (shortcodes are lowercase), and the newline is naturally excluded, so a
-// reference never spans a line.
+// The gemoji alphabet: uppercase is excluded to match GitHub, and excluding the
+// newline is what keeps a reference from spanning a line.
 function isShortcodeChar(code: number): boolean {
 	return (
 		(code >= 0x61 && code <= 0x7a) || // a-z
@@ -38,15 +32,9 @@ function isShortcodeChar(code: number): boolean {
 }
 
 /**
- * `:shortcode:` recognizer over `raw[pos, end)`, where `pos` is the opening `:`.
- * Scans a non-empty run of shortcode chars up to a closing `:`, then claims
- * `[pos, close + 1)` only on a table hit — carrying the glyph on `decoded`, the
- * decoded-entity mold. Declines (null) on a non-shortcode char, an empty pair, an
- * unterminated run, or an unknown name, each leaving the bytes to the next rung.
- *
- * O(name length) per consultation and allocation-free on the hot decline paths: the
- * name is sliced only once a closing colon has bounded a non-empty run, mirroring the
- * directive recognizer's gated slice.
+ * Claims only on a table hit, carrying the glyph on `decoded` (the decoded-entity
+ * mold). Allocation-free on the decline paths that matter: the name is sliced only
+ * once a closing colon has bounded a non-empty run.
  */
 export function recognizeEmoji(
 	raw: string,
@@ -65,10 +53,8 @@ export function recognizeEmoji(
 	return { kind, start: pos, end: i + 1, decoded: glyph };
 }
 
-/** The atomic-widget DOM: a `[data-inline-widget]` shell whose text is the glyph and
- *  whose source bytes ride `data-source-*`, so the raw-aware walk reads `:smile:`
- *  back while the DOM shows 😄. `user-select: none` keeps the glyph whole — a caret
- *  never lands inside it — set inline since a `buildWidget` island has no style scope. */
+/** `user-select: none` keeps the glyph atomic to the caret; set inline because a
+ *  `buildWidget` island has no style scope. */
 export function buildEmojiWidget(node: InlineNode): HTMLSpanElement {
 	const shell = mintWidgetShell('md-emoji-widget', node);
 	shell.textContent = node.decoded ?? '';
@@ -77,16 +63,14 @@ export function buildEmojiWidget(node: InlineNode): HTMLSpanElement {
 }
 
 export function registerEmoji(): void {
-	// Keyed on the declared-inline-kind registry, not a module latch: the platform
-	// reset that clears the inline syntax/widget registries also clears this key, so a
-	// reset → re-register re-runs the whole path cleanly (the footnote-reference mold).
+	// Keyed on the kind registry, not a module latch, so the platform reset that clears
+	// the inline registries also clears this guard.
 	if (isInlineKindDeclared(EMOJI_KIND)) return;
 	const kind = declarePluginInlineKind(EMOJI_KIND);
 	registerInlineSyntax(':', (raw, pos, end) => recognizeEmoji(raw, pos, end, kind), {
-		// One rung ABOVE the directive text tier's default `plugin` rung (which is
-		// consulted first). The register-once grain forbids a second (`:`, `:`, plugin)
-		// registration, so the +10 is what lets emoji share the trigger; the disjoint
-		// grammars mean the order only decides first refusal, never a contested claim.
+		// The register-once grain forbids a second `:` registration at the plugin rung, so
+		// the +10 is what lets emoji share the trigger with the directive text tier; their
+		// grammars are disjoint, so the order only decides first refusal.
 		priority: INLINE_PRIORITIES.plugin + 10
 	});
 	registerInlineWidgetKind(kind, {

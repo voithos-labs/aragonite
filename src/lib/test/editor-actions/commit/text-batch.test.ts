@@ -46,8 +46,7 @@ describe('text-batch lifecycle', () => {
 		batch.keystroke([0], 0);
 		batch.keystroke([1], 0);
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
-		// Pins flush-before-repoint: the displaced batch's OWN path is emitted,
-		// not the incoming keystroke's.
+		// Flush-before-repoint: the displaced batch's OWN path is emitted.
 		expect(emitInput).toHaveBeenCalledWith([0], 1);
 	});
 
