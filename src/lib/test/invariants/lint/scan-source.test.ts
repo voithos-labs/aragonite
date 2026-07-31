@@ -29,7 +29,9 @@ describe('repo-wide scan roots', () => {
 
 	it('sees the reference plugin the external-author rules are modelled on', () => {
 		expect(paths).toContain('src/routes/test/plugins/callout/callout-kind.ts');
-		expect(paths).toContain('examples/consumer/src/plugins/callout/callout-kind.ts');
+		// The synced copy under examples/consumer/src/plugins is generated and absent on a
+		// fresh checkout; the consumer root is pinned through a tracked file instead.
+		expect(paths).toContain('examples/consumer/src/plugin-probe.ts');
 	});
 
 	it('collects each file exactly once (no root nested inside another)', () => {
