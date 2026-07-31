@@ -32,7 +32,7 @@ function item(): CstNode {
 }
 
 /** `chainDepth` is what the stubbed container edit hands back; the honest depth is
-*  CONTAINER_PATH plus the inner index. */
+ *  CONTAINER_PATH plus the inner index. */
 function typeInto(node: CstNode, chainDepth: number): void {
 	const containerEdit = makeStubContainerEdit();
 	vi.mocked(containerEdit.withUnsharedSpine).mockImplementation(
