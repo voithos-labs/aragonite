@@ -97,7 +97,8 @@
 
 	function toggleTask(): void {
 		// Reading mode keeps checkboxes visible but inert (CSS also drops their
-		// pointer affordance); live task toggling is a deferred product question.
+		// pointer affordance): a toggle rewrites the document, and reading mode
+		// writes no bytes.
 		if (readOnly) return;
 		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return;

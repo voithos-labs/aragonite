@@ -527,8 +527,8 @@
    section above; reading adds only its read-only inertness on top. */
 
 /* The checkbox stays inert: pointer-events kills the toggle click at the CSS
-   layer, the toggleTask guard is the JS belt. Live checkboxes are a deferred
-   product question. */
+   layer, the toggleTask guard is the JS belt. Toggling one would rewrite the
+   document, and reading mode writes no bytes. */
 :where(.editor)[data-presentation='reading']
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
