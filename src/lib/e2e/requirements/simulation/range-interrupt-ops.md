@@ -43,7 +43,7 @@ a short two-leaf prose range, because there select-all's own prediction would BE
 one-char document and all discriminating power is lost. `escape` is the one caret-pinned
 gesture on a prose range: it collapses to the range's anchor, and a select-all anchor is
 byte 0 of the document, where the keystroke demotes the first block's kind and enters the
-deferred lazy-continuation class (`docs/issues.md`) — a red for a reason this family is
+deferred lazy-continuation class (issue #21) — a red for a reason this family is
 not about.
 
 | Gesture                  | Build       | If the range survived   | If the range ended                         |

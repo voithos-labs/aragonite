@@ -4,8 +4,8 @@ A demo-route component on `/test/editor` built purely consumer-side: a
 `bind:this` `EditorInstance`, `getEvents().on('selectionChange')` for
 lifecycle, `getRects().rangeRects` for the cross-block anchor, and the native
 `Range` rects for the single-block case — the selection snapshot collapses
-single-block ranges to the focus caret (docs/issues.md), so the native read is
-the honest consumer pattern available today. A `position: fixed` bar floats
+single-block ranges to the focus caret, so the native read is the honest
+consumer pattern available today. A `position: fixed` bar floats
 above the selection's first rect.
 
 ## Happy paths

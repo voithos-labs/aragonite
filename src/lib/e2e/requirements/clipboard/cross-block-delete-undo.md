@@ -11,4 +11,4 @@
 
 ## Regression notes
 
-- `issues.md` flags: "sometimes fails to restore pre-operation selection" after cross-block delete.
+- Guards the closed "sometimes fails to restore pre-operation selection" defect after cross-block delete.

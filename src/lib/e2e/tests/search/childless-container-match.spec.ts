@@ -9,7 +9,7 @@ import { PluginsPage } from '../plugins/helpers';
  * lives in its own raw — no leaf children — so the scanner matches the raw like
  * a leaf and `DecorationOverlay` paints those marks through the container shim's
  * `measurePartialRects`. Replace skips those matches (metadata-derived raw;
- * ledgered in docs/issues.md), so `replacedCount` counts only real rewrites.
+ * issue #41), so `replacedCount` counts only real rewrites.
  */
 
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });

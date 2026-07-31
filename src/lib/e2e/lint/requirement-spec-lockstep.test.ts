@@ -32,8 +32,8 @@
  * several scenario bullets and shared-invariant bullets apply to every scenario).
  * Requiring equality would have needed a per-pair allowlist for two thirds of the
  * suite — that large a list is noise, and the pressure it applies is toward padding
- * the suite with one-assertion tests, which is the failure `docs/issues.md` named
- * when it deferred this guard.
+ * the suite with one-assertion tests, which is the failure that deferred this
+ * guard in the first place.
  *
  * Excluding prose sections (Notes, Artifacts, Miss-analysis…) from the unit count was
  * measured too, and rejected: it moves two pairs, both perf harnesses whose bullets

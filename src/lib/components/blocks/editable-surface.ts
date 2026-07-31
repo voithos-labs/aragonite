@@ -325,7 +325,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// arms the flag, so an unpaired end means a consumer wired compositionend
 		// without compositionstart — both are exposed for plugin markup (G1.27).
 		// Caveat: Safari has shipped duplicate compositionend fires; if that
-		// false-fires in the field, relax to once-per-focus (issues.md § G1.27).
+		// false-fires in the field, relax to once-per-focus (issue #37).
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);

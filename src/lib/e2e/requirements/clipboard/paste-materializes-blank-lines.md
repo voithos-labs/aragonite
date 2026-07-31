@@ -2,7 +2,7 @@
 
 Pasting multi-block content materializes each blank-line separator into an empty-paragraph block, so the blank line is visible in the rendered DOM.
 
-That is one block wider than the same bytes reach any other way. Enter separates, so typing `one Enter two` produces `"one\n\ntwo\n"` as TWO blocks — the blank line is trivia — which is also how the parser loads it. The paste divergence is ledgered in `docs/issues.md`.
+That is one block wider than the same bytes reach any other way. Enter separates, so typing `one Enter two` produces `"one\n\ntwo\n"` as TWO blocks — the blank line is trivia — which is also how the parser loads it. The paste divergence is tracked as issue #20.
 
 ## Happy paths
 

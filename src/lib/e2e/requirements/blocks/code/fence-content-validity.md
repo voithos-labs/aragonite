@@ -75,7 +75,7 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
 - **Write routes outside this surface do not cross the funnel.** Find-and-replace
   writes a leaf's raw through the kind descriptor's `normalizeRawWrite`, which
   `fencedCode` does not declare, so a replacement that lands a closer run on a body
-  line still splits the block. Tracked as its own defect.
+  line still splits the block. Tracked as issue #45.
 
 ## Happy paths
 

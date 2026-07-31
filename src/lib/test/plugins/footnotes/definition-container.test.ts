@@ -101,7 +101,7 @@ describe('footnote definition treats a non-breaking space as content', () => {
 
 	it('ends the definition at an unindented nbsp line', () => {
 		// cmark-gfm would lazily continue the open paragraph here; this scan models
-		// no lazy continuation (see docs/issues.md), so the definition closes and
+		// no lazy continuation (issue #24), so the definition closes and
 		// the remaining lines are a sibling paragraph. Bytes are preserved either way.
 		const doc = parse(`[^a]: one\n${NBSP}\n    two\n`);
 		expect(doc.children.map((c) => c.kind)).toEqual([FOOTNOTE_DEF_KIND, 'paragraph']);

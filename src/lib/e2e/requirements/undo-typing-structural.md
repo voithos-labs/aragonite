@@ -11,4 +11,4 @@
 
 ## Regression notes
 
-- `issues.md`: "any case where needsUndoCheckpoint drifts wrong"; roadmap 0.5.4 lists this as a pin-list scenario.
+- Guards the closed "needsUndoCheckpoint drifts wrong" defect class.

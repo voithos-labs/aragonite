@@ -39,7 +39,7 @@ const title = (node: CstNode) => trimTrailingLineEnding(node.children![0].raw);
 describe('cross-block copy starting in reserved chrome', () => {
 	beforeEach(registerPlugins);
 
-	// The issues.md repro, verbatim: pre-fix this yielded "tle\nBody1\n\nBody2\n\nBel".
+	// The original repro, verbatim: pre-fix this yielded "tle\nBody1\n\nBody2\n\nBel".
 	it('re-emits the truncated title as the opener and closes past the container', () => {
 		const doc = parse(':::note Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
@@ -153,7 +153,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			]);
 		});
 
-		// Residue (issues.md): an end inside a nested container's BODY skips that
+		// Residue (issue #42): an end inside a nested container's BODY skips that
 		// container in the walk, so its opener is never emitted and its bytes flatten
 		// to prose. The outer wrapper — this fix's contract — still survives.
 		it('keeps the outer kind when the end lands in a nested body', () => {

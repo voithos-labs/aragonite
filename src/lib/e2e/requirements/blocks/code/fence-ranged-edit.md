@@ -81,4 +81,4 @@ block whole (a cross-block selection, or Ctrl+A twice) removes it.
 
 Content whose _validity_ breaks the fence from inside a content region — a backtick typed into
 a backtick fence's info string, a fence run typed or pasted into the body — is a different
-class (character validity, not structure) and is tracked in `docs/issues.md`.
+class (character validity, not structure) and is settled by `fence-content-validity.md`.
