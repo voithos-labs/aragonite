@@ -41,9 +41,8 @@
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	// This block is tabindex-focusable independent of contenteditable, so its
-	// keydown stays live in reading mode: arrows (navigation) stay, the direct
-	// edit branches below gate.
+	// Tabindex-focusable independent of contenteditable, so keydown stays live in
+	// reading mode; the edit branches below gate on this instead.
 	const isReading = () => getPresentationMode?.() === 'reading';
 	let el: HTMLDivElement | undefined = $state();
 
@@ -52,9 +51,8 @@
 	export const editable = false;
 	export const focusable = true;
 
-	// Whole-block focus: the block IS its own focus target, so the offset carries no
-	// meaning. `focus` still owes the range-ending — nothing below it seats a DOM
-	// caret that would collapse the old range on its own.
+	// The block IS its own focus target, so the offset carries no meaning — but the
+	// range-ending is still owed: nothing below seats a DOM caret to collapse it.
 	export const focus = placeCaret(selection, parkCaret);
 
 	export function parkCaret(_offset: number): void {
@@ -90,10 +88,8 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
-		// The editor owns undo/redo; resolve override-aware so a consumer can rebind
-		// or disable these chords even while a thematic break is focused. Runs
-		// getCommand directly (no dispatchKeyCommand), so it carries the
-		// reading-mode gate itself — sibling: the editor-root branch.
+		// Editor-global chords resolve override-aware so a consumer can rebind them
+		// here too. Bypasses dispatchKeyCommand, so it owes the reading gate itself.
 		const chord = eventToChord(e);
 		if (chord && isEditorGlobalChord(chord)) {
 			e.preventDefault();
@@ -103,8 +99,7 @@
 			return;
 		}
 
-		// Kind keymap (Alt+↑/↓ reorder) before the plain-arrow navigation below,
-		// which is guarded on no-modifier so a modified arrow never falls through.
+		// Kind keymap (Alt+↑/↓ reorder) must precede the plain-arrow navigation below.
 		if (
 			chord &&
 			dispatchKeyCommand(
@@ -119,10 +114,7 @@
 			return;
 		}
 
-		// The whole-block-focus key tail (Enter-below, focus-delete, arrow traversal,
-		// reading gate) is shared with the plugin container factory — see
-		// handleWholeBlockKeys. Alt-arrow reorder is handled above through the kind
-		// keymap, so it never reaches here.
+		// The whole-block-focus key tail, shared with the plugin container factory.
 		handleWholeBlockKeys(e, {
 			getIndex: () => index,
 			getRaw: () => node.raw,

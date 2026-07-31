@@ -1,16 +1,9 @@
 /**
  * Pure decisions that keep an edit off the fence lines of a fenced code block.
- * The opener fence (` ```... ` + its trailing `\n`) and closer fence (leading
- * `\n` + ` ```... `) are structure, not editable content — an edit that rewrites
- * either leaves an unclosed fence, and an unclosed fence absorbs the rest of the
- * document at the next parse. The block's editable content is its body plus the
- * opener's info string; `crossesFenceBoundary` carries the parser evidence for
- * where that line sits. Two tiers: a keystroke at the body boundary re-routes to
- * a focus-move out of the block (`classifyFenceBoundary`), and anything that
- * rewrites a range is re-sited onto the body (`fenceEditSpan` and its clamps).
- *
- * Display-text coordinates throughout (textContent of the contenteditable;
- * raw without the trailing line ending). Mirrors `code-fence-exit.ts`.
+ * The fences are structure, not content: rewriting either leaves an unclosed fence
+ * that absorbs the rest of the document at the next parse. Editable content is the
+ * body plus the opener's info string. Display-text coordinates throughout (raw
+ * without its trailing line ending); mirrors `code-fence-exit.ts`.
  */
 
 import type { NodeView } from '../../../core/node-views';
@@ -39,23 +32,10 @@ export type FenceBoundaryResult =
 	| { kind: 'exitNext' }; // crossing the closer boundary forward
 
 /**
- * Classify a Backspace/Delete keystroke against the fence/body boundary.
- *
- * The corruption this guards against is structural: deleting either of the
- * two `\n` characters that demarcate the body from the fence lines re-parses
- * the block in a different shape (opener fuses with body; closer drifts off
- * column 0). This tier answers only the two body boundaries — what else a
- * keystroke may rewrite is `crossesFenceBoundary`'s question, and the fence
- * marker runs are structure there.
- *
- *   Backspace at offset == bodyStart (when opener terminates with `\n`)
- *       → exitPrev (would delete the opener's terminating `\n`)
- *   Delete    at offset == bodyEnd   (when closer is present)
- *       → exitNext (would delete the body's terminating `\n`)
- *   everything else → allow (native edit OK).
- *
- * `bodyStart` is the post-opener offset; `bodyEnd` is the pre-closer offset
- * (just before the `\n` that introduces the closer line).
+ * Classify a Backspace/Delete against the two body boundaries: Backspace at bodyStart
+ * would delete the opener's terminating `\n`, Delete at bodyEnd the body's — either
+ * re-parses the block in a different shape, so both become a focus-move out instead.
+ * What else a keystroke may rewrite is `crossesFenceBoundary`'s question.
  */
 export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryResult {
 	const { node, offset, forward } = input;
@@ -72,13 +52,10 @@ export function classifyFenceBoundary(input: FenceBoundaryInput): FenceBoundaryR
 }
 
 /**
- * Clamp an Enter-splice offset out of both fence lines. A `\n` spliced before or
- * inside the opener text re-shapes the fence (`sliceFencedCode` renders a phantom
- * fence from a leading `\n`); one spliced inside the closer text breaks the closer
- * apart, leaving an unclosed fence. Both clamp onto the nearest body edge — Enter
- * there behaves exactly like Enter at that edge. Each fence line's inner edge is
- * left alone: splicing after the full fence+info string, or at the start of the
- * closer line, is already safe and keeps its caret-on-the-new-line behavior.
+ * Clamp an Enter-splice out of both fence lines onto the nearest body edge — a `\n`
+ * inside the opener re-shapes the fence, one inside the closer breaks it apart. Each
+ * fence line's inner edge is left alone: splicing after the info string, or at the
+ * start of the closer line, is already safe.
  */
 export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 	const { openerTextEnd, body, closerTextStart } = fenceRegions(node);
@@ -88,13 +65,10 @@ export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 }
 
 /**
- * Clamp a whole range onto the body, unconditionally — for the gestures that
- * rewrite entire LINES (Tab indent, Shift+Tab dedent). The fence lines are
- * structure, not content: a tab on the closer pushes it past GFM's 3-space limit
- * so it stops closing the block, and the fence then absorbs the rest of the
- * document on reload; a tab on the opener demotes the whole block to an indented
- * code block. Both survive the live session looking fine — the corruption lands at
- * the next parse. Gestures that rewrite an arbitrary RANGE use `fenceEditSpan`,
+ * Clamp a whole range onto the body, unconditionally — for gestures that rewrite
+ * entire LINES (Tab indent, Shift+Tab dedent). A tab on the closer pushes it past
+ * GFM's 3-space limit so it stops closing; a tab on the opener demotes the block to
+ * indented code. Gestures rewriting an arbitrary RANGE use `fenceEditSpan` instead,
  * which clamps only what crosses.
  */
 export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
@@ -104,21 +78,11 @@ export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * Does a pending edit's range reach out of the block's editable content? Only two
- * spans of the display text are content: the body, and the opener's info string.
- * Everything else on the two fence lines is structure, and the parser is the
- * authority on why — each of these is one keystroke away and each swallows every
- * following block into the code node at the next parse:
- *
- *   `` ```js\ncode\n`` ``     one closer backtick gone → the fence never closes
- *   `` ``js\ncode\n```  ``    one opener backtick gone → the block demotes and its
- *                             closer becomes the opener of an absorbing fence
- *   `` ```js\ncode\n``x` ``   one character typed into the closer run → same
- *   `` (4 leading spaces) ``  the opener demotes to an indented code block
- *
- * An UNCLOSED fence is the exception: with no closer to orphan, its marker run is
- * still content — demoting the block to a paragraph is how a just-typed ` ``` ` is
- * undone, and there is nothing for the demoted block to absorb.
+ * Does a pending edit reach out of the editable content — the body, plus the opener's
+ * info string? Every other offset on the two fence lines is one keystroke from
+ * swallowing all following blocks into the code node at the next parse. An UNCLOSED
+ * fence is the exception: with no closer to orphan, its marker run is content too, so
+ * demoting the block is how a just-typed ` ``` ` gets undone.
  */
 export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean {
 	const { openerContent, body } = fenceRegions(node);
@@ -131,8 +95,6 @@ export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean 
 /**
  * The span a ranged edit actually rewrites: the range itself while it stays inside
  * one content region, its intersection with the body once it reaches structure.
- * Fence lines are never rewritten, so a range made entirely of structure yields an
- * empty span and the gesture has nothing to apply.
  */
 export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
 	const span = orderedRange(range);
@@ -140,13 +102,9 @@ export function fenceEditSpan(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * Where a caret LANDING may sit. Every door that seats a caret on this surface goes
- * through here, because a caret parked on a fence line takes keystrokes the guard
- * refuses: the landing looks successful and the next character disappears. A caret
- * already on editable content stays exactly where it was asked to go — the info
- * string of an open fence is content, and the kind change that mints a fence from a
- * typed ` ``` ` lands the caret mid-opener — and anything else collapses onto the
- * nearest body edge.
+ * Where a caret LANDING may sit — every door that seats a caret on this surface goes
+ * through here. A caret parked on a fence line takes keystrokes the guard refuses:
+ * the landing looks successful and the next character disappears.
  */
 export function clampCaretToBody(node: NodeView, offset: number): number {
 	const caret = { start: offset, end: offset };
@@ -155,12 +113,10 @@ export function clampCaretToBody(node: NodeView, offset: number): number {
 }
 
 /**
- * The refusal rule, shared by every mutating gesture on this surface: a range that
- * reached structure and kept no body after the clamp has nothing to rewrite. Text
- * aimed there is declined rather than re-sited to the body edge, where the user
- * never pointed. Paste consults this directly — it splices through the paste tree-op
- * rather than through `computeFenceRangedEdit` — so the rule stays one predicate
- * instead of one copy per entry path.
+ * The refusal rule shared by every mutating gesture here: a range that reached
+ * structure and kept no body after the clamp is declined, not re-sited to a body edge
+ * the user never pointed at. Paste consults it directly (it splices through the paste
+ * tree-op, not `computeFenceRangedEdit`), so the rule stays one predicate.
  */
 export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean {
 	const ordered = orderedRange(range);
@@ -170,10 +126,8 @@ export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean 
 }
 
 /**
- * The one splice every gesture that rewrites a range IN PLACE goes through — native
- * delete/type-over (via the beforeinput guard) and cut: `insert` replaces the edit
- * span, `''` for a delete. Null when there is nothing to rewrite, so the gesture
- * commits no CST edit and spends no undo entry.
+ * The one in-place range splice — native delete/type-over (via the beforeinput guard)
+ * and cut. Null when there is nothing to rewrite, so no undo entry is spent.
  */
 export function computeFenceRangedEdit(
 	node: NodeView,
@@ -231,13 +185,10 @@ function fenceRegions(node: NodeView): FenceRegions {
 }
 
 /**
- * Past the opener's indentation and its run of fence markers — where the info string
- * starts. The run's LENGTH is measured rather than read from `fenceLength`, so an
- * opener a paste has bumped to four markers is measured as four. GFM allows at most
- * three spaces of indentation (a fourth demotes the block to indented code), so a
- * longer run is not indentation to skip past: an opener line that does not have its
- * markers where the grammar puts them has no info string, and every offset on it
- * falls on the structure side.
+ * Past the opener's indentation and marker run — where the info string starts. The
+ * run's LENGTH is measured rather than read from `fenceLength`, so an opener a paste
+ * bumped to four markers measures as four. Past GFM's 3-space indent limit there is
+ * no info string, and every offset on the line falls on the structure side.
  */
 function markerRunEnd(openerLine: string, marker: string): number {
 	const MAX_INDENT = 3;
@@ -268,10 +219,9 @@ function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): CodeRange {
 }
 
 /**
- * The body's display-text bounds: `[start, end)` spans the content lines and
- * excludes both fence lines. `end` reads the body's own trailing ending through
- * `displayLength` — the old `closerStart - 1` assumed a one-character ending, so
- * in a CRLF document the boundary landed BETWEEN the `\r` and the `\n`.
+ * The body's display-text bounds, excluding both fence lines. `end` reads the body's
+ * own trailing ending through `displayLength`, so a CRLF document's boundary does not
+ * land between the `\r` and the `\n`.
  */
 function fenceBodyBounds(slice: ReturnType<typeof sliceFencedCode>): CodeRange {
 	const start = slice.openerLine.length;

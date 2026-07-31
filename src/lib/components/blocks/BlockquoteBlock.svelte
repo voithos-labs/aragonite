@@ -7,10 +7,8 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// Blockquote is a plain strip container, so the seam wires it end to end. Its
-	// collapse gates and kind-command target stay inert (no reservedChrome probe, no
-	// keymap), and `handleKeydown` is deliberately left unwired — a blockquote never
-	// bubbled kind commands, and attaching it would add that behavior.
+	// A plain strip container: the seam wires it end to end. `handleKeydown` stays
+	// unwired on purpose — a blockquote never bubbled kind commands.
 	const { blockListProps, containerApi } = createContainerBlock({
 		getNode: () => node,
 		getIndex: () => index,

@@ -1,29 +1,9 @@
 /**
- * Write-side fence reconciliation for a fenced code block — the one seam every route
- * that commits new display text consults: typing and IME (the surface's
- * `commitInput`) and paste (`computeCodePaste`). `code-fence-boundary.ts` polices
- * WHERE an edit may land; this polices what the block's grammar can hold once it has
- * landed, and rewrites the fence lines when it must. That rewrite is the system
- * answering a legal content edit, not a user editing structure — the same shape as a
- * directive's colon escalation (`escalatedColonCount`).
- *
- * Two rules, both scoped to a CLOSED fence, because a closed fence is what a bad
- * write turns into a block that absorbs the rest of the document:
- *
- *  - ESCALATE. A body line the parser would read as this block's closer grows BOTH
- *    fence runs past it, so the line stays content. Typing ` ``` ` inside a closed
- *    block is then what pasting one has always been: literal text, not a terminator.
- *  - SANITIZE. A backtick anywhere in a backtick fence's info string is
- *    unrepresentable at any fence length (CommonMark §4.5 — the info string may not
- *    contain one), so it is dropped: typing one is inert, and a paste carrying one
- *    lands without it. Tilde fences have no such rule and are left alone.
- *
- * An UNCLOSED fence is left alone by both: its marker run is editable content
- * (`crossesFenceBoundary`), typing a closer there is the authoring gesture that ends
- * the block, and it has no closer to fall out of agreement with. The one exception is
- * a LITERAL write — a paste, whose bytes are content by contract — where an open
- * fence still grows its opener rather than letting the pasted run terminate the
- * block.
+ * Write-side fence reconciliation — the one seam every route committing new display
+ * text consults (typing/IME, paste). `code-fence-boundary.ts` polices WHERE an edit
+ * may land; this polices what the grammar can hold once it has. ESCALATE grows both
+ * runs past a body line that would read as the closer; SANITIZE drops backticks from
+ * a backtick fence's info string (CommonMark §4.5). An authored open fence is exempt.
  */
 
 import { escalatedFenceLength, matchFenceClose } from '../../../core/parsers/fenced-code';
@@ -71,10 +51,8 @@ interface OpenerParts {
 }
 
 /**
- * The opener line split by the block's OWN run length rather than by re-scanning the
- * written line. A backtick typed at the head of the info string reads as a longer run
- * once written (` ```js ` + `` ` `` is ` ````js `), and the whole point is to see it
- * as what it was: a character typed into the info string.
+ * Split by the block's OWN run length, not by re-scanning the written line: a backtick
+ * typed at the head of the info string must read as info, not as a longer run.
  */
 function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
 	const indent = /^ {0,3}/.exec(line)![0];

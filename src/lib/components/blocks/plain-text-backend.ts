@@ -1,9 +1,8 @@
 /**
  * The zero-ambient, widget-free surface backend shared by CodeBlock and the
- * `editable-leaf` seam. Such a surface has no ambient marker and renders no inline
- * widgets, so its DOM-text space IS its raw space: every caret read/write door-mints
- * straight across the two coordinate brands, minted once here rather than at each
- * surface. Surfaces with an ambient marker (TextEditableBlock) use the ambient IO.
+ * `editable-leaf` seam: with no ambient marker and no inline widgets, DOM-text space
+ * IS raw space, so the brand mint happens once here rather than at each surface.
+ * Surfaces with an ambient marker (TextEditableBlock) use the ambient IO instead.
  */
 
 import type { CursorBackend } from './editable-surface';
@@ -51,9 +50,8 @@ export function createContentOffsetBackend(getEl: () => HTMLElement | null): Con
 
 /**
  * Chromium with `white-space: pre` won't paint a caret on the line after a trailing
- * `\n` unless something follows it; typed text routes before the `\n`. A trailing
- * `<br>` anchors the caret on the new line without touching `textContent` (BR has
- * empty textContent, so `textContent === trimTrailingLineEnding(raw)` still holds).
+ * `\n` unless something follows it. A `<br>` anchors it without touching `textContent`
+ * (BR has empty textContent, so `textContent === trimTrailingLineEnding(raw)` holds).
  */
 export function anchorTrailingNewline(el: HTMLElement): void {
 	if (!el.textContent?.endsWith('\n')) return;

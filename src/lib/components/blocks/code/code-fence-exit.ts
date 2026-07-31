@@ -1,11 +1,8 @@
 /**
- * Pure decision for "does pressing Enter exit a fenced code block?". Closed
- * fences exit at the end or by stripping a blank line before the closer. An
- * unclosed fence the caret sits at the end of, on a trailing blank line, exits
- * by MINTING its own closer (`closeAndExit`): the gesture authors a block below
- * the fence, and without a closer a reload lazy-continuation absorbs that block
- * back into the open fence. Returns `none` when Enter falls through to in-block
- * edit handling.
+ * Pure decision for "does pressing Enter exit a fenced code block?". An unclosed
+ * fence exits by MINTING its own closer: the gesture authors a block below, and
+ * without a closer a reload's lazy continuation absorbs that block back in.
+ * `none` means Enter falls through to in-block edit handling.
  */
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
@@ -21,8 +18,7 @@ export interface FenceExitInput {
 export type FenceExitResult =
 	| { kind: 'exit' }
 	| { kind: 'exitWithEdit'; newText: string }
-	// Unclosed fence: `newText` is the code display with its trailing blank line
-	// replaced by the minted closer line (marker char × length, ending-matched).
+	// Unclosed fence: the trailing blank line is replaced by the minted closer line.
 	| { kind: 'closeAndExit'; newText: string }
 	| { kind: 'none' };
 

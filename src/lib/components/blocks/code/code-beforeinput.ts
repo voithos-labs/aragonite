@@ -1,7 +1,6 @@
 /**
- * Pure auto-pair decision for code-block `insertText` events. Decides whether
- * to wrap a selection, skip past an existing closer, or insert a fresh pair —
- * the component owns DOM and CST plumbing, this owns the splice math.
+ * Pure auto-pair decision for code-block `insertText` events: the component owns
+ * the DOM and CST plumbing, this owns the splice math.
  */
 
 import { getCloserFor, shouldAutoClose, shouldSkipClose } from './code-editing';
