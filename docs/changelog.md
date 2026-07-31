@@ -1147,6 +1147,32 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   Shift+Tab dedenting a four-space-indented one to column 0, each split the block while the rule
   sat at two of ten commit sites. One door now, pinned by G4.24 against an eleventh.
 
+- **The published `svelte` peer floor rises to `^5.29.0`, and now says something true.** The
+  declared floor was `^5.0.0`, but `editable-leaf.ts` imports `createAttachmentKey` from
+  `svelte/attachments`, a subpath svelte's `exports` map does not carry before 5.29.0. A consumer
+  anywhere in 5.0 to 5.28 could install without a peer warning and then fail to resolve a core leaf
+  component at import time, so this narrows the promise to the range that already worked rather
+  than dropping anyone who was running. Those two subpaths (`svelte` and `svelte/attachments`) are
+  the whole of what the library imports, and nothing else it uses postdates 5.0, so 5.29.0 is the
+  floor rather than a version picked off the current install.
+
+- **The `katex` peer widens to `^0.17.0 || ^0.18.0`.** A strict superset, so no consumer is
+  dropped: 0.18 hosts are admitted alongside the 0.17 ones that already were. The whole katex use
+  is `renderToString` plus the packaged stylesheet, neither of which moved across the two majors,
+  and both halves are exercised (the root suites run 0.18.1, the consumer smoke renders on 0.17.0).
+
+- **Dependency floors move to clear seven advisories, and `cookie` needs an override to get
+  there.** `@sveltejs/kit`, `postcss`, `brace-expansion`, `dompurify` and `@vitest/browser` all
+  reach their patched versions on ordinary range resolution. `cookie` cannot: kit still declares
+  `cookie: ^0.6.0` at its latest release, so nothing reachable crosses to the patched 0.7. The
+  pin is `^0.7.2`, and the reason it stays on 0.7.x is narrower than a rename. `cookie@0.7.2`
+  ships no type declarations at all (its `files` list is `index.js`), so kit's
+  `import('cookie').CookieSerializeOptions` resolves through the separate `@types/cookie` package,
+  which the override does not touch. A 1.x override would break that by SHADOWING `@types/cookie`
+  with bundled declarations that spell the type `SerializeOptions`. Any future typed release, 0.8
+  included, would do the same. The field is inert for anyone installing aragonite (npm reads
+  `overrides` only from the top-level project) and ships in the tarball as dead metadata.
+
 Ship gates: unit 5913, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
 container-head rows plus the row-shape verification at the batch base). The e2e figure is the
