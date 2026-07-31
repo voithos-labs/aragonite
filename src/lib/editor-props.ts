@@ -1,7 +1,6 @@
 /**
- * Public prop and instance-handle types for <Editor>. Single source of truth:
- * Editor.svelte annotates its $props() and instance surface against these, and
- * index.ts re-exports them — so neither can drift from the component.
+ * Public prop and instance-handle types for <Editor>. Editor.svelte annotates its
+ * $props() and instance surface against these, so neither can drift from the component.
  */
 import type { Snippet } from 'svelte';
 import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
@@ -25,41 +24,29 @@ export interface EditorProps {
 	resolveLinkUrl?: ResolveLinkUrl;
 	imageLoadPolicy?: ImageLoadPolicy;
 	onLinkActivate?: (url: string, event: MouseEvent) => void;
-	/** Import hook for image-bearing pastes, set once at mount. Each image file on
-	 *  the clipboard is offered in order; the markdown returned is inserted at the
-	 *  caret the paste fired from, and `null` skips that image. Installing it takes
-	 *  the whole paste — the clipboard's `text/plain` is not pasted as well. Without
-	 *  it, an image-bearing paste behaves as it does with no image support at all. */
+	/** Import hook for image-bearing pastes, set once at mount. Each image file is offered
+	 *  in order and the markdown returned is inserted at the caret; `null` skips it.
+	 *  Installing it takes the WHOLE paste — the clipboard's `text/plain` is not pasted. */
 	onPasteImage?: PasteImageHook;
-	/** Host chrome rendered INSIDE the editor's scroll container, above the first
-	 *  block: a document title, properties panel, tag row. It scrolls away with the
-	 *  document instead of pinning above it, which is what lets the editor keep its
-	 *  own scrollport (and virtual rendering) — an outer host scroller would forfeit
-	 *  both. A slot that changes height while the reader is scrolled down does not
-	 *  slide the document under them; at the top of the document growth pushes
-	 *  content down, which is what a reader looking at the header expects. With
-	 *  `scrollMode='host'` the shift is left to the host page — the editor never
-	 *  writes an ancestor's scroll position. */
+	/** Host chrome rendered INSIDE the editor's scroll container, above the first block
+	 *  (a title, properties panel, tag row). It scrolls away with the document rather than
+	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */
 	header?: Snippet;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
-	/** Who owns the scroll, set once at mount. `'self'` (default) makes the editor
-	 *  root its own scrollport and virtual rendering keeps the mounted set O(viewport).
-	 *  `'host'` is embedded flow mode: the root grows to its content and an ancestor
-	 *  scrolls it, so windowing never activates and EVERY block stays mounted — for
-	 *  small embedded documents (a journal entry), never a whole file. */
+	/** Who owns the scroll, set once at mount. `'self'` (default) makes the root its own
+	 *  scrollport, so windowing keeps the mounted set O(viewport). `'host'` lets an
+	 *  ancestor scroll it: windowing never activates and EVERY block stays mounted, which
+	 *  suits a small embedded document, never a whole file. */
 	scrollMode?: 'self' | 'host';
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */
 	theme?: string;
-	/** Read live, like `theme`. `'source'` (default) is styled-source editing;
-	 *  `'reading'` hides markers, renders widgets, and is read-only
-	 *  (selection/copy/navigation stay); `'preview-block'` and `'preview-inline'`
-	 *  are live-editing preview rungs that reveal source per focused block or per
-	 *  caret-touched construct. Every mode read (the `data-presentation` root
-	 *  attribute, plugin getters) reports the effective mode, which equals the
-	 *  requested one. */
+	/** Read live, like `theme`. `'source'` (default) is styled-source editing; `'reading'`
+	 *  hides markers, renders widgets, and is read-only (selection/copy/navigation stay);
+	 *  `'preview-block'` and `'preview-inline'` are live-editing rungs that reveal source
+	 *  per focused block or per caret-touched construct. */
 	presentationMode?: PresentationMode;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
@@ -74,22 +61,11 @@ export interface EditorInstance {
 	getSource(): string;
 	getSelection(): EditorSelection | null;
 	/**
-	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into
-	 * view first, and a true result means it got there — not merely that it mounted.
-	 *
-	 * An out-of-range offset clamps to the end of its block, in that endpoint's own
-	 * coordinate space: character offsets clamp to the block's source length, but an
-	 * endpoint addressing a TABLE block carries a row-major cell index and clamps to
-	 * the last cell (the `cellCoordinate` endpoints of {@link EditorSelection}) — a
-	 * large offset there becomes the bottom-right cell, not a character position.
-	 *
-	 * Never throws. Resolves false in three cases, which differ in their effect: a
-	 * path that no longer addresses a block is declined before anything happens
-	 * (no scroll, no focus, no state write); a path that resolves in the tree but
-	 * whose element is absent from the DOM has already scrolled and re-established
-	 * cross-block state by the time placement fails; and a placement that lands
-	 * while the scroll cannot settle the target into view reports false too,
-	 * because the boolean promises in-view rather than merely placed.
+	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
+	 * first, and true means it got there, not merely that it mounted. Never throws: an
+	 * out-of-range offset clamps in that endpoint's own coordinate space (a TABLE
+	 * endpoint's row-major cell index clamps to the last cell, not a character position),
+	 * and an unresolvable path or an unsettled scroll resolves false.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	getEvents(): EditorEvents;
@@ -100,13 +76,9 @@ export interface EditorInstance {
 }
 
 /**
- * The diagnostics door: arm the interaction trace, read it, and serialize an
- * attachable field report for a bug ticket. The recorder ships default-off, so a
- * consumer opts in (`enableTrace()`), reproduces, then serializes. The trace is
- * process-global: two editor instances interleave their entries.
- *
- * Grows as fields: future diagnostics arrive as more methods on this one object,
- * never a second door — the additive rule the whole extension surface follows.
+ * The diagnostics door: arm the interaction trace, read it, and serialize an attachable
+ * field report. The recorder ships default-off, so a consumer opts in, reproduces, then
+ * serializes. The trace is process-global — two instances interleave their entries.
  */
 export interface EditorDiagnostics {
 	enableTrace(): void;
@@ -114,9 +86,8 @@ export interface EditorDiagnostics {
 	isTraceEnabled(): boolean;
 	traceSnapshot(): InteractionTraceEntry[];
 	/**
-	 * A fenced-markdown snapshot (timestamp, trace tail, ops-log tail, selection).
-	 * The document source is EXCLUDED by default — a field report must not leak the
-	 * document; pass `{ includeSource: true }` to opt in.
+	 * A fenced-markdown snapshot (timestamp, trace tail, ops-log tail, selection). The
+	 * document source is EXCLUDED by default; pass `{ includeSource: true }` to opt in.
 	 */
 	serializeDiagnostics(opts?: { includeSource?: boolean }): string;
 }

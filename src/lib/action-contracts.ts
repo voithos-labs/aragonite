@@ -1,8 +1,6 @@
 /**
- * Every action interface a block component invokes upward through Svelte
- * context, plus the commit vocabulary those calls are expressed in and the
- * per-container contracts a parent exposes to its own children. The section
- * dividers below are the index; this header deliberately doesn't restate them.
+ * Every action interface a block component invokes upward through Svelte context, plus
+ * the commit vocabulary those calls are expressed in.
  */
 
 import type { CstNode, TableAlignment } from './core/nodes';
@@ -14,41 +12,31 @@ import type { ScopedOpDescriptor } from './schema/operations';
 import type { DocPath } from './selection/path-math';
 
 /**
- * No-caret caret-restore coordinate stored with a commit's undo snapshot:
- * `path` is the `DocPath` dialect and must resolve in the pre-mutation tree.
- * `'skip'` joins the caller's already-pushed entry (composite operations). The
- * scope factories (`block-edit-scope.ts`) mint the path from local indices;
- * other op families compose it through the `path-math` mint helpers.
+ * Caret-restore coordinate stored with a commit's undo snapshot: `path` is the `DocPath`
+ * dialect and must resolve in the pre-mutation tree; `'skip'` joins the caller's
+ * already-pushed entry. Minted by the scope factories (`block-edit-scope.ts`) or the
+ * `path-math` helpers, never composed at a call site.
  */
 export type CommitSnapshotArg = { path: DocPath; offset: number } | 'skip';
 
 /**
- * Who owns the undo entry for an operation. `'own'` (the default): the
- * implementation pushes its own entry. `'join'`: the caller has already
- * pushed the one entry covering this composite operation — the
- * implementation must not push another.
+ * Who owns the undo entry: `'own'` (the default) pushes one, `'join'` means the caller
+ * already pushed the entry covering this composite operation and this must not add one.
  */
 export type UndoEntryMode = 'own' | 'join';
 
 /**
- * Opt-in for structural commits (split/merge/delete) that can legitimately no-op
- * — a chrome `block.split` (single-line, unsplittable) or a merge with no
- * reachable text leaf. When the mutation reports no structural change, the
- * ceremony discards the pre-captured snapshot: no undo entry, no edit event, no
- * publish (`afterTick` still runs — caret placement is a view concern). NOT for
- * content/metadata commits, whose `noop` StructuralChange means "structure held,
- * bytes changed" and MUST still publish.
+ * Opt-in for structural commits that can legitimately no-op. The ceremony then discards
+ * the pre-captured snapshot: no undo entry, no edit event, no publish (`afterTick` still
+ * runs — caret placement is a view concern). NOT for content/metadata commits, whose
+ * `noop` StructuralChange means "structure held, bytes changed" and MUST still publish.
  */
 export type DiscardIfNoop = boolean;
 
 /**
- * Post-tick view callback — where a commit lands its caret. Awaited, so a
- * landing that must first reveal an off-window target (VR-12) is expressible
- * here rather than fire-and-forget. A reveal is bounded (VR-5 degrades instead
- * of waiting for a mount that can never fire), so awaiting cannot hang. What a
- * landing hands back is still its own choice: one that deliberately does not
- * make the commit wait on it — blockquote-exit voids its upward moveFocus —
- * says so by returning nothing, and that stays a property the seam declares.
+ * Post-tick view callback — where a commit lands its caret. Awaited, so a landing that
+ * must first reveal an off-window target (VR-12) is expressible here; the reveal is
+ * bounded (VR-5), so awaiting cannot hang. Returning nothing opts out of the wait.
  */
 export type CommitAfterTick = () => void | Promise<void>;
 
@@ -57,21 +45,17 @@ export type CommitAfterTick = () => void | Promise<void>;
 export interface BlockEditActions {
 	splitBlock(blockIndex: number, offset: number): void | Promise<void>;
 	/**
-	 * Focus the block after `blockIndex` in this scope, minting an empty paragraph
-	 * when `blockIndex` is the last child. Two callers: the reserved-chrome Enter
-	 * gesture (descend from a chrome leaf into its body), and the closed-fence
-	 * Enter-exit landing its new paragraph inside the fence's own container. A next
-	 * block whose ref is off-window leaves the caret put (the key is still consumed).
+	 * Focus the block after `blockIndex` in this scope, minting an empty paragraph when
+	 * it is the last child. An off-window next block leaves the caret put, key consumed.
 	 */
 	descendToBody(blockIndex: number): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
 	/**
-	 * `preEditOffset` is the cursor anchor for the undo snapshot — restored on Ctrl+Z.
-	 * `postEditFocusOffset` is where the caret lands when a kind change remounts the
-	 * block (e.g. typing `# ` converts paragraph → heading). Defaults to preEditOffset
-	 * for callers that don't trigger kind transitions.
+	 * `preEditOffset` is the undo snapshot's cursor anchor; `postEditFocusOffset` is where
+	 * the caret lands when a kind change remounts the block (typing `# ` on a paragraph),
+	 * defaulting to `preEditOffset`.
 	 */
 	updateBlockContent(
 		blockIndex: number,
@@ -80,21 +64,15 @@ export interface BlockEditActions {
 		postEditFocusOffset?: number
 	): void | Promise<void>;
 	/**
-	 * Where a caret at `offset` lands once this scope has committed `text` — the
-	 * image of a container's `bodyWrite` rewrite, so a surface whose committed
-	 * bytes differ from its DOM can seat the caret on the bytes rather than on
-	 * what was typed. Identity when the scope rewrites nothing. Absent on scopes
-	 * with no container to answer for (the document root).
+	 * Where a caret at `offset` lands once this scope has committed `text` — the image of
+	 * a container's `bodyWrite` rewrite, so a surface whose committed bytes differ from
+	 * its DOM seats the caret on the bytes. Identity when the scope rewrites nothing.
 	 */
 	mapCommittedOffset?(text: string, offset: number): number;
 	/**
-	 * Mutate block metadata without touching raw. For adornments that express
-	 * state as metadata rather than raw syntax (task checkboxes, etc.) — NOT
-	 * for raw-driven metadata like heading level (change via updateBlockContent).
-	 *
-	 * Patch is shallow-merged. Empty patch is a no-op. `afterTick` runs once the
-	 * commit's DOM has settled — the post-commit caret hook (a collapse toggle
-	 * moves the orphaned body caret to its chrome row here).
+	 * Mutate block metadata without touching raw — for state expressed as metadata (task
+	 * checkboxes), NOT raw-driven metadata like heading level (use updateBlockContent).
+	 * The patch is shallow-merged; an empty patch is a no-op.
 	 */
 	updateBlockMetadata(
 		blockIndex: number,
@@ -115,11 +93,9 @@ export interface BlockEditActions {
 
 export interface MoveFocusOptions {
 	/**
-	 * When false, a move past the true document end no-ops instead of appending a
-	 * trailing paragraph. Only the root append is suppressed; sibling moves and
-	 * upward delegation are unaffected. Defaults to true (Enter/split rely on the
-	 * append). Forward-Delete at a block's trailing boundary passes false: it is a
-	 * focus move when a next block exists, a no-op at the document end.
+	 * When false, a move past the true document end no-ops instead of appending a trailing
+	 * paragraph; only the root append is suppressed, sibling moves and upward delegation
+	 * are unaffected. Defaults to true (Enter/split rely on the append).
 	 */
 	append?: boolean;
 }
@@ -140,10 +116,9 @@ export interface HistoryActions {
 }
 
 /**
- * Owned mutation view handed to a container/multi-scope commit's `mutate`.
- * `node` is the unshared copy already spliced into the live tree with
- * `children` attached — never write through references captured before the
- * commit; they may be stale snapshot-shared originals.
+ * Owned mutation view handed to a container/multi-scope commit's `mutate`: `node` is the
+ * unshared copy already spliced into the live tree. Never write through references
+ * captured before the commit — they may be stale snapshot-shared originals.
  */
 export interface ContainerScope {
 	node: CstNode;
@@ -152,9 +127,7 @@ export interface ContainerScope {
 }
 
 // ── Multi-scope commit ──────────────────────────────────────────────────────
-// Single-sourced here (the contracts leaf) so the commit/undo layer
-// (editor-actions) and the paste layer (tree-operations/paste) share one
-// definition instead of each redeclaring it.
+// Single-sourced here so the commit/undo and paste layers share one definition.
 
 export interface MultiScopeTarget {
 	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
@@ -209,10 +182,9 @@ export interface CommitContainerStructuralArgs {
 }
 
 /**
- * Selection-free commit surface: snapshot pushers and the structural commit
- * primitives. Lives in the contracts leaf so the selection layer can depend on
- * it without dragging in `EditorSelection`/`UndoEntry`. `UndoController`
- * (editor-actions/deps) extends this with the two selection-typed members.
+ * Selection-free commit surface, so the selection layer can depend on it without
+ * dragging in `EditorSelection`/`UndoEntry`. `UndoController` (editor-actions/deps)
+ * extends it with the two selection-typed members.
  */
 export interface CommitController {
 	/** Editor's sharing epoch state, exposed for out-of-ceremony copy-path-on-write. */
@@ -240,37 +212,28 @@ export interface CommitController {
 
 export interface ContainerEditActions {
 	/**
-	 * Push a debounced undo snapshot for routine text input. `leafPath` is the
-	 * edited leaf's doc-absolute path (it seeds the snapshot's no-caret restore
-	 * point and the batched `input` event). `batchKey` (the leaf's stable block
-	 * id, when supplied) breaks the batch on focus moves between sibling leaves.
+	 * Push a debounced undo snapshot for routine text input. `leafPath` is the edited
+	 * leaf's doc-absolute path; `batchKey` (its stable block id) breaks the batch on
+	 * focus moves between sibling leaves.
 	 */
 	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
-	 * Publish a raw change the caller made outside the commit primitive — a
-	 * `doc.children = [...doc.children]` reactivity nudge at the editor root,
-	 * forwarded unchanged through nested containers. Raw rebuilds are NOT part
-	 * of the nudge: out-of-ceremony writers rebuild via `withUnsharedSpine`
-	 * (or the sharing-aware rebuild helpers), which operate on owned copies.
+	 * Publish a raw change made outside the commit primitive, forwarded unchanged through
+	 * nested containers. Raw rebuilds are NOT part of the nudge — out-of-ceremony writers
+	 * rebuild via `withUnsharedSpine`, which operates on owned copies.
 	 */
 	nudgeReactivity(): void;
 	/**
-	 * Copy-path-on-write wrapper for out-of-ceremony writes (routine typing):
-	 * unshares the spine doc-root → `absPath`, invokes `write` with the owned
-	 * chain (outermost first), then rebuilds the chain's container raws
-	 * innermost-first. Caller still pushes its own checkpoint and nudges.
-	 *
-	 * Returns true when the rebuild re-derived a different kind for a container on
-	 * the spine (typing the rest of a `> [!TIP]` marker). The slot keeps its id, so
-	 * the keyed wrapper survives — but BlockHost dispatches a different inner
-	 * component for the new kind, and the edited leaf goes with the old one, so the
-	 * caller owns placing the caret again.
+	 * Copy-path-on-write wrapper for out-of-ceremony writes (routine typing): unshares the
+	 * spine doc-root → `absPath`, calls `write` with the owned chain (outermost first),
+	 * rebuilds innermost-first. The caller still pushes its own checkpoint and nudges.
+	 * True means the rebuild re-derived a container's kind (typing the rest of a
+	 * `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
 	 */
 	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean;
 	/**
-	 * Preferred entry for structural container mutations. Routes through the
-	 * unified commit primitive: spine unshare + snapshot + publish + edit
-	 * event + post-tick. `mutate` receives the OWNED container with its
+	 * Preferred entry for structural container mutations: spine unshare, snapshot,
+	 * publish, edit event, post-tick. `mutate` receives the OWNED container with its
 	 * working children attached — mutate through it, never through captures.
 	 */
 	commitContainer(args: CommitContainerStructuralArgs): Promise<void>;
@@ -338,11 +301,9 @@ export interface TableContext {
 }
 
 /**
- * The TableContext mutations addressed by ONE axis index — the vocabulary the
- * affordance menu's items and the cell's table commands both dispatch through.
- * Derived from the contract rather than listed beside it, so a member whose
- * signature is not `(index) => Promise<void>` (a two-coordinate reorder, a sticky
- * write) cannot be named by either caller.
+ * The TableContext mutations addressed by ONE axis index, the vocabulary the affordance
+ * menu and the cell's table commands both dispatch through. Derived from the contract
+ * rather than listed beside it, so a member with any other signature cannot be named.
  */
 export type TableAxisAction = {
 	[K in keyof TableContext]: TableContext[K] extends (index: number) => Promise<void> ? K : never;

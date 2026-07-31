@@ -1,10 +1,9 @@
 /**
- * The view-layer contract every rendered block satisfies, plus the cursor
- * sentinels and ambient-prefix shape block components produce and consume.
- * Orchestration reaches a block only through this interface, so a capability a
- * block lacks is an omitted optional member rather than a kind check upstream.
- * This file is authoritative for external authors: each member's docstring
- * states its contract (docs/design/editor.md § The block interface).
+ * The view-layer contract every rendered block satisfies, plus the cursor sentinels
+ * and ambient-prefix shape blocks produce. Orchestration reaches a block only through
+ * this interface, so a capability a block lacks is an omitted optional member rather
+ * than a kind check upstream. Authoritative for external authors: each member's
+ * docstring states its contract (docs/design/editor.md § The block interface).
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
@@ -21,10 +20,9 @@ declare const selectionEndBrand: unique symbol;
 export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
 
 /**
- * "Place cursor at end of content." The focus walkers fall through to their
- * end-of-content fallback whenever the requested offset exceeds the block's
- * length, so MAX_SAFE_INTEGER lands at the end of any block. A finite value
- * (the former 999999) instead landed mid-block once content was longer.
+ * "Place cursor at end of content." Focus walkers fall through to their end-of-content
+ * fallback when the offset exceeds the block's length, so MAX_SAFE_INTEGER always lands
+ * there — a finite sentinel lands mid-block once content outgrows it.
  */
 export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
 
@@ -32,10 +30,9 @@ export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
 export const FOCUS_LAST_START = -1;
 
 /**
- * "End of this block's measurable range" for measurePartialRects' endOffset.
- * Each surface interprets it in its own coordinate system; MAX_SAFE_INTEGER
- * lets text surfaces fall through to native range clamping without special-
- * casing, and TableBlock matches it explicitly to select through the last cell.
+ * "End of this block's measurable range" for measurePartialRects' endOffset. Each
+ * surface interprets it in its own coordinate system: text falls through to native
+ * range clamping, TableBlock matches it explicitly to reach the last cell.
  */
 export const SELECTION_END = Number.MAX_SAFE_INTEGER as SelectionEnd;
 
@@ -48,9 +45,8 @@ export const SELECTION_END = Number.MAX_SAFE_INTEGER as SelectionEnd;
 export type StickyColumnDirection = 'above' | 'below';
 
 /**
- * Focus position for moveFocus. The sticky-column variant aligns the cursor
- * to the current sticky X on the target's first or last visual line, falling
- * back to focus(0) / focus(CURSOR_END) when focusAtColumn is unimplemented.
+ * Focus position for moveFocus. The sticky-column variant aligns to the current sticky
+ * X on the target's first/last visual line, falling back to focus(0) / focus(CURSOR_END).
  */
 export type FocusPosition = 'start' | 'end' | number | { stickyColumnFrom: StickyColumnDirection };
 
@@ -70,10 +66,8 @@ export type AmbientPrefix = string | { text: string; interactive?: AmbientIntera
 // ── BlockComponentProps ──────────────────────────────────────────────────────
 
 /**
- * The props BlockHost passes every block component: the node, its sibling index,
- * the absolute path, and the ambient prefix a leaf renders before its content (a
- * list marker, a blockquote bar). A registry `extraProps` may add kind-specific
- * props on top. A component may declare a subset — Svelte ignores props it omits,
+ * The props BlockHost passes every block component; a registry `extraProps` may add
+ * kind-specific ones. A component may declare a subset — Svelte ignores props it omits,
  * but a leaf that drops `ambientPrefix` visually deletes its markers.
  */
 export interface BlockComponentProps {
@@ -81,12 +75,12 @@ export interface BlockComponentProps {
 	node: NodeView;
 	index: number;
 	myPath: number[];
+	/** Container-contributed read-only prefix rendered before the block's own raw (a list item's `- `). */
 	ambientPrefix: AmbientPrefix;
 	/** The root document, readonly by type — mutation stays a commit-ceremony concern. */
 	document?: DocumentView;
 	/** The owning instance's rect surface: measure/reveal/scroll by path. The live
-	 *  instance object (delivered through editor context), so a block navigating to
-	 *  another block shares the editor's one seam. */
+	 *  instance object, so a block navigating to another shares the editor's one seam. */
 	rects?: EditorRects;
 }
 
@@ -94,45 +88,30 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Place the caret at `offset`, focusing the surface, and end any live
-	 * cross-block range so the new caret owns the selection. Two sentinels arrive
-	 * through this same `number`: `CURSOR_END` (past any length, meaning end of
-	 * content) and `FOCUS_LAST_START` (`-1`, which a leaf clamps to 0 and a
-	 * container cascades into its last child). An out-of-range offset must clamp,
-	 * never throw. A raw DOM seek on `-1` raises IndexSizeError and loses the caret.
-	 *
-	 * The safe default, and the door to reach for: a caret that lands inside a
-	 * range left live is a document the next keystroke type-replaces. Implement it
-	 * by minting `selection/caret-doors.ts`' `placeCaret` over {@link parkCaret},
-	 * never by hand — the range-ending has to be batched with the landing or a
-	 * `selectionChange` subscriber reads back the outgoing caret.
+	 * Place the caret at `offset`, focusing the surface, and end any live cross-block
+	 * range — the safe default door. `CURSOR_END` and `FOCUS_LAST_START` (`-1`) arrive
+	 * through this same `number`; an out-of-range offset must clamp, never throw.
+	 * Implement by minting `selection/caret-doors.ts`' `placeCaret` over {@link parkCaret},
+	 * never by hand: the range-ending has to be batched with the landing.
 	 */
 	focus(offset: number): void;
 	/**
-	 * `focus` WITHOUT the range-ending: seat the caret and touch nothing else.
-	 *
-	 * For selection-extend paths only. The cross-block dispatcher parks a caret in
-	 * an endpoint it has just revealed so the next keystroke stays routed, while the
-	 * extend is still growing the range that a `focus` would cancel. Any other
-	 * caller wants `focus`. Omitting it costs an extend nothing but the parked
-	 * caret: focus falls to the editor root, whose document-level listener routes
-	 * the next cross-block keystroke anyway. Both doors are pinned by
-	 * `e2e/tests/selection/public-caret-doors.spec.ts`; G2.12 guards the callers.
+	 * `focus` WITHOUT the range-ending: seat the caret and touch nothing else. For
+	 * selection-extend paths only (G2.12 guards the callers), where a `focus` would
+	 * cancel the range still being grown; any other caller wants `focus`. Both doors are
+	 * pinned by `e2e/tests/selection/public-caret-doors.spec.ts`.
 	 */
 	parkCaret?(offset: number): void;
 	/**
 	 * Caret position as a raw offset into this block's own bytes: ambient markers
-	 * excluded, a widget counted as the source bytes it stands for. `null` means
-	 * the caret is not in this block, which is how dispatch walks refs to find the
-	 * focused one, so returning 0 for "not focused" breaks that walk.
+	 * excluded, a widget counted as the source bytes it stands for. `null` (never 0)
+	 * means not in this block — dispatch walks refs to find the focused one.
 	 */
 	getCursorOffset(): number | null;
 	/**
-	 * The current selection's rendered text, or `''` when the block is unmounted
-	 * or nothing is selected. Read from the platform selection and NOT clipped to
-	 * this block, so during a cross-block selection it returns the whole range.
-	 * Rendered, not raw: a widget contributes what it draws (a decoded glyph, or
-	 * nothing), so a caller that needs this block's bytes slices `raw` instead.
+	 * The current selection's rendered text, or `''` when unmounted or nothing is
+	 * selected. NOT clipped to this block: a cross-block selection returns the whole
+	 * range. Rendered, not raw — a caller needing this block's bytes slices `raw`.
 	 */
 	getSelectedText?(): string;
 	/**
@@ -141,109 +120,84 @@ export interface BlockComponent {
 	 */
 	setSelection?(start: number, end: number): void;
 	/**
-	 * Position the cursor at the offset nearest to editor-relative pixel X
-	 * on the first (`'above'`) or last (`'below'`) visual line. Non-
-	 * participating blocks omit this; callers fall back to focus(0) / CURSOR_END.
-	 *
-	 * Range semantics differ from {@link focus} and are deliberately narrower: this
-	 * inherits {@link parkCaret}'s behavior and does NOT end a live cross-block range.
-	 * It is a column landing for vertical traversal, which the cross-block dispatcher
-	 * cannot reach — a plain ArrowUp/Down with a range live is consumed by the collapse
-	 * before sticky-column dispatch runs. A caller placing a caret because the USER
-	 * acted wants `focus`. If a range-live caller ever appears, this routes through the
-	 * same `placeCaret` door additively: the range-ending is behavior, not shape.
+	 * Position the cursor at the offset nearest editor-relative pixel X on the first
+	 * (`'above'`) or last (`'below'`) visual line; callers fall back to focus(0) /
+	 * CURSOR_END when a block omits it. Inherits {@link parkCaret}'s semantics — it does
+	 * NOT end a live cross-block range, which vertical traversal can never reach.
 	 */
 	focusAtColumn?(x: number, from: StickyColumnDirection): void;
 	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */
 	focusByPath?(path: number[], offset: number): void;
 	/**
-	 * Descend a path of child indices and return the BlockComponent at the
-	 * leaf, or null if the path doesn't resolve. Empty `path` returns the
-	 * current component. Container blocks implement it; leaf blocks rely on
-	 * the default behavior (the path must be empty to match).
+	 * Descend child indices to the BlockComponent at the leaf, or null if the path
+	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
 	 */
 	getBlockComponentByPath?(path: number[]): BlockComponent | null;
 	/**
-	 * Async sibling of getBlockComponentByPath: at each nested level, scroll the
-	 * child into its window and await its mount before recursing, so an off-window
-	 * target resolves instead of returning null. Adjacent (already-mounted) targets
-	 * resolve via the fast path with no scroll.
+	 * Async sibling of getBlockComponentByPath: at each nested level, scroll the child
+	 * into its window and await its mount before recursing, so an off-window target
+	 * resolves instead of returning null.
 	 */
 	revealByPath?(path: number[]): Promise<BlockComponent | null>;
 	/**
-	 * Deep cursor position for nested-block surfaces (e.g., table cells).
-	 * Returns the path from this block to the leaf containing the cursor,
-	 * plus the within-leaf offset. When implemented, Editor.svelte's
-	 * getSelection() prefers this over getCursorOffset.
+	 * Deep cursor position for nested-block surfaces (table cells): the path from this
+	 * block to the leaf holding the cursor, plus the within-leaf offset. Preferred over
+	 * getCursorOffset by getSelection() when implemented.
 	 */
 	getCursorPosition?(): { path: number[]; offset: number } | null;
 	/**
-	 * Viewport-space rects covering [startOffset, endOffset) in this block's
-	 * visible text, for cross-block selection painting. Accepts SELECTION_END
-	 * as endOffset to mean "from startOffset through the last measurable
-	 * position in this block"; surfaces interpret per their coordinate
-	 * system (see the SELECTION_END docstring).
+	 * Viewport-space rects covering [startOffset, endOffset) in this block's visible
+	 * text, for cross-block selection painting. Accepts SELECTION_END as endOffset,
+	 * which surfaces interpret per their own coordinate system.
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
 	/**
-	 * Viewport-space rect of a single cell, addressed by 2D coordinate. For
-	 * whole-cell highlighting (search matches) on grid surfaces, where the
-	 * caller has a `[rowIdx, colIdx]` and wants that cell's box directly,
-	 * bypassing measurePartialRects' selection-aware range logic. Returns null
+	 * Viewport-space rect of a single cell by 2D coordinate — whole-cell highlighting on
+	 * grid surfaces, bypassing measurePartialRects' selection-aware range logic. Null
 	 * when the cell isn't mounted or the coordinate is out of range.
 	 */
 	cellRect?(rowIdx: number, colIdx: number): DOMRect | null;
 	/**
-	 * Current mounted row-window `[start, end)` of a row-windowed grid surface
-	 * (table). Overlays read it reactively so a repaint fires after the window
-	 * re-slices and the new rows are committed (off-window rows can't paint until
-	 * mounted). Absent on non-windowed-grid blocks.
+	 * Current mounted row-window `[start, end)` of a row-windowed grid surface. Overlays
+	 * read it reactively so a repaint fires once the re-sliced rows are committed —
+	 * off-window rows can't paint until mounted.
 	 */
 	mountedRowWindow?(): { start: number; end: number };
 	/**
-	 * True when vertical traversal (ArrowUp/Down sticky-column dispatch)
-	 * should pass straight through this block — the block has no caret-able
-	 * text positions of its own, only widgets that carry no column meaning.
-	 * Decided from the CST rather than from mounted refs, so a container answers
-	 * the same for an off-window child: it is transparent when every child is.
+	 * True when vertical traversal should pass straight through: no caret-able text
+	 * positions of its own, only widgets carrying no column meaning. Decided from the
+	 * CST, not mounted refs, so a container answers the same for an off-window child.
 	 */
 	isVerticallyTransparent?(): boolean;
 	/**
-	 * Enter an edge widget instead of placing a caret at its boundary. What
-	 * "enter" means belongs to the widget kind's registered
-	 * `InlineWidgetEditingPolicy` (`revealSource`, `onEdge`), which is an open
-	 * vocabulary, not a two-way reveal-or-select choice. Read that type before
-	 * implementing an else-branch. Returns true when an edge widget was entered;
-	 * false lets the caller fall through to focus(0) / focus(CURSOR_END).
+	 * Enter an edge widget instead of placing a caret at its boundary. What "enter" means
+	 * belongs to the kind's registered `InlineWidgetEditingPolicy` — an open vocabulary,
+	 * not a two-way choice. False lets the caller fall through to focus(0) / CURSOR_END.
 	 */
 	enterEdgeWidget?(side: 'start' | 'end'): boolean;
 	/**
-	 * Run a named block-local command (split, indent, format, …) resolved from
-	 * a keybinding. `arg` carries the binding's static argument (e.g. heading
-	 * level) as `unknown`: the handler must type-guard it before use and ignore
-	 * an out-of-shape value. Returns true when the command acted; false lets the
-	 * caller fall through to remaining inline keydown branches. Block components
-	 * that declare a keymap implement this; others omit it.
+	 * Run a named block-local command resolved from a keybinding. `arg` carries the
+	 * binding's static argument as `unknown` — the handler must type-guard it and ignore
+	 * an out-of-shape value. False lets the caller fall through to later keydown branches.
 	 */
 	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
 	/**
-	 * Current raw-offset selection in an editable leaf (table cell), collapsed
-	 * caret returned as `{start: n, end: n}`. Captured before a right-click menu
-	 * steals focus so a later clipboard action can restore the exact range.
+	 * Current raw-offset selection in an editable leaf, a collapsed caret as
+	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
 	 */
 	getSelectionOffsets?(): { start: number; end: number } | null;
 	/**
-	 * Run a clipboard action from the table cell's right-click menu against the
-	 * offsets captured at menu-open (focus/selection may have moved since).
+	 * Run a clipboard action from the table cell's right-click menu against the offsets
+	 * captured at menu-open (focus/selection may have moved since).
 	 */
 	applyMenuClipboard?(
 		action: 'cut' | 'copy' | 'paste',
 		sel: { start: number; end: number }
 	): Promise<void>;
 	/**
-	 * Whether this component's own surface takes text input. NOT the flag the
-	 * editor gates on: merge eligibility and search read the *descriptor*'s
-	 * `editable` for the kind. Keep the two in agreement.
+	 * Whether this component's own surface takes text input. NOT the flag the editor
+	 * gates on: merge eligibility and search read the *descriptor*'s `editable` for the
+	 * kind. Keep the two in agreement.
 	 */
 	readonly editable: boolean;
 	/** Whether focus may land on this block at all. This is the flag focus dispatch reads. */
@@ -253,10 +207,9 @@ export interface BlockComponent {
 // ── Published instance surface ─────────────────────────────────────────────
 
 /**
- * The surface with every member a container owes promoted to required. A caret
- * entering a container has to descend, so the descent verbs are not "implement if
- * you can" the way a leaf's optionals are. `createContainerBlockComponent` returns
- * this; a hand-rolled container annotates its own export with it.
+ * Every member a container owes, promoted to required: a caret entering a container has
+ * to descend, so the descent verbs are not "implement if you can" the way a leaf's
+ * optionals are. `createContainerBlockComponent` returns this.
  */
 export type ContainerBlockComponent = BlockComponent &
 	Required<
@@ -274,27 +227,19 @@ export type ContainerBlockComponent = BlockComponent &
 	>;
 
 /**
- * What a mounted block component publishes through `bind:this`. A leaf publishes
- * the surface itself. A container publishes it under ONE well-known export:
- * Svelte 5 instance exports are individual top-level declarations with no spread,
- * and re-exporting a dozen members by hand let four blocks silently drop one.
- *
- * The union is the enforcement, and the container arm is `ContainerBlockComponent`
- * rather than `BlockComponent` so it carries the completeness the retired
- * per-member `satisfies` guard used to: a container publishing a leaf-grade
- * `containerApi` is a `defineBlockComponent` type error at its registration site,
- * exactly as one publishing nothing is.
+ * What a mounted block component publishes through `bind:this`: a leaf publishes the
+ * surface itself, a container publishes it under the one `containerApi` export (Svelte 5
+ * instance exports are individual declarations with no spread, so re-exporting a dozen
+ * members by hand drops one). The union is the enforcement — a container publishing a
+ * leaf-grade surface is a type error at its `defineBlockComponent` registration site.
  */
 export type BlockComponentExports =
 	BlockComponent | { readonly containerApi: ContainerBlockComponent };
 
 /**
  * The `BlockComponent` behind a published instance — the one point that knows a
- * container's surface hides under `containerApi`.
- *
- * Returns the object it was handed, never a wrapper: `publishRefSlot` clears a ref
- * slot only while it still holds the ref it wrote, so a fresh identity per read
- * would stomp a neighbour's slot.
+ * container's surface hides under `containerApi`. Returns the object it was handed,
+ * never a wrapper: `publishRefSlot` compares identity, so a fresh one stomps a slot.
  */
 export function resolveBlockSurface(
 	exports: BlockComponentExports | undefined

@@ -1,24 +1,9 @@
 /**
- * Which editor a document-level chord routes to when no block holds native focus.
- *
- * Each editor's document-level keydown handler owns undo/redo, plugin-global
- * chords, cross-block motion, and the search shortcuts for the case where focus is
- * not inside the editor — the caret's block windowed out (or was never placed) to
- * `<body>`, or a sibling control (a toolbar toggle) holds focus. The keydown
- * listener sees every editor's keystrokes on the page, so `claimsBodyChord`
- * resolves the single claimant:
- *
- *   - the editor the user last interacted with, when that claim is still live
- *     (`focusin` marks it; its editor still mounted); else
- *   - the sole mounted editor — a lone editor always claims its own body chords,
- *     even before first focus (a never-focused or windowed-out Ctrl+F / Ctrl+Z).
- *
- * Two mounted editors with no live claim resolve to neither: the target is
- * ambiguous, and guessing drives the wrong instance.
- *
- * Module-level (page-shared) by design — the whole point is cross-instance
- * coordination. `mountedEditors` is lifecycle-managed (register on mount,
- * unregister on unmount); `lastInteracted` is last-write-wins.
+ * Which editor a document-level chord routes to when no block holds native focus. The
+ * keydown listener sees every editor's keystrokes on the page, so the claimant is the
+ * last-interacted editor while that claim is live, else the sole mounted one. Two mounted
+ * editors with no live claim resolve to neither — guessing drives the wrong instance.
+ * Module-level by design: cross-instance coordination is the point.
  */
 const mountedEditors = new Set<HTMLElement>();
 let lastInteracted: HTMLElement | null = null;
@@ -35,21 +20,15 @@ export function markEditorInteracted(root: HTMLElement): void {
 	lastInteracted = root;
 }
 
-/**
- * True when a body-level chord routes to `root`: the live last-interacted editor,
- * or — when no live claim exists — the sole mounted one.
- */
+/** True when a body-level chord routes to `root`. */
 export function claimsBodyChord(root: HTMLElement): boolean {
 	if (lastInteracted === root) return true;
 	const hasLiveClaim = lastInteracted !== null && mountedEditors.has(lastInteracted);
 	return !hasLiveClaim && mountedEditors.size === 1 && mountedEditors.has(root);
 }
 
-// Text-like <input> types the reserved chords yield to. Checkbox/radio/button/
-// file/range/color and the date-family are deliberately absent: they don't consume
-// Ctrl+F, so a sole editor keeps claiming when one holds focus — the
-// presentation-reading toggle is such a checkbox. Unknown/missing type normalizes
-// to "text" (HTMLInputElement.type), so a bare <input> lands here.
+// Text-like <input> types the reserved chords yield to. Non-text types are deliberately
+// absent: they don't consume Ctrl+F, so a sole editor keeps claiming while one has focus.
 const TEXT_ENTRY_INPUT_TYPES = new Set([
 	'text',
 	'search',
@@ -61,10 +40,8 @@ const TEXT_ENTRY_INPUT_TYPES = new Set([
 ]);
 
 /**
- * True when `active` is a text-entry surface outside every mounted editor — a
- * foreign `<textarea>`, text-like `<input>`, or `contenteditable` host the user is
- * typing in. The reserved UI chords (Ctrl+F / Ctrl+H) yield to it, so a sole/last-
- * interacted editor never hijacks a page-global Find from a consumer's own field.
+ * True when `active` is a text-entry surface outside every mounted editor. The reserved
+ * chords (Ctrl+F / Ctrl+H) yield to it, so an editor never hijacks a consumer's own field.
  */
 export function isForeignTextEntry(active: Element | null): boolean {
 	if (!isTextEntrySurface(active)) return false;

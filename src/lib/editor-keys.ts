@@ -1,16 +1,9 @@
 /**
- * Svelte context-key symbols shared across the editor tree.
- *
- * The block↔editor interface rides three named facets — services, policies,
- * document — plus the per-key survivors whose individual granularity is
- * load-bearing: the action triple a container re-provides, HISTORY (G1.4's
- * single-provider subject), and the scope-provided list/table/measure channels.
- * Each facet is ONE key holding a plain object of the values the root provides
- * once; getters stay getters and bundles stay bundles, and the facet object
- * itself is not reactive — the reactivity lives in the getters it carries.
- *
- * Internal: these symbols are editor-internal wiring, not a plugin extension
- * point. The supported extension surface is the `aragonite/plugin` barrel.
+ * Svelte context-key symbols shared across the editor tree: three named facets
+ * (services, policies, document) plus the per-key survivors whose granularity is
+ * load-bearing — the action triple a container re-provides, HISTORY (G1.4's
+ * single-provider subject), the scope-provided channels. Internal wiring, not a plugin
+ * extension point; a facet object is not itself reactive, the getters it carries are.
  */
 
 import type { Document } from './core/nodes';
@@ -62,13 +55,10 @@ export type DocumentGetter = () => Document;
 export type FocusedPathGetter = () => number[] | null;
 export type WidthVersionGetter = () => number;
 
-/** Resolver ref read by inline parsers in block components. Wrapped in a
- *  `{ current }` accessor so the shell can rebuild the resolver after each
- *  commit without invalidating descendants' getContext bindings. `signature`
- *  is the LRD-set snapshot the lazy inline cache validates on; `epoch` is a
- *  compact stamp the shell bumps in lockstep with it, so reference-bearing
- *  render memos can key on the epoch instead of concatenating the whole
- *  (~MB-scale) signature into their key every keystroke. */
+/** Resolver ref read by inline parsers in block components. Wrapped in a `{ current }`
+ *  accessor so the shell can rebuild it after each commit without invalidating
+ *  descendants' getContext bindings. `epoch` is the compact stamp render memos key on
+ *  instead of concatenating the whole (~MB-scale) `signature` every keystroke. */
 export type LinkReferenceResolverRef = {
 	current?: LinkReferenceResolver;
 	signature?: string;
@@ -81,9 +71,8 @@ export const BLOCK_EDIT_KEY = Symbol('block-edit-actions');
 export const FOCUS_KEY = Symbol('focus-actions');
 export const CONTAINER_EDIT_KEY = Symbol('container-edit-actions');
 
-/** G1.4's subject: only the editor root provides history, so undo/redo resolve
- *  to one stack. Folding it into a facet a container could re-provide is the
- *  exact violation — it stays its own key, individually distinguishable. */
+/** G1.4's subject: only the editor root provides history, so undo/redo resolve to one
+ *  stack. Folding it into a facet a container could re-provide is the exact violation. */
 export const HISTORY_KEY = Symbol('history-actions');
 
 // ── Scope-provided channels (per-key: scope provision IS their mechanism) ────
@@ -93,14 +82,10 @@ export const TABLE_CONTEXT_KEY = Symbol('table-context');
 
 /**
  * @internal A hosted block enrolls itself in its scope's batched measure pass.
- * `register` returns an unregister fn (or a no-op when the path isn't a direct child
- * of the scope's depth — nested hosts route to their own scope's channel); `readHeight`
- * is called inside the scope's read-all-then-write batch, never inline. `measureNow`
- * re-measures just this block after an edit (one block, not the thrash path).
- * `measureOnResize` is the ResizeObserver path for async growth (an image decoding in):
- * it carries the observer-reported border-box height so the scope can O(1)-gate against
- * the height it already recorded and skip the expensive re-measure on the no-op mount
- * resize — the fling case — touching the DOM only on a genuine post-mount change.
+ * `register` no-ops when the path isn't a direct child of the scope's depth (nested
+ * hosts route to their own channel); `readHeight` is called inside the scope's
+ * read-all-then-write batch, never inline. `measureOnResize` carries the observer's
+ * border-box height so the scope can O(1)-gate and skip the no-op mount resize.
  */
 export const RECORD_BLOCK_HEIGHT_KEY = Symbol('record-block-height');
 export type BlockMeasureChannel = {
@@ -110,11 +95,9 @@ export type BlockMeasureChannel = {
 };
 
 /**
- * @internal A child reports up to its parent scope. A nested CONTAINER pushes its own
- * box subtotal by index (`setChildSubtotal`). A `display:contents` ROW (no box of its
- * own) instead enrolls in the scope's batched measure pass via `registerRow` — its
- * `readHeight` reads a cell, `applyHeight` is `setChildSubtotal` — so a windowed table
- * measures its rows read-all-then-write like every other scope.
+ * @internal A child reports up to its parent scope: a nested CONTAINER pushes its box
+ * subtotal by index, while a `display:contents` ROW (no box of its own) enrolls in the
+ * batched measure pass instead, so a windowed table measures like every other scope.
  */
 export const PARENT_SCOPE_SINK_KEY = Symbol('parent-scope-sink');
 export type ParentScopeSink = {
@@ -144,8 +127,7 @@ export interface EditorServices {
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
 	reorderAnnounce: ReorderAnnounce;
-	/** The instance's resolution over the global block definitions:
-	 *  BlockHost resolves component/descriptor through it so a per-instance
+	/** The instance's resolution over the global block definitions, so a per-instance
 	 *  enablement filter reaches the render path. */
 	registryView: RegistryView;
 	/** The instance's rect surface, delivered to every block component as a prop
@@ -153,9 +135,8 @@ export interface EditorServices {
 	rects: EditorRects;
 }
 
-/** Host-supplied render/behavior policies: URL resolution, load and drag-handle
- *  gates, presentation mode and theme, keybinding overrides, and the broken-image
- *  cache. The getter members read live editor state on each call. */
+/** Host-supplied render/behavior policies. The getter members read live editor state
+ *  on each call. */
 export const EDITOR_POLICIES_KEY = Symbol('editor-policies');
 export interface EditorPolicies {
 	resolveImageUrl: ResolveImageUrl;
@@ -165,31 +146,26 @@ export interface EditorPolicies {
 	 *  False hides it; keyboard reorder stays available regardless. */
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
-	/** Rides beside the mode because it answers the same question for a renderer that
-	 *  paints rather than styles: a plugin engine emitting its own colored markup
-	 *  (a diagram SVG) cannot pick them up from CSS, so it needs the name. */
+	/** For a renderer that paints rather than styles: a plugin emitting its own colored
+	 *  markup (a diagram SVG) cannot pick the theme up from CSS, so it needs the name. */
 	theme: ThemeGetter;
 	keybindingOverrides: KeybindingOverridesGetter;
-	/** Set-once host import hook for image-bearing pastes. Required-nullable: a
-	 *  mount must answer, and `undefined` leaves such a paste on the text/plain
-	 *  path deliberately. */
+	/** Set-once host import hook for image-bearing pastes. Required-nullable: a mount must
+	 *  answer, and `undefined` deliberately leaves the paste on the text/plain path. */
 	onPasteImage: PasteImageHook | undefined;
-	/** Per-editor cache of resolved image URLs that failed to load this session —
-	 *  one Set per instance so a failed load never suppresses another editor's
-	 *  broken-state recompute (`components/image/widget-dom.ts`). */
+	/** Resolved image URLs that failed to load this session. One Set per instance, so a
+	 *  failed load never suppresses another editor's broken-state recompute
+	 *  (`components/image/widget-dom.ts`). */
 	brokenImageUrls: Set<string>;
 }
 
-/** Document identity and the per-instance lookups that hang off it: the live
- *  doc getter, link-reference resolver ref, plugin-context resolver, mount
- *  lifetime, DOM anchors, and the windowing oracle/version signals. */
+/** Document identity and the per-instance lookups that hang off it. */
 export const EDITOR_DOC_KEY = Symbol('editor-doc');
 export interface EditorDoc {
 	doc: DocumentGetter;
-	/** Changes whenever the document's bytes change, stable otherwise — the only
-	 *  sound memo key for a derivation over the document, whose `$state` proxy is
-	 *  mutated in place and so never changes identity. Lazy: reading it is what
-	 *  makes the editor compute it. */
+	/** Changes whenever the document's bytes change — the only sound memo key over a
+	 *  document whose `$state` proxy is mutated in place and never changes identity.
+	 *  Lazy: reading it is what makes the editor compute it. */
 	contentVersion: () => number;
 	linkRef: LinkReferenceResolverRef;
 	/** Resolves a plugin's per-instance EditorContext — the one identity onEditor
@@ -199,21 +175,19 @@ export interface EditorDoc {
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;
 	editorRoot: () => HTMLElement | null;
-	/** What a drag autoscrolls to reach more of this editor: the root in self mode,
-	 *  the nearest USER-scrollable ancestor in host mode, null when the page's own
-	 *  viewport scrolls. One resolution per instance. What BOUNDS the editor's
-	 *  visible region is a separate question with a separate answer (the whole
-	 *  clipping chain, held by the rect surface) — see `cursor/scroll-ancestors`. */
+	/** What a drag autoscrolls to reach more of this editor: the root in self mode, the
+	 *  nearest USER-scrollable ancestor in host mode, null when the page's own viewport
+	 *  scrolls. What BOUNDS the visible region is a separate answer held by the rect
+	 *  surface — see `cursor/scroll-ancestors`. */
 	scrollHost: () => UserScrollport | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; drives per-level VR pins. */
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
 	heightOracle: HeightOracle;
-	/** False in host-scroll mode, where the root is not a scrollport and there is no
-	 *  viewport to window against: every scope stays inactive and mounts all its
-	 *  children. Set once at mount — a windowing scope reads it inside its window
-	 *  derived, so a live prop read here would make it a keystroke-path dependency. */
+	/** False in host-scroll mode: no viewport to window against, so every scope mounts all
+	 *  its children. Set once at mount — a windowing scope reads it inside its window
+	 *  derived, so a live prop read would make it a keystroke-path dependency. */
 	windowingEnabled: () => boolean;
 	/** Monotonic width-change counter the root bumps on an editor width resize, so
 	 *  every windowing scope rebuilds its model and re-measures at the new width. */
