@@ -1,14 +1,11 @@
 import type { Gestures } from '../gestures';
 
 /**
- * An authoring script plus the canonical source it must serialize to. `build`
- * carries clean intent — typos and detours come from the Gestures layer and the
- * orchestrator, never the fixture. It may mark structural-unit boundaries with
- * `g.checkpoint(...)`, which mutates nothing and only fires when the capture run
- * wires a recorder hook. `expectedMarkdown` is calibrated against the editor
- * (typing ≡ loading), not hand-guessed. `landmarks` are in-order phrases the
- * simulator checks with assertContainsInOrder, so a reorder or drop in any
- * structural-only region surfaces even when end-state equality can't reach it.
+ * An authoring script plus the canonical source it must serialize to. `build` carries CLEAN
+ * intent — typos and detours come from the Gestures layer, never the fixture.
+ * `expectedMarkdown` is calibrated against the editor (typing ≡ loading), never hand-guessed.
+ * `landmarks` are in-order phrases, so a reorder or drop surfaces in structural-only regions
+ * end-state equality cannot reach.
  */
 export interface NoteFixture {
 	name: string;

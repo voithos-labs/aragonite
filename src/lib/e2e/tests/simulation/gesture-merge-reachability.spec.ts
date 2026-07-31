@@ -5,10 +5,9 @@ import type { SimContext } from '../../simulation/invariants';
 import { mergeBackspaceAtStart } from '../../simulation/gestures/merge';
 import { makeSimContext } from './helpers';
 
-// Reachability self-tests for the merge gesture family: each drives Backspace at a
-// block start on a fixed document and asserts a real merge or container-exit unwrap
-// happened — a Backspace that no-oped would be an invisible hole in the corruption
-// oracle. The negative case proves the no-predecessor guard fails loud.
+// Reachability self-tests: each asserts a REAL merge or container-exit unwrap happened,
+// since a Backspace that no-oped would be an invisible hole in the corruption oracle. The
+// negative case proves the no-predecessor guard fails loud.
 
 function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');

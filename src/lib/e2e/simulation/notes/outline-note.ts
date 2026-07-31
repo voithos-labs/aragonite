@@ -2,14 +2,10 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The deep-nesting note: a three-level bullet outline whose every level sits in
- * the equality spine, so end-state equality (typing ≡ loading) guards the nesting
- * path the two-level notes can't reach. Built with the only cadence that breaks
- * the two-level ceiling — `pressEnter` → `indentEmptyItem` → `typeFreshItem`,
- * repeated. Indenting the EMPTY item Enter just created nests it under its sibling
- * (indenting a filled trailing item doesn't), and `typeFreshItem` materializes the
- * nested marker on its first char. Outdenting back up between branches keeps the
- * outline's later top-level items at column zero.
+ * The deep-nesting note: three levels in the equality spine, guarding the nesting path the
+ * two-level notes cannot reach. Built with the only cadence that breaks that ceiling —
+ * `pressEnter` → `indentEmptyItem` → `typeFreshItem` — since indenting a FILLED trailing item
+ * does not nest it under its sibling.
  */
 export const OUTLINE_NOTE: NoteFixture = {
 	name: 'outline-note',

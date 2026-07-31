@@ -1,7 +1,6 @@
 /**
- * The sole randomness source for the simulation harness. A seed fully
- * determines every draw, so a failing session replays byte-for-byte. Nothing
- * here may consult `Date.now` or `Math.random`.
+ * The sole randomness source: a seed fully determines every draw, so a failing session
+ * replays byte-for-byte. Nothing here may consult `Date.now` or `Math.random`.
  */
 
 export interface Rng {

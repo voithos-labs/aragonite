@@ -4,10 +4,8 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * Decorations across a whole-document `source` swap
- * (requirements/decorations/source-swap-epoch.md): the swap is a document change,
- * so the edit epoch advances and the epoch-memoized occurrence index is rebuilt
- * against the new document. Without that, the cached index paints the previous
- * document's paths — marks in blocks that never held the word.
+ * (requirements/decorations/source-swap-epoch.md). The swap must advance the edit epoch, or
+ * the memoized occurrence index paints the PREVIOUS document's paths.
  */
 
 const OCCURRENCE = '.decoration-overlay.hl-occurrence';

@@ -3,9 +3,8 @@ import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { centerOfWord } from './helpers';
 
-// Block-granular live preview on /test/editor: every block hides its markers
-// except the focused one (data-focused, CSS-only). Editing stays live — the
-// editing scenarios live in presentation-preview-block-editing.spec.ts.
+// Block-granular live preview: every block hides its markers except the focused one,
+// CSS-only. Editing scenarios live in presentation-preview-block-editing.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-block.md.
 
 const DOC = [

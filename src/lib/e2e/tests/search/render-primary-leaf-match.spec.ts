@@ -5,13 +5,10 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * Search inside a folded render-primary leaf widget
- * (requirements/search/render-primary-leaf-match.md). A `$$…$$` math block and a
- * `[[toc]]` outline render their source through a component, so a match in their raw
- * has no measurable text node. `createEditableLeaf` paints it anyway: while folded,
- * `measurePartialRects` covers the rendered block box (the mermaid container-shim
- * precedent, lifted to the leaf choke point), so every render-primary leaf — present
- * and future — inherits the highlight with no per-kind code. The sibling
- * childless-container-match spec pins the mermaid half.
+ * (requirements/search/render-primary-leaf-match.md). Such a leaf renders its source through
+ * a component, so a match in its raw has no measurable text node; `createEditableLeaf`
+ * covers the rendered block box while folded, at the leaf CHOKE POINT, so every
+ * render-primary leaf inherits the highlight with no per-kind code.
  */
 
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });

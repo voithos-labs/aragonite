@@ -5,11 +5,10 @@ import { PluginsPage } from '../plugins/helpers';
 
 /**
  * Search inside a childless opaque container
- * (requirements/search/childless-container-match.md). A mermaid block's text
- * lives in its own raw — no leaf children — so the scanner matches the raw like
- * a leaf and `DecorationOverlay` paints those marks through the container shim's
- * `measurePartialRects`. Replace skips those matches (metadata-derived raw;
- * issue #41), so `replacedCount` counts only real rewrites.
+ * (requirements/search/childless-container-match.md). Its text lives in its own raw with no
+ * leaf children, so the scanner matches that raw like a leaf and the container shim's
+ * `measurePartialRects` paints it. Replace SKIPS those matches (metadata-derived raw, issue
+ * #41), so `replacedCount` counts only real rewrites.
  */
 
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });

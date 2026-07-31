@@ -4,14 +4,9 @@ import { progressiveScrollTo, UNWINDOWED_PROSE } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Two writers of one scrollTop, colliding on purpose. The reveal anchor re-asserts an
-// ABSOLUTE position derived from the list's live offset within the scroll content — a
-// measure that already includes the header's current height. The header slot's resize
-// observer adds a RELATIVE delta. A header height change landing while a reveal is in
-// flight therefore adds the delta on top of a position that already accounts for it,
-// and the revealed block lands off by that much.
-//
-// Fixture: `/test/editor?header=on` (80px <-> 240px), windowed deep enough that the
-// reveal runs its mount-and-settle loop for real.
+// ABSOLUTE position that already includes the header's current height; the header slot's
+// resize observer adds a RELATIVE delta. A resize landing mid-reveal therefore applies the
+// delta twice. Windowed deep enough that the reveal runs its mount-and-settle loop for real.
 const WINDOWED_BYTES = 500_000;
 const HEADER_DELTA = 160;
 const TARGET = 40;
@@ -44,9 +39,8 @@ test('a header resize landing inside a reveal does not double-apply its delta', 
 			.evaluate((el) => el.getBoundingClientRect().height)
 	).toBeCloseTo(240, 0);
 
-	// `'nearest'` top-pins, so the target's top sits at the scrollport's top. A
-	// double-applied header delta parks it a full HEADER_DELTA above that — off the top
-	// of the port, which is also what the honest `landed` boolean would have to deny.
+	// `'nearest'` top-pins, so a double-applied delta parks the target a full HEADER_DELTA
+	// above the scrollport top — off the port entirely.
 	const seen = await page.evaluate((target) => {
 		const rect = (window as any).__test.rects.blockRect([target]) as DOMRect;
 		const port = document.querySelector('.editor')!.getBoundingClientRect();
@@ -66,12 +60,9 @@ test('no write unplaces the target once the reveal has placed it', async ({ page
 	await progressiveScrollTo(editor, 4000);
 	await editor.waitForRenderFlush();
 
-	// The landing arms above measure where the target came to REST, and a wrong write
-	// that something else corrects rests correctly. This one watches every scrollTop
-	// write: once one has put the target where the reveal asked, no later write may
-	// take it away again. Whether a corrector follows is not the contract — it is a
-	// side effect of the very write that broke the placement, and it runs only when
-	// the resulting slide happens to mount a block.
+	// The landing arms above measure where the target came to REST, and a wrong write that
+	// something else corrects rests correctly. This one watches every scrollTop write, so a
+	// corrected-after-the-fact unplacement still fails.
 	const observed = await page.evaluate(
 		async ({ target, delta }) => {
 			const root = document.querySelector('.editor') as HTMLElement;
@@ -118,9 +109,8 @@ test('no write unplaces the target once the reveal has placed it', async ({ page
 	expect(observed.landed).toBe(true);
 	expect(observed.placed).toBe(true);
 	expect(observed.grewBy).toBeCloseTo(HEADER_DELTA, 0);
-	// Before the one-writer rule, the header observer added its relative delta on top
-	// of an absolute position that already included the new header height:
-	// [{ wrote: 1632, offBy: -160 }], against an anchor that had just written 1472.
+	// Before the one-writer rule this held one entry: the observer's relative delta written
+	// on top of an absolute position that already included the new header height.
 	expect(observed.unplaced).toEqual([]);
 	expect(pageErrors).toEqual([]);
 });
@@ -135,10 +125,8 @@ test('a header resize while a landed reveal still holds its pin does not double-
 	await progressiveScrollTo(editor, 4000);
 	await editor.waitForRenderFlush();
 
-	// A `'nearest'` reveal holds its claim after it lands (durable visibility is the
-	// contract search navigation rides), so the two writers stay live together long
-	// after the settle loop is gone — the header can resize at any point until the
-	// reader's next gesture releases the pin.
+	// A `'nearest'` reveal holds its claim after it lands (durable visibility is what search
+	// navigation rides), so the two writers stay live long after the settle loop is gone.
 	expect(await page.evaluate((t) => (window as any).__test.rects.scrollTo([t]), TARGET)).toBe(true);
 	await editor.waitForRenderFlush();
 	const beforeTop = await page.evaluate((t) => {
@@ -162,16 +150,11 @@ test('a header resize while a landed reveal still holds its pin does not double-
 
 // ── The other side of the rule ──────────────────────────────────────────
 
-// Deferring to the anchor is only right where the anchor is actually holding the
-// position. A `'nearest'` reveal of an ALREADY-VISIBLE block is a no-op — the block
-// was in view, so nothing scrolled — yet the claim is held over a target sitting
-// mid-viewport. The anchor's placement for it is the top pin, so a writer that defers
-// by RE-PLACING turns a header resize into a scroll the reader never asked for.
-//
-// Under the watermark on purpose: a windowed document re-asserts on every measure pass,
-// so the target is already at the pin whenever the header resizes and the distinction is
-// invisible. With windowing inactive nothing re-asserts, and the header resize would be
-// the only re-placement trigger there is.
+// Deferring to the anchor is only right where the anchor actually holds the position. A
+// `'nearest'` reveal of an ALREADY-VISIBLE block scrolls nothing, so a writer that defers by
+// RE-PLACING turns a header resize into a scroll the reader never asked for.
+// Under the watermark on purpose: a windowed document re-asserts on every measure pass and
+// the distinction would be invisible.
 
 test('a header resize compensates rather than re-places a reveal the anchor is not holding', async ({
 	page
@@ -206,9 +189,8 @@ test('a header resize compensates rather than re-places a reveal the anchor is n
 	await editor.waitForResizeObserverFlush();
 	await editor.waitForRenderFlush();
 
-	// The header compensation still owns this one: the reader keeps their place. A
-	// deferral that re-places instead of asking dragged the block to the top of the
-	// scrollport, ~263px of scroll nothing requested.
+	// Compensation still owns this one. A deferral that re-places instead dragged the block
+	// to the top of the scrollport — hundreds of px of scroll nothing requested.
 	expect(Math.abs((await offsetInPort(visibleTarget)) - beforeReveal)).toBeLessThanOrEqual(2);
 	expect(pageErrors).toEqual([]);
 });

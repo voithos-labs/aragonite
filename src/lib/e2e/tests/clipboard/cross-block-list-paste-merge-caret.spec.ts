@@ -1,10 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// A cross-block paste of a matching-type list into a non-empty list item merges
-// the first pasted item into the target and reattaches the surviving post-caret
-// residue to the last pasted item. Focus must land at the END of the pasted
-// content — before that residue — not at the item's end.
+// The paste reattaches the surviving post-caret residue to the last pasted item, so focus
+// must land at the END of the pasted content — BEFORE that residue, not at the item's end.
 test.describe('cross-block list paste merge: caret at end of pasted content', () => {
 	let editor: EditorPage;
 

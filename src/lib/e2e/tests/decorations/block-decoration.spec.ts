@@ -2,9 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Block-tier decorations (requirements/decorations/block-decoration.md).
- * BlockHost carries the source's class/attrs on the host div and mounts the
- * badge widget as its first child. Sources register through the e2e bridge.
+ * Block-tier decorations (requirements/decorations/block-decoration.md). BlockHost carries
+ * the source's class/attrs on the host div and mounts the badge widget as its first child.
  */
 
 const HOST = "[data-block-path='[0]']";

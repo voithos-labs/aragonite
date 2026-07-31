@@ -2,12 +2,9 @@ import type { Page } from '@playwright/test';
 import type { Gestures } from '../gestures';
 import { type SimContext } from '../invariants';
 
-// Math gestures for the LaTeX extension (plugins route only). Free functions
-// taking `ctx` first so the Gestures class delegates without growing its frozen
-// surface, mirroring gestures/image.ts. Each drives real keyboard/mouse, gates on
-// an observable widget/render swap, then resyncs the tracker around the reparse or
-// promotion the editor performs — never predicts across a mount boundary, where a
-// paragraph→mathBlock promotion or a `$…$`→widget swap would desync a char count.
+// Math gestures for the LaTeX extension (plugins route only). Each gates on an observable
+// widget/render swap and RESYNCS around the reparse — never predicts across a mount
+// boundary, where a promotion or a `$…$`→widget swap would desync a char count.
 
 const INLINE_WIDGET = '.math-inline-widget';
 const BLOCK_RENDER = '.math-block-render';
@@ -22,10 +19,8 @@ async function waitForWidgetCount(page: Page, expected: number, timeout = 2000):
 }
 
 /**
- * Walk the caret out of a revealed source, which is what commits it. Enter is the
- * block's split key, not a commit gesture (see `latex-inline-reveal-commands`), so
- * every reveal→edit gesture here escapes instead. Bounded by one press per byte the
- * caret could still be short of the trailing edge; the committed source is the settle.
+ * Walking the caret out is what commits a reveal. Enter is the block's split key, not a
+ * commit gesture (see `latex-inline-reveal-commands`), so every reveal→edit gesture escapes.
  */
 async function escapeRevealToCommit(ctx: SimContext, before: string): Promise<void> {
 	for (let i = 0; i < 40; i++) {
@@ -42,11 +37,9 @@ async function blockRaw(ctx: SimContext, index: number): Promise<string> {
 	);
 }
 
-// A plain `.click()` on a rendered KaTeX island lands at the first content quad's
-// center; with katex.css loaded the clipped 1px `.katex-mathml` half degenerates
-// that point to a corner outside the island and silently misses the reveal
-// hit-test — the same trap the plugin e2e's `clickWidgetCenter` documents. Aim at
-// the painted `.katex-html` glyphs, falling back to the island's own box.
+// A plain `.click()` lands at the first content quad's center, which the clipped 1px
+// `.katex-mathml` half degenerates to a corner OUTSIDE the island — silently missing the
+// reveal hit-test. Aim at the painted `.katex-html` glyphs instead.
 export async function clickInlineWidget(page: Page, nth: number): Promise<void> {
 	const widget = page.locator(INLINE_WIDGET).nth(nth);
 	const glyphs = widget.locator('.katex-html');
@@ -57,10 +50,8 @@ export async function clickInlineWidget(page: Page, nth: number): Promise<void> 
 }
 
 /**
- * Type `$formula$` at the caret (a prose block), then gate on the newly mounted
- * inline widget. Inline recognition is render-time, so the widget appears once the
- * closing `$` lands; the caret stays in the host paragraph, so a caller may keep
- * editing after. Resyncs around the recompute rather than predicting per char.
+ * Inline recognition is render-time, so the widget appears once the closing `$` lands and
+ * the caret stays in the host paragraph. Resyncs around the recompute.
  */
 export async function insertInlineMath(ctx: SimContext, formula: string): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -75,10 +66,8 @@ export async function insertInlineMath(ctx: SimContext, formula: string): Promis
 }
 
 /**
- * Type `$$formula$$` on an empty line at column 0, promoting the paragraph to a
- * math block. Promotion focuses the new block, which reveals its source, so the
- * gesture blurs onto `blurBlockIndex` to fold it to the rendered display — leaving
- * the block in the render-primary state a following reveal/edit gesture expects.
+ * Promotion focuses the new block, which REVEALS its source, so this blurs onto
+ * `blurBlockIndex` to fold it back — the render-primary state a following gesture expects.
  */
 export async function insertBlockMath(
 	ctx: SimContext,
@@ -96,11 +85,7 @@ export async function insertBlockMath(
 	tracker.resync(await editor.bridge.getSource());
 }
 
-/**
- * Click the first inline widget to reveal its `$…$` source, step past the opening
- * `$`, insert `text`, and commit by walking the caret out — the click→reveal→commit
- * UX. Gates on the widget folding back to a render after commit.
- */
+/** The click→reveal→commit path; gates on the widget folding back to a render. */
 export async function editInlineMath(ctx: SimContext, text: string): Promise<void> {
 	const { page, editor, tracker } = ctx;
 	const before = await editor.bridge.getSource();
@@ -120,9 +105,7 @@ export async function editInlineMath(ctx: SimContext, text: string): Promise<voi
 }
 
 /**
- * Click the first block render to reveal its source, step inside the `$$` fence,
- * insert `text`, and commit by blurring onto `blurBlockIndex`. Block math commits
- * on blur (one undo entry), so the blur target must be a real sibling block.
+ * Block math commits on BLUR as one undo entry, so `blurBlockIndex` must be a real sibling.
  */
 export async function editBlockMath(
 	ctx: SimContext,
@@ -146,11 +129,9 @@ export async function editBlockMath(
 }
 
 /**
- * Type a char immediately after the inline widget in block `blockIndex`, then
- * delete it — a net-identity edit of the text node flanking a *surviving* widget.
- * This drives the widget-aware read-back over a block whose text changes while the
- * widget stays (the nonzero-interior byte-survival class, G1.9); the widget is left
- * in place for a following delete-of. The caller asserts the widget count held.
+ * A net-identity edit of the text flanking a SURVIVING widget: drives the widget-aware
+ * read-back over the nonzero-interior byte-survival class (G1.9). The caller asserts the
+ * widget count held.
  */
 export async function deleteAroundInlineMath(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -167,11 +148,9 @@ export async function deleteAroundInlineMath(ctx: SimContext, blockIndex: number
 }
 
 /**
- * Delete the inline widget that ends block `blockIndex` atomically: Shift+ArrowLeft
- * from the block end selects the widget as one unit (atomic selection extension),
- * Backspace removes its bytes. Caret-adjacent Backspace no longer reaches this —
- * for a reveal-capable kind it opens the source reveal, whose edits stay ephemeral
- * until commit, so a backspace-backspace path never changes `getSource()`.
+ * Shift+ArrowLeft selects the widget atomically, then Backspace removes it. A caret-adjacent
+ * Backspace cannot reach this: on a reveal-capable kind it opens the reveal, whose edits stay
+ * ephemeral, so that path never changes `getSource()`.
  */
 export async function deleteInlineMathWidget(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -187,16 +166,10 @@ export async function deleteInlineMathWidget(ctx: SimContext, blockIndex: number
 }
 
 /**
- * Walk the caret through a block-final inline widget and back out, asserting the
- * entry-reveal + escape-fold nets to identity (the caret-entry reveal's
- * byte-survival class). From the block end — right of the widget — one ArrowLeft
- * crosses the trailing edge and opens the source reveal: the rendered island swaps
- * for editable `$…$` text, so the widget count drops. Further ArrowLefts step
- * through the source and out its leading edge, where the escape folds the reveal
- * back to the rendered island (unedited → restored verbatim, CST untouched). Steps
- * until the island returns — the source length is unknown here — capped tight so an
- * over-press cannot walk far past the widget's left runway. An unedited entry+fold
- * changes no bytes, so `getSource()` is byte-identical after.
+ * The caret-entry reveal's byte-survival class: ArrowLeft across the trailing edge opens the
+ * reveal, and stepping out its leading edge folds it back unedited, so the round trip must be
+ * byte-identical. Steps until the island returns (the source length is unknown here), capped
+ * so an over-press cannot walk far past the widget's left runway.
  */
 export async function walkThroughInlineMath(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -210,8 +183,7 @@ export async function walkThroughInlineMath(ctx: SimContext, blockIndex: number)
 	for (let i = 0; i < 12 && (await page.locator(INLINE_WIDGET).count()) < widgetCount; i++) {
 		await page.keyboard.press('ArrowLeft');
 	}
-	// The escape fold survives a tick, so settle on the island's return rather than
-	// racing it — then confirm the round trip left the source byte-identical.
+	// The escape fold survives a tick, so settle on the island's RETURN rather than race it.
 	await waitForWidgetCount(page, widgetCount);
 	await editor.bridge.waitForSourceEquals(before);
 	await editor.waitForRenderFlush();
@@ -219,15 +191,10 @@ export async function walkThroughInlineMath(ctx: SimContext, blockIndex: number)
 }
 
 /**
- * Enter a block-final inline widget with Backspace, insert a char inside the
- * formula, and commit by walking the caret out the trailing edge — the caret-entry
- * reveal's commit-on-escape path (distinct from the click→Enter/blur commit
- * `editInlineMath`/`editBlockMath` already cover). Backspace from the
- * trailing edge opens the reveal (it never deletes a reveal-capable widget); one
- * ArrowLeft steps inside the closing `$` so the insert stays within the fence; the
- * edit is EPHEMERAL DOM until commit, asserted by `getSource()` holding unchanged
- * while the source is shown; ArrowRight past the trailing edge escapes and commits
- * the edit as one undo entry, re-rendering the island. Resyncs around the reparse.
+ * The caret-entry reveal's commit-on-ESCAPE path, distinct from the click→blur commit
+ * `editInlineMath` covers. Backspace at the trailing edge opens the reveal rather than
+ * deleting the widget; the edit is EPHEMERAL DOM until commit, which is asserted by
+ * `getSource()` holding unchanged while the source is shown. Resyncs around the reparse.
  */
 export async function backspaceRevealEditInlineMath(
 	ctx: SimContext,
@@ -244,8 +211,8 @@ export async function backspaceRevealEditInlineMath(
 
 	await page.keyboard.press('ArrowLeft');
 	await page.keyboard.type(insert);
-	// The reveal suppresses the per-keystroke CST commit, so the insert is DOM-only
-	// until escape — a settle-then-compare proves it never leaked into the source.
+	// The reveal suppresses the per-keystroke CST commit, so a settle-then-compare here proves
+	// the insert never leaked into the source.
 	await editor.waitForNoSourceMutation();
 	if ((await editor.bridge.getSource()) !== before) {
 		throw new Error(
@@ -265,12 +232,9 @@ export async function backspaceRevealEditInlineMath(
 }
 
 // ── Math fence ──────────────────────────────────────────────────────────────
-// GitHub's third math form: a ```math fence is its own `mathFence` kind riding the
-// same render-primary component as `$$…$$`. Both gestures drive it from a FLANKING
-// prose block and never focus the fence itself: the render reveals its source on
-// pointerdown, so a gesture that clicked it would be driving the reveal rather than
-// the block. What is under test here is the fence's raw bytes surviving the two
-// structural moves that reach an opaque leaf without entering it.
+// Both gestures drive the fence from a FLANKING prose block and never focus it: the render
+// reveals its source on pointerdown, so a click would drive the reveal, not the block. Under
+// test is the fence's raw surviving two structural moves that never enter it.
 
 // Both range endpoints sit this far into their flanking prose block, so the range
 // covers real content on each side rather than only the block boundaries.
@@ -281,13 +245,9 @@ function trimTrailingNewlines(raw: string): string {
 }
 
 /**
- * Alt+ArrowDown the prose block at `proseIndex` past the fence directly below it, then
- * Alt+ArrowUp straight back — a net-identity permutation of the sibling array. The
- * reorder keeps the moved block focused, so the return press needs no re-click. After
- * the down move the fence sits at `proseIndex`, where its raw and kind must be exactly
- * what they were: a permutation that rebuilt it as a plain `fencedCode`, or dropped a
- * byte of its info string or body, fails loud rather than being recorded as truth. The
- * closing move settles on the source returning byte-identical, so a no-op second press
+ * A net-identity sibling permutation. Mid-move the fence's raw AND kind are checked, so a
+ * permutation that rebuilt it as plain `fencedCode`, or dropped a byte of its info string,
+ * fails loud. The closing move settles on byte-identical return, so a no-op second press
  * times out instead of passing.
  */
 export async function reorderPastMathFence(
@@ -326,17 +286,11 @@ export async function reorderPastMathFence(
 }
 
 /**
- * Shift+Click a cross-block range from mid-prose ABOVE the fence to mid-prose BELOW it,
- * so the fence is wholly INTERIOR to the range, then Backspace it away. Neither endpoint
- * lands on the render, so nothing reveals and the destroy runs over an opaque
- * render-primary block for the first time. Both flanking blocks must be plain prose, so
- * their raw-semantic caret offsets are plain character offsets and the surviving block is
- * predictable: the head of the block above joined to the tail of the block below, exact to
- * the byte. Comparing against that catches a fence FRAGMENT — a stray backtick, half an
- * info string, a clipped formula — which a check for whole surviving fence lines would let
- * through, and that fragment is the corruption shape worth catching, since it reparses as
- * a different kind. One undo then restores the document byte-exactly with the render
- * remounted, proving the delete was a single reversible entry.
+ * A range with the fence wholly INTERIOR: neither endpoint lands on the render, so nothing
+ * reveals and the destroy runs over an opaque render-primary block. Both flanking blocks must
+ * be plain prose so the survivor is byte-predictable — comparing against it catches a fence
+ * FRAGMENT (a stray backtick, half an info string), which is the corruption shape worth
+ * catching since it reparses as a different kind and a whole-line check would miss it.
  */
 export async function deleteAcrossMathFence(
 	ctx: SimContext,
@@ -353,9 +307,8 @@ export async function deleteAcrossMathFence(
 		trimTrailingNewlines(await blockRaw(ctx, fenceIndex - 1)).slice(0, FLANK_OFFSET) +
 		trimTrailingNewlines(await blockRaw(ctx, fenceIndex + 1)).slice(FLANK_OFFSET);
 
-	// Fence the batch on both sides so the collapse is its own undo entry: without the
-	// leading pause it could coalesce with whatever the caller did before it, and the
-	// closing single undo would then unwind more than the delete.
+	// Fenced on both sides so the collapse is its OWN undo entry: without the leading pause it
+	// coalesces with the caller's prior work and the single undo unwinds more than the delete.
 	await g.pause();
 	await editor.focusBlockAtPath([fenceIndex - 1], FLANK_OFFSET);
 	await g.shiftClickAcross([fenceIndex + 1], FLANK_OFFSET);

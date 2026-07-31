@@ -1,16 +1,11 @@
 import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 
-// Footnote gestures for the first-party footnotes plugin (plugins route, `?seed=footnotes`
-// — the plugin is seed-gated). Free functions taking `ctx` first so the Gestures class
-// delegates without growing its frozen surface, mirroring gestures/directive.ts. The plugin
-// spans two tiers: the `[^label]: ` strip-container definition (the listItem mold) and the
-// `[^label]` inline reference widget (the `[^`-prefix ladder rung). Each gesture drives real
-// keyboard/mouse, gates on the container promotion / widget swap, then resyncs the tracker
-// around the reparse — never predicts across a mount boundary, where a paragraph→container
-// flip or a `[^label]`→widget swap desyncs a char count. The number a reference renders is
-// derived display state the tracker never models, so nothing here predicts or asserts it —
-// the reference e2e is that oracle.
+// Footnote gestures (plugins route, `?seed=footnotes`), spanning two tiers: the `[^label]: `
+// strip-container definition and the `[^label]` inline reference widget. Each gates on the
+// promotion or widget swap and RESYNCS around the reparse — never predicts across a mount
+// boundary. The number a reference renders is derived display state the tracker never models,
+// so nothing here predicts or asserts it; the reference e2e is that oracle.
 
 const DEF = '.footnote-def';
 const REF = '.footnote-ref';
@@ -18,16 +13,9 @@ const REF = '.footnote-ref';
 // ── Definition tier ───────────────────────────────────────────────────────────
 
 /**
- * Turn the whole prose paragraph at `targetIndex` into a footnote-def strip container: select
- * its line and type `[^label]: body` over it, forming the container with one paragraph child
- * on the reparse. Marker formation from live typing.
- *
- * Typed PER KEYSTROKE, which routes the line through a transient inline reference widget: the
- * `[^label]` prefix mounts one on its closing `]`, and the `: ` plus body are typed against
- * that atomic widget's trailing edge before the reparse resolves the whole line to a
- * definition marker. That intermediate state is the one a real author produces and the one an
- * atomic insert never reaches. Settles on the container mounting (`.footnote-def` count
- * rising) plus the marker in the source, and resyncs.
+ * Marker formation from live typing. Typed PER KEYSTROKE, which routes the line through a
+ * transient inline reference widget before the reparse resolves it to a definition marker —
+ * the intermediate state a real author produces and an atomic insert never reaches.
  */
 export async function typeFootnoteDefinition(
 	ctx: SimContext,
@@ -40,10 +28,8 @@ export async function typeFootnoteDefinition(
 
 	await editor.focusBlockStart(targetIndex);
 	await page.keyboard.press('Shift+End');
-	// The separating space is NOT typed: closing the marker with `:` auto-completes
-	// it to `[^label]: `, so a literal space here would land a second one. Typing the
-	// finished string as one `insertText` hid that — the editor never ran the
-	// per-keystroke completion, so the whole string arrived verbatim.
+	// The separating space is NOT typed: closing the marker with `:` auto-completes it to
+	// `[^label]: `, so a literal space here would land a second one.
 	await editor.typeSlowly(`[^${label}]:`);
 	await editor.typeSlowly(body);
 	await editor.bridge.waitForSourceContains(`[^${label}]: ${body}`);
@@ -53,12 +39,9 @@ export async function typeFootnoteDefinition(
 }
 
 /**
- * Enter in the MIDDLE of the definition body child at `bodyPath` — splits it into two body
- * children INSIDE the container. The strip container inherits blockquote's split override
- * (`createContainerBlock` always wires `createBlockquoteOverrides`), so the split must grow
- * the container's own children and never the document root — the boundary Task 2's review
- * flagged untested. Asserts the parent container grew by one child and the root count held,
- * failing loud if the split escaped to the root.
+ * The strip container inherits blockquote's split override, so the split must grow the
+ * CONTAINER's children and never the document root. Asserts both counts, failing loud if the
+ * split escaped.
  */
 export async function splitFootnoteDefinitionBody(
 	ctx: SimContext,
@@ -94,11 +77,9 @@ export async function splitFootnoteDefinitionBody(
 }
 
 /**
- * Backspace at the start (offset 0) of the definition's first body child. The footnote-def
- * is `not-mergeable`, so the merge walk delegates upward and the parent declines — the caret
- * lands on the block above and the bytes never change. Settles by confirming the source is
- * byte-identical (absence of mutation needs a positive re-read after the settle window, not a
- * delta wait) and fails loud if the container unwrapped into loose paragraphs.
+ * The footnote-def is `not-mergeable`, so the walk delegates upward and the parent declines:
+ * the caret moves and the bytes never change. Confirms byte-identity by a positive RE-READ
+ * after the settle window — absence of mutation cannot be waited for as a delta.
  */
 export async function footnoteDefinitionExitBackspace(
 	ctx: SimContext,
@@ -125,10 +106,8 @@ export async function footnoteDefinitionExitBackspace(
 // ── Reference tier ────────────────────────────────────────────────────────────
 
 /**
- * Type `[^label]` at the caret (a prose block), mounting the atomic reference widget once
- * the closing `]` lands. The literal bytes stay in the block's raw (the widget hides but
- * preserves them), so the source carries the reference the instant it is typed — the mount
- * is the `.footnote-ref` COUNT rising, not a new substring. Resyncs around the recompute.
+ * The widget hides but preserves the literal bytes, so the source carries the reference the
+ * instant it is typed — the mount signal is the COUNT rising, not a new substring.
  */
 export async function typeFootnoteReference(ctx: SimContext, label: string): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -142,11 +121,8 @@ export async function typeFootnoteReference(ctx: SimContext, label: string): Pro
 }
 
 /**
- * Caret-enter the reference widget at `refIndex` (document order) to reveal its raw source,
- * then blur onto `blurBlockIndex` to fold it back. A pure view toggle: the source is
- * dimmed-but-present in both states, so the widget COUNT is the only reveal signal, and the
- * bytes must be identical across the whole round trip. Fails loud if the reveal or fold
- * moved a byte.
+ * A pure view toggle: the source is dimmed-but-present in both states, so the widget COUNT is
+ * the only reveal signal and the bytes must be identical across the whole round trip.
  */
 export async function revealFootnoteReference(
 	ctx: SimContext,
@@ -177,11 +153,8 @@ export async function revealFootnoteReference(
 }
 
 /**
- * Reveal the reference widget at `refIndex`, insert `text` at the start of its label (just
- * past `[^`), and commit by blurring onto `blurBlockIndex` — the reveal→edit→commit UX the
- * widget shares with inline math. The edit is suppressed from the CST until commit, so the
- * source delta appears only at the blur; settling on it before would race the ephemeral
- * reveal DOM. Resyncs around the committed bytes.
+ * The reveal→edit→commit UX this widget shares with inline math. The edit is suppressed from
+ * the CST until commit, so settling on the source delta before the blur races the reveal DOM.
  */
 export async function editFootnoteLabel(
 	ctx: SimContext,
@@ -205,12 +178,9 @@ export async function editFootnoteLabel(
 }
 
 /**
- * Degrade the reference widget at `refIndex` to literal text. A destructive key adjacent to
- * a folded reference reveals it rather than deleting it whole (the reveal policy), so the
- * first Delete only reveals; the second deletes the opening `[`, and blurring onto
- * `blurBlockIndex` commits the now `^label]` run as ordinary text — the reference is gone
- * but its remaining bytes stay. The caller nets it to identity with a trailing undo. Settles
- * on the widget count dropping.
+ * A destructive key adjacent to a folded reference REVEALS it rather than deleting it whole,
+ * so the first Delete only reveals and the second removes the opening `[` — leaving the rest
+ * as ordinary text. The caller nets it to identity with a trailing undo.
  */
 export async function deleteFootnoteReference(
 	ctx: SimContext,
@@ -234,11 +204,9 @@ export async function deleteFootnoteReference(
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Commit a revealed source by blurring onto `blurBlockIndex`. Enter is the block's
- * split key, not a commit gesture (`latex-inline-reveal-commands`), and a reference
- * sitting at a block edge has no adjacent position for a caret escape to land in —
- * blur is the commit that holds wherever the widget sits. The caret-escape commit is
- * covered by the inline-math gestures, whose widget is mid-prose.
+ * Blur is the commit that holds WHEREVER the widget sits: Enter is the block's split key
+ * (`latex-inline-reveal-commands`), and a block-edge reference has no adjacent position for a
+ * caret escape to land in. The caret-escape commit is covered by the inline-math gestures.
  */
 async function blurToCommit(
 	ctx: SimContext,

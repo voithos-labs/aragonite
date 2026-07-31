@@ -11,11 +11,9 @@ test.describe('sticky column: reset triggers', () => {
 		await editor.goto();
 	});
 
-	// Returns the document's left text column X (caret at offset 0, measured on a
-	// non-empty paragraph), the column a sticky-reset landing must snap back to. The
-	// trailing paragraph guarantees a downward move out of para3 lands in a real
-	// block instead of the past-end paragraph-append (which leaves a degenerate caret
-	// whose getClientRects collapses to x≈0).
+	// The column a sticky-reset landing must snap back to. The trailing paragraph guarantees a
+	// downward move lands in a REAL block rather than the past-end append, whose degenerate caret
+	// collapses to x≈0.
 	async function setupHighColumn(): Promise<number> {
 		await editor.loadContent(
 			'A long first paragraph with enough text to have a high-column position.\n\n' +

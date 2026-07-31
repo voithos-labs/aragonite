@@ -1,14 +1,9 @@
 import type { SimContext } from '../invariants';
 
 /**
- * Presentation-mode flip: the byte-stability oracle for the mode prop. A flip is
- * auto-behavior (reading commits any live edit through the blur-class effect and
- * makes the surface inert), so the pattern is perform → settle on the mode attribute
- * → resync — never a printable prediction. The note's source must round-trip
- * unchanged across a `source → mode → source` flip regardless of what was live when
- * it landed; the closing `waitForSourceEquals` is that assertion.
- *
- * Reading mode drops the text caret (contenteditable off), so the return trip
+ * The byte-stability oracle for the mode prop: the source must round-trip unchanged across a
+ * `source → mode → source` flip regardless of what was live when it landed, which the closing
+ * `waitForSourceEquals` asserts. Reading mode drops the text caret, so the return trip
  * re-clicks a block to hand the following gestures an editable surface.
  */
 type FlipMode = 'reading' | 'preview-block' | 'preview-inline';

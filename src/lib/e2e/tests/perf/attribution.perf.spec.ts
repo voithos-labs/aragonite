@@ -11,10 +11,8 @@ import {
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
-// Diagnostic profiling instruments: they break per-keystroke cost down on the
-// largest fixtures and gate nothing, so the gate run (PERF_GATE) skips them —
-// same shape as typing-latency.perf.spec.ts. The rule lives here rather than in a
-// caller's `--grep-invert`, so the local gate and CI's run the same row set.
+// Diagnostic instruments that gate nothing, so the gate run skips them. The rule lives
+// here rather than in a caller's `--grep-invert`, so local and CI run the same row set.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
 	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'
@@ -59,10 +57,8 @@ interface DurationDeltaMs {
 	taskMs: number;
 }
 
-// One CDP measurement window shared by every CDP axis: snapshot the Performance
-// counters, run the timed work, and return the *Duration deltas in ms. Whatever
-// must stay outside the window (perf.enable/reset, goto, post-run snapshot reads)
-// lives around the `run` closure, never inside the helper.
+// One CDP measurement window shared by every axis. Whatever must stay OUTSIDE the window
+// (perf.enable/reset, goto, post-run snapshot reads) lives around the `run` closure.
 async function cdpDurationDelta(page: Page, run: () => Promise<void>): Promise<DurationDeltaMs> {
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('Performance.enable');
@@ -87,13 +83,10 @@ function write(name: string, result: object): void {
 	writeFileSync(`perf-results/attr-${name}.json`, line + '\n');
 }
 
-// Focus block 0 — the only block guaranteed mounted once windowing unmounts
-// off-screen blocks (scrollTop=0 keeps the top in-window). Focusing the LAST
-// block of a windowing-scale fixture silently no-ops: its DOM host is unmounted,
-// so the keystroke lands on <body>, docLengthInPage never advances, and the
-// per-keystroke settle hangs to timeout. Container-shaped fixtures must PREPEND a
-// prose paragraph so block 0 is an editable prose target. Mirrors
-// latency-harness.ts's block-0 target and axisS below.
+// Block 0 is the only block guaranteed mounted under windowing. Focusing the LAST block of
+// a windowing-scale fixture silently no-ops — its host is unmounted, so the keystroke lands
+// on <body> and the settle hangs to timeout. Container fixtures must PREPEND a prose
+// paragraph so block 0 is editable. Mirrors latency-harness.ts's block-0 target.
 async function loadAndFocusBlock0(page: Page, editor: EditorPage, src: string): Promise<void> {
 	await editor.goto();
 	await page.evaluate((c) => (window as any).__test.setSource(c), src);
@@ -382,9 +375,7 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 	const rows: object[] = [];
 	for (const blockCount of [1000, 10000, 30000]) {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
-		// Type into block 0 (top, always in-window). Focusing the LAST block fails
-		// once windowing activates and unmounts it — and matches the gated harness,
-		// which also edits block 0.
+		// Block 0 for the same reason as `loadAndFocusBlock0`, and to match the gated harness.
 		await editor.goto();
 		await page.evaluate((c) => (window as any).__test.setSource(c), src);
 		await settle(page, src.replace(/\s+$/, '').length);
@@ -401,10 +392,8 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 			(window as any).__test.perf.enable();
 			(window as any).__test.perf.reset();
 		});
-		// CDP ScriptDuration/keystroke is the airtight measure: immune to both the
-		// in-page mark (fires at the edited block's render effect) and the block-0
-		// poll (resolves at the synchronous commit). With the O(1) settle the poll
-		// script is negligible, so flat ScriptDuration ⇒ editor work is provably flat.
+		// CDP ScriptDuration is the airtight measure: immune to where the in-page mark and
+		// the block-0 poll each fire, and with the O(1) settle the poll script is negligible.
 		const harness: number[] = [];
 		const N = 10;
 		const delta = await cdpDurationDelta(page, async () => {
@@ -437,10 +426,8 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 });
 
 // ── Axis Load: flat load-cliff attribution ──────────────────────────────────
-// The ~23s many-small-blocks-10MB load: first-render-mounts-all, or O(count) tree
-// materialization? mountedTopLevel (DOM, robust) vs topLevelChildCount + the CDP
-// script/layout split answer it. Load settle stays O(count) — it's a one-time
-// poll, dwarfed by the load it waits on.
+// Separates the two candidate causes of a slow flat load — first-render-mounts-all vs
+// O(count) tree materialization — via mounted-vs-child count and the CDP script/layout split.
 test('axisLoad: flat load mounted-count + script/layout split', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const rows: object[] = [];
@@ -481,9 +468,8 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 });
 
 // ── Axis T: first-edit full instrument profile (vs steady-state axisR) ───────
-// The one-time first-edit full-document re-render is fixed — the LRD resolver is
-// reassigned only on a real signature change, so the first edit no longer
-// re-renders every block. This capture confirms it: renders stays bounded, not ~22k.
+// The LRD resolver is reassigned only on a real signature change, so the first edit after
+// load must not fan out into a full-document re-render.
 
 test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) => {
 	const editor = new EditorPage(page);
@@ -505,8 +491,7 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 		snapshotCount: s.snapshotCount,
 		rebuildDepths: s.rebuildDepths
 	});
-	// Pre-fix this was ~21,980 (the whole document). Post-fix the first edit
-	// re-renders only the edited block; the generous bound still catches any
-	// regression back toward a document-wide fan-out.
+	// A document-wide fan-out reads in the tens of thousands here, so the generous bound
+	// still catches a regression back to one.
 	expect(s.blockRenderCount).toBeLessThanOrEqual(50);
 });

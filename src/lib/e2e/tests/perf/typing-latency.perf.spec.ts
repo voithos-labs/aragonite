@@ -18,8 +18,7 @@ import {
 
 declare const process: { env: Record<string, string | undefined> };
 
-// Report-only rows: `perf:e2e` (PERF alone) runs them; the `perf:check` gate
-// (PERF_GATE) skips them — they gate nothing, so the gate job shouldn't pay their
+// The `perf:check` gate skips these: they gate nothing, so it should not pay their
 // runtime or flake risk.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
@@ -38,13 +37,8 @@ const SIZES: Array<[label: string, bytes: number, keystrokes: number]> = [
 	['10MB', 10_000_000, 15]
 ];
 
-// Rows above a shape's cap are not generated; omissions are recorded in the
-// requirements file. All shapes are currently un-capped: the multi-block shapes'
-// 10MB blocker was mounting every block (windowing bounds the mount now), and the
-// single-giant-container shapes (giant-single-list/blockquote/table) load linearly
-// (~3.4s at 10MB; parse ~6%, the rest $state/tree materialization) with the mount
-// VR-bounded. reference-heavy un-capped once lazy inline content removed its
-// per-edit whole-document sweep over every reference-bearing block.
+// Rows above a shape's cap are not generated; omissions are recorded in the requirements
+// file. Empty because windowing and lazy inline content removed every former blocker.
 const MAX_BYTES: Partial<Record<FixtureShape, number>> = {};
 
 function round(ms: number): number {
@@ -84,11 +78,9 @@ test.describe('typing latency', () => {
 
 // ── Container-head typing (report companion to the gated rows) ──────────────
 
-// The caret INSIDE a giant container rather than in a paragraph ahead of it, so
-// every keystroke rewrites the container's own opener line. The prose-target rows
-// above cannot reach this: they prepend a paragraph precisely so the caret has a
-// top-level home. Gated twins live in perf-gate; these rows carry the loadMs and
-// p95 a re-bless sweep needs.
+// The caret INSIDE a giant container, so every keystroke rewrites its opener line — the
+// axis the prose-target rows above cannot reach, since they prepend a paragraph precisely
+// to give the caret a top-level home. Gated twins live in perf-gate.
 const CONTAINER_HEAD_SHAPES: Array<[shape: FixtureShape, headLeafPath: number[]]> = [
 	['giant-single-list', [0, 0, 0]],
 	['giant-single-blockquote', [0, 0]]
@@ -116,10 +108,8 @@ test.describe('typing latency — container head', () => {
 
 // ── At-depth typing (concern-4 corroboration, report-only) ───────────────────
 
-// One report-only row: typing at the deepest leaf of a deep-nested document,
-// where the keystroke pays the full ancestry rebuild the top-level rows skip.
-// No gate, no baseline judgment — first end-to-end data on the ancestry tax.
-// depth 8 × 50KB/level is the realistic worst corner the vitest bench sweeps.
+// Depth 8 × 50KB/level is the realistic worst corner the vitest bench sweeps; the keystroke
+// there pays the full ancestry rebuild the top-level rows skip.
 test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const m = await measureDeepNestedTyping(page, editor, 8, 50_000, 30);
@@ -140,23 +130,13 @@ test('deep-nested depth 8 × 50KB/level: at-depth typing (report-only)', async (
 
 // ── Installed inline rungs (report-only) ────────────────────────────────────
 
-// The standing ceilings measure an EMPTY inline registry: no bundled plugin is
-// installed on the editor route, so no row sees what a registered rung costs. Three
-// bundled rungs ship on the two shapes — footnotes' reserved `[^` prefix, emoji's
-// and latex's unreserved `:`/`$` — and each pays a per-occurrence consultation
-// inside ranges `needsScan` admits. The unreserved shape also flips `needsScan`'s
-// per-character probe on for the whole document, so PLAIN PROSE gets more expensive
-// once any unreserved rung is installed: the row the standing gate is blindest to.
+// The standing ceilings measure an EMPTY inline registry, so no other row sees what a
+// registered rung costs. An UNRESERVED trigger (`:`, `$`) flips `needsScan`'s per-character
+// probe on document-wide, making plain prose more expensive — the blind spot these rows fill.
 //
-// Each row measures the trigger-dense (or plain) fixture twice: once on the plugins
-// route where the rung is installed, once on the rung-free editor route, so the
-// delta rides in the artifact instead of a claim.
-//
-// CONFOUND, stated because no route here is a clean control: `/test/plugins` installs
-// eight base plugins (callout, details, latex, admonitions, mermaid, memo, doc-stats,
-// toc), two of which derive over the whole document. So a route delta bounds the
-// installed-rung cost from ABOVE and is not attributable to the rung alone. Report
-// the numbers; do not read "the bail probe costs X" off a route delta.
+// CONFOUND: `/test/plugins` installs eight base plugins, two deriving over the whole
+// document, so a route delta bounds the rung's cost from ABOVE and is not attributable to
+// the rung alone. Do not read "the bail probe costs X" off one.
 const RUNG_KEYSTROKES = 30;
 
 interface RungRow {
@@ -167,8 +147,8 @@ interface RungRow {
 	seed?: string;
 	// A widget the rung mints on the loaded document, proving the rung is live.
 	requireWidget?: string;
-	// Loaded before the fixture when the fixture itself mints no widget — the only
-	// liveness evidence the plain-prose row can carry.
+	// Loaded before the fixture when the fixture itself mints no widget — the only liveness
+	// evidence the plain-prose row can carry.
 	probeDocument?: { source: string; widget: string };
 	// One size unless a row's cost is suspected to scale with the document.
 	sizes: Array<[label: string, bytes: number]>;
@@ -178,16 +158,11 @@ const ONE_SIZE: Array<[string, number]> = [['100KB', 100_000]];
 
 const RUNG_ROWS: RungRow[] = [
 	{
-		// Two mechanisms, one fixture: the `[^` prefix consultation on every `[`, and
-		// the mounted reference's number, which re-derives from a walk over the whole
-		// document on every content version (the third non-viewport axis in
-		// docs/design/performance.md). The widget count in the artifact is what says
-		// the second mechanism was live.
-		//
-		// The only row with a size axis, because the two mechanisms scale differently:
-		// the consultation is bounded by the scanned range, while the mounted
-		// derivation walks the document, so a 10× document with the same viewport
-		// separates them without needing a second fixture.
+		// Two mechanisms in one fixture: the `[^` prefix consultation, and the mounted
+		// reference's number re-deriving over the whole document (the third non-viewport
+		// axis in docs/design/performance.md). The only row with a size axis, because the
+		// consultation is range-bounded while the derivation is not — a 10× document at the
+		// same viewport separates them without a second fixture.
 		row: 'bracket-dense-footnotes',
 		fixture: 'bracket-footnote',
 		seed: 'footnotes',
@@ -211,8 +186,7 @@ const RUNG_ROWS: RungRow[] = [
 		sizes: ONE_SIZE
 	},
 	{
-		// The bail-probe row: ordinary prose with no trigger in it at all, under an
-		// installed unreserved rung. `:` is held out of SPECIAL_CHARS, so registering
+		// Prose with no trigger at all: `:` is held out of SPECIAL_CHARS, so registering
 		// emoji turns on a per-character map lookup before the fast bail decides.
 		row: 'plain-prose-bail-emoji',
 		fixture: 'flat-prose',
@@ -290,9 +264,8 @@ test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }
 	await editor.focusBlockEnd(0);
 	await editor.typeSlowly('x');
 	await editor.bridge.waitForSourceContains('worldx');
-	// The edited block's inline recompute rides the debounced input flush
-	// (~250ms after the keystroke), so poll the snapshot rather than reading it
-	// immediately.
+	// The inline recompute rides the debounced input flush (~250ms after the keystroke),
+	// so the source settle above lands well before it.
 	await page.waitForFunction(
 		() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 		null,

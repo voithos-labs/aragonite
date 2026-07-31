@@ -3,13 +3,10 @@ import { DetailsPage, bodyHostCount, capturedErrors } from '../plugins/details-h
 import type { Page } from '@playwright/test';
 
 /**
- * Reading mode's ONE interactive affordance: the `<details>` disclosure flips view
- * state so a reader can open a collapsed section, and writes nothing.
- * Requirements: e2e/requirements/presentation/presentation-reading-details.md.
- *
- * `bodyHostCount` is the load-bearing observable, not the caret or the arrow glyph:
- * it proves the collapse CLAMP saw the flip and genuinely mounted the body, which is
- * the half a view-only `aria-expanded` would fake.
+ * Reading mode's ONE interactive affordance: the `<details>` disclosure flips view state and
+ * writes nothing (e2e/requirements/presentation/presentation-reading-details.md).
+ * `bodyHostCount` is the load-bearing observable, not the caret or the arrow glyph — it
+ * proves the collapse clamp genuinely mounted the body, the half `aria-expanded` would fake.
  */
 
 const CLOSED = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n\nBelow\n';

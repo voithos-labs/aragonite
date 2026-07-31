@@ -2,10 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 
-// preview-inline is an EDITING mode: a revealed construct is ordinary source
-// text, so typing commits per keystroke, undo restores, and the reveal state
-// survives every rebuild. Rendering/reveal scenarios live in
-// presentation-preview-inline.spec.ts.
+// preview-inline is an EDITING mode: a revealed construct is ordinary source text, so
+// typing commits per keystroke and the reveal state survives every rebuild. Rendering lives
+// in presentation-preview-inline.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-editing.md.
 
 const DOC = ['# Title', '', 'alpha **beta** gamma'].join('\n');

@@ -6,36 +6,19 @@ import { measureContainerHeadTyping, measureTypingLatency } from './latency-harn
 
 declare const process: { env: Record<string, string | undefined> };
 
-// Runs only when invoked deliberately (`npm run perf:check` sets PERF_GATE), so
-// the slow timing rows never join the fast `npm test`. Skips loudly, not
-// silently — a skipped gate that reads green would be theater, so the launcher
-// is the only path that arms it.
+// Only the deliberate launcher arms this, so a skipped gate can never read green as if it
+// had run.
 test.skip(!process.env.PERF_GATE, 'run via `npm run perf:check`');
 
-// Single-machine dev-time regression gate. Same-machine run-to-run spread on
-// the p50 is ~3-4% (measured), so a +10% budget clears the noise while catching
-// real slowdowns; the +5ms floor keeps cheap rows from tripping on a few ms of
-// jitter. Gate on the stable p50, report p95. Update baseline.json deliberately
-// (with a changelog note) after a Chromium/OS/toolchain bump moves the floor —
-// never to silence a real regression.
-//
-// Rows: the ≤1MB shapes plus every renderable shape's 10MB keystroke — all
-// O(viewport). Windowing bounds the mounted set to the viewport regardless of
-// block count (attribution axisS: mounted/renders flat 1k→30k), so gating at 10MB
-// guards the O(viewport) claim against an O(doc) regression that would hide at
-// 1MB. The flat high-block-count shapes (flat-prose/many-small-blocks/reference-
-// heavy) were previously excluded on a belief they carried an O(top-level-count)
-// keystroke cost; that was a harness artifact — the per-keystroke settle summed
-// docLengthInPage over the whole $state-proxy children array — now fixed in
-// latency-harness, so they gate too. (Intra-block single-giant-paragraph stays
-// recorded-not-gated: its span rebuild is O(paragraph length), not viewport-
-// bounded — a genuinely separate axis.)
+// Single-machine dev-time regression gate. Same-machine p50 spread is ~3-4% measured, so
+// +10% clears the noise; the floor keeps cheap rows from tripping on a few ms of jitter.
+// Gate on the stable p50, report p95. Re-bless baseline.json only for a toolchain bump,
+// with a changelog note — never to silence a regression. Gating the 10MB rows is what
+// guards the O(viewport) claim against an O(doc) regression that would hide at 1MB.
 const TOLERANCE = 1.1;
 const FLOOR_MS = 5;
-// Baselines were measured on the calibration machine; slower environments (CI
-// runners measured ~2.2x) scale the whole ceiling rather than re-blessing
-// baselines per host. Local stays 1 — the tight gate; CI sets it in the
-// workflow env, making the CI gate a gross-regression net, not a re-tuned one.
+// Slower environments scale the whole ceiling rather than re-blessing baselines per host.
+// Local stays 1 (the tight gate); CI sets it, making its gate a gross-regression net.
 const RUNNER_SCALE = Number(process.env.PERF_RUNNER_SCALE ?? '1');
 
 const SIZE_BYTES: Record<string, number> = { '1MB': 1_000_000, '10MB': 10_000_000 };
@@ -90,12 +73,9 @@ test.describe('perf gate — keystroke p50 within budget', () => {
 	}
 });
 
-// Typing inside a container, not ahead of one. Every row above prepends a plain
-// paragraph and types into block 0, so no gated row's caret ever sits inside a
-// container — and the container kind re-derivation's cost lands precisely there:
-// a keystroke into the head child rewrites the container's opener line, and an
-// ungated re-derivation would parse the whole container for it. The row exists so
-// that regression is O(container bytes)-visible instead of invisible.
+// Typing INSIDE a container, not ahead of one: every row above prepends a paragraph, so no
+// other gated caret ever sits inside one. A keystroke on the head child rewrites the
+// container's opener line, and an ungated re-derivation would parse the whole container.
 const CONTAINER_HEAD_ROWS: Array<[shape: FixtureShape, headLeafPath: number[], size: string]> = [
 	['giant-single-list', [0, 0, 0], '1MB'],
 	['giant-single-blockquote', [0, 0], '1MB']

@@ -150,17 +150,12 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(await editor.bridge.getSource()).toContain('| 1 | 2! |');
 	});
 
-	// Beside the table, y picks the row — so this lands in a MIDDLE row, which is what
-	// separates "nearest cell" from "the last cell". The x→column half is pinned at the
-	// unit layer (`table-caret-at-point.test.ts`, and the col-0 arm of
-	// `dead-space-caret-routing.test.ts`), because a dead-space click is only in the
-	// root's own padding, where x is always clamped to a box edge.
+	// A MIDDLE row is what separates "nearest cell" from "the last cell"; the x→column half is
+	// pinned at the unit layer (`table-caret-at-point.test.ts`), since a dead-space click sits
+	// in the root's padding where x is always clamped to a box edge.
 	//
-	// Driven with a live cross-block range on purpose. Beside a block the browser's own
-	// caret placement reaches the same cell, so the landing alone proves nothing about
-	// whose answer it is; the range does. A declined click leaves it painted and the
-	// next key type-replaces the whole document, where a claimed one ends it and types
-	// into the cell.
+	// Driven with a LIVE cross-block range on purpose: beside a block the browser's own caret
+	// placement reaches the same cell, so only the range's fate says whose answer it is.
 	test('a click beside a table lands in that row and ends a live range', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 		await editor.focusBlockStart(0);

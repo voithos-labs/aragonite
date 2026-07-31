@@ -44,14 +44,9 @@ test.describe('selection — keyboard: edge cases', () => {
 	});
 
 	test('empty document: double Ctrl+A then typed char replaces the empty block without crashing', async () => {
-		// Empty doc = single blank paragraph. The earlier version of this test
-		// only asserted `getSource() === before` after two Ctrl+A presses,
-		// which was trivially true — Ctrl+A doesn't mutate source. The real
-		// invariant: after the double Ctrl+A, pressing a character key should
-		// replace the (empty) selected content with that character, leaving
-		// exactly one block whose raw contains the typed char. Regressions in
-		// the double-press escalation or the cross-block type-replace path
-		// would either crash, produce extra blocks, or lose the char.
+		// Asserted through a TYPED character, not through `getSource()` being unchanged: Ctrl+A
+		// mutates nothing, so that would pass trivially. A regression in the double-press
+		// escalation or the type-replace path crashes, adds blocks, or loses the char.
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 

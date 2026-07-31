@@ -3,10 +3,8 @@ import { EditorPage } from '../../editor-page';
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
-// When a cross-block delete consumes every caret-eligible block, the caret falls
-// to the nearest surviving block before the range. A blockquote/list survivor
-// must descend to its deepest leaf's end — landing a char offset on the
-// container's own path names bytes no leaf owns and the restore mis-lands.
+// A container survivor must be DESCENDED to its deepest leaf's end: a char offset on the
+// container's own path names bytes no leaf owns, and the restore mis-lands.
 test.describe('cross-block delete: container survivor caret', () => {
 	let editor: EditorPage;
 

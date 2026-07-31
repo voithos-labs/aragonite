@@ -6,10 +6,9 @@ const TRANSPARENT_MIDDLE = 'first\n\n![pic](/test-fixtures/sample.png)\n\nthird\
 const LIST_ONLY_TRANSPARENT =
 	'above\n\n- ![pic](/test-fixtures/sample.png)\n- ![pic](/test-fixtures/sample.png)\n\nbelow\n';
 
-// A doc tall enough to clear the windowing watermark (4000px), with a known
-// text block then a final image-only paragraph. At the top scroll position the
-// tail blocks are off-window (unmounted), so the transparency decision for the
-// final block can't come from a mounted component — it must read the CST.
+// Tall enough to window, so at the top scroll position the tail is UNMOUNTED and the
+// transparency decision for the final block cannot come from a component — it must read
+// the CST.
 const WINDOWED_TAIL_BLOCKS = 800;
 function windowedDocWithTransparentTail(): string {
 	const text = Array.from({ length: WINDOWED_TAIL_BLOCKS }, (_, i) => `para ${i}`).join('\n\n');
@@ -115,10 +114,8 @@ test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 		const lastIdx = WINDOWED_TAIL_BLOCKS; // the image-only paragraph
 		const lastTextIdx = WINDOWED_TAIL_BLOCKS - 1;
 
-		// Precondition: windowing is active and the tail is unmounted, so the
-		// transparency check runs against a node with no live component. If the
-		// last block were mounted this test would pass with the old component gate
-		// too (vacuous) — assert the off-window condition is real.
+		// If the last block were mounted, a component-gated transparency check would pass too and
+		// the test would be vacuous.
 		await editor.focusBlockStart(0);
 		expect(await topLevelHostPresent(page, lastIdx)).toBe(false);
 		expect(await topLevelHostPresent(page, lastTextIdx)).toBe(false);
@@ -128,10 +125,8 @@ test.describe('selection — keyboard: vertical-skip parity (G1)', () => {
 
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
-		// Matches the non-windowed result: the endpoint skips the transparent
-		// image-only last block and lands on the last text-bearing block. With the
-		// reverted component gate the off-window image returns null → not skipped →
-		// focus would land on [lastIdx].
+		// Matches the non-windowed result. A component-gated check returns null for the off-window
+		// image, so it is not skipped and focus lands on the image block instead.
 		expect(sel!.focus.path).toEqual([lastTextIdx]);
 	});
 

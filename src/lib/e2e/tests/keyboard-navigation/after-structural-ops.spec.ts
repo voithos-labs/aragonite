@@ -1,10 +1,8 @@
-// Single concern: ArrowDown traversal correctness after structural ops near containers. Each test
-// loads a different multi-block document and runs a different structural op (split, M1 merge,
-// cross-container merge); they share the same regression invariant about stale container indices.
+// One invariant — container-block navigation surviving the index shift a structural op causes
+// — parametrized across split, M1 merge, and cross-container merge.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Regressions: structural ops (split/merge/delete) shift indices; container-block navigation must remain correct after.
 test.describe('focus traversal after block insertion', () => {
 	let editor: EditorPage;
 
@@ -14,7 +12,7 @@ test.describe('focus traversal after block insertion', () => {
 	});
 
 	test('ArrowDown traverses every block after splitBlock near containers', async () => {
-		// Regression: stale index prop on container blocks (blockquote/list) after splitBlock caused focus to skip blocks.
+		// A stale index prop on a container block makes focus skip blocks after the split.
 		const content = [
 			'# Title',
 			'',

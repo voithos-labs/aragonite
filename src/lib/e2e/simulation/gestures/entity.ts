@@ -1,12 +1,8 @@
 import { type SimContext } from '../invariants';
 
-// Decoded-entity atomic-widget gestures. A character reference like `&copy;`
-// renders as an atomic `[data-inline-widget]` glyph (©) while the raw stays the
-// literal six bytes on `data-source-*`. The widget contributes its glyph, not its
-// raw, to textContent, so the ExpectationTracker's end-of-doc append rule can't
-// predict a mid-prose insert or the whole-reference atomic delete — both perform,
-// settle on the widget swap, and resync. Free functions taking `ctx` first,
-// mirroring gestures/decoration.ts.
+// Decoded-entity atomic-widget gestures. The widget contributes its GLYPH, not its raw, so
+// the tracker's end-of-doc append rule can predict neither a mid-prose insert nor the
+// whole-reference atomic delete — both settle on the widget swap and resync.
 
 const ENTITY = '.md-entity-widget';
 
@@ -30,11 +26,8 @@ async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number
 }
 
 /**
- * Type a character reference mid-prose in `blockIndex`, materializing an atomic
- * glyph widget. The caret is placed at `offset` (mid-block) with the Selection API
- * for setup, then the reference is typed with real per-key input; the widget
- * appears on the closing `;`. Settles on the glyph mounting plus the literal
- * reference landing in the source, then resyncs.
+ * The caret is placed with the Selection API for SETUP only; the reference itself is typed
+ * per-key, so the widget appears on the closing `;`.
  */
 export async function typeEntityWidget(
 	ctx: SimContext,
@@ -56,12 +49,8 @@ export async function typeEntityWidget(
 }
 
 /**
- * Delete the entity widget in `blockIndex` with a single atomic Backspace from its
- * trailing edge — `deleteGranularity: 'atomic'` removes the whole reference in one
- * press and one undo entry. The caret walks to the trailing edge with real arrows
- * (widget-aware: one ArrowRight steps over the whole glyph), so the press lands on
- * the atomic-delete branch. Settles on the glyph unmounting and the reference
- * leaving the source, then resyncs.
+ * `deleteGranularity: 'atomic'` removes the whole reference in one press and one undo entry.
+ * The caret reaches the trailing edge with REAL arrows so the press lands on that branch.
  */
 export async function atomicDeleteEntityWidget(ctx: SimContext, blockIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;

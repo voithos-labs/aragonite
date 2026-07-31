@@ -2,10 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { activeOverlays, count, openFind, overlays } from './helpers';
 
-// An atomic image widget contributes 0 chars to textContent and carries its raw
-// bytes via data-source-*. A match landing entirely inside the widget's source
-// range (here in the alt text) used to collapse to a zero-width range and paint
-// nothing; the highlight must now cover the widget's box.
+// An atomic image widget contributes 0 chars to textContent, so a match landing entirely
+// inside its source range collapses to a zero-width range unless the highlight is measured
+// over the widget's own box.
 test.describe('search — image-widget matches', () => {
 	test('a match inside an image alt text paints a visible overlay over the widget', async ({
 		page
@@ -19,11 +18,9 @@ test.describe('search — image-widget matches', () => {
 		await page.keyboard.type('needle');
 
 		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
-		// Exactly one overlay, painted with real width over the widget — not the
-		// zero-width sliver the collapsed range produced pre-fix (dropped upstream).
-		// The `|120` width gives the widget a deterministic layout width whether or
-		// not picsum loads, so width (not height, which an unloaded image leaves 0)
-		// is the network-independent signal that the highlight covers the widget.
+		// The explicit width gives the widget a deterministic layout width whether or not the
+		// image loads, so WIDTH — not height, which an unloaded image leaves 0 — is the
+		// network-independent signal that the highlight covers it.
 		await expect(overlays(page)).toHaveCount(1);
 		const width = await overlays(page)
 			.first()

@@ -37,10 +37,8 @@ test.describe('inner container+paragraph merge inside a container', () => {
 	});
 
 	test('caret lands at the join point when merge target is two containers deep', async () => {
-		// `> > > deep\n>\n> trailing\n` shape: outer blockquote contains a 2-level-
-		// deep nested blockquote and the trailing paragraph as inner siblings.
-		// Backspace at start of trailing exercises the `path.length === 2` branch
-		// of focusByPath inside the nested merge path.
+		// A 2-level-deep nested blockquote beside a trailing paragraph, so the Backspace exercises
+		// `focusByPath`'s `path.length === 2` branch inside the nested merge path.
 		await editor.loadContent('> > > deep\n>\n> trailing\n');
 		const trailing = editor.page.locator('[contenteditable="true"]', { hasText: /^trailing$/ });
 		await trailing.click();

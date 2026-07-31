@@ -8,31 +8,16 @@ import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 import { topLevelIndexOf } from './helpers';
 
-// Ungated directive-ops oracle for the `:::name` primitive. The directive surface
-// spans three tiers (opaque container, not-mergeable leaf, atomic inline widget)
-// and two dispatch paths (a registered name resolves to a factory node, an
-// unregistered name to the generic lossless kinds) — none of which the corruption
-// oracle stack (structured error + `[invariant:…]` watcher, live-CST round-trip,
-// nested-state audit) had ever seen under a state-accumulating watcher. Mirrors
-// math-ops / plugin-ops: a loaded document on the plugins route (whose
-// `activateDirectives()` call activates the grammar + generic render, and whose
-// plugin installs claim note/warning via callout and tip/important/caution via
-// admonitions), the directive gesture vocabulary, all oracles re-checked after
-// every move, fixed rng for determinism.
-//
-// `:::note` (registered → callout factory) and `:::mystery` (unregistered → generic
-// container) drive both dispatch paths at parse; the gestures then insert a leaf and
-// a text widget by real typing, reveal-commit the widget, edit each tier's editable
-// surface, drive the leaf's not-mergeable structural path and a container-body
-// split, and paste-insert a fresh container — re-checking all three oracles after
-// every step.
+// Ungated directive-ops oracle for the `:::name` primitive, whose surface spans three tiers
+// (opaque container, not-mergeable leaf, atomic inline widget) and two dispatch paths (a
+// registered name resolving to a factory node, an unregistered one to the generic lossless
+// kinds) — none of which the oracle stack had seen under a state-accumulating watcher.
+// `:::note` and `:::mystery` drive both dispatch paths at parse.
 
 const DIRECTIVE_DOC =
 	'Lead paragraph.\n\n' +
-	// `mystery` must stay a name NO harness plugin claims — the generic-tier
-	// assertions depend on it. The composed harness owns note/warning (callout)
-	// and tip/important/caution (admonitions); a plugin claiming `mystery` fails
-	// the generic count assertion loudly, by design.
+	// `mystery` must stay a name NO harness plugin claims, since the generic-tier assertions
+	// depend on it — a plugin claiming it fails the generic count assertion loudly, by design.
 	':::mystery\nGeneric body.\n:::\n\n' +
 	'Middle paragraph.\n\n' +
 	':::note Note title\nRegistered body.\n:::\n\n' +
@@ -80,11 +65,9 @@ test.describe('directive-ops simulation', () => {
 		await expect(page.locator('.directive-text-widget')).toHaveCount(1);
 		await checkOracles('text-inserted');
 
-		// Liveness pin for the standing decoration source: the first edit ran the
-		// engine's per-edit pass, so the source's overlays must now paint. Otherwise a
-		// source that silently stopped emitting would leave the battery green with zero
-		// decoration coverage. (loadContent alone fires no edit event, so the source
-		// cannot paint before this first commit — hence the pin sits here, not at load.)
+		// Liveness pin: a source that silently stopped emitting would leave the battery green with
+		// zero decoration coverage. It sits after the FIRST EDIT, not at load, because `loadContent`
+		// fires no edit event and the source cannot paint before that commit.
 		await expect
 			.poll(() => page.locator('.decoration-overlay.sim-standing-mark').count())
 			.toBeGreaterThan(0);

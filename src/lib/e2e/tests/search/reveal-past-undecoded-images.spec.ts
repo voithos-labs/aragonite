@@ -7,10 +7,8 @@ import { capturePageErrors } from '../../page-probes';
 const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
 const prevButton = (page: Page) => page.getByRole('button', { name: 'Previous match' });
 
-// Is an active-match highlight painted AND within the editor viewport? The #1 bug:
-// revealing a far match past undecoded images strands the viewport — the images
-// measure ~0, the document shrinks, and the browser clamps the reveal scroll up off
-// the target block, so the active match lands off-screen (no visible active overlay).
+// Revealing a far match past undecoded images strands the viewport: the images measure ~0,
+// the document shrinks, and the browser clamps the reveal scroll up off the target block.
 function activeOverlayInView(page: Page): Promise<{ painted: boolean; inView: boolean }> {
 	return page.evaluate(() => {
 		const ed = document.querySelector('.editor')!.getBoundingClientRect();

@@ -11,14 +11,10 @@ import {
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// The `header` slot: host chrome mounted INSIDE the editor's scroll container,
-// above the block list. The document's title area scrolls away with the document
-// and windowing survives — the trade an outer host scroller would lose. The slot
-// is a sibling of `.block-list`, so the slice math is untouched; the live hazard
-// is a slot that CHANGES height (a properties panel opening) while the reader is
-// scrolled deep, which routes through its own scroll compensation.
-// Fixture: `/test/editor?header=on` (80px ↔ 240px filler) and `/test/flow`'s
-// `entry-header` for host mode.
+// The `header` slot: host chrome INSIDE the editor's scroll container, above the block
+// list. Mounting it as a SIBLING of `.block-list` is what leaves the slice math untouched
+// while the title still scrolls away. The live hazard is a slot that CHANGES height while
+// the reader is scrolled deep, which routes through its own scroll compensation.
 
 const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
 // Enough to window several screens deep without paying the headline gate's
@@ -65,10 +61,8 @@ test('the header mounts beside the block list, above the first block, and scroll
 	const firstBlock = (await editor.getBlock(0).boundingBox())!;
 	expect(firstBlock.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
 
-	// Scrolls away with content — not sticky, not pinned. Measured against the live
-	// scrollTop rather than the requested one: a post-load measure pass can settle
-	// the estimate-based model a few dozen px, and the contract is that the header
-	// travels with the content, whatever the final offset is.
+	// Measured against the LIVE scrollTop, not the requested one: a post-load measure pass
+	// can settle the estimate-based model a few dozen px off the request.
 	await editor.scrollEditorTo(300);
 	const scrolled = (await headerEl(page).boundingBox())!;
 	const scrollTop = await editor.editorContainer.evaluate((el) => el.scrollTop);
@@ -163,10 +157,8 @@ test('a plain click on a link in the header follows it', async ({ page }) => {
 	const editor = await gotoWithHeader(page);
 	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 
-	// Host chrome is not document content: the editor's modifier-click link policy
-	// (plain click edits, Mod-click activates) stops at the slot boundary. Without
-	// that carve-out the root click handler preventDefaults this and the hash stays
-	// empty — a hero's tag chips would silently do nothing.
+	// Host chrome is not document content, so the editor's modifier-click link policy stops
+	// at the slot boundary; without that carve-out the root handler preventDefaults this.
 	await page.locator('[data-testid="hero-link"]').click();
 	expect(await page.evaluate(() => location.hash)).toBe('#hero-link');
 	expect(pageErrors).toEqual([]);
@@ -179,10 +171,8 @@ test('a text field in the header keeps its own Find chord', async ({ page }) => 
 	const focusedTestId = () =>
 		page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
 
-	// The slot is the host's chrome, and its text entry owns the reserved chords —
-	// a title field that loses Mod+F mid-typing is the feature's own use case
-	// breaking. "Focus is inside the root" stopped meaning "focus is in this
-	// editor's content" the moment the slot existed.
+	// "Focus is inside the root" stopped meaning "focus is in this editor's content" the
+	// moment the slot existed, so the host's text entry keeps the reserved chords.
 	await page.locator('[data-testid="hero-title"]').click();
 	await page.keyboard.press(`${primaryModifier}+f`);
 	await expect(page.locator('.search-bar')).toHaveCount(0);
@@ -209,9 +199,8 @@ test('a caret in the header is not reported as the document caret', async ({ pag
 	await editor.focusBlockEnd(0);
 	expect(await caretRect()).not.toBeNull();
 
-	// The host's own field puts a native range inside the root; `caretRect` is
-	// documented as the document's caret, and a consumer polling it would float its
-	// caret-following chrome over the host's title.
+	// The host's field puts a native range inside the root, but `caretRect` is documented as
+	// the DOCUMENT's caret — reporting it would float consumer chrome over the host title.
 	await page.locator('[data-testid="hero-note"]').click();
 	expect(await caretRect()).toBeNull();
 	expect(pageErrors).toEqual([]);
@@ -274,10 +263,9 @@ test('a host-mode header renders above the first block and never writes the ance
 	const firstBlock = (await entry.locator(TOP_LEVEL_HOSTS).first().boundingBox())!;
 	expect(firstBlock.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
 
-	// Parked ABOVE the entry, so the growth is off-screen below: native scroll
-	// anchoring has no reason to move, and the only thing that could is the editor
-	// writing the ancestor's scrollTop. Reverting the observer's host-mode bail to
-	// `getScrollHost()` shifts it by the full 160px delta.
+	// Parked ABOVE the entry so the growth is off-screen below: native scroll anchoring has
+	// no reason to move, leaving the editor writing the ancestor's scrollTop as the only
+	// thing that could. Reverting the observer's host-mode bail shifts it by the full delta.
 	await page.evaluate(() => {
 		(document.querySelector('[data-testid="scroller"]') as HTMLElement).scrollTop = 1500;
 	});

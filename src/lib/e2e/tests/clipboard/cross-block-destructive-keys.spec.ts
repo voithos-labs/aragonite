@@ -1,8 +1,6 @@
-// A1 regression guard: cross-block selection + Enter / Shift+Enter / Tab /
-// Ctrl+B / Ctrl+0..6 must delete the range first, then dispatch the key's
-// block-level behavior at the collapsed caret. Before the fix, these keys
-// fell through to the originating block's onKeyDown, which applied the op
-// to one single-block raw while the cross-block selection visually persisted.
+// A key over a cross-block selection must DELETE the range first, then dispatch its
+// block-level behavior at the collapsed caret. Falling through to the originating block's
+// onKeyDown applies the op to one raw while the selection visually persists.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -112,11 +110,9 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(source).toContain('\t');
 	});
 
-	// A command key whose cross-block selection STARTS in a table must reach the
-	// table cell's runCommand, not the TableBlock wrapper. The dispatcher reveals
-	// the delete's own post-delete caret (a deep [table,row,col] cell), so the
-	// command lands; the old code revealed selection.start.path ([tableIdx]) and
-	// the command was silently dropped after the destructive delete.
+	// A selection STARTING in a table must reach the cell's runCommand, not the TableBlock
+	// wrapper: the dispatcher reveals the delete's own post-delete caret (a deep cell path),
+	// where revealing `selection.start.path` drops the command after the destructive delete.
 	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
 		page
 	}) => {
@@ -145,10 +141,8 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await page.keyboard.press('Enter');
 		await editor.waitForCrossBlock(false);
-		// The delete wipes the covered body rows, then the cell's Enter command
-		// inserts an empty body row below the caret — the observable proof the
-		// command reached the cell's runCommand. A command dropped at the table
-		// wrapper would leave only the header row, no empty body row.
+		// The inserted empty body row is the observable proof the command reached the cell: a
+		// command dropped at the table wrapper leaves only the header row.
 		await editor.bridge.waitForSourceContains('| --- | --- | --- |\n|  |  |  |');
 
 		// The caret lands in the new cell: the next keystroke writes into the grid,

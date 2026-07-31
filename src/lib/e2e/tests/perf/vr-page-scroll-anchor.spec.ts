@@ -3,22 +3,15 @@ import { type Page } from '@playwright/test';
 import { gotoPageScroll, scrollPageTo, topVisibleBlockInViewport } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
-// Scroll anchoring in a page-scrolled host embedding. Self mode turns native
-// anchoring off because windowing corrects the scroll by hand; in host mode there is
-// no manual correction and the root is not the scrollport, so whether the reader
-// holds their place under late-sizing content is entirely the browser's call — and
-// it can only make it if the editor's blocks are anchor candidates.
-//
-// The oracle watches the reader's own frame of reference: the top block in the
-// window viewport, before and after an image above the fold decodes in. Where the
-// image sits is the whole subject. Outside the entry, the host's own box anchors and
-// the reader holds regardless (the control arm). INSIDE the editor, only an editor
-// block can anchor, and an excluded subtree has none to offer.
+// Scroll anchoring in a page-scrolled host embedding. Self mode turns native anchoring off
+// because windowing corrects by hand; host mode has no manual correction, so holding the
+// reader's place is the browser's call — and it can only make it if the editor's blocks are
+// anchor candidates. The oracle is the top block in the window viewport, before and after an
+// image above the fold decodes; where that image sits is the whole subject.
 
 const READING_OFFSET = 2000;
 
-/** Every non-editor box on the route is out of the viewport, so the only anchor
- *  candidates left are inside the entry. Without this the document scroller could
+/** Puts every non-editor box out of the viewport: otherwise the document scroller could
  *  anchor on a filler and hold the line for a reason the editor had no part in. */
 async function assertOnlyEntryContentInView(page: Page): Promise<void> {
 	const intruders = await page.evaluate(() => {
@@ -83,10 +76,8 @@ test('an image decoding in outside the entry does not shift the reader', async (
 	const before = await topVisibleBlockInViewport(page);
 	expect(before).not.toBeNull();
 
-	// The attribution arm: identical growth, one box further out. The host's wrapper
-	// is an anchor candidate, so this holds whatever the editor's subtree does — and a
-	// red here would mean the page has no scroll anchoring at all, not that the
-	// editor lost it.
+	// The attribution arm: identical growth one box further out, where the host's wrapper
+	// anchors. A red here means the page has no scroll anchoring at all.
 	await page.evaluate(() => (window as any).__pageScroll.loadOuterImage());
 	expect(await decodedHeight(page, OUTER_IMAGE)).toBeCloseTo(300, 0);
 

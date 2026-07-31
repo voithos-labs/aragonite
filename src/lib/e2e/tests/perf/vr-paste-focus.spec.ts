@@ -2,14 +2,11 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * VR-12 for the structural paste landing. A structural paste lands the caret at
- * the end of the pasted run — an index that scales with the CLIPBOARD's item
- * count, not with where the caret was — so once the run clears the container
- * window's overscan (6) the landing target is unmounted. A sync ref lookup
- * cannot mount it; the landing routes through the async reveal instead.
- *
- * Focus is asserted by TYPING, never by reading source: `getSource()` serializes
- * the CST and is identical whatever the caret did.
+ * VR-12 for the structural paste landing. The caret lands at the end of the pasted run — an
+ * index that scales with the CLIPBOARD's item count, not with where the caret was — so once
+ * the run clears the container window's overscan the target is unmounted and a sync ref
+ * lookup cannot mount it. Focus is asserted by TYPING, never by reading source: `getSource()`
+ * serializes the CST and reads identically whatever the caret did.
  */
 
 // ~600 items clears container windowing's 4000px activation watermark.
@@ -21,9 +18,8 @@ const LONG_LIST =
 const PASTED_ITEMS = 40;
 const CLIPBOARD = Array.from({ length: PASTED_ITEMS }, (_, i) => `- pasted ${i}`).join('\n') + '\n';
 
-// The paste splits the target item at the caret, so the list becomes
-// [… , prefix, ...pasted, residue, …] from the target's index onward: the last
-// PASTED item — where the caret belongs, never the residue — lands this far down.
+// The paste splits the target at the caret into [prefix, ...pasted, residue], so the caret
+// belongs on the last PASTED item — never the residue.
 const TARGET_ITEM = 2;
 const LANDING_ITEM = TARGET_ITEM + PASTED_ITEMS;
 const LAST_PASTED_TEXT = `pasted ${PASTED_ITEMS - 1}`;
@@ -67,10 +63,8 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		await page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains(LAST_PASTED_TEXT);
 
-		// The source is final at commit time, before the reveal has scrolled and
-		// mounted the landing item — so gate the typing on the CARET, not the bytes.
-		// Waiting on the source alone would type into whatever still held focus and
-		// pass or fail on scheduling luck.
+		// The source is final at commit time, before the reveal has mounted the landing
+		// item, so waiting on bytes would type into whatever still held focus.
 		await expect
 			.poll(() => cursorOffsetAt(page, [0, LANDING_ITEM, 0]), {
 				message: 'the caret never reached the last pasted item — VR-12'

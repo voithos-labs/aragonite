@@ -1,53 +1,18 @@
 /**
- * G4.23 — requirement↔spec lockstep. `docs/contributing/testing.md` makes the
- * filesystem the authoritative list of what the e2e suite covers: every spec pairs
- * with a requirement file and vice versa. Until this scan, every mapping was
- * hand-verified at review time — a rule enforced by review, which fails silently
- * the day someone adds scenario N+1 without its test. It found two specs whose
- * requirement file was never written, one of them naming the missing file in its
- * own header.
+ * G4.23 — requirement↔spec lockstep. `docs/contributing/testing.md` makes the filesystem the
+ * authoritative list of what the e2e suite covers: every spec pairs with a requirement file
+ * and vice versa. Three rules in descending strength: PAIRING (hard, both directions plus
+ * stem collision), SHAPE (hard, catches the placeholder written to satisfy pairing), and
+ * SCENARIO INFLATION (allowlisted — divergence is legal, unexplained divergence is not).
  *
- * PLACEMENT — this file lives in `src/lib/e2e/lint/`, which is a SECOND lint home,
- * collected by vitest's second include glob (`src/lib/e2e/lint/**`). It rides
- * `npm test` / `npm run test:editor`, and `npm run test:editor:invariants` does NOT
- * reach it — that script is scoped to `src/lib/test/invariants`, where the
- * library-source lints live. Scans over the e2e TREE live here; scans over the
- * LIBRARY source live there. Verify a change to this file with
- * `npx vitest run src/lib/e2e/lint/`.
+ * Rule 3 is a RATIO because equality was measured and refuted: two thirds of pairs diverge
+ * legitimately, so equality would need a per-pair allowlist and would pressure the suite
+ * toward one-assertion padding. A green run does NOT prove any scenario maps to the test
+ * covering it — bullets and titles are semantic paraphrases, so no lexical pairing survives.
  *
- * Three rules, in descending strength:
- *
- * 1. PAIRING (hard, no exceptions). Both directions plus collision: two specs may
- *    not claim one requirement stem, which the `.perf` strip would otherwise let
- *    pass silently (`foo.spec.ts` and `foo.perf.spec.ts` both reduce to `foo.md`).
- * 2. SHAPE (hard). A requirement file carries a level-1 heading, at least one `##`
- *    section, and at least one scenario unit; a spec carries at least one `test()`.
- *    Catches the placeholder written to satisfy rule 1.
- * 3. SCENARIO INFLATION (allowlisted). A requirement enumerating 3× more scenarios
- *    than its spec has tests, by at least 4, must be NAMED below with a reason.
- *    Divergence is legal; unexplained divergence is not.
- *
- * Rule 3 is a ratio rather than equality because equality was measured and refuted
- * (2026-07-29: 214 of 338 pairs diverge legitimately, since one test routinely walks
- * several scenario bullets and shared-invariant bullets apply to every scenario).
- * Requiring equality would have needed a per-pair allowlist for two thirds of the
- * suite — that large a list is noise, and the pressure it applies is toward padding
- * the suite with one-assertion tests, which is the failure that deferred this
- * guard in the first place.
- *
- * Excluding prose sections (Notes, Artifacts, Miss-analysis…) from the unit count was
- * measured too, and rejected: it moves two pairs, both perf harnesses whose bullets
- * state budget, sizes and measurement semantics rather than scenarios — and both are
- * named in the allowlist for exactly that, in prose, at the place it applies. Two
- * named exceptions beat a global section-name list that every future heading has to be
- * checked against, and the reason string says more than an exclusion ever could.
- *
- * What a green run does NOT prove: that any scenario maps to the test that covers
- * it. Bullets and test titles are semantic paraphrases of each other
- * ("ArrowDown from first inner paragraph lands on second" vs "ArrowDown between
- * two inner paragraphs"), so no lexical pairing survives contact with the tree.
- * This scan catches dropped files, placeholder files, and requirement lists that
- * ran away from their specs.
+ * PLACEMENT: this is the e2e-TREE lint home; library-source lints live in
+ * `src/lib/test/invariants`, which `test:editor:invariants` covers and this file is outside
+ * of. Verify a change here with `npx vitest run src/lib/e2e/lint/`.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -64,10 +29,8 @@ interface InflationException {
 	reason: string;
 }
 
-/**
- * Fails closed and only shrinks: an entry that no longer inflates is reported as
- * stale, so the list cannot outlive the shape that justified it.
- */
+/** Fails closed and only shrinks: a stale entry is reported, so the list cannot outlive
+ *  the shape that justified it. */
 const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'simulation/',
@@ -136,10 +99,8 @@ export interface RequirementShape {
 }
 
 /**
- * Count scenario units outside fenced code. A bullet's continuation lines are
- * indented, so one `-` at column 0 is one scenario; nested bullets are detail of
- * their parent, not scenarios of their own. Ordered-list items are prose: the one
- * file using them numbers a mechanism explanation, not scenarios.
+ * One `-` at COLUMN 0 is one scenario: continuation lines are indented and nested bullets are
+ * detail of their parent. Ordered items are prose, not scenarios.
  */
 export function readRequirementShape(text: string): RequirementShape {
 	let hasTitle = false;
@@ -161,16 +122,9 @@ export function readRequirementShape(text: string): RequirementShape {
 }
 
 /**
- * Literal `test()` calls outside comments. A parametrized loop counts once — the
- * shape rule 3's threshold was measured against, and the count a reader sees in
- * the file.
- *
- * A TITLE is what makes a call a test. `test.skip(condition, reason)` at file or
- * describe scope is a run guard whose first argument is an expression, and five
- * report-only specs carry one; counting those inflated the test side and made rule 3
- * leniently wrong in exactly the files most likely to drift. Requiring a string
- * literal first argument is the strict direction, which is the correct one here: the
- * leniency was an accident of the regex, not a decision.
+ * A parametrized loop counts ONCE — the shape rule 3's threshold was measured against. A
+ * string-literal TITLE is what makes a call a test: `test.skip(condition, reason)` is a run
+ * guard, and counting those inflated the test side exactly in the files most likely to drift.
  */
 export function countTests(code: string): number {
 	const withoutComments = code
@@ -281,16 +235,11 @@ export interface AllowlistAudit {
 }
 
 /**
- * Audit each entry against the tree INDEPENDENTLY of the others. Asking "which entry
- * did a first-match lookup return for this spec?" conflates three different failures:
- * a file entry sitting under a directory entry never wins that lookup, so it read as
- * "no longer diverges" while diverging. Each condition now names itself.
- *
- * Shadowing is decided by position, not by set inclusion alone: two entries covering
- * the same specs each subsume the other, so inclusion reports both and names no entry
- * to delete. Position is an arbitrary but deterministic tie-break: the later entry is
- * the one reported, so acting on the report leaves the earlier one still covering every
- * spec it named.
+ * Each entry is audited INDEPENDENTLY: a first-match lookup conflates three failures, since a
+ * file entry under a directory entry never wins it and reads as "no longer diverges" while
+ * diverging. Shadowing is broken by POSITION, not set inclusion alone — mutually-subsuming
+ * entries would name no entry to delete; reporting the later one leaves the earlier covering
+ * every spec it named.
  */
 export function auditAllowlist(
 	entries: readonly InflationException[],

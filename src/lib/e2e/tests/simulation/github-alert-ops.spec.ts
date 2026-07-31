@@ -10,19 +10,13 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// Ungated github-alert-ops oracle for the admonitions plugin's native alerts. A `>
-// [!TYPE]` blockquote is its own `githubAlert` strip container — bytes untouched,
-// marker line in the container raw only — so its formation, kind-stable inner edit,
-// contained middle-child merge, and marker-dropping unwrap are the container-corruption
-// class the simulation's oracle stack (structured error + `[invariant:…]` watcher,
-// live-CST round-trip, nested-state audit, live-vs-reparse convergence) exists to catch,
-// and until this profile no gesture drove the alert container under a state-accumulating
-// watcher. Mirrors math-ops/footnote-ops: a loaded document on the plugins route
-// (`?seed=admonitions` installs it), the alert gesture vocabulary, all oracles
-// re-checked after every move, fixed rng.
+// Ungated github-alert-ops oracle. A `> [!TYPE]` blockquote is its own `githubAlert` strip
+// container — bytes untouched, marker in the container raw only — so its formation,
+// kind-stable inner edit, contained middle-child merge and marker-dropping unwrap are the
+// container-corruption class the oracle stack exists to catch.
 //
-// The alert marker interrupts the paragraph above, so a from-scratch formation leaves no
-// single-newline lazy-merge divergence — convergence runs unconditionally.
+// The alert marker INTERRUPTS the paragraph above, so a from-scratch formation leaves no
+// single-newline lazy-merge divergence and convergence runs unconditionally.
 
 const ALERT_DOC =
 	'Intro paragraph.\n\n' + // [0] — a fresh alert is typed after this

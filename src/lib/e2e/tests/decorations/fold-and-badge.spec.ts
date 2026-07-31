@@ -3,12 +3,10 @@ import { PluginsPage } from '../plugins/helpers';
 import { FIXTURE_BYTES } from '../perf/vr-helpers';
 
 /**
- * Fold + block-badge fixtures (requirements/decorations/fold-and-badge.md).
- * `fold` pins ReplaceDecoration.widget with native interactivity inside the
- * island; `block-badge` pins BlockDecoration.badge, including survival across
- * windowing. The fold-table seed pins island rendering inside a table cell: the
- * cell surface applies islands like the prose path, and the source seam no longer
- * dev-warns for cell paths.
+ * Fold + block-badge fixtures (requirements/decorations/fold-and-badge.md). `fold` pins
+ * ReplaceDecoration.widget with native interactivity inside the island, `block-badge` pins
+ * BlockDecoration.badge including survival across windowing, and the fold-table seed pins
+ * island rendering inside a table cell.
  */
 
 const ISLAND = '[data-decoration-island]';

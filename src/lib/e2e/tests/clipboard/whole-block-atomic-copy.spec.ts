@@ -1,12 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Whole-block atomic copy/cut through the shared handleWholeBlockKeys tail
-// (requirements/clipboard/whole-block-atomic-copy.md). Thematic break is the
-// built-in whole-block-focus surface; the mermaid container-factory caller is
-// pinned separately in plugins/mermaid-focus. Mod+C writes via
-// navigator.clipboard.writeText (no ClipboardEvent on the keydown path), so the
-// only observable signal for copy is the clipboard content itself.
+// Whole-block atomic copy/cut through the shared `handleWholeBlockKeys` tail
+// (requirements/clipboard/whole-block-atomic-copy.md). Mod+C writes via
+// `navigator.clipboard.writeText` with no ClipboardEvent on the keydown path, so the
+// clipboard content is the only observable signal for copy.
 
 const DOC = 'above\n\n---\n\nbelow\n';
 const BREAK_MD = '---';
