@@ -49,9 +49,8 @@ describe('ranges', () => {
 	});
 
 	it('escape lookback is clamped to the range start', () => {
-		// A content-range boundary bounds the parse: the out-of-range \ at
-		// offset 1 must not suppress this span. Unreachable via any current
-		// getContentRange, but pinned so it cannot silently flip.
+		// Unreachable via any current getContentRange, but pinned so it cannot silently
+		// flip: an out-of-range `\` must not suppress a span inside the range.
 		const nodes = scanInline('x\\`a`', 2, 5);
 		assertTotalCoverage(nodes, 2, 5);
 		expect(nodes).toEqual([codeNode(2, 5, 'a')]);

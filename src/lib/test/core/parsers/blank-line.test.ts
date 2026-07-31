@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { isBlankLine } from '$lib/core/parser';
 
-// GFM §2.1: "A line containing no characters, or a line containing only spaces
-// (U+0020) or tabs (U+0009), is called a blank line." cmark-gfm's `is_blank`
-// accepts the same two characters and nothing else, so every other whitespace
-// codepoint is content — a paste artifact out of a word processor included.
+// GFM §2.1 and cmark-gfm's `is_blank` both accept only U+0020 and U+0009, so every other
+// whitespace codepoint is content — a word-processor paste artifact included.
 
 const NBSP = String.fromCharCode(0xa0);
 const VERTICAL_TAB = String.fromCharCode(0x0b);

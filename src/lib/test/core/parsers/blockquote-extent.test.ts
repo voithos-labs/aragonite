@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { splitLines } from '$lib/core/lines';
 import { blockquoteExtent } from '$lib/core/parsers/blockquote';
 
-// blockquoteExtent is the narrow half of the blockquote parser a blockquote-shaped
-// opener consumes: the byte-exact extent (raw + next index), never a child subtree.
-// It must agree with the full parse on where the quote ends, including CommonMark
-// §5.1 lazy continuation, so the opener that decomposes its own body lands its
-// nextIndex on the right line.
+// The extent must agree with the full parse on where the quote ends, CommonMark §5.1 lazy
+// continuation included, or an opener that decomposes its own body lands on the wrong line.
 
 const scan = (src: string) => {
 	const lines = splitLines(src);

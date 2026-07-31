@@ -11,9 +11,8 @@ import {
 	textNode
 } from './scan-test-helpers';
 
-// Bracket-stack semantics: pairing, nesting, links-in-links deactivation,
-// and failure-as-literal. Every expectation verified against commonmark.js
-// 0.31.2 (the conformance differ's target).
+// Bracket-stack semantics. Every expectation is verified against commonmark.js 0.31.2,
+// the conformance differ's target.
 
 describeScanCases('inline link and image node shape', [
 	['simple link', '[a](b)', [linkNode(0, 6, [textNode(1, 2, 'a')], 'b')]],

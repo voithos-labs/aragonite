@@ -28,9 +28,8 @@ describe('registerDirectiveKinds', () => {
 	});
 });
 
-// The leaf's single-line render surface: the `::name` fence is dimmed as a marker
-// prefix (the heading mechanism, extended to this non-prose kind), and its keymap
-// wires Enter to a paragraph split and Backspace/Delete to the not-mergeable walk.
+// The `::name` fence dims through the heading's marker-prefix mechanism, extended here to
+// a non-prose kind.
 describe('directiveLeaf render descriptor', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
@@ -67,9 +66,8 @@ describe('directiveLeaf render descriptor', () => {
 	});
 });
 
-// Direct rebuild fidelity (the losslessness pin): the opener writes verbatim
-// `raw`, but the editor's inverse must reconstruct byte-identical bytes from the
-// captured metadata + children after a structural edit.
+// The losslessness pin: the opener writes `raw` verbatim, so only the inverse — rebuild
+// from the captured metadata + children after a structural edit — can prove the capture.
 describe('rebuildDirectiveContainerRaw', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();

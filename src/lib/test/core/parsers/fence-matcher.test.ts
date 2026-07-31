@@ -5,10 +5,8 @@ import {
 	escalatedFenceLength
 } from '$lib/core/parsers/fenced-code';
 
-// The matchers are re-exported on `aragonite/plugin` as the recognizer surface
-// for fence-claiming openers, so their shape is pinned here directly — a
-// byte-exact rebuild needs the verbatim `indent` and `infoRaw` alongside the
-// trimmed `info` the built-in opener dispatches on.
+// Re-exported on `aragonite/plugin`, so the shape is pinned directly: a byte-exact rebuild
+// needs verbatim `indent` and `infoRaw` alongside the trimmed `info` openers dispatch on.
 
 describe('matchFenceOpen', () => {
 	it('recognizes a backtick fence with trimmed info', () => {
@@ -67,9 +65,8 @@ describe('matchFenceClose', () => {
 	}
 });
 
-// The write-side inverse: what a body forces the fence to grow to. Sibling of
-// `escalatedColonCount` for directives, and the primitive the code surface's write
-// seam consults on typing, IME and paste alike.
+// The write-side inverse — what a body forces the fence to grow to — and the sibling of
+// `escalatedColonCount` for directives.
 describe('escalatedFenceLength', () => {
 	it('returns the minimum when no body line reproduces the terminator', () => {
 		expect(escalatedFenceLength('const x = 1\nfoo```bar', '`', 3)).toBe(3);

@@ -1,12 +1,8 @@
 /**
- * commonmark.js is the conformance reference. Exact-pinned: the committed
- * baseline is only meaningful against this version — bumping it is a
- * deliberate re-bless with a changelog note.
- *
- * An input is only readable when the reference's inline stage received exactly
- * the input bytes: a single paragraph whose sourcepos spans the whole input,
- * with nothing for the block layer to trim. Otherwise the comparison is
- * block-layer transforms, not inline conformance, and the input is skipped.
+ * commonmark.js is the conformance reference, exact-pinned: the committed baseline is
+ * only meaningful against this version, so a bump is a deliberate re-bless. An input is
+ * readable only when the reference's inline stage saw exactly the input bytes (single
+ * paragraph, whole-input sourcepos); anything else compares block-layer transforms.
  */
 import { Parser, Node } from 'commonmark';
 
@@ -48,12 +44,9 @@ export function referenceInlineNodes(markdown: string): Node[] | null {
 }
 
 /**
- * Sourcepos alone cannot express "the inline stage saw exactly the input":
- * it counts the raw line, so it includes last-line trailing whitespace the
- * inline parser trims away, and it is blind to the leading whitespace the
- * block layer strips from continuation lines. Those two escapes get explicit
- * checks. A trailing newline fails the span check on purpose — our parser
- * reads it as content bytes, the reference never sees it.
+ * Sourcepos counts the raw line, so it misses both the trailing whitespace the inline
+ * parser trims and the leading whitespace the block layer strips — hence the two extra
+ * checks. A trailing newline fails the span check on purpose: content bytes to us only.
  */
 function paragraphIsEntireInput(paragraph: Node, markdown: string): boolean {
 	const lines = markdown.split('\n');

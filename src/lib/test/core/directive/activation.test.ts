@@ -11,11 +11,8 @@ import {
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
 
-// Activation is call-based: nothing registers `:::` until `activateDirectiveGrammar`
-// runs (the grammar half of the public `activateDirectives`). Each case starts from
-// a fresh opener registry + registration-check latches so the G1.17 ordering — the
-// opener must register before a parse consumes the grammar — is exercised in both
-// directions.
+// Activation is call-based, so each case resets the opener registry and check latches to
+// exercise G1.17 (opener registers before the parse that consumes the grammar) both ways.
 function collectRegistrationTags(): string[] {
 	const tags: string[] = [];
 	const report: RegistrationCheckReport = (tag, check) => {
@@ -52,7 +49,7 @@ describe('directive grammar activation', () => {
 	it('warns when activated after a parse has already consumed the grammar', () => {
 		flushPendingRegistrationChecks(() => {}); // bootstrap flush → didFirstFlush latch
 		parse('plain paragraph\n'); // consumes the grammar (markGrammarConsumed)
-		activateDirectiveGrammar(); // opener registers late
+		activateDirectiveGrammar();
 		expect(collectRegistrationTags()).toContain('late-opener-registration');
 	});
 });

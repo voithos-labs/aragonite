@@ -5,19 +5,11 @@ import type { CstNode } from '$lib/core/nodes';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
 /**
- * Narrowing the blank-line test to space-and-tab (GFM §2.1) moves block
- * structure on four axes at once, so each one is pinned against the reference
- * rather than against itself: a non-breaking space — the commonest paste
- * artifact out of a word processor — is content, and the axis test asserts the
- * block outline aragonite builds equals the one commonmark.js builds.
- *
- * The reference is CommonMark, not GFM, which is sound for exactly these four
- * axes: the GFM extensions add constructs and leave §2.1 blank lines, §4.4/§4.6
- * code and HTML blocks, §5.1 blockquotes and §5.2 lists untouched.
- *
- * Outlines compare block structure only. The reference's inline stage trims its
- * paragraph content with JS `String.trim()`, which eats a leading or trailing
- * NBSP that cmark-gfm keeps, so its rendered HTML is not a usable oracle here.
+ * Narrowing the blank-line test to space-and-tab (GFM §2.1) moves block structure on
+ * several axes at once, so each is pinned against commonmark.js rather than itself —
+ * sound here because the GFM extensions leave §2.1, §4.4/§4.6, §5.1 and §5.2 untouched.
+ * Block outlines only: the reference's inline stage `String.trim()`s an NBSP cmark-gfm
+ * keeps, so its rendered HTML is not a usable oracle.
  */
 
 const NBSP = String.fromCharCode(0xa0);

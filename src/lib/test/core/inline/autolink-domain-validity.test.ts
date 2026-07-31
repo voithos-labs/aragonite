@@ -29,10 +29,8 @@ describe('www autolink — valid domain (GFM §6.9)', () => {
 		expect(autolinkUrls('www.google.com/a_b')).toEqual(['http://www.google.com/a_b']);
 	});
 
-	// cmark-gfm permits `-` anywhere a host character is permitted (`data[i] != '-'`
-	// is an explicit exemption from its punctuation check), so a segment may begin
-	// with one. Pinned because a hyphen rule is the intuitive-but-wrong companion to
-	// the underscore rule, and adding one would silently delist real domains.
+	// cmark-gfm exempts `-` from its punctuation check, so a segment may begin with one.
+	// A hyphen rule is the intuitive-but-wrong companion to the underscore rule above.
 	it('autolinks www.-b — a leading hyphen is a valid host character', () => {
 		expect(autolinkUrls('www.-b')).toEqual(['http://www.-b']);
 	});

@@ -4,10 +4,9 @@ import { serialize } from '../../../core/serializer';
 import { rebuildListItemRaw } from '../../../schema/container-rebuilders';
 import type { Document } from '../../../core/nodes';
 
-// CommonMark §5.2 lazy continuation for list items: an under-indented non-blank
-// line that would not open a new block joins the item's open paragraph. Mirrors
-// the blockquote laziness pins in parser-metadata.test.ts. Every fixture asserts
-// the byte round-trip — the container `raw` keeps the un-indented source verbatim.
+// CommonMark §5.2 lazy continuation for list items, mirroring the blockquote laziness pins
+// in parser-metadata.test.ts. Every fixture asserts the byte round-trip, because the
+// container `raw` keeps the un-indented source verbatim.
 
 function topKinds(doc: Document): string[] {
 	return doc.children.map((c) => (c.kind === 'list' ? `list(${c.children!.length})` : c.kind));
@@ -49,9 +48,8 @@ describe('list lazy continuation: topology', () => {
 });
 
 describe('list lazy continuation: a marker or opener is never lazy', () => {
-	// An ordered marker not starting at 1 cannot interrupt a paragraph (§5.2), but
-	// inside a list it is a block-level item — a sibling continues the list, a
-	// different type starts a new one — never absorbed as lazy paragraph text.
+	// An ordered marker not starting at 1 cannot interrupt a paragraph (§5.2), but inside a
+	// list it is still a block-level item, never absorbed as lazy paragraph text.
 	const cases: [name: string, source: string, top: string[]][] = [
 		['ordered non-1 sibling stays an item', '1. a\n2. b\n', ['list(2)']],
 		['ordered non-1 after a bullet starts a new list', '- a\n2. b\n', ['list(1)', 'list(1)']],
@@ -71,11 +69,8 @@ describe('list lazy continuation: a marker or opener is never lazy', () => {
 });
 
 describe('list lazy continuation: bounded nested divergence', () => {
-	// Laziness reaches only the item's own top-level paragraph, not a paragraph
-	// open inside a nested sub-list — the same approximation the blockquote parser
-	// makes (it does not descend into nested blockquotes). CommonMark would merge
-	// `lazy` into the nested `inner` paragraph; we keep it a separate block. Pinned
-	// so the divergence is a deliberate, visible choice.
+	// A deliberate CommonMark divergence, matching the blockquote parser's approximation:
+	// laziness reaches only the item's own top-level paragraph, never a nested sub-list's.
 	it('a lazy line after a nested item stays a separate block', () => {
 		const source = '- outer\n  - inner\nlazy\n';
 		const doc = parse(source);
@@ -86,10 +81,8 @@ describe('list lazy continuation: bounded nested divergence', () => {
 });
 
 describe('list lazy continuation: rebuild', () => {
-	// A lazily-parsed item has no indent on its continuation line in `raw`. On the
-	// first structural edit `rebuildListItemRaw` normalizes it to the canonical
-	// indented form (as blockquote's rebuild re-adds the `> ` prefix). The byte
-	// round-trip covers the un-edited load; this covers the post-edit rebuild.
+	// A lazily-parsed item has no indent on its continuation line, so the first structural
+	// edit normalizes it, the way blockquote's rebuild re-adds the `> ` prefix.
 	it('normalizes the lazy continuation to indented form, reparse-stable', () => {
 		const item = parse('- item one\nwrapped tail\n').children[0].children![0];
 		rebuildListItemRaw(item);

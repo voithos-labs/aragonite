@@ -72,9 +72,8 @@ describe('table parser: structure', () => {
 		expect(body.children![1].raw).toBe('2');
 	});
 
-	// GFM §4.10: the header row must match the delimiter row in cell count,
-	// otherwise a table is not recognized. Accepting the mismatch used to drop
-	// surplus header cells from the model, destroying them on the first edit.
+	// GFM §4.10 requires matching cell counts; accepting a mismatch drops surplus header
+	// cells from the model and destroys them on the first edit.
 	const mismatches = [
 		{ name: 'fewer delimiter cells than header', source: 'a|b\n|---|\n' },
 		{ name: 'fewer header cells than delimiter', source: 'a|b\n|--|--|--|\n' }

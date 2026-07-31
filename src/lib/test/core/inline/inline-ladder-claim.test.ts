@@ -1,14 +1,8 @@
 /**
- * The claim a rung leaves on the node it mints. A rung may mint a BUILT-IN kind
- * over bytes of its own — an `![[cat.png]]` that is an `image` to the whole editor,
- * which is the point of the borrowing. The editor's inverse for a built-in kind
- * emits the built-in grammar, so the scan records who owns the bytes; without the
- * stamp a resize re-serializes the embed as GFM.
- *
- * Both dispatch routes are driven here. `stampClaim` sits inside `tryRungs`, which
- * the pre-switch reserved consultation and the `default` arm both call — structural
- * coverage, but only until someone moves the stamp into one branch, which is why
- * the unreserved trigger gets its own case.
+ * A rung may mint a BUILT-IN kind over bytes of its own — an `![[cat.png]]` that is an
+ * `image` to the whole editor. The editor's inverse emits the built-in grammar, so
+ * without the scan's claim stamp a resize re-serializes the embed as GFM. Both dispatch
+ * routes get their own case: today they share `tryRungs`, but only structurally.
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -22,9 +16,8 @@ import {
 
 afterEach(() => __resetInlineSyntaxForTests());
 
-// `![[target]]` through the closing pair, image extensions only — the same minimal
-// embed stand-in `inline-ladder-bang.test.ts` drives, whose extension gate is what
-// declines the `![[a]](u)` overlap.
+// The same minimal embed stand-in `inline-ladder-bang.test.ts` drives; its extension gate
+// is what declines the `![[a]](u)` overlap with the built-in image grammar.
 const recognizeEmbed: InlineSyntaxRecognizer = (raw, pos, end) => {
 	if (!raw.startsWith('![[', pos)) return null;
 	const close = raw.indexOf(']]', pos + 3);
@@ -39,7 +32,6 @@ function registerEmbed(recognizer: InlineSyntaxRecognizer = recognizeEmbed): voi
 
 describe('a reserved-trigger prefix rung stamps what it claims', () => {
 	it('stamps the built-in kind the rung minted', () => {
-		// A `![[target]]` that IS an image node rather than merely rendering like one.
 		registerEmbed((raw, pos, end) => {
 			const embed = recognizeEmbed(raw, pos, end);
 			return embed && { ...embed, kind: 'image', alt: 'a.png', url: 'resolved' };
@@ -71,9 +63,8 @@ describe('a reserved-trigger prefix rung stamps what it claims', () => {
 		expect(embed.children?.[0].syntaxClaim).toMatchObject({ prefix: '![[' });
 	});
 
-	// `![[a]](u)` is a built-in image the rung declines. Nothing claimed it, so the
-	// GFM write path still owns those bytes — a stamp here would freeze a plain image
-	// the editor is entitled to rewrite.
+	// Nothing claimed these bytes, so the GFM write path still owns them — a stamp would
+	// freeze a plain image the editor is entitled to rewrite.
 	it('leaves an image the rung declined unstamped', () => {
 		registerEmbed();
 		const raw = '![[a]](u)';

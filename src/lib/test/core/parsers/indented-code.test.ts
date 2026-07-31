@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { describeRoundTrips } from '$lib/test/support/round-trip';
 
-// GFM §4.4: an indented code block cannot interrupt a paragraph, but after any
-// other block (heading, fence, break, table) it opens with no blank line — a
-// paragraph absorbs a following indented line structurally, so the only rule the
-// opener must honor is "no open paragraph to interrupt".
+// GFM §4.4: a paragraph absorbs a following indented line structurally, so the only rule
+// the opener must honor is "no open paragraph to interrupt" — no blank line is required.
 
 describe('indented code — opening after a non-paragraph predecessor (GFM §4.4)', () => {
 	it('opens directly after a heading, with no blank line', () => {
