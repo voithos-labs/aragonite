@@ -1,9 +1,7 @@
 <script lang="ts">
-	// A plugin container built entirely on the public `aragonite/plugin` seam:
-	// `createContainerBlock` hides every editor internal the built-in blockquote
-	// reaches for (block-list state, the ancestor contexts, container-exit,
-	// windowing, the BlockComponent shim). This component supplies only its own
-	// chrome around the returned BlockList props.
+	// A plugin container on the public `aragonite/plugin` seam: `createContainerBlock`
+	// hides every editor internal the built-in blockquote reaches for, so this component
+	// supplies only its own chrome around the returned BlockList props.
 	import { BlockList, createContainerBlock, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -26,11 +24,8 @@
 </div>
 
 <style>
-	/* Chrome is the only divergence from the built-in blockquote. The icon is a
-	   positioned pseudo-element rather than a real element — a style choice, not a
-	   requirement: the `:scope > .block-list` windowing lookup only needs BlockList
-	   to stay a DIRECT child, not the sole one (DetailsBlock puts a real button
-	   sibling beside it). */
+	/* A pseudo-element icon is a style choice, not a requirement: the `:scope > .block-list`
+	   windowing lookup needs BlockList to stay a DIRECT child, not the sole one. */
 	.callout-block {
 		position: relative;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
@@ -49,9 +44,8 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* Reserved child-0 chrome: the `note-title` leaf, CSS-promoted to a title row
-	   above the body. It stays a real block inside the sole `.block-list`, so
-	   selection/windowing treat it as an ordinary child. */
+	/* The `note-title` leaf is CSS-promoted to a title row, but stays a real block inside
+	   the sole `.block-list` so selection and windowing treat it as an ordinary child. */
 	.callout-block :global(.note-title) {
 		font-weight: 600;
 		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);

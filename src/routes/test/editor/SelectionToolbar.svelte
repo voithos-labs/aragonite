@@ -1,9 +1,7 @@
 <script lang="ts">
 	/**
-	 * Consumer-side rect-API example: no plugin, no internal imports, no native
-	 * selection reads — a `bind:this` EditorInstance, `selectionChange` for
-	 * lifecycle, `rangeRects` for both the cross-block and single-block anchors.
-	 * The bar re-anchors on the next selection change, not on scroll.
+	 * Consumer-side rect-API example: no plugin, no internal imports, no native selection
+	 * reads. The bar re-anchors on the next selection change, not on scroll.
 	 */
 	import {
 		SELECTION_END,
@@ -38,9 +36,8 @@
 			const rects = editor!.getRects().rangeRects(start.path, start.offset, SELECTION_END);
 			return rects.length ? above(rects[0], 'cross-block') : null;
 		}
-		// Same block: the snapshot carries real range offsets, so the public API
-		// serves both extent and geometry. Cell-coordinate pairs (an intra-table
-		// rect) keep the bar hidden, matching the pre-range behavior.
+		// Same block: the snapshot carries real range offsets, so the public API serves both
+		// extent and geometry. Cell-coordinate pairs (an intra-table rect) keep the bar hidden.
 		if (selection.anchor.cellCoordinate || selection.focus.cellCoordinate) return null;
 		const lo = Math.min(selection.anchor.offset, selection.focus.offset);
 		const hi = Math.max(selection.anchor.offset, selection.focus.offset);

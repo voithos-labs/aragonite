@@ -1,6 +1,5 @@
-// Sync the dogfood plugin sources into examples/consumer with imports rewritten
-// to the published package. Fails loud on any $lib deep import that survives —
-// a dogfood reach-in past the public barrels must break this gate, not ride it.
+// Sync the dogfood plugin sources into examples/consumer with imports rewritten to the
+// published package. A dogfood reach-in past the public barrels must break this gate.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,19 +10,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src/routes/test/plugins');
 const OUT = join(ROOT, 'examples/consumer/src/plugins');
 
-// Every bundled-tier plugin now ships in-package (aragonite/plugins/*), so the
-// consumer imports those subpaths directly. Only callout stays a synced source: it
-// is the external *authoring* validator — proof that a plugin written against the
-// public barrels compiles and runs from outside the repo — not a distribution
-// channel for shipped plugins.
+// Bundled-tier plugins ship in-package (aragonite/plugins/*), so the consumer imports
+// those subpaths directly. Only callout stays a synced source: it is the external
+// *authoring* validator, not a distribution channel for shipped plugins.
 const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte']
 };
 
-// Quote-agnostic on purpose. Prettier keeps this repo on single quotes, but the
-// gate must not depend on a formatter to be correct: a double-quoted `"$lib"`
-// carries no `$lib/`, so the deep-import scan below would not catch it either, and
-// it would reach the consumer as an unresolvable specifier.
+// Quote-agnostic on purpose: the gate must not depend on Prettier to be correct. A
+// double-quoted `"$lib"` carries no `$lib/`, so the scan below would miss it too.
 const BARREL_SPECIFIER = /(['"`])\$lib(\/plugin)?\1/g;
 
 const rewritten = [];
@@ -49,9 +44,8 @@ if (offenders.length) {
 	process.exit(1);
 }
 
-// Nothing is written, and the previous output is not cleared, until the gate has
-// passed over every file: a failed run used to leave a rewritten tree on disk for
-// a later build to consume as though it had been checked.
+// Nothing is written, and the previous output not cleared, until the gate has passed over
+// every file — otherwise a failed run leaves a tree a later build consumes as checked.
 rmSync(OUT, { recursive: true, force: true });
 for (const { plugin, file, text } of rewritten) {
 	mkdirSync(join(OUT, plugin), { recursive: true });

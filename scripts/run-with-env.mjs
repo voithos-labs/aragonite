@@ -10,12 +10,9 @@ for (const pair of process.argv.slice(2, sep)) {
 }
 const [cmd, ...args] = process.argv.slice(sep + 1);
 
-// shell:true on win32 is what resolves npm's .cmd shims, and it also hands every
-// argument to cmd.exe to re-parse. The precondition that makes that safe — plain
-// tokens, no quoting needed — is checked here rather than asserted in a comment:
-// callers append arguments this file never sees (CI ran `-- --grep-invert
-// attribution` against one of these scripts for a while), so a prose claim about
-// them goes stale silently while a check fails loudly.
+// shell:true on win32 resolves npm's .cmd shims, and also hands every argument to cmd.exe
+// to re-parse. Callers append arguments this file never sees, so the precondition that
+// makes that safe — plain tokens, no quoting — is checked, not asserted in prose.
 const useShell = process.platform === 'win32';
 const NEEDS_QUOTING = /[&|<>^"'`()%!\s]/;
 if (useShell) {

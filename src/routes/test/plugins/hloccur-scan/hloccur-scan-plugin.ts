@@ -1,8 +1,6 @@
 // Harness observability wrapper over the bundled highlight-occurrences plugin. It
-// CONFIGURES the shipped unit through its public `onScan` option instead of
-// re-declaring the wiring against a private module: the memoization battery now
-// pins the plugin consumers get, so a divergence in the real
-// addSource/selectionChange/invalidate/dispose chain reaches it.
+// CONFIGURES the shipped unit through its public `onScan` option rather than re-declaring
+// the wiring, so the memoization battery pins the plugin consumers actually get.
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 
 declare global {

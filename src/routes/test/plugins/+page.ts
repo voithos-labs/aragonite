@@ -1,9 +1,7 @@
 import type { PageLoad } from './$types';
 
-// Resolve the seed in a universal load, not a `typeof window` guard in the
-// component: the server and client then read the same `?seed`, so the harness
-// SSRs and hydrates one identical document instead of diverging into a
-// hydration mismatch.
+// A universal load, not a `typeof window` guard in the component: server and client then
+// read the same `?seed` and hydrate one identical document.
 export const load: PageLoad = ({ url }) => {
 	return { seed: url.searchParams.get('seed') };
 };

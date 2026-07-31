@@ -2,10 +2,8 @@
 	import { memoPlugin } from '../memo/register';
 	import { MEMO_BLOCK } from '../memo/memo-kind';
 
-	// One module-scoped plugin object shared by both editors: definitions are
-	// process-global (register-once), so the memo kind is defined ONCE. The two
-	// editors differ only in enablement — the per-instance policy layer over the
-	// global definition.
+	// One plugin object shared by both editors: definitions are process-global
+	// (register-once), so the two differ only in the per-instance enablement policy.
 	const plugins = [memoPlugin()];
 
 	// Disable the memo kind for the left editor. `__registryEnablement` is the
@@ -17,9 +15,8 @@
 	import { Editor } from '$lib';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
 
-	// Both editors parse the SAME seed with the global grammar, so both hold a memo
-	// CST node. The left editor resolves NO component for it (disabled) → the
-	// raw-editable fallback (the unknown-kind rule); the right resolves MemoBlock.
+	// Both editors parse the SAME seed with the global grammar, so both hold a memo CST
+	// node; only the left resolves no component for it and falls back to raw-editable.
 	const SEED = 'Before\n\n%% memo text\n\nAfter\n';
 
 	let disabled = $state<ReturnType<typeof Editor>>();

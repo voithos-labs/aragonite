@@ -17,10 +17,9 @@ const prodServer = {
 	timeout: 180_000
 };
 
-// Each dir gets its own `e2e-<dir>` project, and e2e-top ignores all of them so its
-// specs never double-run. The clipboard, simulation, and perf/vr projects carry
-// custom config (nested ignore, parallelism, timeouts), so they stay hand-written
-// below and their dirs are added to e2e-top's ignore by hand.
+// Each dir gets its own `e2e-<dir>` project, and e2e-top ignores all of them so its specs
+// never double-run. The clipboard, simulation, and perf/vr projects carry custom config,
+// so they stay hand-written below and their dirs join e2e-top's ignore by hand.
 const PROJECT_DIRS = [
 	'blocks',
 	'decorations',
@@ -40,12 +39,9 @@ export default defineConfig({
 		baseURL: 'http://localhost:1420',
 		headless: true,
 		permissions: ['clipboard-read', 'clipboard-write'],
-		// Pinned, not inherited. Specs across several projects assert absolute or
-		// near-absolute geometry (sticky-column pixel positions, image indents,
-		// toolbar and rect coordinates); on Playwright's implicit default they turn
-		// red the day that default moves or the theme's content column narrows enough
-		// to wrap a fixture paragraph. This is the current default made explicit, so
-		// pinning it changes no measurement. Projects that need another size override.
+		// Pinned, not inherited: specs across several projects assert near-absolute geometry
+		// and would turn red the day Playwright's implicit default moves. This is that
+		// default made explicit, so pinning changes no measurement; projects may override.
 		viewport: { width: 1280, height: 720 }
 	},
 	webServer: PROD ? [devServer, prodServer] : devServer,
@@ -64,18 +60,13 @@ export default defineConfig({
 			name: 'e2e-simulation',
 			testMatch: 'simulation/**/*.spec.ts',
 			timeout: 180_000,
-			// Each session is independent (own page, own seeded rng, no shared state),
-			// so the multi-seed fuzz and the per-note captures run concurrently. Scoped
-			// to this project — others keep their default within-file ordering. The
-			// asserted artifact is the source, which is timing-independent, so parallel
-			// scheduling can't change any end-state assertion. Capped well under the
-			// core count: each worker drives a full browser against one dev server.
+			// Each session is independent (own page, own seeded rng, no shared state) and the
+			// asserted artifact is the timing-independent source, so parallel scheduling can't
+			// change an assertion. Capped: each worker drives a full browser on one dev server.
 			fullyParallel: true,
 			workers: 4,
-			// Tall viewport: the editor scrolls internally, so a short viewport clips
-			// a long note's trailing blocks out of the capture screenshots. A tall
-			// fixed viewport keeps the whole note (and the agentic-review artifacts)
-			// in frame and keeps pixel geometry deterministic.
+			// The editor scrolls internally, so a short viewport clips a long note's trailing
+			// blocks out of the capture screenshots; fixed, so pixel geometry stays deterministic.
 			use: { viewport: { width: 1280, height: 1500 } }
 		},
 		{
@@ -87,10 +78,8 @@ export default defineConfig({
 			use: { viewport: { width: 1280, height: 900 } }
 		},
 		{
-			// VR correctness, not perf — runs in the default `npm test` battery (no
-			// PERF gate, no `.perf.spec.ts` suffix). The longer timeout covers a
-			// multi-MB fixture load; the fixed viewport makes the mounted-window
-			// bound deterministic.
+			// VR correctness, not perf: `vr-*.spec.ts` under `perf/` rides the default `npm test`
+			// battery while `*.perf.spec.ts` stays env-gated — the glob partition G4.17 guards.
 			name: 'e2e-vr',
 			testMatch: 'perf/vr-*.spec.ts',
 			timeout: 120_000,

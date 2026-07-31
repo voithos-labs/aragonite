@@ -1,10 +1,7 @@
-// Renders the README performance charts from the committed perf baseline.
-// Zero dependencies; deterministic (no timestamps — the recorded date and
-// hardware context live in the README caption). Re-run after a baseline re-bless:
-//
-//   node scripts/render-perf-chart.mjs
-//
-// Emits docs/assets/perf-{keystroke,load}-{light,dark}.svg.
+// Renders the README performance charts from the committed perf baseline into
+// docs/assets/perf-{keystroke,load}-{light,dark}.svg. Zero dependencies and deterministic
+// (no timestamps — the recorded date and hardware context live in the README caption), so
+// a re-run after a baseline re-bless reproduces the files byte-for-byte.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -33,9 +30,8 @@ function series(metric, exceptionShape) {
 	const band = SIZES.map((size) => {
 		const values = others.map((s) => byShape.get(s)[size][metric]);
 		values.sort((a, b) => a - b);
-		// Odd counts take the middle sample; only an even count averages the pair.
-		// A bare `length / 2` indexes on a half and yields NaN for every odd series
-		// count, which is what the band collapses to when a shape is added.
+		// Odd counts take the middle sample; a bare `length / 2` would index on a half and
+		// yield NaN for every odd series count.
 		const mid = values.length >> 1;
 		return {
 			min: values[0],

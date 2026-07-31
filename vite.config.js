@@ -1,10 +1,8 @@
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 
-// E2E broken-image tests reference /test-fixtures/nonexistent.png to trigger the
-// <img> error path; SvelteKit's static handler logs every miss, so the dev
-// terminal and the Playwright-captured stdout fill with [404] lines. Match the
-// path early and end the response without going through the static layer.
+// E2E broken-image tests hit /test-fixtures/nonexistent.png on purpose, and SvelteKit's
+// static handler logs every miss; answering early keeps the dev and Playwright stdout clean.
 const silenceBrokenImageFixture = {
 	name: 'silence-broken-image-fixture',
 	/** @param {import('vite').ViteDevServer} server */

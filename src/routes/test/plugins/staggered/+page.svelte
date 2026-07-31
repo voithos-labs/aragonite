@@ -2,19 +2,15 @@
 	import { calloutPlugin } from '../callout/register';
 	import { detailsPlugin } from '$lib/plugins/details';
 
-	// Module scope so each factory runs once per process, not once per (SSR) render:
-	// re-minting fresh same-name plugin objects each render would trip installPlugins'
-	// first-wins dev-warn (the stable-array pattern a consumer copies). Editor 2's array
-	// adds detailsPlugin, which editor 1 never had — the staggered late-mount this
-	// harness exists to exercise.
+	// Module scope so each factory runs once per process, not per (SSR) render: re-minting
+	// same-name plugin objects each render trips installPlugins' first-wins dev-warn.
+	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises.
 	const callout = calloutPlugin();
 	const editorOnePlugins = [callout];
 	const editorTwoPlugins = [callout, detailsPlugin()];
 
-	// One seed holding both a callout and a `<details>`. Editor 1 parses it under
-	// callout only, so `<details>` falls to the built-in htmlBlock; editor 2 parses
-	// the same bytes after detailsPlugin has registered, so `<details>` resolves to
-	// the `details` plugin kind.
+	// Editor 1 parses these bytes under callout only, so `<details>` falls to the built-in
+	// htmlBlock; editor 2 parses them after detailsPlugin registered, so it resolves.
 	const SEED = [
 		':::note Title',
 		'First',
@@ -43,10 +39,8 @@
 	trackParityDocument(() => editorOne);
 	trackParityDocument(() => editorTwo);
 
-	// Minimal per-editor bridges: this harness's e2e only reads the CST by path, so
-	// each editor exposes just getDocument(). installTestProbes is single-editor (it
-	// hardcodes window.__test), so editor 2 gets a distinct handle rather than
-	// clobbering editor 1's.
+	// Minimal per-editor bridges: installTestProbes is single-editor (it hardcodes
+	// window.__test), so editor 2 gets a distinct handle rather than clobbering editor 1's.
 	$effect(() => {
 		if (!editorOne) return;
 		(window as unknown as { __test: unknown }).__test = {

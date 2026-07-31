@@ -1,19 +1,8 @@
-// Two documentation gates, both run on every invocation.
-//
-//   node scripts/build-docs-pack.mjs             run both gates
-//   node scripts/build-docs-pack.mjs <dir>       run both gates, then write the pack to <dir>
-//
-// <dir> is cleared before the write, so it must be absent or hold nothing but .md
-// files — see the refusal at the bottom.
-//
-// Gate 1 — the public docs pack: the exact doc set a third-party plugin author
-// receives (docs/guide/, not a manifest — a doc is authoring documentation or it
-// isn't, and the folder is where that call is already recorded). The pack ships
-// flat and .md-only, so every relative pointer must name a packed .md basename.
-//
-// Gate 2 — the rest of the corpus (README, CONTRIBUTING, docs/): a relative link
-// that once resolved rots silently when its target moves or is deleted, so every
-// one must still resolve to a real file or directory.
+// Two documentation gates, both run on every invocation. With a <dir> argument the pack
+// is also written there (the directory is cleared first — see the refusal below).
+// Gate 1: the public docs pack (docs/guide/) ships flat and .md-only, so every relative
+// pointer must name a packed .md basename. Gate 2: the rest of the corpus (README,
+// CONTRIBUTING, docs/) must have every relative link resolve to a real file or directory.
 import {
 	copyFileSync,
 	existsSync,
@@ -35,15 +24,10 @@ if (packNames.length === 0) {
 	process.exit(1);
 }
 
-// The pack is flat and ships only .md, so a relative pointer resolves iff it names
-// another packed .md basename. Anything else is dead once the doc leaves the repo:
-// an unpacked .md, a path with directories, or a relative image/asset the pack
-// never copies. Reference an unpacked doc by naming its path as inline code
-// instead. Every target is normalized (trimmed, angle brackets and titles and
-// fragments stripped) before the test, so a padded, bracketed, or anchored form
-// can't smuggle a dead pointer past the check. Deliberately regex-level: a link
-// inside a fenced example counts as a violation, which keeps the gate conservative
-// and dependency-free.
+// A pointer resolves iff it names another packed .md basename; anything else is dead once
+// the doc leaves the repo. Targets are normalized first, so a padded, bracketed, or
+// anchored form can't smuggle one past. Deliberately regex-level: dependency-free, and a
+// link inside a fenced example counts, which keeps the gate conservative.
 const INLINE_TARGET = /\]\(([^)]+)\)/g; // `[text](t)` and `![alt](t)` (the latter contains `](t)`)
 const REFERENCE_TARGET = /^[ \t]*\[[^\]]+\]:[ \t]*(\S+)/gm; // `[label]: t` link definitions
 
@@ -107,11 +91,9 @@ function corpusMarkdownFiles(path, out) {
 	return out;
 }
 
-// A markdown link written inside code — fenced or inline — documents syntax: it
-// renders as literal text and never navigates, so it is not a pointer to resolve.
-// Blank both before scanning (an example `[text](url)` must not read as a dead
-// link). Inline spans are stripped per line, so one unbalanced backtick can't
-// desync the rest of the file.
+// A markdown link written inside code documents syntax: it renders as literal text and
+// never navigates, so blank fenced and inline code before scanning. Inline spans are
+// stripped per line, so one unbalanced backtick can't desync the rest of the file.
 const INLINE_CODE = /(`+)(?:(?!\1).)*?\1/g;
 function stripCode(text) {
 	let fence = null;
@@ -145,7 +127,7 @@ for (const file of corpusFiles) {
 	const text = stripCode(readFileSync(file, 'utf8'));
 	const rawTargets = [...text.matchAll(INLINE_TARGET)].map((m) => m[1]);
 	for (const m of text.matchAll(REFERENCE_TARGET)) {
-		if (/^\s*\[\^/.test(m[0])) continue; // a GFM footnote definition mimics a link definition; its body is prose, not a target
+		if (/^\s*\[\^/.test(m[0])) continue; // a footnote definition mimics a link definition
 		rawTargets.push(m[1]);
 	}
 	for (const raw of rawTargets) {
@@ -172,12 +154,10 @@ if (!target) {
 
 // ── Pack write ──────────────────────────────────────────────────────────
 
-// Writing the pack clears the target first, so a mistyped argument (`… src`) must
-// not be able to take a tree with it. Two refusals bound what is clearable: the
-// pack's own inputs (`docs/guide` is all-.md, so the shape test alone would let the
-// clear eat them and then fail mid-copy), and any directory holding an entry the
-// pack never writes. With those held, clearing is a flat unlink of .md files — this
-// script owns no recursive delete to misfire.
+// The clear must not be able to take a tree with it on a mistyped argument. Two refusals
+// bound what is clearable: the pack's own source (all-.md, so the shape test alone would
+// let the clear eat it), and any directory holding an entry the pack never writes. With
+// those held, clearing is a flat unlink of .md files.
 function refusalReason(dir) {
 	if (dir === resolve(SOURCE_DIR)) return 'it is the pack source directory';
 	if (!existsSync(dir)) return null;
