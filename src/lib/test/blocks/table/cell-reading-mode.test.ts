@@ -6,10 +6,9 @@
 // row-appending end of Tab/Enter is a NAVIGATION plan reading mode must keep, so the keydown
 // switch's default arm carries a guard the seam cannot supply. One test per side of the split.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
-import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
+import { installTableLayoutStubs } from './mount-table';
+import { mountCell, type MountedCell } from './mount-cell';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -19,12 +18,12 @@ beforeAll(() => {
 });
 
 let mounted: MountedEditor | null = null;
-let table: MountedTable | null = null;
+let bareCell: MountedCell | null = null;
 afterEach(async () => {
 	if (mounted) await mounted.destroy();
-	if (table) await table.dispose();
+	if (bareCell) await bareCell.dispose();
 	mounted = null;
-	table = null;
+	bareCell = null;
 	document.body.innerHTML = '';
 });
 
@@ -116,37 +115,44 @@ describe('a reading-mode cell still navigates', () => {
 });
 
 describe('the right-click menu clipboard refuses to mutate in reading mode', () => {
-	/** The cell's published component, the object TableBlock's menu calls into. */
-	function cellRef(rowIdx: number, colIdx: number, blockEdit: BlockEditActions) {
-		table = mountTable(GRID, { blockEdit, policies: { presentationMode: () => 'reading' } });
-		return table.block.getBlockComponentByPath!([rowIdx, colIdx])!;
+	/** A BARE cell, not one inside `mountTable`: a table hands its cells its own nested action
+	 *  bundle as their blockEdit, so a stub passed to that mount records nothing and every
+	 *  refusal below would pass with the gate deleted. */
+	function readingCell(): MountedCell {
+		bareCell = mountCell('one', { presentationMode: () => 'reading' });
+		return bareCell;
 	}
 
 	it('declines cut, which would write through the cell’s door', async () => {
-		const blockEdit = makeStubBlockEdit();
 		document.execCommand = vi.fn(() => true);
+		const door = readingCell();
 
-		await cellRef(1, 0, blockEdit).applyMenuClipboard!('cut', { start: 0, end: 3 });
+		await door.ref().applyMenuClipboard!('cut', { start: 0, end: 3 });
 
-		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(door.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
 	it('declines paste', async () => {
-		const blockEdit = makeStubBlockEdit();
+		// A clipboard that WOULD answer: with none installed the read throws and the door
+		// returns early whether or not the gate is there.
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { readText: async () => 'pasted' },
+			configurable: true
+		});
+		const door = readingCell();
 
-		await cellRef(1, 0, blockEdit).applyMenuClipboard!('paste', { start: 0, end: 0 });
+		await door.ref().applyMenuClipboard!('paste', { start: 0, end: 0 });
 
-		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(door.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 
 	it('still allows copy, which mutates nothing', async () => {
 		// Contrapositive: the gate is action-shaped, not a blanket refusal — a
 		// reader must be able to copy out of the table.
-		const blockEdit = makeStubBlockEdit();
 		const execCommand = vi.fn(() => true);
 		document.execCommand = execCommand;
 
-		await cellRef(1, 0, blockEdit).applyMenuClipboard!('copy', { start: 0, end: 3 });
+		await readingCell().ref().applyMenuClipboard!('copy', { start: 0, end: 3 });
 
 		expect(execCommand).toHaveBeenCalledWith('copy');
 	});
