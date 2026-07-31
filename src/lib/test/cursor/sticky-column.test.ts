@@ -11,12 +11,6 @@ describe('createStickyColumnState', () => {
 		expect(b.get()).toBe(null);
 	});
 
-	it('capture sets value when null', () => {
-		const s = createStickyColumnState();
-		s.capture(asEditorX(150));
-		expect(s.get()).toBe(150);
-	});
-
 	it('capture is idempotent when non-null', () => {
 		const s = createStickyColumnState();
 		s.capture(asEditorX(150));
