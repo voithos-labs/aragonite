@@ -10,14 +10,11 @@ import { resolveParentScope } from './parent-scope';
 import { replaceBlockAtParent } from './replace-block-at-parent';
 
 /**
- * Apply an inline paste. Single-block routes through updateBlockContent
- * (snapshot + inline re-parse + kind-change focus); cross-block commits the same
- * re-parse funnel directly against the parent scope, because the originating
- * bundle may not match the target's level and so can't borrow the target's
- * updateBlockContent.
- *
- * The single-block route stays synchronous through its mutation: the caller must
- * set cursor state before the first Svelte reactivity flush.
+ * Apply an inline paste. Single-block routes through `updateBlockContent`; cross-block
+ * commits the same re-parse funnel directly against the parent scope, because the
+ * originating bundle may not match the target's level. The single-block route stays
+ * synchronous through its mutation so the caller can set cursor state before the first
+ * reactivity flush.
  */
 export async function applyInlineResult(
 	targetPath: number[],
@@ -29,20 +26,18 @@ export async function applyInlineResult(
 		return;
 	}
 
-	// Unawaited: the caller sets pendingCursorOffset in the same synchronous
-	// block so both land in one reactive flush.
+	// Unawaited: the caller sets pendingCursorOffset in the same synchronous block, so both
+	// land in one reactive flush.
 	const blockIndex = targetPath[targetPath.length - 1];
 	void ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
 }
 
 /**
- * Cross-block inline paste. `'join'` means the caller already pushed the
- * covering snapshot — not that the ceremony is skipped: committing is what keeps
- * the parent's `childIds` aligned with its children and puts the insertion on
- * the `edit` stream. The mutation routes through the same-slot re-parse funnel
- * rather than a raw-only write, so a paste that completes marker syntax (`1`
- * before `. item`) re-mints the slot at the reparsed kind — a bare raw write
- * leaves the old kind holding foreign bytes and parse(serialize(live)) diverges.
+ * Cross-block inline paste. `'join'` means the caller already pushed the covering
+ * snapshot, not that the ceremony is skipped — committing is what keeps the parent's
+ * `childIds` aligned and puts the insertion on the `edit` stream. The mutation routes
+ * through the same-slot re-parse funnel, so a paste completing marker syntax re-mints the
+ * slot at the reparsed kind instead of leaving the old kind holding foreign bytes.
  */
 async function commitInlineJoin(
 	targetPath: number[],
@@ -57,8 +52,8 @@ async function commitInlineJoin(
 		scopes: [scope],
 		snapshot: 'skip',
 		mutate: ([view]) => {
-			// The slot may still be snapshot-shared: copy-path-on-write before the
-			// funnel's in-place same-kind branch writes its raw (G1.9).
+			// The slot may still be snapshot-shared, and the funnel's same-kind branch writes
+			// its raw in place (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
 			const change = updateNodeContent(
 				{ children: view.children, ownerKind: view.node.kind },

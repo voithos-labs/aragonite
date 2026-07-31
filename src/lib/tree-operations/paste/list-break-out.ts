@@ -1,12 +1,7 @@
 /**
- * Paste break-out: lift a pasted list out of an enclosing list instead of
- * nesting it as a sub-list. Triggers when the clipboard's top block is a
- * list whose ordered flag does NOT match the nearest list ancestor, and
- * the target is a direct leaf of a listItem.
- *
- * Same-type pastes go through `list-absorb` (flatten into the enclosing
- * list with renumbering); this module covers only the mismatched case,
- * where keeping the pasted list separate preserves its semantic type.
+ * Paste break-out: lift a pasted list out of an enclosing list rather than nesting it,
+ * whenever the two ordered flags disagree — keeping the pasted list separate preserves its
+ * semantic type. Same-type pastes go through `list-absorb`.
  */
 
 import { CURSOR_END } from '../../block-component';
@@ -44,12 +39,9 @@ export interface ListBreakOut {
 }
 
 /**
- * Detect whether to break out of an enclosing list for this paste. Returns
- * a plan only when the clipboard's top block declares
- * `containerPaste.siblingAbsorb` but its `matchesAncestor` predicate rejects
- * the nearest list ancestor — matching pastes are handled by `list-absorb`
- * and must not also trigger here. Target must be a direct leaf of the
- * listItem (simple shape); deeper targets fall through.
+ * The break-out plan, or null: requires a top block declaring `containerPaste.siblingAbsorb`
+ * whose `matchesAncestor` REJECTS the nearest list ancestor (matching pastes belong to
+ * `list-absorb` and must not also trigger here), targeting a direct leaf of the listItem.
  */
 export function findListBreakOut(
 	doc: Document,
@@ -76,9 +68,8 @@ export function findListBreakOut(
 }
 
 /**
- * Execute a list break-out. Splits the enclosing list at the target item,
- * splices the pasted blocks between the halves at the list's parent level,
- * and commits in one multi-scope entry.
+ * Split the enclosing list at the target item and splice the pasted blocks between the
+ * halves at the list's parent level, in one multi-scope entry.
  */
 export async function applyListBreakOut(
 	plan: ListBreakOut,
@@ -123,8 +114,7 @@ export async function applyListBreakOut(
 			eventPath: docPathFrom(plan.listPath)
 		},
 		afterTick: () => {
-			// End of the pasted content: the last pasted block, before the second-half
-			// residue list — never the residue itself.
+			// The last pasted block, never the second-half residue list.
 			const lastPastedIdx =
 				spliceIndex + focusIndexBeforeResidue(replacement.length, hasTrailingResidue);
 			return ctx.controller.landCaret([...parentScope.path, lastPastedIdx], CURSOR_END);
@@ -142,11 +132,9 @@ export interface ListBreakOutReplacement {
 }
 
 /**
- * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks`
- * between the halves. Returns `[firstHalfList?, ...pastedBlocks, secondHalfList?]`
- * — halves are omitted when empty — plus whether the trailing residue half is
- * present, so the caller can land the caret on the last pasted block rather than
- * the residue. Input nodes are cloned, not mutated.
+ * Split `list` at `(itemIndex, innerIndex, offset)` and splice `pastedBlocks` between the
+ * halves. `hasTrailingResidue` lets the caller land the caret on the last pasted block
+ * rather than the residue. Input nodes are cloned, not mutated.
  */
 export function buildListBreakOutReplacement(
 	list: CstNode,
@@ -199,10 +187,9 @@ export function buildListBreakOutReplacement(
 	}
 	for (const block of pastedBlocks) {
 		const cloned = cloneNode(block);
-		// No children-array splice here — the cloned list itself is the unit;
-		// normalize its items so its rebuilt raw can't mash into the next block.
-		// The ending comes from the list being broken out of: the pasted block is
-		// landing among its lines.
+		// Normalize the clone's items so its rebuilt raw can't mash into the next block.
+		// The ending comes from the list being broken out of — the pasted block lands
+		// among its lines.
 		if (cloned.kind === 'list' && cloned.children) {
 			newlineTerminateListItems(cloned.children, trailingLineEnding(list.raw));
 			rebuildListRaw(cloned);
@@ -211,9 +198,8 @@ export function buildListBreakOutReplacement(
 	}
 	const hasTrailingResidue = secondHalfItems.length > 0;
 	if (hasTrailingResidue) {
-		// Continue numbering across the paste gap from the list's own base — the
-		// split item consumes one slot in each half, so the second half starts at
-		// base + (number of first-half items).
+		// Continue numbering across the paste gap: the split item consumes one slot in each
+		// half, so the second half starts past the first half's count.
 		replacement.push(assembleListHalf(list, secondHalfItems, base + firstHalfItems.length));
 	}
 
