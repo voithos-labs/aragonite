@@ -26,11 +26,10 @@ export function createFocusActions(
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {
 				if (options?.append === false) return;
-				// Past the last block — create a new empty paragraph via the commit
-				// primitive so the append participates in undo history and edit
-				// events like every other structural mutation. Both the separating
-				// blank line and the paragraph's own line ARE line endings, so both
-				// take the document's (G4.20), read off the block being appended after.
+				// Past the last block — appended through the commit primitive so it
+				// participates in undo history and edit events. Both the separating blank
+				// line and the paragraph's own ARE line endings, so both take the
+				// document's (G4.20), read off the block being appended after.
 				const lastBlock = deps.doc.children[deps.doc.children.length - 1];
 				const lineEnding = trailingLineEnding(lastBlock?.raw ?? '\n');
 				const newBlock = emptyParagraph(lineEnding, lineEnding);
@@ -54,9 +53,8 @@ export function createFocusActions(
 			}
 			const block = await deps.revealPath([blockIndex]);
 			if (!block?.focusable) {
-				// A refless (failed-render) or non-focusable block must not dead-end
-				// the move — skip it in the move's direction (editor.md § Focus
-				// Traversal). Recursion terminates at the doc edges above.
+				// A refless or non-focusable block must not dead-end the move — skip it in
+				// the move's direction (editor.md § Focus Traversal).
 				const step = traversalStep(position);
 				if (step !== 0) await this.moveFocus(blockIndex + step, position, options);
 				return;

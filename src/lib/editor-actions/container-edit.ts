@@ -1,8 +1,6 @@
 /**
- * ContainerEditActions factory — debounced checkpoint pusher for raw typing
- * mutations outside the commit primitive, the doc-root reactivity nudge, and
- * the unified `commitContainer` entry that routes structural mutations through
- * the commit primitive.
+ * ContainerEditActions factory: the debounced checkpoint pusher for raw typing
+ * outside the commit primitive, the doc-root reactivity nudge, and `commitContainer`.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
@@ -21,9 +19,8 @@ export function createContainerEditActions(
 		},
 
 		nudgeReactivity(): void {
-			// Out-of-commit-primitive raw mutations (cross-block typing, IME
-			// composition entry, drag/clipboard sync mutate) surface through this
-			// nudge so Svelte re-reads doc.children.
+			// Raw mutations made outside the commit primitive surface through this nudge,
+			// so Svelte re-reads doc.children.
 			deps.doc.children = [...deps.doc.children];
 		},
 

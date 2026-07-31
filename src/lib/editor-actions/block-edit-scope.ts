@@ -1,13 +1,9 @@
 /**
- * Per-level adapter for the shared block-edit core. Captures everything that
- * differs between a top-level edit (commits to the document children via
- * `commitStructural`) and a container edit (commits to a nested children
- * array via `commitContainer`): the commit ceremony, child addressing, refs,
- * and the unshare primitive. Both factories are the SINGLE mint point for the
- * commit args' doc-absolute paths (snapshot restore + event target), minted as
- * `DocPath` — the core hands over local indices only. The commit-arg path
- * fields carry `DocPath`, so the mint survives to the commit seam; G1.16 stays
- * the runtime belt for the JS callers types don't bind.
+ * Per-level adapter for the shared block-edit core: commit ceremony, child
+ * addressing, refs, and unshare, for a top-level edit vs a container one. Both
+ * factories are the SINGLE mint point for the commit args' doc-absolute paths
+ * (snapshot restore + event target), minted as `DocPath` — the core hands over local
+ * indices only. G1.16 stays the runtime belt for the JS callers types don't bind.
  */
 
 import type { OpDescriptor } from '../schema/operations';
@@ -41,24 +37,20 @@ export interface MutationView {
 export interface ScopeCommitArgs {
 	/** Snapshot coordinate in THIS scope's local index space, or 'skip' to join a caller's entry. */
 	snapshot: { index: number; offset: number } | 'skip';
-	/** The local index the emitted edit event targets (often the op's index; the deleted neighbor for not-editable merges; the minted index for inserts). The factory prefixes the scope's absolute path. */
+	/** Local index the edit event targets; the factory prefixes the scope's absolute path. */
 	eventTarget: number;
 	op: OpDescriptor;
 	mutate: (view: MutationView) => StructuralChange;
 	afterTick?: CommitAfterTick;
 	/**
-	 * Leaf(ves) the dev staleness oracle checks when `mutate` returns `noop` (an
-	 * in-place metadata/kind write the StructuralChange can't name). The owned copy
-	 * exists only after `mutate` runs, so callers push into a stable array the
-	 * ceremony reads post-mutate. Top-level only — the container scope's ceremony
-	 * auto-derives from its owned scope node.
+	 * Leaves the dev staleness oracle checks when `mutate` returns `noop`. The owned
+	 * copy exists only after `mutate` runs, hence a stable array. Top-level only.
 	 */
 	touchedNodes?: CstNode[];
 	/**
-	 * Structural op that can legitimately no-op (chrome split, no-target merge):
-	 * when `mutate` reports no structural change, the ceremony discards the
-	 * snapshot instead of minting a dead undo entry. Never set on content/metadata
-	 * commits — their `noop` still carries a byte change. See action-contracts `DiscardIfNoop`.
+	 * A structural op that can legitimately no-op, so the ceremony discards the snapshot
+	 * rather than mint a dead entry. Never on content/metadata commits — their `noop`
+	 * still carries a byte change (action-contracts `DiscardIfNoop`).
 	 */
 	discardIfNoop?: boolean;
 }
