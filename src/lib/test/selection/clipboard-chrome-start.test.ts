@@ -15,12 +15,8 @@ import {
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose START lands inside a container's reserved chrome used to
-// emit the chrome tail wrapper-less and the body flat, so the whole selection
-// reparsed as bare paragraphs. The fix re-emits the truncated chrome as the
-// container's own opener and closes it where the walk leaves the container's
-// subtree — one rebuildRaw call over the collected body, so the closer's fence
-// length is the opener's by construction.
+// A cross-block copy whose START lands inside a container's reserved chrome used to emit the
+// chrome tail wrapper-less and the body flat, so the whole selection reparsed as bare paragraphs.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
@@ -39,7 +35,7 @@ const title = (node: CstNode) => trimTrailingLineEnding(node.children![0].raw);
 describe('cross-block copy starting in reserved chrome', () => {
 	beforeEach(registerPlugins);
 
-	// The original repro, verbatim: pre-fix this yielded "tle\nBody1\n\nBody2\n\nBel".
+	// Pre-fix this yielded "tle\nBody1\n\nBody2\n\nBel".
 	it('re-emits the truncated title as the opener and closes past the container', () => {
 		const doc = parse(':::note Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
@@ -135,9 +131,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 			expect(bodies(outer.children![2])).toEqual([]);
 		});
 
-		// Start in the INNER chrome, running past the outer's end: only the container
-		// the start opened may close. A closer for the never-opened outer would strand
-		// a bare "::::" line after the copy.
+		// Start in the INNER chrome, running past the outer's end: only the container the start opened
+		// may close, or a closer for the never-opened outer strands a bare "::::" line after the copy.
 		it('closes only the container the start opened', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(doc, point([0, 2, 0], 2), point([1], 3));
@@ -153,9 +148,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 			]);
 		});
 
-		// Residue (issue #42): an end inside a nested container's BODY skips that
-		// container in the walk, so its opener is never emitted and its bytes flatten
-		// to prose. The outer wrapper — this fix's contract — still survives.
+		// Residue (issue #42): an end inside a nested container's BODY skips it in the walk, so its
+		// bytes flatten to prose. The outer wrapper — this fix's contract — still survives.
 		it('keeps the outer kind when the end lands in a nested body', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(doc, point([0, 0], 2), point([0, 2, 1], 1));
@@ -167,10 +161,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 		});
 	});
 
-	// The property the buffer-and-wrap design exists to guarantee. `colonCount` stays
-	// 4 in metadata while the live fence widened to 5, so a wrapper that read the
-	// fence from metadata alone would close the container at its own body line and
-	// eject everything below it. Cell adopted from the task-8 review.
+	// The property the buffer-and-wrap design exists for: `colonCount` stays 4 in metadata while the
+	// live fence widened to 5, so reading the fence from metadata alone closes the container early.
 	it('widens opener and closer together when the body forces fence escalation', () => {
 		const doc = parse('::::note Title\n\n:::\n\n::::\n\nBelow\n');
 		doc.children[0].children![1].raw = '::::\n';
@@ -203,10 +195,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 	});
 
-	// A container declaring reservedChrome on a `strip` contract has no closer to
-	// synthesize — its syntax is a per-line prefix — so BOTH chrome paths must
-	// decline, or they emit a wrapper the kind never opens. Unreachable until a
-	// plugin ships that shape, which is why the gate is a guard rather than a note.
+	// A container declaring reservedChrome on a `strip` contract has no closer to synthesize — its
+	// syntax is a per-line prefix — so BOTH chrome paths must decline rather than emit a wrapper.
 	it('declines wrapper synthesis on both endpoints for a strip-contract container', () => {
 		const doc = parse('Above\n\n:::note Title\n\nBody\n\n:::\n\nBelow\n');
 		augmentBlockKind(NOTE as AnyBlockKind, {

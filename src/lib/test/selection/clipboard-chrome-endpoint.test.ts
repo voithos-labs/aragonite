@@ -10,12 +10,8 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose END lands inside a container's reserved chrome (title/
-// summary) used to emit wrapper-less bytes that reparse to a bare paragraph — the
-// container kind lost on paste. The fix synthesizes a chrome-only container from
-// the truncated chrome raw and the kind's own rebuildRaw, so the emitted bytes
-// reparse to the same kind with an empty body. Generic off the chrome predicate,
-// exercised on both dogfood consumers.
+// A cross-block copy whose END lands inside a container's reserved chrome (title/summary) used to
+// emit wrapper-less bytes that reparse to a bare paragraph, losing the container kind on paste.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };

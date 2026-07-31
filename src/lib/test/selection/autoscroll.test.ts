@@ -85,15 +85,14 @@ describe('createAutoScroll — rAF loop termination at scroll limits (E-F7)', ()
 		autoScroll.dispose();
 	});
 
-	// The window target answers its two halves from different places, and one of them
-	// is the reason the page-scrolled case had no autoscroll for a release.
+	// The window target answers its two halves from different places — the split that left a
+	// page-scrolled embedding with no autoscroll at all.
 	describe('the window target', () => {
 		const VIEWPORT_HEIGHT = 700;
 		let written: number;
 
-		// jsdom lays nothing out and leaves `scrollingElement` null, so the viewport
-		// and the document box both have to be stated. The gap between them is the
-		// point: a browser's document box is nothing like its viewport.
+		// jsdom lays nothing out and leaves `scrollingElement` null, so the viewport and the document
+		// box both have to be stated. The gap between them is the point.
 		beforeEach(() => {
 			written = 0;
 			const doc = document.documentElement;
@@ -122,9 +121,8 @@ describe('createAutoScroll — rAF loop termination at scroll limits (E-F7)', ()
 				getTargets: () => [window]
 			});
 
-			// The pointer sits in the VIEWPORT's bottom edge band and nowhere near the
-			// document box's, so measuring `document.scrollingElement`'s rect — the
-			// obvious substitution — never starts the loop at all.
+			// The pointer sits in the VIEWPORT's bottom edge band, nowhere near the document box's, so
+			// measuring `document.scrollingElement`'s rect — the obvious substitution — never starts it.
 			autoScroll.maybeStart();
 			expect(rafCalls).toBe(1);
 			drainOneFrame();

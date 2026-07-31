@@ -9,9 +9,8 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// Two body children so in-place truncation is distinguishable from an upward
-// merge. Paths: [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2),
-// [2]=Below.
+// Two body children so in-place truncation is distinguishable from an upward merge. Paths:
+// [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below.
 const FIXTURE = 'Above\n\n:::note Title\nBody1\n\nBody2\n:::\n\nBelow\n';
 
 function point(path: number[], offset: number): SelectionPoint {
@@ -104,16 +103,8 @@ describe('chrome wall — rangeDelete post-states', () => {
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
 	});
 
-	// Equivalence pin for the shared-ceremony unification (range-delete-ceremony.ts):
-	// when start sits inside the end container, resolveEndWall returns null (the
-	// container is not a wall), so it is never marked consumed and never unit-
-	// deleted — even here, where the end endpoint lands on the container's last
-	// byte. This branch's inline predecessor computed a non-null chromeClearPath in
-	// this state, but chrome child 0 is start's own path or precedes it in doc
-	// order, so it never lands in the strictly-between walk and no chrome clears;
-	// the container survives with its body truncated in place. A unification that
-	// dropped resolveEndWall's start-inside guard would delete the whole container
-	// — red-first verified against exactly that break.
+	// Equivalence pin (range-delete-ceremony.ts): with start inside the end container resolveEndWall
+	// returns null, so nothing is consumed — dropping that start-inside guard deletes the container.
 	it('start in chrome, end at the container last byte: the container survives (start-inside guard)', () => {
 		const { doc, source } = run(FIXTURE, point([1, 0], 3), point([1, 2], 5));
 		expect(source).toBe('Above\n\n:::note Tit\n\n\n:::\n\nBelow\n');
@@ -138,12 +129,8 @@ describe('chrome wall — rangeDelete post-states', () => {
 		expect(note.children?.length).toBe(3);
 	});
 
-	// Deliberate degenerate (not a bug): when the end endpoint fully covers a
-	// surviving body child, the wall truncates it in place to an empty paragraph
-	// rather than node-deleting it (the generic path would delete). The wall's
-	// in-place rule is what keeps the chrome/body boundary from merging; a
-	// fully-covered survivor is its degenerate case, pinned here so a future
-	// "tidy up the empty paragraph" change trips this test first.
+	// Deliberate degenerate (not a bug): an end fully covering a surviving body child truncates it
+	// in place to an empty paragraph, because the wall's in-place rule guards the chrome/body edge.
 	it('end fully covering a body child leaves it as an empty paragraph in place', () => {
 		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
 		expect(source).toBe('Ab\n\n:::note\n\n\nBody2\n:::\n\nBelow\n');
@@ -155,12 +142,8 @@ describe('chrome wall — rangeDelete post-states', () => {
 		expect(doc.children[1].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'Body2\n']);
 	});
 
-	// G1.9 regression guard for T4's clear-write unshare: the covered chrome must
-	// clear through an unshared COPY, never the snapshot-shared node. Marking a
-	// snapshot BEFORE the delete makes the parsed title count as shared; if the
-	// clear loop dropped its unshare, `chrome.raw = '\n'` would corrupt the raw an
-	// undo entry still references. `getSource` reads the container's authoritative
-	// raw and is blind to this — assert the child node directly.
+	// G1.9 guard for the clear-write unshare: covered chrome must clear through an unshared COPY, or
+	// `chrome.raw = '\n'` corrupts the raw an undo entry still references — assert the child node.
 	it('clears covered chrome without corrupting the snapshot-shared title node', () => {
 		const doc = parse(FIXTURE);
 		const snapshotTitle = doc.children[1].children![0];

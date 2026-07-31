@@ -5,10 +5,8 @@ import { blockNodeAt, nodeAt } from '../../tree-operations/node-ops';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
 
-// Two 2×2 tables followed by a blockquote; and the same pair nested inside a
-// blockquote that also holds a paragraph. Selecting the first table's cell 0 to
-// the second table's last cell empties both, so the caret falls to the
-// "everything the caret could land in was deleted" survivor path.
+// Two 2×2 tables followed by a blockquote, and the same pair nested inside a blockquote holding a
+// paragraph. Selecting across both tables empties them, forcing the survivor caret path.
 const FLAT =
 	'| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| C | D |\n| --- | --- |\n| 3 | 4 |\n\n> quoted text\n';
 const NESTED =

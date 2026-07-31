@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 //
-// What `blockAtPoint` hands back for each combination of the two point→internals
-// descriptor hooks. The `element` it returns is a per-CONSUMER answer, not a property
-// of the block: the drag consumers branch on `foreignDragHitTest` alone and fall back
-// to a character hit test on `element`, so substituting the block WRAPPER for a kind
-// that declared no drag hook would hand them a plausible-but-wrong offset measured
-// across the whole subtree — a silently misplaced selection endpoint, not a decline.
-//
-// The pairing is a public-surface hazard rather than an in-tree one: `table` declares
-// both hooks, so no shipped path can see it. Hence a test kind per combination.
+// What `blockAtPoint` hands back for each combination of the two point→internals descriptor hooks.
+// The `element` it returns is a per-CONSUMER answer: the drag consumers branch on
+// `foreignDragHitTest` alone and fall back to a character hit test on `element`, so handing them
+// the block WRAPPER yields a plausible-but-wrong offset across the whole subtree, not a decline.
+// `table` declares both hooks, so only a test kind per combination can reach the hazard.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockAtPoint } from '$lib/selection/block-hit-test';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
@@ -59,9 +55,8 @@ describe('blockAtPoint hook plumbing', () => {
 	}
 
 	it('gives a caret-only kind its EDITABLE surface, and still carries the caret hook', () => {
-		// The load-bearing arm. A kind wanting a custom caret landing is not thereby
-		// coordinate-addressed for a drag, so the drag consumers must keep the surface
-		// they can hit-test characters against.
+		// The load-bearing arm: a custom caret landing does not make a kind coordinate-addressed for a
+		// drag, so the drag consumers keep a surface they can hit-test characters against.
 		const hit = withKind('caretOnlyKind', { caretTargetAtPoint: () => CARET_TARGET });
 
 		expect(hit?.element).toBe(editable);

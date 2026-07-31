@@ -14,16 +14,17 @@ function findTable(doc: Document): CstNode | null {
 
 const TWO_COL_FOUR_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 
-// Cross-block table-END endpoints are whole-row-snapped before rangeDelete, so
-// end.offset is the INCLUSIVE last cell of its row (table-endpoint-snap.ts). The
-// table-end delete clears [0, end.offset] inclusive.
+// Cross-block table-END endpoints are whole-row-snapped before rangeDelete
+// (table-endpoint-snap.ts), so end.offset is the INCLUSIVE last cell of its row and the delete
+// clears [0, end.offset].
 describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () => {
 	it('clears cells [0..end] inclusive, removes fully-covered rows, promotes header', () => {
 		// Doc: paragraph + 4-row table (header + 3 body rows)
 		const source = `intro paragraph\n\n${TWO_COL_FOUR_ROW}`;
 		const doc = parse(source);
 
-		// end.offset = 2 (inclusive) → clears cells 0,1,2 (header row entirely, plus body row 1's cell 0)
+		// end.offset = 2 (inclusive) → clears cells 0,1,2 (header row entirely, plus body row 1's
+		// cell 0)
 		const result = rangeDelete(
 			doc,
 			{ path: [0], offset: 5 },
@@ -41,7 +42,6 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 		// Header row covers cells 0,1 — fully in range — removed.
 		// Row 1 (cells 2,3) — only cell 2 in range — survives, cell 0 cleared.
 		expect(table.children).toHaveLength(3);
-		// First surviving row promotes to header.
 		expect((table.children![0].metadata as TableRowMetadata).isHeader).toBe(true);
 		expect(table.children![0].children![0].raw).toBe('');
 		expect(table.children![0].children![1].raw).toBe('2');
@@ -49,7 +49,6 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 
 		expect(result.collapsedCaret).toEqual({ path: [0], offset: 5 });
 
-		// Round-trip preserves alignments
 		const serialized = serialize(result.newDoc);
 		expect(serialized).toContain('| --- | --- |');
 	});
@@ -94,9 +93,8 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 	});
 
 	it('nested end table survives a deleted middle block: container raw rebuilds at the shifted path', () => {
-		// para[0], middle[1], blockquote[2] wrapping the table. Deleting middle
-		// shifts the blockquote to [1] — the ancestry rebuild must follow the
-		// surviving table, not the stale pre-delete end path.
+		// para[0], middle[1], blockquote[2] wrapping the table. Deleting middle shifts the blockquote
+		// to [1], so the ancestry rebuild must follow the surviving table, not the stale end path.
 		const source = 'para\n\nmiddle\n\n> | A | B |\n> | --- | --- |\n> | 1 | 2 |\n';
 		const doc = parse(source);
 
@@ -127,10 +125,8 @@ describe('rangeDelete — Case 1 (prose anchor → cell focus mid-table)', () =>
 
 describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)', () => {
 	it('clears cells [start..lastCell] in start row, removes rows below, header unchanged', () => {
-		// 2-col 4-row table + paragraph after.
-		// Anchor at cell 3 (row 1, col 1) — clear cells 3..end of table.
-		// Body rows 2 (cells 4,5) and 3 (cells 6,7) fully in range — removed.
-		// Row 1 (cells 2,3) — col 1 in range, col 0 untouched.
+		// Anchor at cell 3 (row 1, col 1) clears cells 3..end: body rows 2 (4,5) and 3 (6,7) are
+		// fully in range and removed, while row 1 keeps col 0.
 		const source = `${TWO_COL_FOUR_ROW}\nfollow paragraph\n`;
 		const doc = parse(source);
 
@@ -148,11 +144,9 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 		const table = survivors[0];
 		expect(table.kind).toBe('table');
 		expect(table.children).toHaveLength(2);
-		// Header row untouched.
 		expect((table.children![0].metadata as TableRowMetadata).isHeader).toBe(true);
 		expect(table.children![0].children![0].raw).toBe('A');
 		expect(table.children![0].children![1].raw).toBe('B');
-		// Body row 1: cell 0 untouched, cell 1 cleared.
 		expect(table.children![1].children![0].raw).toBe('1');
 		expect(table.children![1].children![1].raw).toBe('');
 
@@ -181,9 +175,8 @@ describe('rangeDelete — Case 2 (cell anchor mid-table → prose focus below)',
 	});
 
 	it('table fully consumed into a nested tail: caret addresses the tail at its post-delete path', () => {
-		// Table + blockquote of two paragraphs. Anchor cell 0 → mid-"second":
-		// the table empties out AND the blockquote's first paragraph is deleted,
-		// so the surviving tail shifts at both depths — [1, 1] becomes [0, 0].
+		// Anchor cell 0 → mid-"second": the table empties AND the blockquote's first paragraph is
+		// deleted, so the surviving tail shifts at both depths — [1, 1] becomes [0, 0].
 		const source = `${TWO_COL_FOUR_ROW}\n> first\n>\n> second\n`;
 		const doc = parse(source);
 
@@ -275,12 +268,10 @@ describe('rangeDelete — intra-table rectangular (same-path)', () => {
 		expect(table.children).toHaveLength(4);
 		expect(table.children![0].children![0].raw).toBe('A');
 		expect(table.children![0].children![1].raw).toBe('B');
-		// Rows 1 and 2 — both columns cleared.
 		expect(table.children![1].children![0].raw).toBe('');
 		expect(table.children![1].children![1].raw).toBe('');
 		expect(table.children![2].children![0].raw).toBe('');
 		expect(table.children![2].children![1].raw).toBe('');
-		// Row 3 untouched.
 		expect(table.children![3].children![0].raw).toBe('5');
 		expect(table.children![3].children![1].raw).toBe('6');
 		// Anchor at cell 2 = row 1, col 0 — caret deep-paths into that cell.

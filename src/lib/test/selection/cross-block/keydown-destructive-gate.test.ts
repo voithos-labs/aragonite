@@ -1,14 +1,9 @@
 // @vitest-environment jsdom
 //
 // The destructive arm: Backspace/Delete over a cross-block range. It consumes the key
-// unconditionally — the range must never fall through to a per-block handler that
-// would delete one character against stale block indices — but it only MUTATES when
-// the mode allows edits. Reading mode therefore has two obligations that pull in
-// opposite directions, and a gate that got them backwards would look correct from
-// either side alone.
-//
-// This is also the only reading-gate arm `keydown.ts` carries itself: G4.19's lint
-// allowlists the file on the strength of these branches.
+// unconditionally — the range must never reach a per-block handler that deletes one character
+// against stale indices — but MUTATES only when the mode allows edits, so reading mode pulls in
+// two directions. G4.19's lint allowlists this file on the strength of these branches.
 import { describe, it, expect } from 'vitest';
 import { makeKeydownEnv, press } from './keydown-env';
 
@@ -45,9 +40,8 @@ describe('cross-block keydown — destructive arm', () => {
 		});
 	}
 
-	// Cut and copy are deliberately NOT consumed here: the synthetic clipboard event
-	// has to reach the block's own handler, which writes synchronously through
-	// `e.clipboardData`. Consuming them would silently break copy out of a selection.
+	// Cut and copy are deliberately NOT consumed: the synthetic clipboard event has to reach the
+	// block's own handler, which writes synchronously through `e.clipboardData`.
 	for (const key of ['c', 'x']) {
 		it(`Ctrl+${key} passes through to the block clipboard handler`, async () => {
 			const env = makeKeydownEnv(SOURCE);

@@ -77,11 +77,8 @@ describe('the restore road settles before it notifies', () => {
 		expect(h.emissions).toEqual([{ caretBlock: 1, isCrossBlock: false }]);
 	});
 
-	// The documented exception, pinned so changing it is a visible decision rather
-	// than a silent doc drift: a collapsed restore whose target resolves in the model
-	// but has no element clears state and THEN fails the lookup, so its one emission
-	// reads back the outgoing selection. The consumer guide scopes its promise to a
-	// restore that lands and tells hosts to read back on `false`.
+	// The documented exception, pinned so changing it is a visible decision: a collapsed restore
+	// whose target resolves but has no element clears state THEN fails, reporting the outgoing one.
 	it('an unplaced restore still reports the outgoing selection', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);
@@ -164,9 +161,8 @@ describe('SelectionState.batch', () => {
 	});
 });
 
-// The restore road is the only entry path wrapped in a batch. These pin the counts
-// of the paths that are NOT, so the filed no-op-suppression work has a red-first
-// baseline instead of an argument, and so a future wrap cannot silently move one.
+// The restore road is the only entry path wrapped in a batch. These pin the counts of the paths
+// that are NOT, so the filed no-op-suppression work has a red-first baseline.
 describe('unbatched entry-path emission counts', () => {
 	it('a pointerdown that collapses a cross-block selection notifies twice', () => {
 		let notifies = 0;

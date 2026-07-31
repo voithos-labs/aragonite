@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// The rect surface's geometry is real only in a browser (pixel reads are e2e-tested),
-// but scrollTo's ORCHESTRATION is pure wiring: the reveal-anchor claim before mount,
-// the mount (revealPath) before the viewport scroll, the block-option default, who may
-// release the pin, and presence as the resolved value in a bare (no-root) harness.
-// Those regress independently of geometry, so they are pinned here with fakes — over
-// the REAL anchor state, since claim ownership is half of what is under test.
+// Geometry is real only in a browser (pixels are e2e-tested), but scrollTo's ORCHESTRATION is
+// pure wiring — claim before mount, mount before scroll, who may release the pin — and regresses
+// independently. Pinned with fakes over the REAL anchor state, since ownership is half the subject.
 
 import { describe, it, expect, vi } from 'vitest';
 import { createEditorRects } from '../../editor-rects';
@@ -47,11 +44,9 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 }
 
 // ── Settle-loop harness ─────────────────────────────────────────────────────
-// `makeRects` passes a null root, so `settleInView` returns on its first line and
-// its loop is unreachable. These give the loop a real root and scriptable element
-// positions: a path's script is [initialTop, ...topAfterEachScrollIntoView], which
-// models the reveal's first scroll landing short (heights are still estimates)
-// and the settle's refine correcting it. Visibility is `top < ROOT_BOTTOM`.
+// `makeRects` passes a null root, so its settle loop is unreachable. These give the loop a real
+// root and a scriptable per-path top: [initialTop, ...topAfterEachScrollIntoView], visible below
+// ROOT_BOTTOM — the shape of a first scroll landing short and the settle's refine correcting it.
 const ROOT_BOTTOM = 100;
 const EL_HEIGHT = 20;
 
@@ -110,9 +105,8 @@ describe('EditorRects.scrollTo', () => {
 	it('claims the reveal anchor before revealing, then scrolls', async () => {
 		const { rects, order } = makeRects(document.createElement('div'));
 		await rects.scrollTo([4]);
-		// The claim before mount is load-bearing: the gesture that triggers a reveal (a
-		// Previous-match click) releases the anchor on pointerdown, so the claim must
-		// land synchronously afterward, before the first await.
+		// The claim must land synchronously before the first await: the gesture that triggers a reveal
+		// (a Previous-match click) releases the anchor on pointerdown.
 		expect(order).toEqual(['anchor', 'reveal', 'scroll']);
 	});
 
@@ -148,9 +142,8 @@ describe('EditorRects.scrollTo', () => {
 });
 
 describe('EditorRects.scrollTo — claim ownership', () => {
-	// The residual per-call ownership closes: every terminal release runs through the
-	// claim, so a reveal that a later one superseded cannot take the fresher pin with
-	// it. Both self-releasing arms are covered — the 'center' refine and the hand-back.
+	// Every terminal release runs through the claim, so a superseded reveal cannot take the fresher
+	// pin with it. Both self-releasing arms are covered — the 'center' refine and the hand-back.
 	for (const [name, opts] of [
 		['a center refine', { block: 'center' } as const],
 		['a hand-back restore', { hold: false } as const]
@@ -183,11 +176,9 @@ describe('EditorRects.scrollTo — claim ownership', () => {
 	});
 });
 
-// Who a claim's loss belongs to decides whether the settle keeps working. A rival
-// reveal owns the viewport, so the loser stops and reports what is true; a reader
-// taking over ends the durable pin only, and a restore that had not finished
-// arriving must not be reported as one that never would (a consumer branching on
-// the boolean re-places a fallback caret over a correctly-placed one).
+// Who a claim's loss belongs to decides whether the settle keeps working: a rival reveal owns the
+// viewport, while a reader taking over ends only the durable pin and must not report a restore
+// that had not finished arriving as one that never would.
 describe('EditorRects.scrollTo — the settle, and who may end it', () => {
 	it('a superseded reveal stops scrolling for its own target and reports it out of view', async () => {
 		const h = makeSettlingRects({ '[1]': [500, 0], '[2]': [500, 0] });

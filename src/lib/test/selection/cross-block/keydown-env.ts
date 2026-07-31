@@ -1,14 +1,7 @@
-// Driving `cross-block/keydown.ts` as a unit.
-//
-// The dispatcher is the entry layer for every key that arrives while a cross-block
-// range is live, and it had exactly one test — four sticky-column outcomes. Its arms
-// (destructive, command-candidate, extend, collapse, doc-edge, select-all) are
-// module-private, so the only way in is `createCrossBlockKeydown`.
-//
-// The mutation context is REAL — a live document, undo controller and selection —
-// rather than a cast stub, so a destructive arm's assertion reads the document's
-// bytes and a reading-mode gate is proven by the bytes NOT moving. That distinction
-// is the whole point of the gate, and a spy cannot make it.
+// Driving `cross-block/keydown.ts` as a unit. Its arms (destructive, command-candidate, extend,
+// collapse, doc-edge, select-all) are module-private, so the only way in is
+// `createCrossBlockKeydown`. The mutation context is REAL — live document, undo controller and
+// selection — so a reading-mode gate is proven by the bytes NOT moving, which a spy cannot do.
 
 import { vi } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
@@ -28,9 +21,8 @@ export interface KeydownEnvOptions {
 	revealTo?: BlockComponent | null;
 	myPath?: number[];
 	/**
-	 * Paths that are windowed OUT: `getBlockElByPath` reports null for them until a
-	 * reveal mounts them, which is the only way to reach the endpoint-park arm of
-	 * `revealActiveEndpoint` (it is gated on the endpoint having no element).
+	 * Paths that are windowed OUT: `getBlockElByPath` reports null for them until a reveal mounts
+	 * them, the only way to reach the endpoint-park arm of `revealActiveEndpoint`.
 	 */
 	offWindowPaths?: number[][];
 }

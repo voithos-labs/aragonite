@@ -8,13 +8,9 @@ import { createCrossBlockKeydown } from '../../../selection/cross-block/keydown'
 import type { CrossBlockDispatchContext } from '../../../selection/cross-block/dispatch';
 import type { CrossBlockMutationContext } from '../../../selection/cross-block/ops';
 
-// B8-2: every key the cross-block dispatcher consumes returned before
-// handleSharedKeydown reached its sticky decision, and the collapse arms run no
-// commit — so nothing downstream reset either. Four keystrokes reproduced it:
-// ArrowDown captured a column, Shift+ArrowDown entered cross-block, ArrowLeft
-// collapsed the caret to the left margin, and the next ArrowDown landed at the
-// stale column. Driven at the dispatcher because that is the entry path that
-// swallows the key.
+// B8-2: every key the cross-block dispatcher consumes returned before handleSharedKeydown reached
+// its sticky decision, and the collapse arms run no commit — so nothing downstream reset either.
+// Driven at the dispatcher because that is the entry path that swallows the key.
 function harness() {
 	const doc = parse('alpha beta gamma\n\ndelta\n');
 	const selection = createSelectionState({ getDoc: () => doc });
