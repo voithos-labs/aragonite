@@ -1,8 +1,4 @@
 <script lang="ts">
-	// DEV-guard probe: a createContainerBlock whose explicit `isCollapsed` dep
-	// disagrees with the descriptor (which declares no reservedChrome.isCollapsed
-	// probe), tripping composeCollapseProbe's dev-warn at render. Proves a plugin
-	// author's own `vite dev` still receives the packaged editor's guard signal.
 	import { BlockList, createContainerBlock, type NodeView } from 'aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -14,9 +10,8 @@
 		getIndex: () => index,
 		getPath: () => myPath,
 		getBoxEl: () => boxEl,
-		// The devprobe descriptor declares no collapse probe, so
-		// isCollapsedContainer(node) is false; this `true` is the deliberate
-		// disagreement that dev-warns.
+		// Deliberate disagreement: the devprobe descriptor declares no collapse probe, so
+		// this `true` trips composeCollapseProbe's dev-warn at render.
 		isCollapsed: () => true
 	});
 
