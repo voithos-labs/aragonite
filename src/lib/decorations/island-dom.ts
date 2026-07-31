@@ -1,10 +1,8 @@
 /**
- * In-flow decoration islands for the prose render path: zero-width `widget`
- * insertions and byte-carrying `replace` covers. An island is an atomic inline
- * widget (`[data-inline-widget]`), so the shared raw-offset walk reads the
- * block back byte-exact with no walker changes — a widget island spans zero
- * bytes, a replace island's `data-source-*` span equals the raw span of the
- * DOM it displaced.
+ * In-flow decoration islands: zero-width `widget` insertions and byte-carrying `replace`
+ * covers. An island is an atomic inline widget, so the shared raw-offset walk reads the
+ * block back byte-exact with no walker changes — a widget island spans zero bytes, and a
+ * replace island's `data-source-*` span equals the raw span of the DOM it displaced.
  */
 
 import { ambientSpanOf } from '../ambient/ambient-dom';
@@ -30,15 +28,14 @@ export interface ApplyIslandsOpts {
 		dec: Decoration
 	) => { el: HTMLElement; destroy(): void } | null;
 	onSkipped?: (dec: Decoration, reason: string) => void; // dev-warn hook
-	/** Rendered ambient-marker length. Island offsets are raw-relative and the
-	 *  shared walk counts ambient text as ordinary text, so every boundary adds
-	 *  this (the TextEditableBlock compensation pattern). Default 0. */
+	/** Rendered ambient-marker length. Island offsets are raw-relative and the shared walk
+	 *  counts ambient text as ordinary text, so every boundary adds this (the
+	 *  TextEditableBlock compensation pattern). Default 0. */
 	ambientLength?: number;
 }
 
-/** Mutates `root` (the freshly built inline fragment): inserts widget islands and
- *  replaces covered ranges with replace islands. Returns destroy handles for
- *  mounted widgets (the caller sweeps them next rebuild). */
+/** Mutates `root` (the freshly built inline fragment). Returns destroy handles for
+ *  mounted widgets — the caller sweeps them next rebuild. */
 export function applyIslandDecorations(
 	root: ParentNode,
 	raw: string,
@@ -83,9 +80,8 @@ export function applyIslandDecorations(
 			opts.onSkipped?.(dec, 'range outside the block content');
 			return;
 		}
-		// A text-position range cannot split an atomic widget: a boundary strictly
-		// inside one snaps outward to whole-element coverage, so the island's span
-		// still equals the bytes it displaces.
+		// A boundary strictly inside an atomic widget snaps outward to whole-element
+		// coverage, so the island's span still equals the bytes it displaces.
 		let start = dec.start;
 		let end = dec.end;
 		const startSpan = widgetSpanContainingOffset(
@@ -138,9 +134,8 @@ export function applyIslandDecorations(
 		range.insertNode(island);
 	}
 
-	// The walk resolves a position at the ambient boundary to the END of the
-	// ambient span's text (ambient text counts as ordinary text); an island must
-	// land after the span, never inside the read-only marker.
+	// The walk resolves a position at the ambient boundary to the END of the span's text,
+	// but an island must land after the span, never inside the read-only marker.
 	function insertHoistedOutOfAmbient(range: Range, island: HTMLElement): void {
 		const ambient = ambientSpanOf(root);
 		if (ambient && ambient.contains(range.startContainer)) {
@@ -151,11 +146,9 @@ export function applyIslandDecorations(
 	}
 }
 
-/** Gated island signature for a render key. No islands ⇒ '' — an undecorated
- *  block's key stays byte-identical to the island-free format (the zero-cost
- *  path; pinned by a parity test). Widget identity is deliberately untracked:
- *  same position + class ⇒ equal signature (see DecorationWidgetSpec). Shared by
- *  the prose and table-cell render paths. */
+/** Gated island signature for a render key. No islands ⇒ '', keeping an undecorated
+ *  block's key byte-identical to the island-free format. Widget identity is deliberately
+ *  untracked: same position + class ⇒ equal signature (see DecorationWidgetSpec). */
 export function islandRenderKeyPart(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]
 ): string {
@@ -168,8 +161,7 @@ const islandSig = (d: WidgetDecoration | ReplaceDecoration): string =>
 		? `w:${d.offset}:${d.side ?? 'after'}`
 		: `r:${d.start}-${d.end}:${d.class ?? ''}:${d.widget ? 1 : 0}`;
 
-/** An island's ordering position: a widget's offset, a replace's start. The shared
- *  sort key for both the application pass (descending) and the render order. */
+/** An island's ordering position, shared by the application pass and the render order. */
 export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): number {
 	return dec.type === 'widget' ? dec.offset : dec.start;
 }
@@ -177,11 +169,10 @@ export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): numbe
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * Descending position order, so a replace extraction never spans an island
- * inserted earlier in the pass. Ties: replaces first (a same-start widget
- * island inserted first would be swallowed by the extraction), then widgets —
- * `side: 'after'` processed first so the final DOM order at one offset is
- * [before-widgets, after-widgets], each group in decoration order.
+ * Descending position order, so a replace extraction never spans an island inserted
+ * earlier in the pass. Ties put replaces first, since a same-start widget island would be
+ * swallowed by the extraction; `side: 'after'` widgets follow, leaving the final DOM order
+ * at one offset as [before, after].
  */
 function orderForApplication(
 	islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[]

@@ -1,35 +1,26 @@
 /**
- * Bounds regex find. A pathological pattern (`(a+)+$` over ~30 characters) spends
- * minutes inside ONE `RegExp.exec` call, and no main-thread budget can interrupt
- * a single exec — the only bound is a thread that can be killed. So regex scans
- * run in a worker with a hard deadline; literal search never comes here and stays
- * synchronous.
- *
- * The worker ships as source text through a Blob URL rather than a bundler worker
- * import, so dist packaging and consumer bundlers are untouched. Where that is
- * unavailable (SSR, a CSP-restricted embedder, the unit-test runner) the same
- * interface falls back to a synchronous scan whose deadline can only be checked
- * BETWEEN texts — one pathological exec is unbounded there, which is precisely the
- * gap the worker exists to close.
+ * Bounds regex find. A pathological pattern spends minutes inside ONE `RegExp.exec`, which
+ * no main-thread budget can interrupt, so the only bound is a killable thread. The worker
+ * ships as source text through a Blob URL, not a bundler worker import, leaving dist
+ * packaging and consumer bundlers untouched. Where that is unavailable (SSR, a CSP-restricted
+ * embedder, the test runner) it degrades to a sync scan bounded only BETWEEN texts.
  */
 
 import { execAll, type RawRange } from './matcher';
 
-/** Wall-clock ceiling for one scan. Long enough that an honest regex over a large
- *  document finishes, short enough that overrun reads as a stall, not a freeze. */
+/** Wall-clock ceiling for one scan: long enough for an honest regex over a large document,
+ *  short enough that overrun reads as a stall rather than a freeze. */
 export const REGEX_SCAN_DEADLINE_MS = 2000;
 
 export interface RegexScanRequest {
 	readonly texts: readonly string[];
 	readonly pattern: string;
 	readonly flags: string;
-	/** Correlation token, echoed back untouched. The caller compares it against its
-	 *  own current epoch and drops anything stale. */
+	/** Correlation token, echoed back untouched, so the caller can drop a stale outcome. */
 	readonly epoch: number;
 }
 
-/** `cancelled` covers both supersession and release: the caller asked for something
- *  else, so there is nothing to report. */
+/** `cancelled` covers supersession and release alike — nothing to report either way. */
 export type RegexScanFailure = 'timeout' | 'error' | 'cancelled';
 
 export type RegexScanOutcome =
@@ -37,12 +28,10 @@ export type RegexScanOutcome =
 	| { ok: false; epoch: number; reason: RegexScanFailure };
 
 export interface RegexExecutor {
-	/** Never rejects — every failure arrives as an `ok: false` outcome, so no caller
-	 *  can leak an unhandled rejection. Single-flight: a new scan supersedes the one
-	 *  in flight rather than queueing behind an exec that may never return. */
+	/** Never rejects; every failure arrives as an `ok: false` outcome. Single-flight: a new
+	 *  scan supersedes the one in flight rather than queueing behind a never-returning exec. */
 	scan(request: RegexScanRequest): Promise<RegexScanOutcome>;
-	/** Terminates the live worker. The next scan respawns one, so a closed find bar
-	 *  costs nothing without costing the seam. */
+	/** Terminates the live worker; the next scan respawns one. */
 	release(): void;
 }
 
@@ -53,8 +42,7 @@ export interface RegexExecutorOptions {
 // ── Worker ───────────────────────────────────────────────────────────────────
 
 // Self-contained by necessity: a Blob worker has no module graph, so this repeats
-// `execAll`'s loop. `regex-executor-parity.test.ts` runs both over the same inputs
-// and fails the day they diverge.
+// `execAll`'s loop. `regex-executor-parity.test.ts` fails the day they diverge.
 const WORKER_SOURCE = `
 self.onmessage = (event) => {
 	const { texts, pattern, flags, epoch } = event.data;
@@ -121,8 +109,8 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 	function abandonPending(): void {
 		if (!pending) return;
 		const { epoch } = pending;
-		// The worker is inside an exec that cannot be asked to stop; termination is
-		// the only way to free the thread for the next scan.
+		// The worker is inside an exec that cannot be asked to stop; termination is the
+		// only way to free the thread for the next scan.
 		killWorker();
 		settle({ ok: false, epoch, reason: 'cancelled' });
 	}
@@ -145,8 +133,8 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 			URL.revokeObjectURL(url); // the worker holds its own reference past revocation
 			return worker;
 		} catch {
-			// A CSP without `worker-src blob:` throws here. Stop retrying: every later
-			// scan would pay the same construction cost to fail the same way.
+			// A CSP without `worker-src blob:` throws here. Latch, or every later scan pays
+			// the same construction cost to fail the same way.
 			workerUnavailable = true;
 			return null;
 		}
@@ -165,13 +153,9 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 						: { ok: false, epoch: reply.epoch, reason: 'error' }
 				);
 			};
-			// A worker error and a deadline overrun are the same event to the caller:
-			// the scan failed and the thread is not trustworthy, so it goes. A pattern
-			// that will not compile is caught inside the worker and posted back, so
-			// reaching here means the worker itself is broken — a CSP that blocks the
-			// blob at load rather than at construction lands here rather than in the
-			// catch below. Latch, or every later scan respawns to fail identically and
-			// regex search stays dead instead of degrading to the synchronous path.
+			// An uncompilable pattern is caught inside the worker and posted back, so reaching
+			// here means the worker itself is broken (a CSP blocking the blob at load, not at
+			// construction). Latch, or regex search stays dead instead of degrading to sync.
 			const fail = () => {
 				const epoch = pending?.epoch ?? request.epoch;
 				workerUnavailable = true;
@@ -206,7 +190,7 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 		const startedAt = Date.now();
 		const ranges: RawRange[][] = [];
 		for (let i = 0; i < request.texts.length; i++) {
-			// Between texts is the only place this path can bail. Checking before any
+			// Between texts is the only place this path can bail, and checking before any
 			// work would be vacuous, so the first text always runs.
 			if (i > 0 && Date.now() - startedAt > deadlineMs) {
 				return { ok: false, epoch: request.epoch, reason: 'timeout' };

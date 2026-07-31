@@ -1,8 +1,6 @@
 /**
- * View-only annotations layered over the rendered document. Decorations never
- * enter the CST — they are produced per-instance by pure sources and consumed by
- * overlays/islands. The kinds: an inline `mark` span, a positioned `widget`, a
- * range `replace`, and a whole-block `block` treatment.
+ * View-only annotations layered over the rendered document. Decorations never enter the
+ * CST: pure sources produce them per-instance, and overlays/islands consume them.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -40,29 +38,26 @@ export interface BlockDecoration {
 }
 export type Decoration = MarkDecoration | WidgetDecoration | ReplaceDecoration | BlockDecoration;
 
-/** Widget identity is untracked by render keys: two specs at the same position
- *  with the same class are treated as equal — vary `class` to force a re-render. */
+/** Render keys don't track widget identity: same position + class ⇒ equal. Vary `class`
+ *  to force a re-render. */
 export type DecorationWidgetSpec =
 	| { component: import('svelte').Component<{ decoration: Decoration }> }
 	| { buildDom: (dec: Decoration) => HTMLElement };
 
 export interface ProvideContext {
-	/** Monotonic counter bumped once per document change — an edit, or a whole-document
-	 *  `source` replacement — and never by invalidate(). The memo key for sources that
-	 *  cache their scan. `doc.children` identity is NOT a valid change signal: routine
-	 *  typing mutates in place. */
+	/** Bumped once per document change, never by invalidate(). The memo key for sources that
+	 *  cache their scan; `doc.children` identity is NOT one, since typing mutates in place. */
 	editEpoch: number;
 }
 export interface DecorationSource {
 	name: string; // per-instance unique; duplicate addSource throws
-	// Pure over doc + ctx + the source's own state. Property (not method) syntax
-	// on purpose: params check contravariantly, so an implementation annotating
-	// the mutable Document is a compile error — sources read through the view.
+	// Property, not method, syntax on purpose: params then check contravariantly, so an
+	// implementation annotating the mutable Document is a compile error.
 	provide: (doc: DocumentView, ctx: ProvideContext) => Decoration[];
 }
 export interface DecorationSourceHandle {
-	/** Synchronous by contract: decorations and buckets reflect the new result
-	 *  before this returns (search's setQuery relies on it — never defer). */
+	/** Synchronous by contract: decorations and buckets reflect the new result before this
+	 *  returns. Search's setQuery relies on it — never defer. */
 	invalidate(): void;
 	dispose(): void;
 }

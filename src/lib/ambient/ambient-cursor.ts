@@ -1,10 +1,8 @@
 /**
- * Ambient-aware cursor I/O for prose contenteditable surfaces. Translates
- * between raw offsets (CST-facing) and DOM offsets (browser-facing) while
- * respecting the leading ambient marker span that container blocks (e.g.
- * list items) contribute to their first prose child. Zero-ambient surfaces
- * (e.g. table cells) are first-class consumers — `getAmbientLength: () => 0`
- * reduces the IO to plain widget-aware raw-offset translation.
+ * Ambient-aware cursor I/O for prose contenteditable surfaces: raw ↔ DOM offset
+ * translation that respects the leading ambient marker span a container block contributes
+ * to its first prose child. Zero-ambient surfaces are first-class consumers —
+ * `getAmbientLength: () => 0` reduces this to plain widget-aware translation.
  */
 
 import {
@@ -20,10 +18,9 @@ export interface AmbientCursorDeps {
 	getEl: () => HTMLElement | null | undefined;
 	getAmbientLength: () => number;
 	/**
-	 * Logical caret position (raw units) when the live DOM range is gone or
-	 * trapped — the "user clicked here" intent that survives Chromium dropping
-	 * element-level carets across event-loop yields and the walker rebounding
-	 * into the ambient marker. Null when no snap intent is active.
+	 * Logical caret position (raw units) when the live DOM range is gone or trapped — the
+	 * "user clicked here" intent that survives Chromium dropping element-level carets
+	 * across event-loop yields. Null when no snap intent is active.
 	 */
 	getSnapTarget?: () => number | null;
 }
@@ -67,10 +64,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	function getRaw(): RawOffset | null {
 		const live = readLiveRange();
 		if (live.state === 'inactive') return null;
-		// Dropped range: Chromium loses element-level carets past atomic widgets
-		// across event-loop yields. Marker-trapped range: the browser rebound the
-		// caret into a contenteditable=false island. Either way, the snap target
-		// carries the user's actual intent.
+		// Dropped (Chromium loses element-level carets past atomic widgets) or rebounded
+		// into a contenteditable=false island: the snap target carries the user's intent.
 		if (live.state === 'dropped') return snapTargetRaw();
 		if (live.inAmbient(live.range.startContainer)) return snapTargetRaw();
 		const content = domTextOffsetAtNode(live.el, live.range.startContainer, live.range.startOffset);
@@ -86,10 +81,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const el = deps.getEl();
 		if (!el) return;
 		const ambientLength = deps.getAmbientLength();
-		// Raw offset 0 under an ambient marker: walking to position ambientLength
-		// lands inside the marker's contenteditable="false" island, where
-		// Chromium bounces the caret out in front of the span. Use a sibling
-		// boundary instead.
+		// Walking to position ambientLength lands inside the marker island, where Chromium
+		// bounces the caret out in front of the span. Use a sibling boundary instead.
 		if (ambientLength > 0 && offset <= 0) {
 			setToAmbientBoundary();
 			return;
@@ -97,8 +90,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		const target = toDomTextOffset(offset, ambientLength);
 		const pos = findDomTextOffsetTarget(el, target);
 		if (!pos) return;
-		// Walker's last-text-node fallback can land inside the marker text;
-		// the contenteditable="false" island traps the caret either way.
+		// The walker's last-text-node fallback can land inside the marker text, where the
+		// contenteditable="false" island traps the caret.
 		const ambient = ambientSpanOf(el);
 		if (ambient && ambient.contains(pos.node)) {
 			setToAmbientBoundary();
@@ -129,10 +122,9 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	function getRawSelection(): { start: RawOffset; end: RawOffset } | null {
 		const live = readLiveRange();
 		if (live.state !== 'live' || live.collapsed) return null;
-		// No snap-target fallback for a marker-trapped endpoint, unlike `getRaw`:
-		// the snap target is a single caret intent and cannot stand in for one end
-		// of a pair, and the clamp below already maps the marker interior to raw 0
-		// — the right boundary for a drag that began inside the marker.
+		// No snap-target fallback here, unlike `getRaw`: a single caret intent cannot stand
+		// in for one end of a pair, and the clamp below already maps the marker interior to
+		// raw 0 — the right boundary for a drag that began inside the marker.
 		const ambientLength = deps.getAmbientLength();
 		const { el, range } = live;
 		return {
@@ -153,10 +145,8 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * The one preamble every reader of the live native selection shares: `el` holds
- * focus, the browser still has a range, and the marker island is identified. A
- * dropped range is its own answer because only the caret readers have a snap
- * target to fall back on.
+ * The preamble every reader of the live native selection shares. A dropped range is its
+ * own state because only the caret readers have a snap target to fall back on.
  */
 type LiveRange =
 	| { state: 'inactive' }

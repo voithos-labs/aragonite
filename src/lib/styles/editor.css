@@ -1,20 +1,12 @@
 /**
- * Editor structural styles. Painting rules for editor DOM built imperatively by
- * the renderers (code tokens, inline markers, image/widget chrome, selection
- * mode) — the part that can't live in component <style> blocks. Auto-imported by
- * Editor.svelte so it travels with the component.
- *
- * Every rule is wrapped in :where(.editor): zero added specificity (so the
- * cascade against component <style> blocks is unchanged) and full namespacing
- * (so nothing leaks into a consumer's page). Editor-owned token VALUES live in
- * editor-theme.css; host --color-* tokens are read with fallbacks here, never
- * declared.
+ * Editor structural styles: painting rules for DOM the renderers build imperatively,
+ * which can't live in component <style> blocks. Every rule is wrapped in :where(.editor)
+ * for zero added specificity and full namespacing. Token VALUES live in editor-theme.css;
+ * host --color-* tokens are read with fallbacks here, never declared.
  */
 
-/* Code block token styling. Classes applied by code-renderer.ts; unknown
- * classes fall through to --code-tok-unknown (inherit) so the textContent
- * invariant is preserved without forcing a color choice.
- */
+/* Classes applied by code-renderer.ts; unknown ones fall through to --code-tok-unknown
+ * (inherit), preserving the textContent invariant without forcing a color choice. */
 :where(.editor) .code-tok-keyword {
 	color: var(--code-tok-keyword);
 	font-weight: 600;
@@ -85,16 +77,9 @@
 	background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 }
 
-/* Cross-block selection mode. When data-cross-block is set on the editor
-   root, the browser's native ::selection painting is suppressed so it
-   doesn't double up with SelectionOverlay's custom highlights. The caret
-   is also hidden inside blocks while in cross-block mode so a second
-   focus marker doesn't float over the overlay.
-
-   Scoped to `.block-list` — the document content — rather than to every
-   descendant: the find/replace bar is a sibling inside the same root, and a
-   bare descendant combinator left its inputs unable to paint a selection for
-   as long as a cross-block selection was live. */
+/* Suppress native painting so it doesn't double up with SelectionOverlay's highlights.
+   Scoped to `.block-list` rather than every descendant: the find/replace bar is a sibling
+   inside the same root and must keep painting its own selection. */
 :where(.editor)[data-cross-block] .block-list ::selection {
 	background: transparent;
 }
@@ -103,10 +88,8 @@
 	caret-color: transparent;
 }
 
-/* Decoration mark base. Global (not component-scoped) so a consumer's own
-   `.decoration-overlay.<their-class>` rules resolve; a source supplies the
-   per-mark class, the consumer styles it. Interactive marks opt back into
-   hit-testing. */
+/* Global, not component-scoped, so a consumer's own `.decoration-overlay.<their-class>`
+   rules resolve. */
 :where(.editor) .decoration-overlay {
 	position: absolute;
 	pointer-events: none;
@@ -118,8 +101,7 @@
 	cursor: pointer;
 }
 
-/* Search's marks (source 'editor:search') ride the base above; the class names
-   are pinned by the search e2e suite. */
+/* Search's marks ride the base above; the class names are pinned by the search e2e suite. */
 :where(.editor) .match-overlay {
 	background: var(--search-match-bg);
 }
@@ -127,14 +109,12 @@
 	background: var(--search-match-active-bg);
 }
 
-/* Block-decoration badge wrapper — non-editable chrome prepended to the host;
-   the source's widget supplies the content, the consumer positions it. */
+/* Non-editable chrome prepended to the host; the consumer positions it. */
 :where(.editor) .decoration-badge {
 	user-select: none;
 }
 
-/* In-flow decoration island (inline widget/replace) — atomic non-editable
-   inline chrome; the source's class layers styling on top. */
+/* Atomic non-editable inline chrome; the source's class layers styling on top. */
 :where(.editor) .decoration-island {
 	user-select: none;
 }
@@ -152,14 +132,12 @@
 	position: relative;
 }
 
-/* Generic inline directive `:name[...]` with no plugin renderer: show its source
-   dimmed like a marker until a later tier reveals it for editing. */
+/* Directive with no plugin renderer: show its source dimmed like a marker. */
 :where(.editor) .directive-text-widget {
 	opacity: var(--syntax-marker-dim, 0.65);
 }
 
-/* Decoded-entity glyph (`&copy;` → ©): an atomic island rendering as a plain
-   inline character, no card chrome. user-select:none keeps it whole — no caret
+/* Decoded-entity glyph (`&copy;` → ©): user-select:none keeps it whole, so no caret
    lands inside the glyph. */
 :where(.editor) .md-entity-widget {
 	user-select: none;
@@ -171,21 +149,12 @@
 	display: block;
 }
 
-/* Image-bearing list-item / blockquote paragraph: place the ambient marker at
-   the image's bottom-left (Obsidian-style). Using `display: flex` here breaks
-   caret placement past contenteditable=false widgets — the browser can't
-   anchor the cursor in flex empty space — so we keep block layout and pull
-   the marker out of flow with absolute positioning. The `[contenteditable="false"]`
-   qualifier matches only the structurally-injected ambient prefix (per
-   `buildAmbientSpan`), not inline-rendered `.md-marker` spans (hard-break `\`,
-   emphasis `*`, link `[]()`, escape) which must stay in normal flow.
-
-   The widget side of every `:has()` below is a DESCENDANT match: an inline
-   construct that wraps its children (`em`, `strong`, `s`, and a link's
-   `a`/`span.md-link-content`) puts the widget one level deeper, and
-   `- [![badge](x)](url)` is the commonest list-image shape there is. The marker
-   side stays a child combinator — the ambient prefix really is a direct child,
-   and that is what keeps inline-rendered markers out. */
+/* Image-bearing list-item / blockquote paragraph: the ambient marker sits at the image's
+   bottom-left, pulled out of flow. `display: flex` would break caret placement past
+   contenteditable=false widgets (no anchor in flex empty space). The widget side of each
+   `:has()` is a DESCENDANT match, since a wrapping inline construct puts the widget one
+   level deeper; the marker side stays a child combinator, matching only the
+   structurally-injected prefix (per `buildAmbientSpan`), never inline `.md-marker` spans. */
 :where(.editor)
 	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
 		.md-image-widget
@@ -204,31 +173,23 @@
 	bottom: 0;
 }
 
-/* Image-only paragraph drops the trailing empty line-box the contenteditable
-   would keep after a block-level child — otherwise every image-only item carries
-   ~25px of dead vertical space below the image. `:last-child` is evaluated
-   against the widget's own parent, so it reads the same under a wrapper as it
-   does directly under the paragraph. */
+/* Drop the trailing empty line-box the contenteditable keeps after a block-level child,
+   which otherwise leaves dead vertical space below every image-only item. */
 :where(.editor) .text-editable-block.paragraph-block:has(.md-image-widget:last-child) {
 	min-height: 0;
 }
 
-/* An image wrapped in a link (`[![alt][ref]][repo]`) renders the block-level
-   image widget inside an inline `<a>`. Left as `display: inline`, the anchor
-   stretches to the full content width, so its `title` tooltip (from the link's
-   LRD title) hovers over the empty space beside the image. Shrink the anchor to
-   hug the widget so the tooltip only covers the clickable image. Descendant, so
-   `[*![alt](x)*](url)` hugs too — matching the underline rule below, which
-   already asks "contains an image widget at any depth". */
+/* An image wrapped in a link: left inline, the anchor stretches to full content width and
+   its `title` tooltip hovers over the empty space beside the image. Hug the widget so the
+   tooltip only covers the clickable image. */
 :where(.editor) a.md-link-content:has(.md-image-widget) {
 	display: inline-block;
 	width: fit-content;
 }
 
 :where(.editor) .md-image-broken {
-	/* Inherits display:block from .md-image-widget; the design rule is that
-		   image widgets always force a visual line break before/after, broken or
-		   not, so trailing text wraps to the next line. */
+	/* Keeps the inherited display:block: image widgets always force a visual line break,
+	   broken or not, so trailing text wraps to the next line. */
 	min-width: 100px;
 	min-height: 60px;
 	border: 1px dashed var(--color-ui-muted, #a4a4a4);
@@ -285,10 +246,9 @@
 	}
 }
 
-/* The synthetic caret REPLACES the native one, so the native must go dark while it
-   is up: Chromium does sometimes render a caret at the element-level offset beside
-   a contenteditable=false island, and two painting at one position reads as two
-   carets. Same shape as the cross-block suppression above. */
+/* The synthetic caret REPLACES the native one: Chromium does sometimes render a caret at
+   the element-level offset beside a contenteditable=false island, and two at one position
+   reads as two carets. */
 :where(.editor) .md-snap-caret-active {
 	caret-color: transparent;
 }
@@ -304,22 +264,17 @@
 	pointer-events: auto;
 }
 
-/* Inline link text reads as a clickable link: accent + underline, mirroring
-   `.md-autolink`. Scoped to the anchor so a blocked-scheme `span.md-link-content`
-   (rendered without an `<a>`) never looks clickable; `:not(:has(.md-image-widget))`
-   keeps a wrapped image widget (an image-link, FIX above) from being underlined as
-   if it were text. The `(url)` / `[label]` markers stay dimmed — only the link
-   text (the `<a>` content) takes the accent. */
+/* Scoped to the anchor so a blocked-scheme `span.md-link-content` (rendered without an
+   `<a>`) never looks clickable; `:not(:has(.md-image-widget))` keeps a wrapped image
+   widget from being underlined as if it were text. */
 :where(.editor) a.md-link-content:not(:has(.md-image-widget)) {
 	color: var(--syntax-link, var(--color-accent, #567b67));
 	text-decoration: underline;
 }
 
-/* A plain click edits (places the caret); only Ctrl/Cmd+click activates the link.
-   So links keep the text caret by default and only show the pointer affordance
-   while the modifier is held — `Editor.svelte` mirrors that onto the root as
-   `data-mod-active`. The explicit default overrides the UA `<a href>` pointer so
-   the caret-vs-pointer state is the editor's, not the browser's. */
+/* A plain click edits; only Ctrl/Cmd+click activates the link (`Editor.svelte` mirrors the
+   modifier onto the root as `data-mod-active`). The explicit default overrides the UA
+   `<a href>` pointer so the caret-vs-pointer state is the editor's, not the browser's. */
 :where(.editor) a.md-link-content,
 :where(.editor) .md-autolink {
 	cursor: text;
@@ -330,68 +285,57 @@
 	cursor: pointer;
 }
 
-/* Blocked-scheme link (`javascript:`, `vbscript:`, `file:`, `data:` in href):
-   inert metadata, not a link — muted, no accent, no underline, plain text caret,
-   so it stays visually distinct from a real (clickable) link. */
+/* Blocked-scheme link: inert metadata, kept visually distinct from a clickable one. */
 :where(.editor) .md-link-content.md-link-blocked {
 	color: var(--md-link-blocked-color, var(--color-text-muted, #888));
 	text-decoration: none;
 	cursor: text;
 }
 
-/* Reference-link trailing markers (`[label]` / `[]`) — dimmer than the
-   structural-content `[text]` / `(url)` markers so the label reads as metadata. */
+/* Dimmer than the structural-content `[text]` / `(url)` markers, so it reads as metadata. */
 :where(.editor) .md-ref-label {
 	color: var(--md-ref-label-color, rgba(128, 128, 128, 0.45));
 	font-style: italic;
 }
 
-/* Unresolved reference — visible feedback that the label didn't resolve. */
 :where(.editor) .md-unresolved-ref {
 	color: var(--md-unresolved-color, #c0392b);
 	border-bottom: 1px dashed currentColor;
 	text-decoration: none;
 }
 
-/* Image-variant unresolved refs get a subtle background to set them apart from
-   link-variant ones at a glance. */
+/* A background sets image-variant unresolved refs apart from link-variant ones. */
 :where(.editor) .md-unresolved-ref-image {
 	background: var(--md-unresolved-image-bg, rgba(192, 57, 43, 0.08));
 	padding: 0 2px;
 	border-radius: 2px;
 }
 
-/* linkReferenceDefinition blocks — render as metadata: smaller, italic, faded. */
+/* linkReferenceDefinition blocks render as metadata rather than content. */
 :where(.editor) .block-host[data-block-kind='linkReferenceDefinition'] {
 	opacity: 0.75;
 	font-size: 0.9em;
 	font-style: italic;
 }
 
-/* Inline raw HTML tags rendered as styled-literal source text. Slightly
-   dimmed monospace gives them a code-ish feel without becoming code spans. */
+/* Dimmed monospace gives inline raw HTML a code-ish feel without becoming a code span. */
 :where(.editor) .md-raw-html {
 	color: var(--md-raw-html-color, rgba(120, 120, 120, 0.85));
 	font-family: var(--font-editor, ui-monospace, monospace);
 	font-size: 0.92em;
 }
 
-/* Off-window placeholder tint (VR-8). Spacers reserve the height of unmounted
-   blocks; a fling can outrun the window recompute and paint a bare spacer for one
-   frame, which without a background tears white. The faint tint reads as "loading".
-   Global across the three spacer renderers (BlockList / ListBlock / TableBlock). */
+/* Off-window placeholder tint (VR-8): a fling can outrun the window recompute and paint a
+   bare spacer for one frame, which without a background tears white. */
 :where(.editor) .vr-spacer {
 	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
 }
 
 /* ── Semantic syntax-token wiring ─────────────────────────────────────────────
-   Each --syntax-* token colors one Markdown construct; defaults in
-   editor-theme.css are neutral (currentColor / the chrome token the rule read
-   before), so these rules change nothing until a consumer overrides a token.
-   Fallbacks repeat the neutral default so a wholesale-replacement theme that
-   omits the family still renders sanely. Rules whose construct is colored by a
-   component <style> shorthand (quote bar, thematic break) carry the extra
-   selector weight needed to beat the Svelte scoping class deterministically. */
+   Defaults in editor-theme.css are neutral, so these rules change nothing until a
+   consumer overrides a token; the repeated fallbacks keep a wholesale-replacement theme
+   rendering sanely. Rules whose construct is also colored by a component <style>
+   shorthand carry the extra selector weight to beat the Svelte scoping class. */
 
 :where(.editor)
 	.text-editable-block:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6) {
@@ -419,9 +363,8 @@
 	border-top-color: var(--syntax-separator, var(--color-ui-muted, #a4a4a4));
 }
 
-/* The [contenteditable='false'] qualifier scopes to the structurally-injected
-   ambient prefix (list bullet / number / task text), not inline .md-marker
-   spans. */
+/* The [contenteditable='false'] qualifier scopes to the structurally-injected ambient
+   prefix, not inline .md-marker spans. */
 :where(.editor) .list-item-block .md-marker[contenteditable='false'] {
 	color: var(--syntax-list, currentColor);
 }
@@ -430,11 +373,9 @@
 	color: var(--syntax-task, currentColor);
 }
 
-/* Table affordance grips: revealed only while the table is hovered (pure CSS, no
-   per-grip reactive state — mirrors the block drag handle). The grip's own
-   <style> holds the at-rest opacity:0/pointer-events:none, so a grip never
-   intercepts a caret click until the table is hovered. Covers row grips too so
-   the row-axis affordance inherits the same reveal. */
+/* Table grips reveal on table hover, in pure CSS with no per-grip reactive state. The
+   grip's own <style> holds the at-rest opacity:0/pointer-events:none, so a grip never
+   intercepts a caret click until then. */
 :where(.editor) [role='table']:hover [data-table-col-grip],
 :where(.editor) [role='table']:hover [data-table-row-grip] {
 	opacity: 1;
@@ -442,51 +383,40 @@
 }
 
 /* ── Rendered chrome, shared by reading + live preview ────────────────────────
-   Both modes hide source markers by CSS ONLY — never omitted from the render
-   path: the raw-aware offset walk counts every DOM text node regardless of
-   layout, so hiding keeps the DOM↔raw coordinate space intact for selection/rect
-   measurement. Structural omission would desync it and is forbidden. These
-   families are byte-identical across the two modes (a rendered document and an
-   unfocused live-preview block show the same thing), keyed on an equal-specificity
-   :is() so the per-mode rules below — reading's inertness, preview's focused
-   reveals — win by source order. */
+   Both modes hide source markers by CSS ONLY, never by omitting them from the render
+   path: the raw-aware offset walk counts every DOM text node regardless of layout, so
+   hiding is what keeps the DOM↔raw coordinate space intact. Structural omission would
+   desync it and is forbidden. Keyed on an equal-specificity :is() so the per-mode rules
+   below win by source order. */
 
-/* Inline markers (emphasis/code/link/escape spans) and block-own prefixes
-   (heading `## `, setext underline, directive `::name`): pure syntax, in normal
-   flow — remove from paint and native copy so text joins up rendered-style.
-   Ambient container markers are excluded here; they carry layout (below). */
+/* Inline markers and block-own prefixes are pure syntax in normal flow: removing them from
+   paint and native copy joins the text up rendered-style. Ambient container markers are
+   excluded here — they carry layout (below). */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.md-marker:not([contenteditable='false']) {
 	display: none;
 }
 
-/* Code fences: the marker spans ride the .md-marker rule above, but each fence
-   line's `\n` is a bare text node CSS can't reach on its own. The `.md-fence-line`
-   wrapper owns the whole line (marker + its `\n`), so collapsing it drops the line
-   outright — no blank line left at the box's top or bottom. */
+/* A fence line's `\n` is a bare text node CSS can't reach; the `.md-fence-line` wrapper
+   owns marker + newline, so collapsing it leaves no blank line at the box's edge. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-']) .md-fence-line {
 	display: none;
 }
 
-/* Reference-link trailing labels (`[label]` / `[]`): resolution metadata, not
-   content — a rendered document shows only the link text. */
+/* Resolution metadata, not content: a rendered document shows only the link text. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-']) .md-ref-label {
 	display: none;
 }
 
-/* Directive container fence lines (`:::note` / `:::`): the container chrome
-   (border/gutter) is the rendered form; the fence is source syntax. A block-level
-   span, so hiding it drops the whole line — and it never reveals, belonging to the
-   container rather than the focused leaf. */
+/* The container chrome (border/gutter) is the rendered form of a directive fence. It never
+   reveals, belonging to the container rather than the focused leaf. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.directive-marker {
 	display: none;
 }
 
-/* Ambient list markers own the hanging indent (the block's padding/text-indent
-   are keyed to the span's ch width), so they keep their box: visibility, not
-   display. opacity:1 undoes the source dim — what stays visible is rendered
-   chrome now. */
+/* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's
+   ch width), so they keep their box: visibility, not display. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block
 	.md-marker[contenteditable='false'] {
@@ -494,8 +424,7 @@
 	opacity: 1;
 }
 
-/* Bullets: `- ` hides; a rendered bullet paints in its slot — rendered chrome
-   replacing source chrome, like blockquote's border. */
+/* `- ` hides and a rendered bullet paints in its slot, like blockquote's border. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block[data-list-marker='bullet']
 	.md-marker[contenteditable='false']::before {
@@ -504,17 +433,14 @@
 	color: var(--syntax-list, currentColor);
 }
 
-/* Ordered items: the ambient text IS the rendered number (`1. `), so it stays
-   visible, undimmed — exactly what an <ol> shows. */
+/* The ambient text IS the rendered number (`1. `), so it stays visible and undimmed. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block[data-list-marker='ordered']
 	.md-marker[contenteditable='false'] {
 	visibility: visible;
 }
 
-/* Task items: the `- ` prefix hides (GitHub task lists carry no bullet); the
-   checkbox stays visible. Reading makes it inert (below); the preview modes edit,
-   so it stays live there. */
+/* GitHub task lists carry no bullet, so the `- ` prefix hides and the checkbox stays. */
 :where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
@@ -522,13 +448,11 @@
 }
 
 /* ── Reading mode ─────────────────────────────────────────────────────────────
-   Scoped on the root's [data-presentation='reading'] attribute (absent in source
-   mode). The marker-hiding families it shares with live preview are in the shared
-   section above; reading adds only its read-only inertness on top. */
+   The marker-hiding families reading shares with live preview are in the section above;
+   reading adds only its read-only inertness on top. */
 
-/* The checkbox stays inert: pointer-events kills the toggle click at the CSS
-   layer, the toggleTask guard is the JS belt. Toggling one would rewrite the
-   document, and reading mode writes no bytes. */
+/* pointer-events kills the toggle click at the CSS layer; the toggleTask guard is the JS
+   belt. Toggling would rewrite the document, and reading mode writes no bytes. */
 :where(.editor)[data-presentation='reading']
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
@@ -540,8 +464,7 @@
 	background-color: transparent;
 }
 
-/* Structural edit affordances leave with the mode: table grips (their menus and
-   drags all mutate). */
+/* Table grips leave with the mode — their menus and drags all mutate. */
 :where(.editor)[data-presentation='reading'] [data-table-col-grip],
 :where(.editor)[data-presentation='reading'] [data-table-row-grip] {
 	display: none;
@@ -554,39 +477,22 @@
 }
 
 /* ── Live preview (block + inline granularity) ────────────────────────────────
-   [data-presentation^='preview-'] covers both LIVE editing modes: preview-block
-   (the focused block renders full styled source) and preview-inline (within the
-   focused block, only the constructs at the caret show their markers). Unfocused
-   blocks are identical in both, and share the marker-hiding families with reading
-   (the shared section above). Focus is signalled by `data-focused` on the focused
-   block's .block-host (the editor's focus tracker sets it). All hiding is CSS-only
-   — no render-path branch, so the caret's DOM anchor survives a reveal: a click
-   lands at the content offset it hit and the markers appear around it without
-   moving it. Same coordinate-space rule as reading: hidden, never omitted.
+   `preview-block` renders the focused block as full styled source; `preview-inline`
+   reveals only the constructs at the caret. Hiding stays CSS-only, so the caret's DOM
+   anchor survives a reveal and the markers appear around it without moving it.
+   Containment rule: markers hide broadly (above) and un-hide INSIDE the focused host, so
+   only the focused leaf reveals and nesting falls out right — the naive
+   `.block-host:not([data-focused])` would hide a focused leaf's markers through its
+   unfocused container ancestor. */
 
-   Containment rule: only the single focused LEAF reveals. Container chrome
-   (blockquote border, directive gutter) is not markers and never toggles; a
-   focused list item under preview-block shows its own ambient marker as source
-   while sibling items stay rendered. Markers hide broadly (above) and un-hide
-   inside the focused host, so the rule keys on DOM containment and nests correctly
-   (sub-item, multi-block item, a leaf wrapped in an unfocused container all fall
-   out right — the naive `.block-host:not([data-focused])` would hide the focused
-   leaf's markers through its unfocused container ancestor). The render-primary
-   leaves (block math, TOC) already render-when-unfocused / source-on-reveal
-   outside reading, so they are block-granular here for free. */
-
-/* Inline markers + block-own prefixes reveal wholesale under preview-block. All
-   are inline spans, so the reveal restores source layout exactly. */
+/* All inline spans, so the reveal restores source layout exactly. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker:not([contenteditable='false']) {
 	display: inline;
 }
 
-/* Code fence lines are whole-block markers, so both preview modes reveal them on
-   block focus (preview-inline un-hides them exactly as preview-block does — see
-   the inline-granular rule below, where unstamped whole-block markers reveal
-   wholesale). */
+/* Code fence lines are whole-block markers, so both preview modes reveal them on focus. */
 :where(.editor)[data-presentation^='preview-'] .block-host[data-focused] .md-fence-line {
 	display: inline;
 }
@@ -596,12 +502,9 @@
 	display: inline;
 }
 
-/* Focused list item under preview-block: its ambient marker reads as source (raw
-   `- `/`1. ` dimmed, no rendered bullet). preview-inline is excluded on purpose —
-   the ambient marker is contenteditable=false chrome the caret can never enter,
-   so at inline granularity it keeps its rendered form on the focused item too.
-   Written AFTER the shared hide rules so the equal-specificity ::before reset wins
-   by source order. */
+/* preview-inline is excluded on purpose: the ambient marker is contenteditable=false chrome
+   the caret can never enter, so at inline granularity it keeps its rendered form. Written
+   AFTER the shared hide rules so the equal-specificity ::before reset wins by source order. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker[contenteditable='false'] {
@@ -615,11 +518,9 @@
 }
 
 /* ── Inline-granular reveal (preview-inline's focused block) ──────────────────
-   The render stamps construct markers with data-construct-* and the caret-chain
-   trigger (construct-reveal.ts) flips md-construct-reveal on the chain at the
-   caret. Whole-block markers (heading `## `, code fences, escapes — anything
-   unstamped) reveal with block focus exactly as preview-block; stamped construct
-   markers reveal only with the caret chain. Table cells carry no stamps, so a
+   The render stamps construct markers with data-construct-* and `construct-reveal.ts`
+   flips md-construct-reveal on the chain at the caret. Unstamped whole-block markers
+   reveal with block focus as under preview-block; table cells carry no stamps, so a
    focused table degrades to preview-block behavior. */
 :where(.editor)[data-presentation='preview-inline']
 	.block-host[data-focused]

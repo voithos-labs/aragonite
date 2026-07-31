@@ -1,52 +1,9 @@
 /**
- * The inline-rung conformance kit, published at `aragonite/testing` — the
- * behavioral battery a registered inline rung is held to, the sibling of the
- * block layer's `runKindConformance` and the container kit.
- *
- * Register your rung, then point the kit at its trigger and prefix. The kit reads
- * the LIVE registry, so it composes with `resetPluginPlatformForTests()` cycles:
- * a fresh install per case is re-read per call, never cached at module scope.
- *
- * The cells:
- *   claims         — every fixture the profile supplies is actually CLAIMED by
- *                    this rung. Executed always, and first: a fixture the rung
- *                    does not claim makes every cell below it vacuous, so it
- *                    fails enrollment rather than skipping.
- *   roundTrip      — the fixtures and the kit's own adversarial interleavings of
- *                    them (adjacent, doubled, wrapped in emphasis / a code span /
- *                    a link label / a blockquote, trigger-adjacent) round-trip
- *                    byte-for-byte.
- *   overlapDecline — where the rung's prefix also opens a construct the built-in
- *                    scanner owns, the rung declines the overlap. A prefix rung is
- *                    consulted before the built-in case, so a claim it should have
- *                    refused silently rewrites the document's meaning while the
- *                    bytes round-trip perfectly.
- *   widget         — the claimed bytes are ONE atomic unit: self-delimiting, and
- *                    (for a kind that builds its own island) carrying its source
- *                    span on `data-source-*` so nothing it renders leaks into the
- *                    caret arithmetic.
- *   editingPolicy  — the widget kind's declared editing policy is in the caret-edge
- *                    dispatch's vocabulary, and an atomic whole-delete leaves bytes
- *                    that still round-trip.
- *   imageClaim     — a rung minting a BUILT-IN kind over its own bytes carries the
- *                    `rewriteImage` hook the write paths need, and the hook can
- *                    reproduce its own input.
- *   registration   — the rung is registered where the profile says it is, exactly
- *                    once, priced inside its tier, on a trigger the scan reaches.
- *
- * Required, not optional. Four cells are declared per profile (`ConformanceCoverage`)
- * because only the author knows whether the invariant has anything to bite on; the
- * DECLARATION is required, following the container kit's `terminatorCollision`
- * precedent, because every one of them is invisible to byte round-trip and an
- * optional cell is left undeclared by exactly the rungs that need it. `fixtures` is
- * required and non-empty for the same reason a partition pin must not skip.
- *
- * An exemption the kit can falsify, it falsifies: declaring `imageClaim` exempt
- * while a fixture mints a stamped built-in fails, and a reserved-trigger rung may
- * not excuse `overlapDecline` at all.
- *
- * Failures throw a plain `Error` — no test runner is imported, so the kit runs
- * unchanged under Vitest, Jest or `node:test`.
+ * The inline-rung conformance kit, published at `aragonite/testing` — sibling of the block
+ * layer's `runKindConformance` and the container kit. Reads the LIVE registry, so it
+ * composes with `resetPluginPlatformForTests()` cycles. The four profile-declared cells are
+ * required, not optional, since every one is invisible to byte round-trip; an exemption the
+ * kit can falsify, it falsifies. Failures throw a plain `Error`.
  */
 
 import {
@@ -91,18 +48,14 @@ export interface InlineConformanceProfile {
 	trigger: string;
 	/** The rung's multi-char prefix; omit for a bare-trigger registration. */
 	prefix?: string;
-	/** Disambiguator when two rungs share a prefix on one trigger at different rungs. */
+	/** Disambiguator when two rungs share a prefix on one trigger at different priorities. */
 	priority?: number;
 	/**
 	 * The inline kind the rung mints as its own. Omit for a rung that only mints
 	 * built-in kinds over its own bytes (the `![[…]]`-as-`image` shape).
 	 */
 	kind?: AnyInlineKind;
-	/**
-	 * Single-line sources the rung CLAIMS. Required and non-empty: every other cell
-	 * reads the node a fixture produces, so a rung with no claimed fixture would be
-	 * enrolled without being tested.
-	 */
+	/** Single-line sources the rung CLAIMS. Non-empty: every other cell reads their nodes. */
 	fixtures: string[];
 	/**
 	 * Single-line sources whose bytes the rung's prefix matches but a built-in (or an
@@ -142,17 +95,15 @@ export interface InlineConformanceReport {
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 /**
- * What a cell's check reports back: a detail line for an executed cell, or an
- * explicit status for a cell whose mechanism was out of headless reach. A check
- * that skipped its work must say `boundary` — reporting `asserted` over a path
- * where nothing ran is the silent skip the whole vocabulary exists to refuse.
+ * A detail line for an executed cell, or an explicit status. A check that skipped its
+ * work must say `boundary`; reporting `asserted` over a path where nothing ran is the
+ * silent skip this vocabulary exists to refuse.
  */
 type CellOutcome = string | { status: 'asserted' | 'boundary'; detail: string };
 
 /**
- * Run every conformance cell for the registered rung the profile names. Resolves
- * with the coverage report when the asserted cells hold and the excused cells carry
- * a reason the kit cannot falsify; throws an `Error` naming every failed cell.
+ * Run every conformance cell for the registered rung the profile names. Returns the
+ * coverage report, or throws an `Error` naming every failed cell.
  */
 export function runInlineKindConformance(
 	profile: InlineConformanceProfile
@@ -214,9 +165,8 @@ function validateProfile(profile: InlineConformanceProfile, prefix: string): voi
 	assert(profile.fixtures.length > 0, 'the profile supplies at least one fixture the rung claims');
 	for (const fixture of profile.fixtures) assertSingleLine(fixture, 'fixture');
 
-	// A prefix rung is consulted BEFORE the built-in case it shadows, so an overlap
-	// always exists for it and there is nothing to excuse — the exemption vocabulary
-	// would only hide the one failure this cell was built for.
+	// A prefix rung is consulted BEFORE the built-in case it shadows, so the overlap
+	// always exists and there is nothing to excuse.
 	if (isReservedInlineTrigger(profile.trigger) && profile.overlapDecline.mode !== 'assert') {
 		fail(
 			`${JSON.stringify(profile.trigger)} is claimed by the built-in scanner, so this rung is ` +
@@ -265,10 +215,9 @@ function locateRung(profile: InlineConformanceProfile, prefix: string): InlineRu
 // ── Claim resolution ─────────────────────────────────────────────────────────
 
 /**
- * Every node this rung minted from `source`, in document order. A rung's own kind
- * carries no stamp by design (the editor has no grammar for it, so no write path
- * could read one), so ownership reads two ways: the declared kind, or the claim the
- * scan stamps on a BUILT-IN kind minted over the rung's bytes.
+ * Every node this rung minted from `source`, in document order. Ownership reads two
+ * ways because a rung's own kind carries no stamp by design: the declared kind, or the
+ * claim the scan stamps on a BUILT-IN kind minted over the rung's bytes.
  */
 function mintedNodes(
 	source: string,
@@ -288,8 +237,7 @@ function mintedNodes(
 
 /**
  * Every claim in a fixture, or a failure naming it. A fixture may carry more than one
- * (`see [^a] and [^b]`), and every cell below walks all of them — a check that read
- * only the first would leave the rest of an author's own fixture unexercised.
+ * (`see [^a] and [^b]`), and every cell below walks all of them.
  */
 function claimsIn(
 	fixture: string,
@@ -329,10 +277,8 @@ function checkClaimsItsFixtures(profile: InlineConformanceProfile, rung: InlineR
 // ── roundTrip ────────────────────────────────────────────────────────────────
 
 /**
- * Block contexts the kit drops each fixture into. The profile supplies the source,
- * the kit drives the oracle — these are the adjacencies a rung's `end` arithmetic
- * gets wrong: another construct starting where the claim ended, the rung's own
- * trigger touching its edges, and a wrapper whose own grammar contests the bytes.
+ * Adjacencies a rung's `end` arithmetic gets wrong: a construct starting where the
+ * claim ended, the rung's own trigger on its edges, a wrapper contesting the bytes.
  */
 function interleavings(fixture: string, trigger: string): string[] {
 	return [
@@ -350,10 +296,9 @@ function interleavings(fixture: string, trigger: string): string[] {
 }
 
 /**
- * How far into `fixture` its own opener ends. Cutting a range there puts the scan's
- * last consultation on a prefix whose closer is out of range — the shape a heading's
- * excluded `#` run makes of any construct straddling it. Located rather than assumed
- * at offset 0, since a fixture may carry prose before its claim (`a :smile: b`).
+ * How far into `fixture` its own opener ends. Cutting a scan range there puts the last
+ * consultation on a prefix whose closer is out of range — the shape a heading's
+ * excluded `#` run makes of any construct straddling it.
  */
 function openerWidth(fixture: string, prefix: string): number {
 	const at = fixture.indexOf(prefix);
@@ -372,18 +317,10 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 			);
 			assertScanTiles(source, source.length);
 
-			// A block whose scan range stops short of its raw — a heading's content range
-			// excludes a closing `#` run, a table cell's excludes its `|`. The tail is the
-			// author's OWN grammar, which is what a terminator search written against the
-			// string (`raw.indexOf(closer, pos)` with no `end` bound) reaches for; inert
-			// bytes would only reach a claim that stops at nothing at all, and such a claim
-			// overruns whatever the tail spells. Two cut points, because where the boundary
-			// falls relative to a construct is the variable: at the fixture's end, and just
-			// past its opener with the closer beyond. The second is the discriminating one;
-			// the first needs no prefix search, so it still bites when `openerWidth` lands
-			// on an occurrence of the prefix the rung does not actually claim from. Neither
-			// can red a range-correct rung — bytes past `end` are invisible to one, since
-			// declining a claim that would exceed `end` IS the contract.
+			// Scan ranges that stop short of the raw (a heading's excluded `#` run, a table
+			// cell's `|`): the tail is real grammar, so a terminator search written without
+			// an `end` bound reaches into it. Two cut points because where the boundary falls
+			// relative to a construct is the variable.
 			assertScanTiles(source + fixture, source.length);
 			assertScanTiles(source + fixture, source.length + openerWidth(fixture, rung.prefix));
 			count++;
@@ -393,15 +330,10 @@ function checkRoundTrip(profile: InlineConformanceProfile, rung: InlineRung): st
 }
 
 /**
- * The inline layer's own byte round-trip. `serialize(parse(s))` is raw-driven and
- * cannot see an inline rung at all, so the property that IS a rung's to break is the
- * scanner's contract: the nodes tile `[0, end)` with no gap and no overlap, and
- * concatenating their slices reproduces the scanned bytes.
- *
- * The overrun itself is no longer asserted here — the dispatch throws on a claim past
- * `end` (scan/index.ts), so it can never reach this walk. What the restricted-range
- * drives above still buy is WHEN an author hears about it: against their own fixture,
- * under a named cell, instead of at first render of a heading.
+ * The inline layer's own byte round-trip: `serialize(parse(s))` is raw-driven and cannot
+ * see a rung at all, so the property a rung can break is the scanner's contract — nodes
+ * tile `[0, end)` with no gap or overlap and their slices reassemble the scanned bytes.
+ * An overrun past `end` never reaches here; the dispatch throws on it (scan/index.ts).
  */
 function assertScanTiles(raw: string, end: number): void {
 	const nodes = parseInline(raw, 0, end);
@@ -425,11 +357,9 @@ function assertScanTiles(raw: string, end: number): void {
 // ── overlapDecline ───────────────────────────────────────────────────────────
 
 /**
- * At every position the scan would consult this rung — its prefix matching at the
- * cursor, the gate `tryRungs` applies — the recognizer must return null. A decline
- * leaves the scan context untouched, so declining everywhere IS the guarantee that
- * the built-in reads byte-identical bytes; the parse-side half then confirms the
- * document holds nothing this rung claimed.
+ * At every position the scan would consult this rung the recognizer must return null.
+ * A decline leaves the scan context untouched, so declining everywhere IS the guarantee
+ * that the built-in reads byte-identical bytes.
  */
 function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineRung): string {
 	const fixtures = profile.overlapFixtures ?? [];
@@ -498,9 +428,7 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 		}
 	}
 
-	// Both early exits report BOUNDARY, not asserted: the island contract genuinely
-	// did not run, and a cell that says it passed over work it skipped is the silent
-	// skip this vocabulary exists to refuse.
+	// Both early exits report BOUNDARY, not asserted: the island contract did not run.
 	if (getInlineWidgetComponent(kind) !== undefined) {
 		return {
 			status: 'boundary',
@@ -523,10 +451,9 @@ function checkWidgetAtomicity(profile: InlineConformanceProfile, rung: InlineRun
 }
 
 /**
- * The claimed bytes must stand alone. `data-source-*` hands exactly this slice to
- * the clipboard and to a source reveal, so a slice that only forms in the context it
- * was cut from pastes back as broken prose and folds back as lost markup — while the
- * document it came from round-trips perfectly.
+ * The claimed bytes must stand alone: `data-source-*` hands exactly this slice to the
+ * clipboard and to a source reveal, and a slice that only forms in its original context
+ * pastes back as broken prose while the document it came from round-trips perfectly.
  */
 function assertSelfDelimiting(fixture: string, node: InlineNode, kind: AnyInlineKind): void {
 	const slice = fixture.slice(node.start, node.end);
@@ -565,10 +492,8 @@ function assertIslandContract(fixture: string, node: InlineNode, kind: AnyInline
 
 /**
  * The offset walk counts a widget as its SOURCE span, never as what it renders — an
- * emoji island showing one glyph for seven raw bytes still walks seven. Rendering the
- * whole fixture and measuring the walk is the oracle for that: it fires for a missing
- * or wrong `data-source-*`, and for widget text that leaks into the arithmetic. Every
- * caret offset in the block rides on it, and no byte moves when it is wrong.
+ * emoji island showing one glyph for seven raw bytes still walks seven. Every caret
+ * offset in the block rides on this, and no byte moves when it is wrong.
  */
 function assertWalkLengthIsRawLength(fixture: string): void {
 	const container = document.createElement('div');
@@ -588,9 +513,8 @@ const DELETE_GRANULARITIES: readonly string[] = DELETE_GRANULARITY_VALUES;
 const ON_EDGE_VALUES: readonly string[] = ON_EDGE_POLICY_VALUES;
 
 /**
- * A policy field outside the caret-edge dispatch's vocabulary is read as absent and
- * the kind silently takes the default — the widget behaves like an image while its
- * registration says otherwise, and no byte differs.
+ * A policy field outside the caret-edge dispatch's vocabulary is read as absent and the
+ * kind silently takes the default, with no byte differing.
  */
 function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung): string {
 	const kind = profile.kind;
@@ -605,8 +529,7 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung)
 
 	if (policy.deleteGranularity === 'atomic') {
 		for (const fixture of profile.fixtures) {
-			// One press deletes ONE widget, so each claim is excised on its own — a
-			// fixture carrying two produces two independent post-delete documents.
+			// One press deletes ONE widget, so each claim is excised on its own.
 			for (const node of claimsIn(fixture, profile, rung)) {
 				const excised = `${fixture.slice(0, node.start)}${fixture.slice(node.end)}\n`;
 				assertIs(
@@ -646,12 +569,10 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 // ── imageClaim ───────────────────────────────────────────────────────────────
 
 /**
- * A rung minting a BUILT-IN kind borrows the editor's model for bytes of its own, and
- * the editor's inverse for that kind emits the built-in grammar — so without the
- * `rewriteImage` hook a resize turns `![[cat.png|300]]` into GFM and takes the
- * author's syntax with it. The document round-trips throughout; it is simply a
- * different document. The kit mirrors what the scan stamps: built-in kinds only, the
- * rung's own kind unstamped by design.
+ * A rung minting a BUILT-IN kind borrows the editor's model for bytes of its own, and the
+ * editor's inverse emits the built-in grammar — so without `rewriteImage` a resize turns
+ * `![[cat.png|300]]` into GFM. The document round-trips throughout; it is simply a
+ * different document.
  */
 function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineRung): string {
 	let stamped = 0;
@@ -688,10 +609,9 @@ function checkImageClaimStamp(profile: InlineConformanceProfile, rung: InlineRun
 }
 
 /**
- * The hook must be able to re-emit the node it was handed, unedited. A hook that
- * cannot reproduce its own input cannot be trusted with an edited one — and because a
- * result byte-identical to the source is dropped by the commit's equality guard with
- * no warning, the failure would surface as an edit that silently does nothing.
+ * The hook must re-emit the node it was handed, unedited. A byte-identical result is
+ * dropped by the commit's equality guard with no warning, so a hook that cannot
+ * reproduce its own input surfaces as an edit that silently does nothing.
  */
 function assertRewriteReproducesSource(fixture: string, node: InlineNode, rung: InlineRung): void {
 	assert(
@@ -724,9 +644,8 @@ function checkRegistrationHygiene(
 	rung: InlineRung
 ): string {
 	const reserved = isReservedInlineTrigger(profile.trigger);
-	// Two rungs MAY share a prefix on one trigger at different priorities — that is
-	// how emoji and the directive text tier coexist on `:`. What may never happen is
-	// two at the same rung, which register-once forbids and dispatch could not order.
+	// Two rungs MAY share a prefix at different priorities (emoji and the directive text
+	// tier coexist on `:`); two at the SAME priority could not be ordered by dispatch.
 	const sameRung = getInlineRungs(profile.trigger).filter(
 		(r) => r.prefix === prefix && r.priority === rung.priority
 	);
@@ -744,8 +663,8 @@ function checkRegistrationHygiene(
 				`(${INLINE_PRIORITIES.builtin}) so its prefix outranks the built-in case; got ${rung.priority}`
 		);
 	} else {
-		// The fast bail skips an unreserved trigger unless a registration turns its
-		// per-character probe on; without it the recognizer is a silent no-op in prose.
+		// The scan's fast bail skips an unreserved trigger unless a registration turns
+		// its per-character probe on; without it the recognizer never runs in prose.
 		assert(
 			isScanProbeTrigger(profile.trigger),
 			`the scan's fast bail visits ${JSON.stringify(profile.trigger)} — a trigger it skips ` +
@@ -760,10 +679,8 @@ function checkRegistrationHygiene(
 // ── Falsifiable excuses ──────────────────────────────────────────────────────
 
 /**
- * An excuse the kit can check, it checks. A reason is a claim about the rung, not a
- * waiver: a profile that declares `widget` exempt while the kind IS a registered
- * widget, or `imageClaim` exempt while a fixture mints a stamped built-in, has
- * described a rung it does not have.
+ * An excuse the kit can check, it checks: a reason is a claim about the rung, not a
+ * waiver, so a profile excusing a cell that has something to bite on fails.
  */
 function falsifyExcuse(
 	cell: InlineConformanceCell,

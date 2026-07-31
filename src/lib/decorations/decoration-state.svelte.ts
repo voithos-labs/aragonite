@@ -35,10 +35,9 @@ export interface DecorationEngineDeps {
 export type DecorationEngine = {
 	addSource(source: DecorationSource): DecorationSourceHandle; // dup name throws
 	readonly sourceCount: number;
-	/** Bump the edit epoch, then re-run every provide (each contained). The edit
-	 *  subscriber calls THIS; handle.invalidate() re-runs one source WITHOUT the
-	 *  bump — the split that lets a memoized source distinguish "document changed"
-	 *  (epoch miss → rescan) from "my own state changed" (epoch hit → cheap remap). */
+	/** Bump the edit epoch, then re-run every provide. `handle.invalidate()` re-runs one
+	 *  source WITHOUT the bump, which is what lets a memoized source tell "document
+	 *  changed" from "my own state changed". */
 	notifyEdit(): void;
 	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
 	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
@@ -51,17 +50,14 @@ interface SourceSlot {
 }
 
 export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEngine {
-	// slots + names are plain (non-reactive) registry state, index-aligned with
-	// `results`. Handles close over the slot object, not its index, so a dispose
-	// mid-list never staleness-shifts a surviving handle.
+	// Non-reactive registry state, index-aligned with `results`. Handles close over the slot
+	// object, not its index, so a dispose mid-list never staleness-shifts a surviving handle.
 	const slots: SourceSlot[] = [];
 	const names = new Set<string>();
-	// DEV: source+kind combinations already flagged for targeting an island at a
-	// block that never renders islands — warn once each, never per run.
 	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
-	// Plain counter — bumped only by notifyEdit, never a $derived dependency, so an
-	// invalidate() that reads it can't schedule a reactive recompute of the buckets.
+	// Deliberately not reactive: an invalidate() that reads it must not schedule a
+	// recompute of the derived buckets.
 	let editEpoch = 0;
 
 	const merged = $derived(results.flat());
@@ -80,16 +76,15 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			return; // keep the slot's prior decorations — a throw never blanks the view
 		}
 		warnUnrenderableIslands(slot.source.name, next);
-		// Idle-source guard: an empty→empty re-run must not reassign `results`, or every
-		// keystroke would republish the derived buckets for sources that never emit.
+		// An empty→empty re-run must not reassign `results`, or every keystroke would
+		// republish the derived buckets for sources that never emit.
 		if (results[i].length === 0 && next.length === 0) return;
 		const copy = results.slice();
 		copy[i] = next;
 		results = copy;
 	}
 
-	// Islands render on prose leaves and table cells; only non-prose kinds (code,
-	// thematic break — no inline pass at all) apply none. Flag those at the source
+	// Non-prose kinds run no inline pass, so they apply no islands. Flag that at the source
 	// seam rather than leaving the author to wonder why nothing rendered.
 	function islandSkipReason(kind: CstNode['kind']): string | null {
 		if (!isProseKind(kind)) return 'islands render only in prose blocks';
@@ -186,7 +181,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 }
 
 // A re-run inside the commit ceremony would let a source read a half-applied tree.
-// The edit subscriber defers notifyEdit a tick past the edit event to stay clear.
 function assertNotInCommit(): void {
 	assertInvariant('decoration-run-in-commit', () =>
 		isCommitInProgress()
