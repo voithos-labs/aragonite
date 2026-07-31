@@ -1,9 +1,7 @@
 /**
- * `:::devprobe` — a directive-backed container kind that exists only to trip one
- * DEV-mode guard through the packaged editor: its component passes an explicit
- * `isCollapsed` dep the descriptor never declares, so `createContainerBlock`
- * dev-warns at render. Installed once per process through the `plugins` prop;
- * dev-guard harness only.
+ * `:::devprobe`: a container kind that exists only to trip one DEV-mode guard through the
+ * packaged editor. Its component passes an `isCollapsed` dep the descriptor never declares,
+ * so `createContainerBlock` dev-warns at render. Dev-guard harness only.
  */
 
 import {
@@ -103,9 +101,8 @@ export function devProbePlugin(): EditorPlugin {
 			});
 
 			const devprobe = declaredPluginKind(DEVPROBE);
-			// The directive registry survives a schema reset; re-registering an already
-			// claimed name throws, so this stays guarded even though the plugin unit
-			// owns once-per-process for the rest of setup.
+			// The directive registry survives a schema reset and re-registering a claimed name
+			// throws, so this stays guarded even though the plugin unit owns once-per-process.
 			if (!isDirectiveRegistered('container', DEVPROBE)) {
 				registerDirective('container', DEVPROBE, {
 					kind: devprobe,
