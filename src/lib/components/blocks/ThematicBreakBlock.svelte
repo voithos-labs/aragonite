@@ -88,8 +88,9 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
-		// Editor-global chords resolve override-aware so a consumer can rebind them
-		// here too. Bypasses dispatchKeyCommand, so it owes the reading gate itself.
+		// The local arm exists to consume the chord even in reading mode; without the
+		// preventDefault a read-only document gets the browser's native undo. It
+		// bypasses dispatchKeyCommand, so it owes the reading gate itself.
 		const chord = eventToChord(e);
 		if (chord && isEditorGlobalChord(chord)) {
 			e.preventDefault();
