@@ -1,8 +1,7 @@
 /**
- * Reactive state for cross-block selection. `anchor` and `focus` are null in
- * single-block mode — the native browser selection handles
- * single-block editing. Transitions: `docs/design/editor.md` § Cross-block
- * selection.
+ * Reactive state for cross-block selection; `anchor`/`focus` are null in single-block
+ * mode, where the native browser selection rules. Transitions: `docs/design/editor.md`
+ * § Cross-block selection.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -22,20 +21,13 @@ import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endp
 
 export interface SelectionStateOptions {
 	/**
-	 * Fired after any state mutation, or once at the end of a {@link
-	 * SelectionState.batch} that contained one. No payload — subscribers call
-	 * `editor.getSelection()` to read the new value, which is why the batch seam
-	 * exists. Bridged onto the `selectionChange` event (reached via `getEvents()`)
-	 * by Editor.svelte.
+	 * Fires after any mutation, or once at the end of a {@link SelectionState.batch} that
+	 * contained one. No payload: subscribers read back via `editor.getSelection()`.
 	 */
 	onChange?: () => void;
 	/**
-	 * Document accessor. When present, `isCustomRendered` can detect
-	 * intra-table multi-cell selections (same path, distinct cell offsets on
-	 * a table node — endpoint normalization guarantees table selections
-	 * address the wrapper, never a row/cell). Absent in test harnesses that
-	 * only exercise cross-block semantics — `isCustomRendered` then mirrors
-	 * `isCrossBlock`.
+	 * Document accessor. Absent in harnesses that only exercise cross-block semantics;
+	 * without it `isCustomRendered` cannot see intra-table rects and mirrors `isCrossBlock`.
 	 */
 	getDoc?: () => DocumentView;
 }
@@ -51,9 +43,8 @@ export interface SelectionState {
 	readonly focus: SelectionPoint | null;
 	readonly isCrossBlock: boolean;
 	/**
-	 * True when the selection should be painted by the overlay rather than
-	 * the native browser highlight. Includes every cross-block selection
-	 * plus same-path multi-offset selections inside table containers.
+	 * True when the overlay paints instead of the native browser highlight: every
+	 * cross-block selection, plus same-path multi-offset selections inside tables.
 	 */
 	readonly isCustomRendered: boolean;
 	readonly start: SelectionPoint | null;
@@ -68,24 +59,17 @@ export interface SelectionState {
 	resetSelectAllCount(): void;
 
 	/**
-	 * Hold change notification until `mutate` returns, then fire it once if
-	 * anything inside mutated. Every mutator notifies exactly as before — the
-	 * batch only decides WHEN, never whether.
-	 *
-	 * Subscribers read the editor back on notify, so an entry path that writes
-	 * state and then lands a caret must wrap BOTH: a notify between the two
-	 * reports the caret the DOM half is about to move. The restore road is that
-	 * shape, and its collapsed route once emitted the pre-restore selection.
-	 * Nests; flushes even when the body throws.
+	 * Hold change notification until `mutate` returns, then fire once if anything mutated.
+	 * Nests; flushes even when the body throws. An entry path that writes state AND lands a
+	 * caret must wrap both: subscribers read the editor back on notify, so a notify between
+	 * the two reports a caret the DOM half has not moved yet.
 	 */
 	batch(mutate: () => void): void;
 
 	/**
-	 * Route an anchor/focus pair for DOM restore WITHOUT mutating state, so the
-	 * caller classifies before it decides — no phantom cross-block onChange. A
-	 * same-path prose range is 'single-block' (native browser highlight); a
-	 * cross-block or intra-table cell rect is 'custom' (overlay); equal offsets
-	 * are 'collapsed'.
+	 * Classify an anchor/focus pair for DOM restore WITHOUT mutating state, so no phantom
+	 * cross-block onChange fires. Same-path prose is 'single-block' (native highlight); a
+	 * cross-block or intra-table cell rect is 'custom' (overlay).
 	 */
 	restoreRoute(
 		anchor: SelectionPoint,
@@ -165,10 +149,8 @@ class SelectionStateImpl implements SelectionState {
 		return this.#normalizedSnapped()?.end ?? null;
 	}
 
-	// Cross-block table endpoints snap to whole rows so highlight, copy, and
-	// delete agree (table-endpoint-snap.ts). getDoc is absent in cross-block-only
-	// test harnesses, which never carry a table endpoint — fall back to plain
-	// normalize.
+	// Cross-block table endpoints snap to whole rows so highlight, copy, and delete agree
+	// (table-endpoint-snap.ts). Harnesses without getDoc never carry a table endpoint.
 	#normalizedSnapped(): { start: SelectionPoint; end: SelectionPoint } | null {
 		if (!this.#anchor || !this.#focus) return null;
 		const range = normalize({ anchor: this.#anchor, focus: this.#focus });
@@ -184,13 +166,10 @@ class SelectionStateImpl implements SelectionState {
 	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const a = this.#normalizePoint(anchor);
 		const f = this.#normalizePoint(focus);
-		// A same-path prose pair is a single-block range the native browser owns —
-		// storing it mints an INVISIBLE cross-block state (paints nothing yet
-		// suppresses the caret, copies duplicated tail+head, deletes without
-		// reparse). Refuse it here so no entry path can. Intra-table rects share the
-		// table path legitimately but flag their anchor as a cell coordinate — those
-		// pass. The same-offset seed (`enterCrossBlockFromKeyboard`) is kept so its
-		// immediate `extendFocus` has an anchor; a real range collapses on that step.
+		// A same-path prose pair is a single-block range the browser owns; storing it mints an
+		// INVISIBLE cross-block state. Refuse it here so no entry path can. Intra-table rects
+		// share the table path but flag a cell coordinate, and the same-offset keyboard seed is
+		// kept so its immediate `extendFocus` has an anchor.
 		if (this.#isSamePathProseRange(a, f)) {
 			this.#anchor = null;
 			this.#focus = null;
@@ -207,11 +186,9 @@ class SelectionStateImpl implements SelectionState {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
 		const f = this.#normalizePoint(point);
-		// A focus that lands back on the anchor's prose leaf is a contraction to a
-		// single-block range — collapse rather than persist the invisible state.
-		// Deliberately WITHOUT the `offset !== offset` guard `#isSamePathProseRange`
-		// carries: extendFocus never seeds, so a contraction landing exactly on the
-		// anchor offset is a fully-collapsed selection that must also not be stored.
+		// A focus back on the anchor's prose leaf contracts to a single-block range. No
+		// `offset !== offset` guard, unlike #isSamePathProseRange: extendFocus never seeds, so
+		// landing exactly on the anchor offset is a collapse that must not be stored either.
 		if (
 			pathsEqual(this.#anchor.path, f.path) &&
 			!this.#anchor.cellCoordinate &&
@@ -226,9 +203,8 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	// G1.29 at the storing seam: #normalizePoint is meant to make this unfireable,
-	// and did not for a length-1 table path (its walk runs zero iterations there).
-	// Both entries carry it because both store an endpoint pair.
+	// G1.29 at the storing seam: #normalizePoint is meant to make this unfireable, and did
+	// not for a length-1 table path. Both entries carry it because both store an endpoint pair.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;
@@ -237,22 +213,17 @@ class SelectionStateImpl implements SelectionState {
 		);
 	}
 
-	// Same prose leaf, distinct offsets — the range shape that must never enter
-	// cross-block state. A collapsed (equal-offset) pair is excluded so the
-	// keyboard entry seed survives to its follow-up extend.
+	// Same prose leaf, distinct offsets: the shape that must never enter cross-block state.
+	// Equal-offset pairs are excluded so the keyboard entry seed survives to its extend.
 	#isSamePathProseRange(a: SelectionPoint, f: SelectionPoint): boolean {
 		return (
 			pathsEqual(a.path, f.path) && !a.cellCoordinate && !f.cellCoordinate && a.offset !== f.offset
 		);
 	}
 
-	// The one place every entry path (keyboard, shift-click, drag, select-all,
-	// undo restore) funnels through, so a table endpoint can never be stored as
-	// a deep cell path with a char offset — the shape that routes rangeDelete
-	// down the generic branch and corrupts the grid. Idempotent: an
-	// already-normalized point (cellCoordinate, or any non-table path) passes
-	// through unchanged. Harnesses without getDoc keep raw points, mirroring
-	// the snap fallback in #normalizedSnapped.
+	// The funnel every entry path (keyboard, shift-click, drag, select-all, undo restore) goes
+	// through, so a table endpoint can never be stored as a deep cell path with a char offset.
+	// Never normalize at a call site instead. Idempotent; without getDoc, points pass raw.
 	#normalizePoint(point: SelectionPoint): SelectionPoint {
 		const getDoc = this.#getDoc;
 		if (!getDoc || point.cellCoordinate) return point;
@@ -278,9 +249,8 @@ class SelectionStateImpl implements SelectionState {
 	): 'collapsed' | 'single-block' | 'custom' {
 		if (!pathsEqual(anchor.path, focus.path)) return 'custom';
 		if (anchor.offset === focus.offset) return 'collapsed';
-		// Same path, distinct offsets: a table cell rect (flagged endpoint, or a
-		// table node under the shared path) paints via the overlay; prose is a
-		// native single-block range.
+		// Same path, distinct offsets: a table cell rect (flagged endpoint, or a table node
+		// under the shared path) paints via the overlay; prose is a native range.
 		if (anchor.cellCoordinate || focus.cellCoordinate) return 'custom';
 		const getDoc = this.#getDoc;
 		if (!getDoc) return 'single-block';
@@ -291,10 +261,8 @@ class SelectionStateImpl implements SelectionState {
 	cellDeepPath(point: SelectionPoint): number[] | null {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return null;
-		// A context-established intra-table endpoint is unflagged, yet its offset is
-		// a cell index. Mint the flag so cellEndpointDeepPath resolves it; the
-		// helper returns null for any non-table path, so a prose/cross-block
-		// endpoint stays a no-op.
+		// A context-established intra-table endpoint is unflagged though its offset is a cell
+		// index; mint the flag. cellEndpointDeepPath returns null for any non-table path.
 		const cellPoint: SelectionPoint = point.cellCoordinate
 			? point
 			: { path: point.path, offset: point.offset, cellCoordinate: true };

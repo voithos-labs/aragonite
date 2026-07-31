@@ -1,8 +1,6 @@
 /**
- * Shared cross-block copy/cut prologue for block clipboard handlers. Each
- * surface (text, code, table cell) owns its intra-block copy/cut logic but
- * delegates the cross-block branch here. The boolean return lets callers keep
- * their own fall-through (e.g. table cells fall through to native copy).
+ * Shared cross-block copy/cut prologue: each surface owns its intra-block logic but delegates
+ * the cross-block branch here. The boolean return lets callers keep their own fall-through.
  */
 
 import type { DocumentGetter } from '../../editor-keys';
@@ -32,7 +30,7 @@ export async function writeCrossBlockCut(
 	deps: CrossBlockClipboardDeps
 ): Promise<boolean> {
 	if (!writeCrossBlockCopy(e, deps)) return false;
-	// Clipboard is written synchronously above, so the cut survives even if the delete is interrupted.
+	// Clipboard written synchronously above, so the cut survives an interrupted delete.
 	await deps.crossBlock.performCrossBlockDeleteFromEvent();
 	return true;
 }
