@@ -1,7 +1,6 @@
 /**
- * Pure tab-indent / tab-dedent for code-block text.
- * Multi-line selections touch every line whose offsets fall in [start, end).
- * Dedent removes one tab OR up to four leading spaces per line, preferring tab.
+ * Pure tab-indent / tab-dedent for code-block text. Dedent removes one tab OR up to
+ * four leading spaces per line, preferring tab.
  */
 
 export interface Selection {

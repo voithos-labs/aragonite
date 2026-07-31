@@ -135,8 +135,7 @@
 	{/if}
 	<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key are the absolute item index
 	     (bounds.start + localIndex), never the local loop index — paths and
-	     structural ops key off it. When inactive, bounds are {0, childCount} so
-	     absoluteIndex === i. -->
+	     structural ops key off it. -->
 	{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}
 		{@const absoluteIndex = bounds.start + localIndex}
 		<ListItemBlock

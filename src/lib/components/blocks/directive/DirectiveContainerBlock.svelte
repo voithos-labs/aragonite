@@ -1,9 +1,7 @@
 <script lang="ts">
-	// The generic render surface for an unregistered `:::name` directive, built on
-	// the public `createContainerBlock` seam (as CalloutBlock/DetailsBlock are). The
-	// body is an ordinary nested BlockList; the only chrome is a dimmed, read-only
-	// `:::name` marker over a thin gutter rail — a restrained cue, not a card box
-	// (a document should feel like a document, not a pile of blocks).
+	// The generic render surface for an unregistered `:::name` directive, built on the
+	// public `createContainerBlock` seam. Chrome stays a dimmed marker over a gutter
+	// rail, not a card box — a document should feel like a document.
 	import { BlockList, createContainerBlock } from '$lib/plugin';
 	import type { NodeView } from '$lib/core/node-views';
 
@@ -11,10 +9,8 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// The opener line sliced verbatim, not rebuilt from metadata: the metadata
-	// carries the colon count and the name, but the line can also hold an indent,
-	// attributes, or trailing spaces. Reconstructing renders bytes the document does
-	// not have, and this marker sits directly above the body it labels.
+	// The opener line sliced verbatim, not rebuilt from metadata: the line can also
+	// carry an indent, attributes, or trailing spaces the metadata does not hold.
 	const marker = $derived.by(() => {
 		const end = node.raw.indexOf('\n');
 		const line = end === -1 ? node.raw : node.raw.slice(0, end);
