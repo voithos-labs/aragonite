@@ -1,14 +1,10 @@
-// Admonitions plugin — public entry. `admonitionsPlugin()` teaches the editor two
-// kinds sharing one component: the `:::name` directives (`ADMONITION_KINDS`),
-// which all resolve to one admonition kind, and native GitHub alerts
-// (`> [!NOTE]` blockquotes, kind `githubAlert`). Pass `{ convertAlertsOnPaste: true }`
-// to rewrite pasted alerts to directive source instead of rendering them natively.
+// Two kinds sharing one component: the `:::name` directives, which all resolve to
+// one admonition kind, and native GitHub alerts (`> [!NOTE]`, kind `githubAlert`).
 export { admonitionsPlugin } from './register';
 export type { AdmonitionsOptions } from './admonition-kind';
 
-// convertGithubAlerts is naive full-text: it rewrites alert-shaped lines even
-// inside code fences. For a whole document, prefer convertGithubAlertsInDocument,
-// which scopes through the parser and leaves fenced code untouched.
+// convertGithubAlerts is naive full-text and rewrites inside code fences; for a whole
+// document prefer convertGithubAlertsInDocument, which scopes through the parser.
 export { convertGithubAlerts, hasGithubAlert } from './gh-alert';
 export type { AlertConversion } from './gh-alert';
 export { convertGithubAlertsInDocument } from './convert-document';

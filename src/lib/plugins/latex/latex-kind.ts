@@ -1,12 +1,8 @@
 /**
- * The LaTeX plugin's recognizers and widgets: inline `$…$` math (recognizer +
- * plugin inline kind + live widget) and block `$$…$$` display math (a source-holding
- * leaf kind + block opener). Engine-free — the render engine is injected through the
- * `math-renderer` seam, never imported here.
- *
- * Recognition is gated on registration: with no extension loaded neither the
- * inline `$` trigger nor the block `$$` opener exists, so parsing stays
- * byte-identical to bare GFM.
+ * Inline `$…$` math and the two display-math block forms, as source-holding leaf
+ * kinds. Engine-free: the render engine is injected through the `math-renderer` seam,
+ * never imported here. Recognition is gated on registration, so with no extension
+ * loaded parsing stays byte-identical to bare GFM.
  */
 
 import {
@@ -39,13 +35,9 @@ const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
 /**
- * Closer positions (`$` with a non-whitespace char before it) for one block's raw.
- * A forward search per consultation costs a full block scan every time it declines,
- * and a paragraph of shell prose (`$HOME $PATH $USER …`) declines at every `$` — so
- * the predicate, which reads only `raw`, is materialized once and each consultation
- * looks it up (the backtick-run index's shape). Bounded rather than weak-keyed
- * because a string cannot key a WeakMap; two entries cover a block's own scan, the
- * only place consecutive consultations share a `raw`.
+ * Materialized once per block, not searched per consultation: a paragraph of shell
+ * prose (`$HOME $PATH $USER …`) declines at every `$`, each costing a full block scan.
+ * Bounded rather than weak-keyed because a string cannot key a WeakMap.
  */
 const closerIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
 
@@ -57,7 +49,6 @@ function indexMathClosers(raw: string): Int32Array {
 	return Int32Array.from(positions);
 }
 
-/** First closer position at or after `from`, or -1 when the block holds none. */
 function firstCloserFrom(raw: string, from: number): number {
 	const positions = closerIndex(raw, () => indexMathClosers(raw));
 	let lo = 0;
@@ -71,11 +62,8 @@ function firstCloserFrom(raw: string, from: number): number {
 }
 
 /**
- * `$`-flanking recognizer over `raw[pos, end)`, where `pos` is the opening `$`.
- * Opens only when the next char is neither whitespace nor a digit — the digit
- * guard is what keeps `$5` / `$5 and $10` currency, not math. Closes on the
- * first later `$` whose preceding char is non-whitespace; the close is
- * deliberately not digit-guarded, so `$x^2$` closes on its `2`.
+ * The digit guard on the opener is what keeps `$5 and $10` currency, not math. The
+ * close is deliberately not digit-guarded, so `$x^2$` closes on its `2`.
  */
 function recognizeMath(
 	raw: string,
@@ -88,8 +76,8 @@ function recognizeMath(
 	const opener = raw[afterOpen];
 	if (isWhitespace(opener) || isDigit(opener)) return null;
 
-	// The index spans the whole block, so `end` — not the block string — decides the
-	// claim: a closer past the scan range leaves the `$` literal.
+	// The index spans the whole block, so `end` decides the claim: a closer past the
+	// scan range leaves the `$` literal.
 	const close = firstCloserFrom(raw, pos + 2);
 	if (close === -1 || close >= end) return null;
 	return { kind, start: pos, end: close + 1 };
@@ -98,11 +86,8 @@ function recognizeMath(
 // ── Registration ─────────────────────────────────────────────────────────────
 
 export function registerMathInline(): void {
-	// Keyed on the declared-inline-kind registry, not a module-local latch: the same
-	// test reset that clears the inline syntax/widget registries this guards also
-	// clears this key, so a reset → re-register re-runs the whole inline path cleanly.
-	// The renderer is wired separately through the module seam (`setMathRenderer`),
-	// so registration itself stays engine-free.
+	// Keyed on the kind registry, not a module latch, so the platform reset that clears
+	// the inline registries also clears this guard.
 	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
 	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
@@ -116,8 +101,6 @@ export function registerMathInline(): void {
 // ── Rendered display source ────────────────────────────────────────────────────
 
 /**
- * The inner LaTeX a stored math block renders: the `$$` fence stripped, or a
- * ```math / ~~~math fence reduced to its body (opener and closer lines dropped).
  * Shared by the render component so `mathBlock` and `mathFence` display identically.
  * Round-trip stays byte-level on `raw`, so this never feeds serialization.
  */
@@ -140,12 +123,8 @@ export function mathDisplaySource(source: string): string {
 
 const BLOCK_FENCE = '$$';
 
-/**
- * A block-math opener line, at column 0: either a bare `$$` (multi-line fence, a
- * later bare `$$` closes it) or a closed single line `$$…$$` (length ≥ 4 keeps
- * the open/close pair disjoint). A `$$`-prefixed line that is neither — e.g.
- * `$$ x` with no same-line close — is not an opener and falls to a paragraph.
- */
+/** The length ≥ 4 test keeps the open/close pair disjoint; anything else `$$`-prefixed
+ *  (`$$ x` with no same-line close) is not an opener and falls to a paragraph. */
 function isBlockMathOpener(text: string): boolean {
 	if (!text.startsWith(BLOCK_FENCE)) return false;
 	if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) return true;
@@ -155,9 +134,8 @@ function isBlockMathOpener(text: string): boolean {
 export function registerMathBlock(): void {
 	const mathBlock = declarePluginKind(MATH_BLOCK);
 
-	// A source-holding leaf like `fencedCode`, not a container: no `container`
-	// group, no children. `serialize` re-emits `leadingTrivia + raw`, so a `raw`
-	// built from the exact fence bytes round-trips byte-for-byte.
+	// A source-holding leaf like `fencedCode`: `serialize` re-emits `leadingTrivia + raw`,
+	// so a raw built from the exact fence bytes round-trips byte-for-byte.
 	registerBlockKind(mathBlock, {
 		mergeRole: 'not-mergeable',
 		editable: true,
@@ -185,9 +163,7 @@ export function registerMathBlock(): void {
 	});
 
 	registerBlockOpener(mathBlock, {
-		// `$$` collides with no built-in matcher, so priority is only collision
-		// avoidance; sits just past the sibling verbatim fence (`fencedCode`) and
-		// ties nothing.
+		// `$$` collides with no built-in matcher, so this slot is only tie avoidance.
 		priority: OPENER_PRIORITIES.fencedCode + 5,
 		interruptsParagraph: isBlockMathOpener,
 		tryOpen(ctx) {
@@ -215,15 +191,13 @@ export function registerMathBlock(): void {
 		}
 	});
 
-	// GitHub's third math form rides the same render component; co-registered here
-	// so one install teaches both (the admonition/githubAlert precedent).
+	// Co-registered so one install teaches both forms (the admonition/githubAlert precedent).
 	registerMathFence();
 }
 
 // ── Fenced ```math display math ─────────────────────────────────────────────────
-// GitHub's third math form: a fenced code block whose info string's first token is
-// exactly `math`. A source-holding leaf like the `$$` block (raw authoritative,
-// serialize re-emits leadingTrivia + raw), rendered by the same BlockMath component.
+// GitHub's third math form: a source-holding leaf like the `$$` block, rendered by
+// the same component.
 
 const FENCE_INFO_TOKEN = 'math';
 
@@ -258,15 +232,14 @@ export function registerMathFence(): void {
 				via: 'render-primary reveal→edit→blur cycle commits as one undo entry'
 			},
 			// No note-taking simulation drives a ```math fence; the interactive path is
-			// pinned by the latex-math-fence e2e (render + kind + reveal→edit→commit
-			// round trip), which is a plugins battery, not the sim oracle.
+			// pinned by the latex-math-fence e2e, a plugins battery rather than the oracle.
 			simOracle: { mode: 'inherit-default' }
 		})
 	});
 
 	registerBlockOpener(mathFence, {
-		// `fencedCode` accepts every fence, ```math included, so this must price
-		// AHEAD of that superset matcher; a distinct slot below the sibling mermaid.
+		// `fencedCode` accepts every fence, ```math included, so this must price ahead of
+		// that superset matcher, in its own slot below the sibling mermaid.
 		priority: OPENER_PRIORITIES.fencedCode - 4,
 		interruptsParagraph: (line) => matchMathFence(line) !== null,
 		tryOpen(ctx) {
@@ -280,8 +253,8 @@ export function registerMathFence(): void {
 					break;
 				}
 			}
-			// Unterminated declines (the sibling `$$` block's fence-decline behavior);
-			// the built-in fencedCode then claims it as a plain `math` code block.
+			// Unterminated declines so the built-in fencedCode claims it as a plain
+			// `math` code block, matching the sibling `$$` block.
 			if (closeIdx === -1) return null;
 
 			const raw = ctx.lines

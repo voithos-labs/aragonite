@@ -1,22 +1,9 @@
 /**
- * `<details>` collapsible — the second reserved-chrome container consumer, built
- * on the same public seams as the callout. Ships as the `aragonite/plugins/details`
- * bundled plugin (and doubles as a dogfood/e2e validator).
- *
- * Canonical form (byte-pinned):
- *
- *     <details open>
- *     <summary>Title</summary>
- *
- *     …blank-line-wrapped Markdown children…
- *
- *     </details>
- *
- * The `<summary>` is a real CST child at index 0 (kind `details-summary`, plain
- * text) whose tags live in the container's own raw, so `strip(raw)` diverges
- * from `serialize(children)` — hence the `'opaque'` contract (raw authoritative,
- * exempt from `checkStaleRaw`). `open` is metadata round-tripping to the opener
- * bytes. Non-canonical `<details …>` declines to the built-in htmlBlock.
+ * `<details>` collapsible: the second reserved-chrome container consumer. The
+ * `<summary>` is a real CST child at index 0 whose tags live in the container's own
+ * raw, so `strip(raw)` diverges from `serialize(children)`, hence `'opaque'` (raw
+ * authoritative, exempt from `checkStaleRaw`). Non-canonical `<details …>` declines
+ * to the built-in htmlBlock.
  */
 
 import {
@@ -48,32 +35,28 @@ const CLOSE_LINE = /^<\/details>$/;
 
 export interface DetailsMetadata {
 	open: boolean;
-	/** Authored line ending (`\n` or `\r\n`) for the three chrome lines (opener, summary,
-	 *  closer). A single captured ending governs all three — a well-formed CRLF/LF document
-	 *  has uniform endings, so the rebuild reproduces them byte-identically. */
+	/** One captured ending governs all three chrome lines: a well-formed document has
+	 *  uniform endings, so the rebuild reproduces them byte-identically. */
 	lineEnding: string;
-	/** Whether the `</details>` closer line ends with a newline; false for a document-final
-	 *  details with no trailing newline, so the rebuild does not add one. */
+	/** False for a document-final details with no trailing newline, so the rebuild
+	 *  does not add one. */
 	closerNewline: boolean;
 }
 
 type TagVerdict = 'open' | 'close' | null;
 
-/** The container's own canonical spelling — what `parse` reproduces, and the only
- *  form `rebuildDetailsRaw` emits. */
+/** The canonical spelling: what `parse` reproduces, and the only form `rebuildDetailsRaw` emits. */
 const canonicalTagLine = (text: string): TagVerdict =>
 	OPEN_LINE.test(text) ? 'open' : CLOSE_LINE.test(text) ? 'close' : null;
 
-/** What CommonMark hands to raw-HTML passthrough — a superset of the canonical
- *  form, and therefore of what closes the element in a browser. */
+/** What CommonMark hands to raw-HTML passthrough: a superset of the canonical form,
+ *  and therefore of what closes the element in a browser. */
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
 /**
- * Make a tag verdict fence-aware. A `</details>` inside a fenced code block is
- * content on both sides of the round trip, so neither the recognizer nor the
- * escape may count it — one counting it and the other not is what would let the
- * scan mistake a code sample for the closer, or the escape rewrite one. Stateful
- * across a run of lines, because the fence is.
+ * A `</details>` inside a fenced code block is content on both sides of the round
+ * trip, so neither the recognizer nor the escape may count it. Stateful across a run
+ * of lines, because the fence is.
  */
 function createTagScanner(tagLine: (text: string) => TagVerdict) {
 	let fence: { marker: '`' | '~'; length: number } | null = null;
@@ -93,8 +76,6 @@ function createTagScanner(tagLine: (text: string) => TagVerdict) {
 
 const createDetailsTagScanner = () => createTagScanner(canonicalTagLine);
 
-/** Line indices whose tag has no partner under `tagLine`'s accounting: a closer
- *  matching no opener, or an opener still unmatched when the walk ends. */
 function unpairedTagLines(
 	lines: readonly string[],
 	tagLine: (text: string) => TagVerdict,
@@ -113,18 +94,10 @@ function unpairedTagLines(
 }
 
 /**
- * Line indices to escape, to a fixpoint over BOTH accountings.
- *
- * Two predicates, because the two renderers disagree about what a tag line is:
- * aragonite's recognizer is the canonical spelling (widening it would change what
- * parses as a details — a byte-level behavior change), while a browser closes the
- * element on anything CommonMark passes through raw. A pair balanced under one and
- * split under the other (`<details>` closed by ` </details>`) is a line the first
- * pass escapes and the second pass then finds newly unpaired, so iterating to a
- * fixpoint escapes BOTH members and leaves neither renderer holding a stray.
- *
- * Terminates: every round escapes at least one line and escaping never mints a
- * tag, so the unescaped-tag count strictly decreases.
+ * Two accountings, because the recognizer and a browser disagree about what a tag line
+ * is; a pair balanced under one and split under the other only surfaces after the first
+ * pass escapes a member, so only the fixpoint leaves neither renderer holding a stray.
+ * Terminates because every round escapes a line and escaping never mints a tag.
  */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
@@ -138,7 +111,6 @@ function strayTagLines(lines: readonly string[]): Set<number> {
 	}
 }
 
-/** Absolute offsets of the `<` the escape rewrites, ascending. */
 function strayEscapePoints(raw: string): number[] {
 	const starts: number[] = [];
 	const texts: string[] = [];
@@ -155,11 +127,10 @@ function strayEscapePoints(raw: string): number[] {
 		.map((i) => starts[i] + texts[i].indexOf('<'));
 }
 
-/** The entity form of `<`: renders as the literal glyph in a paragraph, inside an
- *  html block's passthrough, and on GitHub alike, while matching no tag line. */
+/** Renders as the literal glyph in a paragraph, in an html block's passthrough, and on
+ *  GitHub alike, while matching no tag line. */
 const ESCAPED_LT = '&lt;';
 
-/** Body bytes made legal inside a details: every stray tag line's `<` escaped. */
 function escapeStrayDetailsTags(raw: string): string {
 	const points = strayEscapePoints(raw);
 	if (points.length === 0) return raw;
@@ -173,20 +144,16 @@ function escapeStrayDetailsTags(raw: string): string {
 	return out + raw.slice(cursor);
 }
 
-/** {@link escapeStrayDetailsTags}'s caret image: each escape ahead of the caret
- *  pushes it by the entity's growth. */
+/** {@link escapeStrayDetailsTags}'s caret image: each escape ahead of the caret pushes
+ *  it by the entity's growth. */
 function mapStrayEscapeOffset(raw: string, offset: number): number {
 	const grown = ESCAPED_LT.length - 1;
 	return strayEscapePoints(raw).reduce((at, point) => (point < offset ? at + grown : at), offset);
 }
 
 /**
- * Reconstruct `raw` from children after a structural edit. Child 0 is the summary
- * (emitted into the `<summary>` header line); children 1+ are the body. Mirrors
- * `rebuildCalloutRaw`: the two header lines plus the trailing close are the
- * container syntax, `innerPrefix`/`innerSuffix` carry the body's blank-line wrap
- * verbatim so a canonical parse rebuilds byte-identically. The authored line ending
- * threads through metadata so a CRLF-authored block rebuilds CRLF-safe.
+ * Child 0 is the summary, children 1+ the body. `innerPrefix`/`innerSuffix` carry the
+ * body's blank-line wrap verbatim so a canonical parse rebuilds byte-identically.
  */
 export function rebuildDetailsRaw(node: CstNode): void {
 	const meta = getPluginMetadata<DetailsMetadata>(node);
@@ -251,9 +218,8 @@ export function registerDetailsKind(): void {
 	registerBlockOpener(details, {
 		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
 		priority: OPENER_PRIORITIES.htmlBlock - 5,
-		// defensive parity, not current behavior: htmlBlock's type-6 interrupt already
-		// covers the canonical opener and details wins the re-dispatch — this guards
-		// against a future priority/interrupt regression.
+		// Defensive: htmlBlock's type-6 interrupt already covers the canonical opener and
+		// details wins the re-dispatch, so this only guards a future priority regression.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
@@ -264,7 +230,7 @@ export function registerDetailsKind(): void {
 			const summaryMatch = ctx.lines[summaryIdx].text.match(SUMMARY_LINE);
 			if (!summaryMatch) return null;
 
-			// Depth-counted scan to the matching close; nested details recurse via parse.
+			// Depth-counted so nested details recurse via parse rather than closing early.
 			let depth = 1;
 			let closeIdx = -1;
 			const classify = createDetailsTagScanner();
