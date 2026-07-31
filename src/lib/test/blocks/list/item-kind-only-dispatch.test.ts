@@ -1,17 +1,10 @@
 // @vitest-environment jsdom
 //
-// Tab reaches a list item by BUBBLING: the inner paragraph declines it without
-// preventDefault, so the item's box handler is the second consumer of a key that is
-// still travelling. That is why the item dispatches kind-only. A global tier here
-// would resolve the chords the focused leaf already owns — undo and redo among them —
-// and fire them a second time from a key the leaf had not finished handling.
-//
-// `dispatchKindCommand` is the helper that refuses, and its own unit tests prove it
-// returns false for an unbound chord. What only a mount can say is what false MEANS on
-// this box: no preventDefault, so the key keeps travelling to the tier that owns it,
-// and an untouched ListContext. Both halves are asserted against a positive control in
-// the same file, so a handler that stopped dispatching entirely reads as a failure
-// rather than as four passing negatives.
+// Tab reaches a list item by BUBBLING: the inner paragraph declines it without preventDefault,
+// so the item's box is the second consumer of a key still travelling. That is why the item
+// dispatches kind-only — a global tier here would re-resolve the chords the focused leaf owns,
+// undo among them. `dispatchKindCommand`'s own tests prove it returns false; what only a mount
+// says is what false MEANS on this box: no preventDefault, and an untouched ListContext.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../editor-mount';
 import { mountItem, pressOn, type MountedItem } from './mount-item';
@@ -57,9 +50,8 @@ describe('a list item claims its own kind chords and nothing else', () => {
 		expect(mounted.listContext.unindentItem).not.toHaveBeenCalled();
 	});
 
-	// `eventToChord` returns null for a modifier being held; the box must not read the
-	// hold as a keystroke. The sticky column's own copy of this set was once short two
-	// entries, which is how CapsLock dropped it.
+	// `eventToChord` returns null for a modifier being held. The sticky column's own copy of this
+	// set was once short two entries, which is how CapsLock dropped it.
 	it('treats a held modifier as no chord at all', () => {
 		mounted = mountItem(NESTABLE, 1);
 

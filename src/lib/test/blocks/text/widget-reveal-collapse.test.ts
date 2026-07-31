@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 //
-// Reveal COLLAPSE scoping, driven through the real createWidgetInteraction over a
-// mounted two-widget math DOM — sibling of widget-reveal-commit.test.ts, which
-// pins the commit/undo contract. Collapse must be selection-containment-scoped,
-// not blur-scoped: a caret that leaves the revealed source while staying inside
-// the block folds the reveal (identity-exact, no CST commit, caret untouched),
-// and a click on a second widget folds the first and reveals the second as one
-// sequenced gesture instead of dying on the active-reveal guard.
+// Reveal COLLAPSE scoping, driven through the real createWidgetInteraction over a mounted
+// two-widget math DOM — sibling of widget-reveal-commit.test.ts, which pins the commit/undo
+// contract. Collapse is selection-containment-scoped, not blur-scoped: a caret leaving the
+// revealed source while staying inside the block folds it, and a click on a second widget folds
+// the first and reveals the second as one sequenced gesture instead of dying on the active guard.
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
@@ -57,10 +55,8 @@ function mountTwoMathBlock() {
 		)
 	);
 
-	// Entry from the trailing edge opens the first widget's reveal at that edge (the
-	// Obsidian model — no select-then-Enter). enterWidget runs startReveal's
-	// synchronous prefix (showSource + revealSettling) before it returns, so the
-	// reveal is already swapping when the caller inspects it.
+	// Entry from the trailing edge opens the reveal at that edge (the Obsidian model, no
+	// select-then-Enter); enterWidget runs startReveal's synchronous prefix before it returns.
 	async function revealFirst(): Promise<void> {
 		interaction.enterWidget(first, true);
 		await new Promise((r) => setTimeout(r));
@@ -107,10 +103,8 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 		expect(b.interaction.isRevealing()).toBe(false);
 		expect(b.commits).toEqual([]);
-		// Identity, not equivalence: the very element the reveal detached returns to
-		// its slot. Boolean form deliberately — a failing `.toBe(domNode)` diff
-		// serializes the node into `window` and trips Svelte's dev-time `$state`
-		// trap, masking the failure.
+		// Identity, not equivalence: the very element the reveal detached returns to its slot. Boolean
+		// form deliberately: a `.toBe(domNode)` diff would trip Svelte's `$state` trap and mask it.
 		expect(b.el.childNodes[1] === b.firstWidget).toBe(true);
 	});
 
@@ -158,9 +152,8 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		await b.revealFirst();
 		expect(b.interaction.isRevealing()).toBe(true);
 
-		// Click on widget B while A is revealed: the owned click path folds A
-		// (in-place, no CST commit — clean reveal) and reveals B. Pointerdown
-		// preventDefault means no selectionchange competes with this sequence.
+		// Click on widget B while A is revealed: the owned click path folds A in place and reveals B.
+		// Pointerdown preventDefault means no selectionchange competes with the sequence.
 		b.interaction.snapClickToWidgetEdge(110, 5);
 		await new Promise((r) => setTimeout(r));
 		await new Promise((r) => setTimeout(r));
@@ -174,9 +167,8 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 
 	it('holds a reveal still settling — the fold window between showSource and placeCaret', async () => {
 		const b = mountTwoMathBlock();
-		// The click's own queued selectionchange lands after showSource has swapped
-		// but before placeCaret moves the caret into the source: the selection still
-		// sits in prose, so an unguarded containment check folds the opening reveal.
+		// The click's own queued selectionchange lands after showSource swapped but before placeCaret
+		// moves into the source, so an unguarded containment check folds the opening reveal.
 		b.placeCaretIn(b.trailingText(), 2);
 		const settling = b.revealFirst(); // NOT awaited: parked at the pre-placeCaret tick
 

@@ -37,12 +37,8 @@ describe('buildImageWidget — broken-URL cache (per-instance isolation)', () =>
 		expect(second.classList.contains('md-image-broken')).toBe(true);
 	});
 
-	// A 200 response the decoder cannot size — an empty or truncated body, an SVG with
-	// no intrinsic dimensions — fires `load`, not `error`, with naturalWidth 0. That is
-	// the same state the BUILD-TIME probe already calls broken, so the event-time arm
-	// has to agree: while it only ever CLEARED the class, such an image stayed 0×0 with
-	// no placeholder until an unrelated rebuild ran the build-time probe against the
-	// now-cached failure — the placeholder arriving one render behind the failure.
+	// A 200 response the decoder cannot size fires `load`, not `error`, with naturalWidth 0 — the
+	// same state the build-time probe already calls broken, so the event-time arm has to agree.
 	it('a load that completes with no intrinsic size marks broken, like the build-time probe', () => {
 		const cache = new Set<string>();
 		const widget = build(imageNode(), cache);

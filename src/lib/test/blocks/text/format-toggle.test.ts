@@ -50,10 +50,8 @@ describe('toggleInlineFormat', () => {
 		expect(leafText(parsed)).toBe('a b');
 	});
 
-	// The flanking single `*` inside `**word**` belong to a STRONG construct, not an
-	// emphasis one. Toggling emphasis must nest (add a layer), not strip the inner
-	// star of each `**` — the old flank check was construct-blind and produced the
-	// bold-destroying `*word*`.
+	// The flanking single `*` inside `**word**` belong to a STRONG construct, so toggling emphasis
+	// must nest, not strip: the old flank check was construct-blind and destroyed the bold.
 	it('nests emphasis inside a strong construct instead of stripping its markers', () => {
 		const r = toggleInlineFormat('**word**', { start: 2, end: 6 }, 'emphasis');
 		expect(r.newDisplay).toBe('***word***');

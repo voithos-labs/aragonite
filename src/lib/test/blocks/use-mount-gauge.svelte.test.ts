@@ -28,10 +28,8 @@ describe('useMountGauge', () => {
 		expect(perfSnapshot().mountedBlockCount).toBe(0);
 	});
 
-	// The gauge is a net balance, so arm and disarm must be decided ONCE per
-	// mount. Re-reading `perfEnabled()` at teardown let a flip between the two
-	// decrement a mount that was never counted, and the count went negative —
-	// which reads as "windowing unmounted more than it mounted".
+	// The gauge is a net balance, so arm and disarm are decided ONCE per mount. Re-reading
+	// `perfEnabled()` at teardown let a flip decrement a mount that was never counted.
 	it('does not decrement a mount it never counted when perf arms mid-life', () => {
 		disablePerfInstruments();
 		const dispose = $effect.root(() => {
@@ -45,9 +43,8 @@ describe('useMountGauge', () => {
 		expect(perfSnapshot().mountedBlockCount).toBe(0);
 	});
 
-	// The other direction (disarm mid-life) is held by the counters' own gate: with
-	// the instrument off there is nothing to keep balanced, and re-arming goes
-	// through resetPerfInstruments.
+	// The other direction (disarm mid-life) is held by the counters' own gate: with the instrument
+	// off there is nothing to balance, and re-arming goes through resetPerfInstruments.
 	it('never reads negative across an arm flip on many mounts', () => {
 		disablePerfInstruments();
 		const disposers = [0, 1, 2].map(() => $effect.root(() => useMountGauge()));

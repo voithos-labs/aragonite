@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
 //
-// Where a paste dropped on a cell ends up. `table-cell-paste.test.ts` drives the
-// surface's hook with arguments a test supplies; the routing that decides the
-// hook runs at all — the cell's paste handler, the dispatcher, and the surface
-// registered for `tableCell` — was only ever asserted in the browser.
-//
-// Two things can go wrong and both destroy the table silently: the generic inline
-// surface handling the paste instead (no pipe escape), and a pasted newline
-// reaching `cell.raw` (a row cannot carry one). Both are byte-visible here.
+// Where a paste dropped on a cell ends up. `table-cell-paste.test.ts` drives the surface's hook
+// with arguments a test supplies; the routing that decides the hook runs at all — the cell's
+// paste handler, the dispatcher, and the surface registered for `tableCell` — was only ever
+// asserted in the browser. Two things can go wrong and both destroy the table silently: the
+// generic inline surface handling the paste, and a pasted newline reaching `cell.raw`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';

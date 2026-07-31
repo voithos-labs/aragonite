@@ -128,10 +128,8 @@ describe('createTextClipboard — selected-widget cut', () => {
 	});
 });
 
-// A fold whose commit changes the block's kind takes the structural path, whose
-// completion is a promise rather than a fixed number of ticks. Both clipboard
-// mutations must hold until it lands, or they splice bytes the fold's own commit
-// is still replacing.
+// A fold whose commit changes the block's kind takes the structural path, whose completion is a
+// promise; both clipboard mutations must hold or they splice bytes the fold is still replacing.
 function foldSettleHarness() {
 	const node: CstNode = parse('lead![cat](x)\n').children[0];
 	const order: string[] = [];

@@ -122,10 +122,8 @@ describe('buildImageSourceBytes — output re-parses as an image', () => {
 		);
 	});
 
-	// The `alt` an image node carries is RAW label bytes (the scanner slices the
-	// label without unescaping), unlike `title`/`url`, which arrive spec-processed.
-	// A blanket re-escape therefore doubled every backslash on each commit — a
-	// drag-resize alone grew `![C:\path]` to `![C:\\path]` to `![C:\\\\path]`.
+	// The `alt` an image node carries is RAW label bytes, unlike `title`/`url`, which arrive
+	// spec-processed. A blanket re-escape doubled every backslash on each commit.
 	const rebuildSpan = (source: string): string => {
 		const image = parseInline(source, 0, source.length)[0];
 		return buildImageSourceBytes(imageFieldsFromInline(image));
@@ -155,9 +153,8 @@ describe('buildImageSourceBytes — output re-parses as an image', () => {
 	});
 
 	it('encodes both parens so the destination never carries an unbalanced pair', () => {
-		// Encoding only `)` leaves a bare `(` — CommonMark destinations include
-		// parens "only if they are backslash-escaped or part of a balanced pair",
-		// so the spec parser rejects the rebuilt image.
+		// Encoding only `)` leaves a bare `(`; CommonMark admits parens in a destination only escaped
+		// or balanced, so the spec parser rejects the rebuilt image.
 		expect(buildImageSourceBytes({ alt: 'a', url: 'http://x/(y)' })).toBe('![a](http://x/%28y%29)');
 	});
 });

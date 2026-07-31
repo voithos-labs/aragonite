@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
-// A CRLF-authored fenced code block must keep its trailing `\r\n` across every
-// keystroke-commit gesture: each strips the ending to read/edit the body, then
-// reconstructs it via trailingLineEnding(node.raw) (G4.20). A bare `\n` literal
-// there downgrades the block to LF and breaks byte round-trip. Driven through the
-// mounted component's real handlers — the commit closures live in the component,
-// where the G4.20 source-scan lint can't observe runtime output.
+// A CRLF-authored fenced code block keeps its trailing `\r\n` across every keystroke-commit
+// gesture: each strips the ending to edit the body, then reconstructs it via
+// trailingLineEnding(node.raw) (G4.20). A bare `\n` literal downgrades the block to LF.
+// Driven through the mounted component's real handlers — the commit closures live there,
+// where the G4.20 source-scan lint cannot observe runtime output.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
@@ -70,10 +69,8 @@ describe('CodeBlock keystroke commit preserves the trailing line ending', () => 
 });
 
 describe('CodeBlock fence auto-close mints a CRLF paragraph below', () => {
-	// Enter on the trailing blank line of an UNCLOSED fence mints the closer AND
-	// the paragraph below in one replaceBlock. That paragraph is a blank separator
-	// line plus its own line — pure line ending both, so both take the fence's
-	// (G4.20); a defaulted `\n` pair strands two lone LFs in a CRLF file.
+	// Enter on an unclosed fence's trailing blank line mints the closer AND the paragraph below
+	// in one replaceBlock; both are pure line ending, so both take the fence's (G4.20).
 	it('the minted paragraph carries the fence’s line ending, not a literal LF', () => {
 		mounted = mountCode('```js\r\ncode\r\n\r\n');
 		const { instance, el } = mounted;
@@ -89,11 +86,8 @@ describe('CodeBlock fence auto-close mints a CRLF paragraph below', () => {
 });
 
 describe('CodeBlock code.newline commit preserves the trailing line ending', () => {
-	// The command site reads getDisplayText() (a trimTrailingLineEnding view of
-	// node.raw), so the committed tail is the reconstructed ending alone — a `\n`
-	// literal at the append would surface as an LF tail here. Driven via the
-	// exported runCommand, the dispatch entry the Enter keydown itself calls: a raw
-	// keydown can't reach it in an isolated mount (no block-command registry wired).
+	// Driven via the exported runCommand, the dispatch entry the Enter keydown itself calls: a
+	// raw keydown cannot reach it in an isolated mount (no block-command registry wired).
 	it('a CST newline on a CRLF block commits raw ending in `\\r\\n`', () => {
 		mounted = mountCode('```\r\ncode\r\n```\r\n');
 		const { instance, el, blockEdit } = mounted;
@@ -105,9 +99,8 @@ describe('CodeBlock code.newline commit preserves the trailing line ending', () 
 		expect(newRaw.endsWith('\r\n')).toBe(true);
 	});
 
-	// The reattached trailing ending was never the whole rule: the newline Enter
-	// SPLICES INTO THE BODY has to match it too, or one keystroke leaves a lone LF
-	// inside a CRLF block. Stripping every CRLF pair leaves any lone LF exposed.
+	// Reattaching the trailing ending was never the whole rule: the newline Enter splices INTO
+	// the body, so a bare `\n` there leaves a lone LF inside a CRLF block.
 	it('the spliced newline is CRLF too, not a bare LF in the body', () => {
 		mounted = mountCode('```\r\ncode\r\n```\r\n');
 		const { instance, el, blockEdit } = mounted;

@@ -1,15 +1,8 @@
-// One table cell mounted BY ITSELF, over a stub table context.
-//
-// The contrast with `mount-table.ts` is which side of the cell/table boundary is
-// under test. That harness mounts a real TableBlock so a gesture reaches the real
-// coordination; this one stubs `TableContext` so the test reads what the cell ASKED
-// its table for, without the table's own logic standing between the two. A cell that
-// stops asking, or asks for the wrong coordinate, is invisible through a real table
-// whose answer happens to look the same.
-//
-// Read-only questions and single gestures only, for the same reason `mount-table.ts`
-// says so: a commit replaces the node by copy-path-on-write and no parent re-renders
-// this component with the replacement.
+// One table cell mounted BY ITSELF, over a stub table context. The contrast with `mount-table.ts`
+// is which side of the cell/table boundary is under test: that harness mounts a real TableBlock so
+// a gesture reaches the real coordination; this one stubs `TableContext` so the test reads what
+// the cell ASKED its table for. Read-only questions and single gestures only — a commit replaces
+// the node by copy-path-on-write and no parent re-renders this component with the replacement.
 
 import { mount, unmount, flushSync } from 'svelte';
 import { vi } from 'vitest';

@@ -1,25 +1,10 @@
 // @vitest-environment jsdom
 //
-// The caret half of the cell's write door, driven through the mounted component.
-// A cell's `normalizeRawWrite` escapes every free `|` at the write sink, so an
-// offset reported against the text a gesture just wrote lands one byte early per
-// escape inserted before it. The door maps the COMMIT caret; the pending cursor is
-// a separate dep that bypasses it, and a reveal commit is the gesture that can put
-// a fresh `|` in front of its own caret — the user types it inside the revealed
-// `$…$` source, where onInput is suppressed and nothing normalizes until the fold.
-//
-// Pinned by driving the real gestures (arrow into the widget, edit the ephemeral
-// source DOM, Enter) and reading the caret the cell actually restored, so the two
-// halves of the door are asserted against each other rather than against a
-// hand-computed number.
-//
-// Scope: the COMMIT half only. Enter in a cell commits and stays put — the
-// deliberate carve-out from the prose block, where Enter splits — and these cases
-// cannot see the "stays put" half: `focusCell` is a stub here, so a row hop is
-// inert and the caret they read is identical either way. That half is guarded by
-// `e2e/tests/blocks/table/cell-inline-reveal.spec.ts`, on exact source bytes that
-// catch the hop's inserted empty row. Do not thin those e2e cases expecting this
-// pair to cover them.
+// The caret half of the cell's write door. A cell's `normalizeRawWrite` escapes every free `|`
+// at the write sink, so an offset reported against just-written text lands one byte early per
+// escape; the door maps the COMMIT caret, and the pending cursor is a separate dep that bypasses
+// it. Scope is the commit half only: `focusCell` is stubbed here, so the "Enter stays put" half
+// is guarded on exact bytes by e2e/tests/blocks/table/cell-inline-reveal.spec.ts — do not thin it.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
@@ -75,9 +60,8 @@ describe('a reveal commit in a cell parks its caret in escaped space', () => {
 		// The door escaped the free `|`, so the commit caret is 7 — past `$a\|$`.
 		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(committedCaret).toBe(7);
-		// The parked caret addresses the same bytes, so it must be the same offset.
-		// Unmapped it is 6, which in the written raw sits between the inserted `\`
-		// and the `|` it frees — inside the widget the user just finished editing.
+		// The parked caret addresses the same bytes, so it must be the same offset. Unmapped it is 6 —
+		// between the inserted `\` and the `|` it frees, inside the widget the user just edited.
 		expect(instance.getCursorOffset()).toBe(committedCaret);
 	});
 

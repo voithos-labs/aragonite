@@ -57,9 +57,8 @@ describe('handleCellShiftClick', () => {
 		expect(sel.focus!.path).toEqual([2]);
 	});
 
-	// Reverted-incident guard: reading a same-table rectangle (start/end normalize +
-	// snap short-circuit) must not trip the coordinate-space warn that force-flagging
-	// every same-table read once caused.
+	// Reading a same-table rectangle (start/end normalize + snap short-circuit) must not trip the
+	// coordinate-space warn that force-flagging every same-table read once caused.
 	it('reads the same-table rectangle without a coordinate-space warn', () => {
 		vi.mocked(devWarn).mockClear();
 		const doc = {

@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// The generic directive container is the plugin tier's representative: everything it
-// does below its own marker is `createContainerBlock`'s, and unlike the blockquote it
-// renders CHROME BESIDE THE LIST. That sibling is what the seam's windowing lookups
-// have to survive — they resolve the body through `:scope > .block-list`, documented as
-// tolerating chrome siblings, and no other mounted container exercises that arm.
-//
-// The other half is the seam's DEFAULTS. Blockquote opts out of two of them at its own
-// call site (reorderable children) and every bundled container supplies an ambient
-// prefix or a focus element; this one supplies nothing, so what it renders is what an
-// unconfigured plugin container gets. Each assertion below is therefore a decision
-// somewhere in the seam, not a property of directives.
+// The generic directive container is the plugin tier's representative: everything below its
+// own marker is `createContainerBlock`'s, and unlike the blockquote it renders CHROME BESIDE
+// THE LIST — the only mounted container exercising the seam's `:scope > .block-list` lookup.
+// It also supplies none of the seam's optional deps, so what it renders is what an
+// unconfigured plugin container gets: every assertion is a seam decision, not a directive one.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 
@@ -58,10 +52,8 @@ describe('the directive container delegates its body past its own chrome', () =>
 		expect(mounted.containerApi.getCursorOffset()).toBe(0);
 	});
 
-	// The marker is chrome the container paints, not bytes the body owns. Forwarding the
-	// opener line as `ambientPrefixForFirst` would look right — the cue still appears
-	// above the body — while putting the fence into child 0's offset space, where every
-	// caret and edit offset in that paragraph is measured.
+	// The marker is chrome the container paints, not bytes the body owns. Forwarding the opener
+	// line as `ambientPrefixForFirst` would put the fence into child 0's offset space.
 	it('keeps the opener out of the body child it labels', () => {
 		mounted = mountDirective(BODY);
 
@@ -73,9 +65,8 @@ describe('the directive container delegates its body past its own chrome', () =>
 		expect(mounted.box.textContent?.match(/:::foo/g)).toHaveLength(1);
 	});
 
-	// The seam defaults `reorderable` to false because an opaque container is a reorder
-	// boundary; the blockquote overrides it to true at its own call site. A handle on a
-	// body row here would be a dead affordance — `resolveReorderUnit` declines inside.
+	// The seam defaults `reorderable` to false (an opaque container is a reorder boundary), so a
+	// handle on a body row here would be a dead affordance — `resolveReorderUnit` declines inside.
 	it('leaves its body rows out of the reorder vocabulary, unlike the blockquote', () => {
 		mounted = mountDirective(BODY, { policies: { blockDragHandles: () => true } });
 

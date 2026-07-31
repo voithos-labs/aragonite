@@ -54,9 +54,8 @@ const settle = () => new Promise((r) => setTimeout(r));
 describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 	it('a second entry landing synchronously inside the settle window fires', async () => {
 		const { interaction } = mountEdgeMathBlock();
-		// First entry opens the reveal; its settle window spans the microtask chain,
-		// so a synchronous second entry lands inside it — the interleaving no real
-		// gesture (a macrotask) can produce.
+		// First entry opens the reveal; its settle window spans the microtask chain, so a synchronous
+		// second entry lands inside it — an interleaving no real (macrotask) gesture can produce.
 		interaction.enterEdgeWidget('start');
 		interaction.enterEdgeWidget('start');
 		await settle();

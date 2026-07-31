@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// A parked caret and the text it addresses travel together. The block-edit door a
-// kind wraps around its writes maps the COMMIT caret through the kind's
-// `normalizeRawWrite` (tableCell escapes every free `|`, moving every offset after
-// it); `setPendingCursor` is a separate dep that bypasses that door, so its offset
-// can only be mapped if the writer hands over the text the offset addresses.
-//
-// Exactly the two arms that COMPOSE new text need it. The atomic-delete arm is
-// pinned here as the negative half: it parks at the deleted widget's leading edge,
-// ahead of every byte the write can change, so no mapping exists to get wrong.
-// (`handleAmbient` is the fourth park; it is unreachable at the one ambient length a
-// rewriting kind has — a cell carries no marker.)
+// A parked caret and the text it addresses travel together. The block-edit door a kind wraps
+// around its writes maps the COMMIT caret through the kind's `normalizeRawWrite` (tableCell
+// escapes every free `|`); `setPendingCursor` bypasses that door, so its offset can only be mapped
+// if the writer hands over the text it addresses. The two arms that COMPOSE new text need it; the
+// atomic-delete arm is the negative half, parking ahead of every byte the write can change.
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -124,9 +118,8 @@ describe('an arm that composes new text reports what its caret addresses', () =>
 		expect(b.parks).toEqual([{ offset: 6, source: 'island', writtenText: 'helloz' }]);
 	});
 
-	// The island edit funnel reports its text on both branches. Its delete maps to
-	// identity, but the rule belongs to the arm: splitting it per branch is how a
-	// later insert-flavoured caller inherits the omission.
+	// The island edit funnel reports its text on both branches. Its delete maps to identity, but the
+	// rule belongs to the arm: splitting it per branch is how a later insert-flavoured caller misses.
 	it('deleting through an island reports its text too, mapping to identity', () => {
 		const b = mountIsland('hello\n', 5);
 		caretAfter(b.island);
