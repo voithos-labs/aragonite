@@ -1,10 +1,9 @@
 /**
- * DOM Range ↔ walk-space offset translation for atomic inline widgets.
- * Widgets contribute their raw bytes via data-source-start / data-source-end
- * without contributing to textContent; the walker accumulates text-node
- * lengths — including a leading ambient marker span's text — plus widget raw
- * lengths. Walk positions are therefore `DomTextOffset` (raw + ambient prefix);
- * `ambient/ambient-cursor.ts` owns the ± ambientLength translation to raw.
+ * The single DOM Range ↔ raw offset translation point (`docs/design/editor.md`). Atomic
+ * inline widgets contribute their raw bytes via data-source-start / data-source-end
+ * without contributing to textContent; the walk sums text-node lengths — a leading
+ * ambient marker span's text included — plus widget raw lengths, so walk positions are
+ * `DomTextOffset` and `ambient/ambient-cursor.ts` owns the ± ambientLength step to raw.
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
@@ -12,20 +11,18 @@ import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
 /**
- * Walk-space offset of a live `(node, offset)` DOM position. A position at or
- * inside an atomic widget snaps to that widget's own walk boundary — the walk
- * has no interior positions to report, and browsers do rebind carets into these
- * contenteditable=false islands. An unreachable position reads as end-of-walk;
- * callers that must distinguish "not mine" guard containment first.
+ * Walk-space offset of a live `(node, offset)` DOM position. A position inside an atomic
+ * widget snaps to that widget's own walk boundary (browsers do rebind carets into these
+ * contenteditable=false islands); an unreachable one reads as end-of-walk, so callers that
+ * must distinguish "not mine" guard containment first.
  */
 export function domTextOffsetAtNode(
 	container: HTMLElement,
 	node: Node,
 	offset: number
 ): DomTextOffset {
-	// Outside the container there is no landmark to find: document order against a
-	// disconnected tree is implementation-specific, so such a position reads as
-	// end-of-walk rather than as a nondeterministic offset.
+	// No landmark outside the container: document order against a disconnected tree is
+	// implementation-specific, so such a position reads as end-of-walk instead.
 	const boundary = container.contains(node) ? positionBoundary(node, offset) : null;
 	let total = 0;
 	for (const seg of walkSegments(container)) {
@@ -46,11 +43,9 @@ export interface DomPosition {
 }
 
 /**
- * DOM-layer lookup: maps a walk-space offset to a live `(node, offset)` DOM
- * position. The model-layer counterpart is `core/inline-render.ts`
- * `findNodeAtOffset`, which maps the same offset to a CST inline node without
- * touching the DOM. Accepts a detached fragment (island application walks
- * builds in progress) with the same arithmetic as a live block element.
+ * Walk-space offset → live `(node, offset)` DOM position. The model-layer counterpart is
+ * `findNodeAtOffset` in `core/inline-render.ts`. Accepts a detached fragment (island
+ * application walks builds in progress) with the same arithmetic as a live block element.
  */
 export function findDomTextOffsetTarget(
 	container: ParentNode,
@@ -86,14 +81,10 @@ export function findDomTextOffsetTarget(
 }
 
 /**
- * Atomic inline widgets in `container` whose raw source range intersects
- * [start, end). A widget contributes 0 chars to textContent, so a range lying
- * entirely inside one collapses to zero width via `createRangeAtDomTextOffsets`
- * and yields no client rect; callers that must cover the widget (search
- * highlight, cross-block selection) take its bounding box instead. Offsets are
- * the same walk-space positions `findDomTextOffsetTarget` walks — text-node
- * lengths (including marker-span text) plus widget raw lengths — so a widget's
- * position is the running walk offset, not a naive compare of `data-source-*`
+ * Atomic inline widgets in `container` intersecting the walk-space range [start, end). A
+ * widget adds 0 chars to textContent, so a range inside one yields no client rect and
+ * callers that must cover it (search highlight, cross-block selection) take its bounding
+ * box. A widget's position is its running walk offset, never a compare of `data-source-*`
  * against the ambient-adjusted argument.
  */
 export function widgetsIntersectingRange(
@@ -103,8 +94,7 @@ export function widgetsIntersectingRange(
 ): HTMLElement[] {
 	const out: HTMLElement[] = [];
 	for (const seg of walkSegments(container)) {
-		// Half-open overlap of the widget's [start, start+len) span with the
-		// requested [start, end); a zero-length widget can't be covered.
+		// Half-open overlap; a zero-length widget can't be covered.
 		if (seg.kind === 'widget' && seg.len > 0 && seg.start < end && start < seg.start + seg.len) {
 			out.push(seg.el as HTMLElement);
 		}
@@ -120,10 +110,9 @@ export function containerDomTextLength(container: ParentNode): DomTextOffset {
 }
 
 /**
- * Walk-space span of the atomic widget strictly containing `offset`, or null
- * when the offset sits in text or exactly on a widget boundary. Island
- * application snaps replace boundaries outward with this — a text-position
- * range cannot split an atomic widget.
+ * Walk-space span of the atomic widget strictly containing `offset`, or null when the
+ * offset sits in text or exactly on a boundary. Island application snaps replace
+ * boundaries outward with this — a text-position range cannot split an atomic widget.
  */
 export function widgetSpanContainingOffset(
 	container: ParentNode,
@@ -210,12 +199,10 @@ type WalkSegment =
 	| { kind: 'widget'; el: Element; start: number; len: number };
 
 /**
- * The classification every walk-space consumer shares: a text node contributes
- * its textContent length, an atomic widget contributes its raw source length and
- * is never descended, any other element is transparent (children walked in
- * order). `root` may be a live block or a detached fragment; `start` is the
- * running walk offset at each segment. Offsets stay plain numbers — consumers
- * mint the `DomTextOffset` brand at the same sites the walks always did.
+ * The classification every walk-space consumer shares: a text node contributes its
+ * textContent length, an atomic widget its raw source length (never descended), any other
+ * element is transparent. Offsets stay plain numbers — consumers mint the `DomTextOffset`
+ * brand at the same sites the walks always did.
  */
 function* walkSegments(root: ParentNode): Generator<WalkSegment> {
 	let count = 0;
@@ -241,9 +228,9 @@ function* walkSegments(root: ParentNode): Generator<WalkSegment> {
 }
 
 /**
- * A DOM position re-expressed as a document-order landmark, so a walk can find
- * it without a parallel descent. Text positions need none: every text node under
- * `container` is either a segment of its own or lives inside a widget.
+ * A DOM position re-expressed as a document-order landmark, so a walk can find it without
+ * a parallel descent. Text positions need none: every text node under `container` is
+ * either a segment of its own or lives inside a widget.
  */
 type PositionBoundary = { node: Node; side: 'before' | 'afterContents' };
 
@@ -257,8 +244,8 @@ function startsAtOrAfter(segNode: Node, boundary: PositionBoundary): boolean {
 	if (segNode === boundary.node) return boundary.side === 'before';
 	const mask = boundary.node.compareDocumentPosition(segNode);
 	if ((mask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
-	// A descendant follows the landmark's own start but precedes the end of its
-	// contents, so only the 'before' side counts it.
+	// A descendant follows the landmark's start but precedes the end of its contents, so
+	// only the 'before' side counts it.
 	return boundary.side === 'before' || (mask & Node.DOCUMENT_POSITION_CONTAINED_BY) === 0;
 }
 
