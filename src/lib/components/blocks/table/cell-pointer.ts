@@ -30,12 +30,9 @@ export interface CellDragContext {
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Install a pointer-drag listener for a drag that started inside `anchor`'s
- * cell. While the pointer stays in the same table, drives the SelectionState
- * shallow multi-cell encoding. When the pointer leaves the table entirely,
- * extends focus to the foreign block underneath the pointer (cross-block linear).
- *
- * Anchor cell coords are frozen; only the focus tracks the pointer.
+ * Pointer-drag from inside `anchor`'s cell: drives the multi-cell encoding while the
+ * pointer stays in the table, and extends focus to the foreign block underneath once
+ * it leaves. Anchor cell coords are frozen; only the focus tracks the pointer.
  */
 export function installCellDragListener(
 	ctx: CellDragContext,
@@ -43,21 +40,17 @@ export function installCellDragListener(
 	down: PointerEvent
 ): { dispose(): void } {
 	const anchorCellIdx = anchor.rowIdx * anchor.columnCount + anchor.colIdx;
-	// cellCoordinate marks the offset as a row-major cell index. When the drag
-	// exits to a foreign block, the whole-row snap (table-endpoint-snap.ts) needs
-	// it on this anchor so copy/delete agree on the same rows — without it a Cut
-	// anchored mid-row row-rounds the copy while the delete clears from the
-	// mid-cell, duplicating the leading cells. Same-table extends compare equal
-	// paths and short-circuit the snap, so the intra-table rectangle is untouched.
+	// cellCoordinate marks the offset row-major, so a drag that exits to a foreign block
+	// gets the whole-row snap (table-endpoint-snap.ts) and copy/delete agree on the same
+	// rows. Same-table extends compare equal paths and short-circuit the snap.
 	const anchorPoint: CellSelectionPoint = {
 		path: anchor.tablePath.slice(),
 		offset: anchorCellIdx,
 		cellCoordinate: true
 	};
 
-	// `anchor.tableEl` is `[role="table"]`, the .block-host wrapper-equivalent
-	// here. The actual scrollable element is its first scrollable descendant
-	// (the .table-block grid).
+	// `anchor.tableEl` is `[role="table"]`; the scrollable element is its first
+	// scrollable descendant (the `.table-block` grid).
 	const tableScrollEl = firstScrollableDescendant(anchor.tableEl) ?? anchor.tableEl;
 
 	function processMove(clientX: number, clientY: number): void {
@@ -65,8 +58,7 @@ export function installCellDragListener(
 
 		if (cellHit) {
 			if (cellHit.rowIdx === anchor.rowIdx && cellHit.colIdx === anchor.colIdx) {
-				// Drag returned to anchor cell — collapse so native takes over
-				// the intra-cell partial-text selection again.
+				// Back in the anchor cell: collapse so native resumes the intra-cell selection.
 				if (ctx.selection.isCrossBlock) {
 					ctx.selection.collapse();
 				}
@@ -76,9 +68,8 @@ export function installCellDragListener(
 			return;
 		}
 
-		// Pointer is not over a cell of this table. If still inside the table
-		// element (e.g., padding gap between cells), hold the current focus —
-		// avoids a flicker as the pointer crosses cell borders.
+		// Inside the table but not over a cell (a padding gap): hold the current focus,
+		// so crossing a cell border doesn't flicker.
 		const target = document.elementFromPoint(clientX, clientY);
 		if (target && anchor.tableEl.contains(target)) return;
 
@@ -101,11 +92,8 @@ export function installCellDragListener(
 	function extendToForeignBlock(clientX: number, clientY: number): void {
 		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
 		if (!hit) return;
-		// A table destination addresses cells by row-major index, not char offset, and
-		// must carry cellCoordinate so the whole-row snap fires symmetrically with the
-		// anchor (matching the keyboard path, which flags both endpoints). Without it a
-		// drag between two tables snaps only the anchor, mismapping the collapse caret
-		// and slicing the destination grid markup.
+		// A table destination addresses cells by row-major index, so it must carry
+		// cellCoordinate for the whole-row snap to fire symmetrically with the anchor.
 		const offset = hit.foreignDragHitTest
 			? hit.foreignDragHitTest(clientX, clientY)
 			: offsetFromViewportPoint(hit.element, clientX, clientY);
@@ -127,10 +115,7 @@ export function installCellDragListener(
 	});
 }
 
-/**
- * Shift+click on a cell when the previous focus was in another cell of the
- * same table. Builds the shallow-path multi-cell SelectionState directly.
- */
+/** Shift+click on a cell when the previous focus was another cell of the same table. */
 export function handleCellShiftClick(
 	selection: SelectionState,
 	anchor: CellAnchor,
@@ -144,10 +129,8 @@ export function handleCellShiftClick(
 		selection.extendFocus({ path: tablePath, offset: focusCellIdx });
 		return;
 	}
-	// Flag the anchor as a row-major cell index, matching the drag anchor: an
-	// exit-the-table extend later needs it so the whole-row snap fires. The focus
-	// stays context-established (unflagged) — same-table extends short-circuit the
-	// snap, so the intra-table rectangle is untouched.
+	// Flagged row-major to match the drag anchor, so a later exit-the-table extend snaps
+	// whole rows. The focus stays unflagged: same-table extends short-circuit the snap.
 	selection.enterCrossBlock(
 		{
 			path: tablePath.slice(),
@@ -160,17 +143,14 @@ export function handleCellShiftClick(
 
 // ── DOM geometry ─────────────────────────────────────────────────────────────
 //
-// The cell grid's selector contract: rows carry `data-table-row-idx`, cells carry
-// `role="cell"`. These helpers are the table module's readers of it, not the only
-// ones — `selection/path-lookup.ts` walks the same selectors upward (element → cell
-// path) because it cannot import a component module, and `Editor.svelte`'s
-// `getBlockElByPath` walks them downward (cell path → element). A markup change
-// lands in all three.
+// Selector contract: rows carry `data-table-row-idx`, cells carry `role="cell"`. Two
+// other readers walk the same selectors — `selection/path-lookup.ts` upward and
+// `Editor.svelte`'s `getBlockElByPath` downward — so a markup change lands in all three.
 
 /**
- * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the
- * table scrolls past it (VR-K1), so index 0 is the first MOUNTED row, not row 0;
- * uniform column tracks make any mounted row equivalent for column geometry.
+ * The mounted table rows, in DOM order. Row windowing unmounts row 0 once the table
+ * scrolls past it (VR-K1), so index 0 is the first MOUNTED row — still fine for column
+ * geometry, since the column tracks are uniform.
  */
 export function mountedRowEls(tableEl: HTMLElement): HTMLElement[] {
 	return Array.from(tableEl.querySelectorAll<HTMLElement>(':scope > [data-table-row-idx]'));
@@ -184,9 +164,8 @@ export function rowCellEls(rowEl: Element): HTMLElement[] {
 // ── Hit testing ────────────────────────────────────────────────────────────
 
 /**
- * Resolve a viewport point to a cell within `tableEl`. Returns null when the
- * point falls outside this specific table. Thin viewport-point entry over
- * `cellCoordsOfElement`, which owns the resolution and the owner-table check.
+ * A viewport point → its cell within `tableEl`, or null when the point falls outside
+ * this specific table. Thin entry over `cellCoordsOfElement`.
  */
 export function cellAtPoint(
 	clientX: number,
@@ -197,10 +176,9 @@ export function cellAtPoint(
 }
 
 /**
- * Resolve an arbitrary element (a click target, or the previously focused
- * `document.activeElement`) to its cell coords within `tableEl`. Returns null
- * when the element isn't inside a cell of this specific table — identity-checks
- * the owning table so a sibling table doesn't masquerade as the originating one.
+ * An element (click target, previously focused element) → its cell coords within
+ * `tableEl`. Identity-checks the owning table, so a sibling table can't masquerade
+ * as the originating one.
  */
 export function cellCoordsOfElement(
 	el: Element | null,

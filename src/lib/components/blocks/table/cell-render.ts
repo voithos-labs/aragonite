@@ -1,10 +1,8 @@
 /**
- * DOM-build for TableCellBlock's render $effect. Mirrors text-render.ts but
- * without ambient prefix or block marker — a cell's entire raw is content, so
- * every island offset is a raw offset (ambient length 0). The component owns the
- * effect (the reactivity entry point) and the pending-cursor restore that touches
- * $state; this factory owns the imperative build and carries a focused caret
- * across an island-driven rebuild the SFC's pending restore doesn't cover.
+ * DOM-build for TableCellBlock's render $effect. Mirrors text-render.ts without the
+ * ambient prefix or block marker — a cell's entire raw is content, so every island
+ * offset is a raw offset. The component owns the effect and the pending-cursor
+ * restore; this factory owns the imperative build.
  */
 
 import type { InlineNode } from '../../../core/nodes';
@@ -30,29 +28,25 @@ export interface CellRenderDeps {
 	get node(): NodeView;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	resolveLinkUrl: ResolveLinkUrl;
-	/** Live root document, handed to component widgets whose derived value depends
-	 *  on it (footnote numbering). A getter so a pooled widget re-reads the current
-	 *  document across edits, never a mount-time snapshot. */
+	/** Live root document for widgets that derive from it. A getter, so a pooled widget
+	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
-	/** The editor's content version, handed to component widgets so a derivation
-	 *  over the document can be memoized on it. Absent in a bare harness. */
+	/** The editor's content version, so a widget can memoize a document-wide derivation
+	 *  on it. Absent in a bare harness. */
 	getContentVersion?: () => number;
-	/** Position-sorted islands for this cell. A getter, read inside the render
-	 *  pass on purpose: that read is the reactive dependency that re-renders the
-	 *  cell when its island set changes. */
+	/** Position-sorted islands. A getter read inside the render pass on purpose: that
+	 *  read is the reactive dependency that re-renders the cell on an island change. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
-	/** A widget component's synchronous mount throw is routed here — the editor's
-	 *  `error` channel, matching BlockHost's render-boundary origin. Absent → errors
-	 *  are not surfaced (the widget still falls back to its raw source). */
+	/** A widget's synchronous mount throw goes to the editor's `error` channel. Absent →
+	 *  unsurfaced; the widget still falls back to its raw source. */
 	reportRenderError?: (error: unknown) => void;
 }
 
 export interface CellRender {
 	/**
-	 * Rebuild the cell's children from current node state. Skips work when the
-	 * memo key (raw + signature-for-reference-cells + island signature) is
-	 * unchanged, unless `forceRebuild` is set — pass it when a pending cursor
-	 * restore needs the DOM positions re-anchored even though the key didn't change.
+	 * Rebuild the cell's children from current node state. Skips work on an unchanged
+	 * memo key unless `forceRebuild` — pass it when a pending cursor restore needs the
+	 * DOM re-anchored even though the key held.
 	 */
 	render(opts?: { forceRebuild?: boolean; carryCaret?: boolean }): void;
 	/** Destroy every pooled widget instance and mounted island — called on unmount. */
@@ -82,11 +76,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		if (!el) return;
 		const node = deps.node;
 
-		// A cell resolves through an LRD only if it contains a bracket. Gate both
-		// the signature dependency and the resolver read on it, so a bracketless
-		// cell never subscribes to the resolver and an LRD change can't re-render
-		// every cell in the document. A false positive merely re-parses to
-		// identical output.
+		// Gating both the signature dependency and the resolver read on the bracket keeps
+		// an LRD change from re-rendering every cell. A false positive re-parses identically.
 		const hasRef = node.raw.includes('[');
 		// Key on the compact signature epoch, never the ~MB-scale string (text-render's twin).
 		const sig = hasRef ? String(deps.linkRef?.epoch ?? deps.linkRef?.signature ?? '') : '';
@@ -96,14 +87,12 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 
 		const content = computeInlineContent(node, hasRef ? deps.linkRef?.current : undefined);
-		// An island-signature change rebuilds a focused cell's DOM with no edit-path
-		// pending offset; carry the caret across in walk space. The edit path passes
-		// carryCaret: false — its pending restore runs after and wins, so the walk
-		// would be dead work (text-render's twin).
+		// An island-signature change rebuilds a focused cell with no edit-path pending
+		// offset, so carry the caret in walk space; the edit path opts out because its
+		// own restore runs after and wins (text-render's twin).
 		const caretWalkOffset = (opts?.carryCaret ?? true) ? captureFocusedCaretWalkOffset(el) : null;
-		// Bracket the rebuild so portal widgets in the cell are pooled — an unchanged
-		// `$…$` keeps its mounted instance across the cell's per-keystroke rebuild.
-		// Island widgets are unpooled: destroy last pass's, mount this pass's.
+		// Bracketing the rebuild pools portal widgets, so an unchanged `$…$` keeps its
+		// instance across per-keystroke rebuilds. Island widgets are unpooled.
 		widgetPool.beginPass();
 		destroyIslands();
 		el.replaceChildren(
@@ -113,8 +102,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 				buildPortalWidget
 			})
 		);
-		// Ambient length 0: a cell carries no marker, so every island offset is a raw
-		// offset that the shared walk reads back byte-exact.
+		// Ambient length 0: a cell carries no marker, so island offsets are raw offsets.
 		islandDestroys = applyIslandDecorations(el, node.raw, islands, {
 			ambientLength: 0,
 			mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),

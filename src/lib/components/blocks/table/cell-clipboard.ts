@@ -1,9 +1,6 @@
 /**
- * Rectangular-clipboard payload for an intra-table multi-cell selection. When
- * the SelectionState carries a shallow multi-cell encoding (anchor.path ===
- * focus.path === tablePath, offsets are cellIdx-based), this builds the GFM
- * sub-table text the cell's copy/cut handlers write to the clipboard. The
- * component owns the live ClipboardEvent wiring; this owns the pure payload.
+ * Pure clipboard payload for an intra-table multi-cell rectangle; the component
+ * owns the live ClipboardEvent wiring.
  */
 
 import type { DocumentGetter } from '../../../editor-keys';
@@ -26,15 +23,9 @@ export interface IntraTableRect {
 }
 
 /**
- * A live intra-table rectangle: both cross-block endpoints share the table path,
- * so each `offset` is a row-major cell index established by that shared scope
- * (unflagged — see `selection/primitives` on context-established cell offsets).
- * Returns the shared table path and the two cell indices, or null when the
- * selection isn't such a rectangle. Callers decode the indices with `cellRowCol`
- * against their own column count, and compare `tablePath` against their own —
- * with two tables on screen the rectangle belongs to at most one of them. One
- * home for a predicate the copy, highlight, and cell-collection paths otherwise
- * each spelled out inline.
+ * Both endpoints share the table path, so each `offset` is a row-major cell index
+ * (unflagged — see `selection/primitives` on context-established cell offsets). Callers
+ * compare `tablePath` against their own; the rectangle belongs to at most one table.
  */
 export function intraTableRect(selection: SelectionState): IntraTableRect | null {
 	const { anchor, focus } = selection;
@@ -44,10 +35,7 @@ export function intraTableRect(selection: SelectionState): IntraTableRect | null
 	return { tablePath: anchor.path, anchorCellIdx: anchor.offset, focusCellIdx: focus.offset };
 }
 
-/**
- * Build the GFM sub-table for the current selection, or null when the selection
- * isn't a multi-cell rectangle within a single table.
- */
+/** The GFM sub-table for the current selection, or null when it isn't a rectangle. */
 export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
 	const rect = intraTableRect(deps.selection);
 	if (!rect) return null;

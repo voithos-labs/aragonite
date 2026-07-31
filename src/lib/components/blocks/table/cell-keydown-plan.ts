@@ -1,22 +1,9 @@
 /**
- * Pure keydown → plan for a table cell's NAVIGATION: the moves that depend on where
- * the caret sits within the cell, which is exactly what a chord cannot express — a
- * cell hop at the text boundary, a row hop, an exit out of the table, and the
- * row-appending end of Tab/Enter. The component translates the plan into context
- * calls (focus, selection, exit).
- *
- * The structural chords (insert/delete/move a row or column, cycle alignment) used to
- * live here too, as an ordered `SHORTCUTS` table whose precedence over the boundary
- * branches below was the thing keeping `Alt+ArrowLeft` from being read as a cell hop.
- * They are `tableCell` keymap bindings now, and the precedence is the CALL ORDER in
- * the cell: the command dispatcher gets first refusal on every chord, so a chord that
- * reaches this plan is one no binding claimed.
- *
- * Which is why the branches below still ignore Alt and Mod. An unclaimed modified
- * arrow — a disabled binding, or reading mode, where the whole vocabulary dead-keys —
- * is just an arrow, and must navigate: answering `native` for it would hand the key to
- * the shared prose prelude, whose boundary branches move focus among a block's
- * siblings by index, which for a cell means the wrong axis entirely.
+ * Pure keydown → plan for a table cell's caret-dependent navigation: cell hop at a text
+ * boundary, row hop, table exit, the row-appending end of Tab/Enter. Chords are keymap
+ * bindings the command dispatcher claims first, so the branches below ignore Alt and
+ * Mod: an unclaimed modified arrow must still navigate, and answering `native` hands it
+ * to the prose prelude, which moves among siblings by index — the wrong axis for a cell.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellMove } from './table-navigation';
 
