@@ -509,7 +509,7 @@
 	// path: a caller that reaches `blockEdit` directly, bypassing runCommand, sees
 	// neither the fold nor this. Adding an arm to `blockCommand`'s switch inherits
 	// both by construction, which is the case worth making safe; the wider funnel is
-	// ledgered in docs/issues.md.
+	// tracked as issue #35.
 	function performBlockCommand(id: CommandId, perform: () => void): void {
 		assertInvariant('reveal-transition', () =>
 			widgetInteraction.isRevealing()

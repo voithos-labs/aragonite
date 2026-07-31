@@ -5,8 +5,8 @@
  * register-once, conflict-on-duplicate. Production and test keep it: a duplicate
  * throws. But a Vite dev server invalidates a registrar module and re-runs its
  * registerX calls while the registry Map instance survives — every route then
- * 500s on the dup throw until a full restart (docs/issues.md, SSR registrar
- * poison). In dev-and-not-test a duplicate REPLACES with a note instead, so a
+ * 500s on the dup throw until a full restart (the SSR registrar-poison class).
+ * In dev-and-not-test a duplicate REPLACES with a note instead, so a
  * re-run registrar overwrites its own prior registration: a changed registration
  * takes effect on re-run, an unchanged one is a harmless replace. The throw the
  * conflict-on-duplicate contract promises is unchanged everywhere it is observed

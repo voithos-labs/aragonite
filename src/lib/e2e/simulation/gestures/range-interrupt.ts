@@ -94,7 +94,7 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	// The one caret-pinned gesture on a prose range: Escape collapses to the range's
 	// ANCHOR, and a select-all anchor is byte 0 of the document. Typing there demotes the
 	// first block's kind, which — when the block below is tightly joined — enters the
-	// deferred lazy-continuation class in `docs/issues.md` and reds the convergence
+	// deferred lazy-continuation class in issue #21 and reds the convergence
 	// oracle for a reason this probe is not about. A prose-range anchor is interior.
 	escape: { consumes: 'caret', build: 'prose-range', act: pressEscape },
 	'search-round-trip': { consumes: 'range', build: 'prose-range', act: searchRoundTrip },

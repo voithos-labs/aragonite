@@ -45,7 +45,7 @@ and `test/cursor/editor-rects`; this file covers what a reader observes.
   on `scroll` strands the target there.
 - **Not covered, and known:** churn INSIDE the target's own container. A nested
   scope's upward subtotal report is correction-free by design, so the pin is never
-  consulted for it (`docs/issues.md`).
+  consulted for it (issue #32).
 
 ## Error cases
 

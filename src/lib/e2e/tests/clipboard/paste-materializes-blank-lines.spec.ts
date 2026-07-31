@@ -25,7 +25,7 @@ test.describe('paste materializes blank lines as empty-paragraph blocks', () => 
 	});
 
 	// Paste materializes the blank-line separator into an empty block, so the same
-	// bytes render one block wider than typing or loading them (`docs/issues.md`).
+	// bytes render one block wider than typing or loading them (issue #20).
 	test('pasted via clipboard: a blank-line separator materializes as an empty block', async () => {
 		await editor.loadContent('');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo'));

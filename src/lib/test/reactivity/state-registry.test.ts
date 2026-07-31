@@ -100,7 +100,7 @@ describe('state-registry', () => {
 
 		// The remount handoff: the loser is torn down within the same flush, so by the
 		// time the claim is re-asked it holds no refs to orphan. Warning here would fire
-		// on every list indent (docs/issues.md, characterized 2026-07-28).
+		// on every list indent.
 		it('stays silent when the loser was torn down in the same flush', async () => {
 			const node = makeFakeNode();
 			const loser = stateWithRefs(true);

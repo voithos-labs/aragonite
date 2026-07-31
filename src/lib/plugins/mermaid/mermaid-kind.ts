@@ -146,7 +146,7 @@ export function registerMermaidKind(): void {
 			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect via the container shim' },
 			searchPaint: {
 				mode: 'implemented',
-				via: 'raw scans as a leaf, painted via the container shim measurePartialRects; replace skips it — metadata-derived raw (issues.md)'
+				via: 'raw scans as a leaf, painted via the container shim measurePartialRects; replace skips it — metadata-derived raw (issue #41)'
 			},
 			reorder: {
 				mode: 'implemented',

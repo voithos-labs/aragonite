@@ -1,6 +1,6 @@
 # Clipboard: Blockquote paste into a non-empty blockquote paragraph
 
-From `docs/issues.md`: pasting a single blockquote clipboard while the caret sits in a non-empty blockquote paragraph classified that paragraph as an empty stub and spliced the clipboard over it, deleting the original text. The fix makes a childless leaf count as empty only when its own raw is blank, so the paste defers to default structural paste with no data loss.
+The defect this guards: pasting a single blockquote clipboard while the caret sits in a non-empty blockquote paragraph classified that paragraph as an empty stub and spliced the clipboard over it, deleting the original text. The fix makes a childless leaf count as empty only when its own raw is blank, so the paste defers to default structural paste with no data loss.
 
 ## Happy paths
 

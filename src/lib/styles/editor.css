@@ -528,7 +528,7 @@
 
 /* The checkbox stays inert: pointer-events kills the toggle click at the CSS
    layer, the toggleTask guard is the JS belt. Live checkboxes are a deferred
-   product question (docs/issues.md). */
+   product question. */
 :where(.editor)[data-presentation='reading']
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {

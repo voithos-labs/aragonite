@@ -177,7 +177,7 @@ describe('unbatched entry-path emission counts', () => {
 		resetForPointerDown(state, makeStickyColumn(), false);
 
 		// The select-all counter reset and the clear are two separate mutations, and
-		// nothing coalesces them — the shape `docs/issues.md` files as noise.
+		// nothing coalesces them — the shape issue #29 files as noise.
 		expect(notifies).toBe(2);
 		expect(state.isCrossBlock).toBe(false);
 	});

@@ -1,6 +1,6 @@
 // The slot's ownership algebra. One target at a time, but per-call claims decide
 // who may drop it: without that, an earlier reveal's terminal release nukes the pin
-// a later reveal is still riding (docs/issues.md, the anchor-ownership entry).
+// a later reveal is still riding.
 import { describe, it, expect } from 'vitest';
 import { createRevealAnchorState } from '../../cursor/reveal-anchor';
 

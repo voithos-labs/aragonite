@@ -83,7 +83,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 	// A match can land on a container node itself — a childless opaque container is
 	// scanned as a leaf — but its raw is metadata-derived (rebuildRaw), and a direct
 	// raw substitution would drift from metadata and trip the G1.12/G1.13 staleness
-	// probes. Skipped until a kind-aware write path exists (see docs/issues.md).
+	// probes. Skipped until a kind-aware write path exists (issue #41).
 	function isReplaceable(match: Match): boolean {
 		const top: CstNode | undefined = deps.doc.children[match.path[0]];
 		const node = top ? descend(top, match.path.slice(1)) : null;

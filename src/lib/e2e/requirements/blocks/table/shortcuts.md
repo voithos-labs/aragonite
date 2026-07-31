@@ -13,7 +13,7 @@
   meaning "move this row", so at the header boundary it is a no-op rather than a block move. The
   chord is the platform-modifier variant of the reorder gesture every other kind puts on Alt+↑/↓,
   which a cell caret cannot use because the row reorder claims it.
-- Shift+Enter inside a cell inserts a literal `<br>` at the cursor. GFM cells can't carry raw newlines, so the proper representation is `<br>`. Round-trip preserves the `<br>` bytes. The cell currently displays it as literal text — a visible line break in the rendered cell depends on a follow-up cell-inline-render migration (tracked in `docs/issues.md`).
+- Shift+Enter inside a cell inserts a literal `<br>` at the cursor. GFM cells can't carry raw newlines, so the proper representation is `<br>`. Round-trip preserves the `<br>` bytes. This file pins the byte-level insertion; the rendered line break is `cell-line-break.spec.ts`.
 
 ## Edge cases
 

@@ -3,7 +3,7 @@
 // Indenting a list item splices the item's NODE into a new parent, so the same
 // node is claimed by a dying mount and a fresh one. The registry's contested-claim
 // report has to read that as a handoff, not as corruption — it used to warn on
-// every Tab (docs/issues.md, characterized 2026-07-28). The regression this guards
+// every Tab. The regression this guards
 // in the other direction is the handoff landing backwards: the registry entry must
 // be the LIVE mount's state, or every later commit at that scope addresses refs
 // nothing renders.

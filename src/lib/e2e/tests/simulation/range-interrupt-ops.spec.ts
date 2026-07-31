@@ -30,7 +30,7 @@ const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph
 // The blank line under `# Overview` is load-bearing, not formatting: the TOC entry lands
 // its caret at that heading's offset 0, where the key demotes it to a paragraph. Tighten
 // the gap and the block below becomes a lazy continuation on reparse, reddening the
-// convergence oracle over the deferred class in `docs/issues.md` — nothing this probe tests.
+// convergence oracle over the deferred class in issue #21 — nothing this probe tests.
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
 
 interface Probe {

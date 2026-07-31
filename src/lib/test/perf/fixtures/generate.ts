@@ -100,7 +100,7 @@ export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
  * - `colon` — shell/API prose whose colons mostly DECLINE (`Note:`, `ns::method`,
  *   clock times) plus one real shortcode per paragraph, since the emoji rung's cost
  *   is dominated by attempts that fail.
- * - `dollar` — shell-documentation prose (`$HOME $PATH $USER`), the issues.md
+ * - `dollar` — shell-documentation prose (`$HOME $PATH $USER`), issue #27's
  *   example, plus one real math span in the first paragraph only: enough to prove the
  *   latex rung is live on the route, without making the row measure KaTeX renders.
  */
