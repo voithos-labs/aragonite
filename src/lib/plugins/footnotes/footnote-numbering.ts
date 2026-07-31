@@ -1,15 +1,8 @@
 /**
- * Derived footnote numbering, as a pure function over the read-only document — the
- * single source of truth the reference widget reads for its number. GFM numbers
- * footnotes by first-reference order, not definition order, so the walk visits
- * prose top-to-bottom and assigns a number the first time each label is referenced.
- *
- * References are first-class inline nodes (the `[^`-prefix ladder rung), so the
- * walk parses each prose leaf's inline content and collects `footnote-ref` nodes.
- * Two consequences fall out by construction: a `[^x]` inside an inline code span is
- * an `inlineCode` node, never a reference; and a definition's own `[^label]:` marker
- * lives in the container's raw, not a prose child, so it is never counted as a
- * reference of itself.
+ * Numbering derived as a pure function over the read-only document: GFM numbers by
+ * first-reference order, not definition order. Walking parsed inline nodes rather than
+ * raw bytes excludes two things by construction: a `[^x]` in a code span, and a
+ * definition's own marker, which lives in the container's raw rather than a child.
  */
 
 import {
@@ -50,7 +43,6 @@ function collectRefsInInline(
 	}
 }
 
-/** Every `[^label]` reference in prose, in document order. */
 export function collectFootnoteReferences(document: DocumentView): FootnoteReference[] {
 	const refs: FootnoteReference[] = [];
 	forEachLeaf(document.children, (leaf, path) => {
@@ -60,7 +52,6 @@ export function collectFootnoteReferences(document: DocumentView): FootnoteRefer
 	return refs;
 }
 
-/** Label → footnote number, assigned in first-reference order. */
 export function assignFootnoteNumbers(document: DocumentView): Map<string, number> {
 	const numbers = new Map<string, number>();
 	for (const ref of collectFootnoteReferences(document)) {
@@ -77,15 +68,9 @@ const numberingByDocument = new WeakMap<
 >();
 
 /**
- * The numbering every reference widget in one flush shares. Each widget derives
- * its own number, so without this the walk above ran once per widget: O(widgets ×
- * leaves), superlinear on a reference-dense document.
- *
- * `contentVersion` is the memo key, and the document alone would be wrong: the
- * editor's `$state` document is mutated IN PLACE, so its object identity survives
- * every edit and an identity-keyed memo would hit forever and return a stale map,
- * breaking the live renumber this feature is built on. The document stays in the
- * key only to separate two editors on one page (each versions independently).
+ * One numbering per flush; without it the walk ran once per widget. `contentVersion`
+ * must be in the key: the `$state` document is mutated in place, so an identity-keyed
+ * memo would hit forever and return a stale map.
  */
 export function footnoteNumbersFor(
 	document: DocumentView,

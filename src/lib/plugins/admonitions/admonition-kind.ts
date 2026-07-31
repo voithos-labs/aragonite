@@ -1,8 +1,7 @@
 /**
- * Registration for the admonition kind: directive dispatch, container descriptor,
- * the kind-cycle command, and the title chrome leaf. Reuses the shared `:::name`
- * grammar rather than a hand-written opener — the fence bytes are the round-trip
- * truth, rebuilt from children + metadata by `rebuildAdmonitionRaw`.
+ * The reference `:::name` directive container: dispatch, descriptor, kind-cycle
+ * command, title chrome leaf. Reuses the shared directive grammar rather than a
+ * hand-written opener, so the fence bytes stay the round-trip truth.
  */
 import {
 	activateDirectives,
@@ -36,19 +35,13 @@ import AdmonitionBlock from './AdmonitionBlock.svelte';
 
 export interface AdmonitionsOptions {
 	/**
-	 * Rewrite pasted GitHub-alert blockquotes to `:::name` directive source before
-	 * the parse (default false). With native alert rendering, pasted GitHub bytes
-	 * stay GitHub bytes and render as `githubAlert` unless a host opts in; the
-	 * convert-document affordance stays available either way.
+	 * Rewrite pasted GitHub-alert blockquotes to `:::name` source before the parse
+	 * (default false). Off, they stay GitHub bytes and render as `githubAlert`.
 	 */
 	convertAlertsOnPaste?: boolean;
 }
 
-/**
- * Build the container from a parsed `:::note` fence. Child 0 is the title
- * (the opener line's info, editable); children 1+ are the parsed body. The
- * verbatim fence bytes go to metadata so `raw` can be rebuilt after any edit.
- */
+/** Child 0 is the title (the opener line's info, editable); children 1+ are the body. */
 function admonitionFromDirective(kind: PluginBlockKind) {
 	return (parsed: ParsedDirective): CstNode => {
 		const title = parsed.fence.info.trim();
@@ -71,7 +64,6 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 	};
 }
 
-/** Re-emit `raw` from children + metadata after any structural or title edit. */
 const rebuildAdmonitionRaw = createDirectiveRebuild<AdmonitionMetadata>((meta) =>
 	coerceAdmonitionName(meta?.name)
 );
@@ -82,17 +74,14 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	const { admonition, title } = declareAdmonitionKinds();
 	const build = admonitionFromDirective(admonition);
 
-	// Every name resolves to one kind; the kind reads its variant back from
-	// metadata. Any unregistered `:::name` falls through to the generic fallback.
+	// Every name resolves to one kind, which reads its variant back from metadata.
 	for (const name of ADMONITION_KINDS) {
 		if (!isDirectiveRegistered('container', name)) {
 			registerDirective('container', name, { kind: admonition, fromDirective: build });
 		}
 	}
 
-	// Cycle the focused admonition's kind. `updateMetadata` is the sanctioned
-	// commit path: it merges the patch, runs rebuildRaw, and makes one undoable
-	// edit — and because the name flows into raw, the switch survives a round-trip.
+	// `updateMetadata` is the sanctioned commit path: patch, rebuildRaw, one undoable edit.
 	const cycleKind = registerBlockCommand(admonition, 'admonition.cycleKind', (ctx) => {
 		const meta = getPluginMetadata<AdmonitionMetadata>(ctx.node);
 		const dir = ctx.arg === 'prev' ? -1 : 1;
@@ -107,8 +96,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		editable: true,
 		supportsInline: false,
 		container: {
-			// The title lives in the opener line, so raw is not a strip of the
-			// children: 'opaque' marks raw authoritative.
+			// The title lives in the opener line, so raw is not a strip of the children.
 			contract: 'opaque',
 			rebuildRaw: rebuildAdmonitionRaw,
 			reservedChrome: { kind: title },
@@ -138,14 +126,10 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	registerChromeLeaf(title, { blockClass: 'admonition-title' });
 	registerBlockComponent(admonition, defineBlockComponent(AdmonitionBlock));
 
-	// Opt-in only: with native rendering, pasted GitHub-alert blockquotes stay
-	// GitHub bytes and render as `githubAlert`. A host that wants the directive
-	// rewrite instead re-enables this fence-safe sibling of the convert button.
 	if (options?.convertAlertsOnPaste) {
 		registerPasteTransform(githubAlertsPasteTransform);
 	}
 
-	// The shared component renders both kinds; the alert opener claims `> [!TYPE]`
-	// blockquotes as a native container, bytes preserved.
+	// The component registered above renders both kinds.
 	registerGithubAlert();
 }

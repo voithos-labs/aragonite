@@ -1,17 +1,10 @@
 /**
- * Per-block serialization for `rects.navigateTo`. The reveal anchor owns which
- * pin survives when two navigations race (`cursor/reveal-anchor.ts` claims), but
- * the anchor cannot un-land a caret: a navigation places one at its target, so
- * two overlapping from ONE block would land two carets and each would drag the
- * viewport to its own block on the way.
- *
- * Awaiting each navigation before issuing the next means a block never has two in
- * flight, while a navigate mid-flight overwrites the pending target, so the newest
- * always wins and a superseded middle target is dropped without an extra scroll.
+ * Per-block serialization for `rects.navigateTo`. The reveal anchor
+ * (`cursor/reveal-anchor.ts`) decides which pin survives a race but cannot un-land a
+ * caret, and two overlapping navigations from one block land two. A mid-flight call
+ * overwrites the pending target, so the newest wins with no extra scroll.
  */
 export interface NavigationQueue {
-	/** Queue a navigation to `path`, superseding any pending target and running
-	 *  serial with any in-flight one. */
 	navigateTo(path: number[]): Promise<void>;
 }
 

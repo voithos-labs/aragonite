@@ -1,17 +1,12 @@
 <script module lang="ts">
-	// Per-instance mount id (stable across the instance's whole life) plus a
-	// per-render counter: the A2 acceptance oracle. Editing one equation must
-	// re-render only that one — untouched blocks keep both their mount id (no
-	// remount) and their render count (no redundant KaTeX work).
+	// Mount id plus render count are the A2 acceptance oracle: editing one equation must
+	// leave every untouched block's pair unchanged.
 	let nextMountId = 0;
 </script>
 
 <script lang="ts">
-	// Render-primary block math: a `$$…$$` leaf showing its injected-renderer display
-	// output by default, revealing the raw source in a contenteditable on focus/click,
-	// re-rendering on blur. All editing behavior (caret, IME, undo, cross-block
-	// selection, commit) lives in `createEditableLeaf`; this component owns the
-	// render↔source swap visuals — the engine is injected through the `math-renderer` seam.
+	// Render-primary editable leaf: all editing behavior lives in `createEditableLeaf`,
+	// so this component owns only the render↔source swap visuals.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 	import { renderDisplayMath } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
@@ -40,20 +35,14 @@
 
 	// ── View rendering ──────────────────────────────────────────────────────────
 
-	// Rendered view: display render of the current source. Re-run on every mount of
-	// the render div (revealed → false recreates it) and on any source change; the
-	// document-wide memo clones a cached node, so re-rendering the same formula is cheap.
-	// `mathDisplaySource` strips the `$$` or ```math wrapper the source carries.
+	// Re-runs on every remount of the render div and on any source change; the
+	// document-wide memo clones a cached node, so a repeat formula is cheap.
 	$effect(() => {
 		if (revealed || !renderEl) return;
 		renderEl.replaceChildren(renderDisplayMath(mathDisplaySource(leaf.sourceText)).dom);
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
 	});
-
-	// The source view (populate-once-per-reveal as a single text node) and the
-	// focus-park on window-out ride `leaf.surfaceProps`; the component owns only
-	// the render↔source swap visuals above.
 
 	// ── BlockComponent interface ────────────────────────────────────────────────
 

@@ -1,13 +1,8 @@
 /**
- * ```mermaid fence — the render-primary reference plugin's grammar, built on the
- * public registration seams only. Ships as the `aragonite/plugins/mermaid` bundled
- * plugin (and doubles as the render-primary dogfood/e2e validator).
- *
- * The block is an opaque container with NO children: the diagram code lives in
- * typed plugin metadata, and `rebuildMermaidRaw` re-emits the exact fence bytes
- * from it — so an `updateOwnMetadata({ code })` commit is the whole edit path.
- * Uninstall safety is by construction: without this opener the same bytes parse
- * as plain `fencedCode` and serialize identically.
+ * The reference whole-block container, on public registration seams only: an opaque
+ * container with no children, its diagram code in typed metadata, so an
+ * `updateOwnMetadata({ code })` commit is the whole edit path. Uninstall safety is by
+ * construction: without this opener the same bytes parse as plain `fencedCode`.
  */
 
 import {
@@ -27,10 +22,10 @@ import {
 export const MERMAID = 'mermaid';
 
 /**
- * Everything `rebuildMermaidRaw` needs to re-emit the exact bytes; all values
- * primitives (the undo clone shallow-copies metadata). `infoRaw` is the opener
- * text after the fence run, verbatim (trailing spaces included); `closerRaw` is
- * the whole closer line including its line ending, `''` when unterminated.
+ * Everything `rebuildMermaidRaw` needs to re-emit the exact bytes, all primitives
+ * because the undo clone shallow-copies metadata. `infoRaw` and `closerRaw` are
+ * verbatim slices, trailing spaces and line ending included; `closerRaw` is `''`
+ * when the fence is unterminated.
  */
 export interface MermaidMetadata {
 	code: string;
@@ -43,8 +38,8 @@ export interface MermaidMetadata {
 }
 
 // ── Fence grammar ─────────────────────────────────────────────────────────────
-// The barrel's built-in matcher, gated on the info string's first word — the
-// CommonMark fence rules stay the editor's, never a plugin copy.
+// The barrel's built-in matcher, gated on the info string's first word, so the
+// CommonMark fence rules stay the editor's and never become a plugin copy.
 
 function matchMermaidFence(text: string): FenceOpen | null {
 	const fence = matchFenceOpen(text);
@@ -52,17 +47,15 @@ function matchMermaidFence(text: string): FenceOpen | null {
 }
 
 /**
- * Rejoin the edit textarea's LF-normalized draft with the block's authored line
- * ending, so a CRLF-authored diagram keeps `\r\n` on every body line through a
- * commit (the opener/closer chrome already round-trip their authored ending). An
- * emptied body commits as the empty string, carrying no stray line.
+ * The edit textarea normalizes to LF, so a CRLF-authored diagram needs its authored
+ * ending put back on every body line. An emptied body commits as `''`, no stray line.
  */
 export function joinMermaidBody(draft: string, lineEnding: string): string {
 	if (draft.length === 0) return '';
 	return draft.replaceAll('\n', lineEnding) + lineEnding;
 }
 
-/** Recompute `raw` from metadata — the opener's inverse, and the byte path every code edit rides. */
+/** The opener's inverse, and the byte path every code edit rides. */
 export function rebuildMermaidRaw(node: CstNode): void {
 	const meta = getPluginMetadata<MermaidMetadata>(node);
 	if (!meta) return;
@@ -76,11 +69,8 @@ export function rebuildMermaidRaw(node: CstNode): void {
 }
 
 // ── Component UI hooks ────────────────────────────────────────────────────────
-// A minted block command reaches the mounted component through `ctx.hooks` — the
-// platform's command→component channel. The component supplies these view-state
-// handlers via `createContainerBlock`'s `commandHooks` getter; the handlers below
-// cast the opaque `ctx.hooks` back to this shape and decline when it is absent
-// (kind registered, no instance mounted).
+// `ctx.hooks` is the platform's command→component channel; the handlers below cast it
+// back to this shape and decline when absent (kind registered, no instance mounted).
 
 export interface MermaidUiHooks {
 	openEdit(): void;
@@ -92,8 +82,8 @@ export interface MermaidUiHooks {
 export function registerMermaidKind(): void {
 	const mermaid = declarePluginKind(MERMAID);
 
-	// mermaid.edit carries no default chord — the edit affordance is the button;
-	// the minted command exists for consumer keymap bindings.
+	// No default chord: the edit affordance is the button, and this command exists for
+	// consumer keymap bindings.
 	registerBlockCommand(mermaid, 'mermaid.edit', (ctx) => {
 		const hooks = ctx.hooks as MermaidUiHooks | undefined;
 		if (!hooks) return false;
@@ -108,25 +98,21 @@ export function registerMermaidKind(): void {
 	});
 
 	registerBlockKind(mermaid, {
-		// Backspace from the block below must never merge text into a diagram;
-		// with the block also non-mergeable-into, the fallback is a focus move.
+		// Backspace from the block below must never merge text into a diagram.
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// Opaque childless artifact: arrows stop on it, a caret-adjacent
-		// Backspace/Delete focuses before a second press deletes (ThematicBreak's
-		// focus-then-delete model). The component supplies the focus surface.
+		// ThematicBreak's focus-then-delete model: arrows stop on it, and a caret-adjacent
+		// Backspace focuses before a second press deletes.
 		blockFocus: 'whole-block',
 		container: {
-			// No children: raw is authoritative and rebuilt from metadata alone,
-			// which is exactly the 'opaque' contract (exempt from the strip
-			// byte-check; guarded by the reparse + determinism probes instead).
+			// Raw is rebuilt from metadata alone, so it is exempt from the strip byte-check
+			// and guarded by the reparse + determinism probes instead.
 			contract: 'opaque',
 			rebuildRaw: rebuildMermaidRaw
 		},
-		// A rendered diagram is far taller than its fence source, which the char-based
-		// default arm would seed at ~one line. Seed VR with a diagram-sized skeleton;
-		// the measured height supersedes on mount.
+		// The char-based default would seed a rendered diagram at ~one line; the measured
+		// height supersedes this on mount.
 		estimateHeight: () => 320,
 		keymap: [{ chord: 'Mod+M', command: focusCommand }],
 		conformanceFixture: '```mermaid\ngraph TD\n```\n',
@@ -168,9 +154,8 @@ export function registerMermaidKind(): void {
 	});
 
 	registerBlockOpener(mermaid, {
-		// `fencedCode` accepts EVERY fence, ```mermaid included, so unlike the details
-		// opener (which slots into a gap between built-ins) this must price AHEAD of
-		// that superset matcher — mid-gap below it, tying nothing.
+		// `fencedCode` accepts every fence, ```mermaid included, so this must price ahead
+		// of that superset matcher rather than slot into a gap between built-ins.
 		priority: OPENER_PRIORITIES.fencedCode - 5,
 		interruptsParagraph: (line) => matchMermaidFence(line) !== null,
 		tryOpen(ctx) {
@@ -206,7 +191,7 @@ export function registerMermaidKind(): void {
 				openerLineEnding: ctx.line.lineEnding,
 				closerRaw: closeIdx === -1 ? '' : ctx.lines[closeIdx].raw
 			});
-			// Raw comes FROM the rebuild, so opener and rebuild agree by construction.
+			// Raw comes from the rebuild, so opener and rebuild agree by construction.
 			rebuildMermaidRaw(node);
 			return { node, consumed: (closeIdx === -1 ? ctx.end : closeIdx + 1) - ctx.index };
 		}

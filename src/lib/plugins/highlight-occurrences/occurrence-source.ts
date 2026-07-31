@@ -1,8 +1,7 @@
 /**
- * The selection-driven occurrence source, memoized on the edit epoch. The word
- * index is expensive (a whole-document walk); it is rebuilt only when the edit
- * epoch bumps, and a caret move re-filters the cached index with one map read.
- * This is the plugin-guide § Decorations "memoize the scan on editEpoch" recipe.
+ * The plugin-guide § Decorations "memoize the scan on editEpoch" recipe: the index
+ * costs a whole-document walk, so it is rebuilt only when the epoch bumps and a
+ * caret move re-filters the cached index with one map read.
  */
 
 import type {
@@ -17,8 +16,7 @@ import { anchorWord, buildOccurrenceIndex, type OccurrenceIndex } from './occurr
 const SOURCE_NAME = 'highlight-occurrences';
 
 export interface OccurrenceSourceDeps {
-	/** Fires on each real index rebuild — the spy seam a memoization test asserts
-	 *  against, and the observability hook the e2e harness publishes. */
+	/** Fires on each real index rebuild: the seam a memoization test asserts against. */
 	onScan?: () => void;
 }
 
@@ -30,8 +28,7 @@ export interface OccurrenceSource {
 export function createOccurrenceSource(deps: OccurrenceSourceDeps = {}): OccurrenceSource {
 	let selection: EditorSelection | null = null;
 	let index: OccurrenceIndex = new Map();
-	// The edit epoch this index was built for. Sentinel below any real epoch (0),
-	// so the first provide always scans.
+	// Sentinel below any real epoch, so the first provide always scans.
 	let indexedEpoch = -1;
 
 	function provide(doc: DocumentView, { editEpoch }: ProvideContext): MarkDecoration[] {
