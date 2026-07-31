@@ -1,6 +1,5 @@
-// Dogfood for the per-instance context spine: onEditor + edit events + a
-// plugin-owned WeakMap-equivalent + a global command + per-instance options —
-// the working proof that document + identity + events replace a state-field API.
+// Dogfood for the per-instance context spine: the working proof that document, identity,
+// and events replace a state-field API.
 import { definePlugin, registerGlobalCommand, type EditorContext } from '$lib/plugin';
 
 export interface DocStatsOptions {

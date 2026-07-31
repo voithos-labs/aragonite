@@ -9,18 +9,11 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * Fork-A spike gate: the `:::note` callout reserves child 0 as an editable
- * `note-title` chrome leaf (see src/routes/test/plugins/callout).
- *
- * Gate 2 — reserved-index-0 structural ops. The merge walk targets the last
- *   BODY child (never the title); an interior Backspace against the not-mergeable
- *   title moves focus instead of merging; typing keeps the note-title kind
- *   (contextDependentKind); Enter in the title descends into the body (chrome is
- *   single-line — it never splits); title-start Backspace is a safe no-op.
- *
- * Gate 5 — paste into the title. A multi-block clipboard dropped in the title
- *   flattens to a single line spliced at the caret; the chrome never splits and
- *   the container-paste family never fires for it.
+ * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * src/routes/test/plugins/callout). Gate 2 — reserved-index-0 structural ops: the merge walk
+ * targets the last BODY child (never the title); an interior Backspace against the not-mergeable
+ * title moves focus instead of merging; typing keeps the kind; Enter descends into the body
+ * (chrome never splits). Gate 5 — a multi-block paste into the title flattens to one line.
  */
 test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste', () => {
 	let editor: PluginsPage;
@@ -73,10 +66,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 
-		// firstChildBackspace='lift-first-child' resolves to unwrapFirstChildFromQuote,
-		// gated on the container descriptor's unwrapRole.quoteShaped capability. The
-		// callout omits it, so the tree-op returns [] and the strategy early-returns —
-		// the chrome is neither lifted nor destroyed.
+		// firstChildBackspace='lift-first-child' resolves to unwrapFirstChildFromQuote, gated on
+		// the container descriptor's unwrapRole.quoteShaped capability. The callout omits it, so
+		// the tree-op returns [] and the strategy early-returns — the chrome is neither lifted nor
+		// destroyed.
 		const note = await readNote(page, 1);
 		expect(note.rootCount).toBe(2);
 		expect(note.childCount).toBe(2);
@@ -92,9 +85,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
 
-		// The reserved-chrome contract: chrome is single-line by serialization, so
-		// Enter routes to chrome.descendToBody (the registerChromeLeaf default) —
-		// a pure focus move into the first body child, no split, no commit.
+		// The reserved-chrome contract: chrome is single-line by serialization, so Enter routes to
+		// chrome.descendToBody (the registerChromeLeaf default) — a pure focus move into the first
+		// body child, no split, no commit.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
 		const note = await readNote(page, 1);
@@ -148,10 +141,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
-		// Descend on an existing body is a pure focus move: were it to push a dead
-		// undo entry, this single undo would consume it and "BodyQ" would survive.
-		// Poll the CST children (not the source bytes) so the assert waits for the tree
-		// to re-materialize the reverted text.
+		// Descend on an existing body is a pure focus move: were it to push a dead undo entry, this
+		// single undo would consume it and "BodyQ" would survive. Poll the CST children (not the
+		// source bytes) so the assert waits for the tree to re-materialize the reverted text.
 		await editor.undo();
 		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts)).toEqual(['Title', 'Body']);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -165,10 +157,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains(':::note TitleX');
 
-		// note-title is registered via registerChromeLeaf, so it carries
-		// contextDependentKind. updateNodeContent honors that flag: a content commit
-		// writes raw and keeps the kind instead of re-deriving it from the bare title
-		// line (which has no recognizer and would downgrade to paragraph).
+		// note-title is registered via registerChromeLeaf, so it carries contextDependentKind.
+		// updateNodeContent honors that flag: a content commit writes raw and keeps the kind
+		// instead of re-deriving it from the bare title line (which has no recognizer and would
+		// downgrade to paragraph).
 		const note = await readNote(page, 1);
 		expect(note.childKinds[0]).toBe('note-title');
 		expect(note.childTexts[0]).toBe('TitleX');
@@ -180,9 +172,8 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		// A structural edit inside the callout, then a merge — the windowing-adjacent
-		// invariant (ids/refs length === children length) must hold with the reserved
-		// chrome row present.
+		// A structural edit inside the callout, then a merge — the windowing-adjacent invariant
+		// (ids/refs length === children length) must hold with the reserved chrome row present.
 		await editor.focusBlockAtPath([1, 1], 4); // end of "Body"
 		await page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(5);

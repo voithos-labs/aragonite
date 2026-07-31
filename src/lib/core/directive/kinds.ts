@@ -1,13 +1,8 @@
 /**
- * Generic fallback kinds for the `:::name` directive primitive. An unregistered
- * directive name round-trips through these instead of resolving to a first-class
- * plugin kind, so `:::anything` stays lossless with no plugin installed.
- *
- * The container declares an `'opaque'` contract: the `:::name` fence lives in the
- * node's own `raw`, not in a child, so `strip(raw) !== serialize(children)` and
- * `rebuildDirectiveContainerRaw` is the single reconstruction path (mirrors the
- * callout/details precedents). Core-relative imports, not `$lib/plugin` — the
- * barrel pulls a Svelte component in and would cycle back through core.
+ * Generic fallback kinds for the `:::name` directive primitive, so `:::anything` stays lossless
+ * with no plugin installed. The container is `'opaque'`: its fence lives in the node's own
+ * `raw`, not in a child, making `rebuildDirectiveContainerRaw` the single reconstruction path.
+ * Imports stay core-relative because the `$lib/plugin` barrel would cycle back through core.
  */
 
 import {
@@ -36,7 +31,7 @@ export interface DirectiveContainerMetadata {
 	info: string;
 	closerColonCount: number;
 	closerNewline: boolean;
-	/** Authored line ending (`\n` or `\r\n`) for the opener + closer chrome lines. */
+	/** Authored line ending for the opener and closer chrome lines. */
 	lineEnding: string;
 }
 
@@ -95,12 +90,9 @@ export function registerDirectiveKinds(): void {
 // ── Text tier: inline `:name[label]{attrs}` ────────────────────────────────────
 
 /**
- * Declare the `directiveText` inline kind and register its atomic widget. The `:`
- * recognizer (text-recognizer.ts) stamps this kind on the span it delimits; the
- * widget renders the source dimmed and opts into `revealSource`, so focusing it
- * swaps the rendered island for its editable source and blur/Enter commits the
- * edit — the shared inline-widget reveal primitive (widget-interaction.ts).
- * Idempotent for HMR / re-import via the declared-kind probe.
+ * The `:` recognizer (text-recognizer.ts) stamps this kind on the span it delimits. The widget
+ * opts into `revealSource`, so focus swaps the island for editable source and blur/Enter commits
+ * (the shared reveal primitive in widget-interaction.ts). Idempotent for HMR.
  */
 export function registerDirectiveTextKind(): void {
 	if (isInlineKindDeclared(DIRECTIVE_TEXT)) return;
@@ -119,9 +111,8 @@ function buildDirectiveTextWidget(node: InlineNode, raw: string): HTMLElement {
 	return shell;
 }
 
-// Enter opens a paragraph sibling (a leaf never holds an in-line break; the split
-// reparses the empty tail to a paragraph); Backspace/Delete route through the
-// not-mergeable merge walk, which moves focus rather than concatenating.
+// Enter opens a paragraph sibling: a leaf never holds an in-line break, so the split reparses
+// its empty tail. Backspace/Delete take the not-mergeable walk, moving focus without joining.
 const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 	{ chord: 'Enter', command: 'block.split' },
 	{ chord: 'Tab', command: 'block.insertTab' },
@@ -131,10 +122,8 @@ const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
 ];
 
-// The `::name` fence is a dimmed marker prefix; the editable content is the info
-// that follows it. Mirrors the heading marker-range mechanism for this non-prose
-// leaf. A raw that no longer opens a fence (an edit broke `::name`) reparses to a
-// paragraph before this is consulted, so the null branch is a defensive floor.
+// The `::name` fence is a dimmed marker prefix, on the heading marker-range mechanism. A raw
+// that no longer opens a fence reparses to a paragraph first, so the null branch is a floor.
 function directiveLeafContentRange(node: NodeView): { start: number; end: number } {
 	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
 	const start = fence ? fence.colonCount + fence.name.length : 0;
@@ -154,9 +143,8 @@ export function rebuildDirectiveContainerRaw(node: CstNode): void {
 		closerColonCount: meta.closerColonCount,
 		closerNewline: meta.closerNewline,
 		lineEnding: meta.lineEnding,
-		// The parse side threads only the opener ending; recover the closer's own
-		// ending off the current raw (the closer is its last line) so a mixed-ending
-		// directive keeps it. Ignored when `closerNewline` is false.
+		// The parse side threads only the opener ending, so a mixed-ending directive recovers
+		// the closer's from the current raw, whose last line it is.
 		closerLineEnding: trailingLineEnding(node.raw)
 	});
 }

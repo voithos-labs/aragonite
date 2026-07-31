@@ -22,9 +22,9 @@ on `/test/plugins` (seed-gated where noted), never packaged, never showcased.
   pattern demo for in-flow widget decorations and their byte-safety, without a
   completion backend. Seed-gated.
 - `fold/` — `[>…<]` ranges fold to a clickable `…` replace island; pins
-  `ReplaceDecoration.widget`, native interactivity inside an island, and the
-  islands-in-cells gap (docs/issues.md). Seed-gated. Stays a fixture until the
-  section-folding promotion call is made against evidence.
+  `ReplaceDecoration.widget`, native interactivity inside an island, and islands
+  inside table cells. Seed-gated. Stays a fixture until the section-folding
+  promotion call is made against evidence.
 - `block-badge/` — class + badge widget on every heading host; pins
   `BlockDecoration.badge` incl. survival across windowing. Seed-gated.
 - `sim-mark/` — the standing decoration source the simulation corruption oracle

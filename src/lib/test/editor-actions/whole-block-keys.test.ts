@@ -34,7 +34,7 @@ function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
 	} as unknown as KeyboardEvent;
 }
 
-/** Seed the column the way a real vertical run does: through the door, not `capture`. */
+/** Seeds the column the way a real vertical run does: through the door, not `capture`. */
 function seedColumn(stickyColumn: StickyColumnState, x: number): void {
 	stickyColumn.noteKey({ key: 'ArrowDown', altKey: false }, () => asEditorX(x));
 }
@@ -100,11 +100,9 @@ describe('handleWholeBlockKeys', () => {
 	});
 });
 
-// The whole-block surface has no caret to measure, so it routes the key through
-// `noteKey` with no measureX: a vertical run passing through keeps its column,
-// everything else ends the run. Without this the column set before entering the
-// block outlived a horizontal traversal and, because `capture` is idempotent,
-// the next ArrowDown in the landing block reused the stale pixel X.
+// With no caret to measure, the surface routes the key through `noteKey` with no
+// measureX. Without it a column outlives a horizontal traversal and, since `capture` is
+// idempotent, the next ArrowDown in the landing block reuses the stale pixel X.
 describe('handleWholeBlockKeys: sticky column', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
@@ -144,9 +142,8 @@ describe('handleWholeBlockKeys: sticky column', () => {
 		expect(stickyColumn.get()).toBeNull();
 	});
 
-	// Belt-and-suspenders on this path: both callers consume the reorder chord
-	// before the shared tail. The door declines it anyway, so a caller that ever
-	// stops consuming it still can't clear a live column.
+	// Belt-and-suspenders: both callers consume the reorder chord before the shared tail,
+	// but the door declines it anyway.
 	it('Alt+ArrowUp (the reorder chord) neither clears nor recaptures', () => {
 		const { deps, stickyColumn } = makeDeps();
 		seedColumn(stickyColumn, 200);

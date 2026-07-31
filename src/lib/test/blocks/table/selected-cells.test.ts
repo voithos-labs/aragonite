@@ -42,9 +42,8 @@ describe('selectedCells', () => {
 		]);
 	});
 
-	// `rangeRects` is public API. With two tables on screen, a rectangle dragged
-	// in table A must not hand table B its own cells at A's coordinates — the
-	// requested range is the honest answer for every table but the rect's owner.
+	// `rangeRects` is public API. With two tables on screen, a rectangle dragged in table A must not
+	// hand table B its own cells at A's coordinates.
 	it('ignores a rectangle that belongs to another table', () => {
 		const cells = selectedCells({ rect: rectAt([5]), myPath: [0], start: 0, end: 1, ...GRID });
 		expect(cells).toEqual([{ rowIdx: 0, colIdx: 0 }]);

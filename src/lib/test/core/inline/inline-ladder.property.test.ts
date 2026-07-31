@@ -5,14 +5,9 @@ import { INLINE_PRIORITIES, registerInlineSyntax } from '../../../core/inline/sc
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { arbInlineSource, freshOrFixedSeed } from '../../invariants/arbitraries';
 
-// Footnote-, directive- and embed-shaped tokens interleaved with adversarial inline
-// content, so the `[^` prefix-match, bare-`:` and `![[` decline paths are actually
-// exercised — arbInlineSource alone rarely emits `[^` (culture.md: a generator
-// that can't produce the bug class proves nothing about it). The `!` rows are not
-// `[^` wearing a different prefix: a registered `!` rung defeats the fast bail on
-// ordinary prose, so `!`-bearing sources take the full scan loop where they used to
-// short-circuit to one text node — a path the `[^` rung never reaches, since `[` was
-// always scan-visible.
+// Ladder-shaped tokens interleaved with adversarial content: arbInlineSource alone rarely
+// emits `[^` (culture.md — a generator that can't produce the bug class proves nothing),
+// and a registered `!` rung defeats the fast bail, forcing the full scan loop `[` skips.
 const ladderToken = fc.constantFrom(
 	'[^1]',
 	'[^',

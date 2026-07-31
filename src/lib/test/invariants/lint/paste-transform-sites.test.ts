@@ -1,36 +1,16 @@
 /**
- * G4.11 — paste-transform two-site parity. Per the `paste-transforms.ts` header,
- * every site where clipboard text reaches `parse()` must run
- * `applyPasteTransforms` first, or a plugin's registered transform is silently
- * skipped for that route. Exactly two sanctioned sites route clipboard text to
- * the parser: the tree-op paste dispatch and the cross-block selection paste.
- *
- * This is a sibling-path parity guard for a funnel that can't exist yet — the two
- * paste routes are structurally different (one is a tree-op input, one a
- * selection handler), so there's no shared seam to force the call through.
- *
- * Two arms, because the two directions fail differently:
- *  - CALLER parity. Set-equality over the files that call `applyPasteTransforms`
- *    fails the day a caller is added or removed.
- *  - READ-SITE enumeration. Caller parity cannot see the shape this guard was
- *    written for: a new clipboard→parse route that never mentions the symbol
- *    contributes nothing to the caller set and passes. So the reads themselves
- *    are enumerated — every site that pulls text out of a clipboard or a drop
- *    payload must be a known site that reaches a sanctioned route, and each
- *    entry names the handoff symbol that carries it there, so ripping the
- *    handoff out fails the entry rather than silently orphaning the read.
- *
- * `deps.readText()` is deliberately NOT a read shape here despite its name: it
- * is `el.textContent`, the editable surface's own DOM text on input, and never
- * carries clipboard bytes. `dataTransfer.getData` has no site today and is
- * scanned so the drop route fires the day it is born.
+ * G4.11 — paste-transform two-site parity (see the `paste-transforms.ts` header): every
+ * site where clipboard text reaches `parse()` must run `applyPasteTransforms` first. Two
+ * arms, because a new clipboard→parse route that never mentions the symbol contributes
+ * nothing to the caller set: read sites are enumerated too, each naming the handoff
+ * symbol that carries it to a sanctioned route. `deps.readText()` is NOT a read shape
+ * despite its name — it is `el.textContent`.
  */
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
 
-// A CALL to `applyPasteTransforms(`, excluding the `function applyPasteTransforms(`
-// declaration in the module that defines it — a fixed-length negative lookbehind
-// V8 accepts.
+// A CALL, excluding the declaration in the module that defines it — a fixed-length
+// negative lookbehind V8 accepts.
 const CALL_RE = /(?<!function\s)\bapplyPasteTransforms\s*\(/;
 
 /** Each sanctioned clipboard→parse site → why it legitimately parses clipboard text. */
@@ -49,15 +29,14 @@ const RULE = `every clipboard→parse route must run applyPasteTransforms; the t
 // ── Read-site enumeration ────────────────────────────────────────────────────
 
 /**
- * Pulling a payload off a clipboard or a drop — the routes this rule governs. The
- * accessor arms tolerate `?.` and `!.` between the carrier and the read: a non-null
- * assertion is the shape a new route is most likely to be written with, and matching
- * only `.`/`?.` let a planted probe through. `.files` is a read shape too — the
- * image-import arm turns a File into markdown that must still reach the transforms,
- * so a future route pulling `dataTransfer.files` in a new file has to declare itself.
+ * Pulling a payload off a clipboard or a drop. The accessor arms tolerate `!.` because a
+ * non-null assertion is the shape a new route is most likely written with.
+ *
+ * Keyed on the READ and the carrier TYPE, never the receiver's NAME: moving a read into a
+ * helper whose parameter is called `data` unenrolls it from an identifier-keyed scan.
  */
 const CLIPBOARD_READ_RE =
-	/(?:clipboardData|dataTransfer)\s*[!?]?\s*\.\s*(?:getData|files)\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/;
+	/[!?]?\.\s*getData\s*\(|[!?]?\.\s*files\b|\bDataTransfer\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/;
 
 /** Each site that reads external text → the sanctioned route it hands the text to. */
 const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
@@ -69,11 +48,18 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'pasteDispatch',
 		why: 'the right-click menu paste has no ClipboardEvent to read, so it reads through navigator.clipboard and calls the paste tree-op directly'
 	},
+	'src/lib/components/paste-image-arm.ts': {
+		handoff: 'handlePaste',
+		why: 'the image-import arm reads the attachment payload and hands the hook’s markdown to the cross-block paste route, which is a sanctioned site'
+	},
 	'src/lib/selection/cross-block/paste.ts': {
 		handoff: 'applyPasteTransforms',
 		why: 'a sanctioned site itself: runs the transforms before parsing the pasted slice'
 	}
 };
+
+// `editor-root-clipboard.ts` is deliberately absent: it forwards the carrier and reads no
+// payload of its own. Keying on the carrier would pull in copy/cut files that only WRITE.
 
 const READ_RULE =
 	'every clipboard/drop read must reach a sanctioned paste route. A new read site joins ' +
@@ -132,8 +118,8 @@ describe('G4.11 paste-transform two-site parity', () => {
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('flags a clipboard→parse route that never mentions the transforms', () => {
-		// The shape caller parity structurally cannot see: a new route contributes
-		// no element to the caller set, so only the read enumeration catches it.
+		// The shape caller parity cannot see: a new route contributes no element to the
+		// caller set, so only the read enumeration catches it.
 		const rogue = {
 			relPath: 'src/lib/blocks/rogue-paste.ts',
 			code: "const t = e.clipboardData.getData('text/plain'); parse(t);"

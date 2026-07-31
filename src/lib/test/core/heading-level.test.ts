@@ -2,9 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { headingLevel } from '$lib/core/nodes';
 
-// The public heading-level reader: a plugin building an outline (the toc plugin)
-// needs a heading's level through the authoring barrel, where `isBuiltinBlockNode`
-// (the narrowing gate for `metadata.level`) is deliberately not exposed.
+// Exists because `isBuiltinBlockNode` — the narrowing gate for `metadata.level` — is
+// deliberately off the authoring barrel a plugin reads.
 describe('headingLevel', () => {
 	it('reads each ATX heading depth', () => {
 		for (const level of [1, 3, 6]) {

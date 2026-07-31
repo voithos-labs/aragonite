@@ -1,31 +1,17 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
-// Native GitHub-alert container gestures for the admonitions plugin (plugins route,
-// `?seed=admonitions` installs it). A `> [!TYPE]` blockquote is its own `githubAlert`
-// strip container in the blockquote mold: the marker line lives only in the container
-// raw + metadata, the body is real child blocks, and the bytes are never rewritten to
-// `:::`. Each gesture drives real keyboard/mouse, gates on the container promotion /
-// structural change, then resyncs around the reparse — never predicts across a
-// paragraph→container flip. Free functions taking `ctx` first, mirroring
-// gestures/footnote.ts. The formation gesture matches the github-alerts e2e's
-// type-from-scratch path; the merge and unwrap gestures assert the kind-stability and
+// Native GitHub-alert container gestures (plugins route, `?seed=admonitions`). A `> [!TYPE]`
+// blockquote is its own `githubAlert` strip container: the marker lives only in the container
+// raw + metadata, and the bytes are NEVER rewritten to `:::`. Each gates on the promotion or
+// structural change and resyncs; the merge and unwrap gestures assert the kind-stability and
 // marker-drop boundaries the container's `unwrapRole` promises.
 
 /**
- * Form a `githubAlert` from scratch below `targetIndex`: split off a fresh line with
- * Enter, type the `> [!TYPE]` marker (which promotes the empty block to an alert with
- * the caret already in its body), then type `body` straight on — a second Enter would
- * exit the quote. Marker formation from live typing, the reclassification-plus-promotion
- * the printable tracker cannot predict, so it settles on the alert kind materializing at
- * the new index (`targetIndex + 1`) plus the marker+body in the source, and resyncs. The
- * marker interrupts the paragraph above, so no lazy-merge divergence forms.
- *
- * The marker is typed PER KEYSTROKE, so the editor sees the blockquote promotion at `>`,
- * the inline recognizer's `[` rung, and the alert reclassification at `]` as three
- * separate input events rather than one finished string; a regression confined to those
- * intermediate states is invisible to an atomic insert. The body then waits on the marker
- * reaching the source, because the promotion has to land the caret in the body before the
- * first body character is typed.
+ * Marker formation from live typing. Typed PER KEYSTROKE, so the editor sees the blockquote
+ * promotion at `>`, the inline recognizer's `[` rung, and the alert reclassification at `]`
+ * as three separate input events — a regression confined to those intermediate states is
+ * invisible to an atomic insert. No second Enter: that would exit the quote. The body waits
+ * on the alert kind, since reclassification must land the caret in the body first.
  */
 export async function typeGithubAlert(
 	ctx: SimContext,
@@ -38,15 +24,10 @@ export async function typeGithubAlert(
 
 	await editor.focusBlockEnd(targetIndex);
 	await page.keyboard.press('Enter');
-	// Atomic on purpose, and NOT what a user does. Per-keystroke formation is blocked
-	// by a live defect: typing `>` then `[!TYPE]` leaves the block a `blockquote`
-	// forever — it never reclassifies to `githubAlert`, `parseConverged()` goes false
-	// (the live tree diverges from a reparse of its own bytes), and the body then
-	// concatenates onto the marker line. One `insertText` reparses the block and
-	// classifies correctly, which is why this gesture has never seen it. Restore the
-	// per-keystroke form when the reclassification path is fixed.
-	await editor.typeText(`> [!${alertType}]`);
-	await editor.bridge.waitForSourceContains(`> [!${alertType}]`);
+	await editor.typeSlowly('>');
+	await waitForKindAt(ctx, alertIndex, 'blockquote');
+	await editor.typeSlowly(`[!${alertType}]`);
+	await waitForKindAt(ctx, alertIndex, 'githubAlert');
 	await editor.waitForRenderFlush();
 	await editor.typeSlowly(body);
 
@@ -57,13 +38,9 @@ export async function typeGithubAlert(
 }
 
 /**
- * Backspace at the start of the non-first body block at `[alertIndex, childIndex]` —
- * merges it into the previous body block (the container `default-merge`). The merge
- * must stay INSIDE the alert: the container keeps its `githubAlert` kind and its `>
- * [!TYPE]` marker, the root count holds, and only the alert's own child count drops by
- * one. Asserts each of those and fails loud if the merge escaped the container or
- * dropped the marker, so a regression in the middle-child unwrapRole cannot record a
- * corrupted tree as truth.
+ * The merge must stay INSIDE the alert: kind and marker survive, the root count holds, and
+ * only the alert's own child count drops. All four are asserted, so a regression in the
+ * middle-child unwrapRole cannot record a corrupted tree as truth.
  */
 export async function mergeGithubAlertMiddleChild(
 	ctx: SimContext,
@@ -97,13 +74,9 @@ export async function mergeGithubAlertMiddleChild(
 }
 
 /**
- * Backspace at the very start of the alert's first body child at `alertIndex` — lifts
- * the first child out and drops the marker (the container `lift-first-child`), so this
- * alert loses its `githubAlert` kind and its body reparses as a plain block. The bytes
- * are never rewritten to `:::`. Asserts exactly one alert vanished (robust to sibling
- * alerts elsewhere in the session) and the `:::` form never appears; fails loud
- * otherwise. The source changes (the marker line drops), so it settles on the marker
- * leaving the source and resyncs.
+ * `lift-first-child`: the alert loses its kind and its body reparses as a plain block.
+ * Asserts exactly ONE alert vanished (robust to sibling alerts elsewhere in the session) and
+ * that the `:::` form never appears.
  */
 export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -128,14 +101,9 @@ export async function unwrapGithubAlert(ctx: SimContext, alertIndex: number): Pr
 }
 
 /**
- * Alt+Arrow reorder of the body child at `[alertIndex, childIndex]` WITHIN the alert
- * (dir -1 up, +1 down) — the seam the 0.9.35 strip-container parity task reached. The
- * alert is a blockquote-shaped strip container, so its body child permutes in place
- * while the container keeps its `githubAlert` kind, its `> [!TYPE]` marker, its root
- * slot, and its child count. A regression to the pre-fix teleport would move the whole
- * alert among the document siblings (root count changes) or rebuild it as a plain
- * blockquote (marker drops); both guards throw loudly rather than record a corrupted
- * tree as truth.
+ * A reorder WITHIN the alert: the body child permutes in place while kind, marker, root slot
+ * and child count all hold. A regression to the teleport moves the whole alert among document
+ * siblings or rebuilds it as a plain blockquote; both guards throw.
  */
 export async function reorderGithubAlertBodyChild(
 	ctx: SimContext,

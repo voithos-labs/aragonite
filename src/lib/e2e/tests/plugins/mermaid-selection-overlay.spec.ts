@@ -3,13 +3,11 @@ import { PluginsPage } from './helpers';
 
 /**
  * Cross-block selection overlay over childless opaque containers
- * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block swept
- * into a cross-block range has no child block-hosts to paint highlights, so the
- * block itself must take the full-block overlay — in the rendered AND the
- * error state — while child-bearing containers keep delegating to their
- * children (no double paint). Lives in the plugins project because only plugin
- * kinds produce childless containers; the built-in overlay behavior is pinned
- * in tests/selection/overlay.spec.ts.
+ * (requirements/plugins/mermaid-selection-overlay.md). A mermaid block swept into a cross-block
+ * range has no child block-hosts to paint highlights, so the block itself must take the full-block
+ * overlay — in the rendered AND the error state — while child-bearing containers keep delegating to
+ * their children (no double paint). Lives in the plugins project because only plugin kinds produce
+ * childless containers; the built-in overlay behavior is pinned in tests/selection/overlay.spec.ts.
  */
 
 const RENDERED_DOC =

@@ -14,9 +14,8 @@ test.describe('image cross-block selection', () => {
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('Shift+ArrowRight');
-		// The widget carries no textContent, so range.toString() doesn't include
-		// the source bytes. Check the structural assertion instead — the widget
-		// element falls inside the Range bounds.
+		// The widget carries no textContent, so range.toString() can't see the source bytes; assert
+		// structurally that the widget element falls inside the Range bounds.
 		const widgetInRange = await page.evaluate(() => {
 			const s = window.getSelection();
 			if (!s || s.rangeCount === 0) return false;
@@ -31,8 +30,7 @@ test.describe('image cross-block selection', () => {
 		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
-		// One Shift+ArrowRight atomically jumps across the widget; the widget
-		// is a single addressable unit so a second press would extend into 'b'.
+		// One Shift+ArrowRight jumps the whole widget; a second press would extend into 'b'.
 		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('![cat]');
@@ -45,17 +43,15 @@ test.describe('image cross-block selection', () => {
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
-		// Observe the delete before undoing it: without this, the restore predicate
-		// is satisfied by the document as loaded and a Backspace that never fired
-		// passes the test.
+		// Observe the delete before undoing: otherwise the restore predicate is satisfied by the
+		// document as loaded, and a Backspace that never fired passes.
 		await editor.bridge.waitForSourceNotContains('![cat]');
 		await page.keyboard.press('Control+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
-	// A pointer drag that STARTS on the image must reach the block's cross-block
-	// machinery. Before the widget stopped propagating its pointerdown, the block
-	// never saw the gesture and no drag could originate from an image.
+	// A drag that STARTS on the image must reach the block's cross-block machinery: while the
+	// widget swallowed its own pointerdown, no drag could originate from an image.
 	test('drag starting on an image widget into the next block enters cross-block', async ({
 		page
 	}) => {

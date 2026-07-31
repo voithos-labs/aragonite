@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
-// Guards widgetExtensionTarget's widget filter: Shift+Arrow extension must
-// target ANY atomic inline widget, not only images. A raw-HTML <br> renders as
-// a live widget, so a caret against its edge + Shift+ArrowRight must extend the
-// selection across it. In a browser Chromium straddles the contenteditable=false
-// island natively (so e2e can't discriminate); jsdom's native selection does NOT
-// auto-extend, so this unit test catches a regression to `kind !== 'image'`.
+// Guards widgetExtensionTarget's widget filter: Shift+Arrow extension must target ANY atomic
+// inline widget, not only images. A raw-HTML <br> renders as a live widget, so a caret at its edge
+// plus Shift+ArrowRight must extend across it. Chromium straddles the contenteditable=false island
+// natively (so e2e cannot discriminate); jsdom does not, so this catches a regression to
+// `kind !== 'image'`.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { getInlineContent } from '$lib/core/inline/inline-cache';
@@ -47,9 +46,8 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	});
 
 	function makeInteraction() {
-		// Only node / getEl / getAmbientLength / linkRef are read on this path.
-		// The rest stay deliberately untouched: a throwing stub would surface any
-		// accidental coupling introduced later.
+		// Only node / getEl / getAmbientLength / linkRef are read on this path; the rest stay throwing
+		// stubs so any accidental coupling introduced later surfaces.
 		const trap = () => {
 			throw new Error('unexpected dep access on the shift-arrow extension path');
 		};
@@ -97,9 +95,8 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 
 		const consumed = interaction.handleShiftArrowIntoWidget(evt);
 
-		// Primary discriminator: the handler only consumes when widgetExtensionTarget
-		// matches the rawHtml node. Reverting the filter to `kind !== 'image'` skips
-		// it (no image present), the handler returns false, and this assertion fails.
+		// Primary discriminator: reverting the filter to `kind !== 'image'` skips the rawHtml node (no
+		// image present), the handler returns false, and this assertion fails.
 		expect(consumed).toBe(true);
 		// Secondary: the native selection now spans the widget — focus moved to the
 		// far (trailing) edge, raw offset 5 == text "b" offset 0.

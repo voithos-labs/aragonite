@@ -5,7 +5,7 @@ import {
 	clippingAncestors,
 	firstScrollableDescendant,
 	nearestScrollContainer,
-	nearestUserScrollableAncestor
+	userScrollportFor
 } from '../../cursor/scroll-ancestors';
 
 describe('nearestScrollContainer', () => {
@@ -78,9 +78,8 @@ describe('nearestScrollContainer', () => {
 	});
 });
 
-// The two host-seam walks. Their divergence is the point: one host shape (a
-// rounded card, `overflow: hidden` at auto height, inside a real scroller) must
-// autoscroll the scroller while bounding visibility by both boxes.
+// The two host-seam walks diverge on one real host shape: a rounded card (`overflow: hidden` at
+// auto height) inside a scroller must autoscroll the scroller but be bounded by both boxes.
 describe('host-seam walks', () => {
 	let root: HTMLDivElement;
 
@@ -106,16 +105,18 @@ describe('host-seam walks', () => {
 
 	const card = { overflowX: 'hidden', overflowY: 'hidden' };
 
-	it('answers nothing when the page viewport is what scrolls and bounds', () => {
+	it('answers the window when the page viewport is what scrolls and bounds', () => {
 		const leaf = nest([{}, {}]);
-		expect(nearestUserScrollableAncestor(leaf)).toBeNull();
+		// Total, not null: a page-scrolled embedding is a real autoscroll answer, and
+		// every caller spelled the old null as "nothing to scroll".
+		expect(userScrollportFor(leaf)).toBe(window);
 		expect(clippingAncestors(leaf)).toEqual([]);
 	});
 
 	it('autoscroll skips a hidden card and finds the real scroller behind it', () => {
 		const leaf = nest([{ overflowY: 'auto' }, card, {}]);
 		const cardEl = leaf.parentElement!;
-		expect(nearestUserScrollableAncestor(leaf)).toBe(cardEl.parentElement);
+		expect(userScrollportFor(leaf)).toBe(cardEl.parentElement);
 	});
 
 	it('visibility collects the card AND the scroller, innermost first', () => {
@@ -130,7 +131,7 @@ describe('host-seam walks', () => {
 		const leaf = nest([{ overflowX: 'clip', overflowY: 'clip' }, {}]);
 		const pane = leaf.parentElement!;
 		expect(clippingAncestors(leaf)).toEqual([pane]);
-		expect(nearestUserScrollableAncestor(leaf)).toBeNull();
+		expect(userScrollportFor(leaf)).toBe(window);
 		expect(nearestScrollContainer(leaf, root)).toBeNull(); // the inner walk ignores clip
 	});
 
@@ -140,7 +141,7 @@ describe('host-seam walks', () => {
 		document.body.style.overflowY = 'auto';
 		try {
 			const leaf = nest([{}]);
-			expect(nearestUserScrollableAncestor(leaf)).toBeNull();
+			expect(userScrollportFor(leaf)).toBe(window);
 			expect(clippingAncestors(leaf)).toEqual([]);
 		} finally {
 			document.body.style.overflowY = '';

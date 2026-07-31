@@ -1,22 +1,8 @@
 /**
- * G4.10 — plugin package/pack parity. Every directory under `src/lib/plugins/`
- * is a shippable subpath, so each must surface as a `./plugins/<name>` entry in
- * package.json `exports` — from which verify-pack derives the tarball's REQUIRED
- * manifest (`scripts/pack-manifest.mjs`), pulling in `dist/plugins/<name>/index.js`
- * + `dist/plugins/<name>/index.d.ts`. A plugin dir absent from `exports` is
- * silently unshippable; this lint is the filesystem-grounded check that the export
- * surface — and the derivation that reads it — covers every plugin source dir.
- *
- * The mapping is subset, not equality: latex and mermaid legitimately publish an
- * extra `/renderer` engine-adapter subpath, so the manifest carries more entries
- * than there are plugin dirs. The guard only asserts every dir is reachable —
- * never that every manifest entry maps back to a dir.
- *
- * sideEffects soft sub-check: a plugin module with a top-level (non-Svelte) CSS
- * import — latex's `renderer.ts` pulling KaTeX's stylesheet — is tree-shake-unsafe
- * unless its dist path is listed in `sideEffects`, or a bundler drops the bare
- * import and every equation paints twice. Only that one detectable shape is
- * flagged; side-effectfulness in general is not inferred.
+ * G4.10 — every directory under `src/lib/plugins/` must surface in package.json
+ * `exports`, which verify-pack derives the tarball's manifest from; a dir absent from it
+ * is silently unshippable. Subset, not equality: a plugin may publish extra subpaths. The
+ * sideEffects sub-check flags one detectable hazard, an unlisted top-level CSS import.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';

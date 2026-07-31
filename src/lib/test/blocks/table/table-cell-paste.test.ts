@@ -14,11 +14,8 @@ function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
 }
 
-/**
- * A paste into cell 0 of a two-cell row, carried the way the editor carries it:
- * the hook returns spliced text, the write sink applies the kind's rule, and the
- * row's rebuilt bytes are read back through a parse of their own table.
- */
+/** A paste into cell 0 of a two-cell row, carried the way the editor carries it: the hook returns
+ *  spliced text, the sink applies the kind's rule, and the row is read back through a parse. */
 function pasteIntoRow(cellRaw: string, offset: number, text: string, preDelete?: PasteRange) {
 	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete);
 	const row: CstNode = {
@@ -95,10 +92,8 @@ describe('tableCellInlinePaste', () => {
 		expect(caretOffset).toBe(2);
 	});
 
-	// Escaping only the incoming text leaves the splice free to break the cell: the
-	// backslash that was holding the cell's own `|` down now escapes the pasted
-	// character instead, and the freed `|` splits the row. The whole-raw pass at the
-	// sink is what closes this, so each case is read through the sink.
+	// Escaping only the incoming text leaves the splice free to break the cell: the backslash holding
+	// the cell's own `|` down escapes the pasted character instead, and the freed `|` splits the row.
 	it('re-escapes a pipe the insertion point frees, not just the pasted text', () => {
 		expect(pasteIntoRow('a\\|b', 2, 'X').cells).toEqual(['a\\X\\|b', 'keep']);
 	});

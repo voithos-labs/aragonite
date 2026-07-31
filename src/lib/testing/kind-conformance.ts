@@ -1,32 +1,9 @@
 /**
- * The generic per-kind conformance battery — the executable half of the closure
- * matrix. Registering a block kind ENROLLS it: `runKindConformance` derives one
- * cell per `ClosureColumn` from the kind's `closure` block and its
- * `conformanceFixture`, and runs the headless part of each cell now. "A matrix
- * row is executed, not declared."
- *
- * Cell-execution contract (honest by construction — a cell is executed only where
- * its mechanism is headlessly observable; everything else is recorded, never
- * stubbed green):
- *
- *   column          mode              what executes
- *   ─────────────── ───────────────── ──────────────────────────────────────────
- *   roundTrip       any (fixtured)    serialize(parse(fixture)) === fixture;
- *                                      containers also assert rebuildRaw is deterministic
- *   mergeBackspace  any               isMergeEligible agrees with the merge-role table
- *                                      (an independent restatement, not a re-derivation)
- *   clipboard       inherit-default   copy is a raw byte slice — no kind synthesis
- *   clipboard       implemented       the profile's custom check, else boundary
- *   undo            inherit-default   one structural op → exactly one undo entry
- *   searchPaint     not-supported     the document scan finds no match (degradation)
- *   focus / selectionPaint / searchPaint(other) / reorder / simOracle  → boundary
- *
- * A browser- or e2e-only cell is `boundary`: the next batch's browser sweep runs
- * it. A `not-supported` cell with no generic degradation is `exempt`, carrying
- * its declared reason. A profile's custom check is honored ONLY where the cell is
- * declared `implemented`; on any other mode it contradicts the declaration and the
- * run fails, so reverting a profiled cell's mode cannot silence its guard.
- * Runner-agnostic — plain `Error`s, no runner import.
+ * The generic per-kind conformance battery — the executable half of the closure matrix.
+ * Registering a block kind enrolls it: one cell per `ClosureColumn`, derived from the
+ * kind's `closure` block and `conformanceFixture`. A cell is executed only where its
+ * mechanism is headlessly observable; everything else is recorded as `boundary` or
+ * `exempt`, never stubbed green. Runner-agnostic — plain `Error`s, no runner import.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -75,10 +52,7 @@ export interface KindConformanceReport {
 	cells: KindCellReport[];
 }
 
-/**
- * The parsed fixture context a cell executor (and a profile's custom check) reads.
- * Present only when the kind declares a `conformanceFixture`.
- */
+/** The parsed fixture context a cell executor reads; absent without a `conformanceFixture`. */
 export interface KindCellContext {
 	kind: AnyBlockKind;
 	descriptor: BlockKindDescriptor;
@@ -93,9 +67,8 @@ export interface KindCellCheck {
 }
 
 /**
- * Profile-supplied overrides. A column with a custom `check` runs it instead of
- * the generic executor — the seam a kind uses to exercise a mechanism-specific
- * cell the runner cannot observe generically (e.g. table's rectangular copy).
+ * Profile-supplied overrides. A column with a custom `check` runs it instead of the
+ * generic executor, for a mechanism the runner cannot observe (table's rectangular copy).
  */
 export interface KindConformanceProfile {
 	cells?: Partial<Record<ClosureColumn, KindCellCheck>>;
@@ -116,11 +89,8 @@ const CLOSURE_ORDER: ClosureColumn[] = [
 ];
 
 /**
- * Execute every headless closure cell for `kind`. Resolves with the per-cell
- * report when every executed cell holds and every boundary/exempt cell is
- * recorded; throws an `Error` naming each failed cell otherwise. A declared
- * `conformanceFixture` that parses to no node of the kind is itself a failure —
- * the whole run would exercise the wrong tree.
+ * Execute every headless closure cell for `kind`, or throw an `Error` naming each failed
+ * cell. A `conformanceFixture` parsing to no node of the kind fails the run outright.
  */
 export async function runKindConformance(
 	kind: AnyBlockKind,
@@ -174,13 +144,8 @@ async function runCustomCheck(
 	check: KindCellCheck['check'],
 	ctx: KindCellContext | null
 ): Promise<CellResult> {
-	// A profile custom check is the seam for an `implemented` cell whose mechanism
-	// the generic executor cannot observe (table's rectangular copy). On any other
-	// declared mode it is a contradiction: the cell claims the default ceremony
-	// (`inherit-default`) or structural absence (`not-supported`), yet a bespoke
-	// check overrides — silencing the declared-mode executor. Refusing it here is
-	// what makes reverting a profiled cell off `implemented`, with the profile left
-	// intact (the table-clipboard cell that lied about its rect-copy mechanism), go red rather than stay green.
+	// On any mode but `implemented` a custom check contradicts the declaration and would
+	// silence the declared-mode executor, so reverting a profiled cell's mode goes red.
 	if (cell.mode !== 'implemented') {
 		fail(
 			`profile supplies a "${column}" check for "${kind}", but its declared mode is ` +
@@ -271,9 +236,7 @@ function execRoundTrip(
 
 /**
  * An independent restatement of the merge-role → Backspace-merge table
- * (docs/design/editor.md). Re-deriving the expectation from `isMergeEligible`
- * would make the check vacuous; stating it here catches a mergeRole/closure drift
- * or a silent change to the eligibility rules.
+ * (docs/design/editor.md); re-deriving it from `isMergeEligible` would be vacuous.
  */
 const MERGE_ROLE_EXPECTATION: Record<
 	MergeRole,
@@ -315,8 +278,8 @@ function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellRe
 	if (needle === null) return { status: 'exempt', detail: cell.reason };
 	const compiled = compileMatcher(needle, { caseSensitive: true, wholeWord: false, regex: false });
 	if (!compiled.ok) return { status: 'exempt', detail: cell.reason };
-	// Non-vacuous: the needle IS present in the raw, so no match can only mean the
-	// document scan deliberately skips this non-searchable kind.
+	// Non-vacuity: the needle IS present in the raw, so no match can only mean the scan
+	// deliberately skips this non-searchable kind.
 	assert(
 		compiled.matcher.findAll(ctx.node.raw).length > 0,
 		`needle "${needle}" is present in the "${ctx.kind}" raw`
@@ -350,8 +313,7 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 			detail: `no conformanceFixture — undo depth runs in the ${BROWSER_SWEEP}`
 		};
 
-	// One structural op → one undo entry: the commit ceremony's property, driven
-	// over the fixture. A trailing sentinel guarantees a second block to delete.
+	// The trailing sentinel guarantees a second block to delete.
 	const doc = parse(ctx.fixture + '\n\nundo sentinel\n');
 	const { deps } = createHeadlessActions(doc.children);
 	const controller = createUndoController(deps);
@@ -396,14 +358,10 @@ function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellResu
 const CLIPBOARD_SENTINEL = '\n\nclipboard sentinel\n';
 
 /**
- * Assert the DEFAULT copy ceremony over `kind`'s fixture is a pure raw byte slice
- * — the honest meaning of `clipboard: inherit-default`. A partial cross-block copy
- * that STARTS inside the kind's block and runs into a trailing sentinel must equal
- * the underlying raw slice, verbatim. A kind that synthesizes on copy (table's
- * rectangular sub-table, chrome-wrapper recovery) diverges and this throws — which
- * is exactly what would have caught `table.clipboard` falsely declared
- * `inherit-default`. Exported so a regression test can drive it against a kind the
- * runner would otherwise route to a custom check.
+ * Assert the DEFAULT copy ceremony over `kind`'s fixture is a pure raw byte slice — the
+ * honest meaning of `clipboard: inherit-default`. A kind that synthesizes on copy
+ * diverges and this throws. Exported so a regression test can drive it against a kind
+ * the runner would otherwise route to a custom check.
  */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
 	const doc = parse(fixture + CLIPBOARD_SENTINEL);

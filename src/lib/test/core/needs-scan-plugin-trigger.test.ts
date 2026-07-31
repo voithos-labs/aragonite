@@ -9,10 +9,8 @@ import {
 
 afterEach(() => __resetInlineSyntaxForTests());
 
-// Minimal single-char triggers claiming `<trigger>…}`. The `{…}` (label-less)
-// form isolates the probe — `{`, `}`, `=` are not SPECIAL chars, so only the
-// trigger can force a scan. A `[label]` form would trip needsScan on the `[`
-// alone and hide a missing probe.
+// The label-less `{…}` form isolates the probe: `{`, `}`, `=` are not SPECIAL chars, so
+// only the trigger can force a scan. A `[label]` form would trip needsScan on the `[`.
 const recognizer =
 	(trigger: string): InlineSyntaxRecognizer =>
 	(raw, pos, end) => {
@@ -23,10 +21,8 @@ const recognizer =
 	};
 const recognizeColon = recognizer(':');
 
-// `:` is a PROBE_SCHEME char (autolink `://`), held out of the unconditional
-// SPECIAL set. The fast-bail must additionally probe a registered `:` trigger or
-// an inline directive would be missed per keystroke — without regressing the
-// empty-registry path the conformance oracle pins.
+// `:` is a PROBE_SCHEME char held out of the unconditional SPECIAL set, so the fast bail
+// must probe the registry too — without regressing the empty-registry path.
 describe('needsScan probes a registered ":" trigger', () => {
 	it('empty registry: ":x" stays one byte-identical text node', () => {
 		expect(parseInline(':x', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: ':x' }]);
@@ -40,9 +36,8 @@ describe('needsScan probes a registered ":" trigger', () => {
 	});
 });
 
-// `w`/`W` are PROBE_WWW chars (autolink `www.`), the `:` arm's sibling — the
-// registry probe must be carried at BOTH conditional-probe arms (sibling-path
-// parity), again without regressing the empty-registry path.
+// `w`/`W` are the PROBE_WWW arm, sibling to `:` above: the registry probe must be carried
+// at BOTH conditional-probe arms (sibling-path parity).
 describe('needsScan probes a registered "w" trigger', () => {
 	it('empty registry: "wx" stays one byte-identical text node', () => {
 		expect(parseInline('wx', 0, 2)).toEqual([{ kind: 'text', start: 0, end: 2, text: 'wx' }]);
@@ -63,10 +58,8 @@ describe('needsScan probes a registered "w" trigger', () => {
 	});
 });
 
-// `!` is reserved (the image opener) yet held out of SPECIAL_CHARS, so its prefix
-// rungs need the same probe the unreserved triggers get. `!{k=v}` carries no `[`,
-// the character that would otherwise force the scan on the embed syntax this
-// unlocks — so only the probe can save it from the fast bail.
+// `!` is reserved yet held out of SPECIAL_CHARS, so its prefix rungs need the same probe.
+// `!{k=v}` carries no `[`, so only the probe can save it from the fast bail.
 describe('needsScan probes a registered "!" prefix rung', () => {
 	it('empty registry: "!{k=v}" stays one byte-identical text node', () => {
 		expect(parseInline('!{k=v}', 0, 6)).toEqual([

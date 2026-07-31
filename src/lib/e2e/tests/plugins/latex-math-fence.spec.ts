@@ -2,13 +2,12 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from './helpers';
 
 /**
- * GitHub's third math form: a ```math fence parsed as the distinct `mathFence` kind,
- * not `mathBlock` and not a plain `fencedCode`. It rides the same render-primary
- * BlockMath component as `$$…$$`, so this pins only what is specific to the fence — the
- * kind identity, a KaTeX render through the shared component, and one reveal→edit→commit
- * round trip that keeps the fence a `mathFence` (the shared editable-leaf mechanics are
- * proven by latex-block.spec.ts). Seed `mathfence`: `Before` / ```math / x^2 / ``` /
- * `After` — the fence block sits at index 1.
+ * GitHub's third math form: a ```math fence parsed as the distinct `mathFence` kind, not
+ * `mathBlock` and not a plain `fencedCode`. It rides the same render-primary BlockMath component as
+ * `$$…$$`, so this pins only what is specific to the fence — the kind identity, a KaTeX render
+ * through the shared component, and one reveal→edit→commit round trip that keeps the fence a
+ * `mathFence` (the shared editable-leaf mechanics are proven by latex-block.spec.ts). Seed
+ * `mathfence`: the fence block sits at index 1.
  */
 
 class MathFencePage extends PluginsPage {

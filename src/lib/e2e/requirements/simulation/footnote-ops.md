@@ -22,20 +22,15 @@ the oracle for the live renumber, so this session asserts structural integrity, 
   pure view toggle that moves no byte across the round trip
 - revealing a reference, inserting into its label, and committing with Enter rewrites the source
   only after the commit, never while the ephemeral reveal DOM is showing
-- entering `[^label]: body` over a whole blank-line-separated prose paragraph forms a
-  footnote-def strip container with one paragraph child on the reparse. It forms over a
-  blank-line-separated paragraph (not one split off by Enter, whose single-newline separator
-  would let the `interruptsParagraph: false` definition lazily merge back on reparse — the
-  documented Enter-at-end divergence, a general split defect not a footnote one), and it is
-  typed per character, which routes the line through a transient inline reference widget: the
-  `[^label]` prefix mounts one on its closing `]`, and the `: ` plus body are typed against
-  that widget's trailing edge before the reparse resolves the line to a definition marker
+- entering `[^label]: body` over a whole prose paragraph forms a footnote-def strip container
+  with one paragraph child on the reparse. It is typed per character, which routes the line
+  through a transient inline reference widget: the `[^label]` prefix mounts one on its closing
+  `]`, and the `: ` plus body are typed against that widget's trailing edge before the reparse
+  resolves the line to a definition marker
 - Enter in the middle of a definition body child splits it into two body children; the
   container's children grow, the document root does not (the strip container inherits
-  blockquote's split override). The split is mid-child, not at the child's end: an end-split
-  mints a trailing empty child that a footnote-def's indent-free blank continuation cannot keep
-  attached on reparse (the Enter-at-end class inside the container, `docs/issues.md`), so that
-  sub-case is a noted residual rather than a pinned one
+  blockquote's split override). Parse convergence holds at every checkpoint, the split
+  included
 - editing the split continuation child rebuilds the container's own raw around it and leaves the
   document a single footnote-def at that root index
 

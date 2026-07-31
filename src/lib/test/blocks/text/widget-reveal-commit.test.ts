@@ -1,18 +1,10 @@
 // @vitest-environment jsdom
 //
-// commitReveal's undo / caret contract, driven through the real
-// createWidgetInteraction over a mounted math-widget DOM — the layer that owns the
-// finding, above the reveal primitive (cursor/reveal-source.test.ts) and below the
-// e2e undo stack (plugins/latex-inline.spec.ts). Pins three behaviours a broken
-// commit path would silently regress:
-//   1. a no-edit commit folds back WITHOUT calling updateBlockContent (a zero-diff
-//      commit pushes a dead undo entry);
-//   2. the post-commit caret is the widget's live trailing edge, so an edit to the
-//      surrounding prose shifts it correctly (a length delta off the old end would not);
-//   3. the cross-block rule sits at the BLUR caller, not inside the commit: blur
-//      keeps the source revealed so its rects measure real text, while the clipboard
-//      fold still commits — the alternative is splicing node.raw bytes the ephemeral
-//      edit never reached.
+// commitReveal's undo / caret contract, driven through the real createWidgetInteraction over a
+// mounted math-widget DOM — above the reveal primitive (cursor/reveal-source.test.ts) and below
+// the e2e undo stack (plugins/latex-inline.spec.ts). Three regressions it would hide: a zero-diff
+// commit pushing a dead undo entry, a post-commit caret taken off the widget's stale end, and the
+// cross-block rule moving off the BLUR caller into the commit itself.
 import { describe, it, expect } from 'vitest';
 import {
 	createWidgetInteraction,
@@ -73,9 +65,8 @@ function mountMathBlock() {
 		)
 	);
 
-	// Entry from the leading edge opens the widget's reveal there and anchors undo at
-	// the widget's leading offset (math.start) — the anchor the commit assertions below
-	// depend on. Entry from the trailing edge would anchor at math.end.
+	// Entry from the leading edge anchors undo at the widget's leading offset (math.start), the
+	// anchor the commit assertions below depend on; the trailing edge would anchor at math.end.
 	async function reveal(): Promise<void> {
 		interaction.enterWidget(math, false);
 		await new Promise((r) => setTimeout(r));
@@ -95,9 +86,8 @@ function mountMathBlock() {
 	};
 }
 
-// The fold seam every commit gesture funnels through — blur, a clipboard splice, a
-// block command. Driving it directly keeps these cases about the commit contract
-// rather than about whichever key happens to reach it.
+// The fold seam every commit gesture funnels through. Driving it directly keeps these cases
+// about the commit contract rather than about whichever key happens to reach it.
 function commitViaFold(interaction: ReturnType<typeof mountMathBlock>['interaction']) {
 	interaction.foldRevealBeforeMutation();
 }
@@ -114,9 +104,8 @@ describe('commitReveal — no-edit short-circuit', () => {
 		// snapshot, so the user's next Ctrl+Z reverts nothing.
 		expect(block.commits).toEqual([]);
 		expect(block.interaction.isRevealing()).toBe(false);
-		// Folded back to the rendered widget via the focus-guarded pending cursor,
-		// landing at the widget's trailing edge. No text rides along: nothing was
-		// written, so the offset already addresses the CST's own bytes.
+		// Folded back via the focus-guarded pending cursor, landing at the widget's trailing edge. No
+		// text rides along: nothing was written, so the offset already addresses the CST's own bytes.
 		expect(block.pendingCursors).toEqual([{ offset: block.math.end, writtenText: undefined }]);
 	});
 });
@@ -188,10 +177,8 @@ describe('commitReveal — edit persistence and caret precision', () => {
 
 		commitViaFold(block.interaction);
 
-		// The commit caret goes through the block-edit door, which a kind whose write
-		// sink rewrites bytes (tableCell escapes every free `|`) can map. The pending
-		// cursor bypasses that door, so it can only be mapped against the text it
-		// addresses — which therefore has to travel with it. Prose ignores the text.
+		// The pending cursor bypasses the block-edit door a rewriting kind's write sink needs, so it
+		// can only be mapped against the text it addresses — which therefore has to travel with it.
 		expect(block.pendingCursors).toEqual([
 			{ offset: block.math.end + 1, writtenText: 'Before $yx^2$ after' }
 		]);
@@ -220,9 +207,8 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 
 		const caret = block.interaction.foldRevealBeforeMutation();
 
-		// A null return means "nothing was open", which is what the clipboard seam
-		// tests to decide whether to tick and fold. Refusing here let cut/paste
-		// splice the pre-reveal bytes and drop the edit with no undo entry.
+		// A null return means "nothing was open", which the clipboard seam tests to decide whether to
+		// tick and fold. Refusing here let cut/paste splice the pre-reveal bytes with no undo entry.
 		expect(caret).not.toBeNull();
 		expect(block.commits).toHaveLength(1);
 		expect(block.commits[0].raw).toBe('Before $yx^2$ after\n');
@@ -231,10 +217,8 @@ describe('commitReveal — the cross-block rule lives at the blur caller', () =>
 });
 
 describe('cancelReveal — identity-exact fold-back', () => {
-	// Two byte-identical widgets: the cancel swap must restore the EXACT element it
-	// detached. Any rebuild-by-lookup (the pool keys on `${kind} ${source}`) can
-	// return the other instance, and replaceWith would MOVE it — vacating its slot
-	// and desyncing DOM from CST.
+	// Two byte-identical widgets: the cancel swap must restore the EXACT element it detached. A
+	// rebuild-by-lookup (the pool keys on `${kind} ${source}`) would MOVE the other instance.
 	it('Escape restores the same element it swapped out, leaving its twin untouched', async () => {
 		const node: CstNode = parse('Twice $x^2$ and $x^2$ again').children[0];
 		const [first, second] = computeInlineContent(node).filter(
@@ -281,7 +265,6 @@ describe('cancelReveal — identity-exact fold-back', () => {
 			}
 		} as unknown as WidgetInteractionDeps);
 
-		// Reveal the SECOND widget by entering from its leading edge, then Escape-cancel.
 		interaction.enterWidget(second, false);
 		await new Promise((r) => setTimeout(r));
 		expect(el.childNodes[3]).not.toBe(secondWidget); // swapped for the source text node

@@ -1,9 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// The fenced-code renderer wraps each fence line in `.md-fence-line` so reading
-// and preview collapse the whole line — marker AND its `\n` — instead of leaving
-// a bare `\n` that paints a blank line at the code box's top and bottom.
+// Each fence line is wrapped so reading and preview collapse the whole line — marker AND
+// its `\n` — instead of leaving a bare newline painting a blank line in the code box.
 // Requirements: e2e/requirements/presentation/presentation-code-fences.md.
 
 const DOC = ['```js', 'const a = 1;', 'const b = 2;', 'const c = 3;', '```', '', 'text after'].join(

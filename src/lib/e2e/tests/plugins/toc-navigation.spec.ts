@@ -1,14 +1,14 @@
 import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
-import { PluginsPage } from './helpers';
+import { PluginsPage, activeBlockPath } from './helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * The `[[toc]]` outline (requirements/plugins/toc-navigation.md): entries indent by
- * heading level and click to navigate, in every presentation mode, including to a
- * heading windowed out by virtual rendering. The document-prop derivation and its
- * pins live in `toc-document-prop`; this spec owns the hierarchy + navigation layer.
- * Every fixture puts `[[toc]]` at block 0 for a stable entry locator.
+ * The `[[toc]]` outline (requirements/plugins/toc-navigation.md): entries indent by heading level
+ * and click to navigate, in every presentation mode, including to a heading windowed out by virtual
+ * rendering. The document-prop derivation and its pins live in `toc-document-prop`; this spec owns
+ * the hierarchy + navigation layer. Every fixture puts `[[toc]]` at block 0 for a stable entry
+ * locator.
  */
 
 // Capped viewport → the editor is a real scroll container, so a deep heading windows
@@ -108,7 +108,9 @@ test.describe('toc outline: click-to-navigate', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('navigates in reading mode (a navigation click is view-only)', async ({ page }) => {
+	test('navigates in reading mode, placing the selection with no editable target', async ({
+		page
+	}) => {
 		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await expect(page.locator(`[data-block-path='[${target}]']`)).toHaveCount(0);
@@ -117,6 +119,13 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.waitForRenderFlush();
 
 		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		// Reading mode turns contenteditable off, so no block can hold the caret as activeElement —
+		// the native range is the observable that the selection landed, and it is what makes the
+		// navigation's write the same write in both modes.
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: { path: [target], offset: 0 },
+			focus: { path: [target], offset: 0 }
+		});
 	});
 
 	// Entries are real `<button>`s: tab-focusable, activating on Enter/Space. Keyboard
@@ -154,6 +163,22 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.waitForRenderFlush();
 
 		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		expect(errors).toEqual([]);
+	});
+
+	// A navigation lands the caret, so the editor's own chords reach the document straight
+	// afterwards instead of dying on the entry `<button>` that still had focus. Typing is the
+	// user-visible half of the same fact.
+	test('the caret lands in the target heading, so the next keystroke edits it', async ({
+		page
+	}) => {
+		const errors = capturePageErrors(page);
+
+		await editor.entry('Deep Target Heading').click();
+		await expect.poll(() => activeBlockPath(page)).toEqual([target]);
+
+		await page.keyboard.type('X');
+		expect(await editor.bridge.getSource()).toContain('X### Deep Target Heading');
 		expect(errors).toEqual([]);
 	});
 });

@@ -2,15 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Drift guard: the plugin guide's API-reference section is the hand-written catalog
-// of the `aragonite/plugin` surface. Every value and type the barrel exports must
-// appear there, so a new export can't ship undocumented. Names are matched in the
-// guide's backtick form (its table convention), so an incidental prose substring
-// can't stand in for a real catalog entry.
-//
-// The section is keyed by its heading, not its position, so the guide's prose can be
-// reordered without the catalog escaping the guard — but the heading itself is now
-// load-bearing: rename it here and in the guide together.
+// Drift guard: every export of the `aragonite/plugin` barrel must appear in the plugin
+// guide's hand-written catalog, so a new export can't ship undocumented. Names match in
+// backtick form, so incidental prose cannot stand in for a catalog entry. The section
+// is keyed by its heading, which makes the heading load-bearing: rename it in both.
 const CATALOG_HEADING = '\n## API reference';
 
 function pluginExports(): string[] {

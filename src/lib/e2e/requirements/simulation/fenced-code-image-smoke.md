@@ -23,6 +23,12 @@ those two block kinds under the always-on oracle suite on every run.
 - the jump-back edit nets to identity: the typed char is removed and the
   source returns to its pre-detour value even though the caret landed
   mid-document
+- seed-gated range interrupt: a live cross-block range meets one interrupting
+  gesture and a single printable key, which must land on that gesture's pinned
+  outcome. This is the only ungated session whose document holds an image, so it
+  is where the widget-click contract meets a real note; the click below the last
+  block is correctly withheld here, since an image-only paragraph offers the band
+  no character position. Contracts in `range-interrupt-ops.md`
 
 ## User interactions
 

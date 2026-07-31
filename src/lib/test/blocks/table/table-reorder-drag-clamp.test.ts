@@ -5,10 +5,8 @@ import {
 	type RowReorderDragContext
 } from '$lib/components/blocks/table/table-reorder-drag';
 
-// The into-header clamp, unit-tested at the drag controller rather than through a
-// flaky "drag a body row into the header region" e2e. A drag whose pointer rises
-// above the fixed header lands on gap 1 (rowEdges[1]) and commits (from, 1) —
-// never above the header.
+// The into-header clamp, unit-tested at the drag controller rather than through a flaky "drag a
+// body row into the header" e2e: a pointer above the fixed header lands on gap 1, never above it.
 
 describe('startRowReorderDrag — into-header clamp', () => {
 	const realRaf = globalThis.requestAnimationFrame;

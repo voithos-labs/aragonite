@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
 /**
- * The dev diagnostic on a declined image edit. Suppressing the commit is what keeps
- * the author's bytes; the warn is what keeps the suppression from being a mystery —
- * an affordance that visibly does nothing is the bottom rung of the ladder without
- * it. So the three outcomes are pinned together, because the interesting one is the
- * third: a hook that returns bytes identical to the source is dropped by the commit's
- * equality guard and warns NOTHING, which is why a hook must decline a field it
- * cannot represent rather than ignore it.
+ * The dev diagnostic on a declined image edit: suppressing the commit keeps the author's bytes,
+ * and the warn keeps the suppression from being a mystery. The three outcomes are pinned together
+ * because the interesting one is a hook returning byte-identical bytes — dropped by the commit's
+ * equality guard, warning NOTHING, which is why a hook must decline a field it cannot represent.
  */
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
@@ -85,9 +82,8 @@ describe('a declined image edit says which rung declined and why', () => {
 		expect(warnings()[0]).toContain('cannot represent this edit');
 	});
 
-	// The quiet failure a consumer hits first: a hook that ignores the field the user
-	// edited returns the source unchanged, so the seam never declines and the commit's
-	// equality guard drops it with nothing to read anywhere.
+	// The quiet failure a consumer hits first: a hook that ignores the edited field returns the
+	// source unchanged, so the seam never declines and the equality guard drops it silently.
 	it('says nothing when a hook returns the bytes it was given', () => {
 		registerWikiRung(() => '![[cat.png|300]]');
 		const { committer, controller } = committerFor(SOURCE);

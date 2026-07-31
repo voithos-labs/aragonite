@@ -1,10 +1,8 @@
 /**
- * Reactive state bundle for a container's inner BlockList children.
- * innerBlockIds / innerBlockRefs are the Svelte keyed-each source and the
- * component-ref slot array; structural mutations route through the commit
- * primitives on UndoController (commitContainerStructural / commitMultiScope),
- * which apply StructuralChange descriptors to keep ids/refs aligned with
- * children.
+ * Reactive state bundle for a container's inner BlockList children: the keyed-each source
+ * and the component-ref slot array. Structural mutations route through the commit
+ * primitives on UndoController, which apply `StructuralChange` descriptors to keep
+ * ids/refs aligned with children.
  */
 
 import { untrack } from 'svelte';
@@ -18,11 +16,9 @@ export interface BlockListState {
 	innerBlockRefs: (BlockComponent | undefined)[];
 }
 
-/**
- * `getNode` must be a live getter — by-value would freeze on the initial node
- * and miss undo's deep-clone reassignment. A view suffices: the only writes
- * here target `childIds`, the bytes-view carve-out.
- */
+/** `getNode` must be a live getter — by-value freezes on the initial node and misses
+ *  undo's deep-clone reassignment. A view suffices: the only writes target `childIds`,
+ *  the bytes-view carve-out. */
 export function createBlockListState(getNode: () => NodeView): BlockListState {
 	const initialNode = getNode();
 	if (!initialNode.childIds) {
@@ -46,8 +42,7 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		}
 	};
 
-	// Sync registration so callers outside a reactive context (unit tests) see
-	// the entry on creation.
+	// Sync so callers outside a reactive context (unit tests) see the entry on creation.
 	registerBlockListState(initialNode, state);
 
 	// Re-register on node-identity changes (undo replaces nodes via deep clone).
@@ -58,13 +53,9 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		}
 		registerBlockListState(node, state);
 
-		// A parent-scope replace can reuse this component instance with a node
-		// prop that has fewer children than before (e.g. list-exit replaces the
-		// list with a shorter list whose id is idMap-preserved). The inner {#each}
-		// re-keys and sets innerBlockRefs[0..n) by index, but index-keyed
-		// ref-setting never clears the stale trailing slots left by the longer
-		// prior node. Reconcile length so refs tracks children — the
-		// innerBlockIds getter already tracks node.childIds for free.
+		// A parent-scope replace can reuse this instance with a node prop that has fewer
+		// children than before. Index-keyed ref-setting never clears the stale trailing
+		// slots the longer prior node left, so reconcile the length here.
 		const childCount = node.children?.length ?? 0;
 		untrack(() => {
 			if (innerBlockRefs.length > childCount) {

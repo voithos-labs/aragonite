@@ -2,7 +2,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { isLiveHtmlTag } from '../../core/inline/raw-html-widget';
 import type { InlineNode } from '../../core/nodes';
 
 describe('renderInlineNodes — rawHtml (literal-default)', () => {
@@ -115,23 +114,5 @@ describe('renderInlineNodes — rawHtml (live <br> widget)', () => {
 		const node: InlineNode = { kind: 'rawHtml', start: 0, end: raw.length };
 		const frag = renderInlineNodes([node], raw);
 		expect(frag.querySelector('span.md-raw-html')).not.toBeNull();
-	});
-});
-
-describe('isLiveHtmlTag — predicate', () => {
-	it('returns true for <br>', () => {
-		expect(isLiveHtmlTag('<br>')).toBe(true);
-	});
-	it('returns true for <br/>', () => {
-		expect(isLiveHtmlTag('<br/>')).toBe(true);
-	});
-	it('returns true for </br>', () => {
-		expect(isLiveHtmlTag('</br>')).toBe(true);
-	});
-	it('returns false for <span>', () => {
-		expect(isLiveHtmlTag('<span>')).toBe(false);
-	});
-	it('returns false for <!-- comment -->', () => {
-		expect(isLiveHtmlTag('<!-- comment -->')).toBe(false);
 	});
 });

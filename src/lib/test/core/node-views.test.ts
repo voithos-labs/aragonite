@@ -1,10 +1,8 @@
 /**
- * Type pins for the bytes-scoped view (G1.9 as a type). The `@ts-expect-error`
- * directives are the assertions: `npm run check` fails if a byte-field write
- * starts compiling through a view (the directive becomes "unused") or if the
- * `childIds`/`ownerEpoch` carve-out stops compiling. The pin function is never
- * invoked — the writes must not execute; the runtime cases cover the two
- * behaviors that do run (carve-out writes, view serialization).
+ * Type pins for the bytes-scoped view (G1.9 as a type). The `@ts-expect-error` directives
+ * ARE the assertions: `npm run check` fails if a byte-field write starts compiling through
+ * a view, or if the `childIds`/`ownerEpoch` carve-out stops compiling. `compileTimePins`
+ * is never invoked — the writes must not execute.
  */
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
@@ -37,11 +35,8 @@ export function compileTimePins(node: NodeView, doc: DocumentView): void {
 }
 
 /**
- * A view discriminates: `isBuiltinBlockNode` opens the switch that the branded
- * plugin arm blocks, and each arm reads its own metadata (bytes-readonly) with no
- * `metadataOf`. Positive pin — stops compiling if the union stops discriminating
- * through the view. Kept out of `compileTimePins` because the suppressed
- * `node.kind = …` write there narrows `kind` and would strand these cases.
+ * Positive pin: stops compiling if the union stops discriminating through a view. Kept out
+ * of `compileTimePins` because the suppressed `node.kind = …` write there narrows `kind`.
  */
 export function viewNarrowingPin(node: NodeView): void {
 	if (isBuiltinBlockNode(node)) {

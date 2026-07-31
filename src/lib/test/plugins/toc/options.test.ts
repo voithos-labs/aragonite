@@ -15,10 +15,8 @@ function reset(): void {
 beforeEach(reset);
 afterEach(reset);
 
-// `maxDepth` is a definition-time option threaded to the component as a constant
-// extraProp — this pins the produced `tocPlugin({ maxDepth })` interface end to end
-// (factory arg → extraProps closure → component prop), which the walk/e2e (fixed at
-// the default 6) never exercises.
+// Pins `tocPlugin({ maxDepth })` end to end, from factory arg through the extraProps
+// closure to the component prop — the walk and e2e both run at the default.
 describe('tocPlugin maxDepth option', () => {
 	function tocExtraProps(): Record<string, unknown> | undefined {
 		const kind = declaredPluginKind(TOC_BLOCK);

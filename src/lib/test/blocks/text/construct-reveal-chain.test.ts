@@ -31,9 +31,8 @@ describe('constructChainAtOffset', () => {
 	});
 
 	it('the end edge reveals even though findNodeAtOffset right-prefers past it', () => {
-		// The reveal is deliberately MORE inclusive than the boundary lookup: at
-		// offset 7 the model lookup resolves the following text node, but the arrow
-		// step from 7 goes into marker text, so the construct must already show.
+		// The reveal is deliberately MORE inclusive than the boundary lookup: at offset 7 the model
+		// lookup resolves the following text node, but the arrow step from 7 goes into marker text.
 		const node = parse('a **b** c\n').children[0];
 		const inlines = getInlineContent(node);
 		expect(findNodeAtOffset(inlines, 7)?.node.kind).toBe('text');
@@ -50,17 +49,15 @@ describe('constructChainAtOffset', () => {
 	});
 
 	it('a construct filling the whole block reveals at both block edges', () => {
-		// Block-start/end edge: offset 0 and the block-final offset are inclusive, so a
-		// leftward walk into the opening `**` (and a rightward one into the closing `**`)
-		// reveals — the markers are steppable before the caret would land in them.
+		// Block-start/end edge: offset 0 and the block-final offset are inclusive, so the markers are
+		// steppable before the caret would land in them.
 		expect(chainKinds('**bold**', 0)).toEqual(['strong']);
 		expect(chainKinds('**bold**', 8)).toEqual(['strong']);
 	});
 
 	it('empty wrapped markup is literal text, never a construct — no chain', () => {
-		// CommonMark forbids empty emphasis: `****` is four literal asterisks, not an
-		// empty strong, so the "empty construct" boundary case does not exist — a caret
-		// among the asterisks sees plain text with nothing to reveal.
+		// CommonMark forbids empty emphasis: `****` is four literal asterisks, so the "empty construct"
+		// boundary case does not exist — a caret among the asterisks sees plain text.
 		expect(chainKinds('a **** b', 4)).toEqual([]);
 	});
 

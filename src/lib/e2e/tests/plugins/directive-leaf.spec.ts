@@ -1,13 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, waitForDoc, roundTripStable } from './helpers';
 
-// The generic `::name` leaf: a two-colon fence with no registered plugin falls
-// back to `directiveLeaf`, a single editable line rendered through the built-in
-// text surface with the `::name` fence dimmed as a `.md-marker` prefix. Unlike the
-// container's read-only block marker, the whole line is one editable coordinate
-// space (an edit that breaks the fence reparses to a paragraph). Mirrors
-// directive-container.spec.ts: read the doc by CST path through `__test`, drive
-// real keyboard.
+// The generic `::name` leaf: a two-colon fence with no registered plugin falls back to
+// `directiveLeaf`, a single editable line rendered through the built-in text surface with the
+// `::name` fence dimmed as a `.md-marker` prefix. Unlike the container's read-only block marker,
+// the whole line is one editable coordinate space (an edit that breaks the fence reparses to a
+// paragraph). Mirrors directive-container.spec.ts.
 
 test.describe('plugin leaf: generic ::name directive', () => {
 	let editor: PluginsPage;

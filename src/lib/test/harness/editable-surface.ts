@@ -15,13 +15,11 @@ export interface SurfaceHarness {
 }
 
 /**
- * A real contenteditable in jsdom behind the surface skeleton, so `readText`
- * is honest DOM readback — a test simulates the IME's writes by assigning
- * `el.textContent`, exactly what the browser hands the input funnel. The caret
- * is a settable cell behind the backend seam (a per-surface injection in
- * production too); jsdom has no live caret. Only the two context reads the
- * composition path touches are real; the rest of the cross-block wiring is
- * constructed but never invoked.
+ * A real contenteditable behind the surface skeleton, so `readText` is honest DOM
+ * readback: a test simulates the IME by assigning `el.textContent`, exactly what
+ * the browser hands the input funnel. The caret is a settable cell because jsdom
+ * has none. Only the two context reads the composition path touches are real —
+ * the rest is constructed but never invoked.
  */
 export function makeSurface(commitInput?: EditableSurfaceDeps['commitInput']): SurfaceHarness {
 	const el = document.createElement('div');

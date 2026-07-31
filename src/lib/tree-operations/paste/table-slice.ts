@@ -1,7 +1,6 @@
 /**
- * Split a table at a row boundary into two halves. Sole caller is the
- * break-and-splice paste path: the cell containing the cursor anchors the
- * slice and the row goes to whichever half preserves caret continuity.
+ * Split a table at a row boundary. `rowGoes` sends the anchor row to whichever half
+ * preserves caret continuity for the break-and-splice paste path.
  */
 
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../core/nodes';

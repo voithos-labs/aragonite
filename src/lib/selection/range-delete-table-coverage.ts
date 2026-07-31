@@ -1,8 +1,7 @@
 /**
- * Intra-table coverage-driven delete. A full-table/row/column selection lands
- * inside one table block, so it routes to a structural delete of that
- * table/row/column rather than the cross-block range delete. Subset (cell)
- * coverage returns null so the caller falls through to its cell-clear path.
+ * Intra-table coverage-driven delete: a full-table/row/column selection lands inside one table
+ * block, so it routes to a structural delete of that table/row/column rather than the
+ * cross-block range delete. Subset (cell) coverage returns null for the caller's cell-clear.
  */
 
 import type { SelectionPoint } from './primitives';
@@ -26,10 +25,8 @@ import type { CrossBlockDeleteOptions, CrossBlockMutationContext } from './cross
 // ── Coverage classification ──────────────────────────────────────────────────
 
 /**
- * Coverage of an intra-table cell-index range. Drives the Backspace dispatch:
- * full-table → delete table block; full-row → delete row; full-column → delete
- * column; otherwise → clear cells. The discriminated union keeps `rowIdx` /
- * `colIdx` present only on the arm that owns them.
+ * Coverage of an intra-table cell-index range, driving the Backspace dispatch: a full
+ * table/row/column deletes structurally, anything else clears cells.
  */
 export type TableCoverage =
 	| { kind: 'table' }
@@ -61,10 +58,7 @@ export function classifyTableSelectionCoverage(
 	return { kind: 'cells' };
 }
 
-/**
- * Returns null when the selection doesn't qualify (subset coverage or guard
- * refusal); the caller falls through to the cell-clear path.
- */
+/** Null when the selection doesn't qualify (subset coverage, or a guard refusal). */
 export async function maybeCommitTableCoverageDelete(
 	ctx: CrossBlockMutationContext,
 	table: CstNode,
@@ -76,9 +70,7 @@ export async function maybeCommitTableCoverageDelete(
 	const meta = metadataOf(table, 'table');
 	const columnCount = meta.columnCount;
 	const rowCount = table.children?.length ?? 0;
-	// Same-path intra-table selection: the endpoints' cell offsets are
-	// context-established (same table, unflagged), so they read directly — the
-	// cellIndexOf flag-guard is for cross-block table endpoints only.
+	// Same-path intra-table endpoints are context-established, not flagged, so they read directly.
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
 	if (coverage.kind === 'cells') return null;
@@ -89,9 +81,8 @@ export async function maybeCommitTableCoverageDelete(
 	}
 
 	if (coverage.kind === 'row') {
-		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a
-		// silent no-op — falling through to a cell-clear would silently
-		// rewrite the user's intent.
+		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a silent no-op, since
+		// falling through to a cell-clear would rewrite the user's intent.
 		if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
 		const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx, options, caretRestore);
 		return { caret };
@@ -130,15 +121,13 @@ async function commitFullTableDelete(
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (children) => {
-			// Read before the delete: with the table gone there is no block left to
-			// take an ending from, and the filler below IS a line ending (G4.20).
+			// Read before the delete: with the table gone no block is left to take an ending
+			// from, and the filler below IS a line ending (G4.20).
 			const lineEnding = trailingLineEnding(children[tableIdx]?.raw ?? '\n');
 			const change = deleteNode({ children }, tableIdx, ctx.controller.sharing);
 			ctx.selection.collapse();
-			// A sole-table doc empties to zero blocks, which leaves no editable
-			// block and strands the caret on <body>. Materialize an empty
-			// paragraph in the same commit so the descriptor mints its id and the
-			// undo entry restores the table in one step.
+			// A sole-table doc empties to zero blocks, stranding the caret on <body>. Materialize
+			// a filler in the same commit so undo restores the table in one step.
 			if (children.length === 0) {
 				const filler = emptyParagraph('', lineEnding);
 				ctx.controller.sharing.stamp(filler);
@@ -212,10 +201,9 @@ async function commitColumnDelete(
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
 	const rows = table.children ?? [];
-	// A row's BlockListState registers on mount; a row windowed out of the
-	// table's mounted slice has none. Scope only the mounted rows for reactivity —
-	// the ensureUnsharedChildren below copy-path-on-writes EVERY row, mounted or
-	// not, so the per-row cell splice stays G1.9-safe regardless of mount state.
+	// A row's BlockListState registers on mount, so a windowed-out row has none. Scope only the
+	// mounted rows for reactivity; the ensureUnsharedChildren below copy-path-on-writes EVERY
+	// row, so the per-row cell splice stays G1.9-safe regardless of mount state.
 	const mountedRowScopes: MultiScopeTarget[] = [];
 	for (let i = 0; i < rows.length; i++) {
 		const state = getStateForNode(rows[i]);
@@ -236,8 +224,8 @@ async function commitColumnDelete(
 		snapshot,
 		mutate: (scopeViews) => {
 			const ownedTable = scopeViews[0].node;
-			// Unshare every row before the splice. Mounted rows are already owned via
-			// their scope; this reaches the windowed-out rows the scopes skip.
+			// Unshare every row before the splice: mounted rows are already owned via their
+			// scope, and this reaches the windowed-out rows the scopes skip.
 			ensureUnsharedChildren(ownedTable, scopeViews[0].sharing);
 			mutDeleteColumn(ownedTable, colIdx);
 
@@ -250,8 +238,8 @@ async function commitColumnDelete(
 			const rowDelete: StructuralChange = { op: 'delete', at: colIdx, count: 1 };
 			return [{ op: 'noop' }, ...mountedRowScopes.map(() => rowDelete)];
 		},
-		// Event targets the TABLE — a column index is not a child path (parity
-		// with table-context's column ops); colIdx rides in the detail.
+		// Event targets the TABLE: a column index is not a child path (parity with
+		// table-context's column ops), so colIdx rides in the detail.
 		op: {
 			kind: 'tableDeleteColumn',
 			detail: { colIdx, crossBlock: true },

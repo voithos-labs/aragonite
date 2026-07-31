@@ -1,84 +1,19 @@
 // @vitest-environment jsdom
 //
-// The caret half of the cell's write door, driven through the mounted component.
-// A cell's `normalizeRawWrite` escapes every free `|` at the write sink, so an
-// offset reported against the text a gesture just wrote lands one byte early per
-// escape inserted before it. The door maps the COMMIT caret; the pending cursor is
-// a separate dep that bypasses it, and a reveal commit is the gesture that can put
-// a fresh `|` in front of its own caret — the user types it inside the revealed
-// `$…$` source, where onInput is suppressed and nothing normalizes until the fold.
-//
-// Pinned by driving the real gestures (arrow into the widget, edit the ephemeral
-// source DOM, Enter) and reading the caret the cell actually restored, so the two
-// halves of the door are asserted against each other rather than against a
-// hand-computed number.
-//
-// Scope: the COMMIT half only. Enter in a cell commits and stays put — the
-// deliberate carve-out from the prose block, where Enter splits — and these cases
-// cannot see the "stays put" half: `focusCell` is a stub here, so a row hop is
-// inert and the caret they read is identical either way. That half is guarded by
-// `e2e/tests/blocks/table/cell-inline-reveal.spec.ts`, on exact source bytes that
-// catch the hop's inserted empty row. Do not thin those e2e cases expecting this
-// pair to cover them.
+// The caret half of the cell's write door. A cell's `normalizeRawWrite` escapes every free `|`
+// at the write sink, so an offset reported against just-written text lands one byte early per
+// escape; the door maps the COMMIT caret, and the pending cursor is a separate dep that bypasses
+// it. Scope is the commit half only: `focusCell` is stubbed here, so the "Enter stays put" half
+// is guarded on exact bytes by e2e/tests/blocks/table/cell-inline-reveal.spec.ts — do not thin it.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync, tick } from 'svelte';
-import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { CstNode } from '$lib/core/nodes';
-import type { EditorServices } from '$lib/editor-keys';
-import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { tick } from 'svelte';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
 import { resetInlineState } from '../text/math-widget-fixture';
-
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+import { mountCell } from './mount-cell';
 
 // `x $a$ yz`: a math widget at raw [2,5) with prose on both sides, so every caret
 // offset this test names sits OUTSIDE the widget span and reads back unambiguously.
 const CELL = 'x $a$ yz';
-
-function mountCell(raw: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
-	const blockEdit = makeStubBlockEdit();
-	const context = editorMountContext({
-		blockEdit,
-		doc: { doc: () => ({ kind: 'document', prefix: '', children: [node], suffix: '' }) },
-		services: {
-			decorations: noIslands,
-			widgetSelection: createWidgetSelectionState({ onSelect: () => {} })
-		}
-	});
-	context.set(TABLE_CONTEXT_KEY, {
-		notifyCellFocused: vi.fn(),
-		notifyCellBlurred: vi.fn(),
-		focusCell: vi.fn(),
-		setStickyColumn: vi.fn()
-	});
-	const refs: (BlockComponent | undefined)[] = [];
-	const instance = mount(TableCellBlock, {
-		target,
-		props: {
-			node,
-			index: 0,
-			myPath: [0, 1, 0],
-			rowIdx: 1,
-			colIdx: 0,
-			columnCount: 2,
-			rowCount: 2,
-			setRef: (i: number, r: BlockComponent | undefined) => {
-				refs[i] = r;
-			},
-			getRef: (i: number) => refs[i]
-		},
-		context
-	});
-	flushSync();
-	return { instance, el: target.querySelector('.table-cell') as HTMLElement, blockEdit };
-}
 
 function press(el: HTMLElement, key: string): void {
 	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
@@ -101,7 +36,7 @@ function revealedSource(el: HTMLElement): Text {
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 	resetInlineState();
 });
@@ -125,9 +60,8 @@ describe('a reveal commit in a cell parks its caret in escaped space', () => {
 		// The door escaped the free `|`, so the commit caret is 7 — past `$a\|$`.
 		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
 		expect(committedCaret).toBe(7);
-		// The parked caret addresses the same bytes, so it must be the same offset.
-		// Unmapped it is 6, which in the written raw sits between the inserted `\`
-		// and the `|` it frees — inside the widget the user just finished editing.
+		// The parked caret addresses the same bytes, so it must be the same offset. Unmapped it is 6 —
+		// between the inserted `\` and the `|` it frees, inside the widget the user just edited.
 		expect(instance.getCursorOffset()).toBe(committedCaret);
 	});
 

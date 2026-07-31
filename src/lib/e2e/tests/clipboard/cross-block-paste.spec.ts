@@ -62,10 +62,9 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['Hello', '', '# Heading', '', 'New paragraph'].join('\n')
 		);
-		// Live-CST count, not the reparse count (which folds blank lines back into
-		// trivia and reads 3). The clipboard's internal blank line materializes as
-		// a real empty-paragraph row (paste-materializes-blank-lines), so the tree
-		// is Hello / heading / blank-row / New paragraph — four rendered blocks.
+		// The LIVE-CST count, not the reparse count: a reparse folds the clipboard's internal
+		// blank line back into trivia, where the live tree carries it as a real empty-paragraph
+		// row (see paste-materializes-blank-lines).
 		expect(await editor.bridge.getBlockCount()).toBe(4);
 	});
 

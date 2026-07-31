@@ -29,16 +29,14 @@ describe('lrdMapCouldChange', () => {
 	});
 
 	it('rebuilds on a kind change that creates a definition (commits as updateContent)', () => {
-		// paragraph → LRD: the post-edit node is the new definition.
 		const doc = parse('[d]: https://example.com\n');
 		expect(doc.children[0].kind).toBe('linkReferenceDefinition');
 		expect(lrdMapCouldChange(doc, event('updateContent', [0], { length: 24 }))).toBe(true);
 	});
 
 	it('rebuilds on a kind change that DELETES a definition (post-edit node is now prose)', () => {
-		// LRD → paragraph: a kind change commits as `updateContent`, never `input`,
-		// so the gate rebuilds despite the post-edit node no longer being an LRD —
-		// without this the resolver would keep serving the deleted definition.
+		// The gate must rebuild despite the post-edit node no longer being an LRD, or
+		// the resolver keeps serving the deleted definition.
 		const doc = parse('plain prose now\n');
 		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
 		expect(lrdMapCouldChange(doc, event('updateContent', [0], { length: 15 }))).toBe(true);

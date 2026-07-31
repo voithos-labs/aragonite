@@ -1,9 +1,7 @@
 /**
- * Keyboard chord parsing and the per-kind binding shape. `Mod` is the
- * cross-platform Ctrl-or-Cmd modifier. A chord is a normalized string:
- * modifiers in fixed order (Mod, Alt, Shift) then the key, single letters
- * uppercased. Shifted-symbol keys (e.g. Shift+1 -> '!') are not modeled —
- * no in-scope binding needs them.
+ * Keyboard chord parsing and the per-kind binding shape. `Mod` is the cross-platform
+ * Ctrl-or-Cmd modifier; a chord is modifiers in fixed order (Mod, Alt, Shift) then the key,
+ * single letters uppercased. Shifted-symbol keys (Shift+1 -> '!') are not modeled.
  */
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
@@ -12,10 +10,8 @@ export interface KeyBinding {
 	chord: string;
 	command: AnyCommandId;
 	/**
-	 * Static argument baked into the binding. Widened past the built-in
-	 * `heading.cycle` level so a minted command (e.g. a `setKind` carrying a
-	 * string) can travel the same channel. It reaches the handler as `unknown`:
-	 * the handler must type-guard it before use and ignore an out-of-shape value.
+	 * Static argument baked into the binding, widened so a minted command travels the same
+	 * channel. It reaches the handler as `unknown`, which must type-guard before use.
 	 */
 	arg?: unknown;
 }
@@ -23,10 +19,8 @@ export interface KeyBinding {
 const MOD_ORDER = ['Mod', 'Alt', 'Shift'] as const;
 
 /**
- * Keys that are a modifier being held, never a keystroke in their own right —
- * `eventToChord` returns null for them, and every other keydown consumer that
- * must ignore "not a chord yet" reads this set rather than re-listing it (the
- * sticky column's own copy was short two entries, so CapsLock dropped it).
+ * Keys that are a modifier being held, never a keystroke of their own. Every keydown consumer
+ * that must ignore "not a chord yet" reads this set rather than re-listing it.
  */
 export const BARE_MODIFIER_KEYS: readonly string[] = [
 	'Control',
@@ -62,9 +56,8 @@ export function normalizeChord(chord: string): string {
 const VALID_MODIFIERS = new Set<string>(MOD_ORDER);
 
 /**
- * Why a chord is malformed — an empty key, or a non-final token that isn't a
- * recognized modifier — or null when it's well-formed. Shared core of the strict
- * paths; keeping the reason lets `normalizeChordStrict` name it in the warn.
+ * Why a chord is malformed, or null when it is well-formed. Shared core of the strict paths;
+ * keeping the reason lets `normalizeChordStrict` name it in the warn.
  */
 function chordDefect(chord: string): string | null {
 	const parts = chord.split('+');
@@ -75,20 +68,17 @@ function chordDefect(chord: string): string | null {
 }
 
 /**
- * True when every non-final token is Mod/Alt/Shift and the key is non-empty —
- * the well-formedness the strict ingestion paths gate on, so a mis-typed
- * `'Ctrl+B'` can't collapse to a bare `'B'` that fires on every keypress. Pure:
- * the caller decides whether to warn (consumer override), throw (registration
- * API), or report (the keymap-coherence invariant).
+ * The well-formedness the strict ingestion paths gate on, so a mis-typed `'Ctrl+B'` can't
+ * collapse to a bare `'B'` that fires on every keypress. Pure: the caller decides whether to
+ * warn, throw, or report.
  */
 export function isChordWellFormed(chord: string): boolean {
 	return chordDefect(chord) === null;
 }
 
 /**
- * Validate then normalize a consumer-supplied chord. Returns null (dev-warned)
- * when malformed — guarding the trap where `'Ctrl+B'` silently drops the
- * unrecognized `Ctrl` and collapses to bare `'B'`.
+ * Validate then normalize a consumer-supplied chord; null (dev-warned) when malformed, guarding
+ * the trap where `'Ctrl+B'` drops the unrecognized `Ctrl` and collapses to bare `'B'`.
  */
 export function normalizeChordStrict(chord: string): string | null {
 	const defect = chordDefect(chord);

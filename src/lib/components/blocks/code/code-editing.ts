@@ -9,9 +9,8 @@ export const BRACKET_PAIRS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Backtick is included: inside a backtick-fenced block a single typed `` ` ``
- * cannot terminate the fence (requires a bare-line run of ≥ fenceLength at
- * column 0), so the usual "insert two backticks around the cursor" is safe.
+ * Backtick is safe to pair: terminating a fence needs a bare-line run of
+ * ≥ fenceLength at column 0, which a single typed `` ` `` can never be.
  */
 export const QUOTE_CHARS: ReadonlySet<string> = new Set(["'", '"', '`']);
 
@@ -42,9 +41,8 @@ export function getLineLeadingWhitespace(text: string, offset: number): string {
 // ── Auto-pair decisions ─────────────────────────────────────────────────────
 
 /**
- * Brackets refuse to pair when the next char is an identifier (user is wrapping
- * existing code like `(foo`). Quotes additionally refuse when the *previous*
- * char is an identifier (the `don't` case: just insert the apostrophe).
+ * Brackets refuse to pair before an identifier (wrapping existing code, `(foo`);
+ * quotes also refuse after one (the `don't` case).
  */
 export function shouldAutoClose(text: string, offset: number, opener: string): boolean {
 	const next = text[offset];
@@ -56,10 +54,7 @@ export function shouldAutoClose(text: string, offset: number, opener: string): b
 	return true;
 }
 
-/**
- * Overtype: skip past an existing matching closer/quote instead of inserting
- * a duplicate. Stateless — triggers whenever the typed char matches `text[offset]`.
- */
+/** Overtype: skip past an existing closer instead of inserting a duplicate. */
 export function shouldSkipClose(text: string, offset: number, typed: string): boolean {
 	if (!SKIP_CLOSE_CHARS.has(typed)) return false;
 	return text[offset] === typed;

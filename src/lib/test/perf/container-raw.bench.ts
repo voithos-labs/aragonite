@@ -1,15 +1,8 @@
-// Every keystroke inside a nested container pays a full ancestry raw rebuild.
-// These rows drive the SHIPPED rebuild (`rebuildUnsharedChain` — the function
-// the routine-typing path calls) over an owned spine, so the numbers track the
-// real per-keystroke cost, not a hand-rolled stand-in.
-//
-// Three axes:
-//   depth    — nested fixture, thousands of tiny lists: each rebuild touches
-//              little raw, so this isolates chain length.
-//   breadth  — one flat list at depth 1: the list rebuild re-joins every item,
-//              the O(container-size) cliff.
-//   combined — deep-nested: depth AND per-level bytes together, the axis the
-//              other two miss. This is the concern-4 falsification instrument.
+// Every keystroke inside a nested container pays a full ancestry raw rebuild. Driven
+// through the SHIPPED `rebuildUnsharedChain` over an owned spine, so the numbers track
+// the real per-keystroke cost rather than a hand-rolled stand-in. Three axes: depth
+// (chain length alone), breadth (the O(container-size) re-join cliff), and combined,
+// which is the only one that puts depth and per-level bytes together.
 import { bench, describe } from 'vitest';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
@@ -23,10 +16,9 @@ function deepestChain(node: CstNode, chain: CstNode[] = []): CstNode[] {
 	return containerChild ? deepestChain(containerChild, chain) : chain;
 }
 
-// Bench the shipped ancestry rebuild over the deepest owned spine under `root`.
-// A fresh sharing state sits at epoch 0, so nothing reads as shared and the
-// chain is the live-owned spine — the steady-typing condition (the debounced
-// snapshot re-shares only ~once per 250ms, amortized away across keystrokes).
+// A fresh sharing state sits at epoch 0, so nothing reads as shared and the chain is
+// the live-owned spine — the steady-typing condition, since the debounced snapshot
+// re-shares only ~once per 250ms.
 function benchAncestryRebuild(
 	label: string,
 	root: CstNode,
@@ -34,7 +26,13 @@ function benchAncestryRebuild(
 ): void {
 	const chain = deepestChain(root);
 	const sharing = createSharingState();
-	bench(label, () => rebuildUnsharedChain(chain, sharing), { warmupIterations: 1, ...opts });
+	bench(
+		label,
+		() => {
+			rebuildUnsharedChain(root, chain, sharing, undefined);
+		},
+		{ warmupIterations: 1, ...opts }
+	);
 }
 
 function singleFlatList(targetBytes: number): string {
@@ -68,10 +66,9 @@ describe('ancestry rebuild — breadth axis', () => {
 	}
 });
 
-// The combined axis: realistic deep nesting where every ancestor level carries
-// substantial raw, so one rebuild pays Σ(level raw) ≈ amplification × doc bytes.
-// depth {4,8,12} × per-level {1KB,10KB,50KB}, plus one adversarial point past
-// the realistic envelope (reported, not judged against the verdict bounds).
+// Every ancestor level carries substantial raw, so one rebuild pays Σ(level raw) ≈
+// amplification × doc bytes. The adversarial point past the realistic envelope is
+// reported, not judged against the verdict bounds.
 describe('ancestry rebuild — combined depth × bytes axis', () => {
 	const DEPTHS = [4, 8, 12] as const;
 	const PER_LEVEL: Array<[label: string, bytes: number]> = [

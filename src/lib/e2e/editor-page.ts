@@ -47,13 +47,9 @@ export class EditorPage {
 	}
 
 	/**
-	 * Load a multi-MB generated fixture for virtual-rendering tests. `loadContent`
-	 * polls a full-document serialize with a 2s timeout, which times out at MB
-	 * scale; this settles on a cheap in-page doc-length probe (Σ leadingTrivia +
-	 * raw, plus prefix/suffix) with a long timeout instead. The fixture is set via
-	 * `setSource` (state setup, not a simulated edit) — windowing activates when the
-	 * estimated height clears the editor's watermark. `suffix` appends trailing
-	 * markdown so a sibling block exists for cross-block navigation.
+	 * `loadContent` polls a full-document serialize with a 2s timeout, which times out at MB
+	 * scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
+	 * trailing markdown so a sibling block exists for cross-block navigation.
 	 */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
 		const fixture = generateFixture(shape, bytes) + suffix;
@@ -73,10 +69,8 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.getDocument().children.length);
 	}
 
-	/** Scroll the editor's internal scroll container to an absolute offset and let
-	 *  the window re-slice. The editor scrolls internally, not the page, so
-	 *  `page.mouse.wheel` would miss it; a direct scrollTop write fires the passive
-	 *  scroll listener the window subscribes to. */
+	/** The editor scrolls INTERNALLY, not the page, so `page.mouse.wheel` would miss it; a
+	 *  direct scrollTop write fires the passive listener the window subscribes to. */
 	async scrollEditorTo(scrollTop: number): Promise<void> {
 		await this.page.evaluate((top) => {
 			const el = document.querySelector('.editor') as HTMLElement | null;
@@ -87,11 +81,9 @@ export class EditorPage {
 
 	// ── DOM Queries ─────────────────────────────────────────────────────
 
-	// Top-level addressing only. Container blocks (blockquote, list, listItem)
-	// render nested BlockHosts whose data-block-path carries a comma; the
-	// :not([data-block-path*=","]) filter excludes them. Use focusBlockAtPath
-	// for nested addressing. The :not(.block-drag-handle) filter drops the hover
-	// reorder grip — also a non-overlay host child — so the count stays one per block.
+	// Top-level addressing only: a comma in `data-block-path` marks a nested host, and the
+	// drag-handle filter drops the hover grip, so the count stays one per block. Nested
+	// addressing goes through `focusBlockAtPath`.
 	getBlock(index: number): Locator {
 		return this.page
 			.locator(`[data-block-path='${JSON.stringify([index])}']`)
@@ -137,11 +129,10 @@ export class EditorPage {
 		await this.placeCaretInBlock(index, 'start');
 	}
 
-	// COORDINATE-SPACE WARNING: a numeric `position` here counts ALL text nodes,
-	// including `.md-marker` ambient spans — a DOM-textContent offset, NOT the
-	// raw-semantic offset `focusBlockAtPath`/`pointForOffset` use (those filter
-	// markers). The two spaces are NOT interchangeable on marker-bearing blocks.
-	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
+	// COORDINATE-SPACE WARNING: a numeric `position` is a DOM-textContent offset counting
+	// `.md-marker` spans, NOT the raw-semantic offset `focusBlockAtPath` uses — the two are not
+	// interchangeable on marker-bearing blocks. Pinned by
+	// lint/caret-helper-coordinate-spaces.test.ts.
 	private async placeCaretInBlock(
 		index: number,
 		position: 'start' | 'end' | number
@@ -192,10 +183,9 @@ export class EditorPage {
 		);
 	}
 
-	// COORDINATE-SPACE WARNING: `offset` here is RAW-SEMANTIC — the tree walk
-	// filters `.md-marker` ambient spans (see acceptNode below). This is NOT the
-	// marker-counting DOM-textContent space `placeCaretInBlock(index, number)` uses.
-	// Divergence pinned by lint/caret-helper-coordinate-spaces.test.ts.
+	// COORDINATE-SPACE WARNING: `offset` is RAW-SEMANTIC — the walk filters `.md-marker`
+	// spans — NOT the marker-counting space `placeCaretInBlock(index, number)` uses. Pinned
+	// by lint/caret-helper-coordinate-spaces.test.ts.
 	async focusBlockAtPath(path: number[], offset: number): Promise<void> {
 		await this.page.evaluate(
 			({ path, offset, contentSelector }) => {
@@ -251,10 +241,8 @@ export class EditorPage {
 	}
 
 	/**
-	 * Real mouse click at a raw-semantic offset inside a nested block. `clickBlock`
-	 * addresses top-level blocks only; this resolves any `data-block-path` (including
-	 * comma-paths) to a pixel point and clicks it, landing a real caret there. Use
-	 * for nested targets a top-level click can't reach.
+	 * Resolves ANY `data-block-path`, comma-paths included, to a pixel point — the nested
+	 * targets `clickBlock`'s top-level-only addressing cannot reach.
 	 */
 	async clickBlockAtPath(path: number[], offset: number): Promise<void> {
 		const point = await this.pointForOffset(path, offset);
@@ -266,11 +254,8 @@ export class EditorPage {
 		await this.page.keyboard.insertText(text);
 	}
 
-	/**
-	 * Type text character-by-character via keyboard.type(). Each character fires its
-	 * own keydown/input/keyup cycle. Use for tests where per-keystroke behavior
-	 * matters (formatting, kind changes).
-	 */
+	/** Each character fires its own keydown/input/keyup cycle, for tests where per-keystroke
+	 *  behavior matters (formatting, kind changes). */
 	async typeSlowly(text: string) {
 		await this.page.keyboard.type(text);
 	}
@@ -311,11 +296,8 @@ export class EditorPage {
 		await this.waitForRenderFlush();
 	}
 
-	/**
-	 * Single pointer-down → drag through `mid` → drag to `end` → pointer-up.
-	 * The intermediate point keeps the button held the whole time; a sequence
-	 * of two dragFromTo calls would release and re-press between segments.
-	 */
+	/** One held drag through `mid` to `end`: two `dragFromTo` calls would release and
+	 *  re-press between segments. */
 	async dragFromToThenTo(
 		startPath: number[],
 		startOffset: number,
@@ -411,12 +393,9 @@ export class EditorPage {
 	// ── Settle Helpers ──────────────────────────────────────────────────
 
 	/**
-	 * Yield two animation frames to let Svelte's render scheduler commit and
-	 * the browser perform style+layout. Reads of post-mutation DOM state
-	 * (mounted overlays, `data-cross-block`, geometry from `getBoundingClientRect`)
-	 * see mid-transition values before this flush. The double-rAF covers an
-	 * `$effect` commit plus a child-component mount, or a layout flush after
-	 * caret-affecting keystrokes — whichever the caller is waiting on.
+	 * Reads of post-mutation DOM state (mounted overlays, `data-cross-block`, geometry) see
+	 * mid-transition values before this. The DOUBLE rAF covers an `$effect` commit plus a
+	 * child-component mount, or a layout flush after caret-affecting keystrokes.
 	 */
 	async waitForRenderFlush(): Promise<void> {
 		await this.page.evaluate(
@@ -428,11 +407,9 @@ export class EditorPage {
 	}
 
 	/**
-	 * Wait until the live list-item DOM count matches `expected`. Enter at end
-	 * of a list item inserts an empty trailing item whose marker is trimmed in
-	 * the serialized source — bridge predicates that consult `getSource()` see
-	 * no change. DOM count is the cheapest observable signal that the post-Enter
-	 * tree has flushed before the next keystroke.
+	 * Enter at the end of a list item inserts an empty trailing item whose marker is TRIMMED in
+	 * the serialized source, so `getSource()` predicates see no change. DOM count is the
+	 * cheapest signal that the post-Enter tree flushed.
 	 */
 	async waitForListItemCount(expected: number, timeout = 2000): Promise<void> {
 		await this.page.waitForFunction(
@@ -443,13 +420,9 @@ export class EditorPage {
 	}
 
 	/**
-	 * Wait until the total `.block-host` count (top-level + nested) matches
-	 * `expected`. Enter at end of a paragraph or inside a blockquote inserts a
-	 * transient empty paragraph whose marker is trimmed in the serialized
-	 * source — `getBlockCount()` re-parses the source and can't see it. Every
-	 * block (top-level and nested) wraps in `.block-host`, so the total count
-	 * changes by one per insertion and is the cheapest observable signal that
-	 * the post-Enter tree has flushed.
+	 * Enter inserts a transient empty paragraph whose marker is TRIMMED in the serialized
+	 * source, so `getBlockCount()` — which re-parses it — cannot see it. Every block wraps in
+	 * `.block-host`, so the total moves by one per insertion.
 	 */
 	async waitForBlockHostCount(expected: number, timeout = 2000): Promise<void> {
 		await this.page.waitForFunction(
@@ -460,46 +433,35 @@ export class EditorPage {
 	}
 
 	/**
-	 * Yield long enough for the undo manager's 250ms batch debounce to flush.
-	 * Tests that exercise "two separate undo batches" need this between batches —
-	 * the next interaction must land outside the prior batch's debounce window
-	 * for the undo stack to split. Predicates can't observe this: source already
-	 * reflects the typed text, so there is no shape to poll for.
+	 * A fixed wait, not a predicate: the source already reflects the typed text, so there is no
+	 * shape to poll for. Tests wanting two separate undo batches need the next interaction to
+	 * land outside the prior batch's debounce window.
 	 */
 	async waitForUndoBatchFlush(): Promise<void> {
 		await this.page.waitForTimeout(300);
 	}
 
 	/**
-	 * Yield, then assert the source did not change. Used for "operation should
-	 * be a no-op" verifications where the only way to confirm absence-of-mutation
-	 * is to wait past the window in which a (wrongly committed) mutation would
-	 * surface and then re-read the source. Predicates can't observe a non-event;
-	 * 150ms covers a reactivity tick plus a frame of slack.
+	 * A predicate cannot observe a NON-event, so absence of mutation is confirmed by waiting
+	 * past the window a wrongly-committed mutation would surface in, then re-reading.
 	 */
 	async waitForNoSourceMutation(): Promise<void> {
 		await this.page.waitForTimeout(150);
 	}
 
 	/**
-	 * Yield for one ResizeObserver dispatch cycle. ResizeObserver's
-	 * initial-observe callback fires on the frame after mount/attach; without
-	 * draining it, a subsequent layout shift triggered in the same callback
-	 * batch is absorbed silently and tests that need to observe the shift see
-	 * nothing. 120ms covers the post-mount RO dispatch plus a frame of slack.
+	 * ResizeObserver's initial-observe callback fires the frame after attach; without draining
+	 * it, a layout shift in the same callback batch is absorbed silently and the test observing
+	 * that shift sees nothing.
 	 */
 	async waitForResizeObserverFlush(): Promise<void> {
 		await this.page.waitForTimeout(120);
 	}
 
 	/**
-	 * Yield until the synthetic clipboard write triggered by Ctrl+C lands on
-	 * the system clipboard. The editor's copy handler writes via a synthetic
-	 * `copy` event whose flush timing the browser owns; no editor state
-	 * changes, so no bridge predicate can observe it. Call before
-	 * `navigator.clipboard.readText()` or before a subsequent Ctrl+V that
-	 * must see the fresh payload. This is the copy-only carve-out documented
-	 * in docs/contributing/testing.md § Patterns and gotchas.
+	 * The copy handler writes through a synthetic `copy` event whose flush timing the BROWSER
+	 * owns, and no editor state changes, so no bridge predicate can observe it. The copy-only
+	 * carve-out in docs/contributing/testing.md § Patterns and gotchas.
 	 */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);

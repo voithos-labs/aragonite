@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { tick } from 'svelte';
 import {
 	registerBlockListState,
 	getStateForNode,
@@ -68,7 +69,7 @@ describe('state-registry', () => {
 		});
 	});
 
-	describe('dev-mode double-register warning', () => {
+	describe('dev-mode contested-claim warning', () => {
 		let warnSpy: ReturnType<typeof vi.spyOn>;
 
 		beforeEach(() => {
@@ -78,18 +79,57 @@ describe('state-registry', () => {
 			warnSpy.mockRestore();
 		});
 
-		it('warns when the same node is registered twice in DEV', () => {
+		/** A torn-down mount's `bind:this` slots are cleared; a live one's are not. */
+		function stateWithRefs(mounted: boolean): BlockListState {
+			return {
+				innerBlockIds: ['a'],
+				innerBlockRefs: [mounted ? ({} as BlockListState['innerBlockRefs'][number]) : undefined]
+			};
+		}
+
+		it('warns when a second LIVE component claims a node the first still renders', async () => {
 			if (!import.meta.env.DEV) return;
 			const node = makeFakeNode();
-			registerBlockListState(node, makeFakeState());
-			registerBlockListState(node, makeFakeState());
+			registerBlockListState(node, stateWithRefs(true));
+			registerBlockListState(node, stateWithRefs(true));
+
+			await tick();
 			expect(warnSpy).toHaveBeenCalledOnce();
-			expect(warnSpy.mock.calls[0][0]).toContain('double register');
+			expect(warnSpy.mock.calls[0][0]).toContain('two live components');
 		});
 
-		it('does not warn on a fresh registration', () => {
+		// The remount handoff: the loser is torn down within the same flush, so by the
+		// time the claim is re-asked it holds no refs to orphan. Warning here would fire
+		// on every list indent.
+		it('stays silent when the loser was torn down in the same flush', async () => {
+			const node = makeFakeNode();
+			const loser = stateWithRefs(true);
+			registerBlockListState(node, loser);
+			registerBlockListState(node, stateWithRefs(true));
+			loser.innerBlockRefs[0] = undefined;
+
+			await tick();
+			expect(warnSpy).not.toHaveBeenCalled();
+		});
+
+		// A third registration means the contested pair is already history — reporting it
+		// would name a winner that no longer owns the node.
+		it('stays silent when a later registration superseded the contested winner', async () => {
+			const node = makeFakeNode();
+			registerBlockListState(node, stateWithRefs(true));
+			registerBlockListState(node, stateWithRefs(true));
+			registerBlockListState(node, stateWithRefs(true));
+
+			await tick();
+			// The second contest (2nd vs 3rd) is still live and reports; the first is not.
+			expect(warnSpy).toHaveBeenCalledOnce();
+		});
+
+		it('does not warn on a fresh registration', async () => {
 			const node = makeFakeNode();
 			registerBlockListState(node, makeFakeState());
+
+			await tick();
 			expect(warnSpy).not.toHaveBeenCalled();
 		});
 	});

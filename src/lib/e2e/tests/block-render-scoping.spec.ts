@@ -1,12 +1,9 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// The block render path subscribes to the document-level LRD resolver. The
-// counts below assert that an edit re-renders only the blocks whose output can
-// change — not every mounted block. Perf instruments are the oracle: a render
-// fan-out is invisible in the DOM (every block ends up with correct content
-// either way), so block-render count is the only signal that distinguishes a
-// scoped render from a whole-document one.
+// An edit must re-render only the blocks whose output can change. Perf instruments are the
+// only oracle: a render fan-out is invisible in the DOM, since every block ends up with
+// correct content either way.
 
 test.describe('block render scoping', () => {
 	let editor: EditorPage;
@@ -36,10 +33,8 @@ test.describe('block render scoping', () => {
 		await editor.focusBlockEnd(0);
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('plain targetx');
-		// The reassignment that would fan the render out rides the debounced
-		// input flush (~250ms), signalled by the edited block's inline recompute;
-		// wait past it, then let any invalidated render effects settle, before
-		// reading.
+		// The reassignment that would fan the render out rides the debounced input flush, so wait
+		// past the edited block's inline recompute before reading.
 		await page.waitForFunction(
 			() => (window as any).__test.perf.snapshot().inlineComputeCount >= 1,
 			null,

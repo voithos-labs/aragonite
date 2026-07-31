@@ -1,12 +1,8 @@
 /**
- * Priority ladder for the built-in block openers — the single source the
- * registration sites in `core/parsers/built-in-openers.ts` consume, so the
- * published table and the registry can never drift: remove a key here and the
- * registration site fails to compile. Lower dispatches first. A plugin opener
- * whose matcher is a superset of a built-in's must price BELOW that built-in
- * (```mermaid claims a fence, so it sits under `fencedCode`); one that only
- * slots between built-ins prices into the gap (`<details>` before `htmlBlock`).
- * Equal priorities break by kind name, so a shared value is never load-bearing.
+ * Priority ladder for the built-in block openers, single-sourced here so the published table and
+ * the registry cannot drift. Lower dispatches first, ties broken by kind name. A plugin opener
+ * whose matcher is a superset of a built-in's must price BELOW it (```mermaid under
+ * `fencedCode`); one that only slots between built-ins prices into the gap.
  */
 
 import type { BlockKind } from '../core/nodes';

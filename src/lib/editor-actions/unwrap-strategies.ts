@@ -115,10 +115,8 @@ async function listItemCascadeMiddle(
 		return;
 	}
 
-	// Rule M1: merge into deepest visible text above with preserve-absolute-indent
-	// child placement. When the previous item's deepest leaf is opaque the merge
-	// finds no target — the tree stays put and the caret falls back to the
-	// previous item's end (mirrors mergeWithPreviousInterior's opaque-leaf path).
+	// Rule M1: merge into the deepest visible text above. An opaque prev leaf gives
+	// the merge no target, so the tree stays put and the caret falls back.
 	let mergePoint: { targetPath: number[]; offset: number } | null = null;
 	await deps.parent.containerEdit.commitContainer({
 		containerNode: node,
@@ -146,9 +144,8 @@ async function listItemCascadeMiddle(
 			const [firstPathIdx, ...restPath] = merged.targetPath;
 			state.innerBlockRefs[firstPathIdx]?.focusByPath?.(restPath, merged.offset);
 		},
-		// A no-target merge (opaque prev leaf) changes nothing; discard the entry but
-		// keep afterTick — mergedElseFocusPrevious still lands the caret (mirrors
-		// block-edit-core's mergeWithPreviousInterior).
+		// A no-target merge changes nothing; discard the entry but keep afterTick,
+		// which still lands the caret.
 		discardIfNoop: true
 	});
 }

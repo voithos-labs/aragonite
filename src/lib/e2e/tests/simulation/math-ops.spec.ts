@@ -1,22 +1,16 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 
-// Ungated math-ops oracle for the LaTeX extension. Math is the first nonzero-
-// interior inline widget (KaTeX renders real glyph text nodes) and the first
-// render-primary block, so its byte survival and mount/unmount churn are exactly
-// the silent-corruption class the simulation's oracle stack (structured error +
-// `[invariant:…]` watcher, live-CST round-trip, nested-state audit) exists to
-// catch — and until this profile no gesture had ever driven a math widget under
-// a state-accumulating watcher. The ```math fence is the third session: a distinct
-// kind on the same render-primary component, whose bytes no session had ever moved
-// or deleted across. Mirrors plugin-ops.spec.ts: a loaded document on the plugins
-// route, the math gesture vocabulary, all oracles re-checked after every move,
-// fixed rng for determinism.
+// Ungated math-ops oracle. Math is the first NONZERO-INTERIOR inline widget (KaTeX renders
+// real glyph text nodes) and the first render-primary block, so its byte survival and
+// mount/unmount churn are the silent-corruption class the oracle stack exists to catch. The
+// ```math fence is a third session: a distinct kind on the same component, whose bytes no
+// session had ever moved or deleted across.
 
 const MATH_DOC =
 	'Alpha lead paragraph.\n\n' + 'Beta middle paragraph.\n\n' + 'Gamma tail paragraph.\n';
@@ -32,21 +26,11 @@ const MERMAID_DOC =
 // reorder and a range delete reach its bytes without ever focusing it.
 const MATH_FENCE_DOC = 'Above the fence\n\n```math\nx^2\n```\n\nBelow the fence\n';
 
-class MathSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('math-ops simulation', () => {
-	let editor: MathSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new MathSimPage(page);
+		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
 	});
 

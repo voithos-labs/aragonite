@@ -38,10 +38,9 @@ test.describe('table block: row drag on a windowed table', () => {
 			await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
 		).toBeGreaterThan(0);
 
-		// Windowed tables carry a benign parity baseline: an UNMOUNTED row's cells get
-		// no childIds until the row mounts (createBlockListState is per-mount), so the
-		// whole-CST walk reports `{tableRow, 2, 0}` for every off-window row. That
-		// artifact predates the drag — filter it out; the reorder must add NOTHING else.
+		// Windowed tables carry a benign parity baseline: an UNMOUNTED row's cells get no childIds
+		// until the row mounts, so the whole-CST walk reports `{tableRow, 2, 0}` for every
+		// off-window row. Filter it out — the reorder must add nothing else.
 		const benign = (m: { kind: string; children: number; ids: number }) =>
 			m.kind === 'tableRow' && m.children === 2 && m.ids === 0;
 		expect((await getContainerParityMismatches(page)).filter((m) => !benign(m))).toEqual([]);
@@ -70,9 +69,9 @@ test.describe('table block: row drag on a windowed table', () => {
 		await page.mouse.down();
 		await page.mouse.move(edgeX, edgeY, { steps: 6 });
 
-		// The autoscroll rAF loop self-drives on the held pointer; poll scrollTop past
-		// 1.5 viewports so the deep region mounts. Jitter the pointer each iteration to
-		// keep Playwright's pointer state fresh. Never waitForTimeout.
+		// The autoscroll rAF loop self-drives on the held pointer; poll scrollTop past 1.5
+		// viewports so the deep region mounts, jittering the pointer each iteration to keep
+		// Playwright's pointer state fresh. Never waitForTimeout.
 		await expect
 			.poll(
 				async () => {
@@ -83,9 +82,8 @@ test.describe('table block: row drag on a windowed table', () => {
 			)
 			.toBeGreaterThan(startScroll + box.height * 1.5);
 
-		// Leave the band onto the viewport center so autoscroll halts; then wait for
-		// scrollTop to settle across two frames before reading the target — a rect read
-		// mid-scroll would be stale on drop.
+		// Leave the band so autoscroll halts, then wait for scrollTop to settle across two frames
+		// before reading the target — a rect read mid-scroll would be stale on drop.
 		await page.mouse.move(edgeX, box.y + box.height / 2);
 		await expect
 			.poll(
@@ -103,9 +101,8 @@ test.describe('table block: row drag on a windowed table', () => {
 			)
 			.toBe(true);
 
-		// A mounted body row clear of both autoscroll bands and not the last row, so
-		// r(idx+1) exists for the order assertion. Drop on its bottom edge → r1 lands
-		// just after it.
+		// A mounted body row clear of both autoscroll bands and not the last, so r(idx+1) exists
+		// for the order assertion; dropping on its bottom edge lands r1 just after it.
 		const target = await page.evaluate(() => {
 			const root = document.querySelector('.editor') as HTMLElement;
 			const rootRect = root.getBoundingClientRect();
@@ -133,9 +130,8 @@ test.describe('table block: row drag on a windowed table', () => {
 			new RegExp(`\\| r${A} \\|[\\s\\S]*?\\| r1 \\|[\\s\\S]*?\\| r${A + 1} \\|`)
 		);
 
-		// No row dropped or duplicated; the TABLE node's row keys stayed in sync (the
-		// reorder didn't extend children past childIds); only the benign off-window
-		// artifact remains; no error.
+		// No row dropped or duplicated, and the table node's row keys stayed in sync (the reorder
+		// did not extend children past childIds); only the benign off-window artifact remains.
 		const tableNode = await page.evaluate(() => {
 			const t = (window as any).__test.getDocument().children[0];
 			return { children: t.children.length, ids: t.childIds?.length ?? 0 };

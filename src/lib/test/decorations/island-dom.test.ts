@@ -145,10 +145,9 @@ function buildWithAtomicWidget(
 	return frag;
 }
 
-// A text-position range can't split an atomic widget, so a replace boundary
-// strictly inside one snaps outward to whole-element coverage. This is the sole
-// guard for that branch: the island property's descending pass never places a
-// nonzero-span widget before a later boundary, and its corpus emits no widgets.
+// A text-position range can't split an atomic widget, so a boundary strictly inside
+// one snaps outward. Sole guard for that branch — the island property's corpus emits
+// no widgets, so its descending pass never reaches it.
 describe('replace boundary inside an atomic widget snaps outward', () => {
 	let warnSpy: ReturnType<typeof vi.spyOn>;
 	beforeEach(() => {

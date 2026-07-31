@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's ambient-marker branch (edge-policy-dispatch). A
-// selection whose DOM range reaches into the contenteditable="false" ambient marker
-// blocks native Backspace/Delete silently — no beforeinput fires — so the dispatch
-// commits the delete through the CST instead. This branch lived inside the Svelte
-// component and never had a unit test; extracting it into the dispatch lets one pin
-// it at its own level (the culture doc's "dispatch layers get tests at their level").
+// The caret-edge dispatch's ambient-marker branch (edge-policy-dispatch). A selection whose DOM
+// range reaches into the contenteditable="false" ambient marker blocks native Backspace/Delete
+// silently — no beforeinput fires — so the dispatch commits the delete through the CST instead.
+// This branch lived inside the Svelte component and never had a unit test; the extraction lets
+// one pin it at its own level (culture.md: dispatch layers get tests at their own level).
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	createEdgePolicyDispatch,
@@ -23,9 +22,8 @@ interface Harness {
 	edits: { index: number; content: string; start: number; end: number }[];
 }
 
-/** Mount `[md-marker][content]` — the shape a list item's ambient-prefixed prose
- *  child renders. `rawSelection` is the content range the (mocked) DOM→raw walk
- *  yields; ambient length is the marker text length. */
+/** Mount `[md-marker][content]` — the shape a list item's ambient-prefixed prose child renders.
+ *  `rawSelection` is the content range the (mocked) DOM→raw walk yields. */
 function mount(source: string, rawSelection: { start: number; end: number } | null): Harness {
 	const node: CstNode = parse(source).children[0];
 	const display = node.raw.replace(/\n$/, '');
@@ -114,12 +112,8 @@ describe('ambient-marker selection delete', () => {
 		expect(h.edits).toEqual([{ index: 0, content: 'cd\n', start: 0, end: 0 }]);
 	});
 
-	// The sibling arms decline modifier chords so the platform word-delete runs
-	// natively. This arm deliberately does not, and the difference is not an
-	// oversight: the browser refuses to modify a range overlapping the
-	// contenteditable="false" marker and fires no beforeinput, so declining would
-	// leave the chord doing nothing at all rather than deleting a word. Deleting a
-	// non-empty selection whatever the chord is also what every editor does.
+	// The sibling arms decline modifier chords so the platform word-delete runs natively; this arm
+	// must not — the browser fires no beforeinput over the marker, so declining would do nothing.
 	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }])(
 		'%o+Backspace over a marker-touching selection still deletes the range',
 		(mods) => {

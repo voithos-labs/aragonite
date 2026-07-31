@@ -1,24 +1,9 @@
 /**
- * Whole-row snap for cross-block selections with a table endpoint.
- *
- * A table endpoint's offset is a row-major cell index (`cellCoordinate: true`).
- * When a table is one END of a cross-block (different-block) selection, the
- * highlight, clipboard copy, and range delete must agree on the same cell set.
- * Left partial, copy row-rounds while delete clears columns — a Cut then loses
- * or duplicates cells. Snapping each table endpoint to its whole row (start side
- * to the row's first cell, end side to the row's last cell) makes all three paths
- * capture the same whole rows: the painted rows are the copied/deleted rows.
- *
- * The offset stays an INCLUSIVE cell index, the same space SelectionPoint
- * already uses, so collapse/reveal still resolve a valid in-range cell. Copy,
- * delete, and overlay convert to their own end-exclusive form at their seams.
- *
- * Only `cellCoordinate` endpoints snap: that flag is what distinguishes a
- * row-major cell index from a char offset on a table-block path; unflagged
- * endpoints pass through untouched.
- *
- * Intra-table selections (both endpoints on the same table) are NOT snapped —
- * rectangular sub-cell selection inside one table is intentionally preserved.
+ * Whole-row snap for cross-block selections with a table endpoint. Highlight, clipboard copy,
+ * and range delete must agree on the same cell set; left partial, copy row-rounds while delete
+ * clears columns and a Cut loses cells. Offsets stay INCLUSIVE cell indices, the space
+ * SelectionPoint already uses. Only `cellCoordinate` endpoints snap; intra-table selections are
+ * deliberately left alone, so rectangular sub-cell selection survives.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -31,16 +16,10 @@ import { comparePaths } from './path-math';
 import { devWarn } from '../dev-warn';
 
 /**
- * A cross-block selection endpoint inside a table must address the table block
- * by row-major cell index (`[tableIdx]` + cellIdx), matching the pointer-drag
- * representation. A deep `[tableIdx, row, col]` leaf path with a character
- * offset routes the delete through the generic (non-table-aware) path, which
- * merges external text into a cell and corrupts the grid. Non-table paths pass
- * through unchanged. SelectionState applies this to every incoming point, so
- * entry paths need not call it themselves.
- *
- * This is the char→cell conversion funnel: it mints the {@link CellSelectionPoint}
- * for a table path and returns a char point otherwise — hence the union return.
+ * The char→cell conversion funnel: a cross-block endpoint inside a table must address the table
+ * block by row-major cell index, or a deep `[tableIdx, row, col]` path with a char offset routes
+ * the delete down the generic branch and corrupts the grid. SelectionState applies this to every
+ * incoming point, so entry paths never call it themselves. Non-table paths pass through.
  */
 export function normalizeTableEndpoint(
 	doc: DocumentView,
@@ -64,36 +43,21 @@ export function normalizeTableEndpoint(
 }
 
 /**
- * How many cells a table's index space holds — the exclusive upper bound on any
- * row-major cell index addressing it. `node` must be a table block; the metadata
- * read is an unchecked cast, so any other kind yields `NaN`.
- *
- * Lives beside the bounds check below so a caller that CLAMPS to this extent and
- * the check that REJECTS beyond it cannot drift apart: a clamp computed from a
- * different expression could yield an index this module then refuses, collapsing
- * the deep-path resolution it was clamped to satisfy.
+ * How many cells a table's index space holds, the exclusive upper bound on any row-major cell
+ * index. `node` must be a table block; the metadata read is unchecked, so other kinds give NaN.
+ * Lives beside the bounds check below so a caller's clamp and the check cannot drift apart.
  */
 export function tableCellCount(node: NodeView): number {
 	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
 }
 
 /**
- * Inverse of {@link normalizeTableEndpoint}: expand an endpoint addressing a
- * table block back to its deep `[tableIdx, row, col]` leaf path so reveal/caret
- * placement can reach the off-window cell. Null when there is no deep path to
- * give — the path is already a leaf, or the cell index lands outside the grid.
- *
- * Resolution is on the NODE KIND, not the `cellCoordinate` flag: an intra-table
- * rectangle's focus is unflagged by the same-path convention (see
- * {@link SelectionPoint}) yet its offset is still a cell index, so a flag gate
- * left every forward-extended rectangle resolving no cell. A table path is
- * cell space in both worlds, which makes the kind the honest discriminant —
- * and why the index is minted directly rather than through `cellIndexOf`, whose
- * flag guard would warn on every legitimate intra-table point. That mint carries
- * no range opinion, so the index is bounds-checked against the grid here: an
- * out-of-grid index otherwise composed a path to a row that does not exist and
- * sent `revealPath` after it, which is strictly worse than the caller's null
- * branch (each falls back to the table block itself).
+ * Inverse of {@link normalizeTableEndpoint}: expand an endpoint addressing a table block to its
+ * deep `[tableIdx, row, col]` leaf path so reveal/caret placement reaches an off-window cell.
+ * Null when the path is already a leaf or the index lands outside the grid. Resolution is on the
+ * NODE KIND, not the `cellCoordinate` flag: an intra-table focus is unflagged (see
+ * {@link SelectionPoint}) yet still a cell index, which is why the index is minted rather than
+ * read through `cellIndexOf`.
  */
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	const node = nodeAt(doc, point.path);

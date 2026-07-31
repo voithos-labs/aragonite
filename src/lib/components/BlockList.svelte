@@ -5,11 +5,9 @@
 	import { sliceWindow } from '../reactivity/window-slice';
 	import BlockHost from './BlockHost.svelte';
 
-	// setRef/getRef are owner-supplied callbacks. A bind:blockRefs $bindable
-	// array desyncs from the owner's state across cross-effect mutations.
-	// `reorderable` is true only when these children ARE reorder units (document
-	// root, list, blockquote). A list item's inner content list passes false so its
-	// paragraph gets no handle. Default false keeps new container call sites opt-in.
+	// setRef/getRef are owner-supplied callbacks: a `bind:` $bindable array desyncs
+	// from the owner's state across cross-effect mutations. `reorderable` is true only
+	// when these children ARE reorder units (document root, list, blockquote).
 	let {
 		children,
 		blockIds,
@@ -43,11 +41,8 @@
 	{/if}
 	{#each slice as node, localIndex (blockIds[start + localIndex])}
 		{@const absoluteIndex = start + localIndex}
-		<!-- ABSOLUTE-INDEX INVARIANT: index/id/key are the absolute child index
-		     (start + localIndex), never the local loop index — paths and structural
-		     ops key off it. When inactive, bounds are {0, childCount} so absoluteIndex
-		     === i; the focused block stays in this each via the window's contiguous
-		     pin-extension, so its DOM node (and focus/IME) survive scroll. -->
+		<!-- ABSOLUTE-INDEX INVARIANT: index/id/key are `start + localIndex`, never the
+		     local loop index — paths and structural ops key off it. -->
 		<BlockHost
 			{node}
 			index={absoluteIndex}

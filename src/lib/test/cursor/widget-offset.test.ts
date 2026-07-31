@@ -41,8 +41,7 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 
 		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
-		// Caret should land inside the trailing sentinel, not at parent + idx+1.
-		// Otherwise Chromium drops beforeinput at this position.
+		// Landing at parent + idx+1 instead makes Chromium drop beforeinput at this position.
 		expect(pos!.node).toBe(trailing);
 		expect(pos!.offset).toBe(0);
 	});
@@ -68,7 +67,6 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 
 		const pos = findDomTextOffsetTarget(el, asDomTextOffset(10));
 		expect(pos).not.toBeNull();
-		// Should land inside the inter-sentinel (text-node), not at parent boundary.
 		expect(pos!.node).toBe(between);
 		expect(pos!.offset).toBe(0);
 	});
@@ -97,9 +95,8 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	});
 
 	it('falls back to end-of-content when target exceeds the block length', () => {
-		// CURSOR_END (= MAX_SAFE_INTEGER) relies on this fallback to land the
-		// caret at the end of any block; a finite sentinel below the length
-		// would instead resolve mid-block.
+		// CURSOR_END (= MAX_SAFE_INTEGER) relies on this fallback to land at the end of any block; a
+		// finite sentinel below the length would instead resolve mid-block.
 		const text = document.createTextNode('hello');
 		el.appendChild(text);
 
@@ -115,17 +112,14 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 		const trailing = sentinel();
 		el.append(leading, w, trailing);
 
-		// Caret in trailing sentinel at offset 0 corresponds to raw 10 (after widget).
 		expect(domTextOffsetAtNode(el, trailing, 0)).toBe(10);
-		// Caret in leading sentinel at offset 0 corresponds to raw 0.
 		expect(domTextOffsetAtNode(el, leading, 0)).toBe(0);
 	});
 });
 
 describe('domTextOffsetAtNode — positions at or inside an atomic widget', () => {
-	// Layout: text "ab" [0,2) · island [2,15) · text "cd" [15,17). The island's
-	// inner text is 4 chars against a 13-byte source range, so a walk that
-	// descended into it would land 9 bytes short of the contract.
+	// Layout: text "ab" [0,2) · island [2,15) · text "cd" [15,17). The island's inner text is 4 chars
+	// against a 13-byte source range, so a walk that descended into it lands 9 bytes short.
 	let el: HTMLElement;
 	let island: HTMLElement;
 
@@ -158,18 +152,16 @@ describe('domTextOffsetAtNode — positions at or inside an atomic widget', () =
 	});
 
 	it('snaps a position inside the island — the browser rebinds carets into these', () => {
-		// contenteditable=false islands attract carets; the walk has no interior
-		// positions to report, so an interior node resolves to an edge, never to
-		// the container's total length.
+		// contenteditable=false islands attract carets, and the walk has no interior positions to
+		// report, so an interior node resolves to an edge rather than the container's total length.
 		const inner = island.querySelector('span')!.firstChild!;
 		expect(domTextOffsetAtNode(el, inner, 0)).toBe(2);
 		expect(domTextOffsetAtNode(el, inner, 1)).toBe(15);
 	});
 
 	it('reads a position outside the container as end-of-walk', () => {
-		// Document order against a disconnected tree is implementation-specific, so
-		// an unreachable position must not resolve to a guessed interior offset.
-		// Callers that need "not mine" as an answer test containment themselves.
+		// Document order against a disconnected tree is implementation-specific, so an unreachable
+		// position must not resolve to a guessed interior offset; callers test containment themselves.
 		const foreign = document.createElement('span');
 		foreign.append(document.createTextNode('zz'));
 

@@ -45,9 +45,8 @@ describe('checkCategoryFields (G1.5)', () => {
 	});
 });
 
-// The mergeRole vocabulary moved OFF the per-node check: it is a per-kind
-// registration fact, so validating it once per committed node re-ran a constant
-// on every commit and left a bad registration undetected until the first edit.
+// mergeRole is a per-kind registration fact, so a per-node check re-runs a constant every
+// commit and leaves a bad registration undetected until the first edit.
 describe('G1.30 merge-role vocabulary', () => {
 	it('accepts every legal role', () => {
 		const legal = ['prose', 'prose-absorber', 'container', 'self-merge', 'not-mergeable'];

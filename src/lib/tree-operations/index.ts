@@ -6,6 +6,7 @@ export {
 	mergeIntoPrevDeepLeaf,
 	deleteNode,
 	updateNodeContent,
+	reclassifyContainer,
 	focusTargetInReplacement,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,

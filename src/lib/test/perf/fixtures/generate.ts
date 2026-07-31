@@ -31,11 +31,8 @@ export function generateFixture(shape: FixtureShape, targetBytes: number, seed =
 	return chunks.join('');
 }
 
-/**
- * `blockCount` plain paragraphs of `wordsPerBlock` words each. Varying
- * blockCount at fixed wordsPerBlock isolates mounted-block count; varying
- * wordsPerBlock at fixed blockCount isolates per-block content size.
- */
+/** Independent knobs: blockCount at fixed wordsPerBlock isolates mounted-block count,
+ *  wordsPerBlock at fixed blockCount isolates per-block content size. */
 export function generateUniformBlocks(
 	blockCount: number,
 	wordsPerBlock: number,
@@ -48,24 +45,12 @@ export function generateUniformBlocks(
 }
 
 /**
- * One deep container spine of `depth` alternating blockquote/list levels, where
- * EVERY level carries `bytesPerLevel` of sibling content beside the descent —
- * so the outermost container's raw materializes the whole subtree and an
- * ancestry rebuild pays Σ over levels (write-amplification ≈ depth/2).
- *
- * The combined axis the per-axis benches miss: `nested-containers` gives depth
- * with tiny raws, `singleFlatList` gives breadth at depth 1. Parameterized like
- * `generateUniformBlocks` (independent depth × bytes) rather than a
- * `FIXTURE_SHAPES` entry, whose single `targetBytes` knob can express neither
- * axis and would sweep an unproven shape into the perf gate.
- *
- * Built inside-out: each level wraps the deeper content with the serializer's
- * own prefix transform (blockquote `> `/`>`, list-item `- `/`  `), so the
- * result round-trips by construction. Odd levels are blockquotes, even levels
- * lists — a list level parses to a `list` wrapping one `listItem`, so it adds
- * two containers to the rebuild chain, not one (the chain the ancestry rebuild
- * actually walks runs ~1.5× the wrap depth). The deepest leaf is a small plain
- * paragraph — the typeable caret target; {@link deepNestedLeafPath} addresses it.
+ * A deep container spine where EVERY level carries `bytesPerLevel` of sibling content
+ * beside the descent, so an ancestry rebuild pays Σ over levels — the combined
+ * depth × bytes axis `FIXTURE_SHAPES`' single `targetBytes` knob cannot express.
+ * Wraps inside-out with the serializer's own prefix transform, so the result
+ * round-trips by construction; a list level adds TWO containers to the rebuild chain,
+ * making the walked chain ~1.5× the wrap depth.
  */
 export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 42): string {
 	const rand = mulberry32(seed);
@@ -78,11 +63,39 @@ export function generateDeepNested(depth: number, bytesPerLevel: number, seed = 
 	return content + '\n';
 }
 
+export const TRIGGER_DENSE_KINDS = ['bracket-footnote', 'colon', 'dollar'] as const;
+export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
+
 /**
- * Path to the deepest (typeable) leaf of a `generateDeepNested(depth, …)` doc.
- * Each level descends to its spine child: a blockquote's is the second child
- * (after the sibling); a list's lives one hop deeper, inside the lone listItem.
+ * Prose dense in one INLINE TRIGGER, for the report-only rows measuring what an
+ * installed inline rung costs. Kept out of `FIXTURE_SHAPES` because those sweep into
+ * every gated row and a rung's cost is a plugin's business, not a ceiling the editor
+ * owes. Each corpus isolates its rung's dominant cost: `colon` is mostly DECLINING
+ * colons, `dollar` is shell prose (issue #27) with one real math span, and
+ * `bracket-footnote` is definition-free so the control route parses the same document
+ * — though its row measures the scanner consultation AND the mounted reference's
+ * whole-document renumber walk together, not the rung alone.
  */
+export function generateTriggerDense(
+	kind: TriggerDenseKind,
+	targetBytes: number,
+	seed = 42
+): string {
+	const rand = mulberry32(seed);
+	const chunks: string[] = [];
+	let size = 0;
+	let i = 0;
+	while (size < targetBytes) {
+		const chunk = TRIGGER_DENSE_BUILDERS[kind](rand, i++);
+		chunks.push(chunk);
+		size += chunk.length;
+	}
+	return chunks.join('');
+}
+
+/** Path to the deepest (typeable) leaf of a `generateDeepNested` doc. A blockquote's
+ *  spine child is its second (the sibling is first); a list's lives one hop deeper,
+ *  inside the lone listItem. */
 export function deepNestedLeafPath(depth: number): number[] {
 	const path = [0];
 	for (let level = 1; level <= depth; level++) {
@@ -92,10 +105,8 @@ export function deepNestedLeafPath(depth: number): number[] {
 	return path;
 }
 
-// `words()` yields ~6.1 B/token (5.1-char mean corpus word + one separator); the
-// divisor rounds up to 7, so `bytesPerLevel` is a NOMINAL target the fixtures
-// under-fill by ~12% (a true 50 KB/level would cost marginally more — still
-// floor-class, so the shortfall is conservative for the concern-4 verdict).
+// `words()` yields ~6.1 B/token, so rounding the divisor up to 7 makes `bytesPerLevel`
+// a NOMINAL target the fixtures under-fill by ~12% — conservative, never inflating.
 const BYTES_PER_WORD = 7;
 
 function wrapBlockquote(inner: string): string {
@@ -148,6 +159,25 @@ function words(rand: () => number, n: number): string {
 	return out.join(' ');
 }
 
+const SHORTCODES = ['tada', 'rocket', 'bug', 'book', 'warning', 'smile'];
+
+const TRIGGER_DENSE_BUILDERS: Record<TriggerDenseKind, (rand: () => number, i: number) => string> =
+	{
+		'bracket-footnote': (rand, i) =>
+			`${words(rand, 8)} [${words(rand, 2)}](https://example.com/${i}) ${words(rand, 5)}[^fn-${i}] ` +
+			`${words(rand, 6)} [${words(rand, 2)}][ref-${i}] ${words(rand, 5)}.\n\n`,
+
+		colon: (rand, i) =>
+			`${words(rand, 1)}: ${words(rand, 6)} ${words(rand, 1)}::${words(rand, 1)} ` +
+			`at 1${i % 10}:${(i * 7) % 60} ${words(rand, 5)} :${SHORTCODES[i % SHORTCODES.length]}: ` +
+			`${words(rand, 5)}.\n\n`,
+
+		dollar: (rand, i) =>
+			`${words(rand, 6)} $HOME $PATH $USER ${words(rand, 5)} $${i} ${words(rand, 6)}` +
+			(i === 0 ? ' $a + b$' : '') +
+			` ${words(rand, 5)}.\n\n`
+	};
+
 const BUILDERS: Record<FixtureShape, (rand: () => number, i: number) => string> = {
 	'flat-prose': (rand) =>
 		`## ${words(rand, 4)}\n\n` +
@@ -186,9 +216,8 @@ const BUILDERS: Record<FixtureShape, (rand: () => number, i: number) => string> 
 	// them inside ONE `blockquote` node with many paragraph children.
 	'giant-single-blockquote': (rand) => `> ${words(rand, 8)}\n>\n`,
 
-	// One table: header + delimiter on the first chunk, one body row per chunk
-	// after, no blank line between -> a single `table` node with thousands of
-	// `tableRow` children (rendered by TableBlock's own {#each}, bypassing BlockList).
+	// No blank line between chunks -> one `table` node with thousands of `tableRow`
+	// children, rendered by TableBlock's own {#each} rather than through BlockList.
 	'giant-single-table': (rand, i) => {
 		const row = () => `| ${words(rand, 2)} | ${words(rand, 2)} | ${words(rand, 2)} |\n`;
 		return i === 0 ? row() + '| --- | --- | --- |\n' + row() : row();

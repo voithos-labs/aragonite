@@ -1,7 +1,6 @@
 /**
- * Keydown + compositionstart half of the cross-block dispatcher.
- * See dispatch.ts for the composer that wires this together
- * with the pointer half.
+ * Keydown + compositionstart half of the cross-block dispatcher. See dispatch.ts for the
+ * composer that wires this together with the pointer half.
  */
 
 import type { CrossBlockMutationContext } from './ops';
@@ -52,10 +51,9 @@ async function handleKeyDown(
 ): Promise<boolean> {
 	const { selection } = ctx;
 
-	// Before the dispatch, not after: every branch below can consume the key and
-	// return, and the collapse/extend arms run no commit, so a reset deferred to
-	// the shared prelude would never fire. The dispatcher holds a range rather
-	// than a caret, so it supplies no measurement — a vertical arrow preserves.
+	// Before the dispatch, not after: every branch below can consume the key and return, and the
+	// collapse/extend arms run no commit, so a reset deferred to the shared prelude never fires.
+	// The dispatcher holds a range, not a caret, so it supplies no measurement.
 	ctx.stickyColumn.noteKey(e);
 
 	if (selection.isCrossBlock) {
@@ -78,11 +76,10 @@ async function handleCrossBlockActive(
 	const myPath = ctx.getMyPath();
 	const doc = getDoc();
 
-	// Ctrl+C / Ctrl+X intentionally pass through — the copy/cut event writes
-	// synchronously via e.clipboardData.setData, since Tauri's wry webview refuses
-	// navigator.clipboard.writeText in some contexts. It reaches the block's
-	// onCopy/onCut only when the endpoint holds a caret; when it does not, Chromium
-	// retargets the event to <body> and components/editor-root-clipboard.ts catches it.
+	// Ctrl+C / Ctrl+X intentionally pass through: the copy/cut event writes synchronously via
+	// e.clipboardData.setData, since Tauri's wry webview refuses navigator.clipboard.writeText.
+	// Without a caret at the endpoint Chromium retargets to <body>, caught by
+	// components/editor-root-clipboard.ts.
 
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -95,10 +92,9 @@ async function handleCrossBlockActive(
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
 		if (isReadingMode(ctx.getPresentationMode)) return true;
-		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete
-		// returns the authoritative post-delete position against the merged tree, and
-		// for a table endpoint that is the deep [table,row,col] cell whose runCommand
-		// exists — the pre-delete [tableIdx] path is the wrapper, which has none.
+		// Reveal at the delete's own caret, not the pre-delete start path: rangeDelete returns
+		// the authoritative post-delete position, and for a table endpoint that is the deep
+		// [table,row,col] cell whose runCommand exists (the wrapper path has none).
 		const fallbackPath = (selection.start ?? selection.focus)?.path ?? myPath;
 		const collapsedCaret = await performCrossBlockDelete(mutCtx);
 		await ctx.afterReactivity();
@@ -125,9 +121,8 @@ async function handleCrossBlockActive(
 	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
 	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
 
-	// Intra-table rectangle: Shift+Arrow grows the rectangle cell-by-cell and exits
-	// at the vertical edge. Must precede the generic block-level extend, which walks
-	// the table's own first cell and snaps the focus back to cellIdx 0.
+	// Intra-table rectangle: Shift+Arrow grows the rect cell-by-cell and exits at the vertical
+	// edge. Must precede the generic extend, which snaps the focus back to cellIdx 0.
 	if (
 		e.shiftKey &&
 		(e.key === 'ArrowUp' ||
@@ -223,10 +218,9 @@ async function handleCrossBlockEntry(
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
 /**
- * Keys whose behavior is owned by the block-level handler at the caret and
- * which must run at a collapsed caret, not while a cross-block selection
- * visually persists over stale block indices. After the range delete, these
- * dispatch through the merged block's command registry.
+ * Keys owned by the block-level handler at the caret, which must run at a collapsed caret
+ * rather than over stale block indices. After the range delete they dispatch through the
+ * merged block's command registry.
  */
 function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
@@ -255,9 +249,8 @@ function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 }
 
 /**
- * Select the block's content for the first Ctrl+A press. When a container
- * contributes an ambient marker (e.g. a list item's `- `), anchor after the
- * marker so type-replace doesn't corrupt the contenteditable="false" island.
+ * Select the block's content for the first Ctrl+A press. With an ambient marker (a list item's
+ * `- `), anchor after it so type-replace doesn't corrupt the contenteditable="false" island.
  */
 function selectFirstPressContent(el: HTMLElement): void {
 	const ambient = ambientSpanOf(el);
@@ -282,36 +275,30 @@ function selectFirstPressContent(el: HTMLElement): void {
 }
 
 /**
- * Bring the active (focus-side) endpoint into view after an extend. A
- * cell-coordinate focus addresses the table block at a linear cell index, so
- * scrollFocusBlockIntoView only reaches the (mounted) table — reveal the deep
- * cell path instead to mount the off-window row. Revealing scrolls the anchor
- * cell off-window and drops native focus to <body>, so park the dispatch caret
- * in the revealed cell to keep the next keystroke routed (the pinned-caret
- * rule). Start, not end: an end caret in the last cell makes ArrowRight read as
- * an exit-the-table move rather than a collapse.
+ * Bring the active (focus-side) endpoint into view after an extend. A cell-coordinate focus
+ * addresses the table block by cell index, so reveal the deep cell path to mount the off-window
+ * row, then park the dispatch caret there to keep the next keystroke routed. Start, not end: an
+ * end caret in the last cell makes ArrowRight read as an exit-the-table move. `parkCaret`, never
+ * `focus`: this landing runs WHILE an extend grows, and `focus` would end the range (G2.12).
  */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
 	const deepPath = focus && cellEndpointDeepPath(ctx.getDoc(), focus);
 	if (deepPath) {
 		const cellRef = await ctx.revealPath(deepPath);
-		// A null ref means the cell never mounted; fall through to scroll the
-		// (mounted) table so a failed reveal still keeps the endpoint in view.
+		// A null ref means the cell never mounted; fall through to scroll the (mounted) table
+		// so a failed reveal still keeps the endpoint in view.
 		if (cellRef) {
-			cellRef.focus(0);
+			cellRef.parkCaret?.(0);
 			return;
 		}
 	}
-	// An off-window (windowed-out) prose endpoint can't be scrolled to while
-	// unmounted. Reveal it and park the dispatch caret in it — the same
-	// reveal-then-pin pattern as the table-cell case above. Pinning native focus in
-	// the revealed endpoint is what keeps the next keystroke (the collapse) routed,
-	// even though the reveal unmounted the block that previously held focus.
+	// An off-window prose endpoint can't be scrolled to while unmounted. Reveal it and park the
+	// dispatch caret in it, the same reveal-then-pin pattern as the table-cell case above.
 	if (focus && !ctx.getBlockElByPath(focus.path)) {
 		const ref = await ctx.revealPath(focus.path);
 		if (ref) {
-			ref.focus(focus.offset);
+			ref.parkCaret?.(focus.offset);
 			scrollFocusBlockIntoView(ctx.selection, ctx.getBlockElByPath);
 			return;
 		}

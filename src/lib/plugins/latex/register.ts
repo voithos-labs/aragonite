@@ -1,9 +1,7 @@
 /**
- * The LaTeX plugin: inline `$…$` math and block `$$…$$` display math (kind + opener
- * + the render-primary `BlockMath` component). `latexPlugin({ renderer })` injects
- * the math engine through the module seam — there is no baked-in default, so the
- * `renderer` option is required (the `katexRenderer` adapter is the one-import path).
- * The plugin unit installs this setup once per process, so it runs unguarded.
+ * `renderer` is required because there is no baked-in default engine; `katexRenderer`
+ * is the one-import path. The plugin unit installs this setup once per process, so it
+ * runs unguarded.
  */
 
 import {

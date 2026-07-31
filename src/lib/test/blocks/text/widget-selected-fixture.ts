@@ -14,9 +14,8 @@ export interface Commit {
 	after: number;
 }
 
-/** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart`
- *  already selected. Deps the selected-key path must not reach are proxy traps, so a
- *  handler that starts consulting one fails loudly instead of silently widening. */
+/** Wire `createWidgetInteraction` over a real parse with the widget at `sourceStart` already
+ *  selected. Deps this path must not reach are proxy traps, so a widening handler fails loudly. */
 export function harness(source: string, sourceStart: number, linkRef?: LinkReferenceResolverRef) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];

@@ -1,35 +1,16 @@
 /**
- * Editor default theme — editor-owned token values, scoped to the editor rather
- * than `:root` so an extracted module never injects ~50 custom properties into a
- * consumer's global scope. Tokens are declared on `.editor` (the component's own
- * root) and on `.aragonite-editor-theme` (an opt-in class a consumer puts on any
- * non-editor chrome — e.g. a CodeMirror placeholder — that wants the same
- * palette, so the consumer borrows tokens without redeclaring them). `:where()`
- * keeps specificity at 0 so a consumer override at `.editor { --x: … }` wins.
- *
- * Light vs dark keys on `data-editor-theme='light'` on the same element; the
- * `<Editor theme>` prop reflects there, and a consumer sets it on a
- * `.aragonite-editor-theme` wrapper. Dark is the base (no attribute needed).
- *
- * The `--color-*` tokens are app-chrome flavored (bg/text/border/accent the
- * editor borrows to blend in) but are owned here like everything else: shipped
- * with light+dark defaults so the module renders correctly with no host. A
- * consumer matching its own app palette overrides them at `.editor` (or a
- * wrapper) — NOT at `:root`, whose inherited value is shadowed by these direct
- * defaults. Every component read also keeps an inline fallback (G4.6b).
- *
- * Consumers: import this file for the default look, override any token at
- * `.editor` (or narrower), add a named theme via `data-editor-theme='<name>'`
- * with your own block, or replace this file wholesale to retheme.
+ * Editor default theme. Tokens are declared on `.editor` and on the opt-in
+ * `.aragonite-editor-theme` class, never on `:root` — an extracted module must not inject
+ * ~50 custom properties into a consumer's global scope. `:where()` keeps specificity at 0
+ * so an override at `.editor { --x: … }` wins; `:root` does NOT, being shadowed by these
+ * direct defaults. Light keys on `data-editor-theme='light'`; dark is the base. Every
+ * component read also keeps an inline fallback (G4.6b).
  */
 
 :where(.editor, .aragonite-editor-theme) {
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
-	/* The editor's type-scale root — headings, code and markers are all `em`-relative,
-	   so one override scales the surface. Mode-independent. Declared HERE, on the
-	   editor root, which means it shadows a value inherited from a host wrapper: a
-	   consumer overrides it at `.editor` (or bridges an ancestor's value through
-	   `.editor { --editor-font-size: var(--my-zoom, 1rem) }`). */
+	/* Type-scale root: headings, code and markers are all `em`-relative, so one override
+	   scales the surface. Declared here, so it shadows any value inherited from a wrapper. */
 	--editor-font-size: 1rem;
 
 	/* Host chrome tokens (dark defaults). Consumer-overridable; reads keep inline fallbacks. */
@@ -45,15 +26,13 @@
 	--color-ui-dulled: #afb1b3;
 	--color-accent: #567b67;
 	--color-danger: #e06c75;
-	--color-ui-faint: rgba(100, 150, 255, 0.14);
+	/* Hover veil over an ALREADY-elevated surface, so it cannot reuse
+	   --color-bg-secondary, which is measured against the base bg. */
+	--color-ui-faint: rgba(255, 255, 255, 0.07);
 
-	/* Markdown syntax semantic tokens — override points for the constructs the
-	   structural rules color (headings, emphasis, links, quote bar, inline code,
-	   raw HTML, list/task markers, thematic break). Defaults are deliberately
-	   neutral — currentColor, or the chrome token the rule read before these
-	   were wired — so the default rendering carries no extra palette; override
-	   any of them to actually colorize. Mode-independent by construction (the
-	   chrome tokens they chain to carry the light/dark split). */
+	/* Markdown syntax override points. Defaults are deliberately neutral, so the default
+	   rendering carries no extra palette; override any of them to colorize.
+	   Mode-independent — the chrome tokens they chain to carry the light/dark split. */
 	--syntax-heading: currentColor;
 	--syntax-emphasis: currentColor;
 	--syntax-link: var(--color-accent, #567b67);
@@ -91,8 +70,7 @@
 	/* Presentational tokens (mode-independent). */
 	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
 	--search-match-bg: rgba(120, 150, 255, 0.22);
-	/* Painted on top of the match text (overlay is z-index:1, pointer-events:none),
-	   so the active highlight must keep an alpha channel or it hides the text. */
+	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
 	--md-link-blocked-color: rgba(128, 128, 128, 0.7);
@@ -101,17 +79,14 @@
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	--md-reorder-indicator: #6496ff;
-	/* Wash on the container being reordered within during a nested drag. Tinted with
-	   the reorder accent (not neutral grey) so the hue + lightness shift stays
-	   perceptible for low-contrast vision, while remaining a soft transient wash. */
+	/* Wash on the container being reordered within during a nested drag. Tinted with the
+	   reorder accent, not neutral grey, so the shift stays perceptible for low-contrast
+	   vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	--syntax-marker-dim: 0.65;
 
-	/* Faint placeholder tint behind off-window content (VR-8): a fling can outrun
-	   the window recompute and paint a bare spacer for one frame; the tint reads as
-	   "loading" rather than a white tear. Invisible in steady state (the spacer
-	   always sits an overscan band outside the viewport). Light text on dark bg → a
-	   faint light tint. */
+	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
+	   window recompute reads as "loading" rather than a white tear. */
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
@@ -129,9 +104,9 @@
 	--color-ui-dulled: #8c959f;
 	--color-accent: #567b67;
 	--color-danger: #cf222e;
-	--color-ui-faint: rgba(100, 150, 255, 0.14);
+	--color-ui-faint: rgba(0, 0, 0, 0.06);
 
-	/* --syntax-* tokens are mode-independent (see the base block) — no light overrides. */
+	/* --syntax-* tokens are mode-independent — no light overrides. */
 
 	/* Code block syntax highlighting — GitHub Light-inspired palette */
 	--code-tok-keyword: #cf222e;
@@ -151,6 +126,6 @@
 	--code-tok-heading: #0550ae;
 	--code-tok-link: #0550ae;
 
-	/* Dark text on light bg → a faint dark tint (see VR-8 note above). */
+	/* Dark tint for a light bg (VR-8). */
 	--vr-spacer-bg: rgba(0, 0, 0, 0.03);
 }

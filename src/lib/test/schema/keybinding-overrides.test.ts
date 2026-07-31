@@ -103,10 +103,8 @@ describe('override-aware resolution (commands.ts)', () => {
 		expect(resolveKindBinding('Tab', 'listItem', disable)).toBeNull();
 	});
 
-	// The container-bubble path consults override(global) for its decision (but
-	// never the built-in global TABLE — that stays with the focused leaf so a
-	// bubbled undo/redo can't double-fire). U4: pre-fix a global disable was
-	// invisible at the bubble, so Tab still ran list.indent inside a list.
+	// The bubble must see a global OVERRIDE (a disable that is invisible here still runs
+	// list.indent) but never the built-in global table, or a bubbled undo double-fires.
 	it('resolveKindBinding honors a GLOBAL override at the bubble, not the built-in global table', () => {
 		const disable = normalizeKeybindingOverrides([{ chord: 'Tab', command: null }]);
 		expect(resolveKindBinding('Tab', 'listItem', disable)).toBeNull();

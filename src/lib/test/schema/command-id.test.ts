@@ -25,9 +25,8 @@ describe('command-id mint', () => {
 	});
 
 	it('lets the same owner re-mint a name (one command shared across its kinds)', () => {
-		// The block-command registry key is composite (kind, name) and dispatch is
-		// kind-scoped, so a plugin naming one command on several of its own kinds is
-		// coherent — the second mint returns the existing brand, not a throw.
+		// The registry key is composite (kind, name), so one name across several of a
+		// plugin's own kinds is coherent and the re-mint returns the brand, not a throw.
 		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
 		expect(mintCommandId('callout.toggle', 'callouts')).toBe('callout.toggle');
 	});

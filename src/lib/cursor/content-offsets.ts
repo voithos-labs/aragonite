@@ -1,10 +1,8 @@
 /**
- * Cursor / range / selection helpers for contenteditable text surfaces. Offsets
- * count DOM text characters ambient-inclusively (`Range.toString()` does not skip
- * contenteditable=false islands), so they are `DomTextOffset`. A requested offset
- * inside an atomic inline widget snaps to the widget's leading or trailing edge, so
- * widget-bearing surfaces (table cells, plugin leaves) are valid consumers alongside
- * plain prose.
+ * Cursor / range / selection helpers for contenteditable text surfaces. Offsets count DOM
+ * text characters ambient-inclusively (`Range.toString()` does not skip
+ * contenteditable=false islands), so they are `DomTextOffset`. An offset inside an atomic
+ * inline widget snaps to that widget's leading or trailing edge.
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
@@ -19,8 +17,7 @@ export function createRangeFromOffsets(
 	let startSet = false;
 
 	function walk(node: Node): boolean {
-		// Atomic inline widgets: cursor never lands inside. Snap requested
-		// offsets to the leading or trailing edge.
+		// The cursor never lands inside an atomic widget: snap to the nearer edge.
 		if (
 			node.nodeType === Node.ELEMENT_NODE &&
 			(node as Element).matches?.('[data-inline-widget]')
@@ -77,11 +74,9 @@ export function setCursorOffset(container: HTMLElement, offset: DomTextOffset): 
 }
 
 /**
- * Single source of truth for "DOM (node, offset) → content-offset" inside a
- * contenteditable. `Selection.toString()` skips text inside
- * contenteditable=false islands (ambient markers, image widgets) and is
- * unreliable when ranges cross them; `Range.toString()` on a prefix range
- * does not skip, so all readers funnel through this helper.
+ * The one "DOM (node, offset) → content-offset" read here. `Selection.toString()` skips
+ * text inside contenteditable=false islands and is unreliable across them; `Range.toString()`
+ * on a prefix range does not skip, so all readers funnel through this.
  */
 function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number): DomTextOffset {
 	const preRange = document.createRange();
@@ -94,10 +89,8 @@ function nodeOffsetToContent(container: HTMLElement, node: Node, offset: number)
 	return asDomTextOffset(preRange.toString().length);
 }
 
-/**
- * Returns the range START (anchor for forward selections). For the moving
- * endpoint during Shift+Arrow extension, use `getSelectionFocusOffset`.
- */
+/** The range START (anchor for forward selections); the moving endpoint during Shift+Arrow
+ *  extension is `getSelectionFocusOffset`. */
 export function getCursorOffset(container: HTMLElement): DomTextOffset | null {
 	if (document.activeElement !== container) return null;
 	const sel = window.getSelection();
@@ -106,10 +99,7 @@ export function getCursorOffset(container: HTMLElement): DomTextOffset | null {
 	return nodeOffsetToContent(container, range.startContainer, range.startOffset);
 }
 
-/**
- * Returns the moving endpoint of the selection (distinct from the anchor
- * when the user has extended a selection).
- */
+/** The moving endpoint of the selection, distinct from the anchor once extended. */
 export function getSelectionFocusOffset(container: HTMLElement): DomTextOffset | null {
 	if (document.activeElement !== container) return null;
 	const sel = window.getSelection();
@@ -123,7 +113,21 @@ export function getSelectionOffsets(
 ): { start: DomTextOffset; end: DomTextOffset } | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed) return null;
-	const range = sel.getRangeAt(0);
+	return getRangeOffsets(container, sel.getRangeAt(0));
+}
+
+/**
+ * Offsets for an arbitrary range inside `container` — an InputEvent's `getTargetRanges()`
+ * pending-edit range is not the live selection (a word delete at a collapsed caret reports
+ * the whole word). Null when either endpoint sits outside the container.
+ */
+export function getRangeOffsets(
+	container: HTMLElement,
+	range: AbstractRange
+): { start: DomTextOffset; end: DomTextOffset } | null {
+	if (!container.contains(range.startContainer) || !container.contains(range.endContainer)) {
+		return null;
+	}
 	return {
 		start: nodeOffsetToContent(container, range.startContainer, range.startOffset),
 		end: nodeOffsetToContent(container, range.endContainer, range.endOffset)

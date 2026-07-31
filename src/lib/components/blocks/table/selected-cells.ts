@@ -1,10 +1,7 @@
 /**
- * Which cells of one table a measurement request covers. Two shapes reach the
- * grid's `measurePartialRects`: a live intra-table rectangle (the drag/shift-click
- * selection the overlay paints as a block), and a plain `[start, end)` run of
- * row-major cell indices — the meaning `EditorRects.rangeRects` publishes for a
- * grid surface. The rectangle wins only when it belongs to THIS table; a
- * rectangle live in another table leaves the requested range intact.
+ * Which cells of one table a measurement request covers: a live intra-table
+ * rectangle, or a plain `[start, end)` run of row-major cell indices. The rectangle
+ * wins only when it belongs to THIS table.
  */
 
 import { SELECTION_END } from '../../../block-component';

@@ -1,62 +1,9 @@
 /**
- * Rendered↔source reveal: swaps an opaque rendered view for its editable raw
- * source and back, placing the caret via the `widget-offset` helpers only —
- * offset translation has one home (`cursor/widget-offset.ts`). Two consumers
- * share this caret core over two different swaps:
- *
- *   INLINE — a reveal-capable [data-inline-widget] island inside a
- *     contenteditable paragraph (inline math, directive text). Its swap is an
- *     imperative span↔text-node replace; the container is the always-editable
- *     paragraph, which stays focused across the swap.
- *   BLOCK — a render-primary leaf block (block math, a rendered directive). Its
- *     swap is a reactive render↔source `$state` toggle; the source contenteditable
- *     is MOUNTED on reveal and UNMOUNTED on commit, so `container` is null while
- *     rendered.
- *
- * The swap itself is injected (`showSource`/`showRendered`) and the revealed
- * state is owned by the consumer (`isRevealed`), so this primitive stays swap-
- * agnostic and never double-tracks the flag. Everything below the swap — clamp,
- * `tick()`, ambient conversion, caret placement — is the genuinely shared kernel.
- *
- * CARET-LANDING RULE:
- *   reveal(atSourceOffset?)  entry — caret at source `sourceStart + atSourceOffset`,
- *                            clamped to [sourceStart, sourceEnd]; default leading
- *                            edge (0). A click into rendered output can't map to a
- *                            source glyph, so entry honors a REQUESTED offset or
- *                            lands on an edge — never an arbitrary interior point.
- *   commit()                 exit  — caret at the source's TRAILING edge
- *                            (`sourceEnd`). Inline uses this for Escape-cancel
- *                            (rebuild the widget, caret after it). Block commits
- *                            on blur via a CST update instead, so its `container`
- *                            is already unmounted here and the placement self-
- *                            cancels — a re-render must not yank focus back.
- *
- * FOCUS. reveal focuses the settled container before placing the caret, but only
- * when it is not already active. Inline's paragraph is already focused (no-op);
- * block's freshly-mounted source contenteditable is not, and a caret placed in an
- * unfocused editable would not receive typing. Focusing BEFORE the caret write
- * (not after) avoids the browser resetting the selection to the element start.
- *
- * AMBIENT-INCLUDED OFFSETS (load-bearing). `sourceStart`/`sourceEnd`/`atSourceOffset`
- * are BLOCK-source offsets — they exclude the rendered marker prefix a container
- * block contributes (list item, blockquote). The `widget-offset` DOM walk counts
- * that marker text, so a source offset is converted to walk space as
- * `getAmbientLength() + offset` at the single `placeCaret` seam — the same
- * conversion as `TextEditableBlock`'s `createRangeAtDomTextOffsets(el,
- * ambientLength + start, …)`. Ambient is 0 for a plain paragraph or a
- * top-level block, nonzero
- * inside a marker prefix; feeding the bare block offset to the walk mis-lands the
- * caret by exactly ambient.
- *
- * POST-RENDER CARET. reveal/commit flip the view, then `await tick()` so the caret
- * lands after the swap settles — the only permitted sequencing (no setTimeout/rAF).
- * The inline swap is a synchronous DOM replace; the tick is what lets a reactive
- * consumer's mount/re-render settle first (the block case).
- *
- * PRECONDITION: `source.length === sourceEnd - sourceStart`. The source's raw
- * length equals its source-text length, so every raw offset OUTSIDE it is stable
- * across the swap and the walk stays consistent (revealing never mutates raw).
- * Asserted at reveal entry on the `invariant:reveal-transition` channel (G1.26).
+ * Rendered↔source reveal: the caret kernel shared by the inline-island and
+ * render-primary-block swaps (both injected, along with the revealed flag). Placement runs
+ * only through `cursor/widget-offset.ts`, offset translation's one home, converting
+ * block-source offsets to walk space by `+ getAmbientLength()` at the single `placeCaret`
+ * seam. Precondition `source.length === sourceEnd - sourceStart`, asserted at entry (G1.26).
  */
 
 import { tick } from 'svelte';
@@ -110,6 +57,8 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 		await tick();
 		const settled = deps.container;
 		if (!settled) return;
+		// Focus BEFORE the caret write: a caret placed in an unfocused editable receives no
+		// typing, and focusing after would reset the selection to the element start.
 		if (document.activeElement !== settled) settled.focus();
 		const clamped = Math.max(0, Math.min(atSourceOffset, deps.source.length));
 		placeCaret(settled, deps.sourceStart + clamped);

@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 //
-// A decoration mark's `interactive.onClick` is plugin code on a user gesture.
-// Every other decoration entry point — source `provide`, block badge mount,
-// widget/island mount — routes a throw onto the `error` channel; the mark
-// overlay's click handler did not, so a plugin bug surfaced as an unattributed
-// window error. editor.md §12 calls that channel one seam for every contained
-// failure.
+// A mark's `interactive.onClick` is plugin code on a user gesture, and editor.md §12
+// makes the `error` channel one seam for every contained failure — so this click
+// handler must route a throw there like every other decoration entry point does.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import DecorationOverlay from '$lib/components/DecorationOverlay.svelte';

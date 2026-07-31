@@ -5,10 +5,8 @@ import type { BlockOpenerResult } from '../../schema/block-openers';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
-// Cell padding is cosmetic — the user's whitespace between pipes carries no
-// semantic content. Pre-edit round-trip is preserved via `table.raw` (set from
-// the source slice in parseTable); post-edit, rebuildTableRowRaw emits the
-// canonical single-space padding for every row.
+// Cell padding is cosmetic. Pre-edit bytes survive in `table.raw`; post-edit,
+// rebuildTableRowRaw emits canonical single-space padding for every row.
 export function splitRowCells(rowText: string): string[] {
 	const trimmed = rowText.trim();
 	const head = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
@@ -100,9 +98,8 @@ export function parseTable(
 	};
 }
 
-// GFM pads short BODY rows with empty cells and truncates long ones to the
-// delimiter column count. The header always matches: a count mismatch rejects
-// the whole table at recognition (GFM §4.10, gate in paragraph.ts).
+// GFM pads short BODY rows and truncates long ones to the delimiter column count. The header
+// always matches: a mismatch rejects the whole table at recognition (GFM §4.10, paragraph.ts).
 function buildRow(line: ParsedLine, columnCount: number, isHeader: boolean): CstNode {
 	const cellTexts = splitRowCells(line.text);
 	while (cellTexts.length < columnCount) cellTexts.push('');

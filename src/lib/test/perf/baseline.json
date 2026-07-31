@@ -369,6 +369,16 @@
 			"loadMs": 2322.9,
 			"keystrokeP50Ms": 2.6,
 			"keystrokeP95Ms": 74.9
+		},
+		"giant-single-list-head-1MB": {
+			"loadMs": 338.1,
+			"keystrokeP50Ms": 52.1,
+			"keystrokeP95Ms": 55.3
+		},
+		"giant-single-blockquote-head-1MB": {
+			"loadMs": 218.9,
+			"keystrokeP50Ms": 29.1,
+			"keystrokeP95Ms": 31.3
 		}
 	}
 }

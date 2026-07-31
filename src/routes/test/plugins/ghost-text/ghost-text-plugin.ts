@@ -1,7 +1,6 @@
-// Dogfood for the widget-island render path on public doors only: one
-// component widget at the focused paragraph's end, moved by invalidating on
-// selectionChange. Its e2e battery is the byte-safety proof — typing near the
-// island never captures the ghost text into getSource().
+// Dogfood for the widget-island render path on public doors only: one component widget at
+// the focused paragraph's end, moved by invalidating on selectionChange. Its e2e battery
+// is the byte-safety proof — typing near the island never captures the ghost text.
 import {
 	definePlugin,
 	trimTrailingLineEnding,

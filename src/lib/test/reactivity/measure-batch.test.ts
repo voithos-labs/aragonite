@@ -1,11 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runMeasureBatch, type MeasureEntry } from '../../reactivity/measure-batch';
 
-// VR-4: a scope must read every mounted block's height BEFORE writing any height into
-// the model. A read that follows a write hits a layout dirtied by that write → one
-// forced synchronous reflow per block on a fling. These tests guard the phase split:
-// reverting `runMeasureBatch` to a measure-then-mutate loop (read, write, read, write)
-// flips the recorded call order and fails the ordering assertion.
+// VR-4: every mounted block's height is read BEFORE any height is written, because a
+// read after a write hits a layout that write dirtied — one forced synchronous reflow
+// per block on a fling.
 
 /** Records every read/write as a tagged event on a shared timeline so a test can
  *  assert all reads precede all writes regardless of how many entries there are. */

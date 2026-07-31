@@ -51,7 +51,5 @@ guards every gesture here.
 - the live serializer round-trips the current CST at each oracle checkpoint
 - the undo/redo differential restores the exact pre/post source around a forced
   batch boundary, and the transient edit is dropped so the note ends clean
-- nested-state oracle surfaces the known list-exit desync: the full note exits
-  three lists and trips `auditBlockListStateConsistency` (docs/issues.md), so the
-  capture is annotated `test.fail()` until the desync is fixed; the manifest and
-  mid-build screenshots still land before the oracle throws
+- `auditBlockListStateConsistency` holds across the whole session, including the
+  three list exits the full note walks

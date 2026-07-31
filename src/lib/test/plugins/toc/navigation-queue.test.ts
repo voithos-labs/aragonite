@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { createNavigationQueue } from '$lib/plugins/toc/navigation-queue';
 
-// A scrollTo that parks each call on a promise the test resolves by hand, so the
+// A navigation that parks each call on a promise the test resolves by hand, so the
 // queue's serialization is observable one settle at a time: `calls` records the
-// path of every scroll actually issued, `resolveNext` completes the oldest.
-function deferredScrollTo() {
+// path of every navigation actually issued, `resolveNext` completes the oldest.
+function deferredNavigateTo() {
 	const calls: number[][] = [];
 	const resolvers: Array<() => void> = [];
 	return {
 		calls,
-		scrollTo: (path: number[]) => {
+		navigateTo: (path: number[]) => {
 			calls.push(path);
 			return new Promise<void>((resolve) => resolvers.push(resolve));
 		},
@@ -23,17 +23,16 @@ async function settle(): Promise<void> {
 }
 
 describe('createNavigationQueue', () => {
-	it('runs one scrollTo at a time — a mid-flight navigate starts no concurrent scroll', async () => {
-		const { calls, scrollTo, resolveNext } = deferredScrollTo();
-		const queue = createNavigationQueue({ scrollTo });
+	it('runs one navigation at a time — a mid-flight navigate starts no concurrent one', async () => {
+		const { calls, navigateTo, resolveNext } = deferredNavigateTo();
+		const queue = createNavigationQueue({ navigateTo });
 
 		void queue.navigateTo([1]);
 		await settle();
 		expect(calls).toEqual([[1]]);
 
-		// A second navigate while the first scroll is still in flight must NOT issue a
-		// concurrent scroll — this is the strict-serialization guard (the whole point
-		// of the queue). Unserialized, scrollTo([2]) fires here and reddens.
+		// The strict-serialization guard: unserialized, navigateTo([2]) fires here
+		// concurrently with the first and reddens.
 		void queue.navigateTo([2]);
 		await settle();
 		expect(calls).toEqual([[1]]);
@@ -44,8 +43,8 @@ describe('createNavigationQueue', () => {
 	});
 
 	it('supersedes the pending target: three rapid navigations scroll first then last, skipping the middle', async () => {
-		const { calls, scrollTo, resolveNext } = deferredScrollTo();
-		const queue = createNavigationQueue({ scrollTo });
+		const { calls, navigateTo, resolveNext } = deferredNavigateTo();
+		const queue = createNavigationQueue({ navigateTo });
 
 		void queue.navigateTo([1]);
 		void queue.navigateTo([2]);
@@ -64,8 +63,8 @@ describe('createNavigationQueue', () => {
 	});
 
 	it('drains and resets, so a navigation after the queue empties issues promptly', async () => {
-		const { calls, scrollTo, resolveNext } = deferredScrollTo();
-		const queue = createNavigationQueue({ scrollTo });
+		const { calls, navigateTo, resolveNext } = deferredNavigateTo();
+		const queue = createNavigationQueue({ navigateTo });
 
 		void queue.navigateTo([1]);
 		await settle();

@@ -2,11 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { regexScanWorkerSource } from '../../search/regex-executor';
 import { execAll } from '../../search/matcher';
 
-/**
- * The scan worker ships as source text through a Blob URL, so it cannot import
- * `execAll` and carries its own copy of the loop. This runs both over the same
- * inputs and fails the day they diverge — the duplication's guard.
- */
+// The scan worker ships as source text through a Blob URL, so it cannot import
+// `execAll` and carries its own copy of the loop. This is that duplication's guard.
 
 interface WorkerReply {
 	epoch: number;
@@ -29,8 +26,7 @@ function runWorkerSource(texts: string[], pattern: string, flags: string): Worke
 	return reply!;
 }
 
-// Shapes that have historically separated two implementations of this loop:
-// zero-width matches, capture groups, unicode, anchors, and no-match texts.
+// Shapes that historically separate two implementations of a match loop.
 const CASES: { name: string; texts: string[]; pattern: string; flags: string }[] = [
 	{ name: 'plain repeated match', texts: ['ab ab ab'], pattern: 'ab', flags: 'g' },
 	{ name: 'zero-width match at every boundary', texts: ['abc'], pattern: 'x*', flags: 'g' },

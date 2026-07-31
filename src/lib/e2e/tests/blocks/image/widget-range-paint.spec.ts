@@ -56,10 +56,9 @@ test.describe('inline image range-selection highlight', () => {
 	test('selected widget renders a visible tint overlay (paints over the image)', async ({
 		page
 	}) => {
-		// Regression: the original CSS set background-color on the widget span,
-		// but the <img> child fully covers the span so the tint was invisible.
-		// The fix paints via an ::after pseudo-element with position:absolute;inset:0
-		// so the tint sits ON TOP of the image regardless of opacity.
+		// The original CSS set background-color on the widget span, but the <img> child fully
+		// covers it; the tint paints via an ::after with position:absolute;inset:0 so it sits ON
+		// TOP of the image.
 		await editor.loadContent(INLINE_IMAGE_DOC);
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowRight');
@@ -78,9 +77,8 @@ test.describe('inline image range-selection highlight', () => {
 			};
 		});
 		expect(overlay).not.toBeNull();
-		// The pseudo-element must exist (content !== 'none') and overlay the widget
-		// area (position: absolute, inset: 0). A widget with `background-color` on
-		// the span itself would fail this — the image covers the span's bg.
+		// A widget tinted via `background-color` on the span itself would fail here — the image
+		// covers the span's background.
 		expect(overlay!.content).not.toBe('none');
 		expect(overlay!.position).toBe('absolute');
 		// rgba(100, 150, 255, 0.3) — Chromium normalizes spacing.

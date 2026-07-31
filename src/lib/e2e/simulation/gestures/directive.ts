@@ -1,27 +1,19 @@
 import { type SimContext } from '../invariants';
 
-// Directive gestures for the `:::name` primitive (plugins route only). Free
-// functions taking `ctx` first so the Gestures class delegates without growing its
-// frozen surface, mirroring gestures/math.ts. Each drives real keyboard/mouse,
-// gates on an observable promotion/widget swap, then resyncs the tracker around the
-// reparse the editor performs — never predicts across a mount boundary, where a
-// paragraph→leaf promotion or a `:name[…]`→widget swap desyncs a char count.
+// Directive gestures for the `:::name` primitive (plugins route only). Each gates on an
+// observable promotion or widget swap and RESYNCS around the reparse — never predicts across
+// a mount boundary, where a promotion or widget swap desyncs a char count.
 //
-// Container inserts are NOT here: a multi-line `:::name … :::` fence never forms
-// from live single-block typing (the block opener declines an unterminated fence to
-// a paragraph), so the spec inserts one by pasting a copied container — a real
-// clipboard action composed from the existing selection gestures.
+// Container inserts are NOT here: a multi-line fence never forms from live single-block
+// typing, since the block opener declines an unterminated fence to a paragraph.
 
 const TEXT_WIDGET = '.directive-text-widget';
 const LEAF = '.directive-leaf[contenteditable="true"]';
 
 /**
- * Type `:name[label]` at the caret (a prose block), promoting the span to an atomic
- * text widget. Recognition is render-time, so the widget mounts once the closing
- * `]` lands; the caret stays in the host paragraph, so a caller may keep editing
- * after. The widget renders its source verbatim-but-dimmed, so the source string is
- * present the instant it is typed — the mount is the widget COUNT rising, not a new
- * substring. Resyncs around the recompute rather than predicting per char.
+ * The widget renders its source verbatim-but-dimmed, so the string is present the instant it
+ * is typed — the mount signal is the widget COUNT rising, not a new substring. Recognition is
+ * render-time, so the widget appears once the closing `]` lands.
  */
 export async function insertTextDirective(
 	ctx: SimContext,
@@ -40,13 +32,9 @@ export async function insertTextDirective(
 }
 
 /**
- * Click the first text widget to reveal its source, step `stepIn` chars past the
- * `:name[` opener into the label, insert `text`, and commit by blurring onto
- * `blurBlockIndex` — the shared reveal→edit→commit UX (widget-interaction.ts, reused
- * from inline math). Reveal drops the widget COUNT (the source is dimmed-but-present
- * in both states, so count is the only reveal signal); commit re-forms it. The edit
- * is suppressed from the CST until blur, so the source delta appears only after the
- * commit — settling on it before would race the ephemeral reveal DOM.
+ * The shared reveal→edit→commit UX (widget-interaction.ts). The source is dimmed-but-present
+ * in both states, so the widget COUNT is the only reveal signal. The edit is suppressed from
+ * the CST until blur, so settling on the source delta before the commit races the reveal DOM.
  */
 export async function revealEditTextDirective(
 	ctx: SimContext,
@@ -71,12 +59,9 @@ export async function revealEditTextDirective(
 }
 
 /**
- * Type `::name info` on an empty line at column 0, promoting the paragraph to a
- * directive leaf. Promotion fires mid-typing the instant `::n` matches the opener,
- * remounting the block at the new kind; the editor re-focuses at the post-edit
- * offset, so the trailing chars land in the leaf. Settles on the leaf materializing
- * (a new editable `.directive-leaf` plus the fence in the source) and resyncs —
- * predicting across the promotion would desync the char count.
+ * Promotion fires MID-typing the instant `::n` matches the opener, remounting the block at
+ * the new kind, so predicting across it would desync the char count. Settles on the leaf
+ * materializing and resyncs.
  */
 export async function insertLeafDirective(
 	ctx: SimContext,
@@ -94,10 +79,8 @@ export async function insertLeafDirective(
 }
 
 /**
- * Click the leaf at `leafIndex`, jump to end-of-line, and type `text` into its info
- * — the whole line is one editable coordinate space, so this is an in-place edit
- * that grows the leaf raw without touching its kind. Settles on the source delta and
- * resyncs.
+ * The whole leaf line is one editable coordinate space, so this grows the leaf raw without
+ * touching its kind. Settles on the source delta and resyncs.
  */
 export async function editLeafInfo(
 	ctx: SimContext,
@@ -116,12 +99,9 @@ export async function editLeafInfo(
 }
 
 /**
- * Backspace at the start of the leaf at `leafIndex`. A directive leaf is
- * `not-mergeable`, so the merge walk must move focus rather than concatenate into
- * the block above — a real corruption would collapse the two blocks and rewrite the
- * source. Settles by confirming the source is byte-identical (absence-of-mutation
- * needs a positive re-read after the settle window, not a delta wait) and fails loud
- * if a merge slipped through.
+ * A directive leaf is `not-mergeable`, so the walk must move focus rather than concatenate.
+ * Confirms byte-identity by a positive RE-READ after the settle window — absence of mutation
+ * cannot be waited for as a delta.
  */
 export async function leafBackspaceAtStart(ctx: SimContext, leafIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -143,11 +123,8 @@ export async function leafBackspaceAtStart(ctx: SimContext, leafIndex: number): 
 }
 
 /**
- * Click the container body child at `bodyPath`, jump to end-of-line, and type
- * `text`. The opaque container rebuilds its own raw from the edited children, so the
- * edit lands mid-document (never the end-of-doc append the tracker predicts) —
- * settle on the observed source delta and resync, the predict/resync split every
- * plugin-container edit uses.
+ * The opaque container rebuilds its own raw from the edited children, so the edit lands
+ * mid-document, never the end-of-doc append the tracker predicts — settle and resync.
  */
 export async function editContainerBody(
 	ctx: SimContext,

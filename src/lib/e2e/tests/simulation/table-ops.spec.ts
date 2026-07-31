@@ -7,19 +7,14 @@ import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
 
-// Ungated table proxy-class oracle. Tables are the most proxy-prone block kind —
-// keyed-children containers whose rows are themselves keyed sub-containers, doing
-// live-tree moves on the freshest code in the repo (VR phase 4 row windowing). The
-// note simulation's always-on round-trip + nested-state checks are the project's
-// only continuous net for SILENT stale-`$state` / Design-Rule-5 corruption, and
-// no other gate exercises a live table through real row/column moves.
+// Ungated table proxy-class oracle. Tables are the most proxy-prone kind: keyed-children
+// containers whose rows are themselves keyed sub-containers, and no other gate exercises a
+// live one through real row/column moves.
 //
-// This drives a LOADED table (typed pipe syntax stays a paragraph in the live
-// tree, so it never renders an interactive table — see gestures/table.ts), then
-// runs the table gesture vocabulary and re-checks both oracles after every move.
-// It leads with a column op (the per-row commitMultiScope path that touches every
-// row at once) and includes an undo of a column op (the identity-survivor /
-// childIds-clone path), the two richest proxy-class stressors.
+// Drives a LOADED table (typed pipe syntax never renders an interactive one — see
+// gestures/table.ts), leading with a column op (the per-row commitMultiScope path) and
+// including an undo of one (the identity-survivor / childIds-clone path) — the two richest
+// proxy-class stressors.
 
 const START_TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 

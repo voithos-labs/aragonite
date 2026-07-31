@@ -9,13 +9,11 @@ import {
 } from './details-helpers';
 
 /**
- * Spec §8.2 — nested windowing × the collapse clamp. A details whose body has
- * enough children to activate its OWN nested windowing, toggled closed → open →
- * closed. The clamp and the nested window share the same slice machinery, so the
- * risks are (a) a CST/ref desync as children churn in and out of the mounted set,
- * and (b) the remounted children's measurements stranding in `pending` on
- * re-expand (the effect keys the effective, clamp-aware window). Both must stay
- * clean, and the CST child count is windowing-independent throughout.
+ * Spec §8.2 — nested windowing × the collapse clamp. A details whose body has enough children to
+ * activate its OWN nested windowing, toggled closed → open → closed. The clamp and the nested
+ * window share the same slice machinery, so the risks are a CST/ref desync as children churn in and
+ * out of the mounted set, and the remounted children's measurements stranding in `pending` on
+ * re-expand. Both must stay clean, and the CST child count is windowing-independent throughout.
  */
 
 // One details with a body large enough to clear the ~4000px nested-window
@@ -43,9 +41,9 @@ test.describe('plugin container: <details> nested windowing × clamp', () => {
 	}) => {
 		await editor.loadContent(bigDetails(true));
 
-		// Open: the body windows its own children — spacers inside the box, and only a
-		// slice of the 200 body hosts mounted. Without this the clamp assertions below
-		// would prove nothing (a fully-mounted small body never exercises §8.2).
+		// Open: the body windows its own children — spacers inside the box, and only a slice of the
+		// 200 body hosts mounted. Without this the clamp assertions below would prove nothing (a
+		// fully-mounted small body never exercises §8.2).
 		expect(await detailsSpacerCount(page)).toBeGreaterThan(0);
 		const openHosts = await bodyHostCount(page);
 		expect(openHosts).toBeGreaterThan(1);
@@ -53,9 +51,8 @@ test.describe('plugin container: <details> nested windowing × clamp', () => {
 		expect((await readDetails(page, 0)).childCount).toBe(CHILD_COUNT);
 		expect(await auditRealDesyncs(page)).toEqual([]);
 
-		// Closed: the clamp collapses the body to the summary row — every body child
-		// unmounts (the fixed [0,1) window mounts only the summary) — but the CST is
-		// intact. The clamp window is active with zero-height spacers, so the host
+		// Closed: the clamp collapses the body to the summary row — every body child unmounts — but
+		// the CST is intact. The clamp window is active with zero-height spacers, so the host
 		// count, not the spacer count, is the mount proof.
 		await editor.page.locator('.details-toggle').click();
 		await editor.bridge.waitForSourceContains('<details>\n');
@@ -63,9 +60,9 @@ test.describe('plugin container: <details> nested windowing × clamp', () => {
 		expect((await readDetails(page, 0)).childCount).toBe(CHILD_COUNT);
 		expect(await auditRealDesyncs(page)).toEqual([]);
 
-		// Open again: the body remounts and re-windows, and the first body child is
-		// genuinely back in the DOM with its text (the stranded-measurement trap would
-		// leave the re-expanded slice unmeasured, not unmounted — so assert the mount).
+		// Open again: the body remounts and re-windows, with the first body child genuinely back in
+		// the DOM and carrying its text (the stranded-measurement trap would leave the re-expanded
+		// slice unmeasured, not unmounted).
 		await editor.page.locator('.details-toggle').click();
 		await editor.bridge.waitForSourceContains('<details open>');
 		await expect.poll(() => detailsSpacerCount(page)).toBeGreaterThan(0);

@@ -12,12 +12,10 @@ import {
 } from './details-helpers';
 
 /**
- * WS-B Cycle 2 — the `<details>` collapsible, the second reserved-chrome
- * consumer. Collapse is a windowing clamp: closed ⇒ only the summary row
- * mounts, every body child genuinely unmounts. This gate proves the toggle
- * (open metadata ↔ opener bytes), the clamp's mount/unmount, and the three
- * decided caret rules — asserted against the CST by path, the serialized
- * bytes, and the mounted body-host count.
+ * The `<details>` collapsible, the second reserved-chrome consumer. Collapse is a windowing clamp:
+ * closed ⇒ only the summary row mounts, every body child genuinely unmounts. This gate proves the
+ * toggle (open metadata ↔ opener bytes), the clamp's mount/unmount, and the three decided caret
+ * rules — asserted against the CST by path, the serialized bytes, and the mounted body-host count.
  */
 test.describe('plugin container: <details> collapsible', () => {
 	let editor: DetailsPage;
@@ -134,9 +132,9 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// ArrowLeft at a block start routes through `focus(CURSOR_END)`, which targets
-		// the (unmounted) last child — the exact clamp path §4 flags. It must clamp to
-		// the summary, not no-op on the absent ref.
+		// ArrowLeft at a block start routes through `focus(CURSOR_END)`, which targets the
+		// (unmounted) last child — the exact clamp path §4 flags. It must clamp to the summary, not
+		// no-op on the absent ref.
 		await page.keyboard.press('ArrowLeft');
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -171,9 +169,9 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.loadContent(CLOSED_WITH_BELOW);
 		await editor.focusBlockAtPath([1], 0); // start of "Below"
 
-		// The cross-boundary merge walk must not write into the clamped-out body:
-		// no mutation, caret to the summary end (the interior not-mergeable-title
-		// rule, mirrored across the container boundary).
+		// The cross-boundary merge walk must not write into the clamped-out body: no mutation,
+		// caret to the summary end (the interior not-mergeable-title rule, mirrored across the
+		// container boundary).
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
@@ -216,6 +214,38 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.typeText('q');
 		await editor.bridge.waitForSourceContains('qBody');
 		expect((await readDetails(page, 0)).childTexts).toEqual(['SummaryZ', 'qBody']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	// The terminator has no fence length to escalate, so the commit path escapes it instead: the
+	// bytes that land read as the literal tag in the editor and on GitHub while closing neither.
+	test('typing the terminator into the body escapes it, keeping the container whole', async ({
+		page
+	}) => {
+		await editor.loadContent(OPEN);
+		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
+		await page.keyboard.press('Enter');
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 2]);
+
+		await editor.typeSlowly('</details>');
+		await editor.bridge.waitForSourceContains('&lt;/details>');
+
+		// Still ONE details holding the typed line, and the line is still prose —
+		// the escape runs ahead of the reparse that picks the kind.
+		const d = await readDetails(page, 0);
+		expect(d.kind).toBe('details');
+		expect(d.childKinds).toEqual(['details-summary', 'paragraph', 'paragraph']);
+		expect(await page.locator('.details-block .block-host').last().innerText()).toBe('</details>');
+
+		// The caret sits after the typed `>`, past the entity the escape grew ahead of it, so the
+		// next keystroke continues the line instead of landing mid-word.
+		//
+		// KEEP THE OFFSET. This assertion is the ONLY guard on the commit doors' caret mapping: the
+		// landing goes through `refAt(i)?.focus`, and a unit pin would need jsdom plus mounted
+		// refs. Weakened to a path check it guards nothing — the shipped bug it caught landed the
+		// caret three units inside the word.
+		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
+		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

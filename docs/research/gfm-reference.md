@@ -210,6 +210,7 @@ These are the formal extensions that distinguish GFM from plain CommonMark.
 
 - **Strikethrough:** Cross out text using tildes. A run of one or two tildes delimits (`~single~` and `~~double~~` both strike, matching cmark-gfm), while a run of three or more stays literal, and mixed-length runs never pair (a one-tilde opener does not close a two-tilde run).
 
+<!-- prettier-ignore -->
 ```markdown
 ~~This text is crossed out~~
 ~Also crossed out~

@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Same two DOM seams as keyboard-shift-click.test.ts — the click's caret offset
-// and the previously-focused block's anchor caret — mocked because jsdom has no
-// layout. readNativeCaretInBlock echoes the path it is handed (the real one
-// labels the caret with it), which is what makes the deepening observable.
+// Same two DOM seams as keyboard-shift-click.test.ts, mocked because jsdom has no layout.
+// readNativeCaretInBlock echoes the path it is handed, which is what makes the deepening visible.
 vi.mock('../../selection/native-bridge', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../../selection/native-bridge')>()),
 	offsetFromViewportPoint: vi.fn(),

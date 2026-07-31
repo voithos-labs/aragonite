@@ -2,21 +2,13 @@ import { type Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
 import { primaryModifier } from '../../platform';
 
-// Plugin-container gestures. Free functions taking `ctx` first so the Gestures
-// class can delegate without growing its frozen surface, mirroring gestures/table.ts.
-//
-// A live `<details>` renders its `.details-toggle` only on the plugins route
-// (callout + details registered); sessions that drive this gesture must start
-// from a loaded document containing a details container.
+// Plugin-container gestures. A live `<details>` renders its `.details-toggle` only on the
+// plugins route, so sessions driving these must start from a loaded document holding one.
 
 /**
- * Click the `<details>` collapse toggle and settle on the summary's
- * `aria-expanded` flipping to the opposite value. The toggle rewrites the opener
- * bytes (`<details open>` ↔ `<details>`) and mounts/unmounts the body — editor
- * auto-behavior, so the tracker adopts the observed source rather than predicting
- * it. Reading the pre-click state and settling on the OPPOSITE value makes a
- * silent no-op (a detached or unresponsive toggle) fail loudly on the timeout
- * instead of recording a stale source as truth.
+ * Reads the pre-click state and settles on the OPPOSITE `aria-expanded` value, so a silent
+ * no-op (a detached or unresponsive toggle) fails loudly on the timeout instead of recording
+ * a stale source as truth. The opener-byte rewrite is auto-behavior, so the tracker resyncs.
  */
 export async function toggleCollapse(ctx: SimContext): Promise<void> {
 	const toggle = ctx.page.locator('.details-toggle').first();
@@ -32,15 +24,10 @@ export async function toggleCollapse(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Set the callout's kind via the minted `callout.setKind` chord — the corruption
- * oracle's only view of command dispatch (a keypress that bubbles from an inner
- * leaf to the container handler and commits a metadataUpdate). Reads the current
- * type and presses the chord for the OPPOSITE one (Mod+7→'note', Mod+8→'warning'),
- * then settles on the new opener bytes. Pressing the opposite type is what gives
- * the gesture teeth: a dead binding or a lost bubble leaves the source unchanged,
- * so the settle times out loudly instead of recording a stale source as truth —
- * the same fail-loud shape `toggleCollapse` uses. The change moves only
- * metadata/raw (kind stays `note`), so downstream index re-derivations hold.
+ * The corruption oracle's only view of command dispatch: a keypress bubbling from an inner
+ * leaf to the container handler. Pressing the chord for the OPPOSITE type is what gives the
+ * gesture teeth — a dead binding or lost bubble leaves the source unchanged and the settle
+ * times out, the same fail-loud shape `toggleCollapse` uses.
  */
 export async function setCalloutKind(ctx: SimContext): Promise<void> {
 	const noteIdx = await topLevelNoteIndex(ctx.page);
@@ -58,16 +45,10 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Write a GitHub-alert blockquote to the clipboard and paste it at the caret. The
- * conversion transform is opt-in since 0.9.34 (`convertAlertsOnPaste`, default off),
- * so the pasted bytes stay GitHub syntax and parse natively as a `githubAlert`
- * container — putting the native alert grammar under the round-trip /
- * nested-state / no-errors oracles.
- *
- * Settles on the landed KIND, not on a source delta. A delta settle would pass
- * even with the alert opener broken or unregistered: the bytes would land as a
- * literal blockquote, which is still a delta, still round-trip-stable, and still
- * nested-state clean — so no oracle would trip and the gesture would guard nothing.
+ * `convertAlertsOnPaste` is off by default, so the pasted bytes stay GitHub syntax and parse
+ * natively as a `githubAlert`. Settles on the landed KIND, not a source delta: with the alert
+ * opener broken the bytes would land as a literal blockquote, which is still a delta, still
+ * round-trip-stable and still nested-state clean — no oracle would trip.
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Pasted alert.\n'));
@@ -88,17 +69,10 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Fire the doc-stats plugin's global `docStats.publish` chord (Mod+Shift+S) — a
- * READ-ONLY command that reads the per-instance EditorContext and republishes
- * `window.__docStats`, committing nothing to the document or the undo stack, so the
- * caller nets it to identity.
- *
- * Poisons every published record's block count to -1 first (they are the plugin
- * registry's own object references), then settles on this editor's count recovering
- * to the live document. Only the command's recompute replaces a poisoned record, and
- * the detour fires no `edit` event to republish behind our back — so a dead binding
- * or a lost global-command dispatch leaves the count at -1 and the settle times out
- * loudly, the fail-loud shape `setCalloutKind` uses.
+ * A READ-ONLY global chord: it republishes `window.__docStats` and commits nothing, so the
+ * caller nets it to identity. POISONS every published record's block count first, then
+ * settles on recovery — only the command's recompute replaces a poisoned record, and no
+ * `edit` event republishes behind our back, so a dead binding times out loudly.
  */
 export async function publishDocStats(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => {

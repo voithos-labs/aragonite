@@ -13,4 +13,4 @@
 
 ## Regression notes
 
-- Pinned against the "issues.md: undo/redo finicky in cross-block paste + delete scenarios" entry.
+- Pinned against the closed "undo/redo finicky in cross-block paste + delete scenarios" defect.

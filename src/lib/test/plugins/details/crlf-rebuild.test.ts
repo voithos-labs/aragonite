@@ -10,12 +10,9 @@ import {
 	type DetailsMetadata
 } from '$lib/plugins/details/details-kind';
 
-// The byte round-trip holds without edits (an opaque container emits its `raw`
-// verbatim). A structural edit triggers `rebuildDetailsRaw`, which synthesizes the
-// three chrome lines (`<details>`, `<summary>`, `</details>`) — these must reproduce
-// the authored line ending, not normalize CRLF to `\n`. The blank-line-wrapped body
-// carries its own bytes and is not at issue. Mirrors the directive path's
-// `serializeDirective` line-ending threading.
+// Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`
+// is at risk: the three chrome lines it SYNTHESIZES have to reproduce the authored line
+// ending rather than normalize CRLF to `\n`. Mirrors `serializeDirective`'s threading.
 
 function resetAndRegister(): void {
 	__resetSchemaRegistriesForTests();

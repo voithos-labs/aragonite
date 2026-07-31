@@ -77,9 +77,8 @@ test.describe('table cell: inline rendering', () => {
 		await expect(cell.locator('[data-inline-widget]')).toHaveCount(0);
 	});
 
-	// What the fallback's marker split is FOR, and the only layer that can see it:
-	// the collapse is CSS, so no unit test reaches it. A single unsplit span — either
-	// arm — leaves the whole source painted here, or nothing at all.
+	// The collapse is CSS, so no unit test reaches it: a single unsplit span — either arm — leaves
+	// the whole source painted here, or nothing at all.
 	test('image in a cell paints its alt alone in reading mode', async ({ page }) => {
 		await editor.loadContent(`${HEADER}| ![alt](u) |\n`);
 		const cell = page.locator('[role="cell"]').nth(1);
@@ -132,8 +131,7 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('Home');
 		await page.keyboard.press('End');
 		await editor.typeText('Q');
-		// End from line 1 stays on line 1 — before the widget. The char must
-		// land before the <br> bytes, not inside or after them.
+		// End from line 1 stays on line 1 — before the widget.
 		await editor.bridge.waitForSourceContains('| LeftQ<br> |');
 	});
 
@@ -158,11 +156,9 @@ test.describe('table cell: inline rendering', () => {
 		await expect(second).toBeFocused();
 	});
 
-	// Crossing a mid-cell `<br>` with arrows is native contenteditable — the keys
-	// never reach the caret-edge dispatch — so this guards only the user-visible
-	// property that navigation stays on an editable cell (it lands in the adjacent
-	// cell); the dispatch's non-reveal step-over is pinned by the destructive-key
-	// case below.
+	// Crossing a mid-cell `<br>` with arrows is native contenteditable — the keys never reach the
+	// caret-edge dispatch — so this guards only that navigation stays on an editable cell; the
+	// dispatch's non-reveal step-over is pinned by the destructive-key case below.
 	test('arrowing across a mid-cell <br> keeps focus on a cell, never stranding it', async ({
 		page
 	}) => {
@@ -178,12 +174,10 @@ test.describe('table cell: inline rendering', () => {
 		expect(await editor.bridge.getSource()).toContain('| x<br>y | z |');
 	});
 
-	// The dispatch's non-reveal step-over branch is exercised by a DESTRUCTIVE key at
-	// a `<br>` edge (arrows go native). At the widget's trailing edge, Backspace press
-	// #1 steps the caret over the widget — deleting no byte — instead of the prose
-	// image select-then-delete that has no cell affordance; the caret lands at the
-	// widget's leading edge, so the next char types before the `<br>`.
-	test('Backspace at a mid-cell <br> trailing edge steps over it, deleting no byte', async ({
+	// A DESTRUCTIVE key at a `<br>` edge is the one gesture that reaches the caret-edge dispatch
+	// here (arrows go native): the inherited prose select-then-delete needs a selection overlay a
+	// cell never paints, so it showed nothing on press #1 and ate a non-adjacent byte on press #2.
+	test('Backspace at a mid-cell <br> trailing edge deletes the whole tag in one press', async ({
 		page
 	}) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| x<br>y | z |\n');
@@ -192,16 +186,14 @@ test.describe('table cell: inline rendering', () => {
 		await page.keyboard.press('Control+End');
 		await page.keyboard.press('ArrowLeft'); // → the <br>'s trailing edge (before `y`)
 
-		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Backspace');
-		// Press #1 deletes nothing and keeps focus on the cell (a prose select would
-		// have stranded it, a byte edit would change the source).
-		expect(await editor.bridge.getSource()).toBe(before);
+
+		await editor.bridge.waitForSourceContains('| xy | z |');
+		// Focus survives on the cell — a prose select would have stranded it — and the
+		// caret sits where the tag was, so the next char lands between x and y.
 		const activeRole = await page.evaluate(() => document.activeElement?.getAttribute('role'));
 		expect(activeRole).toBe('cell');
-		// The caret stepped to the widget's leading edge: the next char lands BEFORE the
-		// `<br>` (a select would replace the widget; a no-op would land after it).
 		await editor.typeText('Z');
-		await editor.bridge.waitForSourceContains('| xZ<br>y | z |');
+		await editor.bridge.waitForSourceContains('| xZy | z |');
 	});
 });

@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 //
-// Both selectors are read against BlockHost's real wrapper layout. The locator
-// form enumerates ALL matches, so every chrome child it fails to name inflates the
-// per-block count — and `.decoration-overlay` is emitted once per painted mark,
-// which made the inflation vary with the live decoration set rather than being a
-// constant a spec could absorb.
+// Read against BlockHost's real wrapper layout: the locator form enumerates ALL
+// matches, so an unnamed chrome child inflates the per-block count — and one of them
+// (`.decoration-overlay`) varies with the live decoration set.
 import { describe, it, expect } from 'vitest';
 import {
 	BLOCK_CONTENT_SELECTOR,

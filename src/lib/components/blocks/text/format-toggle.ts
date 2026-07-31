@@ -1,16 +1,9 @@
 /**
- * Toggle bold/italic formatting inside a prose block.
- *
- * Over a SELECTION: strips flanking markers only when they belong to a same-format
- * construct enclosing the selection (inside or outside the range); otherwise wraps —
- * so toggling emphasis over `word` in `**word**` nests to `***word***` instead of
- * eating a star of the strong pair.
- *
- * At a COLLAPSED CARET: unwrap the span the caret sits inside, else remove the empty
- * pair the previous press left, else insert the pair and land the caret between its
- * halves. Deliberately not Obsidian's toggle-the-whole-word: this editor has no word
- * boundaries anywhere else, and the unwrap arm already covers the case the word rule
- * exists for (a caret inside bold text turns bold off).
+ * Toggle bold/italic formatting inside a prose block. Over a SELECTION, strips flanking
+ * markers only when they belong to a same-format construct enclosing it, else wraps —
+ * so emphasis over `word` in `**word**` nests to `***word***` rather than eating a star.
+ * At a COLLAPSED CARET, unwraps the enclosing span, else removes the empty pair the
+ * previous press left, else inserts a pair and lands the caret between its halves.
  */
 
 import { parseInline } from '../../../core/inline';
@@ -22,9 +15,8 @@ export interface ToggleInlineFormatResult {
 	newSelEnd: number;
 }
 
-// True only when the slice is exactly one emphasis/strong span of `format`
-// covering its whole length — so the strip branch can't orphan markers on a
-// multi-span selection like `**a** **b**`.
+// Exactly one span covering the whole slice, so the strip branch can't orphan markers
+// on a multi-span selection like `**a** **b**`.
 function isSingleSpanOf(slice: string, format: 'strong' | 'emphasis'): boolean {
 	const nodes = parseInline(slice, 0, slice.length);
 	return (
@@ -35,11 +27,9 @@ function isSingleSpanOf(slice: string, format: 'strong' | 'emphasis'): boolean {
 	);
 }
 
-// True when some `format` span in the full-context parse encloses [start, end) as
-// content — the flanking markers are that construct's layer, so stripping removes
-// the format instead of orphaning an inner marker of a different construct. An
-// isolated flank slice can't decide this: `*word*` carved from `**word**` and from
-// `***word***` reads identically, but only the latter sits inside an emphasis span.
+// Needs the FULL-context parse: `*word*` carved from `**word**` and from `***word***`
+// read identically in isolation, but only the latter sits inside an emphasis span, so
+// only there do the flanking markers belong to the construct being stripped.
 function formatSpanEncloses(
 	display: string,
 	start: number,
@@ -56,10 +46,8 @@ function formatSpanEncloses(
 	return covers(parseInline(display, 0, display.length));
 }
 
-// The innermost `format` span whose CONTENT contains `caret`, marker offsets
-// included. Innermost so `***x***` toggled to strong drops the strong layer and
-// leaves the emphasis one standing. Null when the caret is outside every such span
-// — including at a span's outer edge, where the caret is not yet in the construct.
+// Innermost, so `***x***` toggled to strong drops the strong layer and leaves emphasis
+// standing. Null at a span's outer edge, where the caret is not yet in the construct.
 function innermostFormatSpanAt(
 	display: string,
 	caret: number,
@@ -98,9 +86,8 @@ function toggleAtCaret(
 		};
 	}
 
-	// The empty pair the previous press inserted — no span to find, since `****`
-	// parses as literal text. A caret dead-centre in an unrelated marker run reads
-	// the same and is stripped too; the gesture is one undo away either way.
+	// The empty pair the previous press inserted; there is no span to find, since `****`
+	// parses as literal text.
 	if (
 		display.slice(caret - mLen, caret) === markers &&
 		display.slice(caret, caret + mLen) === markers
@@ -145,9 +132,8 @@ export function toggleInlineFormat(
 		};
 	}
 
-	// Selection flanked by markers outside the range (e.g. `word` inside `*word*`).
-	// The construct check keeps a same-format flank from being mistaken for one
-	// nested in a wider run — `**word**` toggled to emphasis nests, not strips.
+	// Selection flanked by markers outside the range (e.g. `word` inside `*word*`). The
+	// construct check is what makes `**word**` toggled to emphasis nest rather than strip.
 	const flankBefore = display.slice(start - mLen, start);
 	const flankAfter = display.slice(end, end + mLen);
 	if (

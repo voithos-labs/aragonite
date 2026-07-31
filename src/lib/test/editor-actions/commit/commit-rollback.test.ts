@@ -15,7 +15,6 @@ function makeContainerNode(childRaws: string[]): any {
 	};
 }
 
-/** Serialized snapshot bytes per stack entry — byte-identity across a throw. */
 function stackBytes(entries: UndoEntry[]): string[] {
 	return entries.map((e) => serialize(e.snapshot));
 }
@@ -40,9 +39,9 @@ describe('commit ceremony — rollback on mutation throw', () => {
 					throw new Error('boom');
 				}
 			})
-		).rejects.toThrow('boom'); // DEV re-throw preserved
+		).rejects.toThrow('boom');
 
-		expect(deps.undoManager.getStacks().undo.length).toBe(before); // rolled back (was before+1 before the fix)
+		expect(deps.undoManager.getStacks().undo.length).toBe(before);
 		expect(errors).toHaveLength(1);
 		expect(errors[0].origin).toBe('commit');
 	});
@@ -52,9 +51,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// A successful commit then an undo populates the redo stack, so the catch
-		// has both stacks to restore — a regression restoring only undo would drift
-		// redo and stay invisible to an undo-length-only assertion.
+		// Populates redo so both stacks have something to restore — a regression
+		// restoring only undo stays invisible to an undo-length-only assertion.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -96,10 +94,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const originalContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(originalContainer.children ?? []);
 
-		// Splice the live scope view, then trip the production arity check — the
-		// real "throws AFTER all splices completed" path. Without the rollback the
-		// spliced copy stays in deps.doc with stale ancestor raw.
-		// Array (not tuple) typing degrades the return so the wrong arity compiles.
+		// Splices the live scope view, then trips the arity check: the real "throws AFTER
+		// all splices completed" path. Array (not tuple) typing lets the wrong arity compile.
 		const scopes: MultiScopeTarget[] = [{ node: originalContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
@@ -107,7 +103,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1);
-					return []; // wrong arity → production throw after the splice
+					return [];
 				}
 			})
 		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
@@ -121,8 +117,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
-		// First commit pushes a real snapshot — bumping the epoch and unsharing
-		// children[0], which is now owned at the current epoch.
+		// Pushes a real snapshot, bumping the epoch so children[0] ends up owned.
 		await controller.commitMultiScope({
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -140,10 +135,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		const ownedContainer = deps.doc.children[0];
 		const childrenBefore = concatChildren(ownedContainer.children ?? []);
 
-		// Second commit is `snapshot:'skip'` (a same-unit join). The scope node is
-		// already owned at this epoch, so copy-path-on-write is a no-op: the splice
-		// lands in place. A top-level array swap can't reach the in-place mutation —
-		// the in-scope arrays must be captured and restored too.
+		// A same-unit join against an already-owned node: copy-path-on-write no-ops and the
+		// splice lands in place, where a top-level array swap cannot reach it.
 		const scopes: MultiScopeTarget[] = [{ node: ownedContainer, state, path: [0] }];
 		await expect(
 			controller.commitMultiScope({
@@ -151,7 +144,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 				snapshot: 'skip',
 				mutate: ([scope]) => {
 					scope.children.splice(0, 1);
-					return []; // wrong arity → production throw after the splice
+					return [];
 				}
 			})
 		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
@@ -175,8 +168,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 				scopes,
 				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
-					scope.children.splice(0, 1); // drop a top-level block
-					return []; // wrong arity → production throw after the splice
+					scope.children.splice(0, 1);
+					return [];
 				}
 			})
 		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');
@@ -184,12 +177,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 		expect(serialize(deps.doc)).toBe(serializedBefore);
 	});
 
-	// Integrated frame guard: one throw must recover the document AND both stacks
-	// at once. The other tests split the concern — test 2 pins the stacks with no
-	// tree change; the splice tests pin the tree but start with empty stacks and
-	// never assert them. Here a snapshot is pushed (clearing redo) and the live
-	// tree is spliced before the throw, so dropping either register from the
-	// consolidated rollback surfaces here.
+	// The integrated frame guard: every other case pins the stacks or the tree, never
+	// both, so dropping either register from the consolidated rollback surfaces only here.
 	it('a splice-then-throw restores the document AND both stacks together', async () => {
 		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
@@ -224,8 +213,8 @@ describe('commit ceremony — rollback on mutation throw', () => {
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: (([scope]: readonly [{ children: unknown[] }]) => {
-					scope.children.splice(0, 1); // real live-tree mutation
-					return []; // wrong arity → production throw after the splice
+					scope.children.splice(0, 1);
+					return [];
 				}) as never
 			})
 		).rejects.toThrow('commitMultiScope: mutate returned 0 changes for 1 scopes');

@@ -195,15 +195,13 @@ describe('createCellRender', () => {
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
-		// Discriminator: with an epoch supplied, the signature string is NOT in the
-		// key — a string change alone (production-impossible; the reducer moves them
-		// in lockstep) does not re-render.
+		// Discriminator: with an epoch supplied the signature string is NOT in the key, so a string
+		// change alone (production-impossible — the reducer moves them in lockstep) does not re-render.
 		url = 'https://new.com';
 		signature = 'sig-2';
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://old.com');
 
-		// The lockstep bump re-renders and re-resolves.
 		epoch = 2;
 		render.render();
 		expect(el.querySelector('a.md-link-content')?.getAttribute('href')).toBe('https://new.com');

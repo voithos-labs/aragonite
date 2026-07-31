@@ -1,7 +1,6 @@
 /**
- * Single-pass GFM block parser. Produces a CST where
- * serialize(parse(source)) === source. Per-kind parsers live in parsers/;
- * this file holds only top-level dispatch and shared utilities.
+ * Single-pass GFM block parser, producing a CST where serialize(parse(source)) === source.
+ * Per-kind parsers live in parsers/; this file holds dispatch and shared utilities only.
  */
 
 import type { CstNode, Document } from './nodes';
@@ -20,29 +19,20 @@ import { registerBuiltInOpeners } from './parsers/built-in-openers';
 registerBuiltInOpeners();
 
 /**
- * Container-nesting cap. Each blockquote/list/directive level recurses one
- * `parseBlocks` deep; past this cap the remaining prefix parses as the innermost
- * block's paragraph content instead of nesting further, so pathological input
- * (thousands of `>` or nested items) degrades gracefully rather than overflowing
- * the call stack. Chosen well under the ~2000-level empirical crash point, with
- * headroom for the tree walks (render, undo, tree-ops) that also recurse to this
- * depth — far beyond any real document. Byte-preserving: only a top-level node's
- * `raw` is serialized, and that is fixed before the recursion runs.
+ * Container-nesting cap: past it the remaining prefix parses as paragraph content instead of
+ * recursing, so pathological input degrades rather than overflowing the stack. Sits well under
+ * the empirical crash point, with headroom for the tree walks that recurse to the same depth.
+ * Byte-preserving, since only a top-level node's `raw` serializes and that is fixed first.
  */
 export const MAX_NESTING_DEPTH = 512;
 
 // ── Public entry point ──────────────────────────────────────────────────
 
 /**
- * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view —
- * absent = the global openers (the editorless,
- * behavior-preserving default). It filters only the TOP-LEVEL opener dispatch:
- * nested container reparses (blockquote/list bodies) and the paragraph-interrupt
- * scan read the global grammar, the documented enablement boundary — a top-level
- * disabled kind is skipped, a nested one is not. In-editor reparse callers thread
- * their instance grammar the same way (`updateNodeContent`); the unthreaded ones
- * (`parse-block`, split/merge reparse, paste) default to global and so stay
- * byte-identical.
+ * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
+ * the global openers. It filters only the TOP-LEVEL opener dispatch: nested container reparses
+ * and the paragraph-interrupt scan read the global grammar, the documented enablement boundary,
+ * so a top-level disabled kind is skipped and a nested one is not.
  */
 export function parse(source: string, opts?: { grammar?: GrammarView }): Document {
 	const t0 = perfEnabled() ? performance.now() : 0;
@@ -64,10 +54,9 @@ interface ParseBlocksResult {
 }
 
 /**
- * Stable seam for block-incremental parsing: re-parses ranges through this
- * window. Contract (pinned by test/core/parse-blocks-window.test.ts):
- * a [start, end) window aligned to block starts parses identically to a
- * full parse of the window's text.
+ * The seam block-incremental parsing re-parses ranges through. Contract, pinned by
+ * test/core/parse-blocks-window.test.ts: a block-aligned window parses identically to a full
+ * parse of the window's text.
  */
 export function parseBlocks(
 	lines: ParsedLine[],
@@ -97,8 +86,7 @@ export function parseBlocks(
 			continue;
 		}
 
-		// Minted fresh per block: an opener that retains the context sees a value
-		// stable for its own dispatch, never one re-stamped by the next block.
+		// Minted fresh per block, so an opener that retains the context is never re-stamped.
 		const ctx: OpenContext = {
 			lines,
 			index,
@@ -121,8 +109,7 @@ export function parseBlocks(
 // ── Dispatch ────────────────────────────────────────────────────────────
 
 function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
-	// At the nesting cap, no container may recurse further — everything folds into
-	// a paragraph so the remaining bytes stay covered without another stack frame.
+	// At the cap everything folds into a paragraph, covering the bytes without another frame.
 	if (ctx.depth >= MAX_NESTING_DEPTH) {
 		return parseParagraph(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 	}
@@ -141,12 +128,9 @@ function parseNextBlock(ctx: OpenContext): BlockOpenerResult {
 }
 
 /**
- * The `[invariant:…]` fire behind the call site's decline. An opener that matched but
- * consumed nothing is declined in every build, not just DEV: returning it would leave
- * `index` where it was and spin the parse loop forever (a hung tab on document load),
- * and declining is always safe — the next opener, ultimately the paragraph fallback,
- * covers the line. The message names the decline as well as the kind, so an author can
- * connect "my block renders as a paragraph" to its cause.
+ * The `[invariant:...]` fire behind the call site's decline. An opener that consumed nothing is
+ * declined in every build, not just DEV: returning it would leave `index` put and spin the parse
+ * loop forever, and declining is always safe because the paragraph fallback covers the line.
  */
 function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-advance', () => ({
@@ -159,10 +143,9 @@ function reportNonAdvancingOpener(ctx: OpenContext, result: BlockOpenerResult): 
 }
 
 /**
- * DEV-only trust check on a plugin opener's `raw`, at the one site the parser
- * consumes it: bytes that don't match the consumed lines silently break
- * `serialize(parse(source)) === source` (serialize reads `raw` only).
- * O(consumed lines); tree-shaken in production.
+ * DEV-only trust check on a plugin opener's `raw`, at the one site the parser consumes it:
+ * bytes that do not match the consumed lines silently break the round-trip, since serialize
+ * reads `raw` alone. Tree-shaken in production.
  */
 function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): void {
 	assertInvariant('opener-raw', () =>
@@ -180,8 +163,15 @@ function assertOpenerRawMatches(ctx: OpenContext, result: BlockOpenerResult): vo
 
 // ── Shared utilities ────────────────────────────────────────────────────
 
+/**
+ * GFM §2.1: a blank line holds nothing but spaces and tabs. Deliberately not `String.trim()`,
+ * which admits all Unicode whitespace: a non-breaking space is content, and a line holding one
+ * continues its block.
+ */
+const NON_BLANK_CHAR = /[^ \t]/;
+
 export function isBlankLine(text: string): boolean {
-	return text.trim().length === 0;
+	return !NON_BLANK_CHAR.test(text);
 }
 
 export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {

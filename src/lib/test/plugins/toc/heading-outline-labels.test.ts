@@ -7,10 +7,9 @@ import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kin
 import { registerEmoji } from '$lib/plugins/emoji/emoji-recognizer';
 import { projectInlineText } from '$lib/plugins/toc/heading-outline';
 
-// The label projection turns a heading's inline parse into clean display text:
-// formatting markers gone, links/images reduced to their text, value nodes shown
-// as what they render to. `computeInlineContent` strips the `#` marker already, so
-// projecting its output is content-only.
+// The label projection turns a heading's inline parse into clean display text: markers
+// gone, links/images reduced to their text, value nodes shown as what they render to.
+// `computeInlineContent` strips the `#` marker already, so this stage is content-only.
 function label(src: string): string {
 	const node = parse(src).children[0];
 	return projectInlineText(computeInlineContent(node), node.raw);

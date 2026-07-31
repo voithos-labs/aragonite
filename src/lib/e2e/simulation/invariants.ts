@@ -20,9 +20,8 @@ export interface SimContext {
 // ── Content oracles ─────────────────────────────────────────────────────────
 
 /**
- * The primary per-keystroke content oracle. On timeout the failure is a
- * readable expected-vs-actual diff plus full debug dumps, never an opaque
- * "waitForFunction timed out" — a dropped or reversed char shows immediately.
+ * The primary per-keystroke content oracle. Fails with an expected-vs-actual diff plus debug
+ * dumps, never an opaque timeout — a dropped or reversed char must show immediately.
  */
 export async function settleTypedSource(ctx: SimContext, expected: string): Promise<void> {
 	try {
@@ -79,13 +78,10 @@ export async function assertNoErrors(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Container children/childIds parity across every keyed BlockList in the live
- * tree. A structural mutation that extends `children` without extending
- * `childIds` gives the trailing keyed-each entries `undefined` keys — Svelte's
- * earliest signal of the desync class, caught here at checkpoint cadence rather
- * than waiting for the boundary to throw mid-render. The walker throws (not
- * returns `[]`) when no editor registered a document, so an empty walk is loud,
- * never vacuously green.
+ * Detects: a mutation extending `children` without `childIds`, which gives trailing keyed-each
+ * entries `undefined` keys — the desync class's earliest signal, caught at checkpoint cadence
+ * rather than at the mid-render throw. The walker THROWS when no editor registered a
+ * document, so an empty walk is loud rather than vacuously green.
  */
 export async function assertContainerParity(ctx: SimContext): Promise<void> {
 	const mismatches = await getContainerParityMismatches(ctx.page);
@@ -118,13 +114,9 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
 }
 
 /**
- * Live-tree convergence oracle — the structural counterpart to
- * assertRoundTripStable. The byte round-trip above is a source-string fixed
- * point (a tautology for valid GFM); this compares the LIVE CST against a
- * reparse of its own serialization, catching a gesture that left the tree
- * diverging from its raw. Run at checkpoint cadence (not per keystroke), the
- * same cost tier as the round-trip check. Unconditional across every note: the
- * escape gesture auto-closes an unclosed fence, so no build is left divergent.
+ * Detects: a gesture that left the live CST diverging from its own raw. The byte round-trip
+ * above is a source-string fixed point (a tautology for valid GFM); this compares the LIVE
+ * tree against a reparse of its serialization. Checkpoint cadence, not per keystroke.
  */
 export async function assertParseConvergence(ctx: SimContext): Promise<void> {
 	const converges = await ctx.page.evaluate(() => (window as any).__test.parseConverged());
@@ -156,14 +148,10 @@ export async function assertFocusBlock(
 }
 
 /**
- * Both selection endpoints resolve to a live CST node, with leaf offsets within
- * that node's raw. A structural gesture that mutates the tree can leave an endpoint
- * addressing a node that no longer exists or an offset past a now-shorter block —
- * a dangling selection the next keystroke dereferences into corruption. Walks the
- * live tree (not a reparse) against the public selection snapshot, so it catches a
- * stale endpoint the source-string oracles are blind to. A null selection (nothing
- * focused) is vacuously valid; only leaves carry the offset bound (container offsets
- * index children, a different space).
+ * Detects: a dangling selection endpoint — a node that no longer exists, or an offset past a
+ * now-shorter block — which the next keystroke dereferences into corruption. Walks the LIVE
+ * tree, not a reparse, so it sees what the source-string oracles are blind to. Tolerates a
+ * null selection; only leaves carry the offset bound, since container offsets index children.
  */
 export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 	const invalid = await ctx.page.evaluate(() => {
@@ -207,10 +195,8 @@ export async function assertSelectionValidity(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The note-agnostic checkpoint sweep every loaded-ops session runs after each
- * gesture: set the label so a failure names the checkpoint, then the three
- * always-on oracles in fixed order. Convergence-running sessions call
- * assertParseConvergence alongside it — its waiver lives on the note.
+ * The note-agnostic checkpoint sweep. Convergence is NOT bundled: its waiver lives on the
+ * note, so sessions that run it call `assertParseConvergence` alongside this.
  */
 export async function assertCoreOracles(ctx: SimContext, label: string): Promise<void> {
 	ctx.label = label;
@@ -220,10 +206,9 @@ export async function assertCoreOracles(ctx: SimContext, label: string): Promise
 }
 
 /**
- * The oracle sweep the destructive cross-block and merge gestures run at the moment
- * the tree is most likely corrupted — right after a range collapse or a merge, before
- * the next gesture builds on it. Bundles the note-agnostic structural oracles;
- * parse-convergence stays with the caller because its waiver lives on the note.
+ * Run right after a range collapse or merge — the moment the tree is most likely corrupted,
+ * before the next gesture builds on it. Parse-convergence stays with the caller, whose note
+ * owns its waiver.
  */
 export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> {
 	await assertNoErrors(ctx);
@@ -236,11 +221,8 @@ export async function assertStructuralIntegrity(ctx: SimContext): Promise<void> 
 // ── History oracle ──────────────────────────────────────────────────────────
 
 /**
- * Wraps a gesture in its own undo batch and asserts exact undo + redo. The
- * input batcher coalesces keystrokes within ~250ms, so the gesture must be
- * fenced by batch flushes on both sides or Ctrl+Z would overshoot into the
- * prior batch and false-positive. Leaves the editor in the post-gesture state
- * and resyncs the tracker to it.
+ * The input batcher coalesces keystrokes within ~250ms, so the gesture must be FENCED by
+ * batch flushes on both sides or Ctrl+Z overshoots into the prior batch and false-positives.
  */
 export async function undoRedoDifferential(
 	ctx: SimContext,

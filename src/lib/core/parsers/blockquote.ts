@@ -1,8 +1,6 @@
 /**
- * Blockquote parser with CommonMark §5.1 lazy continuation: plain non-`>`
- * lines are absorbed while the inner block is an open paragraph. "Open
- * paragraph" is approximated per-line (non-blank + doesn't start a new
- * block) rather than by tracking full block-parser state.
+ * Blockquote parser with CommonMark §5.1 lazy continuation. "Open paragraph" is
+ * approximated per line (non-blank, not a block opener), not tracked as parser state.
  */
 
 import { remapStrippedLines, type ParsedLine } from '../lines';
@@ -21,11 +19,7 @@ function stripBlockquotePrefix(text: string): string {
 	return text.replace(/^ {0,3}>[ \t]?/, '');
 }
 
-/**
- * Lazy continuation only extends an open paragraph — not an open list or
- * other container. Blank lines, block openers, and nested blockquotes all
- * close the open-paragraph state.
- */
+/** Lazy continuation extends only an open paragraph, not an open list or other container. */
 function wouldKeepParagraphOpen(strippedText: string): boolean {
 	if (isBlankLine(strippedText)) return false;
 	if (lineInterruptsParagraph(strippedText)) return false;
@@ -34,14 +28,9 @@ function wouldKeepParagraphOpen(strippedText: string): boolean {
 }
 
 /**
- * Scan a blockquote's extent (CommonMark §5.1 lazy continuation) and return its
- * byte-exact `raw` plus the index past it — no child decomposition. The narrow
- * shape a blockquote-shaped opener needs when it decomposes its own body
- * (`> [!NOTE]` GitHub alerts strip the marker line before parsing children).
- *
- * A scanner yields an index, not an opener's `consumed` delta: both callers slice
- * with it (`lines.slice(startIndex, nextIndex)`), and a delta would make every
- * slice re-add the origin. The opener subtracts once, at its return.
+ * Byte-exact `raw` of a blockquote's extent (CommonMark §5.1 lazy continuation) plus the
+ * index past it, no child decomposition: what a blockquote-shaped opener needs when it
+ * decomposes its own body (`> [!NOTE]` alerts strip the marker line before parsing children).
  */
 export function blockquoteExtent(
 	lines: ParsedLine[],
@@ -76,8 +65,7 @@ export function parseBlockquote(
 ): BlockOpenerResult {
 	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
 
-	// Lazy continuation lines have no `> ` to strip — pass them verbatim so
-	// the recursive paragraph parser sees a continuous multi-line paragraph.
+	// Lazy lines have no `> ` to strip; verbatim keeps the recursive parse seeing one paragraph.
 	const strippedLines = remapStrippedLines(lines.slice(startIndex, i), (line) =>
 		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
 	);

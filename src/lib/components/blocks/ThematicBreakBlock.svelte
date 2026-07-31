@@ -24,6 +24,7 @@
 	} from '../../schema/commands';
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
 	import { handleWholeBlockKeys } from '../../editor-actions/container-block-component';
+	import { placeCaret } from '../../selection/caret-doors';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -33,15 +34,15 @@
 	const {
 		reorder,
 		stickyColumn,
+		selection,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { keybindingOverrides, presentationMode: getPresentationMode } =
 		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	// This block is tabindex-focusable independent of contenteditable, so its
-	// keydown stays live in reading mode: arrows (navigation) stay, the direct
-	// edit branches below gate.
+	// Tabindex-focusable independent of contenteditable, so keydown stays live in
+	// reading mode; the edit branches below gate on this instead.
 	const isReading = () => getPresentationMode?.() === 'reading';
 	let el: HTMLDivElement | undefined = $state();
 
@@ -50,7 +51,11 @@
 	export const editable = false;
 	export const focusable = true;
 
-	export function focus(_offset: number): void {
+	// The block IS its own focus target, so the offset carries no meaning — but the
+	// range-ending is still owed: nothing below seats a DOM caret to collapse it.
+	export const focus = placeCaret(selection, parkCaret);
+
+	export function parkCaret(_offset: number): void {
 		el?.focus();
 	}
 
@@ -71,15 +76,21 @@
 				return false;
 		}
 	}
-	void ({ editable, focusable, focus, getCursorOffset, runCommand } satisfies BlockComponent);
+	void ({
+		editable,
+		focusable,
+		focus,
+		parkCaret,
+		getCursorOffset,
+		runCommand
+	} satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
-		// The editor owns undo/redo; resolve override-aware so a consumer can rebind
-		// or disable these chords even while a thematic break is focused. Runs
-		// getCommand directly (no dispatchKeyCommand), so it carries the
-		// reading-mode gate itself — sibling: the editor-root branch.
+		// The local arm exists to consume the chord even in reading mode; without the
+		// preventDefault a read-only document gets the browser's native undo. It
+		// bypasses dispatchKeyCommand, so it owes the reading gate itself.
 		const chord = eventToChord(e);
 		if (chord && isEditorGlobalChord(chord)) {
 			e.preventDefault();
@@ -89,8 +100,7 @@
 			return;
 		}
 
-		// Kind keymap (Alt+↑/↓ reorder) before the plain-arrow navigation below,
-		// which is guarded on no-modifier so a modified arrow never falls through.
+		// Kind keymap (Alt+↑/↓ reorder) must precede the plain-arrow navigation below.
 		if (
 			chord &&
 			dispatchKeyCommand(
@@ -105,10 +115,7 @@
 			return;
 		}
 
-		// The whole-block-focus key tail (Enter-below, focus-delete, arrow traversal,
-		// reading gate) is shared with the plugin container factory — see
-		// handleWholeBlockKeys. Alt-arrow reorder is handled above through the kind
-		// keymap, so it never reaches here.
+		// The whole-block-focus key tail, shared with the plugin container factory.
 		handleWholeBlockKeys(e, {
 			getIndex: () => index,
 			getRaw: () => node.raw,

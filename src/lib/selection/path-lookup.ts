@@ -1,14 +1,9 @@
-/**
- * Document-tree path navigation. Pure functions over a Document + path.
- */
+/** Document-tree path navigation. Pure functions over a Document + path. */
 
 import type { CstNode, Document } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-ops';
 
-/**
- * Block immediately after `path` in document order, or null if `path` is
- * last. Walks into children before siblings.
- */
+/** Block immediately after `path` in doc order (children before siblings), else null. */
 export function nextPath(doc: Document, path: number[]): number[] | null {
 	const node = nodeAt(doc, path);
 	if (node && 'children' in node && node.children && node.children.length > 0) {
@@ -28,10 +23,7 @@ export function nextPath(doc: Document, path: number[]): number[] | null {
 	return null;
 }
 
-/**
- * Block immediately before `path` in document order, or null if `path` is
- * first. Walks into the previous sibling's deepest last descendant first.
- */
+/** Block immediately before `path` in doc order (deepest last descendant first), else null. */
 export function previousPath(doc: Document, path: number[]): number[] | null {
 	if (path.length === 0) return null;
 	const parentPath = path.slice(0, -1);
@@ -57,10 +49,7 @@ export function lastPath(doc: Document): number[] | null {
 	return lastLeafAtOrBefore(doc, [doc.children.length - 1]);
 }
 
-/**
- * Descend `path` to its first leaf — first child at each level — or null when
- * `path` doesn't resolve to a node.
- */
+/** Descend `path` to its first leaf, or null when `path` doesn't resolve to a node. */
 export function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
@@ -72,10 +61,7 @@ export function firstLeafAtOrAfter(doc: Document, path: number[]): number[] | nu
 	return null;
 }
 
-/**
- * Descend `path` to its last leaf — last child at each level — or null when
- * `path` doesn't resolve to a node.
- */
+/** Descend `path` to its last leaf, or null when `path` doesn't resolve to a node. */
 export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | null {
 	let cur: number[] | null = path;
 	while (cur) {
@@ -89,9 +75,8 @@ export function lastLeafAtOrBefore(doc: Document, path: number[]): number[] | nu
 }
 
 /**
- * The document path an element's own `data-block-path` carries, or null when the
- * attribute is absent or unparseable. A plugin may own `data-block-path` with
- * non-JSON content, so a parse failure resolves to null (no path), never a throw.
+ * The document path an element's own `data-block-path` carries. A plugin may own the attribute
+ * with non-JSON content, so a parse failure resolves to null, never a throw.
  */
 export function readBlockPath(el: Element | null): number[] | null {
 	const attr = el?.getAttribute('data-block-path');
@@ -103,9 +88,7 @@ export function readBlockPath(el: Element | null): number[] | null {
 	}
 }
 
-/**
- * Walk up from `el` to the nearest ancestor carrying `data-block-path`.
- */
+/** Walk up from `el` to the nearest ancestor carrying `data-block-path`. */
 export function findBlockPathForElement(el: Element | null): number[] | null {
 	let cur: Element | null = el;
 	while (cur) {
@@ -116,20 +99,11 @@ export function findBlockPathForElement(el: Element | null): number[] | null {
 }
 
 /**
- * The deep `[...tablePath, row, col]` path of an element inside a table cell.
- *
- * Only block hosts emit `data-block-path`, so {@link findBlockPathForElement}
- * stops at the table and returns a path whose endpoint offsets are cell indices
- * while a caret read from the same element is in characters. Any producer that
- * resolves an endpoint path from the DOM rather than from a surface's own
- * `getMyPath()` must resolve through here, or it mints a point that is illegal
- * in both offset spaces.
- *
- * Null when `el` is not inside a cell grid. Addresses the grid through its
- * selector contract (rows carry `data-table-row-idx`, cells carry `role="cell"`)
- * — the viewport-point twin of this walk lives in the table's own cell-pointer
- * module, which cannot be imported here without inverting the component/selection
- * layering.
+ * The deep `[...tablePath, row, col]` path of an element inside a table cell. Only block hosts
+ * emit `data-block-path`, so {@link findBlockPathForElement} stops at the table and returns a
+ * path whose offsets are cell indices while a caret read from the same element is in characters.
+ * Any producer resolving an endpoint path from the DOM must come through here. Null outside a
+ * cell grid; addresses the grid by selector contract (`data-table-row-idx`, `role="cell"`).
  */
 export function findCellPathForElement(el: Element | null): number[] | null {
 	const cellEl = el?.closest('[role="cell"]') ?? null;

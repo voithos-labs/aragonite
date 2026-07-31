@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { githubAlertsPasteTransform } from '$lib/plugins/admonitions/convert-document';
 
-// Only the paste-transform wrapper contract lives here: the probe short-circuit,
-// the null-on-nothing-changed decline, and idempotence. Conversion correctness
-// (fence-safety, top-level-only, GitHub marker semantics) is exhaustively covered
-// by admonitions-convert-document.test.ts and is not re-tested through the wrapper.
+// Only the paste-transform WRAPPER contract lives here. Conversion correctness is
+// covered by convert-document.test.ts and is not re-tested through the wrapper.
 
 const run = (text: string) => githubAlertsPasteTransform.transform(text);
 

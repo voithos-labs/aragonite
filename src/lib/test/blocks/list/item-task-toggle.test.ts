@@ -2,10 +2,9 @@
 //
 // The task checkbox is a click target inside the item's ambient marker span — a
 // contenteditable="false" island, not a real input. Its handler is built by
-// `buildTaskItemAmbient` (unit tested against metadata) but SUPPLIED by ListItemBlock
-// as `toggleTask`, which carries the three rules the builder knows nothing about: the
-// reading-mode gate, the cross-block-selection clear, and the paired metadata write.
-// Only a mounted item connects the rendered span to those rules.
+// `buildTaskItemAmbient` but SUPPLIED by ListItemBlock as `toggleTask`, carrying three rules
+// the builder knows nothing about: the reading-mode gate, the cross-block-selection clear, and
+// the paired metadata write. Only a mounted item connects the rendered span to those rules.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, blockHostAt } from '../editor-mount';
 
@@ -57,8 +56,7 @@ describe('list item task checkbox', () => {
 		expect(checkbox(mounted, 1).getAttribute('aria-checked')).toBe('true');
 	});
 
-	// Reading mode keeps the checkbox VISIBLE but inert — the toggle is a document
-	// edit, and reading mode commits nothing. CSS also drops the pointer affordance,
+	// Reading mode keeps the checkbox VISIBLE but inert. CSS also drops the pointer affordance,
 	// but the guard has to hold on its own: a synthetic click bypasses CSS entirely.
 	it('stays inert in reading mode', async () => {
 		mounted = mountEditor({ source: '- [ ] todo\n', presentationMode: 'reading' });

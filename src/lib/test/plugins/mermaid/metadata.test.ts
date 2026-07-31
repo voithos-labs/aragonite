@@ -8,10 +8,9 @@ import {
 	type MermaidMetadata
 } from '$lib/plugins/mermaid/mermaid-kind';
 
-// The rebuild-inverse guard: the byte round-trip alone passes even if the opener
-// mis-captured metadata (the opaque contract serializes `raw` verbatim), so these
-// pin that `rebuildMermaidRaw` reproduces the exact bytes from metadata — the
-// path every `updateOwnMetadata` code commit rides.
+// The opaque contract serializes `raw` verbatim, so the byte round-trip passes even
+// with mis-captured metadata. These pin the inverse instead — the path every
+// `updateOwnMetadata` commit rides.
 
 function parseMermaid(src: string): CstNode {
 	const block = parse(src).children[0];

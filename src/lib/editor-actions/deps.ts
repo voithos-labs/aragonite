@@ -35,16 +35,14 @@ export interface EditorActionsDeps {
 	 *  targets return synchronously without scrolling. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	events: EditorEvents;
-	/** The instance's block grammar — threaded to the content-commit
-	 *  reparse so a disabled kind's opener is skipped when the editor re-parses an
-	 *  edited block. Absent (bare harnesses) = the global grammar, byte-identical. */
+	/** The instance's block grammar, so a disabled kind's opener stays skipped when
+	 *  the editor re-parses an edited block. Absent = the global grammar. */
 	grammar?: GrammarView;
 }
 
 /**
- * Adds the two selection-typed members to the contracts-leaf `CommitController`.
- * They stay here (not in action-contracts) so the contracts leaf keeps no edge
- * to `selection/`/`undo/` for `EditorSelection`/`UndoEntry`.
+ * The two selection-typed members added to the contracts-leaf `CommitController`.
+ * They stay here so that leaf keeps no edge to `selection/` or `undo/`.
  */
 export interface UndoController extends CommitController {
 	captureCurrentState(): UndoEntry;

@@ -1,18 +1,11 @@
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
- * Backspace-at-offset-0 merge gestures — the merge-rules subsystem the corruption
- * oracle otherwise never drives. Backspace at the start of a block either MERGES it
- * into its predecessor (para→para, para→heading absorber, para→container deepest
- * leaf) or, for a container's first child, DELEGATES to the container-exit unwrap
- * (list U1, blockquote U2). Which one fires depends on the block kinds — the gesture
- * stays agnostic and asserts only that a real structural change happened. Backspace
- * at the document's first block has no predecessor and is a no-op, so a caller that
- * targets it fails loudly rather than recording a stale tree.
- *
- * `targetPath` addresses the block whose start receives the Backspace; the click
- * resolves it to the first editable in that block's subtree, so a container path
- * lands the caret in its first leaf (where the exit-delegation Backspace belongs).
+ * The merge-rules subsystem the corruption oracle otherwise never drives. Which of merge or
+ * container-exit unwrap fires depends on the block kinds, so the gesture stays AGNOSTIC and
+ * asserts only that a real structural change happened; the document's first block has no
+ * predecessor, so targeting it fails loudly rather than recording a stale tree. `targetPath`
+ * resolves to the first editable in its subtree, where the exit-delegation Backspace belongs.
  */
 export async function mergeBackspaceAtStart(ctx: SimContext, targetPath: number[]): Promise<void> {
 	const { editor, tracker } = ctx;

@@ -1,13 +1,13 @@
 # Clipboard Exploration: Paste Materializes Blank Lines
 
-When pasting multi-block content with blank-line separators, the pasted CST structure must match what keyboard typing produces for the same content — so the rendered DOM shows the same visible blank lines either way.
+Pasting multi-block content materializes each blank-line separator into an empty-paragraph block, so the blank line is visible in the rendered DOM.
 
-Same serialized source (`"one\n\ntwo\n"`), same rendered result (three DOM blocks: `one`, empty paragraph, `two`).
+That is one block wider than the same bytes reach any other way. Enter separates, so typing `one Enter two` produces `"one\n\ntwo\n"` as TWO blocks — the blank line is trivia — which is also how the parser loads it. The paste divergence is tracked as issue #20.
 
 ## Happy paths
 
-- Typing `"one Enter Enter two"` → produces 3 DOM blocks.
-- Pasting `"one\n\ntwo"` (clipboard) → produces 3 DOM blocks, matching the typed scenario.
+- Typing `"one Enter Enter two"` → `"one\n\n\ntwo\n"`, 3 DOM blocks: the second press creates the empty block, whose own line is the third newline.
+- Pasting `"one\n\ntwo"` (clipboard) → 3 DOM blocks.
 
 ## Edge cases
 

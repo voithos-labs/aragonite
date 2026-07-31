@@ -1,9 +1,7 @@
 /**
- * Scope-parameterized structural-edit core shared by the top-level and
- * container BlockEditActions factories. Each method is the interior body —
- * no edge guards, no upward delegation, no unwrap dispatch; the factories
- * wrap these with their level-specific concerns. Behavior is pinned by
- * block-edit-core.test.ts plus the two factories' e2e + the simulation.
+ * Scope-parameterized structural-edit core shared by the top-level and container
+ * BlockEditActions factories. Each method is the interior body only — no edge guards,
+ * no upward delegation, no unwrap dispatch; the factories add those.
  */
 
 import { CURSOR_END } from '../block-component';
@@ -16,7 +14,7 @@ import {
 	deleteNode as performDelete,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
-	rebuildOwnedContainer,
+	rebuildUnsharedChain,
 	emptyParagraph
 } from '../tree-operations';
 import {
@@ -26,7 +24,7 @@ import {
 } from '../tree-operations/structural-change';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import type { UndoEntryMode } from '../action-contracts';
+import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
 import type { CommitScope } from './block-edit-scope';
 import { mergedElseFocusPrevious } from './merge-fallback';
 
@@ -39,7 +37,7 @@ export interface BlockEditCore {
 	updateBlockMetadata(
 		i: number,
 		metadata: Record<string, unknown>,
-		options?: { undoEntry?: UndoEntryMode; afterTick?: () => void }
+		options?: { undoEntry?: UndoEntryMode; afterTick?: CommitAfterTick }
 	): Promise<void>;
 	replaceBlock(
 		i: number,
@@ -52,44 +50,43 @@ export interface BlockEditCore {
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	return {
 		async split(i, offset) {
-			// Offset 0 is not special: empty block above, content below, caret
-			// staying on the content — the leading empty half collapsing to trivia
-			// on reparse is the same tolerated live state Enter-at-end produces.
-			// A trivia-bump short-circuit here once made Enter at block start an
-			// invisible no-op.
+			// Offset 0 is not special: empty block above, content below, caret on the
+			// content. A trivia-bump short-circuit here made Enter at block start a no-op.
 			await scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
-					const change = performSplit({ children: view.children }, i, offset);
+					const change = performSplit(
+						{ children: view.children, ownerKind: view.ownerKind },
+						i,
+						offset
+					);
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},
 				afterTick: () => scope.refAt(i + 1)?.focus(0),
-				// A single-line/chrome block splits to nothing (splitNode noops on a
-				// contextDependentKind); discard so a rebound Enter mints no dead entry.
+				// A single-line/chrome block splits to nothing, so discard rather than
+				// mint a dead entry on a rebound Enter.
 				discardIfNoop: true
 			});
 		},
 
 		async descendToBody(i) {
 			const children = scope.children();
-			// A body child already exists: pure focus move, no document change and no
-			// undo entry. An absent ref (windowed-out or a collapsed body) no-ops the
-			// focus, leaving the caret put — the load-bearing collapsed-body fallback.
+			// A body child already exists: pure focus move, no undo entry. An absent ref
+			// (windowed-out, or a collapsed body) leaves the caret put — load-bearing.
 			if (i + 1 < children.length) {
 				scope.refAt(i + 1)?.focus(0);
 				return;
 			}
-			// Chrome is the only child: mint an empty body paragraph after it, then focus.
 			await scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i + 1,
 				op: { kind: 'appendBlock' },
 				mutate: (view) => {
 					// The synthesized body line IS a line ending, so it takes the chrome
-					// sibling's (G4.20) — a defaulted LF strands one in a CRLF container.
+					// sibling's (G4.20); a defaulted LF strands one in a CRLF container.
 					const body = emptyParagraph('', trailingLineEnding(view.children[i]?.raw ?? '\n'));
 					view.children.splice(i + 1, 0, body);
 					const change: StructuralChange = { op: 'insert', at: i + 1, count: 1 };
@@ -106,11 +103,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const currKind = children[i].kind;
 
 			if (!isMergeEligible(prevKind, currKind)) {
-				// A whole-block-focus neighbor (opaque childless plugin block) is
-				// focused, not deleted: press one highlights it, a second press on the
-				// now-focused block deletes it. No commit, no undo entry — this is a
-				// focus move, not a mutation. Ordered before the delete/move fallbacks
-				// so a not-mergeable-but-editable kind (mermaid) never dead-ends here.
+				// A whole-block-focus neighbor is focused, not deleted: press one
+				// highlights it, a second press on the now-focused block deletes it.
+				// Ordered first so a not-mergeable-but-editable kind never dead-ends here.
 				if (getBlockKindDescriptor(prevKind).blockFocus === 'whole-block') {
 					scope.refAt(i - 1)?.focus(0);
 					return;
@@ -146,8 +141,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					if (merged.targetPath.length === 0) ref?.focus(merged.joinOffset);
 					else ref?.focusByPath?.(merged.targetPath, merged.joinOffset);
 				},
-				// A no-target merge (opaque prev leaf) changes nothing; discard the entry
-				// but keep afterTick — mergedElseFocusPrevious still lands the caret.
+				// A no-target merge changes nothing; discard the entry but keep afterTick,
+				// which still lands the caret.
 				discardIfNoop: true
 			});
 		},
@@ -214,8 +209,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const fields = Object.keys(metadata);
 			if (fields.length === 0) return;
 			// `mutate` returns noop, so the ceremony's dev oracle can't infer the resynced
-			// node — name it. The owned copy exists only after unshareChild, so push into a
-			// stable array the ceremony reads post-mutate.
+			// node. The owned copy exists only after unshareChild, hence a stable array
+			// the ceremony reads post-mutate.
 			const touchedNodes: CstNode[] = [];
 			await scope.commit({
 				snapshot: options?.undoEntry === 'join' ? 'skip' : { index: i, offset: 0 },
@@ -225,10 +220,17 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => {
 					const node = view.unshareChild(i);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// Metadata feeds raw for list items (taskMarker) — resync so the
-					// ceremony's rebuild concatenates fresh raw.
-					rebuildOwnedContainer(node, view.sharing);
-					touchedNodes.push(node);
+					// Through the chain funnel, not a bare rebuild: metadata can feed the
+					// container's OPENER line (an alert's type), so the rebuilt bytes may open
+					// as a different kind. The document branch runs no chain rebuild of its
+					// own, so this is the only seam a top-level metadata write crosses.
+					const [reclassified] = rebuildUnsharedChain(
+						{ children: view.children },
+						[node],
+						view.sharing,
+						view.grammar
+					);
+					touchedNodes.push(reclassified?.replacement ?? node);
 					return { op: 'noop' };
 				},
 				afterTick: options?.afterTick

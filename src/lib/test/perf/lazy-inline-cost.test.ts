@@ -13,10 +13,9 @@ import {
 	resetPerfInstruments
 } from '../../perf/instruments';
 
-// inlineComputeCount has a single production caller — computeInlineContent — so
-// it is an exact meter of how often the inline tree is actually built. Both
-// guards assert against that meter: a regression that re-introduces eager inline
-// parsing bumps it where these tests expect zero.
+// inlineComputeCount has a single production caller, computeInlineContent, so it is an
+// exact meter of how often the inline tree is built — a re-introduced eager parse bumps
+// it where these guards expect zero.
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -32,7 +31,10 @@ afterEach(() => disablePerfInstruments());
 
 describe('lazy inline: common keystroke computes once', () => {
 	it('updateNodeContent parses no inline; the render compute is the only one', () => {
-		const parent = { children: [para('alpha\n'), para('beta\n'), para('gamma\n')] };
+		const parent = {
+			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
+			ownerKind: undefined
+		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
 		// The content-update path block-parses kind/metadata/children but must not
@@ -44,7 +46,10 @@ describe('lazy inline: common keystroke computes once', () => {
 	});
 
 	it('an off-render accessor read computes on demand, not eagerly', () => {
-		const parent = { children: [para('alpha\n'), para('beta\n'), para('gamma\n')] };
+		const parent = {
+			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
+			ownerKind: undefined
+		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
 		computeInlineContent(parent.children[1]);
@@ -72,9 +77,8 @@ describe('lazy inline: undo restore does no inline work', () => {
 		resetPerfInstruments();
 		await history.requestUndo();
 
-		// The restore primitive reads no inline regardless of doc size; rendered
-		// blocks recompute lazily on demand. (The deleted sweep lived in the shell
-		// edit-subscriber, not here — a regression there is e2e-scoped, not unit.)
+		// The restore primitive reads no inline regardless of doc size; rendered blocks
+		// recompute lazily on demand.
 		expect(perfSnapshot().inlineComputeCount).toBe(0);
 	});
 });

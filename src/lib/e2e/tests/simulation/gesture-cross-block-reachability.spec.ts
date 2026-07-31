@@ -13,11 +13,9 @@ import {
 	typeOverSelection
 } from '../../simulation/gestures/cross-block';
 
-// Reachability self-tests for the cross-block gesture family: each drives a gesture
-// on a fixed document and asserts the dangerous state it claims to reach actually
-// engaged. A build that silently stayed single-block, or a destroy that no-oped,
-// would be an invisible hole in the corruption oracle — so the closing negative case
-// proves the engagement guard fails loud rather than recording a stale tree.
+// Reachability self-tests: each asserts the dangerous state the gesture CLAIMS to reach
+// actually engaged, since a build that silently stayed single-block would be an invisible
+// hole in the corruption oracle. The closing negative case proves the guard fails loud.
 
 function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');

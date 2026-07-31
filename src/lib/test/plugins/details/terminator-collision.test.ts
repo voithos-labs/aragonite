@@ -14,21 +14,20 @@ import {
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { splitNode } from '$lib/tree-operations/node-ops';
+import { rangeDelete } from '$lib/selection/range-delete';
+import { createSharingState } from '$lib/tree-operations/sharing';
 
 /**
- * `</details>` is a fixed terminator with no fence length to escalate, so a body
- * line reproducing it is UNREPRESENTABLE — every byte sequence containing that
- * literal line closes the element, in aragonite and on GitHub alike. The rebuild
- * cannot repair it either: escaping the child's bytes would diverge the
- * container's raw from its live children, which is what G1.12 fires on.
- *
- * These pin the resulting contract: the collision is reachable through the real
- * commit path (not just a synthetic raw poke), the bytes still round-trip, and
- * G1.12 catches the divergence — so the dev channel and the e2e invariant watcher
- * see it rather than it corrupting silently. Repair needs a commit-path escape
- * seam; until then this is the guarded floor, and these tests fail loudly if the
- * guard regresses.
+ * `</details>` is a fixed terminator with no fence length to escalate, so the repair
+ * is a commit-path escape: `bodyWrite` rewrites the offending line's `<` to `&lt;`
+ * BEFORE the write lands, keeping the container's raw in agreement with its children.
+ * Both halves are pinned — that the escape fires where the grammar is at stake and
+ * declines everywhere else — plus its placement upstream of the leaf reparse, so the
+ * child's kind follows the bytes it ends up with.
  */
 beforeEach(() => {
 	__resetSchemaRegistriesForTests();
@@ -58,38 +57,35 @@ function mountDetails(source: string) {
 }
 
 describe('details terminator collision through the real commit path', () => {
-	it('diverges from its own bytes when a body child becomes the close tag', async () => {
+	it('escapes a body child that becomes the close tag, leaving the container intact', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0);
 
 		const details = h.deps.doc.children[0];
-		expect(details.kind).toBe('details');
-		expect(details.children?.map((c) => c.kind)).toEqual(['details-summary', 'htmlBlock']);
-
-		// The live tree says one details holding the line; its own bytes say otherwise.
-		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual([
-			'details',
-			'htmlBlock'
-		]);
+		expect(details.children?.[1].raw).toBe('&lt;/details>\n');
+		// Upstream of the leaf reparse: the kind follows the ESCAPED bytes, so the
+		// child stays prose instead of being minted as the htmlBlock the raw tag
+		// would have parsed to.
+		expect(details.children?.map((c) => c.kind)).toEqual(['details-summary', 'paragraph']);
 	});
 
-	it('is caught by the opaque staleness guard rather than corrupting silently', async () => {
+	it('converges with a fresh parse of its own bytes after the escape', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0);
 
-		const violation = checkOpaqueStaleRaw(h.deps.doc.children[0]);
-		expect(violation?.code).toBe('opaque-stale-raw');
-		expect(violation?.detail).toMatchObject({ reason: 'reparse-diverges' });
+		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
-	// The open tag is the same collision from the other side: it inflates the
-	// opener's depth counter, so the scan finds no matching close and the details
-	// kind disappears entirely on reload.
-	it('is caught the same way when a body child becomes the open tag', async () => {
+	// The open tag is the same collision from the other side: unescaped it inflates
+	// the opener's depth counter, so the scan finds no matching close and the
+	// details kind disappears entirely on reload.
+	it('escapes a body child that becomes the open tag', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '<details>\n', 0);
 
-		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])?.code).toBe('opaque-stale-raw');
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;details>\n');
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
 	// Byte round-trip is NOT the property at risk here, and saying so keeps the
@@ -102,13 +98,204 @@ describe('details terminator collision through the real commit path', () => {
 		expect(serialize(parse(bytes))).toBe(bytes);
 	});
 
-	// The fence-bearing sibling: a fenced body line reproducing the tag is content,
-	// so the container survives. This is what makes the collision above specific to
-	// an UNFENCED occurrence rather than to the tag bytes.
-	it('survives a close tag that sits inside a fenced code body', async () => {
+	// The fence-bearing sibling: a fenced body line reproducing the tag is content
+	// the container's own scan already skips, so the escape must decline. Escaping
+	// here would corrupt the code's text — entities do not decode inside a fence.
+	it('declines to escape a close tag inside a fenced code body', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '```\n</details>\n```\n', 0);
 
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe('```\n</details>\n```\n');
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+	});
+
+	// What closes the element is raw-HTML passthrough, looser than the container's own
+	// recognizer: each of these reloads intact here yet closes the element on GitHub,
+	// so the escape answers to the SPEC's tag-line shape.
+	const passthroughVariants = [
+		[' </details>', ' &lt;/details>'],
+		['   </details>', '   &lt;/details>'],
+		['</DETAILS>', '&lt;/DETAILS>'],
+		['<details >', '&lt;details >'],
+		// Not forward-typeable (the `>` escapes first) but reachable by paste or edit.
+		['</details> ', '&lt;/details> ']
+	] as const;
+
+	it.each(passthroughVariants)('escapes the passthrough variant %j', async (typed, escaped) => {
+		const h = mountDetails(OPEN_DETAILS);
+		await h.bundle.blockEdit.updateBlockContent(1, `${typed}\n`, 0);
+
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe(`${escaped}\n`);
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
+	});
+
+	// A balanced nested pair is legal markup the container's depth scan already
+	// handles; escaping it would rewrite the user's HTML. Hence a scan, not a match.
+	it('declines to escape a balanced nested pair inside an html child', async () => {
+		const h = mountDetails(OPEN_DETAILS);
+		const nested = '<div>\n<details>\n<summary>x</summary>\n</details>\n</div>\n';
+		await h.bundle.blockEdit.updateBlockContent(1, nested, 0);
+
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe(nested);
+	});
+});
+
+// Enter is the second door into the body. BOTH halves are reachable, which is why
+// the sink escapes both: the anchored recognizer spares a tag line with text on
+// either side, and the cut is what strands it alone.
+describe('details terminator escape at the split door', () => {
+	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS) });
+
+	it('escapes the second half when the cut strands a trailing tag', () => {
+		const parent = { children: parse('foo</details>\n').children, ...detailsOwner() };
+		splitNode(parent, 0, 3);
+
+		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
+	});
+
+	it('escapes the first half when the cut strands a leading tag', () => {
+		// `</details>foo` parses as an htmlBlock — the tag line only survived unescaped
+		// because the trailing text kept it off the anchored terminator.
+		const parent = { children: parse('</details>foo\n').children, ...detailsOwner() };
+		expect(parent.children[0].kind).toBe('htmlBlock');
+
+		splitNode(parent, 0, 10);
+
+		expect(parent.children.map((c) => c.raw)).toEqual(['&lt;/details>\n', 'foo\n']);
+	});
+
+	it('leaves both halves alone at the document root, where no container claims them', () => {
+		const parent = { children: parse('foo</details>\n').children, ownerKind: undefined };
+		splitNode(parent, 0, 3);
+
+		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);
+	});
+});
+
+// The cross-block family reaches the body through its own sinks, not through the
+// per-block ones. A join can MINT a terminator line out of two lines that each
+// held none — which is why these doors need the rule as much as typing does.
+describe('details terminator escape at the cross-block doors', () => {
+	// Both children are ordinary loaded shapes: the tag sits mid-line, where the
+	// anchored recognizer never sees it. The delete is what strands it at column 0.
+	const MID_LINE_TAG =
+		'<details>\n<summary>T</summary>\n\nalpha\nbeta\n\nxx</details>\nmore\n\n</details>\n';
+
+	it('escapes a terminator the cross-block delete mints at the join', () => {
+		const doc = parse(MID_LINE_TAG);
+		expect(doc.children[0].children?.length).toBe(3);
+
+		rangeDelete(
+			doc,
+			{ path: [0, 1], offset: 6 },
+			{ path: [0, 2], offset: 2 },
+			createSharingState(),
+			undefined
+		);
+
+		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
+		expect(checkOpaqueStaleRaw(doc.children[0])).toBeNull();
+	});
+
+	it('escapes a terminator a same-block delete strands at column 0', () => {
+		const doc = parse('<details>\n<summary>T</summary>\n\nzz</details>\n\n</details>\n');
+
+		rangeDelete(
+			doc,
+			{ path: [0, 1], offset: 0 },
+			{ path: [0, 1], offset: 2 },
+			createSharingState(),
+			undefined
+		);
+
+		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
+		expect(checkOpaqueStaleRaw(doc.children[0])).toBeNull();
+	});
+});
+
+describe('details terminator escape caret image', () => {
+	it('maps the caret past the inserted entity so the re-render seats it correctly', () => {
+		const h = mountDetails(OPEN_DETAILS);
+
+		// Caret after the typed `>` (offset 10) lands after the escaped `>` (13):
+		// the `<` ahead of it grew to `&lt;`.
+		expect(h.bundle.blockEdit.mapCommittedOffset?.('</details>\n', 10)).toBe(13);
+	});
+
+	it('leaves a caret in an untouched line where it was', () => {
+		const h = mountDetails(OPEN_DETAILS);
+
+		expect(h.bundle.blockEdit.mapCommittedOffset?.('plain body\n', 5)).toBe(5);
+	});
+
+	it('is a no-op over already-escaped bytes, so a re-commit cannot double-escape', () => {
+		const h = mountDetails(OPEN_DETAILS);
+
+		expect(h.bundle.blockEdit.mapCommittedOffset?.('&lt;/details>\n', 13)).toBe(13);
+	});
+
+	// The contract names `normalize` as the idempotent member; assert it directly
+	// rather than through its caret image, which shares the same scan.
+	it('normalize is idempotent over every shape the escape touches', () => {
+		const normalize = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!.normalize;
+		const inputs = [
+			'</details>\n',
+			'<details>\n',
+			' </details>\r\n',
+			'</DETAILS>',
+			'</details>\n<details>\n',
+			'```\n</details>\n```\n',
+			'<div>\n<details>\n</details>\n</div>\n'
+		];
+
+		for (const input of inputs) {
+			const once = normalize(input);
+			expect(normalize(once)).toBe(once);
+		}
+	});
+
+	// Checked at every offset, not a hand-picked one: a per-line predicate with
+	// multi-byte insertions is exactly where an off-by-one hides.
+	it('mapOffset is the exact image of normalize at every offset', () => {
+		const bodyWrite = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!;
+		const inputs = ['</details>\n', ' </details>\nx\n', '</details>\n<details>\n', 'plain\n'];
+
+		for (const raw of inputs) {
+			for (let offset = 0; offset <= raw.length; offset++) {
+				const mapped = bodyWrite.normalize(raw).slice(0, bodyWrite.mapOffset(raw, offset));
+				expect(mapped.replaceAll('&lt;', '<')).toBe(raw.slice(0, offset));
+			}
+		}
+	});
+
+	// `</details` with no `>` yet is ALREADY a type-6 line, and a browser left holding
+	// it swallows what follows. Escaping from that keystroke on also keeps the block
+	// from oscillating through htmlBlock, so no intermediate state is a kind change.
+	it('escapes from the first keystroke the spec would pass through, never oscillating', async () => {
+		const h = mountDetails(OPEN_DETAILS);
+		const typed = '</details>';
+		const kinds: string[] = [];
+
+		for (let i = 1; i <= typed.length; i++) {
+			await h.bundle.blockEdit.updateBlockContent(1, `${typed.slice(0, i)}\n`, i - 1, i);
+			kinds.push(h.deps.doc.children[0].children?.[1].kind ?? '?');
+		}
+
+		expect(new Set(kinds)).toEqual(new Set(['paragraph']));
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
+		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
+	});
+
+	// The structural door: a commit whose kind genuinely changes still escapes. Caret
+	// mapping is pinned in the details e2e — this harness mounts no refs.
+	it('escapes on a kind-changing commit, the structural door', async () => {
+		const h = mountDetails('<details>\n<summary>T</summary>\n\n```\nx\n```\n\n</details>\n');
+		expect(h.deps.doc.children[0].children?.[1].kind).toBe('fencedCode');
+
+		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0, 10);
+
+		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
+		expect(h.deps.doc.children[0].children?.[1].kind).toBe('paragraph');
 	});
 });

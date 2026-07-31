@@ -1,11 +1,7 @@
-// The invariant predicates are exhaustively unit-tested as pure functions, but
-// no test proved the COMMIT ceremony actually invokes them over the nodes it
-// touched. Two probe-verified holes stayed green under every suite: the
-// container-branch `touchedNodes` thunk collapsed to `() => []`, and a deleted
-// `assertCommittedNodes` call. These controls plant a real staleness THROUGH a
-// commit and assert the ceremony's invariant channel fires — the belt-is-buckled
-// test. Each commit FAMILY (multi-scope container branch, top-level metadata-noop
-// document branch) gets its own control, since they carry the wiring separately.
+// The invariant predicates are exhaustively unit-tested as pure functions, but nothing
+// proved the COMMIT ceremony invokes them over the nodes it touched — a collapsed
+// `touchedNodes` thunk and a deleted `assertCommittedNodes` call both stayed green.
+// Each commit family carries the wiring separately, so each gets its own control.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
@@ -17,10 +13,8 @@ import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import type { CstNode } from '$lib/core/nodes';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
-// devWarn mutes itself under Vitest, so the invariant channel is silent by
-// default — un-mute it and capture only the `[invariant:` lines the e2e watcher
-// also fails on. (Mirrors commit-detached-scope.test.ts, which asserts the
-// channel stays SILENT; these controls assert it FIRES.)
+// devWarn mutes itself under Vitest, so the channel is silent by default. Mirrors
+// commit-detached-scope.test.ts, which asserts the same channel stays SILENT.
 function armInvariantChannel(): string[] {
 	const fires: string[] = [];
 	configureEditorEnv({ isTest: false });
@@ -35,11 +29,8 @@ function firesStaleRaw(fires: string[]): boolean {
 	return fires.some((f) => f.includes('[invariant:stale-raw'));
 }
 
-// A blockquote holding a nested blockquote: corrupting the nested child's raw
-// leaves it stale vs its own children. The commit ceremony rebuilds the OUTER
-// spine (reading the nested raw verbatim, strip contract) but never re-derives
-// the nested child, so the plant survives to assertCommittedNodes — where
-// checkStaleRaw recurses into strip descendants and fires.
+// The ceremony rebuilds the OUTER spine but never re-derives the nested child, so a
+// staleness planted there survives to assertCommittedNodes, where checkStaleRaw recurses.
 const NESTED_BQ = '> outer\n>\n> > nested one\n> > nested two\n';
 
 function corruptNestedBlockquote(outer: CstNode): void {
@@ -81,9 +72,8 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 	});
 
 	// ── Family 2: top-level metadata-noop document branch (explicit touchedNodes) ─
-	// updateBlockMetadata returns `op: 'noop'`, so the ceremony cannot infer the
-	// resynced node from the StructuralChange — the C-F5 fix names it explicitly.
-	// Without that name the bogus node sits unvalidated (the exact audit hole).
+	// `op: 'noop'` leaves the ceremony unable to infer the resynced node, so this branch
+	// must name it explicitly or the node sits unvalidated.
 	it('a top-level updateBlockMetadata over a stale nested raw fires stale-raw', async () => {
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
 		const controller = createUndoController(deps);

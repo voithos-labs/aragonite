@@ -105,10 +105,9 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		expect(source).toContain('AlphaZBeta');
 	});
 
-	// Live children-vs-childIds parity at every container depth. Before the
-	// fix the M1 helper mutated inner-container `children` without extending
-	// `childIds`, so Svelte's keyed each logged `each_key_duplicate` for the
-	// trailing undefined keys.
+	// Live children-vs-childIds parity at every container depth: the M1 helper once mutated an
+	// inner container's `children` without extending `childIds`, so Svelte's keyed each logged
+	// `each_key_duplicate` for the trailing undefined keys.
 	test('M1 keeps children/childIds parity at every depth (rows 3+4 shape)', async ({ page }) => {
 		const consoleErrors: string[] = [];
 		page.on('console', (m) => {
@@ -131,9 +130,9 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 	test('M1 opaque previous leaf (fenced code): no merge, no crash, caret falls back', async ({
 		page
 	}) => {
-		// Regression: Backspace at start of the item after a fenced-code-only item
-		// once threw inside the commit ceremony (DEV crash / prod dead key). It must
-		// now no-op structurally and move the caret to the previous item's code block.
+		// Backspace at the start of the item after a fenced-code-only item once threw inside the
+		// commit ceremony (DEV crash / prod dead key); it must no-op structurally and move the
+		// caret into the code block.
 		const pageErrors = capturePageErrors(page);
 
 		await editor.loadContent('- ```\n  code\n  ```\n- text\n');

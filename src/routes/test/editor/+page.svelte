@@ -26,10 +26,9 @@
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
 
-	// `?dragHandles=false` starts with the hover drag handle disabled (the
-	// reorder-handle e2e covers the off path). The header checkbox flips it live;
-	// since blockDragHandles is set-once-at-mount, the toggle remounts the editor
-	// via {#key} (carrying the live content across so edits survive).
+	// `?dragHandles=false` starts with the hover drag handle disabled. blockDragHandles is
+	// set-once-at-mount, so the header checkbox remounts the editor via {#key}, carrying
+	// the live content across so edits survive.
 	let dragHandlesOn = $state(
 		typeof window === 'undefined' ||
 			new URLSearchParams(window.location.search).get('dragHandles') !== 'false'
@@ -40,30 +39,25 @@
 		dragHandlesOn = !dragHandlesOn;
 	}
 
-	// `?imagePaste=on` installs the harness image-import hook. The prop is set-once
-	// at mount, so the opt-in is a URL param (like `dragHandles`) and the per-image
-	// response is swapped behind the stable function via `__test.imagePaste`. Off by
-	// default, which is also the no-hook arm of the contract.
+	// The prop is set-once at mount, so the opt-in is a URL param and the per-image response
+	// is swapped behind this stable function. Off by default — that is the no-hook arm.
 	const onPasteImage =
 		typeof window !== 'undefined' &&
 		new URLSearchParams(window.location.search).get('imagePaste') === 'on'
 			? harnessPasteImage
 			: undefined;
 
-	// `?header=on` mounts a host header inside the editor's scroll container (the
-	// DocumentHero shape). Off by default: a preamble shifts every block's geometry,
-	// which specs across the suite measure. Its height toggles between two values so
-	// the anchor compensation has something to compensate for; the toggle control
-	// lives in the page header, OUTSIDE the editor's scroll container, because
+	// `?header=on` mounts a host header inside the editor's scroll container. Off by
+	// default: a preamble shifts every block's geometry, which specs across the suite
+	// measure. Its toggle lives in the page header, OUTSIDE the scroll container, because
 	// clicking a control inside it would scroll the very position under test.
 	const headerOn =
 		typeof window !== 'undefined' &&
 		new URLSearchParams(window.location.search).get('header') === 'on';
 	let headerTall = $state(false);
 
-	// `?presentationMode=reading|preview-block|preview-inline` starts in that mode;
-	// the header toggles flip it live (the prop reads live — no remount, unlike
-	// blockDragHandles).
+	// `?presentationMode=…` starts in that mode; the prop reads live, so the header
+	// toggles need no remount (unlike blockDragHandles).
 	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
 	let presentationMode = $state<PresentationMode>(
 		(typeof window !== 'undefined' &&
@@ -73,28 +67,22 @@
 			'source'
 	);
 
-	// Each header checkbox toggles its mode against source. testids are pinned by the
-	// presentation e2e.
+	// The testids are pinned by the presentation e2e.
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
 		{ mode: 'preview-block', testid: 'preview-block-toggle', label: 'Block preview' },
 		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' }
 	];
 
-	// Reading-mode link activation records to a page-scoped sink instead of opening a
-	// window, so the presentation e2e can assert the handler fired on a plain click.
-	// Wired ONLY in reading mode (below): onLinkActivate REPLACES the default
-	// open-in-tab, so wiring it in source mode would swallow the native activation
-	// the link-clickability specs assert.
+	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading
+	// mode: onLinkActivate REPLACES the default open-in-tab, so wiring it in source mode
+	// would swallow the native activation the link-clickability specs assert.
 	function recordLinkActivation(url: string) {
 		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
 
-	// Single reactive counter that retriggers panel getters. Bumped by BOTH
-	// editor ops (via the ops-log subscriber) AND native DOM selection changes
-	// (selectionchange). Without the selectionchange half, clicking in a block
-	// moves the caret but no Svelte signal fires, so the inline/selection
-	// sections never refresh.
+	// Bumped by editor ops AND native selectionchange: without the selectionchange half,
+	// clicking in a block moves the caret with no Svelte signal, so the panel never refreshes.
 	let panelTick = $state(0);
 
 	$effect(() => {
@@ -116,18 +104,15 @@
 		return () => document.removeEventListener('selectionchange', onSelectionChange);
 	});
 
-	// Panel-display view of the editor's live source. MUST NOT feed back into
-	// the `source` prop — Editor re-initializes from source changes, which
-	// would wipe undo / selection / CST on every op.
+	// MUST NOT feed back into the `source` prop: Editor re-initializes from source
+	// changes, which would wipe undo / selection / CST on every op.
 	const liveSource = $derived.by(() => {
 		void panelTick;
 		return editor?.getSource() ?? source;
 	});
 
-	// The LIVE tree first, because the panel's whole job is the state a reparse
-	// cannot express: a live-kind-vs-raw desync, or a transient block the serializer
-	// trims. The reparse rides along as a second labeled view — when the two differ,
-	// the difference IS the bug being hunted.
+	// LIVE first: the panel's job is the state a reparse cannot express (a live-kind-vs-raw
+	// desync, a transient block the serializer trims). Where the two views differ IS the bug.
 	function cstSection(): string {
 		const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
 		if (!editor) return reparse;
@@ -153,9 +138,8 @@
 	});
 </script>
 
-<!-- The host chrome a consumer mounts in the header slot: a title, a link (host
-     chrome follows the page's link behaviour, not the editor's modifier-click
-     policy), and a filler whose height the page-header button toggles. -->
+<!-- The host chrome a consumer mounts in the header slot; its link follows the page's
+     link behaviour, not the editor's modifier-click policy. -->
 {#snippet documentHero()}
 	<div class="demo-hero" data-testid="harness-header" style:height={headerTall ? '240px' : '80px'}>
 		<input
@@ -254,11 +238,9 @@
 				return stack ? dumpUndoStack(stack) : '(editor not ready)';
 			}}
 			getInlineTree={() => {
-				// panelTick read FIRST — if editor is undefined on the derived's first
-				// evaluation (possible during HMR re-mount or tight initial-mount
-				// timing), the early return below would skip the signal read and the
-				// derived would never subscribe. Reading it unconditionally makes the
-				// dep registration independent of editor's ready state.
+				// panelTick read FIRST: if editor is undefined on the first evaluation, the
+				// early return below would skip the signal read and the derived would
+				// never subscribe.
 				void panelTick;
 				if (!editor) return '';
 				return dumpFocusedInlineTree(liveSource);
@@ -268,8 +250,7 @@
 				return log ? dumpOperationsLog(log) : '';
 			}}
 			getTrace={() => {
-				// Module-global trace; refreshed on the shared panelTick. The section's
-				// expand arms the recorder (DebugPanel.toggleTrace).
+				// The section's expand arms the recorder (DebugPanel.toggleTrace).
 				void panelTick;
 				return dumpInteractionTrace(interactionTraceSnapshot());
 			}}

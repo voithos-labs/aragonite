@@ -1,7 +1,6 @@
 /**
- * Default inline and structural paste hooks used when a block kind has no
- * bespoke PasteSurface. Also registers these defaults for every kind whose
- * descriptor advertises `supportsInline` at module-load time.
+ * Default paste hooks for kinds with no bespoke PasteSurface, registered at module load
+ * for every built-in kind whose descriptor advertises `supportsInline`.
  */
 
 import { CURSOR_END } from '../../block-component';
@@ -22,10 +21,8 @@ import {
 	type StructuralPasteResult
 } from '../paste-surfaces';
 
-// Kinds whose surface is registered by their component (top of the DAG) instead
-// of the default loop below. Skipping them keeps a single registrar per kind, so
-// correctness doesn't hinge on whether this module loads before or after the
-// component wire-up.
+// Registered by their own component instead of the loop below. One registrar per kind, so
+// correctness doesn't hinge on module load order.
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
 /** Splice a pre-delete selection range out of a leaf's display text. */
@@ -82,11 +79,9 @@ export function defaultStructuralHook(
 }
 
 /**
- * Caret target for a structural paste: the end of the PASTED content, not the
- * trailing residue. A caret that sat mid-block appends the post-caret slice as
- * the replacement's last node (buildPastedReplacement), so the pasted content
- * ends one node earlier; an end-of-block paste has no residue and lands on the
- * last node as before.
+ * Caret target for a structural paste: the end of the PASTED content, not the trailing
+ * residue. A mid-block caret leaves the post-caret slice as the replacement's last node,
+ * so the pasted content ends one node earlier.
  */
 export function pastedContentFocusIndex(
 	node: NodeView,
@@ -102,9 +97,8 @@ export function pastedContentFocusIndex(
 	return focusIndexBeforeResidue(replacementLength, hasTrailingResidue);
 }
 
-// Built-in kinds register on block-kind-descriptor import, which is transitively
-// completed before this module's top-level executes. Plugin kinds registering
-// after this point must register their own paste surface.
+// Built-in kinds are all registered by the time this top level runs; a plugin kind
+// registering later must register its own paste surface.
 for (const kind of getAllRegisteredKinds()) {
 	if (!isBuiltinBlockKind(kind)) continue;
 	if (BESPOKE_SURFACE_KINDS.has(kind)) continue;

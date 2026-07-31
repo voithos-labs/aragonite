@@ -1,11 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Enter at (or inside) a setext title keeps the trailing underline with the
-// heading half — a plain raw cut demotes the heading and turns `-----` into a
-// thematicBreak below. Requirements: enter-at-setext-end.md. The block-kind
-// assertions are load-bearing: source bytes stay stable through the demotion,
-// so only the live kinds distinguish the fix from the bug.
+// Enter in a setext title keeps the trailing underline with the HEADING half — a plain raw
+// cut demotes it and turns the underline into a thematicBreak below
+// (requirements/text-editing/enter-at-setext-end.md). The block-KIND assertions are
+// load-bearing: source bytes stay stable through the demotion, so nothing else sees it.
 
 test.describe('text editing — Enter at the end of a setext title', () => {
 	let editor: EditorPage;

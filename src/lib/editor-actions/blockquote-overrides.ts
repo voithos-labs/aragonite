@@ -1,6 +1,5 @@
 /**
- * Override factory for BlockquoteBlock — the Enter-on-empty-last-child exit.
- * Returns the override map.
+ * Override factory for BlockquoteBlock: the Enter-on-empty-last-child exit.
  * Backspace unwrap (U2) is declaration-driven — the blockquote's `unwrapRole`
  * selects strategies in `unwrap-strategies.ts`.
  */
@@ -37,9 +36,8 @@ export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 					if (node.children.length <= 1) {
 						await parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
-						// The primitive's spine rebuild refreshes this quote's raw AND
-						// its ancestors' (a nested quote's own rebuild alone would
-						// strand an empty `> >` in the outer raw).
+						// The primitive's spine rebuild refreshes this quote's raw AND its
+						// ancestors' — a nested quote's own rebuild would strand `> >` outside.
 						await deps.controller.commitMultiScope({
 							scopes: [{ node, state, path }],
 							snapshot: { path: extendDocPath(path, innerIndex), offset: 0 },

@@ -8,8 +8,7 @@ function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>)
 	return { kind, leadingTrivia: '', raw, metadata };
 }
 
-// Shape matters: rebuildListItemRaw no-ops without `children`, so raw-assertion
-// tests need a paragraph child for the rebuild to actually emit.
+// rebuildListItemRaw no-ops without `children`, so raw-assertion cases need a child.
 function makeTaskListItem(text: string, taskMarker: string): any {
 	const checked = taskMarker.trim().toLowerCase() === '[x]';
 	return {
@@ -37,8 +36,7 @@ describe('updateBlockMetadata', () => {
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
-		// Copy-path-on-write: the live node carries the patch; the captured
-		// pre-op node stays pristine for the undo snapshot that shares it.
+		// Copy-path-on-write: the captured pre-op node stays pristine for the snapshot sharing it.
 		expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 		expect(node.metadata).toEqual({ taskChecked: false });
 		expect(editHandler).toHaveBeenCalledTimes(1);
@@ -96,10 +94,8 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
-	// Wiring: the metadata commit returns `noop`, so the dev staleness oracle can't
-	// infer the touched node from the StructuralChange. The top-level scope must name
-	// it explicitly (the container scope's ceremony auto-derives), or the metadata→
-	// rebuildRaw resync gets zero G1.1/G1.12/G1.13 validation against [].
+	// A `noop` commit leaves the staleness oracle unable to infer the touched node, so the
+	// top-level scope must name it or the resync gets zero G1.1/G1.12/G1.13 validation.
 	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
 		const { deps } = makeEditorActionsDeps([node]);
@@ -121,7 +117,6 @@ describe('updateBlockMetadata', () => {
 		const actions = createBlockEditActions(deps, controller);
 
 		const afterTick = vi.fn(() => {
-			// The commit is complete when afterTick fires: metadata is already live.
 			expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
 		});
 		await actions.updateBlockMetadata(0, { taskChecked: true }, { afterTick });
@@ -142,10 +137,8 @@ describe('updateBlockMetadata', () => {
 	});
 
 	it('shallow-merge preserves untouched fields', async () => {
-		// Regression guard: a switch to `node.metadata = metadata` (no spread) would fail this.
-		// A leaf kind keeps the merge check kind-agnostic (the next test covers a real
-		// task listItem); the top-level dev oracle now validates the committed node, so
-		// the fixture must be a registered kind.
+		// A switch to `node.metadata = metadata` (no spread) fails here. The fixture is a
+		// registered leaf kind: kind-agnostic for the merge check, and the dev oracle validates it.
 		const node = makeNode('paragraph', 'hello\n', {
 			marker: '- ',
 			taskItem: true,
@@ -180,7 +173,6 @@ describe('updateBlockMetadata', () => {
 			taskChecked: true,
 			taskMarker: '[x] '
 		});
-		// taskMarker in metadata must propagate to raw via rebuildListItemRaw.
 		expect(deps.doc.children[0].raw).toBe('- [x] pending\n');
 		expect(editHandler).toHaveBeenCalledTimes(1);
 		const evt = editHandler.mock.calls[0][0];
@@ -202,7 +194,6 @@ describe('updateBlockMetadata', () => {
 			taskChecked: false,
 			taskMarker: '[ ] '
 		});
-		// Post-undo raw reflects restored taskMarker.
 		expect(deps.doc.children[0].raw).toBe('- [ ] pending\n');
 	});
 });
@@ -224,7 +215,6 @@ function makeContainerSetup(containerIndex: number) {
 		innerSuffix: ''
 	};
 
-	// Pad doc children so containerIndex is meaningful
 	const padNode = makeNode('paragraph', 'pad\n', {});
 	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
 
@@ -286,9 +276,8 @@ describe('updateBlockMetadata — container scope', () => {
 	});
 
 	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
-		// The parent-container staleness guard: without the ceremony's ancestry
-		// rebuild, the inner listItem.raw updates but the list's composite raw
-		// stays stale.
+		// Without the ceremony's ancestry rebuild the inner listItem.raw updates while the
+		// list's composite raw stays stale.
 		const { bundle, liveInner, liveContainer } = makeListContainerSetup(1);
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });

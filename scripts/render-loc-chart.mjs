@@ -1,10 +1,6 @@
-// Renders the README "where the lines go" chart by counting the tracked
-// library source live from git — so the picture cannot drift from the code.
-// Re-run after any substantial refactor:
-//
-//   node scripts/render-loc-chart.mjs
-//
-// Emits docs/assets/loc-{light,dark}.svg and prints the totals.
+// Renders the README "where the lines go" chart into docs/assets/loc-{light,dark}.svg by
+// counting the tracked library source live from git, so the picture cannot drift from the
+// code. Re-run after any substantial refactor.
 
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -20,9 +16,8 @@ const files = execSync('git ls-files src/lib', { cwd: root, encoding: 'utf8' })
 	.split('\n')
 	.filter((f) => /\.(ts|svelte)$/.test(f) && !/\/(test|e2e)\//.test(f));
 
-// One directory under src/lib/plugins is one bundled plugin package. Counted from
-// the same file list the bars are measured from: a number written into a label
-// beside a live count can only ever drift out of step with it.
+// Counted from the same file list the bars are measured from: a number written into a
+// label beside a live count can only ever drift out of step with it.
 const bundledPluginCount = new Set(
 	files
 		.filter((f) => f.startsWith('src/lib/plugins/'))
@@ -31,8 +26,7 @@ const bundledPluginCount = new Set(
 		.map((rest) => rest.slice(0, rest.indexOf('/')))
 ).size;
 
-// Functional buckets, each a set of src/lib module dirs. A label says what the
-// bucket *does* — the point of the chart is the feature surface, not the dirs.
+// A label says what the bucket *does*: the chart's point is the feature surface, not dirs.
 const BUCKETS = [
 	{ label: 'Block UIs & rendering', dirs: ['components'] },
 	{ label: 'Editing, commits & undo', dirs: ['editor-actions', 'tree-operations', 'undo'] },
@@ -54,8 +48,7 @@ const linesOf = (f) => {
 	return body.endsWith('\n') ? n : n + 1;
 };
 
-// Module dir of a file: the first path segment under src/lib, or '.' for a
-// file sitting directly in src/lib.
+// '.' stands for a file sitting directly in src/lib.
 const moduleOf = (f) => {
 	const rest = f.slice('src/lib/'.length);
 	return rest.includes('/') ? rest.slice(0, rest.indexOf('/')) : '.';

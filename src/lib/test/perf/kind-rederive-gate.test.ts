@@ -1,0 +1,92 @@
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { installPlugins } from '$lib';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { parse } from '$lib/core/parser';
+import { createSharingState } from '$lib/tree-operations/sharing';
+import { ensureUnsharedPath, rebuildUnsharedChain } from '$lib/tree-operations/unshare';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '$lib/perf/instruments';
+
+// Kind re-derivation costs a `parse` of the container's WHOLE raw, so it is gated on
+// the first line having changed AND that line's opener verdict having moved. The
+// second gate is what keeps keystroke cost off the container-size axis: typing into a
+// list's first item rewrites the opener line without moving any verdict.
+
+const KEYSTROKES = 20;
+
+/** Type `count` characters into the leaf at `leafPath`, one rebuild each. */
+function typeInto(source: string, leafPath: number[], count: number): void {
+	const doc = parse(source);
+	const sharing = createSharingState();
+	let text = '';
+	for (let i = 0; i < count; i++) {
+		text += 'x';
+		const chain = ensureUnsharedPath(doc, leafPath, sharing);
+		chain[chain.length - 1].raw = `${text}\n`;
+		rebuildUnsharedChain(doc, chain, sharing, undefined);
+	}
+}
+
+const reparses = () => perfSnapshot().containerKindReparses;
+
+beforeAll(() => {
+	installPlugins([admonitionsPlugin()]);
+});
+
+beforeEach(() => {
+	resetPerfInstruments();
+	enablePerfInstruments();
+});
+afterEach(() => disablePerfInstruments());
+
+describe('container kind re-derivation gate', () => {
+	it('reparses nothing while typing outside the container opener line', () => {
+		typeInto('> head\n>\n> body\n', [0, 1], KEYSTROKES);
+
+		expect(perfSnapshot().rebuildDepths).toEqual({ 2: KEYSTROKES });
+		expect(reparses()).toBe(0);
+	});
+
+	// First gate passes, second holds: each of these rewrites the container's opener
+	// line on every keystroke while its verdict stays put. The rows that put the cost
+	// on the container-size axis when only the first gate exists.
+	it.each([
+		['blockquote first paragraph', '> head\n>\n> body\n', [0, 0]],
+		['list first item', '- one\n- two\n- three\n', [0, 0, 0]]
+	])('reparses nothing while typing into the %s', (_label, source, leafPath) => {
+		typeInto(source, leafPath, KEYSTROKES);
+
+		expect(reparses()).toBe(0);
+	});
+
+	// A directive's opener declines a one-line probe (it wants its `:::` closer), so
+	// the second gate can never confirm it and only the FIRST gate holds here. Costs
+	// nothing by typing: that line carries only the directive name.
+	it('reparses nothing while typing into a directive container body', () => {
+		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
+
+		expect(reparses()).toBe(0);
+	});
+
+	// Only the keystroke that closes the marker moves the verdict. The trailing `x`
+	// keeps a post-formation keystroke in the stream, so a latched-open gate
+	// over-counts here.
+	it('reparses only on the keystroke that moves the opener verdict', () => {
+		const doc = parse('> [!TI\n');
+		const sharing = createSharingState();
+		let text = '[!TI';
+		for (const char of 'P]x') {
+			text += char;
+			const chain = ensureUnsharedPath(doc, [0, 0], sharing);
+			chain[chain.length - 1].raw = `${text}\n`;
+			rebuildUnsharedChain(doc, chain, sharing, undefined);
+		}
+
+		expect(doc.children[0].kind).toBe('githubAlert');
+		expect(reparses()).toBe(1);
+	});
+});

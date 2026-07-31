@@ -10,28 +10,26 @@ import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 
-activateDirectiveGrammar(); // declares directiveText + widget + ':' recognizer, before any parse
+activateDirectiveGrammar(); // before any parse
 
 const kind = declaredPluginInlineKind(DIRECTIVE_TEXT);
 const recognize = (raw: string, pos: number, end: number) =>
 	recognizeTextDirective(raw, pos, end, kind);
 
-// The decline/consume table is the point of the text tier: the recognizer OWNS
-// `:name[label]{attrs}` atomically (so the scanner's bracket stack never sees the
-// inner `[label]`) and stays conservative everywhere else. `null` = leave `:`
-// literal; a number = `end` past the whole consumed span.
+// The recognizer OWNS `:name[label]{attrs}` atomically, so the scanner's bracket stack
+// never sees the inner `[label]`; everywhere else it stays conservative and declines.
 describe('recognizeTextDirective', () => {
 	const cases: Array<[raw: string, pos: number, end: number, expectedEnd: number | null]> = [
-		[':x[a]{k=v} rest', 0, 15, 10], // consumes :x[a]{k=v} atomically
-		[':x[a](b)', 0, 8, 5], // :x[a]; '(b)' left literal
+		[':x[a]{k=v} rest', 0, 15, 10],
+		[':x[a](b)', 0, 8, 5], // '(b)' left literal
 		[':x[a[b]c]', 0, 9, 9], // balanced nested brackets are one label
-		[':x{k=v}', 0, 7, 7], // label-less
+		[':x{k=v}', 0, 7, 7],
 		[':smile:', 0, 7, null], // name not followed by [ or {
 		['10:30', 2, 5, null], // name must start with a letter
 		['http://x', 4, 8, null], // :// scheme separator
-		[':x[a', 0, 4, null], // unbalanced — runs off end
-		[':x{', 0, 3, null], // unbalanced label-less braces decline
-		[':x[a]{', 0, 6, null] // valid label + unbalanced trailing brace declines the whole span
+		[':x[a', 0, 4, null], // unbalanced, runs off end
+		[':x{', 0, 3, null], // unbalanced label-less braces
+		[':x[a]{', 0, 6, null] // a valid label does not rescue an unbalanced trailing brace
 	];
 
 	for (const [raw, pos, end, expectedEnd] of cases) {
@@ -82,9 +80,8 @@ describe('directiveText atomic widget', () => {
 		expect(shell.textContent).toBe(':abbr[HTML]{title="x"}');
 	});
 
-	// reveal-source is the contract the widget-interaction layer reads to swap the
-	// rendered island for its editable source on focus; pin its exact shape so the
-	// text tier stays editable, not a read-only atom.
+	// reveal-source is what the widget-interaction layer reads to swap the rendered island
+	// for its editable source, so the text tier stays editable rather than a read-only atom.
 	it('registers the reveal-source editing policy', () => {
 		expect(getInlineWidgetEditing(kind)).toEqual({ revealSource: true });
 	});

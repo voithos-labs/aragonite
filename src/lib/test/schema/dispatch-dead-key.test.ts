@@ -21,9 +21,8 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 
 	it('dead-keys and dev-warns exactly once per id, never reaching runCommand', () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		// A minted command resolves on the leaf path only when the target supplies a
-		// command context. This target omits `getCommandContext`, so the command is
-		// unreachable here and dead-keys.
+		// The leaf path resolves a minted command only against a supplied command context;
+		// this target omits `getCommandContext`, so the command is unreachable.
 		const id = registerBlockCommand('paragraph', 'demo.leafOnly', () => true);
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }

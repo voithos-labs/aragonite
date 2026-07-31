@@ -51,9 +51,8 @@
 		font-size: 12px;
 		line-height: 1.4;
 		color: var(--debug-fg, #ddd);
-		/* pre-wrap preserves indentation from dumpTree/etc.; overflow-wrap: anywhere
-		   handles long unbreakable tokens (hex IDs, raw snippets without spaces)
-		   so the panel doesn't permanently sport a horizontal scrollbar. */
+		/* pre-wrap preserves the dumps' indentation; overflow-wrap breaks the long unbreakable
+		   tokens (hex ids, spaceless raw snippets) that would force a horizontal scrollbar. */
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		overflow-x: auto;

@@ -1,11 +1,6 @@
 /**
- * GFM footnotes as a first-party plugin: the `[^label]: content` definition (a
- * real editable strip container) and the `[^label]` reference (a first-class
- * inline widget rendering the derived footnote number as a superscript).
- *
- * Numbering is derived, not stored — `assignFootnoteNumbers` reads first-reference
- * order off the live document, so the reference widget derives its own number and
- * no counter is kept anywhere.
+ * GFM footnotes: a strip-container definition plus an inline-widget reference.
+ * Numbering is derived off the live document, so no counter is stored anywhere.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';

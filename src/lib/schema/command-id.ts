@@ -1,9 +1,7 @@
 /**
- * Plugin command-id brand + mint. Mirrors the `PluginBlockKind` brand
- * (core/nodes) and the `declarePluginKind` collision guard: a minted id is a
- * plain branded string, so built-in `CommandId` switches stay exhaustive while
- * the block-command registry keys plugin ids. Register-once — throws on a name
- * that collides with a built-in id or a prior mint.
+ * Plugin command-id brand + mint, mirroring the `PluginBlockKind` brand (core/nodes): a minted
+ * id is a plain branded string, so built-in `CommandId` switches stay exhaustive while the
+ * block-command registry keys plugin ids. Register-once.
  */
 import { isBuiltinCommandId, type CommandId } from './commands';
 import { devReplacesRegistration } from './register-once';
@@ -15,18 +13,14 @@ export type AnyCommandId = CommandId | PluginCommandId;
 
 const NAME_PATTERN = /^[a-z][a-zA-Z0-9-]*(\.[a-z][a-zA-Z0-9-]*)*$/;
 
-// name → installing plugin at mint time (null when minted outside an install).
-// The owner distinguishes a legitimate same-plugin re-mint from a cross-plugin
-// collision.
+// name → installing plugin at mint time (null when minted outside an install). The owner
+// distinguishes a legitimate same-plugin re-mint from a cross-plugin collision.
 const mintedCommandIds = new Map<string, string | null>();
 
 /**
- * Mint (or resolve) a plugin command id. `owner` is the installing plugin — pass
- * `currentInstallingPlugin()`. The mint is name-global, but the block-command
- * registry key is composite `(kind, name)` and dispatch is kind-scoped, so a
- * plugin naming one command across several of its own kinds is coherent: the same
- * owner re-minting a name returns the existing brand. A DIFFERENT plugin (or an
- * unattributed re-mint) still throws, naming the prior owner.
+ * Mint (or resolve) a plugin command id; `owner` is the installing plugin. The mint is
+ * name-global but dispatch is kind-scoped, so the same owner re-minting a name returns the
+ * existing brand; a different plugin (or an unattributed re-mint) throws, naming the prior owner.
  */
 export function mintCommandId(name: string, owner: string | null = null): PluginCommandId {
 	if (!NAME_PATTERN.test(name)) {

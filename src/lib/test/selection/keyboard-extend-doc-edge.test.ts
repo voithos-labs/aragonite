@@ -30,9 +30,8 @@ describe('extendFocusToDocEdge', () => {
 		expect(s.focus).toEqual({ path: [0], offset: 0 });
 	});
 
-	// The wave-3 seam fix: a doc-edge target that resolves back onto the anchor's
-	// own leaf is a same-path range the seam refuses — it collapses rather than
-	// minting an invisible cross-block state.
+	// A doc-edge target that resolves back onto the anchor's own leaf is a same-path range the seam
+	// refuses: it collapses rather than minting an invisible cross-block state.
 	it('collapses when the edge resolves back onto the anchor leaf', () => {
 		const doc = parse('alpha\n\nbeta\n');
 		const s = stateAt(doc, [1]);

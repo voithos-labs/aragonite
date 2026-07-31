@@ -14,15 +14,11 @@ export function pickPasteStrategy(parsed: Document): PasteStrategy {
 }
 
 /**
- * Convert blank-line trivia into explicit empty-paragraph blocks so pasted
- * "one\n\ntwo" renders the same visible blank-line row that typing the same
- * source produces. The parser collapses blank lines into leadingTrivia,
- * which serializes the same but doesn't render as a row. Top-level only —
- * list items don't carry blank-line semantics in their own trivia.
- *
- * `lineEnding` is the TARGET document's, never the payload's: paste entry points
- * normalize the clipboard to LF, so the trivia these rows materialize from cannot
- * tell a CRLF document apart from an LF one (G4.20).
+ * Convert blank-line trivia into explicit empty-paragraph blocks (top-level only), so a
+ * pasted blank line renders as a visible row: the parser collapses blanks into
+ * `leadingTrivia`, which serializes the same but does not render. Paste is the only path
+ * that materializes a row — a known asymmetry with typing, not a property to preserve.
+ * `lineEnding` is the TARGET document's: entry points normalize the clipboard to LF (G4.20).
  */
 export function materializeBlankLines(blocks: CstNode[], lineEnding: string): CstNode[] {
 	if (blocks.length <= 1) return blocks;

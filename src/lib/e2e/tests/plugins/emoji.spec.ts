@@ -2,14 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * `:shortcode:` emoji as atomic glyph widgets on the bare `:` trigger. The literal
- * bytes stay in the source; the widget shows only the glyph and carries the
- * decoded-entity editing policy (atomic delete, step-over). Seed `emoji`: block 0
- * `Mood :smile: today` (widget at raw [5,12)), block 1 `Type here`.
- *
- * The load-bearing gestures are the caret-edge ones — a plain ArrowRight crosses the
- * whole widget in one press, a caret-adjacent Backspace deletes all seven bytes in
- * one commit — which only the real render path and its edge-policy dispatch exercise.
+ * `:shortcode:` emoji as atomic glyph widgets on the bare `:` trigger. The literal bytes stay in
+ * the source; the widget shows only the glyph and carries the decoded-entity editing policy (atomic
+ * delete, step-over). Seed `emoji`: block 0 `Mood :smile: today` (widget at raw [5,12)), block 1
+ * `Type here`. The load-bearing gestures are the caret-edge ones, which only the real render path
+ * and its edge-policy dispatch exercise.
  */
 
 const emojiIn = (editor: PluginsPage, block: number) =>
@@ -47,10 +44,9 @@ test.describe('plugin inline emoji shortcodes', () => {
 	});
 
 	test('a plain arrow steps the caret over the whole widget like a character', async ({ page }) => {
-		// From the block start, five ArrowRights reach the widget's leading edge (past
-		// "Mood "); the sixth crosses the atomic island in one press. A character typed
-		// next lands immediately after the closing colon — proof the caret stepped over
-		// all seven bytes, not into them.
+		// From the block start, five ArrowRights reach the widget's leading edge (past "Mood ");
+		// the sixth crosses the atomic island in one press, so a character typed next lands
+		// immediately after the closing colon — proof the caret stepped over all seven bytes.
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
 		await editor.typeText('X');

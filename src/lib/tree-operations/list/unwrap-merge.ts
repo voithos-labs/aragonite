@@ -1,8 +1,7 @@
 /**
- * Structural list-item reshaping for U1 (unwrap the first item out of a list)
- * and M1 (merge a non-first item into the deepest text leaf of the preceding
- * item). Both handle matching-type vs mismatched-type nested lists, preserve
- * absolute indent, and keep ordered-marker sequences intact.
+ * Structural list-item reshaping for U1 (unwrap a list's first item) and M1 (merge a
+ * non-first item into the deepest text leaf of the preceding item). Both preserve absolute
+ * indent and keep ordered-marker sequences intact.
  */
 
 import type { CstNode, ListMetadata } from '../../core/nodes';
@@ -20,11 +19,9 @@ import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
- * Compute the result of unwrapping a list's first item under Rule U1.
- * Output order for mixed-content first item: first paragraph, then other
- * non-list children, then mismatched-type sub-lists, then the shrunk
- * parent list (with matching-type sub-list items prepended and ordered
- * markers renumbered). Input is not mutated.
+ * Unwrap a list's first item (Rule U1) without mutating the input. Output order: lifted
+ * non-list children and mismatched-type sub-lists first, then the shrunk parent list with
+ * matching-type sub-list items prepended and ordered markers renumbered.
  */
 export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
@@ -36,7 +33,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 
 	const firstItem = clonedList.children![0];
 	if (!firstItem.children || firstItem.children.length === 0) {
-		// Degenerate: empty item. Nothing to lift — return the shrunk list.
+		// Empty item: nothing to lift, so return the shrunk list.
 		const rest = clonedList.children!.slice(1);
 		if (rest.length === 0) return [];
 		clonedList.children = rest;
@@ -89,8 +86,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};
 
-	// Preserve the original list's starting number: seed item 0, then
-	// continue the sequence from item 1.
+	// Preserve the original list's starting number: seed item 0, then continue from item 1.
 	if (parentOrdered) {
 		const base = parseInt(metadataOf(firstItem, 'listItem').marker, 10) || 1;
 		const firstMeta = metadataOf(remainingItems[0], 'listItem');
@@ -106,9 +102,8 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 }
 
 /**
- * M1's target-finder: descend the previous item's subtree last-child-first
- * to the deepest visible prose leaf. Returns a uniform path from `list` down
- * to the target paragraph, or null when no prose leaf is reachable.
+ * M1's target-finder: a path from `list` down to the deepest visible prose leaf of the
+ * previous item, or null when no prose leaf is reachable.
  */
 function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): number[] | null {
 	if (!list.children || targetItemIndex < 0 || targetItemIndex >= list.children.length) {
@@ -120,12 +115,11 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 }
 
 /**
- * Relocate the merged-away item's remaining children by "preserve absolute
- * indent": nested-list items promote to the depth-1 sibling container when
- * the merge target sits deeper (targetPath length ≥ 4); everything else
- * absorbs into the target item. Children are MOVED into the live tree and
- * unshared individually so the snapshot's view of the deleted item stays
- * intact (G1.9).
+ * Relocate the merged-away item's remaining children by "preserve absolute indent":
+ * nested-list items promote to the depth-1 sibling container when the merge target sits
+ * deeper, everything else absorbs into the target item. Children are MOVED into the live
+ * tree and unshared individually, so the snapshot's view of the deleted item stays intact
+ * (G1.9).
  */
 function relocateRemainingChildren(
 	list: CstNode,
@@ -169,10 +163,8 @@ function relocateRemainingChildren(
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
 		} else {
-			// A trailing paragraph absorbed after the target's own paragraph keeps
-			// the blank-line separator, or the two lazy-continue into one on reload
-			// (the separator-ownership rule split and list-exit carry). Other leaves
-			// start fresh and need none.
+			// A trailing paragraph keeps its blank-line separator, or the two lazy-continue
+			// into one on reload. Other leaves start fresh and need none.
 			child.leadingTrivia = child.kind === 'paragraph' ? lineEnding : '';
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
@@ -181,24 +173,11 @@ function relocateRemainingChildren(
 }
 
 /**
- * Merge the list item at `currentIndex` into the deepest text-bearing leaf
- * reachable by walking the preceding item's subtree last-child-first.
- * Mutates `list` in place.
- *
- * Child placement follows "preserve absolute indent": remaining children of
- * the current item are placed at their original absolute list-nesting depth
- * along the target's ancestry chain.
- *
- * Returns the merge point so the caller can position the cursor:
- *   targetPath: uniform path from `list` down to the target paragraph leaf
- *               (trailing index is the LAST paragraph within the target
- *               listItem — not always 0 for loose items).
- *   offset:     position within the target paragraph, before appended content.
- *
- * Returns null when the previous item exposes no text-bearing leaf (its deepest
- * leaf is opaque — a fenced code block, a collapsed container's chrome). The
- * caller falls back to a focus move; a null return is not a caller-contract
- * violation, so it is reported rather than thrown (unlike a bad `currentIndex`).
+ * Merge the list item at `currentIndex` into the deepest text-bearing leaf of the
+ * preceding item, mutating `list` in place and returning the merge point for the caret.
+ * `targetPath`'s trailing index is the LAST paragraph in the target item, not always 0.
+ * Null when the previous item exposes only an opaque deepest leaf — that is a legitimate
+ * outcome the caller falls back from, unlike a bad `currentIndex`, which throws.
  */
 export function mergeListItemIntoPrevious(
 	list: CstNode,
@@ -206,9 +185,8 @@ export function mergeListItemIntoPrevious(
 	currentIndex: number,
 	sharing?: SharingState
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
-	// Reads from list.children are allowed during targeting, but the final
-	// splice MUST land in `children`, not `list.children`. See node-ops.ts
-	// header for the project-wide rule.
+	// Targeting may read `list.children`, but the final splice MUST land in `children`
+	// (`node-ops.ts` header).
 	if (
 		list.kind !== 'list' ||
 		!list.children ||
@@ -222,17 +200,16 @@ export function mergeListItemIntoPrevious(
 	const targetPath = findDeepestVisibleTextTarget(list, previousIndex);
 	if (!targetPath) return null;
 
-	// Own the deep-leaf spine before any capture — the walk below must see the
-	// owned copies, and the target paragraph's raw is written in place.
+	// Before any capture: the walk below must see the owned copies, and the target
+	// paragraph's raw is written in place.
 	if (sharing) ensureUnsharedPath({ children: list.children }, targetPath, sharing);
 
-	// Walk down to the listItem containing the target paragraph.
 	let targetItem: CstNode = list;
 	for (let i = 0; i < targetPath.length - 1; i++) {
 		targetItem = targetItem.children![targetPath[i]];
 	}
-	// For loose items (children: [para "a", para "b"]) the walker ends at 1,
-	// not 0 — reading children[0] would silently mutate the wrong paragraph.
+	// A loose item's walker ends past 0, so reading children[0] would mutate the wrong
+	// paragraph.
 	const targetParagraphIndex = targetPath[targetPath.length - 1];
 	const targetParagraph = targetItem.children?.[targetParagraphIndex];
 	if (!targetParagraph || targetParagraph.kind !== 'paragraph') {
@@ -260,17 +237,15 @@ export function mergeListItemIntoPrevious(
 
 	children.splice(currentIndex, 1);
 
-	// Sync list.children so post-splice reads (rebuildAncestryRaw,
-	// renumberOrderedList, rebuildListRaw) see the new shape. Idempotent
-	// with commitContainerStructural's final publish.
+	// So the post-splice reads below see the new shape; idempotent with the commit's
+	// final publish.
 	list.children = children;
 
 	rebuildAncestryRaw(list, targetPath);
 
 	if (metadataOf(list, 'list')?.ordered) {
-		// M1 only ever removes a non-first item, so children[0] keeps the
-		// list's original base — renumber from 1 to continue from it rather
-		// than resetting the sequence to 1 (fromIndex=0).
+		// M1 only removes a non-first item, so children[0] keeps the list's original base;
+		// renumber from 1 to continue it rather than resetting the sequence.
 		renumberOrderedList(list, 1, sharing);
 		rebuildListRaw(list);
 	}

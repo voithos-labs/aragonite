@@ -8,9 +8,8 @@ import { normalizeAragonite, normalizeReference, normalEqual, type NormalNode } 
 // ── The mini-differ: both parsers → common shape → equal ─────────────────────
 
 /**
- * Inputs where aragonite and commonmark are known to agree, so a failure pins
- * the normalizer rather than parser divergence. Each row also asserts the
- * concrete normalized shape, catching a bug that breaks both sides identically.
+ * Inputs where aragonite and commonmark are known to agree, so a failure pins the
+ * normalizer, not parser divergence. The shape row catches a bug that breaks both sides.
  */
 const CONVERGENT: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	{ name: 'plain text', md: 'hello world', shape: [{ kind: 'text', text: 'hello world' }] },
@@ -96,11 +95,9 @@ describe('normalize (dual-parser mini-differ)', () => {
 // ── Reconciliations (audited: baseline.json normalizerReconciliations) ───────
 
 /**
- * Display-model divergences reconciled by folding the ARAGONITE side to the
- * spec-semantic form the reference already carries: §6.1 code-span folding and
- * §6.8 softbreak space-trimming. Inputs are mechanism-report exemplars; the
- * shape is the reconciled normal form — which must equal the reference's
- * untransformed one (folding it again would double-strip).
+ * Divergences reconciled by folding the ARAGONITE side to the spec-semantic form the
+ * reference already carries (§6.1, §6.8). The shape must equal the reference's
+ * untransformed one, since folding that side too would double-strip.
  */
 const RECONCILED: Array<{ name: string; md: string; shape: NormalNode[] }> = [
 	{

@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
 //
-// The table is the only thing that knows where the caret is inside its grid, and
-// the two ways a cell hands that over — focus notification and the exit gesture
-// — are context calls with no return value. Driven here through real cell
-// gestures on a real table, so what is asserted is the table's response: which
-// cell it believes is focused, and what it asks the editor to do on the way out.
-//
-// `internalStickyColumn` is deliberately NOT asserted: `getStickyColumn` and
-// `resetStickyColumn` have no callers in the repo, so the field is write-only
-// and its focusout reset has no observable consequence. The reset that DOES —
-// the focused-cell clear on the same handler — is pinned below.
+// The table is the only thing that knows where the caret is inside its grid, and the two ways a
+// cell hands that over — focus notification and the exit gesture — are context calls with no
+// return value, so what is asserted is the table's response. `internalStickyColumn` is
+// deliberately NOT asserted: `getStickyColumn`/`resetStickyColumn` have no callers, so the field
+// is write-only; the reset that IS observable, the focused-cell clear, is pinned below.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { vi } from 'vitest';
 import { installTableLayoutStubs, mountTable, press, type MountedTable } from './mount-table';

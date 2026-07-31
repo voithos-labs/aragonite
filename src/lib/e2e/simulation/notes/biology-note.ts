@@ -2,18 +2,11 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The headline note: a cell-division / photosynthesis class note built entirely
- * from HOLD constructs — those a char-by-char gesture build reproduces exactly,
- * so end-state equality (typing ≡ loading) stays a primary oracle. ATX headings
- * only (Enter splits a block, so setext is unreachable by typing); lists, a
- * blockquote, a fenced code block the escape gesture auto-closes, a thematic
- * break with a guaranteed preceding blank line, and one image inserted then
- * resized. `expectedMarkdown` is calibrated against the editor, not guessed:
- * loading it and re-serializing yields itself, and it round-trips stably.
- *
- * Two structural Enters need the source-delta `softEnter` rather than the frozen
- * block-host-counting `pressEnter`: a newline inside the code body (the body
- * shares one host) and the collapse that exits a list (it removes a host).
+ * The headline note, built entirely from HOLD constructs — those a char-by-char build
+ * reproduces exactly, so end-state equality (typing ≡ loading) stays a primary oracle. ATX
+ * headings only: Enter splits a block, so setext is unreachable by typing. Two structural
+ * Enters need `softEnter` rather than `pressEnter` — a newline in the code body (which shares
+ * one host) and the list-exit collapse (which removes one).
  */
 export const BIOLOGY_NOTE: NoteFixture = {
 	name: 'biology-note',
@@ -75,9 +68,10 @@ export const BIOLOGY_NOTE: NoteFixture = {
 
 		await g.typeText('Summary follows the divider.');
 		await g.pressEnter();
-		await g.softEnter();
 		await g.typeText('---');
 		await g.pressEnter();
+		// A thematic break closes on its own line, so Enter after it mints no
+		// separator; this second press supplies the blank the break wants below it.
 		await g.softEnter();
 
 		await g.insertImage('chloroplast diagram', '/test-fixtures/sample.png');
@@ -101,6 +95,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Cell Division and Photosynthesis\n' +
 		'These notes pair **cell division** with *photosynthesis*; run `mitosis()` and skim the [syllabus](https://bio.example/syllabus).\n' +
+		'\n' +
 		'## Mitosis phases\n' +
 		'- Prophase condenses the chromosomes\n' +
 		'  - Spindle fibers attach at the centromere\n' +

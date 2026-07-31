@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Editing an image whose bytes a plugin inline rung claimed: the hook writes them,
- * or nothing does. Both entry points are driven, because each carried the GFM
- * serializer independently before the seam existed. Contract:
- * docs/design/plugin-contract.md § Inline authoring.
+ * Editing an image whose bytes a plugin inline rung claimed: the hook writes them, or nothing
+ * does. Both entry points are driven — each carried the GFM serializer independently before the
+ * seam existed. Contract: docs/design/plugin-contract.md § Inline authoring.
  */
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
@@ -82,10 +81,8 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		expect(commit).toHaveBeenCalledWith('![a|420](x)\n', 0, 11);
 	});
 
-	// `![[a]](u)` is a built-in image whose alt text is `[a]`: the rung declines it,
-	// so nothing claimed those bytes and the GFM write path still owns them. A
-	// detection that keyed on the `![[` prefix rather than on the claim would
-	// wrongly decline this resize.
+	// `![[a]](u)` is a built-in image whose alt text is `[a]`: the rung declines it, so the GFM write
+	// path still owns those bytes — a detection keyed on the `![[` prefix would wrongly decline it.
 	it('resizes the image the rung declined', () => {
 		registerWikiRung(rewriteWikiImage);
 		const { consumed, commit } = keyboardResize('![[a]](u)\n');
@@ -143,10 +140,8 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		expect(controller.commitStructural).not.toHaveBeenCalled();
 	});
 
-	// The decline a consumer meets first. An embed names one file, so the popover's
-	// Alt row edits a field the grammar cannot store apart from the target; a hook
-	// that ignored it would return byte-identical bytes and the commit's equality
-	// guard would drop them, leaving the row inert with no diagnostic anywhere.
+	// The decline a consumer meets first: an embed names one file, so the popover's Alt row edits a
+	// field the grammar cannot store, and a hook that ignored it would return byte-identical bytes.
 	it('declines an alt edited away from the target', async () => {
 		registerWikiRung(rewriteWikiImage);
 		const { committer, controller, target } = committerFor('![[cat.png|300]]\n');

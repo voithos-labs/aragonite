@@ -27,6 +27,7 @@ const EMPTY: PerfSnapshot = {
 	snapshotCount: 0,
 	snapshotCloneBytes: 0,
 	rebuildDepths: {},
+	containerKindReparses: 0,
 	parseCount: 0,
 	parseMsTotal: 0,
 	parseBlockCount: 0,
@@ -189,7 +190,7 @@ describe('perf seams', () => {
 		// Nested paragraph's spine: list > listItem > list > listItem > paragraph.
 		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
-		rebuildUnsharedChain(chain, sharing);
+		rebuildUnsharedChain(doc, chain, sharing, undefined);
 		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
 	});
 });

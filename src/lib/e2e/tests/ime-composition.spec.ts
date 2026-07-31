@@ -2,15 +2,11 @@ import { type CDPSession, type Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
-// Real IME composition sequences via CDP `Input.imeSetComposition` +
-// `Input.insertText` — which produce genuine compositionstart/update/end events
-// against the focused contenteditable in headless Chromium (verified here; the
-// sanctioned dispatched-events fallback was not needed). Chromium's order, pinned
-// by the first test: every insertCompositionText input fires with isComposing
-// true BEFORE compositionend; the post-end CST commit is the surface's own
-// funnel, not another DOM input event. Requirements: requirements/ime-composition.md.
-// The shared fixture fails the spec on any [invariant:…] fire — these sequences
-// are G1.27's first deliberate real-browser exercise.
+// Real IME composition via CDP, producing genuine compositionstart/update/end events
+// (requirements/ime-composition.md). Chromium's order, pinned by the first test: every
+// insertCompositionText fires with isComposing true BEFORE compositionend, and the post-end
+// CST commit is the surface's own funnel, not another DOM input event. These sequences are
+// G1.27's first deliberate real-browser exercise.
 
 class Ime {
 	private constructor(

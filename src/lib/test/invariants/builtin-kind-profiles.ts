@@ -1,15 +1,7 @@
 /**
- * Per-kind conformance profiles for the BUILT-IN kinds — the profile the generic
- * battery (`$lib/testing/kind-conformance`) needs BEYOND each descriptor. Kept in
- * test-land, out of the shipped kit: the descriptor's `closure` block and
- * `conformanceFixture` already carry everything the runner derives generically, so
- * a profile exists only where a kind has a mechanism the runner cannot observe
- * generically and must supply a custom check.
- *
- * Today that is exactly one cell: `table.clipboard` synthesizes a fresh GFM
- * sub-table on a rectangular copy (its declared `implemented` mechanism), which no
- * generic byte-slice check exercises — the false-cell gap this whole battery
- * exists to close.
+ * What the generic battery (`$lib/testing/kind-conformance`) needs BEYOND each built-in
+ * descriptor. A profile exists only where a kind's mechanism is unobservable generically:
+ * `table.clipboard` synthesizes a fresh GFM sub-table, which no byte-slice check reaches.
  */
 
 import type { BlockKind } from '$lib/core/nodes';
@@ -38,10 +30,9 @@ function parsesToTable(payload: string, columns: number, rows: number, label: st
 }
 
 /**
- * Drive `copyRectangleAsSubTable` — the function the closure `via` names — over the
- * fixture table's cell grid. A full-rectangle copy must reparse to a table of the
- * fixture's shape; a single-column sub-rectangle must reparse to a NARROWER table,
- * which no raw byte slice could produce — proving the copy genuinely synthesizes.
+ * Drives `copyRectangleAsSubTable`, the function the closure `via` names. The
+ * single-column sub-rectangle is the discriminating case: reparsing to a NARROWER table
+ * is something no raw byte slice could produce, so the copy genuinely synthesizes.
  */
 function checkTableRectCopy(ctx: KindCellContext): void {
 	const table = ctx.node;

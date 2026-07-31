@@ -1,11 +1,8 @@
 /**
- * Engine-free math render seam for the LaTeX plugin. The renderer is injected —
- * `latexPlugin({ renderer })` sets it here at install — so the plugin core never
- * imports a math engine; the katex adapter lives in `renderer.ts`, reached through
- * the `aragonite/plugins/latex/renderer` subpath. Both the inline `$…$` widget and
- * the block `$$…$$` leaf read the active renderer through this module (their frozen
- * props carry no renderer channel), and one document-wide memo means a formula
- * repeated across widgets renders once.
+ * The renderer-adapter seam: `latexPlugin({ renderer })` injects the engine here at
+ * install, so the plugin core never imports one. Widgets and leaves read the active
+ * renderer through this module because their frozen props carry no renderer channel,
+ * and the one document-wide memo means a repeated formula renders once.
  */
 
 import { createBoundedMemo } from '$lib/plugin';
@@ -20,10 +17,8 @@ export type MathRenderer = (
 const MEMO_CAP = 256;
 
 /**
- * Memoize the render *work* keyed on `(source, display)`, cloning the cached node
- * on every read so `inner` runs once per key while each caller gets its own
- * detached node. The bounded-LRU cache is the platform's `createBoundedMemo`; the
- * clone-on-read is why math uses the primitive's `cloneOnRead` hook.
+ * Memoizes the render work, not the node: `cloneOnRead` is what lets `inner` run once
+ * per key while each caller still gets its own detached node to mount.
  */
 export function createMemoizedRenderer(inner: MathRenderer, cap = MEMO_CAP): MathRenderer {
 	const memo = createBoundedMemo<string, { dom: HTMLElement; error?: string }>({
@@ -35,11 +30,8 @@ export function createMemoizedRenderer(inner: MathRenderer, cap = MEMO_CAP): Mat
 
 // ── Injection seam ──────────────────────────────────────────────────────────────
 
-// The injected engine travels by module (the widgets read it through this seam),
-// not the frozen props channel: `setMathRenderer` wraps it in the document-wide
-// memo at install. There is deliberately NO default engine — the core must not
-// import one, and the plugin's required `renderer` option guarantees this is set
-// before any widget mounts. Inline `$…$` is text-mode; block `$$…$$` is display.
+// Deliberately no default engine: the core must not import one, and the plugin's
+// required `renderer` option guarantees this is set before any widget mounts.
 let activeRenderer: MathRenderer | null = null;
 
 export function setMathRenderer(renderer: MathRenderer): void {

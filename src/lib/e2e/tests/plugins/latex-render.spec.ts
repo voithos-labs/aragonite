@@ -2,11 +2,10 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * KaTeX `htmlAndMathml` output is two sibling trees inside `.katex`: the visual
- * `.katex-html` render and a `.katex-mathml` accessibility tree that
- * `katex/dist/katex.min.css` collapses to a 1px box. Without that stylesheet both
- * halves lay out, so every equation paints twice — the render followed by its TeX
- * source echoed as plain text. These pin "the widget renders once": the MathML
+ * KaTeX `htmlAndMathml` output is two sibling trees inside `.katex`: the visual `.katex-html`
+ * render and a `.katex-mathml` accessibility tree that `katex/dist/katex.min.css` collapses to a
+ * 1px box. Without that stylesheet both halves lay out, so every equation paints twice — the render
+ * followed by its TeX source echoed as plain text. These pin "the widget renders once": the MathML
  * half occupies no visible box while the HTML half keeps its glyph layout.
  */
 

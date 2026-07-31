@@ -1,7 +1,6 @@
 /**
- * Clipboard handler bodies for TextEditableBlock. The component keeps the
- * oncopy / oncut / onpaste bindings; this factory owns the bodies so the
- * SFC stays focused on render and lifecycle.
+ * Clipboard handler bodies for TextEditableBlock; the component keeps the
+ * oncopy/oncut/onpaste bindings.
  */
 
 import type { BlockEditActions } from '../../../action-contracts';
@@ -24,7 +23,8 @@ import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
 	createClipboardHandlers,
 	type ClipboardCaretIO,
-	type ClipboardHandlers
+	type ClipboardHandlers,
+	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 
@@ -32,9 +32,8 @@ export interface TextClipboardDeps {
 	get node(): NodeView;
 	get index(): number;
 	get myPath(): number[];
-	/** This file's own caret reads (raw offsets, raw selection) go through `cursor`.
-	 *  `caret` is the narrower door the shared clipboard seam anchors an image
-	 *  insertion with — a pure passthrough here, never read locally. */
+	/** Local caret reads go through `cursor`; `caret` is the narrower door the shared
+	 *  clipboard seam anchors an image insertion with, a passthrough never read here. */
 	cursor: AmbientCursorIO;
 	caret: ClipboardCaretIO;
 	crossBlock: CrossBlockHandlers;
@@ -51,14 +50,12 @@ export interface TextClipboardDeps {
 	 *  on a non-editable surface, so the gate lives in the handlers. */
 	isReadOnly: () => boolean;
 	/** Fold a live source-reveal before a clipboard mutation, so cut/paste run against
-	 *  a CST consistent with the swapped DOM. Returns the committed caret, or null when
-	 *  no reveal was open. */
-	foldRevealBeforeMutation: () => number | null;
+	 *  a CST consistent with the swapped DOM. Null when no reveal was open. */
+	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline-widget source reveal is active on this block. */
 	isRevealing: () => boolean;
-	/** The block's live DOM read as raw text (widget-aware) — the reveal-aware copy
-	 *  reads it so a selection over the revealed (uncommitted) edit yields what the
-	 *  user sees, not the stale raw slice. */
+	/** The block's live DOM as raw text, so a copy over a revealed (uncommitted) edit
+	 *  yields what the user sees rather than the stale raw slice. */
 	readRevealedText: () => string;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
@@ -70,9 +67,8 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 		return deps.node.raw.slice(offsets.start, offsets.end);
 	}
 
-	// A selected inline widget (image, <br>) resolved to its live inline node — the
-	// shared resolution behind copy, cut, and paste-over-widget. Null unless a widget
-	// on THIS block is selected and still present in the parsed inline content.
+	// Null unless a widget on THIS block is selected and still present in the parsed
+	// inline content. Shared by copy, cut, and paste-over-widget.
 	function selectedWidgetOnThisBlock(): {
 		inline: ReturnType<typeof resolvedInlineContent>[number];
 		preSelectOffset: number;
@@ -98,8 +94,7 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 		onPasteImage: deps.onPasteImage,
 		foldReveal: deps.foldRevealBeforeMutation,
 
-		// A selected widget copies its own source slice; copy never mutates, so the
-		// widget stays selected.
+		// Copy never mutates, so the widget stays selected.
 		copyPreHook: (e) => {
 			const widget = selectedWidgetOnThisBlock();
 			if (widget === null) return false;
@@ -111,10 +106,8 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 			return true;
 		},
 
-		// A within-block selection over an ACTIVE reveal shows the uncommitted source
-		// edit in the DOM, so slice the live DOM text, not the stale node.raw — this is
-		// the READ half of the fold seam cut/paste mutate at, but it must never mutate,
-		// so it reads the live DOM here rather than folding first.
+		// A selection over an ACTIVE reveal covers uncommitted DOM, so slice the live text
+		// rather than the stale `node.raw`; copy must not fold, because folding mutates.
 		copyTail: (e) => {
 			e.preventDefault();
 			if (deps.isRevealing()) {
@@ -194,8 +187,7 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 				}
 			);
 
-			// Land the caret set and raw mutation in one reactive flush so the
-			// re-rendered block positions correctly.
+			// Pending, so the caret set and the raw mutation land in one reactive flush.
 			if (result.inlineCaretOffset !== undefined) {
 				deps.setPendingCursor(result.inlineCaretOffset);
 			}

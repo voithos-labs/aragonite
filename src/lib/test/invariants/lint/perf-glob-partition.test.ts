@@ -1,18 +1,9 @@
 /**
- * G4.17 — perf spec glob partition. Every `*.spec.ts` under `src/lib/e2e/tests/perf/`
- * must be collected by one of two Playwright projects: `e2e-vr`, whose testMatch is
- * `perf/vr-*.spec.ts`, or `e2e-perf` / `e2e-perf-prod`, whose testMatch is
- * `perf/**` + `/*.perf.spec.ts`. A perf spec matching neither runs in NO project —
- * `e2e-top` ignores `perf/**` outright — so it is silently never executed. This lint
- * fails the day such a file is born, instead of at the next coverage audit.
- *
- * Specs are classified by their path relative to the perf dir, not by basename,
- * because the two projects differ in depth: `*` does not cross a `/`, so `e2e-vr`
- * reaches only the top level, while `**` matches any depth (including none). A
- * nested `vr/vr-x.spec.ts` therefore reads as a vr spec but is collected by nothing.
- *
- * Helper `.ts` files (harnesses, fixtures) are not `.spec.ts`, so Playwright never
- * collects them as tests; only `.spec.ts` paths are partitioned here.
+ * G4.17 — every `*.spec.ts` under the perf dir is collected by `e2e-vr` or by
+ * `e2e-perf` / `e2e-perf-prod`; one matching neither runs in NO project, since `e2e-top`
+ * ignores `perf/**` outright. Classification is by path relative to the perf dir, not
+ * basename, because `*` does not cross a `/` while `**` matches any depth — so a nested
+ * `vr/vr-x.spec.ts` reads as a vr spec while being collected by nothing.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync } from 'node:fs';
@@ -58,8 +49,7 @@ describe('G4.17 perf spec glob partition', () => {
 		).toEqual([]);
 	});
 
-	// Non-vacuity: the partition proves something only if both shapes are present —
-	// a rule covering an empty class passes trivially.
+	// Non-vacuity: a rule covering an empty class passes trivially.
 	it('the perf dir holds at least one spec of each shape', () => {
 		expect(specs.some(matchesVr), 'no vr-*.spec.ts present').toBe(true);
 		expect(specs.some(matchesPerf), 'no *.perf.spec.ts present').toBe(true);
@@ -74,7 +64,7 @@ describe('G4.17 perf spec glob partition — classifier self-tests', () => {
 		expect(matchesPerf('orphan.spec.ts')).toBe(false);
 	});
 
-	// The depth cases the basename-only classifier got wrong: `e2e-vr` cannot reach a
+	// The depth cases a basename-only classifier gets wrong: `e2e-vr` cannot reach a
 	// subdirectory, `e2e-perf` reaches every depth.
 	it('classifies by depth, not basename', () => {
 		expect(matchesVr('vr/vr-windowing.spec.ts')).toBe(false);

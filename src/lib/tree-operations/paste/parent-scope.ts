@@ -1,9 +1,8 @@
 /**
- * The commit scope a paste addresses when it re-mints or splices a block: the
- * block's PARENT container, resolved from the path itself rather than from
- * whatever `blockEdit` happens to be in scope — a caller holding a nested-bundle
- * blockEdit (a row-level bundle for a cell's path) would otherwise misroute
- * through the wrong container.
+ * The commit scope a paste addresses when it re-mints or splices a block: the block's
+ * PARENT container, resolved from the path rather than from whatever `blockEdit` is in
+ * scope — a caller holding a nested-bundle blockEdit would misroute through the wrong
+ * container.
  */
 
 import type { CstNode, Document } from '../../core/nodes';
@@ -29,13 +28,10 @@ export function resolveParentScope(
 }
 
 /**
- * A container's mounted `BlockListState`, or a detached stand-in. The strict
- * `expectState` throws, and every paste route reaching one of these can be a
- * cross-block paste whose range delete ALREADY committed — the throw would leave
- * the selection deleted and no paste landed. The ceremony writes a container
- * scope's ids to the owned node's `childIds`, not to the state bundle, so the
- * childIds/children realignment still happens on the stand-in; only ref alignment
- * is unavailable, which is already true of a container nothing has mounted.
+ * A container's mounted `BlockListState`, or a detached stand-in. Never `expectState`:
+ * these routes can be a cross-block paste whose range delete ALREADY committed, so a throw
+ * would leave the selection deleted and nothing pasted. The ceremony writes ids to the
+ * owned node's `childIds`, so only ref alignment is lost on the stand-in.
  */
 export function containerScopeState(
 	controller: PasteCommitCoordinator,

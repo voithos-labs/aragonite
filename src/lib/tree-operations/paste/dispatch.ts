@@ -1,13 +1,9 @@
 /**
- * Single entry point for paste. Parses the clipboard, picks inline vs
- * structural, looks up the target's PasteSurface, and routes the mutation.
- * Inline/structural surfaces are stateless data transforms whose results
- * this module applies; scoped-structural surfaces own their whole mutation,
- * including focus.
- *
- * Cross-block inline paste (undoEntry: 'join') bypasses updateBlockContent
- * and uses DOM-level focus because the originating block's pendingCursorOffset
- * may address a block about to be unmounted by the range delete.
+ * Single entry point for paste: parse the clipboard, pick inline vs structural, route
+ * through the target's PasteSurface. Inline/structural surfaces are stateless transforms
+ * this module applies; scoped-structural surfaces own their whole mutation including focus.
+ * Cross-block paste (`undoEntry: 'join'`) uses DOM-level focus, because the originating
+ * block's `pendingCursorOffset` may address a block the range delete is about to unmount.
  */
 
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
@@ -46,20 +42,17 @@ export interface PasteDispatchContext {
 	blockEdit: BlockEditActions;
 	/** Commit coordinator — required by the multi-scope commit sites inside this module. */
 	controller: PasteCommitCoordinator;
-	/** `'join'`: no snapshot or updateBlockContent debounce here — the cross-block caller owns the undo entry. */
+	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
 	undoEntry?: UndoEntryMode;
-	/** The instance's block grammar for the join branch's
-	 *  same-slot reparse. Absent = the global grammar; the non-join branch threads its own via
-	 *  updateBlockContent. */
+	/** The instance's grammar for the join branch's same-slot reparse; absent = global. */
 	grammar?: GrammarView;
 }
 
 export interface PasteDispatchResult {
 	/**
-	 * Inline-paste caret offset. Single-block callers set `pendingCursorOffset`
-	 * synchronously with the raw mutation so both land in one reactive flush;
-	 * cross-block callers restore the DOM caret after reactivity settles.
-	 * Undefined for structural paste (focus handled internally).
+	 * Inline-paste caret offset; undefined for structural paste, which handles focus
+	 * itself. Single-block callers apply it synchronously with the raw mutation so both
+	 * land in one reactive flush.
 	 */
 	inlineCaretOffset?: number;
 }
@@ -71,8 +64,8 @@ export async function pasteDispatch(
 ): Promise<PasteDispatchResult> {
 	if (!input.pastedText) return {};
 
-	// Content-keyed plugin transforms rewrite the clipboard text once, before any
-	// branch below reads it; a transform that empties the text is an empty paste.
+	// Once, before any branch below reads the text; a transform that empties it is an
+	// empty paste.
 	const pastedText = applyPasteTransforms(input.pastedText);
 	if (!pastedText) return {};
 
@@ -82,10 +75,9 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
-	// A reserved-chrome leaf (a container's title/summary at child 0) is single-
-	// line by serialization — its bytes live in the container's opener line. Force
-	// any paste there inline with flattened text, ahead of the container-paste
-	// family below, so a multi-block clipboard can never split the chrome node.
+	// A reserved-chrome leaf is single-line by serialization (its bytes live in the
+	// container's opener line), so paste there is forced inline and flattened ahead of the
+	// container-paste family — a multi-block clipboard must never split the chrome node.
 	const chromeParent = nodeAt(ctx.doc, input.targetPath.slice(0, -1));
 	if (
 		chromeParent &&
@@ -111,13 +103,9 @@ export async function pasteDispatch(
 		return {};
 	}
 
-	// Container paste-merge family, gated by the clipboard-top kind's
-	// `containerPaste` declaration. Container-match (above) handles empty-target
-	// and cross-block flatten; absorb and break-out cover single-block non-empty
-	// targets — absorb splices clipboard items as siblings when `matchesAncestor`
-	// accepts the enclosing container (Obsidian / Google Docs convention),
-	// break-out splits it at the target and splices at the parent level when
-	// the match fails.
+	// The rest of the container paste-merge family, for single-block non-empty targets:
+	// absorb when `matchesAncestor` accepts the enclosing container, break-out when it
+	// does not.
 	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, input.offset);
 	if (absorb) {
 		await applyListAbsorb(absorb, parsed.children[0], ctx);
@@ -139,8 +127,8 @@ export async function pasteDispatch(
 	}
 	const clipboardStrategy = pickPasteStrategy(parsed);
 
-	// Surfaces that omit both structural hooks (e.g. code blocks) force all
-	// paste into the inline hook so markdown stays verbatim.
+	// A surface omitting both structural hooks (code blocks) forces paste inline, so its
+	// markdown stays verbatim.
 	const surfaceForcesInline =
 		surface !== undefined &&
 		surface.onStructuralPaste === undefined &&

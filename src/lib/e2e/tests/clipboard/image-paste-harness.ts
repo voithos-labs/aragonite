@@ -2,10 +2,9 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Shared driving for the `onPasteImage` specs. A real image cannot be written to the
- * system clipboard from a spec, so these dispatch a synthetic `paste` carrying a
- * DataTransfer with real `File`s — the same `onPaste` entry a user's Ctrl+V reaches.
- * Caret placement, selection, undo, and typing stay real user actions.
+ * A real image cannot be written to the system clipboard from a spec, so these dispatch a
+ * synthetic `paste` carrying real `File`s — the same `onPaste` entry a user's Ctrl+V reaches.
+ * Caret placement, selection, undo and typing stay real user actions.
  */
 
 export const PARAGRAPH = 'AB\n';
@@ -46,15 +45,19 @@ export async function gotoWithHook(page: Page): Promise<EditorPage> {
 	return editor;
 }
 
-/** Dispatch a paste carrying `files` (plus optional text) at whatever holds focus. */
+/**
+ * `at` picks the landing element: `'focused'` is the ordinary Ctrl+V, `'body'` stands in for
+ * Chromium's retarget when the cross-block focus endpoint hosts no caret to park in.
+ */
 export async function pasteFiles(
 	page: Page,
 	files: { name: string; type: string }[],
-	text = ''
+	text = '',
+	at: 'focused' | 'body' = 'focused'
 ): Promise<void> {
 	await page.evaluate(
-		({ files, text }) => {
-			const target = document.activeElement as HTMLElement | null;
+		({ files, text, at }) => {
+			const target = at === 'body' ? document.body : (document.activeElement as HTMLElement | null);
 			if (!target) throw new Error('image paste: nothing focused to paste into');
 			const data = new DataTransfer();
 			for (const file of files) {
@@ -67,6 +70,6 @@ export async function pasteFiles(
 				new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
 			);
 		},
-		{ files, text }
+		{ files, text, at }
 	);
 }

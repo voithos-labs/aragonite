@@ -3,12 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode } from '$lib/core/nodes';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 
-// The reveal seam's expansion decision: a reveal aimed at a body child of a COLLAPSED
-// container opens its expand door first, so the descent below runs against the
-// post-expansion window instead of dead-ending on the clamp. The door itself (which
-// patch, whose commit, the reading-mode gate) is composed one layer up and pinned in
-// `test/plugins/expand-door.test.ts`; here only the decision and its ordering.
+// A reveal aimed into a COLLAPSED container opens its expand door first, so the descent
+// runs against the post-expansion window instead of dead-ending on the clamp. The door
+// itself is composed a layer up and pinned in `test/plugins/expand-door.test.ts`.
 
 function makeRef(): BlockComponent {
 	return { focus: vi.fn(), getCursorOffset: vi.fn(() => null), editable: true, focusable: true };
@@ -34,6 +33,7 @@ function shim(over: {
 	expandCollapsed?: () => Promise<boolean>;
 }): BlockComponent {
 	return createContainerBlockComponent({
+		selection: createSelectionState(),
 		get innerBlockRefs() {
 			return over.refs;
 		},
@@ -52,7 +52,6 @@ describe('revealByPath — expanding a collapsed container', () => {
 	it('opens the door for a body target and resolves the child the expansion mounted', async () => {
 		const body = makeRef();
 		const refs: (BlockComponent | undefined)[] = [makeRef(), undefined];
-		// The clamp is what left slot 1 empty; committing the expansion is what fills it.
 		// Awaiting the door before reading the slot is the whole ordering contract.
 		const expandCollapsed = vi.fn(async () => {
 			refs[1] = body;
@@ -90,8 +89,8 @@ describe('revealByPath — expanding a collapsed container', () => {
 		expect(expandCollapsed).not.toHaveBeenCalled();
 	});
 
-	// The honest-boolean floor: a collapsible kind that declares no expand door reveals
-	// exactly as it did before the door existed — the target stays unmounted, no throw.
+	// The honest-boolean floor: a kind declaring no expand door reveals as it did before
+	// the door existed.
 	it('degrades when the kind declares no door', async () => {
 		const resolved = await shim({
 			refs: [makeRef(), undefined],

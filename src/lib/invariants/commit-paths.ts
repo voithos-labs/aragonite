@@ -1,12 +1,8 @@
 /**
- * Commit-seam path-dialect check: every path a commit declares (edit-event
- * target, no-caret snapshot fallback) must be doc-absolute — each prefix
- * resolves to an existing child from the document root. The final index may
- * be one past the end because insert-shaped ops (append, insert-below-last)
- * legitimately name the slot they create. A scope-local index leaking in as
- * a "path" fails here loudly instead of surfacing as a mis-targeted event or
- * a silently dropped caret restore. The `DocPath` param is a compile-time gate
- * complementing the runtime check — types don't bind JS callers, so both stay.
+ * G1.16 — every path a commit declares is doc-absolute: each prefix resolves to an
+ * existing child from the document root. The final index may be one past the end, since
+ * insert-shaped ops legitimately name the slot they create. The `DocPath` param is the
+ * compile-time gate; this stays the runtime belt for the JS callers types don't bind.
  */
 
 import type { CstNode, Document } from '../core/nodes';

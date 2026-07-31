@@ -13,8 +13,7 @@ describe('containerPaste declaration drives the paste-merge decision', () => {
 	});
 
 	it('blockquote declares match-any: blockquote clipboard matches blockquote ancestor', () => {
-		// Parse never yields an empty quoted paragraph; mutate to the
-		// post-cross-block-delete stub the empty-target unwrap path targets.
+		// Parse never yields an empty quoted paragraph, so the stub is built by hand.
 		const doc = parse('> x\n');
 		doc.children[0].children![0].raw = '\n';
 		const clip = parse('> pasted\n');
@@ -55,7 +54,7 @@ describe('the declaration, not kind literals, drives the decision', () => {
 		augmentBuiltin('blockquote', {
 			container: { containerPaste: { matchesAncestor: () => false, siblingAbsorb: false } }
 		});
-		// Same fixture as the passing blockquote test above — now declined.
+		// The same fixture as the passing blockquote case above, now declined.
 		const doc = parse('> x\n');
 		doc.children[0].children![0].raw = '\n';
 		expect(findContainerMatchingUnwrap(doc, [0, 0], 0, parse('> pasted\n'), false)).toBeNull();

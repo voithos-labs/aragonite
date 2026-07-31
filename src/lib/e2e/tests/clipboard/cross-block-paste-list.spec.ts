@@ -1,7 +1,5 @@
-// Single concern: paste into cross-block selections that span list items. Each test exercises a
-// different selection shape (within one list, across boundaries, with mid-paragraph offsets, drag
-// vs Shift+click) of the one paste-replacement invariant; they parametrize one invariant and
-// belong together.
+// One invariant — paste replacement — parametrized across the selection shapes that span
+// list items, which is why these stay in one file.
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 

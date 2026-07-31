@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// A list item's marker is not in its own bytes — it is an ambient prefix the item
-// hands to `BlockList` as `ambientPrefixForFirst`, which forwards it to child 0 only,
-// and only a prose leaf paints it. So when child 0 is a nested LIST (`- - a`), the
-// outer item's marker has nowhere to land and is silently dropped from the render.
-// That drop is deliberate and documented, and it is exactly the kind of behavior a
-// well-meaning "fix" restores; it is also the kind of behavior a test can pretend to
-// check while asserting nothing.
-//
-// So the drop is measured against a positive control in the same file, through the
-// same production probe (`ambientSpanOf`), and paired with the source bytes: the CST
-// keeps both markers, the DOM shows one.
+// A list item's marker is not in its own bytes — it is an ambient prefix handed to `BlockList`
+// as `ambientPrefixForFirst`, forwarded to child 0 only, and painted only by a prose leaf. So
+// when child 0 is a nested LIST (`- - a`) the outer marker has nowhere to land and is silently
+// dropped. The drop is deliberate, and exactly the kind of behavior a well-meaning fix
+// restores, so it is measured against a positive control through the same `ambientSpanOf` probe.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { ambientSpanOf } from '$lib/ambient/ambient-dom';
 import { installLayoutStubs, mountEditor, blockHostAt, surfaceAt } from '../editor-mount';
@@ -36,9 +30,8 @@ describe('list item ambient marker forwarding', () => {
 		expect(ambientSpanOf(surfaceAt(mounted, [0, 1, 0]))?.textContent).toBe('2. ');
 	});
 
-	// The documented drop. The outer item's child 0 is a list, which takes no
-	// `ambientPrefix` prop, so the outer `- ` never reaches the DOM — one rendered
-	// marker for the two the source carries.
+	// The documented drop: child 0 is a list, which takes no `ambientPrefix` prop, so the outer
+	// `- ` never reaches the DOM — one rendered marker for the two the source carries.
 	it('drops the marker when child 0 is a nested list rather than a prose leaf', () => {
 		mounted = mountEditor({ source: '- - a\n' });
 

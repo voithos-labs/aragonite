@@ -2,13 +2,11 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
 
 /**
- * A clipboard mutation during an active inline-math source reveal must fold the
- * reveal into the CST before mutating — the reveal-fold clipboard seam. Pre-fix,
- * paste spliced into the stale raw at a DOM-derived offset and the re-render wiped
- * the revealed edit while the reveal flag stayed stuck, dropping every later
- * keystroke. The reveal-fold return value is unit-adjacent (widget-interaction);
- * this drives the real reveal + synthetic paste to prove the committed source
- * carries the revealed edit AND that typing survives the paste.
+ * A clipboard mutation during an active inline-math source reveal must fold the reveal into the CST
+ * before mutating — the reveal-fold clipboard seam. Pre-fix, paste spliced into the stale raw at a
+ * DOM-derived offset and the re-render wiped the revealed edit while the reveal flag stayed stuck,
+ * dropping every later keystroke. This drives the real reveal + synthetic paste to prove the
+ * committed source carries the revealed edit AND that typing survives the paste.
  */
 
 class MathClipboardPage extends PluginsPage {

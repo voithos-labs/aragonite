@@ -47,7 +47,7 @@ Pick the closest reference and read it fully before starting. It will answer mor
 
 ## The component
 
-Every block exposes the `BlockComponent` shape: two boolean flags (`editable`, `focusable`) plus focus and cursor methods, with optional extensions for selection and the container focus cascade. A `satisfies BlockComponent` assertion at the bottom of the script enforces it at compile time — if you get the shape wrong, you find out from `npm run check`, not from a user.
+Every block exposes the `BlockComponent` shape: two boolean flags (`editable`, `focusable`) plus focus and cursor methods, with optional extensions for selection and the container focus cascade. A leaf publishes those as its own instance exports, ending the script with a `satisfies BlockComponent` assertion; a container publishes the whole surface as one `export { containerApi }`. Either way you find a wrong shape from `npm run check`, not from a user: the component registry types a block's exports as exactly those two publication shapes.
 
 ### Reading parent contexts
 
@@ -85,7 +85,8 @@ Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts
 | `blockFocus`            | `'whole-block'` — an opaque childless block joins the focus-then-delete model |
 | `contextDependentKind`  | Kinds with no standalone line recognizer, whose container owns their syntax   |
 | `renderImagesAsWidgets` | Opting out of image widgets                                                   |
-| `foreignDragHitTest`    | Custom drop-target geometry                                                   |
+| `foreignDragHitTest`    | Custom drop-target geometry — the EXACT hit, declining off-target             |
+| `caretTargetAtPoint`    | Where a caret-placing gesture lands inside the block — the NEAREST target     |
 
 The required `closure` block is the kind's answer to each cross-cutting editor system — one `ClosureCell` per column, `implemented` (name the mechanism in `via`), `inherit-default` (the generic ceremony, nothing kind-specific), or `not-supported` (name the degradation). It stops a kind shipping silently closed under a subsystem nobody asked about. Two presets in `schema/closure.ts` bake the structurally-fixed cells for the common shapes — `simpleLeafClosure` (a not-mergeable source-editable leaf) and `containerClosure` (a strip/chrome container) — each still demanding the cells the kind genuinely determines, so omitting one stays a compile error; `built-in-descriptors.ts` keeps a file-local `proseLeafClosure` for the prose trio. A kind matching none of those shapes writes its row by hand. [`docs/guide/plugin-guide.md`](../guide/plugin-guide.md) § "The closure block" walks the columns and the two bootstrap coherence rules (G1.24); [`docs/design/plugin-contract.md`](../design/plugin-contract.md) § "The tier × subsystem closure matrix" is the full row-by-tier reference.
 

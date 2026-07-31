@@ -26,16 +26,18 @@ describe('computeCodePaste — indented fence opener (J2)', () => {
 		expect(result.text).toBe(' ````\n```\n ````');
 	});
 
+	// The paste lands on its own line, which is where a run threatens the fence — a run
+	// appended to `foo` is not a closer and leaves the opener alone.
 	it('bumps an indented unclosed opener and preserves the indent', () => {
 		const result = computeCodePaste({
-			display: '  ```\nfoo',
-			selection: { start: 9, end: 9 },
+			display: '  ```\nfoo\n',
+			selection: { start: 10, end: 10 },
 			pasted: '```',
 			fenceMarker: '`',
 			fenceLength: 3,
 			closed: false
 		});
-		expect(result.text).toBe('  ````\nfoo```');
+		expect(result.text).toBe('  ````\nfoo\n```');
 	});
 
 	it('supports indented tilde fences', () => {

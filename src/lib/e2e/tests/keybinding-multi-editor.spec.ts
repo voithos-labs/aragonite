@@ -3,11 +3,9 @@ import type { Locator, Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
 import { primaryModifier } from '../platform';
 
-// Two plain editors plus an outside input on one page (/test/multi-editor). Each
-// editor installs its own document-level keydown listener on the shared document;
-// these specs pin that every document-level chord stays contained to one instance —
-// and that a lone editor still claims its own document-level chords (the single-editor
-// describe at the foot), which the instance-containment gate must not strand.
+// Each editor installs its OWN document-level keydown listener on the shared document, so
+// these pin that every chord stays contained to one instance — and that a lone editor still
+// claims its own chords, which the containment gate must not strand.
 
 async function gotoMulti(page: Page): Promise<{ left: Locator; right: Locator }> {
 	await page.goto('/test/multi-editor');
@@ -67,28 +65,21 @@ test.describe('multi-editor document-chord containment', () => {
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await page.keyboard.press('Control+z');
 
-		// The last-interacted (left) editor claims the body-level chord and reverts;
-		// the right editor is untouched. Dropping the body arm would leave the
-		// windowed-out caret's undo dead (vr-reveal F2); accepting body unconditionally
-		// is the multi-instance overreach the last-interacted gate closes.
+		// Dropping the body arm leaves the windowed-out caret's undo dead (perf/vr-reveal F2);
+		// accepting body unconditionally is the overreach the last-interacted gate closes.
 		await expect(left).not.toContainText('LEFTMARK');
 		await expect(right).toContainText('RIGHTMARK');
 	});
 });
 
 test.describe('single-editor document-chord claim', () => {
-	// The full claim truth-table for a lone editor: focus inside → claims; focus on a
-	// foreign NON-text control (a checkbox toggle) or <body>/nowhere → claims (the
-	// pre-containment page-wide reach); focus in a foreign TEXT-entry surface (a
-	// consumer's own <textarea>/<input>) → yields, so the editor never hijacks a
-	// page-global Ctrl+F away from a text field the user is typing in (B2-F1).
+	// The lone-editor claim truth-table: focus inside, on a foreign NON-text control, or on
+	// <body> claims; focus in a foreign TEXT-entry surface YIELDS, so the editor never hijacks
+	// a page-global chord away from a field the user is typing in.
 
-	// A lone editor claims its own search chord even when native focus rests on a
-	// sibling control OUTSIDE it (a toolbar toggle), not just on <body>. The
-	// containment gate strands this if it demands focus-inside-or-body: root.contains
-	// is false and the target isn't <body>, so only the sole-editor claim can route
-	// the chord. (Regression: the gate broke Ctrl+H after a click on the reading-mode
-	// toggle left focus on that checkbox — presentation-reading.)
+	// Focus on a sibling control OUTSIDE the editor is neither inside-root nor <body>, so a
+	// gate demanding one of those strands the chord entirely and only the sole-editor claim can
+	// route it — the shape that broke Ctrl+H after a click on the reading-mode toggle.
 	test('the sole editor claims Ctrl+F while an outside control holds focus', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();

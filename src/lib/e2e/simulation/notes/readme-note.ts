@@ -2,12 +2,9 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The README note: a getting-started doc genre — a heading, a link-bearing intro,
- * an ordered install/run sequence, a fenced code block of commands, and a links
- * section. All HOLD (typed char by char), so end-state equality stays primary.
- * The ordered steps, the fenced code body (via `softEnter`), and the inline links
- * each land in the equality spine. Headings are ATX only; the escape gesture
- * below the code fence auto-closes it, matching the other code-bearing notes.
+ * The README note: a getting-started doc genre. All HOLD, so end-state equality stays
+ * primary; the ordered steps, the fenced code body (via `softEnter`) and the inline links
+ * each land in the equality spine.
  */
 export const README_NOTE: NoteFixture = {
 	name: 'readme-note',
@@ -70,6 +67,7 @@ export const README_NOTE: NoteFixture = {
 	expectedMarkdown:
 		'# Limestone CLI\n' +
 		'A local-first notes tool. See the [docs](https://example.com/docs) to start.\n' +
+		'\n' +
 		'## Quick start\n' +
 		'1. Clone the repo\n' +
 		'2. Install with `npm install`\n' +

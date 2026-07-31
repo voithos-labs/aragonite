@@ -1,8 +1,7 @@
 /**
- * Per-(instance, plugin) EditorContext: the one object onEditor callbacks,
- * global-command handlers, and BlockCommandContext.editor all receive — the
- * "one context object, not two" freeze litmus, satisfied structurally.
- * `document` is a getter so every read is live (culture: getters, not values).
+ * Per-(instance, plugin) EditorContext: the one object onEditor callbacks, global-command
+ * handlers, and BlockCommandContext.editor all receive. `document` is a getter so every read is
+ * live (culture.md: getters, not values).
  */
 import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';
@@ -34,6 +33,7 @@ export function createEditorPluginContexts(deps: {
 	decorations: DecorationRegistry;
 	rects: EditorRects;
 	getPresentationMode: () => PresentationMode;
+	getTheme: () => string;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
@@ -53,6 +53,9 @@ export function createEditorPluginContexts(deps: {
 				rects: deps.rects,
 				get presentationMode() {
 					return deps.getPresentationMode();
+				},
+				get theme() {
+					return deps.getTheme();
 				}
 			};
 			contexts.set(pluginName, ctx);

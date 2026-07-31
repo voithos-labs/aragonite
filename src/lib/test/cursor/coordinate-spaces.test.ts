@@ -40,9 +40,8 @@ describe('coordinate-space conversions', () => {
 });
 
 describe('coordinate-space brands (compile-time pins)', () => {
-	// An unused @ts-expect-error directive is itself a check error, so a green
-	// gate proves both directions: the mix fails to compile AND the brand has
-	// not decayed to plain number.
+	// An unused @ts-expect-error is itself a check error, so a green gate proves both directions:
+	// the mix fails to compile AND the brand has not decayed to plain number.
 	it('brands reject cross-space and unbranded values but stay usable as numbers', () => {
 		const raw: RawOffset = asRawOffset(3);
 

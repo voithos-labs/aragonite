@@ -24,7 +24,8 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 3 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = findTable(result.newDoc)!;
@@ -38,7 +39,8 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 0 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = findTable(result.newDoc)!;
@@ -52,7 +54,8 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			doc,
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 2 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const [startTable, endTable] = result.newDoc.children;
@@ -71,7 +74,8 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			doc,
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 0 },
-			createSharingState()
+			createSharingState(),
+			undefined
 		);
 
 		const table = findTable(result.newDoc)!;

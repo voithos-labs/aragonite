@@ -12,14 +12,10 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// Ungated IME-composition oracle. The handler-level and CDP e2e harnesses pin the
-// composition contract in isolation; until this session the note-taking simulation
-// typed ASCII only. It threads a real CDP composition surface through the
-// SimContext (created once per session, never a global) and drives compose →
-// update → commit under the corruption oracle stack — the multibyte insert path
-// the state-accumulating watcher never reached. Determinism comes from a single
-// seeded PRNG selecting the composition from a fixed table; the multi-seed loop
-// spreads the candidates across runs.
+// Ungated IME-composition oracle: the multibyte insert path the state-accumulating watcher
+// never reached, where the other harnesses pin the composition contract in isolation. The CDP
+// surface is threaded through the SimContext, never a global. Determinism comes from one
+// seeded PRNG picking the composition from a fixed table.
 
 const IME_DOC =
 	'First prose paragraph here.\n\n' +

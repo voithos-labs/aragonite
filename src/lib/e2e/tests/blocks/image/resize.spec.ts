@@ -27,12 +27,9 @@ test.describe('image resize', () => {
 		expect(Number(match![1])).toBeLessThan(400);
 	});
 
-	// Pre-fix: each commit rebuilt the inline DOM via `replaceChildren`, but
-	// `widgetEl` was passed to the handles as a captured prop value, so after
-	// the first drag committed, the handles' `widgetEl` reference pointed at
-	// a detached node. The next drag's startWidth measurement returned 0
-	// (detached image has no layout), `startWidth < MIN_WIDTH` bailed before
-	// pointer capture, and the second drag silently no-op'd.
+	// `widgetEl` reached the handles as a captured prop, so once the first commit rebuilt the
+	// inline DOM it pointed at a detached node: startWidth measured 0 and the second drag silently
+	// no-op'd.
 	test('back-to-back drags both commit (handle resolves widget on demand)', async ({ page }) => {
 		await editor.loadContent('![cat|300](/test-fixtures/sample.png)\n');
 		await page.locator('[data-image-widget]').first().click();
@@ -69,9 +66,8 @@ test.describe('image resize', () => {
 		await editor.bridge.waitForSourceContains('|380');
 	});
 
-	// Parity with the drag path's upper clamp: holding Shift+ArrowRight must not
-	// grow the image past the editor content width. A pure-math unit test can't
-	// catch a wiring gap between the keyboard and drag entry points.
+	// Parity with the drag path's upper clamp: a pure-math unit test can't catch a wiring gap
+	// between the keyboard and drag entry points.
 	test('Shift+ArrowRight caps at editor content width', async ({ page }) => {
 		const contentWidth = await editor.editorContainer.evaluate((el) => el.clientWidth);
 		const startWidth = contentWidth - 30;
@@ -109,9 +105,8 @@ test.describe('image resize', () => {
 		await expect(page.locator('.md-resize-handle')).toHaveCount(0);
 	});
 
-	// Regression: the widget span was previously full-editor-width via
-	// `display: block` with no `width: fit-content`, putting the right-edge
-	// handle at the editor's right edge instead of the image's.
+	// The widget span was full-editor-width (`display: block`, no `width: fit-content`), putting
+	// the right handle at the editor's edge instead of the image's.
 	test('right handle is positioned at the image edge, not the editor edge', async ({ page }) => {
 		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
@@ -121,7 +116,6 @@ test.describe('image resize', () => {
 		const imgBox = await img.boundingBox();
 		const handleBox = await handle.boundingBox();
 		if (!imgBox || !handleBox) throw new Error('img or handle missing');
-		// Handle's center should be within 10px of the image's right edge.
 		const handleCenterX = handleBox.x + handleBox.width / 2;
 		const imageRightX = imgBox.x + imgBox.width;
 		expect(Math.abs(handleCenterX - imageRightX)).toBeLessThan(10);

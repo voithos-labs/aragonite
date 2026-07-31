@@ -1,15 +1,8 @@
 /**
- * Pure occurrence scan for the highlight-occurrences plugin. Tokenizes each prose
- * leaf into whole words and indexes every occurrence by word, so a selection-driven
- * source looks up the word under the caret with one map read instead of a fresh
- * whole-document walk. Offsets are per-leaf raw offsets (dimmed markers included)
- * — the coordinate space mark decorations consume.
- *
- * Only inline-prose leaves are in scope, gated by `isProseKind` (the descriptor's
- * `supportsInline` — paragraph/heading/table-cell, the surfaces this feature paints).
- * Occurrence highlighting is an inline-prose feature, so a code/HTML/raw leaf is
- * neither scanned nor a valid anchor — the same capability gate footnote numbering
- * uses to keep a code block's bytes out of an inline walk.
+ * Pure occurrence scan: indexing by word is what turns the caret-driven lookup into
+ * one map read rather than a fresh document walk. Offsets are per-leaf raw offsets,
+ * dimmed markers included, the space mark decorations consume. `isProseKind` gates the
+ * scope, so a code/HTML/raw leaf is neither scanned nor a valid anchor.
  */
 
 import {
@@ -22,8 +15,7 @@ import {
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';
 
-// BMP letters/digits/underscore; astral-plane text falls outside "word" here,
-// which is honest enough for a reference plugin.
+// Astral-plane text falls outside "word" here, which is honest enough for a reference plugin.
 const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 export interface WordSpan {
@@ -32,12 +24,10 @@ export interface WordSpan {
 	end: number;
 }
 
-/** Word → every whole-word occurrence of it across the document, as ready-to-paint
- *  marks in document order. */
 export type OccurrenceIndex = Map<string, MarkDecoration[]>;
 
-/** The word containing `offset`, preferring the char at the caret and falling
- *  back to the char before it (the usual word-under-caret rule). */
+/** Prefers the char at the caret, falling back to the one before it (the usual
+ *  word-under-caret rule). */
 export function wordAt(text: string, offset: number): WordSpan | null {
 	if (offset < 0 || offset > text.length) return null;
 	let anchor = -1;
@@ -51,8 +41,7 @@ export function wordAt(text: string, offset: number): WordSpan | null {
 	return { word: text.slice(start, end), start, end };
 }
 
-/** The whole word to highlight for a selection: the word under the caret. Null
- *  when the focus is not a leaf (a container/cell-coordinate endpoint) or the
+/** Null when the focus is not a leaf (a container/cell-coordinate endpoint) or the
  *  caret sits on a non-word char. */
 export function anchorWord(doc: DocumentView, selection: EditorSelection | null): string | null {
 	if (!selection) return null;
@@ -62,8 +51,7 @@ export function anchorWord(doc: DocumentView, selection: EditorSelection | null)
 	return span ? span.word : null;
 }
 
-/** Index every whole-word occurrence across the document's leaves. Built once per
- *  edit by a memoizing source; the caret-driven lookup is then a single map read. */
+/** Built once per edit by a memoizing source, not once per caret move. */
 export function buildOccurrenceIndex(doc: DocumentView): OccurrenceIndex {
 	const index: OccurrenceIndex = new Map();
 	forEachLeaf(doc.children, [], (node, path) => {
@@ -110,7 +98,6 @@ function forEachLeaf(
 	}
 }
 
-/** Maximal runs of word chars, each a whole-word occurrence. */
 function* tokenizeWords(text: string): Generator<WordSpan> {
 	let i = 0;
 	while (i < text.length) {

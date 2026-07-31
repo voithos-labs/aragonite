@@ -1,8 +1,7 @@
 /**
- * Pure adjacency queries over a prose block's inline content and raw source:
- * which live widget (image / br) a caret offset touches, the leading/trailing
- * edge widgets, and whether an offset has only whitespace to one side. The
- * component owns selection/DOM; these own the offset math.
+ * Pure adjacency queries over a prose block's inline content and raw source: which
+ * live widget a caret offset touches, the leading/trailing edge widgets, and whether
+ * an offset has only whitespace to one side.
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -15,19 +14,15 @@ export interface WidgetRange {
 
 export interface WidgetAtCursor extends WidgetRange {
 	atRight: boolean;
-	// The widget kind drives the caret-entry policy (reveal-capable vs select) at
-	// the call site; carried here so the handler needn't re-walk the inline content.
+	// Drives the call site's caret-entry policy; carried so it needn't re-walk the content.
 	kind: AnyInlineKind;
 }
 
 export type CaretDirection = 'forward' | 'backward';
 
-/** The live widget the caret sits against, or null. `atRight` distinguishes a
- *  caret at the widget's trailing edge from one at its leading edge. At a boundary
- *  two widgets share (A.end === B.start), `direction` breaks the tie: a forward key
- *  enters the following widget (B, leading edge), a backward key the preceding one
- *  (A, trailing edge). Away from a shared boundary only one match exists and
- *  `direction` is inert. */
+/** The live widget the caret sits against, or null. At a boundary two widgets share
+ *  (A.end === B.start), `direction` breaks the tie: forward enters B's leading edge,
+ *  backward A's trailing edge. Elsewhere only one match exists and it is inert. */
 export function widgetAtCursor(
 	offset: number | null,
 	inlineContent: ReadonlyArray<InlineNode> | undefined,
@@ -61,8 +56,7 @@ export function findWidgetNodeByStart(
 	return null;
 }
 
-/** First widget reachable from the leading edge, skipping blank text. Returns
- *  the inline node (its `kind` drives the caret-entry policy) or null once any
+/** First widget reachable from the leading edge, skipping blank text; null once any
  *  non-blank, non-widget inline intervenes. */
 export function findFirstEdgeWidget(
 	inlines: ReadonlyArray<InlineNode>,
@@ -98,9 +92,8 @@ export function rawHasNoTextAfter(raw: string, offset: number): boolean {
 	return raw.slice(offset).trim() === '';
 }
 
-/** The live inline-widget island element whose source starts at `start`, or null.
- *  The one selector every widget-island lookup shares — a typo'd copy would fail
- *  silently (querySelector null). */
+/** The live inline-widget island whose source starts at `start`, or null. The one home
+ *  for this selector — a typo'd copy would fail silently as a null querySelector. */
 export function widgetElByStart(el: HTMLElement, start: number): HTMLElement | null {
 	return el.querySelector<HTMLElement>(`[data-inline-widget][data-source-start="${start}"]`);
 }

@@ -1,10 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Recognition + composition of character references (requirements/inline-editing/
-// entity-references.md). A visible-glyph reference renders as an atomic
-// `[data-inline-widget]`; its atomic caret/delete behavior is a separate concern
-// pinned in entity-widget.spec.ts. Invisible decodings and non-references stay text.
+// Recognition + composition of character references
+// (requirements/inline-editing/entity-references.md). The atomic caret/delete behavior of
+// the resulting widget is a separate concern, pinned in entity-widget.spec.ts.
 
 test.describe('inline editing — entity references', () => {
 	let editor: EditorPage;

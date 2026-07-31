@@ -1,24 +1,17 @@
 /**
- * Pure predicates over CST paths, plus the `DocPath` brand home. No DOM, no
- * document lookups — strictly arithmetic on indices.
- *
- * The predicates take `readonly number[]`: they order and compare any
- * path-shaped array regardless of what space it addresses, so brand-typing
- * them to `DocPath` would force a cast at every call site for zero gain.
+ * Pure predicates over CST paths, plus the `DocPath` brand home. No DOM, no document lookups.
+ * The predicates take `readonly number[]`: they order any path-shaped array regardless of what
+ * space it addresses, so brand-typing them to `DocPath` would force a cast at every call site.
  */
 
 // ── Doc-absolute path brand ──────────────────────────────────────────────────
 
 declare const docPathBrand: unique symbol;
 /**
- * A path whose every prefix resolves from the document root — the dialect the
- * commit seam requires and G1.16 checks. The two commit-arg dialect fields
- * (`op.eventPath`, `snapshot.path`) carry this brand. `asDocPath` is the base
- * mint (the commit scope factories); the op families compose their paths
- * through the `extendDocPath`/`docPathFrom` helpers in
- * `cursor/coordinate-spaces.ts` — the neutral coordinate leaf every composer,
- * `tree-operations` included, reaches without a directory cycle. G1.16 stays
- * the runtime belt for JS callers the types don't bind.
+ * A path whose every prefix resolves from the document root: the dialect the commit seam
+ * requires and G1.16 checks (`op.eventPath` and `snapshot.path` carry it). `asDocPath` is the
+ * base mint; op families compose through `extendDocPath`/`docPathFrom` in
+ * `cursor/coordinate-spaces.ts`. G1.16 stays the runtime belt for JS callers types don't bind.
  */
 export type DocPath = number[] & { readonly [docPathBrand]: true };
 
@@ -28,10 +21,7 @@ export function asDocPath(indices: number[]): DocPath {
 
 // ── Path predicates ────────────────────────────────────────────────────────
 
-/**
- * Compare two paths in document order. Ancestor-before-descendant:
- * `[2]` comes before `[2, 0]` (container opens before children).
- */
+/** Document order, ancestor-before-descendant: `[2]` precedes `[2, 0]`. */
 export function comparePaths(a: readonly number[], b: readonly number[]): number {
 	const len = Math.min(a.length, b.length);
 	for (let i = 0; i < len; i++) {
@@ -94,10 +84,7 @@ export function lowestCommonAncestor(a: readonly number[], b: readonly number[])
 
 // ── Range predicates ───────────────────────────────────────────────────────
 
-/**
- * True if `path` is strictly between `start` and `end` in document order
- * (exclusive of both endpoints).
- */
+/** True if `path` is strictly between `start` and `end` in document order. */
 export function isPathBetween(
 	path: readonly number[],
 	start: readonly number[],

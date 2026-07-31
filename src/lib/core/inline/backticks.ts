@@ -1,14 +1,12 @@
 /**
- * Backtick-run indexing for code spans (CommonMark §6.1): a run of N backticks
- * closes with the next run of exactly N. All runs in a region are indexed once,
- * then each opener binary-searches for its closer — a per-opener forward rescan
- * to EOF is O(n) each and turns a run-length ladder quadratic (O(n^1.5)).
+ * Backtick-run indexing for code spans (CommonMark §6.1): a run of N backticks closes with the
+ * next run of exactly N. Indexed once, then binary-searched per opener, because a per-opener
+ * forward rescan to EOF turns a run-length ladder quadratic.
  */
 
-/** Backtick-run start positions grouped by run length, ascending within each length. */
+/** Run start positions by run length, ascending within each length. */
 export type BacktickRunIndex = Map<number, number[]>;
 
-/** Index every backtick run in [from, end) by its length. */
 export function indexBacktickRuns(raw: string, from: number, end: number): BacktickRunIndex {
 	const runs: BacktickRunIndex = new Map();
 	let i = from;
@@ -29,10 +27,7 @@ export function indexBacktickRuns(raw: string, from: number, end: number): Backt
 	return runs;
 }
 
-/**
- * Start of the first run of exactly `tickLen` backticks beginning after
- * `openerStart` (the opener's own run start), or -1 when nothing closes it.
- */
+/** First run of exactly `tickLen` starting after `openerStart`, or -1 when nothing closes it. */
 export function findBacktickCloser(
 	index: BacktickRunIndex,
 	tickLen: number,

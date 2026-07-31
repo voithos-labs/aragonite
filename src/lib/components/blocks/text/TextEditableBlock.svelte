@@ -76,12 +76,11 @@
 		myPath?: number[];
 		blockClass?: string;
 		ambientPrefix?: AmbientPrefix;
-		// Accepted for BlockComponentProps parity — BlockHost passes `document` to
-		// every block uniformly; this surface reads the doc from the document facet,
-		// so the prop stays unbound (binding it would shadow the global `document`).
+		// Accepted for BlockComponentProps parity: this surface reads the doc from the
+		// document facet, and binding would shadow the global `document`.
 		document?: DocumentView;
 		// Accepted for BlockComponentProps parity; this surface navigates through the
-		// editor, not the rect seam, so the prop stays unbound.
+		// editor, not the rect seam.
 		rects?: EditorRects;
 	} = $props();
 
@@ -92,8 +91,7 @@
 	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
-	// Present when this paragraph sits inside a list item — used to skip
-	// Tab handling in prose (the enclosing ListItemBlock owns Tab-as-indent).
+	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
 		reorder,
@@ -113,11 +111,13 @@
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
 		presentationMode: getPresentationMode,
+		theme: getTheme,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const {
 		blockElLookup: getBlockElByPath,
 		doc: getDoc,
+		contentVersion: getContentVersion,
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
@@ -127,26 +127,23 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	// The constant fallback keeps the zero-cost render path — an empty island set
-	// never enters the render key.
+	// A constant fallback keeps an empty island set out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
-	// True while an inline-widget's `$…$` source is revealed for editing: the edit
-	// is ephemeral DOM, so onInput (and IME compositionend) skip the per-keystroke
-	// CST commit — the block commits once on reveal exit.
+	// A revealed widget source is ephemeral DOM, so onInput and IME compositionend skip
+	// the per-keystroke CST commit and the block commits once on reveal exit.
 	let revealing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
-	// Cursor position captured before each edit (keydown fires before DOM changes)
+	// Captured before each edit; keydown fires before the DOM changes.
 	let preEditOffset = 0;
-	// Survives the click→keydown gap when Chromium clears the caret at
-	// CE=false-adjacent positions. Reactive so the snap-caret overlay sees changes.
+	// Survives the click→keydown gap when Chromium clears the caret at CE=false-adjacent
+	// positions. Reactive so the snap-caret overlay sees changes.
 	let lastSnapTargetOffset = $state<number | null>(null);
 
-	// One funnel for every pending-cursor write, tagged with its source so the
-	// interaction trace names which gesture set the restore. The consume half lives
-	// in the render effect (applied vs skipped-on-focus-loss).
+	// One funnel for every pending-cursor write, tagged so the interaction trace names
+	// which gesture set the restore; the render effect owns the consume half.
 	function setPendingCursorOffset(offset: number | null, source: string): void {
 		tracePendingCursorSet(source, offset);
 		pendingCursorOffset = offset;
@@ -202,6 +199,7 @@
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		grammar: registryView.grammar,
+		events: editorEvents,
 		getFocusOffset: () => {
 			if (!el) return null;
 			const sel = window.getSelection();
@@ -212,7 +210,11 @@
 		getTextLen: () => liveDisplayLength(),
 		readText: () => readRawText(),
 		commitInput: (text, preEdit, saved) => {
-			void blockEdit.updateBlockContent(index, text + trailingLineEnding(node.raw), preEdit, saved);
+			const committed = text + trailingLineEnding(node.raw);
+			void blockEdit.updateBlockContent(index, committed, preEdit, saved);
+			// An enclosing container may rewrite these bytes on the way in, so the caret
+			// restore reads the image of the write, not the offset the keystroke produced.
+			return blockEdit.mapCommittedOffset?.(committed, saved);
 		},
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -255,8 +257,8 @@
 		}
 	});
 
-	// After widgetInteraction so the reveal-fold seam is available: a clipboard
-	// mutation folds a live reveal before touching the CST.
+	// After widgetInteraction, whose fold seam a clipboard mutation runs before it
+	// touches the CST.
 	const clipboardHandlers = createTextClipboard({
 		get node() {
 			return node;
@@ -288,8 +290,7 @@
 		}
 	});
 
-	// preview-inline's marker reveal: caret-chain evaluation on selection cadence,
-	// CSS class flips only — no keys intercepted, no bytes touched.
+	// preview-inline's marker reveal: CSS class flips only, no keys intercepted.
 	const constructReveal = createConstructReveal({
 		get node() {
 			return node;
@@ -303,9 +304,8 @@
 		isCrossBlock: () => selection.isCrossBlock
 	});
 
-	// The one caret-edge dispatch: CST widget → decoration island → ambient overlap,
-	// each resolved against its declarative edge policy. Replaces the three former
-	// sibling seams; entry (reveal vs select) stays at widgetInteraction.enterWidget.
+	// The one caret-edge dispatch (G4.12); entry execution stays at
+	// `widgetInteraction.enterWidget`.
 	const edgeDispatch = createEdgePolicyDispatch({
 		get node() {
 			return node;
@@ -354,7 +354,9 @@
 		get presentationMode() {
 			return presentationMode;
 		},
+		getTheme,
 		getDocument: () => getDoc(),
+		getContentVersion,
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
@@ -369,9 +371,6 @@
 			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
 	});
 
-	// Destroy the block's pooled widget instances when it unmounts (windowed out or
-	// document swap). Mirrors the parkFocus cleanup below: an effect cleanup fires on
-	// teardown, the seam block unmount reliably reaches.
 	$effect(() => () => textRender.dispose());
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -380,6 +379,7 @@
 	export const focusable = true;
 
 	export const focus = editableSurface.surface.focus;
+	export const parkCaret = editableSurface.surface.parkCaret;
 	export const focusAtColumn = editableSurface.surface.focusAtColumn;
 	export const getCursorOffset = editableSurface.surface.getCursorOffset;
 	export const getSelectedText = editableSurface.surface.getSelectedText;
@@ -394,20 +394,16 @@
 		return widgetInteraction.enterEdgeWidget(side);
 	}
 
-	/** The display length the CARET walks — the DOM's while a reveal is open, since
-	 *  the CST has not seen that edit. Measured against `node.raw` instead, an edited
-	 *  reveal at the block's end traps the caret: the live end sits short of the stale
-	 *  length, so no press reads as "at the boundary". Every caret-boundary test here
-	 *  reads this, as the table cell's sibling context already does. */
+	/** The display length the CARET walks — the DOM's while a reveal is open, since the
+	 *  CST hasn't seen that edit. Against a stale `node.raw`, an edited reveal at the
+	 *  block's end traps the caret: no press reads as "at the boundary". */
 	function liveDisplayLength(): number {
 		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
 	}
 
-	/** One arm per command this block owns, split so the reveal fold can sit between
-	 *  the halves: `applies` reads only the DOM and stays valid across a fold, every
-	 *  `perform` reads `node.raw` and is valid only after one. `offset` and `selected`
-	 *  are read once before any fold and closed over — the fold parks its own caret,
-	 *  which would move them out from under the mutation. Null = not this block's. */
+	/** One arm per command this block owns, split so the reveal fold sits between the
+	 *  halves: `applies` reads only the DOM and survives a fold, `perform` reads `node.raw`
+	 *  and is valid only after one. `offset`/`selected` are closed over: the fold moves them. */
 	function blockCommand(
 		id: CommandId,
 		arg: unknown,
@@ -428,7 +424,7 @@
 				});
 			case 'block.insertTab':
 				return {
-					// Inside a list item Tab is the list's indent — decline so it bubbles.
+					// Inside a list item Tab is the list's indent, so decline and let it bubble.
 					applies: () => !listContext,
 					// A literal tab, because the browser default moves focus out of the editor.
 					perform: () => {
@@ -453,10 +449,9 @@
 				return always(() => toggleFormat('emphasis', selected ?? { start: offset, end: offset }));
 			case 'heading.cycle':
 				return always(() => {
-					// `arg` arrives as untrusted `unknown` from the widened keybinding channel;
-					// accept only an in-range level (0 strips to paragraph, 1–6 sets an ATX
-					// level). A non-number or out-of-range value would coerce wrong or throw a
-					// RangeError inside `#`.repeat, so fall back to the strip behavior.
+					// `arg` is untrusted `unknown` from the widened keybinding channel: an
+					// out-of-range value would throw a RangeError inside `repeat`, so fall
+					// back to the strip behavior.
 					const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
 					const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
 					blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
@@ -472,8 +467,8 @@
 	}
 
 	export function runCommand(id: CommandId, arg?: unknown): boolean {
-		// Read the caret live: cross-block dispatch calls runCommand without an
-		// onKeyDown to refresh preEditOffset, so it would be stale here.
+		// Read live: cross-block dispatch arrives with no preceding onKeyDown, so
+		// `preEditOffset` would be stale here.
 		const offset = cursor.getRaw() ?? 0;
 		const command = blockCommand(id, arg, offset, cursor.getRawSelection());
 		if (!command || !command.applies()) return false;
@@ -481,24 +476,17 @@
 			performBlockCommand(id, command.perform);
 			return true;
 		}
-		// A live reveal holds this block's bytes in ephemeral DOM the CST has never
-		// seen, so every `perform` above would splice the pre-reveal source. Fold, let
-		// the write settle, then act — the clipboard seam's discipline. The fold keeps
-		// the caret where the user left it (not its usual trailing-edge landing): the
-		// committed text IS the DOM text the offset was measured against, so it carries
-		// over unchanged and the command acts where the user actually pressed.
-		widgetInteraction.foldRevealBeforeMutation(offset);
-		void tick().then(() => performBlockCommand(id, command.perform));
+		// A live reveal holds this block's bytes in ephemeral DOM, so every `perform` would
+		// splice the pre-reveal source: fold, settle, then act. The fold is handed the user's
+		// offset, valid because the committed text IS the DOM text it was measured against.
+		const fold = widgetInteraction.foldRevealBeforeMutation(offset);
+		void (fold?.settled ?? tick()).then(() => performBlockCommand(id, command.perform));
 		return true;
 	}
 
-	// The seam's guard: no arm reached through here mutates while a reveal is open —
-	// a fire means a `runCommand` branch that skipped the fold, and the bytes it is
-	// about to splice are the pre-reveal ones. It guards the arms, NOT every entry
-	// path: a caller that reaches `blockEdit` directly, bypassing runCommand, sees
-	// neither the fold nor this. Adding an arm to `blockCommand`'s switch inherits
-	// both by construction, which is the case worth making safe; the wider funnel is
-	// ledgered in docs/issues.md.
+	// No arm reached through here mutates while a reveal is open (G1.26): a fire means a
+	// `runCommand` branch that skipped the fold. It guards the arms, not every entry path
+	// — a caller reaching `blockEdit` directly sees neither the fold nor this (issue #35).
 	function performBlockCommand(id: CommandId, perform: () => void): void {
 		assertInvariant('reveal-transition', () =>
 			widgetInteraction.isRevealing()
@@ -512,6 +500,7 @@
 		editable,
 		focusable,
 		focus,
+		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
 		isVerticallyTransparent,
@@ -533,8 +522,8 @@
 		}
 
 		const t0 = perfEnabled() ? performance.now() : 0;
-		// carryCaret false on the edit path (a pending restore is armed): the consume
-		// below overwrites the selection, so the render's own caret walk is dead work.
+		// With a pending restore armed, the consume below overwrites the selection, so the
+		// render's own caret walk would be dead work.
 		textRender.render({
 			forceRebuild: pendingCursorOffset !== null,
 			carryCaret: pendingCursorOffset === null
@@ -542,38 +531,33 @@
 		if (perfEnabled()) recordBlockRender(performance.now() - t0, myPath);
 
 		if (pendingCursorOffset !== null) {
-			// Restore the caret only while this block still owns focus. A blur-commit
-			// (revealed source persisted as focus leaves) also sets a pending offset;
-			// without this guard the restore would yank the global selection back into
-			// the just-blurred block. The clear runs regardless so a skipped restore is
-			// dropped, never re-armed.
+			// Only while this block still owns focus: a blur-commit also arms a pending
+			// offset, and restoring would yank the selection back into the blurred block.
+			// The clear runs regardless, so a skipped restore is dropped, never re-armed.
 			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) =>
 				cursor.setRaw(asRawOffset(offset))
 			);
 			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
-		// A rebuild mints fresh spans with no reveal class; re-apply synchronously
-		// (before paint) or typing inside a revealed construct folds for one frame
-		// per keystroke. untracked: the caret chain must never join the effect's
-		// dependencies (selection and the inline cache are non-reactive anyway).
+		// A rebuild mints fresh spans with no reveal class, so re-apply before paint or
+		// typing inside a revealed construct folds for one frame per keystroke. Untracked,
+		// because the caret chain must never join this effect's dependencies.
 		untrack(() => {
 			if (!composing) constructReveal.update(true);
 		});
 		markKeystrokeSettle();
 	});
 
-	// Windowed out while focused: hand focus to the editor root so the next
-	// keystroke routes through its document-level listener instead of falling to
-	// <body>. See parkFocusOnEditorRoot.
+	// Windowed out while focused: hand focus to the editor root so the next keystroke
+	// routes through its document-level listener instead of falling to `<body>`.
 	$effect(() => {
 		const blockEl = el;
 		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
 	});
 
-	// Asymmetric clearer: when the caret lands anywhere other than the snap target,
-	// drop the synthetic indicator. Never auto-sets on the caret reaching a boundary
-	// by non-click means — synthetic is click-intent, armed only by snapClickToWidgetEdge.
+	// Asymmetric: clears only. The synthetic indicator is click-intent, armed nowhere but
+	// `snapClickToWidgetEdge`, so a caret reaching a boundary by other means never sets it.
 	function clearSnapTargetIfMoved(root: HTMLElement): void {
 		if (lastSnapTargetOffset === null) return;
 		const sel = window.getSelection();
@@ -588,11 +572,9 @@
 		if (off !== lastSnapTargetOffset) lastSnapTargetOffset = null;
 	}
 
-	// One document selectionchange listener drives the block's whole selection cadence.
-	// The snap clearer runs even during composition — an IME caret move still invalidates
-	// a click-intent snap. The reveal machines are composition-gated (like onInput): a
-	// mid-IME move must neither commit a revealed source edit nor flip preview-inline
-	// marker visibility. Blur keeps owning the focus-leaving widget-source fold.
+	// One listener drives the block's whole selection cadence. The snap clearer runs even
+	// during composition — an IME caret move still invalidates a click-intent snap — while
+	// the reveal machines are composition-gated like onInput.
 	$effect(() => {
 		const root = el;
 		if (!root) return;
@@ -611,11 +593,9 @@
 		for (const w of el.querySelectorAll('.md-snap-after, .md-snap-before')) {
 			w.classList.remove('md-snap-after', 'md-snap-before');
 		}
-		// The synthetic caret stands in for a native one Chromium renders unreliably
-		// beside a contenteditable=false island — but "unreliably" cuts both ways, and
-		// when it does render the user sees two carets at one position. The block's own
-		// caret goes dark for as long as the synthetic is up; there is no way to ask the
-		// browser whether it painted, so mutual exclusion is the only guarantee available.
+		// The synthetic caret stands in for one Chromium renders unreliably beside a
+		// contenteditable=false island, and "unreliably" cuts both ways — nothing can ask
+		// whether it painted, so darkening the native one is the only guarantee available.
 		el.classList.remove('md-snap-caret-active');
 		if (lastSnapTargetOffset === null) return;
 		const off = lastSnapTargetOffset;
@@ -635,8 +615,8 @@
 
 	const onInput = editableSurface.onInput;
 
-	// Walk children directly (rather than reading textContent) so stray text
-	// nodes Chromium inserts around the marker span don't pollute the raw.
+	// Walk children rather than reading textContent, so stray text nodes Chromium inserts
+	// around the marker span don't pollute the raw.
 	function readRawText(): string {
 		if (!el) return '';
 		const ambient = ambientLength > 0 ? ambientSpanOf(el) : null;
@@ -656,37 +636,31 @@
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
-		// Synchronous construct-reveal backstop, before any default runs: rapid
-		// arrows outrun the async selectionchange reveal (input events outrank
-		// normal tasks), and a step computed against folded markers skips their
-		// bytes. Never consumes the key.
+		// Reveal-only backstop, before any default runs: rapid arrows outrun the async
+		// selectionchange reveal, and a step against folded markers skips their bytes.
 		constructReveal.prepareForKeydown(e);
 
-		// Revealed `$…$` source: Escape cancels back to rendered. Every other key edits
-		// the source natively (onInput suppressed) or reaches the command seam below,
-		// which folds the reveal before it mutates — Enter still splits the block.
+		// Escape cancels a revealed source back to rendered; every other key edits the
+		// source natively or reaches the command seam below, which folds before mutating.
 		if (await widgetInteraction.handleRevealingKeydown(e)) return;
 
-		// Widget-selected keys run before handleSharedKeydown: select() cleared the
-		// native range, so getCursorOffset() reports 0 and would mis-trigger the
-		// shared ArrowLeft boundary branch (moveFocus to a non-existent prior block).
+		// Before handleSharedKeydown: selecting cleared the native range, so the shared
+		// ArrowLeft boundary branch would read offset 0 and move focus to a block that
+		// isn't there.
 		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
 
-		// Shift+Arrow into a widget snaps focus to the far boundary atomically.
-		// Native default with user-select:none on the widget collapses the
-		// selection instead of stepping past it.
+		// The native default, with user-select:none on the widget, collapses the selection
+		// instead of stepping past it.
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		// Every caret-edge construct — CST widget, decoration island, ambient overlap —
-		// intercepts a plain edge key through this one dispatch, keeping native
-		// contenteditable from silently corrupting the atomic bytes each stands for.
+		// Every caret-edge construct routes through this one dispatch, keeping native
+		// contenteditable from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		// Home with an ambient marker: native Home lands at DOM 0 (before the
-		// marker span). Skip that — the user wants raw offset 0, i.e. the
-		// position immediately after the ambient span.
+		// Native Home lands at DOM 0, before the marker span; the user wants raw offset 0,
+		// immediately after the ambient span.
 		if (e.key === 'Home' && !e.shiftKey && ambientLength > 0 && el) {
 			e.preventDefault();
 			cursor.setToAmbientBoundary();
@@ -718,10 +692,9 @@
 		}
 	}
 
-	// Click past a block-level widget drops the caret outside the contenteditable
-	// (no text-node anchor); capture the click point in pointerdown and snap to the
-	// nearest widget edge in onClick. Y is load-bearing for the reveal hit-test — a
-	// column-aligned click on another visual line must not reveal a widget.
+	// A click past a widget drops the caret outside the contenteditable, with no text-node
+	// anchor, so onClick snaps to the nearest widget edge from this point. Y is
+	// load-bearing: a column-aligned click on another visual line must not reveal.
 	let lastClickClientX: number | null = null;
 	let lastClickClientY: number | null = null;
 
@@ -730,17 +703,14 @@
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
 		lastSnapTargetOffset = null;
-		// A press on a reveal-source widget is an owned gesture: suppress the
-		// browser's caret-placement default so the only selection writer between
-		// here and the reveal's own placement is the reveal itself. Click still
-		// fires; snapClickToWidgetEdge dispatches the reveal from it.
+		// A press on a reveal-source widget is an owned gesture: suppressing the browser's
+		// caret default leaves the reveal as the only selection writer until it places.
 		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) e.preventDefault();
 	}
 
 	function onBlur(e: FocusEvent): void {
 		if (el && e.relatedTarget && el.contains(e.relatedTarget as Node)) return;
-		// Focus left the block with source still revealed — persist the edit before
-		// the caret is gone.
+		// Persist a revealed source edit before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
 	}
@@ -756,12 +726,9 @@
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
 
-	// `range` is what the COMMAND read before it ran. A fold on the way in commits
-	// the revealed source and parks a caret, which collapses the live selection — so
-	// re-reading it here would find nothing to toggle and the user's chord would
-	// vanish. The pre-fold range still addresses the committed text, which is the DOM
-	// text it was measured against. A collapsed range is the caret contract, not a
-	// bail: see `toggleInlineFormat`.
+	// `range` is what the COMMAND read before it ran, and must not be re-read: a fold on
+	// the way in parks a caret that collapses the live selection, so the chord would find
+	// nothing to toggle. A collapsed range is the caret contract, not a bail.
 	function toggleFormat(
 		format: 'strong' | 'emphasis',
 		range: { start: number; end: number }
@@ -782,9 +749,8 @@
 	}
 </script>
 
-<!-- Reading mode flips contenteditable off: the whole browser-edit-path class
-	(beforeinput/input, IME, native paste/cut, drag-drop insertion) dies
-	structurally. tabindex/role are independent, so focus + arrow traversal stay. -->
+<!-- Reading mode flips contenteditable off, killing the whole browser-edit-path class
+	structurally. tabindex/role are independent, so focus and arrow traversal stay. -->
 <div
 	bind:this={el}
 	tabindex="0"

@@ -1,6 +1,6 @@
 # Clipboard: Silent Drop — Multi-Item List Paste Over Multi-Item List Selection
 
-From `docs/issues.md`: copying a multi-item list and pasting into a cross-block selection across multiple items of another list silently deletes the selection and inserts nothing. Second Ctrl+V after the no-op does paste the clipboard content.
+The defect this guards: copying a multi-item list and pasting into a cross-block selection across multiple items of another list silently deletes the selection and inserts nothing. Second Ctrl+V after the no-op does paste the clipboard content.
 
 ## Happy paths
 

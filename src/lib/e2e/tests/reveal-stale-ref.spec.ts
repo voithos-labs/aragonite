@@ -2,12 +2,9 @@ import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 import { primaryModifier } from '../platform';
 
-// Guards Editor.svelte's revealPath isStale/dropRef wiring: a top-level slot
-// holding a detached off-window ref must be dropped and re-revealed, not
-// descended into. The stale slot is forged deterministically — capture the
-// mounted ref, let the scroll-out clear the slot, re-plant the captured ref —
-// because the natural cleanup race that leaves one behind is not reproducible
-// on demand.
+// A top-level slot holding a DETACHED off-window ref must be dropped and re-revealed, not
+// descended into. The stale slot is forged deterministically because the natural cleanup
+// race that leaves one behind is not reproducible on demand.
 test.describe('reveal into a stale top-level ref slot', () => {
 	let editor: EditorPage;
 

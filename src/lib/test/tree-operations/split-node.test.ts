@@ -48,19 +48,11 @@ describe('splitNode', () => {
 		expect(doc.children[1].raw).toBe('\n');
 	});
 
-	it('second block has empty leading trivia (no blank line)', () => {
-		const source = 'Hello World\n';
-		const doc = parse(source);
-		splitNode(doc, 0, 5);
-		expect(doc.children[1].leadingTrivia).toBe('');
-	});
-
 	it('preserves leading trivia on the first block when splitting a non-first block', () => {
 		const source = 'First\n\nSecond\n';
 		const doc = parse(source);
 		splitNode(doc, 1, 3);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
-		expect(doc.children[2].leadingTrivia).toBe('');
 	});
 
 	it('handles multi-line paragraph split', () => {
@@ -77,7 +69,7 @@ describe('splitNode', () => {
 		const doc = parse(source);
 		splitNode(doc, 0, 5);
 		const result = serialize(doc);
-		expect(result).toBe('Hello\n World\n');
+		expect(result).toBe('Hello\n\n World\n');
 	});
 
 	it('handles CRLF line endings correctly', () => {
@@ -95,7 +87,7 @@ describe('splitNode edge cases', () => {
 		const doc = parse(source);
 		splitNode(doc, 0, 5);
 		expect(doc.children).toHaveLength(2);
-		expect(serialize(doc)).toBe('Hello\n World\n');
+		expect(serialize(doc)).toBe('Hello\n\n World\n');
 	});
 
 	it('split at offset beyond raw length produces empty second block', () => {
@@ -145,10 +137,8 @@ describe('thematic break split', () => {
 	});
 });
 
-// The setext underline sits AFTER the title, so a plain raw cut inside the
-// content strands it in the second half — where `=====` reparses as a junk
-// paragraph and `-----` as a thematicBreak, demoting the heading. The split
-// choke point keeps the whole underline suffix on the originating block.
+// The setext underline sits AFTER the title, so a plain raw cut strands it in the second
+// half, where `=====` reparses as a junk paragraph and `-----` demotes the heading.
 describe('setext heading split', () => {
 	for (const underline of ['=====', '-----']) {
 		const source = `Title\n${underline}\n`;
@@ -199,7 +189,8 @@ describe('setext heading split', () => {
 describe('splitNode on arbitrary parent', () => {
 	it('splitNode works on a container children array', () => {
 		const parent = {
-			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }]
+			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }],
+			ownerKind: undefined
 		};
 		splitNode(parent, 0, 5);
 		expect(parent.children).toHaveLength(2);

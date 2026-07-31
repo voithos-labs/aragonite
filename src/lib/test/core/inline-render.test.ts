@@ -81,9 +81,8 @@ describe('renderInlineNodes — entityReference widget (visible glyph)', () => {
 });
 
 describe('renderInlineNodes — entityReference literal span (invisible glyph)', () => {
-	// A whitespace/control/zero-width decoding keeps its literal-source span: an
-	// invisible atomic island would be a caret trap. `&nbsp;` (U+00A0) sits here —
-	// its glyph is an invisible column, indistinguishable from a plain space.
+	// A whitespace/control/zero-width decoding keeps its literal-source span, because an
+	// invisible atomic island would be a caret trap.
 	it.each([
 		{ name: 'nbsp (whitespace)', raw: '&nbsp;', decoded: ' ' },
 		{ name: 'zero-width space (format)', raw: '&#8203;', decoded: '​' },

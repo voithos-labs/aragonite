@@ -9,10 +9,9 @@ import {
 import { registerCalloutKind, NOTE } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 
-// The G4.3 kit pointed at real PLUGIN containers — the audience it is billed for.
-// The built-in sweep (`test/invariants/container-conformance.test.ts`) derives its
-// kinds from the descriptor registry; a plugin's kinds only exist once its suite
-// installs them, so an author opts in explicitly with a profile of their own.
+// The G4.3 kit pointed at real PLUGIN containers, the audience it is billed for. Unlike
+// the built-in sweep (`test/invariants/container-conformance.test.ts`), which derives
+// its kinds from the registry, an author opts in explicitly with a profile.
 
 const NOTE_KIND = () => declaredPluginKind(NOTE);
 const DETAILS_KIND = () => declaredPluginKind(DETAILS);
@@ -28,18 +27,6 @@ const NOTE_WRAPPING_DETAILS =
 const NO_MULTI_SCOPE_OP =
 	'the callout/details containers own no ≥2-scope author op — their inner ops ' +
 	'(split/merge/delete) are single-scope, like the blockquote';
-
-// An HTML close tag has no length to grow, so a details body line that IS the
-// close tag cannot be represented: any byte sequence containing that literal line
-// closes the element, for aragonite and for GitHub alike. The only repair would
-// rewrite the child's bytes, which an opaque container may not do — its raw is
-// byte-compared against its live children. G1.12 catches the state instead.
-const DETAILS_TERMINATOR_UNREPRESENTABLE =
-	'the `</details>` terminator is a fixed token with no fence length to escalate, so a body line ' +
-	'reproducing it is unrepresentable: emitting it closes the container early, and escaping it would ' +
-	'diverge the container raw from its live children (the opaque staleness guard fires on exactly ' +
-	'that). Repair needs a commit-path escape seam; the collision is guarded by G1.12, pinned in ' +
-	'test/plugins/details/terminator-collision.test.ts';
 
 const noteProfile: ContainerConformanceProfile = {
 	deepNesting: { source: NESTED_NOTES, leafPath: [0, 1, 1] },
@@ -60,11 +47,17 @@ const detailsProfile: ContainerConformanceProfile = {
 	deepNesting: { source: NOTE_WRAPPING_DETAILS, leafPath: [0, 1, 1] },
 	localIndexFixture: { source: NOTE_WRAPPING_DETAILS, containerChain: [0, 1], targetChild: 2 },
 	focusSource: '<details open>\n<summary>S</summary>\n\nA\n\nB\n\n</details>\n',
+	// The two containers repair the same collision by opposite means (callout grows its
+	// fence, details escapes the bytes), and the cell accepts both.
+	terminatorCollisionFixture: {
+		source: '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n',
+		bodyRaw: '</details>\n'
+	},
 	localIndex: { mode: 'assert' },
 	ancestry: { mode: 'assert' },
 	multiScope: { mode: 'exempt', reason: NO_MULTI_SCOPE_OP },
 	focusBubble: { mode: 'assert' },
-	terminatorCollision: { mode: 'exempt', reason: DETAILS_TERMINATOR_UNREPRESENTABLE }
+	terminatorCollision: { mode: 'assert' }
 };
 
 describe('G4.3 conformance kit — plugin containers', () => {
@@ -99,13 +92,13 @@ describe('G4.3 conformance kit — plugin containers', () => {
 			'localIndex',
 			'ancestry',
 			'focusBubble',
+			'terminatorCollision',
 			'declarations'
 		]);
 	});
 
-	// Non-vacuity for the ancestry cell, the plugin analog of what the built-in
-	// sweep asserts: an opaque container rebuilds from its direct children, so
-	// rebuilding outer-first must leave the root's raw stale.
+	// Non-vacuity for the ancestry cell: an opaque container rebuilds from its direct
+	// children, so rebuilding outer-first must leave the root's raw stale.
 	it('ancestry check is non-vacuous: an outer-first rebuild leaves the callout root stale', () => {
 		expect(reversedAncestryLeavesRootStale(noteProfile)).toBe(true);
 	});
@@ -120,28 +113,21 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		registerDetailsKind();
 	});
 
-	// Non-vacuity for the terminator cell: details is the container that genuinely
-	// cannot survive the collision, so asserting the cell for it MUST fail. If this
-	// stops throwing, the check has gone blind.
-	it('fails terminatorCollision when the body line truncates the container', async () => {
-		await expect(
-			runContainerConformance(DETAILS_KIND(), {
-				...detailsProfile,
-				terminatorCollisionFixture: {
-					source: '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n',
-					bodyRaw: '</details>\n'
-				},
-				terminatorCollision: { mode: 'assert' }
-			})
-		).rejects.toThrow(
+	// Non-vacuity for the terminator cell: neutralize the body-write rule and the
+	// terminator truncates the container, so if this stops throwing the check is blind.
+	it('fails terminatorCollision when the declared body-write rule neutralizes nothing', async () => {
+		augmentBlockKind(DETAILS_KIND(), {
+			container: { bodyWrite: { normalize: (raw) => raw, mapOffset: (_raw, offset) => offset } }
+		});
+
+		await expect(runContainerConformance(DETAILS_KIND(), detailsProfile)).rejects.toThrow(
 			/terminatorCollision: details survives a body line reproducing its terminator/
 		);
 	});
 
 	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', async () => {
-		// The cast is the point: a JS plugin — or a stale strategy name that got past
-		// a cast — can declare an unwrapRole nothing implements, and the nested
-		// Backspace dispatcher indexes it unguarded.
+		// The cast is the point: a JS plugin can declare an unwrapRole nothing
+		// implements, and the nested Backspace dispatcher indexes it unguarded.
 		augmentBlockKind(NOTE_KIND(), {
 			container: {
 				unwrapRole: {
@@ -156,9 +142,8 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		);
 	});
 
-	// Profile drift — the author's fixture stops producing their kind (a renamed
-	// directive, a declined fence). The kit must not pass on a tree it never saw
-	// the kind in.
+	// Profile drift: when an author's fixture stops producing their kind, the kit must
+	// not pass on a tree it never saw the kind in.
 	it('fails a deepNesting fixture whose tree holds no node of the kind', async () => {
 		await expect(
 			runContainerConformance(NOTE_KIND(), {

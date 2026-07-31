@@ -1,9 +1,8 @@
 /**
- * Carry a focused caret across an imperative DOM rebuild. A decoration-driven
- * rebuild (an island-signature change) mints fresh spans with no edit-path
- * pending offset, so the render path captures the caret in walk space before the
- * rebuild and restores it after. Shared by the prose and table-cell render paths;
- * both drive the same single-home offset walk (`widget-offset.ts`).
+ * Carry a focused caret across an imperative DOM rebuild. A decoration-driven rebuild
+ * mints fresh spans with no edit-path pending offset, so the render path captures the
+ * caret in walk space before the rebuild and restores it after — through the single-home
+ * offset walk (`widget-offset.ts`), shared by the prose and table-cell render paths.
  */
 
 import type { DomTextOffset } from './coordinate-spaces';

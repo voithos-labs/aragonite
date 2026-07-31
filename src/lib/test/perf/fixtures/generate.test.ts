@@ -6,7 +6,9 @@ import { docByteLength } from '../../../perf/instruments';
 import { containerRawBytes } from '../container-raw-bytes';
 import {
 	FIXTURE_SHAPES,
+	TRIGGER_DENSE_KINDS,
 	generateFixture,
+	generateTriggerDense,
 	generateUniformBlocks,
 	generateDeepNested,
 	deepNestedLeafPath
@@ -34,9 +36,9 @@ describe('fixture generators', () => {
 		});
 	}
 
-	// Baseline numbers are keyed to these exact bytes — corpus edits must fail
-	// loudly and force deliberate re-baselining. Inline snapshots need distinct
-	// call sites, so one pin per shape instead of a loop.
+	// Baseline numbers are keyed to these exact bytes, so a corpus edit must fail loudly
+	// and force deliberate re-baselining. One pin per shape: inline snapshots need
+	// distinct call sites, so a loop cannot carry them.
 	it('flat-prose: exact output pinned', () => {
 		expect(generateFixture('flat-prose', 200, 7)).toMatchInlineSnapshot(`
 			"## alpha alpha papa lima
@@ -217,6 +219,57 @@ describe('generateUniformBlocks', () => {
 	});
 });
 
+describe('generateTriggerDense', () => {
+	for (const kind of TRIGGER_DENSE_KINDS) {
+		it(`${kind}: deterministic for same seed, different for another`, () => {
+			expect(generateTriggerDense(kind, 20_000, 7)).toBe(generateTriggerDense(kind, 20_000, 7));
+			expect(generateTriggerDense(kind, 20_000, 7)).not.toBe(generateTriggerDense(kind, 20_000, 8));
+		});
+
+		it(`${kind}: round-trips losslessly`, () => {
+			const src = generateTriggerDense(kind, 20_000, 7);
+			expect(serialize(parse(src))).toBe(src);
+		});
+
+		// The rows measure a per-trigger cost, and only the viewport slice mounts, so
+		// every paragraph has to carry the trigger for the density to be real.
+		it(`${kind}: every paragraph carries the trigger`, () => {
+			const doc = parse(generateTriggerDense(kind, 20_000, 7));
+			const trigger = { 'bracket-footnote': '[', colon: ':', dollar: '$' }[kind];
+			expect(doc.children.length).toBeGreaterThan(20);
+			expect(doc.children.every((block) => block.raw.includes(trigger))).toBe(true);
+		});
+	}
+
+	// A mounted reference re-derives from a whole-document walk, so the reference has to
+	// be in block 0 — the caret's block, and the only one guaranteed mounted.
+	it('bracket-footnote: block 0 carries a footnote reference and bracket density', () => {
+		const doc = parse(generateTriggerDense('bracket-footnote', 20_000, 7));
+		expect(doc.children[0].raw).toContain('[^fn-0]');
+		expect(doc.children[0].raw.split('[').length - 1).toBeGreaterThanOrEqual(3);
+	});
+
+	// No definitions: numbering is by first-reference order, and `[^label]:` lines
+	// would parse as link reference definitions on the rung-free control route.
+	it('bracket-footnote: carries no footnote definitions', () => {
+		expect(generateTriggerDense('bracket-footnote', 20_000, 7)).not.toMatch(/^\[\^/m);
+	});
+
+	it('dollar: one real math span, in the first paragraph only', () => {
+		const md = generateTriggerDense('dollar', 20_000, 7);
+		expect(md.split('$a + b$')).toHaveLength(2);
+		expect(parse(md).children[0].raw).toContain('$a + b$');
+	});
+
+	it('exact output pinned', () => {
+		expect(generateTriggerDense('bracket-footnote', 120, 7)).toMatchInlineSnapshot(`
+			"alpha alpha papa lima india golf hotel delta [india lima](https://example.com/0) echo charlie mike india delta[^fn-0] foxtrot echo india echo papa delta [oscar delta][ref-0] charlie charlie echo india mike.
+
+			"
+		`);
+	});
+});
+
 // Walk the descent spine, collecting each container's raw length outermost-first.
 function spineContainerRaws(root: CstNode): number[] {
 	const raws: number[] = [];
@@ -267,10 +320,8 @@ describe('generateDeepNested', () => {
 		expect(leaf.children).toBeUndefined();
 	});
 
-	// The load-bearing property: every level carries sibling bytes, so each spine
-	// container's raw materializes everything from its level inward and sheds one
-	// level's worth going deeper. A spine-only tree (tiny per-level raw) would fail
-	// this and silently understate the ancestry-rebuild tax the bench measures.
+	// Every level must carry sibling bytes: a spine-only tree passes the shape checks
+	// above while silently understating the ancestry-rebuild tax the bench measures.
 	it('each level carries bytes: spine raws non-increasing, outermost ≈ whole doc', () => {
 		const doc = parse(generateDeepNested(8, 10_000, 7));
 		const raws = spineContainerRaws(doc.children[0]);

@@ -1,43 +1,9 @@
 /**
- * preview-inline's construct-reveal trigger: within the focused block, an inline
- * construct's markers stay CSS-hidden until the caret enters the construct's
- * inclusive `[start, end]` range; entering reveals the FULL chain of enclosing
- * constructs (`**bold *italic***` with the caret in the italic shows both
- * wrappers' markers — the Obsidian model, and what editing a nested construct
- * needs); leaving folds it back. Everything is a class flip on the marker spans
- * the render stamped with `data-construct-*` — the DOM text never changes, so
- * raw offsets survive every flip and a revealed construct is ordinary source
- * text (typing in it is byte-honest with no commit ceremony).
- *
- * Edges are INCLUSIVE on both sides so the reveal always precedes the step that
- * would land in marker text: the caret at a construct's start/end offset has
- * already revealed it, and the next arrow step enters visible text. At a shared
- * boundary between adjacent constructs both reveal — and nothing more is needed:
- * the caret is a raw offset, the revealed bytes are visible, and typing lands at
- * that offset. No stored-marks affinity picks a boundary "winner" (the classic
- * ambiguity — invisible markup boundaries, empty constructs — doesn't arise:
- * revealed source is visible, and GFM has no empty wrapped construct). The affinity
- * contract is exactly "raw offset + inclusive reveal edges"; see the affinity spec.
- *
- * Runs on selection cadence (the component's selectionchange handler, composition-
- * gated) plus a forced re-apply from the render effect — a rebuild mints fresh
- * unrevealed spans, and waiting for the async selectionchange would paint one
- * folded frame per keystroke while typing inside a revealed construct. A third,
- * synchronous entry backstops both: Chromium prioritizes input events over normal
- * tasks, so rapid arrow presses outrun the selectionchange reveal and compute
- * their caret motion against still-folded markers — skipping the hidden bytes.
- * `prepareStep` runs in keydown, revealing the chain for the position the step
- * lands on BEFORE the browser's default acts; it only ever reveals (folds stay on
- * the selection cadence with its recheck discipline). The inline tree arrives
- * through the non-reactive accessor, so no cadence registers reactive
- * dependencies.
- *
- * A would-fold to no chain must SURVIVE A TICK (widget-interaction's escape
- * re-check): cross-block entry clears the native selection before the cross-block
- * flag flips, manufacturing a transient fold-shaped state a slow machine delivers
- * early. Chain-to-chain changes apply immediately — no transient manufactures
- * those. While a cross-block selection is active the state freezes wholesale,
- * so a sweep anchored in revealed marker text keeps its layout.
+ * preview-inline's construct-reveal trigger: an inline construct's markers stay
+ * CSS-hidden until the caret enters its INCLUSIVE `[start, end]`, revealing the whole
+ * chain of enclosing constructs. Reveal is a class flip on `data-construct-*` spans —
+ * the DOM text never changes, so raw offsets survive it, and the affinity contract is
+ * "raw offset + inclusive edges" (spec: the preview-inline-affinity e2e requirement).
  */
 
 import { tick } from 'svelte';
@@ -56,11 +22,8 @@ import {
 
 export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
 
-/** The built-in marker-bearing inline kinds the reveal covers. Images ride along
- *  for their alt-only rendering; widget-rendered images have no marker spans, so
- *  their membership is inert there. Plugin inline kinds either render as widgets
- *  (their own reveal policies) or as raw source with no marker spans — neither
- *  has anything for this trigger to flip. */
+/** The marker-bearing inline kinds the reveal covers. Images ride along for their
+ *  alt-only rendering; widget-rendered images have no marker spans to flip. */
 const REVEALABLE_KINDS: ReadonlySet<InlineNode['kind']> = new Set([
 	'emphasis',
 	'strong',
@@ -73,9 +36,8 @@ const REVEALABLE_KINDS: ReadonlySet<InlineNode['kind']> = new Set([
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 
 /**
- * Every revealable construct whose inclusive `[start, end]` contains `offset`,
- * outermost first. Inclusive on both edges (see module header); at a boundary
- * shared by adjacent siblings both are collected.
+ * Every revealable construct whose inclusive `[start, end]` contains `offset`, outermost
+ * first; at a boundary shared by adjacent siblings both are collected.
  */
 export function constructChainAtOffset(nodes: InlineNode[], offset: number): InlineNode[] {
 	const chain: InlineNode[] = [];
@@ -105,31 +67,28 @@ export interface ConstructRevealDeps {
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
 	getPresentationMode: () => PresentationMode;
-	/** Cross-block selections freeze the reveal state (see module header). */
+	/** Cross-block selections freeze the reveal state, so a sweep anchored in revealed
+	 *  marker text keeps its layout. */
 	isCrossBlock: () => boolean;
 }
 
 export interface ConstructReveal {
-	/** Re-evaluate the caret chain and flip marker classes to match. `force` after
-	 *  a rebuild: fresh spans carry no reveal class even when the chain key is
-	 *  unchanged, and the fold-recheck tick must not delay the re-apply. */
+	/** Re-evaluate the caret chain and flip marker classes to match. `force` after a
+	 *  rebuild: fresh spans carry no reveal class even on an unchanged chain key. */
 	update(force?: boolean): void;
-	/** Synchronous keydown backstop: reveal the union of the chains at the caret
-	 *  and one raw offset away in `delta`'s direction (0 = the caret alone, for
-	 *  destructive keys) before the browser's default runs. Reveal-only — never
-	 *  folds, never consumes the event. */
+	/** Synchronous keydown backstop, reveal-only: Chromium prioritizes input events over
+	 *  normal tasks, so rapid arrows outrun the selectionchange reveal and would step
+	 *  against still-folded markers. Reveals the caret's chain plus `delta`'s (0 = neither). */
 	prepareStep(delta: -1 | 0 | 1): void;
-	/** Keydown wiring for `prepareStep`: plain arrows step ±1, plain Backspace/
-	 *  Delete re-assert the caret chain. Owns the key vocabulary so the component
-	 *  stays free of destructive-key literals (G4.12 scans those as interceptor
-	 *  shape; this module holds no preventDefault and consumes nothing). */
+	/** Keydown wiring for `prepareStep`. Owns the key vocabulary so the component stays
+	 *  free of destructive-key literals, which G4.12 scans for as interceptor shape;
+	 *  this module holds no preventDefault and consumes nothing. */
 	prepareForKeydown(e: KeyboardEvent): void;
 }
 
 export function createConstructReveal(deps: ConstructRevealDeps): ConstructReveal {
-	// Primitive descriptors + live span refs of the applied chain. Span refs go
-	// stale on rebuild (replaced DOM); removing a class from a detached span is a
-	// harmless no-op, and `force` re-resolves against the fresh DOM.
+	// Span refs go stale on rebuild: removing a class from a detached span is a harmless
+	// no-op, and `force` re-resolves against the fresh DOM.
 	let appliedChain: ChainEntry[] = [];
 	let appliedSpans: Element[] = [];
 	let appliedKey = '';
@@ -157,8 +116,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 
 	const toEntry = (n: InlineNode): ChainEntry => ({ kind: n.kind, start: n.start, end: n.end });
 
-	/** The chain the current selection asks for — [] when the mode is off, the
-	 *  caret is elsewhere, or no construct contains it. */
+	/** The chain the current selection asks for; [] when nothing contains the caret. */
 	function evaluateChain(): ChainEntry[] {
 		const offset = caretOffset();
 		if (offset === null) return [];
@@ -197,6 +155,8 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 		appliedKey = key;
 	}
 
+	// A fold to no chain must survive a tick: cross-block entry clears the native selection
+	// before the cross-block flag flips, manufacturing a transient fold-shaped state.
 	function queueFoldRecheck(): void {
 		if (foldRecheckQueued) return;
 		foldRecheckQueued = true;
@@ -239,8 +199,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 				if (!chain.some((c) => c.start === n.start && c.end === n.end)) chain.push(toEntry(n));
 			}
 		}
-		// Reveal-only: an empty union means the step needs nothing shown, and any
-		// fold it implies belongs to the selection cadence.
+		// Reveal-only: any fold an empty union implies belongs to the selection cadence.
 		if (chain.length === 0) return;
 		const key = chainKey(chain);
 		if (key === appliedKey) return;

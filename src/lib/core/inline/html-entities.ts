@@ -1,11 +1,8 @@
 /**
- * HTML5 named-entity table per CommonMark §2.5.
- *
- * Vendored from https://html.spec.whatwg.org/entities.json. To regenerate: fetch that JSON,
- * keep only entries whose key ends with `;` (CommonMark requires the trailing semicolon),
- * then for each surviving entry strip the leading `&` and trailing `;` from the key and map
- * it to the entry's `characters` field (preserving the full string — some values are
- * multi-codepoint, e.g. base + combining mark).
+ * HTML5 named-entity table per CommonMark §2.5, vendored from
+ * https://html.spec.whatwg.org/entities.json. To regenerate: keep only entries whose key ends
+ * with `;` (CommonMark requires it), then map key-without-`&`/`;` to the whole `characters`
+ * field, which is multi-codepoint for some entries.
  */
 
 export const HTML5_NAMED_ENTITIES: Readonly<Record<string, string>> = Object.freeze({

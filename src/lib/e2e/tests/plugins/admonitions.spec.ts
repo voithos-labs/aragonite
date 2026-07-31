@@ -3,13 +3,11 @@ import { primaryModifier } from '../../platform';
 import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers';
 
 /**
- * Admonitions dogfood battery. Five directive names resolve to one `admonition`
- * kind that reads its variant from metadata; child 0 is the editable title chrome
- * leaf, and the opener line (kind + title) is rebuilt from children + metadata.
- * The composed harness gives `note`/`warning` to the callout dogfood, so every
- * scenario drives an admonition-owned kind (`tip`/`important`/`caution`). Gates
- * read the CST/source by path via `window.__test`; input is real keyboard/mouse.
- * The uninstalled-fallback path is unit-covered (admonitions-fallback.test.ts).
+ * Admonitions dogfood battery. Five directive names resolve to one `admonition` kind that reads its
+ * variant from metadata; child 0 is the editable title chrome leaf, and the opener line is rebuilt
+ * from children + metadata. The composed harness gives `note`/`warning` to the callout dogfood, so
+ * every scenario drives an admonition-owned kind. The uninstalled-fallback path is unit-covered
+ * (admonitions-fallback.test.ts).
  */
 
 test.describe('plugin admonitions', () => {
@@ -101,10 +99,8 @@ test.describe('plugin admonitions', () => {
 
 		await convert.click();
 
-		// The native `> [!CAUTION]` alert became a real caution admonition (re-parsed).
 		await editor.bridge.waitForSourceContains(':::caution\nStill a blockquote alert.\n:::');
 		expect((await readDoc(page)).kinds[5]).toBe('admonition');
-		// The alert crossed over: four directive admonitions now, no native alert left.
 		await expect(page.locator(".admonition[data-alert-source='directive']")).toHaveCount(4);
 		await expect(page.locator(".admonition[data-alert-source='github']")).toHaveCount(0);
 

@@ -72,10 +72,8 @@ describe('widgetAtCursor', () => {
 	});
 });
 
-// Two adjacent widgets share a boundary (A.end === B.start). A forward key must
-// enter B (its leading edge); a backward key must enter A (its trailing edge). The
-// old document-order pick always returned A, so a forward Delete fell through to
-// native contenteditable and wiped B's whole island in one press.
+// Two adjacent widgets share a boundary, so a forward key must enter B and a backward key A. The
+// old document-order pick always returned A, and a forward Delete wiped B's island in one press.
 describe('widgetAtCursor at a shared widget boundary', () => {
 	const TWO_IMAGES = '![a](x.png)![b](y.png)\n';
 	const adjacentInlines: InlineNode[] = [image(0, 11), image(11, 22)];
@@ -127,10 +125,8 @@ describe('findWidgetNodeByStart', () => {
 	});
 });
 
-// `[![cat][shot]][repo]` parses to a link node whose child is the image. The
-// finders must reach into the link's children — pre-fix they walked top-level
-// inlines only, so a click-selected image-in-link never resolved and could not
-// be resized.
+// `[![cat][shot]][repo]` parses to a link whose child is the image, so the finders must reach
+// into the link's children — pre-fix a click-selected image-in-link never resolved.
 describe('widget nested inside a link node', () => {
 	const NESTED_RAW = '[![cat][shot]][repo]';
 	const nestedImage: InlineNode = {

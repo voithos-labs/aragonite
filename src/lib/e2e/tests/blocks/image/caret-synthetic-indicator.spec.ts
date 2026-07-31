@@ -12,11 +12,9 @@ const caretColorOfFocusedBlock = (page: Page): Promise<string> =>
 		return getComputedStyle(block).caretColor;
 	});
 
-// Synthetic indicator is a fallback for "native caret can't render" — it
-// appears only when the cursor is at a widget boundary AT ELEMENT-LEVEL
-// (no text-node anchor) or when Chromium dropped the caret entirely. In
-// any state where native caret renders (cursor in a text node), the
-// synthetic stays absent so the two indicators don't compete.
+// The synthetic indicator is the fallback for "native caret can't render": it appears only at a
+// widget boundary AT ELEMENT-LEVEL (no text-node anchor) or when Chromium dropped the caret. Where
+// the native caret renders it stays absent, so the two never compete.
 test.describe('synthetic caret indicator at widget boundary', () => {
 	let editor: EditorPage;
 
@@ -55,11 +53,9 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await clickPastImageRightEdge(page);
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 
-		// The other half of "the two indicators don't compete". Where the caret sits in
-		// a text node the editor can see the native caret and withholds the synthetic;
-		// at an element-level offset it cannot, and Chromium paints there often enough
-		// to double up. Suppressing the native one is the only mutual exclusion left —
-		// there is no way to ask the browser whether it painted.
+		// The other half of "the two indicators don't compete": at an element-level offset the
+		// editor can't see whether Chromium painted a native caret, so suppressing it is the only
+		// mutual exclusion left.
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
 	});
 
@@ -156,9 +152,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		const widgetBox = await widget.boundingBox();
 		if (!widgetBox) throw new Error();
 		await page.mouse.click(widgetBox.x + widgetBox.width + 1, widgetBox.y + widgetBox.height / 2);
-		// Either snap class or live caret in trailing text — both are valid
-		// post-click states. Move caret with arrow key and assert no
-		// snap-class persists afterwards.
+		// Either snap class or a live caret in trailing text is a valid post-click state.
 		await page.keyboard.press('ArrowRight');
 		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(0);
 		await expect(page.locator('[data-inline-widget].md-snap-before')).toHaveCount(0);

@@ -1,16 +1,9 @@
 // @vitest-environment jsdom
 //
-// The two arms that run while cross-block mode is NOT yet active, plus the
-// compositionstart half the same factory returns.
-//
-// Ctrl+A is a two-press ladder: the first press selects the focused block's content
-// (natively, so the caret stays inside one block), the second escalates to the whole
-// document. The count lives on SelectionState and the escalation is keyed off it, so
-// a press that forgot to increment would leave Ctrl+A stuck at one block.
-//
-// compositionstart is the IME's first signal and there is no beforeinput to gate on:
-// an active range has to be deleted SYNCHRONOUSLY or the composed text lands on top
-// of a stale selection.
+// The two arms that run while cross-block mode is NOT yet active, plus the compositionstart half
+// the same factory returns. Ctrl+A is a two-press ladder keyed off a count on SelectionState, so a
+// press that forgot to increment leaves it stuck at one block. compositionstart has no beforeinput
+// to gate on: an active range must be deleted SYNCHRONOUSLY or composed text lands on a stale one.
 import { describe, it, expect } from 'vitest';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -88,9 +81,8 @@ describe('cross-block keydown — compositionstart', () => {
 		expect(env.selection.isCrossBlock).toBe(true);
 	});
 
-	// The sticky column is reset unconditionally, before the range check: a
-	// composition is a horizontal edit, so a column captured by an earlier vertical
-	// arrow must not survive it.
+	// The sticky column resets unconditionally, before the range check: a composition is a horizontal
+	// edit, so a column captured by an earlier vertical arrow must not survive it.
 	it('resets the sticky column even when it declines', () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.stickyColumn.capture(asEditorX(600));

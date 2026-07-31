@@ -1,7 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// `webServer` is config-level, not per-project. The preview server carries the
-// built-mode smokes exactly as before; the dev server exists only for the
+// `webServer` is config-level, not per-project: the dev server exists only for the
 // dev-guard project, which needs `vite dev` for `import.meta.env.DEV` to be true.
 export default defineConfig({
 	testDir: './tests',

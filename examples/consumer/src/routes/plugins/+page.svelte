@@ -10,29 +10,20 @@
 	import { emojiPlugin } from 'aragonite/plugins/emoji';
 	import { footnotesPlugin } from 'aragonite/plugins/footnotes';
 
-	// Module scope so the factories run once per process, not once per (SSR) render —
-	// a re-render minting fresh same-name plugins would trip installPlugins' first-wins
-	// dev-warn. The prop installs before the Editor parses `source`, so the seed
-	// resolves to plugin kinds; callout/admonitions turn the `:::name` grammar on, so
-	// `:::mystery` still renders as the generic directive fallback. latex wires the
-	// katex adapter (a consumer devDependency); mermaid installs WITHOUT a renderer —
-	// the consumer has no mermaid engine, so its block renders its code statically,
-	// exercising the packaged plugin's no-engine fallback from outside the repo. toc
-	// turns on the `[[toc]]` leaf (its render lists the seed's headings);
-	// highlightOccurrencesPlugin marks every occurrence of the word under the caret.
-	//
-	// emoji and footnotes share their trigger byte with constructs already in the seed
-	// (`:` with `:::name`, `[` with `[[toc]]`), so installing them here is also the
-	// outside-the-repo check that the recognizer rungs coexist rather than contest a
-	// claim — a mis-ordered priority would eat `:::mystery` or the toc leaf.
+	// Module scope so the factories run once per process, not once per (SSR) render: a
+	// re-render minting fresh same-name plugins trips installPlugins' first-wins dev-warn.
 	const plugins = [
 		calloutPlugin(),
 		detailsPlugin(),
 		admonitionsPlugin(),
 		latexPlugin({ renderer: katexRenderer }),
+		// No renderer: the consumer wires no mermaid engine, so this exercises the packaged
+		// plugin's no-engine fallback from outside the repo.
 		mermaidPlugin(),
 		tocPlugin(),
 		highlightOccurrencesPlugin(),
+		// Trigger bytes shared with the seed's `:::name` and `[[toc]]`: installed here to prove
+		// the recognizer rungs coexist rather than contest a claim.
 		emojiPlugin(),
 		footnotesPlugin()
 	];
@@ -85,7 +76,7 @@
 
 	let editor = $state<EditorInstance>();
 
-	// Round-trip probe for the boundary smoke specs; runs client-side only.
+	// Round-trip probe for the boundary smoke specs.
 	$effect(() => {
 		if (!editor) return;
 		(window as { __consumer?: { getSource: () => string } }).__consumer = {

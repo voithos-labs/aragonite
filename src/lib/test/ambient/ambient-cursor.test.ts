@@ -79,9 +79,8 @@ describe('getRawSelection', () => {
 	});
 
 	it('clamps a marker-interior endpoint to raw 0 rather than dropping the selection', () => {
-		// The snap target is a single caret intent and cannot stand in for one end
-		// of a pair; the clamp already maps marker interior to raw 0, which is the
-		// correct selection boundary for a drag that began inside the marker.
+		// A snap target is one caret intent and cannot stand in for one end of a pair; marker
+		// interior clamps to raw 0, the correct boundary for a drag that began inside the marker.
 		el.focus();
 		select(marker.firstChild!, 1, text, 2);
 		expect(cursorIO(4).getRawSelection()).toEqual({ start: 0, end: 2 });

@@ -1,10 +1,9 @@
 import { type Page } from '@playwright/test';
 
-// Suite-specific probes for the Fork-A `:::note` reserved-chrome e2e suites
-// (selection parity, reserved-index structural ops, the rangeDelete wall, and the
-// wall × table branch). The shared page/read/error probes come from ./helpers;
-// this module adds the state-consistency audit and the titled-callout fixture.
-// Every gate reads the CST/selection by path via `window.__test`, never visuals.
+// Suite-specific probes for the `:::note` reserved-chrome e2e suites (selection parity,
+// reserved-index structural ops, the rangeDelete wall, and the wall × table branch). The shared
+// page/read/error probes come from ./helpers; this module adds the state-consistency audit and the
+// titled-callout fixture.
 
 export { PluginsPage, activeBlockPath, capturedErrors, readContainer as readNote } from './helpers';
 

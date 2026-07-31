@@ -2,11 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 /**
- * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources
- * register through the public registry via the e2e bridge — no plugin needed —
- * and `DecorationOverlay` paints a positioned div per mark, carrying the
- * source's class. The find bar now rides this same overlay (source
- * `editor:search`).
+ * Decoration mark overlay (requirements/decorations/mark-overlay.md). Sources register
+ * through the public registry via the e2e bridge, needing no plugin, and the find bar rides
+ * this same overlay under source `editor:search`.
  */
 
 test.describe('decoration mark overlay', () => {
@@ -128,10 +126,8 @@ test.describe('decoration mark overlay', () => {
 		});
 		await expect(page.locator('.decoration-overlay.e2e-kind')).toHaveCount(1);
 
-		// `# ` at the start turns the paragraph into a heading; the overlay re-measures
-		// and still paints. (Its range now crosses the dimmed `# ` marker, so it can
-		// split into per-fragment rects — the survival, not the fragment count, is
-		// what "repaints correctly" means here.)
+		// The re-measured range now crosses the dimmed marker and may split into per-fragment
+		// rects, so SURVIVAL, not fragment count, is what "repaints correctly" means here.
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('# ');
 		await page.waitForFunction(() => (window as any).__test.getBlockKind(0) === 'heading', null, {

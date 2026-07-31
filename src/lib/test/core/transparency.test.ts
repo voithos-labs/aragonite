@@ -22,9 +22,8 @@ describe('isVerticallyTransparentNode', () => {
 		expect(isVerticallyTransparentNode(block('hello\n'))).toBe(false);
 	});
 
-	// Entity glyphs are step-over widgets — character-like, so they carry a column.
-	// An entity-only paragraph must NOT be skipped by vertical navigation (a
-	// select-model image-only paragraph still is), or `©®` becomes caret-unreachable.
+	// Entity glyphs are step-over widgets that carry a column, so skipping an entity-only
+	// paragraph in vertical navigation would make `©®` caret-unreachable.
 	it('is false for an entity-glyph-only paragraph', () => {
 		expect(isVerticallyTransparentNode(block('&copy;&reg;\n'))).toBe(false);
 	});
@@ -33,9 +32,8 @@ describe('isVerticallyTransparentNode', () => {
 		expect(isVerticallyTransparentNode(block('text ![pic](/x.png)\n'))).toBe(false);
 	});
 
-	// Thematic break has no inline content and isn't transparent today, on- or
-	// off-window — VR-6 fixes the windowed/non-windowed divergence for image-only
-	// blocks; it deliberately does not change thematic-break behavior.
+	// VR-6 fixes the windowed/non-windowed divergence for image-only blocks and
+	// deliberately leaves thematic-break behavior alone.
 	it('is false for a thematic break', () => {
 		expect(isVerticallyTransparentNode(block('---\n'))).toBe(false);
 	});
@@ -51,11 +49,8 @@ describe('isVerticallyTransparentNode', () => {
 		expect(isVerticallyTransparentNode(list)).toBe(false);
 	});
 
-	// A table cell is a grid-column landing, never transparent — even with
-	// image-only content. The predicate must not recurse a table into transparency
-	// the way it does a list (the old per-component gate had no table method).
-	// Every cell image-only so the children-recursion would reach `true` without
-	// the table-family guard — pins the recursion path, not just the leaf branch.
+	// A table cell is a grid-column landing, never transparent, so the predicate must not
+	// recurse a table the way it does a list. Every cell is image-only to drive that path.
 	it('is false for a table whose cells are all image-only', () => {
 		const table = block(
 			'| ![a](/a.png) | ![b](/b.png) |\n| --- | --- |\n| ![c](/c.png) | ![d](/d.png) |\n'
@@ -86,9 +81,8 @@ describe('isVerticallyTransparentNode', () => {
 		).toBe(false);
 	});
 
-	// The predicate computes inline content from raw, so an image-only paragraph
-	// is transparent even unmounted/off-window. Guards the coupling that keeps
-	// transparency answerable without a mounted render.
+	// Guards the coupling that keeps transparency answerable without a mounted render, so
+	// an off-window image-only paragraph answers the same as an on-window one.
 	it('resolves transparency from a raw-only node', () => {
 		expect(
 			isVerticallyTransparentNode({ kind: 'paragraph', leadingTrivia: '', raw: '![pic](/x.png)\n' })

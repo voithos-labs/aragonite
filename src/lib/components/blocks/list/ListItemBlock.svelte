@@ -29,10 +29,7 @@
 		setNestedActionsContexts,
 		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
-	import {
-		createContainerBlockComponent,
-		type ContainerBlockComponent
-	} from '../../../editor-actions/container-block-component';
+	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
@@ -72,10 +69,8 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	// Reading and preview CSS tell bullet/ordered/task markers apart (bullets
-	// become rendered chrome, numbers stay visible) and the ambient span carries no
-	// such class. Present in every marker-hiding mode; absent in source, so the
-	// source-mode DOM stays byte-identical.
+	// Reading and preview CSS tell bullet/ordered/task markers apart and the ambient
+	// span carries no such class. Absent in source, so that DOM stays byte-identical.
 	const presentationMarkerKind = $derived.by(() => {
 		if (presentationMode !== 'reading' && !isPreviewMode(presentationMode)) return undefined;
 		const meta = metadataOf(node, 'listItem');
@@ -99,9 +94,8 @@
 	useMountGauge();
 
 	function toggleTask(): void {
-		// Reading mode keeps checkboxes visible but inert (CSS also drops their
-		// pointer affordance); live task toggling is a deferred product question —
-		// see docs/issues.md.
+		// Reading mode keeps checkboxes visible but inert: a toggle rewrites the
+		// document, and reading mode writes no bytes.
 		if (readOnly) return;
 		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return;
@@ -153,9 +147,8 @@
 				splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
 					if (!node.children) return;
 
-					// Enter-empty: first child is an empty paragraph. Deliberately shallower than
-					// isItemUserEmpty — trailing structural children stay
-					// until exitListAtItem relocates them.
+					// Enter-empty. Deliberately shallower than isItemUserEmpty — trailing
+					// structural children stay until exitListAtItem relocates them.
 					const firstChild = node.children[0];
 					const isEmptyItem = firstChild?.kind === 'paragraph' && firstChild.raw.trim() === '';
 					if (isEmptyItem) {
@@ -198,7 +191,8 @@
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
-	const containerApi = createContainerBlockComponent({
+	export const containerApi = createContainerBlockComponent({
+		selection,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
@@ -211,33 +205,6 @@
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow
 	});
-	export const editable = containerApi.editable;
-	export const focusable = containerApi.focusable;
-	export const focus = containerApi.focus;
-	export const getCursorOffset = containerApi.getCursorOffset;
-	export const getCursorPosition = containerApi.getCursorPosition;
-	export const focusByPath = containerApi.focusByPath;
-	export const focusAtColumn = containerApi.focusAtColumn;
-	export const isVerticallyTransparent = containerApi.isVerticallyTransparent;
-	export const enterEdgeWidget = containerApi.enterEdgeWidget;
-	export const getBlockComponentByPath = containerApi.getBlockComponentByPath;
-	export const revealByPath = containerApi.revealByPath;
-	// Completeness guard: `bind:this` reads each instance export individually, so a
-	// new ContainerBlockComponent member left un-forwarded above fails `npm run check`
-	// here rather than surfacing as a runtime hole (MermaidBlock's pattern).
-	void ({
-		editable,
-		focusable,
-		focus,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		focusAtColumn,
-		isVerticallyTransparent,
-		enterEdgeWidget,
-		getBlockComponentByPath,
-		revealByPath
-	} satisfies ContainerBlockComponent);
 
 	$effect(() => {
 		if (!setRef || !getRef) return;
@@ -261,11 +228,9 @@
 		}
 	}
 
-	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab
-	// declines (without preventDefault) when a listContext is present. Dispatch is
-	// kind-only (dispatchKindCommand): the focused contenteditable's async handler
-	// preventDefaults only after an await, so the event still bubbles here with
-	// defaultPrevented false — a global tier would re-fire its undo/redo.
+	// Tab/Shift+Tab bubble here from the inner paragraph, whose block.insertTab declines
+	// without preventDefault. Dispatch is kind-only: the contenteditable's async handler
+	// preventDefaults only after an await, so a global tier here would re-fire undo/redo.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
 		// Both bubbled commands (list.indent/unindent) are edits; this caller has
@@ -312,9 +277,8 @@
 		align-items: flex-start;
 	}
 
-	/* Hover reveal is the shared global `.reorder-host` rule in BlockHost (the
-	   `reorder-host` class above opts this item in); it reveals only the
-	   innermost hovered unit, so a sub-item's hover never lights the parent. */
+	/* Hover reveal is the shared global `.reorder-host` rule in BlockHost; it reveals
+	   only the innermost hovered unit, so a sub-item's hover never lights the parent. */
 
 	.list-item-content {
 		flex: 1;
@@ -335,9 +299,8 @@
 		background-color: var(--md-marker-hover-bg, rgba(128, 128, 128, 0.15));
 	}
 
-	/* :first-child scopes strikethrough to this item's own leading block;
-	   :not(.list-block) avoids cascading into nested sub-lists, which carry
-	   their own data-task-checked state per item. */
+	/* :first-child scopes strikethrough to this item's own leading block; :not(.list-block)
+	   avoids cascading into nested sub-lists, which carry their own state per item. */
 	.list-item-block[data-task-checked='true']
 		> .list-item-content
 		> :global(.block-list)

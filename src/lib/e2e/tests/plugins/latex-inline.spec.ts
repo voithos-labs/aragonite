@@ -4,12 +4,11 @@ import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
- * Inline `$…$` math: select → reveal editable source → commit re-renders (design
- * §"Inline edit UX", flagship axis A1). The reveal swap and the commit re-render are
- * driven through real mouse/keyboard only — no programmatic selection — because the
- * reactive-re-render survival of the caret is exactly what the unit layer could not
- * prove (Task 10 deferred it here). The math widget is `.math-inline-widget`; KaTeX
- * output is `.katex`; the revealed source is plain `$…$` text in the block.
+ * Inline `$…$` math: select → reveal editable source → commit re-renders (design §"Inline edit UX",
+ * flagship axis A1). The reveal swap and the commit re-render are driven through real
+ * mouse/keyboard only — no programmatic selection — because the reactive-re-render survival of the
+ * caret is exactly what the unit layer could not prove. The math widget is `.math-inline-widget`;
+ * KaTeX output is `.katex`; the revealed source is plain `$…$` text in the block.
  */
 
 class MathPage extends PluginsPage {
@@ -22,14 +21,14 @@ class MathPage extends PluginsPage {
 		return this.page.locator('.math-inline-widget');
 	}
 
-	/** Click the rendered widget to reveal its source, settling on the swap. */
 	async revealByClick(): Promise<void> {
 		await revealWidget(this.mathWidget);
 	}
 
-	/** Vertical center of `needle`, in block [0]. A range over the substring alone
-	 *  (not the whole text node, which may span the soft-wrapped break) isolates the
-	 *  line the needle sits on. */
+	/**
+	 * Vertical center of `needle`, in block [0]. A range over the substring alone (not the whole
+	 * text node, which may span the soft-wrapped break) isolates the line the needle sits on.
+	 */
 	async lineYContaining(needle: string): Promise<number> {
 		const y = await this.page.evaluate((text) => {
 			const wrapper = document.querySelector("[data-block-path='[0]']");
@@ -65,10 +64,10 @@ class MathPage extends PluginsPage {
 	}
 }
 
-// IME has no native Playwright driver (docs/issues.md § Test coverage), so a composition is
-// simulated by firing the real compositionstart/input/compositionend the editor
-// listens to and inserting the composed text at the caret as the browser would —
-// the one gesture no automation API provides. Everything else here is real input.
+// Playwright exposes no IME API, so a composition is simulated by firing the real
+// compositionstart/input/compositionend the editor listens to and inserting the composed text at
+// the caret as the browser would. Everything else here is real input. The CDP driver
+// `ime-composition.spec.ts` uses would be the honest route (issue #46).
 async function composeIntoCaret(page: Page, text: string): Promise<void> {
 	await page.evaluate((composed) => {
 		const el = document.activeElement as HTMLElement | null;
@@ -145,9 +144,9 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	}) => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('Home');
-		// "Before " is 7 chars: 7 steps reach the widget's leading edge; the 8th
-		// ENTERS it. Under the Obsidian model an entry reveals the source in place —
-		// it no longer parks in an invisible widget-selected state awaiting Enter.
+		// "Before " is 7 chars: 7 steps reach the widget's leading edge; the 8th ENTERS it. Under
+		// the Obsidian model an entry reveals the source in place, rather than parking in an
+		// invisible widget-selected state awaiting Enter.
 		for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 
@@ -193,9 +192,9 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 
 		await page.keyboard.press('End');
 		await expect(editor.mathWidget).toHaveCount(1);
-		// Commit landed the caret at the math's trailing edge: the next char lands
-		// immediately after the re-rendered widget — the escape's own End position
-		// does not survive the fold, the widget's trailing edge does.
+		// Commit landed the caret at the math's trailing edge: the next char lands immediately
+		// after the re-rendered widget — the escape's own End position does not survive the fold,
+		// the widget's trailing edge does.
 		await page.keyboard.type('!');
 		await editor.bridge.waitForSourceContains('$x^2$!');
 		expect(await editor.bridge.getSource()).toContain('Before z$x^2$! after');
@@ -261,18 +260,16 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		const pageErrors = capturePageErrors(page);
 
 		await editor.revealByClick();
-		// The keyboard-extend decision is visual-line GEOMETRY; a KaTeX font swap
-		// mid-measure (reachable under saturated parallel workers) breaks the
-		// last-line detection, so settle fonts before the gesture.
+		// The keyboard-extend decision is visual-line GEOMETRY; a KaTeX font swap mid-measure
+		// (reachable under saturated parallel workers) breaks the last-line detection, so settle
+		// fonts before the gesture.
 		await page.evaluate(() => document.fonts.ready);
-		// Extend down into the next paragraph straight from the reveal caret. The
-		// reveal caret lands at the source's leading edge (a mid-block offset), and
-		// the block is one visual line, so the FIRST Shift+ArrowDown extends to the
-		// line end within the block — a shift-extension, which keeps the source
-		// revealed (unlike a collapsed End press, which would escape the island and
-		// fold it). The SECOND crosses the boundary now that the focus sits at the
-		// block end. The anchor stays INSIDE the revealed source throughout (a
-		// forward selection anchors at its origin), so the focus alone crosses.
+		// Extend down into the next paragraph straight from the reveal caret. The reveal caret
+		// lands at the source's leading edge (a mid-block offset) and the block is one visual line,
+		// so the FIRST Shift+ArrowDown extends to the line end within the block — a
+		// shift-extension, which keeps the source revealed (unlike a collapsed End press, which
+		// would escape the island and fold it). The SECOND crosses the boundary, with the anchor
+		// staying INSIDE the revealed source throughout.
 		await page.keyboard.press('Shift+ArrowDown');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
@@ -284,10 +281,10 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(paths).not.toBeNull();
 		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
 
-		// Blur while the cross-block selection is live. No mouse/keyboard gesture moves
-		// focus off the block without collapsing the selection, so the blur is fired
-		// directly (mirrors this file's IME carve-out). The commit must bail on
-		// cross-block, not fold the source out from under the anchored endpoint.
+		// Blur while the cross-block selection is live. No mouse/keyboard gesture moves focus off
+		// the block without collapsing the selection, so the blur is fired directly (mirrors this
+		// file's IME carve-out). The commit must bail on cross-block, not fold the source out from
+		// under the anchored endpoint.
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await editor.waitForRenderFlush();
 

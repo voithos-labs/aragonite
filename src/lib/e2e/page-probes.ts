@@ -1,9 +1,7 @@
 import { type Page } from '@playwright/test';
 
-// Page-level probes shared across the e2e suites, living beside fixtures.ts so any
-// spec can reach them (not only the VR specs under perf/). Collecting a spec's
-// pageerror stream stays a per-spec assertion decision — this module hands over
-// the collector, never an auto-assertion in teardown.
+// Page-level probes shared across the e2e suites. Collecting a pageerror stream stays a
+// per-spec assertion decision: this module hands over the collector, never an auto-assertion.
 
 // Start collecting uncaught page errors and return the growing array. Pair with an
 // explicit `expect(pageErrors).toEqual([])` where the spec asserts error-freedom.

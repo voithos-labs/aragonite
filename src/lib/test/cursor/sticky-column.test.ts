@@ -11,12 +11,6 @@ describe('createStickyColumnState', () => {
 		expect(b.get()).toBe(null);
 	});
 
-	it('capture sets value when null', () => {
-		const s = createStickyColumnState();
-		s.capture(asEditorX(150));
-		expect(s.get()).toBe(150);
-	});
-
 	it('capture is idempotent when non-null', () => {
 		const s = createStickyColumnState();
 		s.capture(asEditorX(150));
@@ -63,9 +57,8 @@ describe('createStickyColumnState', () => {
 	});
 });
 
-// The door every keydown handler goes through. `reset()` stays public for the
-// lifecycle/commit/paste callers, whose unconditional clear has no key to
-// classify.
+// The door every keydown handler goes through. `reset()` stays public for the lifecycle/commit/
+// paste callers, whose unconditional clear has no key to classify.
 describe('noteKey', () => {
 	const key = (k: string, altKey = false) => ({ key: k, altKey });
 	const measure = (x: number | null) => () => (x === null ? null : asEditorX(x));

@@ -5,10 +5,9 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 
-// The opener's close-scan must track fenced code in the body: a `</details>` line
-// inside a fence is content, not the container's closer, and a fenced `<details>`
-// must not inflate the nesting depth. Bytes round-trip either way — the surprise the
-// fence-blind scan produced was structural (early close / spurious decline).
+// The close-scan must track fenced code in the body: inside a fence, `</details>` is
+// content and `<details>` must not inflate the depth. Bytes round-trip either way, so
+// a fence-blind scan fails structurally (early close, spurious decline), not visibly.
 function resetAndRegister(): void {
 	__resetSchemaRegistriesForTests();
 	__resetPasteSurfacesForTests();

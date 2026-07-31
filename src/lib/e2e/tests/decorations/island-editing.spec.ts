@@ -4,11 +4,10 @@ import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 
 /**
- * Decoration island editing semantics (requirements/decorations/island-editing.md).
- * Islands render as atomic `[data-decoration-island]` widgets that carry (replace) or
- * stand in for zero (widget) raw bytes. Arrows step over them, destructive keys select-
- * then-delete a replace island whole, and a widget island is transparent to Backspace —
- * all without corrupting the hidden bytes or splitting the edit into two undo entries.
+ * Decoration island editing (requirements/decorations/island-editing.md). Islands are atomic
+ * widgets carrying (replace) or standing in for zero (widget) raw bytes: arrows step over
+ * them, destructive keys select-then-delete a replace island whole, and a widget island is
+ * transparent to Backspace — never corrupting the hidden bytes or splitting the undo entry.
  */
 
 const ISLAND = '[data-decoration-island]';

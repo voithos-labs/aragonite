@@ -20,22 +20,18 @@ describe('multiple-of-3 rule (CommonMark §6.2)', () => {
 	});
 
 	it('asymmetric run leaves the surplus inner delimiter literal', () => {
-		// `**foo*bar**baz*` — the inner `*` cannot pair across the `**` close
-		// under the multiple-of-3 rule, so it survives as text inside the strong.
+		// The multiple-of-3 rule stops the inner `*` pairing across the `**` close.
 		const source = '**foo*bar**baz*';
 		const nodes = scanInline(source, 0, source.length);
 		assertConstructCoverage(nodes);
 		const strong = nodes.find((n) => n.kind === 'strong');
 		expect(strong).toBeDefined();
 		expect(strong!.children?.some((c) => c.kind === 'text' && c.text === '*')).toBe(true);
-		// The trailing `*baz*` after the strong stays literal (no second emphasis).
 		expect(nodes.filter((n) => n.kind === 'emphasis')).toHaveLength(0);
 	});
 
-	// The rule applies to ORIGINAL delimiter-run lengths, not the still-unconsumed
-	// remainder after partial matches (commonmark.js `origdelims`). Shapes mined
-	// from a brute-force diff against commonmark.js 0.31.2, each with a distinct
-	// opener/closer decay pattern.
+	// The rule applies to ORIGINAL run lengths, not the unconsumed remainder after partial
+	// matches (commonmark.js `origdelims`); each shape has a distinct decay pattern.
 	const originalRunLengthCases = [
 		{ source: 'x**y*z****w', shape: 'x**y<em>z</em>***w' },
 		{ source: 'a***a****', shape: 'a<em><strong>a</strong></em>*' },
@@ -70,12 +66,8 @@ describeScanCases('partial consumption', [
 
 describe('openers_bottom (§6.2 phase 2 optimization)', () => {
 	it('pathological unmatched closers stay linear', () => {
-		// 150k `_` openers interleaved with 150k `*` closers that can never match:
-		// without the openers_bottom lower bound every closer re-walks the whole
-		// opener stack (quadratic, ~10^10 steps — tens of seconds); with it each
-		// failed search is amortized O(1). The generous bound fails the quadratic
-		// shape on any machine while leaving the linear one two-plus orders of
-		// magnitude of room.
+		// Openers interleaved with closers that can never match: without the openers_bottom
+		// lower bound every closer re-walks the whole opener stack.
 		const raw = '_a* '.repeat(150000);
 		const startedAt = performance.now();
 		const nodes = scanInline(raw, 0, raw.length);

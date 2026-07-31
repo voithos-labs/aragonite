@@ -18,23 +18,21 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		await editor.goto();
 	});
 
-	// Bug 1 regression: caret stuck inside image-only first list item.
+	// Regression: the caret got stuck inside an image-only first list item.
 	test('ArrowUp from a list item below an image-only list item skips out of the list', async ({
 		page
 	}) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await editor.focusBlockAtPath([1, 1, 0], 0);
 		await page.keyboard.press('ArrowUp');
-		// Type a marker; it must land in the "above list paragraph" line, not
-		// in the image's list-item content.
+		// The marker must land in the "above list paragraph" line, not in the image's list-item
+		// content.
 		await editor.typeText('X');
 		const src = await editor.bridge.getSource();
 		expect(src).toMatch(/X.*above list paragraph|above list paragraph.*X|abXove|abovXe/);
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
 	});
 
-	// Inverse regression: ArrowDown into a list whose first item is image-only
-	// must skip the transparent item and land on the next text-bearing item.
 	test('ArrowDown from above an image-only-first list-item lands in the second item', async ({
 		page
 	}) => {
@@ -47,8 +45,6 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
 	});
 
-	// Symmetric: ArrowUp into a list whose last item is image-only must skip
-	// the transparent item and land on the preceding text-bearing item.
 	test('ArrowUp from below an image-only-last list-item lands in the penultimate item', async ({
 		page
 	}) => {
@@ -61,8 +57,7 @@ test.describe('vertical arrow traversal around image widgets', () => {
 		expect(src).not.toMatch(/!\[pic.*X|X.*\(\/test-fixtures/);
 	});
 
-	// Bug B regression — Up: caret invisible while landing at the image-only
-	// paragraph. Vertical-skip resolves it to a one-press jump.
+	// Regression: the caret was invisible when landing at the image-only paragraph.
 	test('ArrowUp from below a standalone image skips the image paragraph in one press', async ({
 		page
 	}) => {

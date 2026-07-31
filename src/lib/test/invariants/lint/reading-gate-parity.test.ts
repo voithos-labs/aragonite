@@ -1,19 +1,9 @@
 /**
- * G4.19 reading-gate two-arm parity guard. Reading mode dead-keys the whole
- * command vocabulary at the dispatch seam (`dispatchKeyCommand`/`dispatchKindCommand`
- * check `isReadingMode`). Every construction site must reach that gate one of two
- * ways — a naive one-arm scan misfires because both are load-bearing:
- *
- *   arm 1 (threaded): the call passes `getPresentationMode`, so the seam gates.
- *   arm 2 (local gate): the enclosing handler carries its own reading/readOnly
- *          guard — the `getCommand`-direct sites (which bypass the seam) and the
- *          list-item container bubble (no command context to thread through).
- *
- * A future editable surface constructing a dispatcher without either arm would
- * silently skip the reading gate — the 0.9.26 batch shipped exactly that miss at
- * four sites before an e2e caught it. The dispatcher definitions and the seam's own
- * post-gate `getCommand` live in the two schema files that OWN the gate; they are
- * excluded — they ARE the gate.
+ * G4.19 — every dispatcher construction site reaches the reading gate, by threading
+ * `getPresentationMode` to the seam or by carrying a local reading/readOnly guard. A
+ * one-arm scan misfires because both are load-bearing; a site with neither silently skips
+ * the gate, which shipped at four sites before an e2e caught it. The two schema files
+ * that OWN the gate are excluded — they ARE the gate.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -35,9 +25,8 @@ const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/blocks/ThematicBreakBlock.svelte': /isReading\s*\(/
 };
 
-// Every file that constructs a dispatcher — set equality trips the day a new
-// editable surface is born (the dominant future-site risk: a new block kind is a
-// new component file).
+// Set equality trips the day a new editable surface is born — the dominant future-site
+// risk, since a new block kind is a new component file.
 const DISPATCH_SITE_FILES = [
 	'src/lib/components/blocks/editable-leaf.ts',
 	'src/lib/components/blocks/ThematicBreakBlock.svelte',

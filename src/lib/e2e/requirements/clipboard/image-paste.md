@@ -59,7 +59,7 @@ set-once at mount) and swaps its per-image response through `window.__test.image
 
 ## Error cases
 
-- Hook rejects: an `error` event fires with `origin: 'command'`, nothing is inserted
+- Hook rejects: an `error` event fires with `origin: 'clipboard'`, nothing is inserted
   for that image, and the editor stays editable (typing still commits).
 - Hook rejects on the first of two images: the error is emitted and the second
   image's markdown still lands — one failed import does not abort the paste.

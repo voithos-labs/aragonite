@@ -12,9 +12,8 @@ export interface CodeEnterInput {
 	display: string;
 	selection: { start: number; end: number };
 	mode: CodeEnterMode;
-	/** The block's own ending, from `trailingLineEnding(node.raw)`. Required rather
-	 *  than defaulted: a literal `\n` here leaves a lone LF inside a CRLF body, and
-	 *  the caller already reads this helper to reattach the trailing ending. */
+	/** The block's own ending. Required rather than defaulted: a literal `\n` here
+	 *  would leave a lone LF inside a CRLF body. */
 	ending: '\n' | '\r\n';
 }
 

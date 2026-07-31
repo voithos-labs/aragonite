@@ -8,10 +8,8 @@ import {
 	type DirectiveContainerMetadata
 } from '$lib/core/directive/kinds';
 
-// The byte round-trip holds without edits (an opaque container emits its `raw`
-// verbatim). A structural edit triggers a rebuild, which synthesizes the opener
-// and closer chrome lines — these must reproduce the authored line ending, not
-// normalize CRLF to `\n`. The body carries its own bytes and is not at issue.
+// Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
+// edit re-synthesizes the chrome lines, which must not normalize CRLF to `\n`.
 
 beforeAll(() => activateDirectiveGrammar());
 
@@ -24,7 +22,6 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 	it('reproduces CRLF on the opener and closer when a child edit rebuilds the container', () => {
 		const node = parse(':::custom\r\nbody\r\n:::\r\n').children[0];
 
-		// Structural edit: rewrite the body child, then rebuild (what a commit does).
 		node.children![0].raw = 'edited\r\n';
 		rebuildDirectiveContainerRaw(node);
 
@@ -40,9 +37,8 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
 	});
 
-	// A mixed-ending directive (LF opener, CRLF closer) keeps EACH chrome line's own
-	// ending: `closerNewline` only recorded presence, so the closer's bytes used to
-	// re-emit as the opener's ending and normalized on rebuild.
+	// EACH chrome line keeps its own ending: a `closerNewline` that records only presence
+	// re-emits the closer with the opener's ending.
 	it("keeps the closer's own ending when it differs from the opener", () => {
 		const node = parse(':::custom\nbody\n:::\r\n').children[0];
 

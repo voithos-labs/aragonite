@@ -1,9 +1,6 @@
-// `parseInline` is a public export whose scan range is explicit. A call that omits
-// the bounds used to compare against `undefined` at every step, skip the scan, and
-// hand back one text node holding the whole string — a plausible-looking answer with
-// the inline structure silently absent. Untyped consumers (plain JS, an `any`-typed
-// call site) reach that shape without a compile error, so the arity is guarded at
-// runtime too.
+// Omitting the bounds compares against `undefined` at every step and hands back one text
+// node — a plausible answer with the inline structure silently absent. Untyped consumers
+// reach that shape without a compile error, so the arity is guarded at runtime too.
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 

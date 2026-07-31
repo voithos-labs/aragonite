@@ -27,9 +27,8 @@ describe('G1.11 keymap coherence', () => {
 		expect(v?.code).toBe('keymap-coherence');
 	});
 
-	// Red-first: pre-fix (no well-formedness arm) `Ctrl+W` collapses to a bare `W`
-	// under normalizeChord — a valid, unique, known-command binding — so the check
-	// returned null and every plain `w` keypress would have run the command.
+	// Without a well-formedness arm `Ctrl+W` collapses to a bare `W` under normalizeChord:
+	// valid, unique, known-command, and firing on every plain `w`.
 	it('flags a descriptor chord with an unrecognized modifier (the Ctrl+W trap)', () => {
 		const v = check([{ kind: 'paragraph', keymap: [{ chord: 'Ctrl+W', command: 'block.split' }] }]);
 		expect(v?.code).toBe('keymap-coherence');
@@ -61,9 +60,8 @@ describe('G1.11 keymap coherence', () => {
 		).toBeNull();
 	});
 
-	// Guards the per-kind chord scoping: the dup check resets per kind, so two
-	// kinds binding the same chord is legal. Would false-positive if the seen-set
-	// were hoisted above the per-kind loop.
+	// Two kinds binding the same chord is legal, so a seen-set hoisted above the per-kind
+	// loop would false-positive here.
 	it('allows two different kinds to bind the same chord', () => {
 		expect(
 			check([

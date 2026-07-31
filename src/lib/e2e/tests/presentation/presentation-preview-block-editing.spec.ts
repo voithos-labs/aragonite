@@ -3,9 +3,8 @@ import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 import type { Page } from '@playwright/test';
 
-// preview-block is an EDITING mode: no edit path is gated, and the focus mark
-// follows the caret through structural edits. Rendering/containment lives in
-// presentation-preview-block.spec.ts.
+// preview-block is an EDITING mode: no edit path is gated, and the focus mark follows the
+// caret through structural edits. Rendering lives in presentation-preview-block.spec.ts.
 // Requirements: e2e/requirements/presentation/presentation-preview-block-editing.md.
 
 const DOC = [

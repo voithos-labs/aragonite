@@ -15,11 +15,9 @@ import {
 } from '$lib/schema/commands';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 
-// The prelude that runs before every editable surface's own dispatch. A plugin-global
-// chord must be preventDefaulted (suppress the native default) and DEFERRED (return
-// false), so the surface's own — now context-threaded — dispatchKeyCommand runs it. A
-// `return true` here would swallow every plugin-global chord on every editable surface
-// with no other test failing (this seam has no coverage otherwise).
+// The prelude that runs before every editable surface's own dispatch. A plugin-global chord must
+// be preventDefaulted AND deferred (return false) so the surface's own dispatchKeyCommand runs it;
+// a `return true` here would swallow every plugin-global chord with no other test failing.
 
 const noCross: CrossBlockHandlers = {
 	handleKeyDown: async () => false,

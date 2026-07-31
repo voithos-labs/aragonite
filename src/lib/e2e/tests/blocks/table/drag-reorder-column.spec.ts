@@ -3,10 +3,9 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 
-// Header + 1 body row, 3 columns. Cells render row-major, header first, so
-// [role="cell"] nth 0,1,2 = header A,B,C and nth 3,4,5 = body 1,2,3. One grip
-// per column, so nth(0) is column A's grip. Small + fully mounted (no row
-// windowing), so the parity check needs no benign-row filter.
+// Header + 1 body row, 3 columns. Cells render row-major, header first: nth 0,1,2 = header A,B,C
+// and nth 3,4,5 = body 1,2,3; one grip per column, so nth(0) is column A's. Small and fully mounted
+// (no row windowing), so the parity check needs no benign-row filter.
 const C3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
 
 let editor: EditorPage;
@@ -16,10 +15,9 @@ test.beforeEach(async ({ page }) => {
 	await editor.goto();
 });
 
-// Press a column grip and drag it horizontally onto a destination header cell's
-// RIGHT edge — the gap just past that column. Columns share track widths with no
-// gap, so a header cell's right edge is the same x as the next column's left edge:
-// the equidistant-safe drop point under the strict-`<` edge tiebreak.
+// Drag a column grip onto a destination header cell's RIGHT edge — the gap just past that column.
+// Columns share track widths with no gap, so that x is the equidistant-safe drop point under the
+// strict-`<` edge tiebreak.
 async function dragColGripPast(page: Page, fromNth: number, toCellNth: number): Promise<void> {
 	await page.hover('[role="table"]');
 	const grip = await page.locator('[data-table-col-grip]').nth(fromNth).boundingBox();
@@ -38,9 +36,8 @@ test.describe('table block: mouse drag column reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
 	});
 
-	// The `gap <= from` branch of the target formula — only a LEFTWARD drag hits it
-	// (mirrors the keyboard move-left case). Column C (grip nth 2) onto header-A's
-	// right edge (gap 1) → C lands before B.
+	// The `gap <= from` branch of the target formula — only a LEFTWARD drag hits it. Column C (grip
+	// nth 2) onto header-A's right edge (gap 1) lands C before B.
 	test('dragging a column left past its neighbor reorders (gap <= from branch)', async ({
 		page
 	}) => {
@@ -57,7 +54,6 @@ test.describe('table block: mouse drag column reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| B \| C \| A \|/);
 	});
 
-	// The vertical line marks the drop gap mid-drag and clears on release.
 	test('a vertical insertion line appears during the drag and clears on release', async ({
 		page
 	}) => {

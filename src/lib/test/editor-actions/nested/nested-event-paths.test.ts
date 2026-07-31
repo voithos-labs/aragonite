@@ -16,9 +16,8 @@ import {
 import type { EditEvent } from '$lib/editor-events';
 import type { CstNode } from '$lib/core/nodes';
 
-// A list nested in a blockquote: the list's local index (0, inside the quote)
-// differs from its doc-absolute path [1, 0], so a scope-local event path is
-// distinguishable from the absolute dialect the edit channel promises.
+// A list nested in a blockquote: its local index (0) differs from its doc-absolute
+// path [1, 0], so a scope-local event path is distinguishable from the absolute one.
 function makeNestedList() {
 	const harness = makeEditorActionsDeps(parse('pad\n\n> - one\n> - two\n').children);
 	const { deps, events } = harness;

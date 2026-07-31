@@ -4,11 +4,11 @@ import { PluginsPage, readContainer } from './helpers';
 
 /**
  * The TOC dogfood is the named consumer of `BlockComponentProps.document`
- * (requirements/plugins/toc-document-prop.md). A `[[toc]]` leaf renders a folded
- * `<nav>` list of the document's headings, read straight off the `document` prop —
- * so these gates prove the prop is delivered, live (a heading edit updates the list),
- * and reaches a nested block through editor context. Seeds: `toc` (headings +
- * top-level `[[toc]]`) and `toc-nested` (headings + `[[toc]]` in a blockquote).
+ * (requirements/plugins/toc-document-prop.md). A `[[toc]]` leaf renders a folded `<nav>` list of
+ * the document's headings, read straight off the `document` prop — so these gates prove the prop is
+ * delivered, live (a heading edit updates the list), and reaches a nested block through editor
+ * context. Seeds: `toc` (headings + top-level `[[toc]]`) and `toc-nested` (headings + `[[toc]]` in
+ * a blockquote).
  */
 class TocPage extends PluginsPage {
 	async gotoToc(seed: 'toc' | 'toc-nested' = 'toc'): Promise<void> {
@@ -88,7 +88,6 @@ test.describe('toc dogfood: the document prop consumer', () => {
 		await page.keyboard.press('End');
 		await page.keyboard.type('x');
 		await page.keyboard.press('Backspace');
-		// Blur onto a sibling block.
 		await editor.getBlock(0).click();
 
 		await expect(editor.render).toHaveCount(1);
@@ -104,9 +103,9 @@ test.describe('toc dogfood: the document prop consumer', () => {
 	});
 });
 
-// The nested guard: the prop is delivered by editor context, so it must reach a
-// `[[toc]]` inside a container. A top-level scenario alone can't pin that it survives
-// the nested render path — this is the only runtime guard for that sibling-path hole.
+// The nested guard: the prop is delivered by editor context, so it must reach a `[[toc]]` inside a
+// container. A top-level scenario alone can't pin that it survives the nested render path — this is
+// the only runtime guard for that sibling-path hole.
 test.describe('toc dogfood: the document prop reaches nested depth', () => {
 	let editor: TocPage;
 

@@ -1,17 +1,12 @@
 /**
- * G4.14 — component props reading the CST hold readonly views. A block
- * component annotating `node: CstNode` or `document: Document` compiles (a
- * mutable is assignable to its readonly view, and the registration boundary
- * erases prop types — see block-component-registry.ts), so the type system
- * can't hold this position at registration. This scan is the channel that
- * catches the drift: every `.svelte` prop naming a node or the document must be
- * typed `NodeView` / `DocumentView` (G1.9 as a type, `core/node-views.ts`).
- *
- * The one legitimate holder of a mutable `Document` is the doc-owning root,
- * whose prop is named `doc: Document` — hence `doc` is in the name group and
- * `Editor.svelte` is the sole allowlist entry (the HISTORY_KEY sole-provider
- * shape). Scoped to `.svelte`: the same regex over `.ts` would flag the owned
- * mutables that `tree-operations/` and `core/` legitimately pass around.
+ * G4.14 — component props reading the CST hold readonly views. A component annotating
+ * `node: CstNode` compiles (a mutable is assignable to its readonly view, and the
+ * registration boundary in block-component-registry.ts erases prop types), so the type
+ * system cannot hold this position and the scan is the channel that catches the drift:
+ * every `.svelte` prop naming a node or the document must be typed `NodeView` /
+ * `DocumentView` (G1.9, `core/node-views.ts`).
+ * The doc-owning root is the sole legitimate mutable holder. Scoped to `.svelte`, since
+ * the same regex over `.ts` would flag owned mutables that core layers legitimately pass.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,8 +17,7 @@ import { collectEditorSources } from './scan-source';
 // excludes `NodeView` — so the view annotations pass clean.
 const MUTABLE_NODE_PROP_RE = /\b(node|document|doc)\??\s*:\s*(CstNode|Document)\b/;
 
-// The doc-owning root constructs and owns the document; its `doc: Document`
-// prop is the sole legitimate mutable holder. Every other component reads views.
+// The doc-owning root is the sole legitimate mutable holder; everything else reads views.
 const ALLOWED_HOLDER = 'src/lib/components/Editor.svelte';
 
 interface PropHit {
@@ -57,8 +51,7 @@ describe('G4.14 readonly-view prop annotation parity source-scan', () => {
 
 	// ── Non-vacuity guards ──────────────────────────────────────────────────
 
-	// Proves the pattern matches real source and that the allowlist is
-	// load-bearing — breaks loudly if the mutable-doc prop moves out of Editor.
+	// Proves the pattern matches real source and that the allowlist is load-bearing.
 	it('finds the doc-owning root as the sole mutable-prop holder', () => {
 		const holders = sources.filter((f) => MUTABLE_NODE_PROP_RE.test(f.code));
 		expect(holders.map((f) => f.relPath)).toEqual([ALLOWED_HOLDER]);

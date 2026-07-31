@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createRegexExecutor } from '../../search/regex-executor';
 
-// The runner has no `Worker` global, so every case here exercises the synchronous
-// fallback — the path a CSP-restricted embedder and SSR also take. The worker path
-// is driven by `e2e/tests/search/pathological-regex.spec.ts`.
+// The runner has no `Worker` global, so every case here takes the synchronous
+// fallback — the CSP-restricted-embedder and SSR path. The worker path is driven by
+// `e2e/tests/search/pathological-regex.spec.ts`.
 
 const request = (texts: string[], pattern: string, epoch = 1) => ({
 	texts,
@@ -12,9 +12,8 @@ const request = (texts: string[], pattern: string, epoch = 1) => ({
 	epoch
 });
 
-// Catastrophic backtracking: ~2^n on a failing match. Sized so ONE text costs tens
-// of milliseconds — comfortably past the deadline below, and short enough that the
-// bail happens long before the runner's own timeout, under load or not.
+// Catastrophic backtracking (~2^n on a failing match), sized so one text costs tens
+// of milliseconds: past the deadline below, short of the runner's own timeout.
 const SLOW_PATTERN = '(a+)+$';
 const SLOW_TEXT = `${'a'.repeat(22)}!`;
 

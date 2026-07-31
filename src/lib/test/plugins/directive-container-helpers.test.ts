@@ -8,10 +8,9 @@ import {
 	NOTE_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
 
-// `createDirectiveRebuild` (exercised through the callout instance that binds it,
-// `rebuildCalloutRaw`) and `chromeChild`. The rebuild factory is the shared body
-// behind both callout and admonitions — the only per-kind difference is the name
-// resolver — so its byte-assembly is pinned once here.
+// `createDirectiveRebuild` is the shared body behind both callout and admonitions (the
+// only per-kind difference is the name resolver), so its byte-assembly is pinned once
+// here, through the callout instance that binds it.
 
 describe('createDirectiveRebuild threads the authored line ending', () => {
 	beforeEach(() => {
@@ -20,8 +19,7 @@ describe('createDirectiveRebuild threads the authored line ending', () => {
 	});
 
 	// The guard the factory exists for: a hand-written copy that forgot `lineEnding`
-	// would normalize the synthesized opener/closer to `\n`. Drop `lineEnding` from
-	// the factory and this goes red.
+	// normalizes the synthesized opener and closer to `\n`.
 	it('reproduces CRLF on the opener and closer when a child edit rebuilds', () => {
 		const note = parse(':::note My Title\r\nBody\r\n:::\r\n').children[0];
 		note.children![1].raw = 'edited\r\n';

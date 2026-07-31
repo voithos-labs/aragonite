@@ -37,6 +37,14 @@ contributes zero `textContent` but several raw bytes.
   undercount)
 - typing at the end of the first visual line (End stays before a trailing widget)
   splices before the widget's raw bytes — offsets must not overcount either
+- arrowing across a mid-cell `<br>` keeps focus on a cell rather than stranding it on an
+  off-cell element (native contenteditable carries the caret; the keys never reach the
+  caret-edge dispatch)
+- Backspace at a mid-cell `<br>`'s trailing edge deletes the whole tag on ONE press and
+  keeps focus on the cell. The prose model this widget kind inherits is
+  select-then-delete, which needs a selection overlay a cell does not paint — so it
+  showed nothing on press #1 and deleted a non-adjacent byte on press #2. An image at
+  the same edge is untouched by this rule: a cell renders it as source text, not a widget
 - ArrowRight at the very end of a widget-bearing cell (Ctrl+End) exits to the next
   cell, not mid-cell
 - Tab from a widget-bearing cell moves to the next cell

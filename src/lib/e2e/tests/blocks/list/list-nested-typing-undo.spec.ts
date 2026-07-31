@@ -58,10 +58,9 @@ test.describe('nested list item — typing + undo', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	// B7 regression: focus change between sibling items must break the debounce
-	// batch even when the focus move happens before the 250ms debounce flush.
-	// Pre-fix, the outer container's blockIndex was the only batch key — sibling
-	// leaves shared a batch and one undo collapsed both typing runs.
+	// A focus change between sibling items must break the debounce batch even before the 250ms
+	// flush: the outer container's blockIndex was the only batch key, so sibling leaves shared a
+	// batch.
 	test('focus change between sibling items inside debounce window still breaks the batch', async () => {
 		const before = await editor.bridge.getSource();
 
@@ -77,13 +76,11 @@ test.describe('nested list item — typing + undo', () => {
 		await editor.typeSlowly(' B');
 		await editor.waitForUndoBatchFlush();
 
-		// One undo: only the ' B' batch reverts; ' A' stays.
 		await editor.undo();
 		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
 		expect((await editor.bridge.getSource()).includes(' B')).toBe(false);
 		expect((await editor.bridge.getSource()).includes(' A')).toBe(true);
 
-		// Second undo: ' A' batch reverts; back to original.
 		await editor.undo();
 		await editor.page.waitForFunction(
 			(expected) => (window as any).__test.getSource() === expected,

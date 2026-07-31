@@ -1,8 +1,6 @@
 /**
- * The callout plugin: the `:::note` container model (kind + `note-title` chrome
- * leaf, registered by `registerCalloutKind`) plus the container component. The
- * plugin unit installs this setup once per process, so it runs unguarded and
- * re-registers cleanly after a schema reset.
+ * The callout plugin: the `:::note` container model plus its component. The plugin unit
+ * installs this setup once per process, so it runs unguarded and survives a schema reset.
  */
 
 import { definePluginBlock, type EditorPlugin } from '$lib/plugin';

@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
 //
-// The selected-widget keydown handler's swallow contract, on two axes it read
-// wrong. (1) It answered "consumed" for every unclaimed key while leaving the
-// event cancellable, so the browser's own default still ran against the
-// contenteditable — the block's keydown chain was skipped AND native mutated the
-// DOM behind the CST. (2) Its destructive arm read only `e.key`, so the platform
-// word-delete chord deleted the whole widget, the same shape as the caret-edge
-// arm's fixed modifier blindness (edge-policy-modifiers.test.ts).
-//
-// The keymap dispatch that owns undo/redo and every bound command sits AFTER this
-// handler in the chain, so "consumed" must stay narrow enough to let a chord reach it.
+// The selected-widget keydown handler's swallow contract, on two axes it read wrong: it answered
+// "consumed" for every unclaimed key while leaving the event cancellable, so the browser's default
+// still mutated the contenteditable behind the CST; and its destructive arm read only `e.key`, so
+// the platform word-delete deleted the whole widget (edge-policy-modifiers.test.ts is the same
+// shape). The keymap dispatch sits AFTER this handler, so "consumed" must stay narrow.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
 import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
@@ -64,9 +59,8 @@ describe('a platform chord is not a widget gesture', () => {
 		expect(b.commits).toEqual([]);
 	});
 
-	// Arrows are the deliberate exception: selecting the widget cleared the native
-	// range, so a shared-pipeline arm reading the caret would see offset 0 and move
-	// focus to a block that is not there. They stay swallowed, chord or not.
+	// Arrows are the deliberate exception: selecting the widget cleared the native range, so a
+	// caret-reading arm would see offset 0 and move focus to a block that is not there.
 	it.each(['ArrowLeft', 'ArrowRight'])('%s with a chord stays swallowed', async (name) => {
 		const b = harness(SOURCE, WIDGET_START);
 		const e = key(name, { ctrlKey: true });

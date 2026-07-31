@@ -1,15 +1,8 @@
-// Driving one block component through a mounted Editor.
-//
-// A container block cannot be usefully mounted on its own: the commit primitives
-// copy-path-on-write, so every commit REPLACES the container node, and in production
-// it is the parent BlockHost that re-renders the component with the fresh node. A
-// bare `mount(ListBlock, { props: { node } })` keeps the pre-commit node, and any
-// second gesture then runs against a detached tree. Mounting the Editor puts the
-// real reactive document underneath, so a multi-keystroke sequence behaves the way
-// it does in the editor and `getSource()` is a byte-exact assertion surface.
-//
-// Blocks are addressed by their doc-absolute path, the same coordinate the CST uses,
-// so a test names the block it means rather than counting DOM nodes.
+// Driving one block component through a mounted Editor. A bare mount keeps the pre-commit
+// node — commits copy-path-on-write and in production the parent BlockHost re-renders with
+// the fresh one — so a second gesture runs against a detached tree. The Editor mount puts the
+// real reactive document underneath and makes `getSource()` a byte-exact assertion surface.
+// Blocks are addressed by doc-absolute path, the coordinate the CST uses.
 
 import { mount, unmount, flushSync, tick } from 'svelte';
 import Editor from '$lib/components/Editor.svelte';
@@ -66,11 +59,9 @@ export function blockHostAt(mounted: MountedEditor, path: number[]): HTMLElement
 	return el;
 }
 
-/**
- * The prose surface of the block at `path`. Matches any `contenteditable` value:
- * reading mode renders the same surface with `contenteditable="false"`, and a
- * reading-mode gate is only testable by delivering the key to it.
- */
+/** The prose surface of the block at `path`. Matches any `contenteditable` value — reading
+ *  mode renders the same surface with `contenteditable="false"`, and its gate is only
+ *  testable by delivering the key to it. */
 export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
 	const host = blockHostAt(mounted, path);
 	const el = host.querySelector<HTMLElement>('[contenteditable]');
@@ -78,12 +69,8 @@ export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
 	return el;
 }
 
-/**
- * Put a real caret at `rawOffset` in `el`. Raw offsets are the block's own byte
- * coordinates; the DOM carries any ambient marker in front of them, so the
- * translation goes through the shared coordinate helpers rather than being
- * recomputed here.
- */
+/** Put a real caret at `rawOffset` in `el`. The DOM carries any ambient marker in front of
+ *  raw offsets, so the translation goes through the shared coordinate helpers. */
 export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	el.focus();
 	const dom = toDomTextOffset(asRawOffset(rawOffset), ambientLengthOf(el));
@@ -94,11 +81,8 @@ export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	selection?.addRange(range);
 }
 
-/**
- * Place the caret and dispatch a keydown from the block at `path`. Returns the event
- * so a caller can read `defaultPrevented` — the leaf's own handlers preventDefault
- * asynchronously, so that read is only meaningful after this has settled.
- */
+/** Place the caret and dispatch a keydown from the block at `path`. The returned event's
+ *  `defaultPrevented` is only meaningful once this has settled — the leaf prevents async. */
 export async function pressKeyAt(
 	mounted: MountedEditor,
 	path: number[],

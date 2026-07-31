@@ -12,7 +12,7 @@
 	import { imageFieldsFromInline } from './image-source-bytes';
 	import type { WidgetSelectionState } from './widget-selection-state.svelte';
 
-	// Mounted unconditionally by Editor — the effects below must observe
+	// Mounted unconditionally by Editor: the effects below must observe
 	// widget-selection changes, so the selected-widget {#if} lives here.
 	let {
 		widgetSelection,
@@ -38,8 +38,8 @@
 
 	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
-	// Props are stable for the editor's lifetime; the committer captures them
-	// once on purpose — reactive values already cross as getters.
+	// Props are stable for the editor's lifetime, so capturing once is deliberate —
+	// reactive values already cross as getters.
 	// svelte-ignore state_referenced_locally
 	const imageEdit = createImageEditCommitter({
 		getDoc,
@@ -81,8 +81,8 @@
 	});
 </script>
 
-<!-- Selecting an image stays (selection-class); the overlay is resize handles +
-	properties popover — edit affordances — so reading mode never mounts it. -->
+<!-- Selecting an image stays available in reading mode; the overlay is edit
+	affordances, so reading mode never mounts it. -->
 {#if widgetSelection.getSelected() && getPresentationMode() !== 'reading'}
 	{@const sel = widgetSelection.getSelected()!}
 	{@const ctx = imageEdit.getSelectedImageFields()}

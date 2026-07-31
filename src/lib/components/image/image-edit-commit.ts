@@ -34,15 +34,13 @@ export interface SelectedImageFields {
 export interface ImageEditCommitter {
 	getSelectedImageFields(): SelectedImageFields | null;
 	/**
-	 * `target` is captured at popover-mount time, not derived from the live
-	 * widgetSelection — popover commits (URL/alt/title edits, on-unmount-on-switch)
-	 * may fire after the user has clicked a different widget, and writing to the
-	 * new selection would cross-pollinate the two images.
+	 * `target` is captured at popover-mount time, not read from the live
+	 * widgetSelection: a popover commit can fire after the user clicked a different
+	 * widget, and writing to the new selection cross-pollinates the two images.
 	 */
 	commitImageEdit(target: WidgetTarget, newFields: ImageFields): void;
-	/** The bytes `commitImageEdit` would write, or `null` if it would decline. The
-	 *  popover's dirty check reads it so it compares like for like on a node whose
-	 *  syntax an inline rung owns. */
+	/** The bytes `commitImageEdit` would write, or `null` if it would decline — the
+	 *  popover's dirty check compares against these. */
 	buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null;
 	commitImageResize(newWidth: number, newHeight: number | undefined): void;
 	dismissImagePopover(): void;
@@ -72,9 +70,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	}
 
 	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
-		// Resolver-aware so a reference-style image resolves the same way the render
-		// path saw it — otherwise the widget the user clicked has no match here.
-		// Flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
+		// Resolver-aware so a reference-style image resolves as the render path saw it,
+		// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
 		const inlines = getInlineContent(para, deps.linkRef?.current, deps.linkRef?.signature ?? '');
 		for (const widget of flattenInlineWidgets(inlines, para.raw)) {
 			if (widget.kind === 'image' && widget.start === sourceStart) return widget;
@@ -85,8 +82,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function queryWidgetEl(paragraphPath: number[], sourceStart: number): HTMLElement | null {
 		const root = getEditorEl();
 		if (!root) return null;
-		// Locate the widget by its live block-host path (kept in sync) rather than
-		// a baked path attribute on the widget — see widget-dom.ts's pointerdown.
+		// Locate by the live block-host path, never a baked attribute on the widget —
+		// see widget-dom.ts's click handler.
 		const host = root.querySelector(`[data-block-path='${JSON.stringify(paragraphPath)}']`);
 		if (!host) return null;
 		return host.querySelector(
@@ -112,8 +109,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	async function commitParagraphRaw(paragraphPath: number[], newRaw: string): Promise<void> {
 		const resolved = resolvePathToParagraph(paragraphPath);
 		if (!resolved) return;
-		// Nothing to persist — skip the commit so a no-op edit (e.g. a popover
-		// dismiss after a resize already wrote the change) adds no undo entry.
+		// Skip the commit so a no-op edit (a popover dismiss after a resize already
+		// wrote the change) adds no undo entry.
 		if (newRaw === resolved.paragraph.raw) return;
 		const snapshot = { path: docPathFrom(paragraphPath), offset: 0 };
 		const leafIdx = paragraphPath[paragraphPath.length - 1];
@@ -166,10 +163,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		if (!resolved) return null;
 		const image = findImageInParagraph(resolved.paragraph, target.sourceStart);
 		if (!image) return null;
-		// Preserve the reference form on a resize/dimension/alt edit: the url and
-		// title live in the LRD, so leaving them untouched means re-emit `[label]`
-		// rather than inlining the resolved url (which would orphan the LRD).
-		// An explicit url/title change is the user opting into the inline form.
+		// Preserve the reference form when url/title are untouched: inlining the
+		// resolved url would orphan the LRD. Changing either is the user opting in.
 		const fields: ImageFields =
 			image.label !== undefined && newFields.url === image.url && newFields.title === image.title
 				? { ...newFields, label: image.label }
@@ -229,10 +224,9 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const editorEl = getEditorEl();
 		if (!overlayEl || !editorEl) return noop;
 
-		// Each commit rebuilds the inline DOM via text-render's
-		// `replaceChildren`; a captured widget ref would observe a detached
-		// node forever. Re-resolve via the live selection on every update and
-		// re-attach the ResizeObserver when widget identity changes.
+		// Each commit rebuilds the inline DOM, so a captured widget ref would observe a
+		// detached node forever: re-resolve on every update and re-attach the observer
+		// when widget identity changes.
 		let observer: ResizeObserver | null = null;
 		let observed: HTMLElement | null = null;
 
@@ -257,16 +251,13 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		};
 		update();
 
-		// Edits above the widget shift its y without resizing it; commits to
-		// the widget itself rebuild its DOM and require RO re-attach.
+		// Edits above the widget shift its y without resizing it.
 		const unsubscribeEdit = events.on('edit', update);
 		window.addEventListener('resize', update);
 
-		// Sibling images settling their dimensions (slow URL re-fetches,
-		// lazy-load) reflow the editor and shift the selected widget's y
-		// without resizing it — RO won't fire on a pure position change. The
-		// settling image's load/error event lets us re-anchor the overlay.
-		// Both events fire only in capture phase since they don't bubble.
+		// Sibling images settling their dimensions shift the selected widget's y without
+		// resizing it, which the ResizeObserver never sees. Capture phase: neither
+		// event bubbles.
 		const onImgSettle = (e: Event) => {
 			if (e.target instanceof HTMLImageElement) update();
 		};

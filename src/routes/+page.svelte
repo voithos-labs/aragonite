@@ -10,11 +10,9 @@
 	import { mermaidPlugin } from '$lib/plugins/mermaid';
 	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 
-	// The consumer shape: import each bundled plugin from its subpath, inject the
-	// engine adapters, and hand the whole set to the set-once `plugins` prop. Built
-	// once at module scope so the factories run once per process, not once per
-	// (SSR) render — re-minting same-name plugins each render trips installPlugins'
-	// first-wins dev-warn, and a stable array is what a real consumer copies.
+	// The consumer shape: each bundled plugin from its own subpath, engine adapters injected.
+	// Module scope so the factories run once per process — re-minting same-name plugins per
+	// (SSR) render trips installPlugins' first-wins dev-warn.
 	const showcasePlugins = [
 		admonitionsPlugin(),
 		detailsPlugin(),
@@ -36,9 +34,8 @@
 	const MODES: PresentationMode[] = ['source', 'reading', 'preview-block', 'preview-inline'];
 	let presentationMode = $state<PresentationMode>('source');
 
-	// The showcase installs no probe surface, so its containers (blockquotes, nested
-	// lists, task lists, a table, `<details>`, two admonitions, a footnote
-	// definition) were outside every parity net.
+	// The showcase installs no probe surface, so `trackParityDocument` is the only thing
+	// putting its container-dense document under the teardown parity net.
 	let editor = $state<ReturnType<typeof Editor>>();
 	trackParityDocument(() => editor);
 </script>

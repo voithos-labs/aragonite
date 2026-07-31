@@ -1,9 +1,7 @@
-// `containerPaste.matchesAncestor` is plugin code the paste gates run on a user
-// gesture, and it freezes at 1.0. On the cross-block route the covering range
-// delete has ALREADY committed when the gate runs, so an escaping throw left the
-// selection deleted, nothing pasted, and nothing on the `error` channel — the one
-// plugin-authored callback in this codebase that was neither contained nor
-// attributed. A throw now declines, exactly as a `false` return does.
+// `containerPaste.matchesAncestor` is plugin code the paste gates run on a user gesture.
+// On the cross-block route the covering range delete has ALREADY committed when the gate
+// runs, so an escaping throw loses the selection with nothing pasted and nothing on the
+// `error` channel. A throw must decline, exactly as a `false` return does.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -48,9 +46,8 @@ describe('a throwing matchesAncestor is contained at every gate', () => {
 		expect(findListAbsorb(doc, [0, 1, 0], parse('- x\n- y\n'), 0)).toBeNull();
 	});
 
-	// Break-out's gate reads the predicate the other way round (a match is what
-	// makes it decline), so containment must give it the same `false` the other two
-	// see — a broken predicate behaves as `() => false` everywhere, not as an abort.
+	// Break-out's gate reads the predicate the other way round, so a broken predicate must
+	// still behave as `() => false` there rather than as an abort.
 	it('list-break-out treats the throw as a non-match and still applies', () => {
 		throwOnMatch('list', true);
 		const doc = parse('- a\n- b\n');

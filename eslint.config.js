@@ -4,16 +4,12 @@ import svelte from 'eslint-plugin-svelte';
 import svelteParser from 'svelte-eslint-parser';
 import tseslint from 'typescript-eslint';
 
-// ESLint is the standard net that sits over svelte-check's 0-error baseline and
-// the source-scan lint suite: floating promises, exhaustive-switch discipline,
-// and unused values. It is deliberately curated, not maximal — Prettier owns
-// formatting and svelte-check owns a11y + type strictness, so rules those layers
-// already cover are turned off here rather than duplicated.
+// Deliberately curated, not maximal: Prettier owns formatting and svelte-check owns a11y
+// plus type strictness, so rules those layers already cover stay off here.
 export default tseslint.config(
 	{
-		// Lint scope is the library and its build scripts. Everything else is a
-		// build artifact, a run output, or `examples/consumer` — a separately
-		// scaffolded app with its own tsconfig/toolchain, out of scope here.
+		// Lint scope is the library and its build scripts; everything else is a build
+		// artifact, a run output, or `examples/consumer` (its own tsconfig and toolchain).
 		ignores: [
 			'**/dist/',
 			'**/build/',
@@ -24,6 +20,7 @@ export default tseslint.config(
 			'perf-results/',
 			'test-results/',
 			'simulation-captures/',
+			'.superpowers/',
 			'tmp/',
 			'static/',
 			'examples/'
@@ -51,12 +48,9 @@ export default tseslint.config(
 		languageOptions: { globals: globals.node }
 	},
 
-	// The audit's named net — the type-aware rules ESLint adds over svelte-check.
-	// Scoped to src/**/*.ts (the only tree the app tsconfig covers) — type-aware
-	// linting of the whole tree measures at ~20s, so tests ride the typed net too.
-	// .svelte and root/scripts config files stay on the untyped net; the editor's
-	// promise-bearing logic lives in extracted `.ts` factories, not the thin
-	// component shells, so this covers where the await-tick discipline matters.
+	// Type-aware rules, scoped to src/**/*.ts (the only tree the app tsconfig covers);
+	// .svelte and root/scripts config files stay on the untyped net. The editor's
+	// promise-bearing logic lives in extracted `.ts` factories, so this covers it.
 	{
 		files: ['src/**/*.ts'],
 		languageOptions: {
@@ -65,11 +59,8 @@ export default tseslint.config(
 		rules: {
 			'@typescript-eslint/no-floating-promises': 'error',
 			'@typescript-eslint/no-misused-promises': 'error',
-			// A present `default` counts as exhaustive: the codebase's strictly-exhaustive
-			// switches assert `never` in their default (caught by svelte-check on a new
-			// union member), so this rule's added value is catching a switch with NO
-			// fallback — not fighting the partial dispatchers and estimators that map the
-			// remainder through `default` on purpose.
+			// A present `default` counts as exhaustive: strictly-exhaustive switches here assert
+			// `never` in their default, so the added value is catching a switch with NO fallback.
 			'@typescript-eslint/switch-exhaustiveness-check': [
 				'error',
 				{ considerDefaultExhaustiveForUnions: true }
@@ -94,10 +85,8 @@ export default tseslint.config(
 
 	// ── Rules turned off, with cause ─────────────────────────────────────────────
 	{
-		// Every explicit `any` in the tree is in a test fixture, an e2e/simulation
-		// harness, the testing kit, or dev debug tooling — the product surface is
-		// already `any`-free. So this rule is off by default (loose fixtures are
-		// pragmatic and gating 400+ of them would be a style regime) …
+		// Every explicit `any` in the tree is in a fixture, an e2e/simulation harness, the
+		// testing kit, or debug tooling, and gating those would be a style regime …
 		rules: { '@typescript-eslint/no-explicit-any': 'off' }
 	},
 	{
@@ -110,14 +99,11 @@ export default tseslint.config(
 	{
 		files: ['**/*.svelte', '**/*.svelte.ts'],
 		rules: {
-			// The flagged Map/Set instances are deliberately non-reactive registries and
-			// transient computations (their modules signal reactivity through separate
-			// `$state`). Swapping in SvelteMap/SvelteSet would introduce exactly the
-			// reactive-dependency coupling the reactivity architecture is built to avoid.
+			// The flagged Map/Set instances are deliberately non-reactive registries; SvelteMap
+			// or SvelteSet would introduce the reactive coupling the architecture avoids.
 			'svelte/prefer-svelte-reactivity': 'off',
-			// The editor projects the CST into imperative render-output islands
-			// (highlight.js, KaTeX, mermaid, the TOC) that Svelte does not own and never
-			// reconciles — direct DOM writes there are the architecture, not a mistake.
+			// The editor projects the CST into imperative render islands (highlight.js, KaTeX,
+			// mermaid, the TOC) Svelte never reconciles; direct DOM writes there are the design.
 			'svelte/no-dom-manipulating': 'off',
 			// `source={'# One\n\nAlpha\n'}` needs the mustache: a plain attribute would
 			// render the `\n` escapes literally. Only flag genuinely inert string mustaches.

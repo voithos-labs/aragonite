@@ -3,11 +3,10 @@ import { primaryModifier } from '../../platform';
 import { PluginsPage, readDoc, roundTripStable } from './helpers';
 
 /**
- * Native GitHub alerts on paste. With rendering shipped, the admonitions plugin's
- * paste transform is opt-in (default off), so a pasted `> [!TYPE]` blockquote keeps
- * its GitHub bytes and lands as a native `githubAlert` — never rewritten to
- * `:::name`. Real clipboard write + `Mod+V`; the CST is read by path via
- * `window.__test`. The opt-in rewrite is unit-covered (github-alert-paste-opt-in).
+ * Native GitHub alerts on paste. With rendering shipped, the admonitions plugin's paste transform
+ * is opt-in (default off), so a pasted `> [!TYPE]` blockquote keeps its GitHub bytes and lands as a
+ * native `githubAlert`, never rewritten to `:::name`. The opt-in rewrite is unit-covered
+ * (github-alert-paste-opt-in).
  */
 
 test.describe('plugin admonitions — native alert paste', () => {
@@ -29,13 +28,11 @@ test.describe('plugin admonitions — native alert paste', () => {
 		await page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Handy note.\n'));
 		await page.keyboard.press(`${primaryModifier}+v`);
 
-		// The blockquote alert renders natively; its GitHub bytes are preserved verbatim.
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		expect((await readDoc(page)).kinds).toContain('githubAlert');
 		expect(await editor.bridge.getSource()).not.toContain(':::tip');
 		expect(await roundTripStable(page)).toBe(true);
 
-		// One undo restores the pre-paste document byte-for-byte.
 		await editor.undo();
 		await editor.bridge.waitForSourceWith((source, prior) => source === prior, before);
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -55,7 +52,6 @@ test.describe('plugin admonitions — native alert paste', () => {
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		const source = await editor.bridge.getSource();
-		// Both alerts keep their bytes; neither is rewritten to directive source.
 		expect(source).toContain('```md');
 		expect(source).toContain('> [!NOTE]');
 		expect(source).not.toContain(':::');
@@ -64,10 +60,9 @@ test.describe('plugin admonitions — native alert paste', () => {
 		expect(kinds).toContain('fencedCode');
 	});
 
-	// The whole-table-selection paste route (Ctrl+A 2nd press inside a cell) bypasses
-	// the shared paste dispatch, so it carries its own parse of the pasted text — this
-	// pins that sibling route lands the alert natively too (the applyPasteTransforms
-	// parity itself is source-scan-pinned by G4.11).
+	// The whole-table-selection paste route bypasses the shared paste dispatch and carries its own
+	// parse of the pasted text, so this pins that sibling route lands the alert natively too (the
+	// applyPasteTransforms parity itself is source-scan-pinned by G4.11).
 	test('whole-table-selection paste replaces the table with a native alert', async ({ page }) => {
 		await editor.loadContent('before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
 		await page.locator('[role="cell"]').nth(2).click();

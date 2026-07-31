@@ -1,14 +1,7 @@
-// Driving `cross-block/keydown.ts` as a unit.
-//
-// The dispatcher is the entry layer for every key that arrives while a cross-block
-// range is live, and it had exactly one test — four sticky-column outcomes. Its arms
-// (destructive, command-candidate, extend, collapse, doc-edge, select-all) are
-// module-private, so the only way in is `createCrossBlockKeydown`.
-//
-// The mutation context is REAL — a live document, undo controller and selection —
-// rather than a cast stub, so a destructive arm's assertion reads the document's
-// bytes and a reading-mode gate is proven by the bytes NOT moving. That distinction
-// is the whole point of the gate, and a spy cannot make it.
+// Driving `cross-block/keydown.ts` as a unit. Its arms (destructive, command-candidate, extend,
+// collapse, doc-edge, select-all) are module-private, so the only way in is
+// `createCrossBlockKeydown`. The mutation context is REAL — live document, undo controller and
+// selection — so a reading-mode gate is proven by the bytes NOT moving, which a spy cannot do.
 
 import { vi } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
@@ -27,6 +20,11 @@ export interface KeydownEnvOptions {
 	/** Component the reveal resolves to — the post-delete command dispatch target. */
 	revealTo?: BlockComponent | null;
 	myPath?: number[];
+	/**
+	 * Paths that are windowed OUT: `getBlockElByPath` reports null for them until a reveal mounts
+	 * them, the only way to reach the endpoint-park arm of `revealActiveEndpoint`.
+	 */
+	offWindowPaths?: number[][];
 }
 
 export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
@@ -39,8 +37,10 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 
 	// One element per path: the extend walk reads element identity, never geometry.
 	const blockEls = new Map<string, HTMLElement>();
-	const getBlockElByPath = (path: number[]): HTMLElement => {
+	const offWindow = new Set((opts.offWindowPaths ?? []).map((path) => JSON.stringify(path)));
+	const getBlockElByPath = (path: number[]): HTMLElement | null => {
 		const key = JSON.stringify(path);
+		if (offWindow.has(key)) return null;
 		if (!blockEls.has(key)) blockEls.set(key, document.createElement('div'));
 		return blockEls.get(key)!;
 	};
@@ -48,6 +48,9 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 	const revealed: number[][] = [];
 	const revealPath = vi.fn(async (path: number[]) => {
 		revealed.push(path.slice());
+		// A reveal mounts what it scrolled to, so the path stops being off-window —
+		// which is what lets the post-park scroll be observed at all.
+		offWindow.delete(JSON.stringify(path));
 		return opts.revealTo ?? null;
 	});
 
@@ -57,7 +60,8 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		getBlockElByPath,
 		revealPath,
 		controller,
-		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0)
+		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
+		grammar: undefined
 	};
 
 	const onCommandError = vi.fn();

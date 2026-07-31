@@ -17,9 +17,8 @@ describe('diffInput', () => {
 	});
 
 	it('returns both normalized sides for a divergent input', () => {
-		// A GFM bare autolink diverges permanently — the reference carries no autolink
-		// extension — so it is a stable exemplar, not one a parser fix could converge
-		// out from under this test (the `gfm-bare-autolink` baseline class).
+		// A GFM bare autolink diverges permanently (the reference has no autolink extension),
+		// so it is a stable exemplar no parser fix converges away — `gfm-bare-autolink` class.
 		const divergence = diffInput('https://example.com');
 		expect(divergence).not.toBeNull();
 		expect(divergence!.input).toBe('https://example.com');

@@ -1,22 +1,9 @@
 /**
- * An `input` edit event means "this commit held the block's kind" — a premise
- * the LRD signature-epoch gate (`components/lrd-map-gate.ts`) reads and cannot
- * verify itself. The gate runs post-commit, so a definition destroyed by a
- * kind-changing write is indistinguishable from ordinary prose; exempting
- * `input` there is only sound while every `input` really is kind-stable.
- *
- * The premise holds because exactly one site emits it: the debounced typing
- * flush, reached only from the kind-stable no-op branch. Emitter N+1 is the
- * failure this scan exists for. Cross-block type-replace declared `input` while
- * re-deriving the kind in the same commit, and the resolver went on serving a
- * deleted definition until an audit read the two files together. Any write that
- * can change a kind declares `updateContent` instead.
- *
- * Two shapes reach an `input` edit event: an `OpDescriptor` handed to the commit
- * primitive (`kind: 'input'`) and a direct emit on the event surface
- * (`op: 'input'`). Both are scanned, so the next emitter fails whichever it
- * reaches for. An op kind assembled from a variable has no literal to match —
- * `test/lrd-map-gate.test.ts` and the cross-block typed-character suite are the
+ * An `input` edit event means "this commit held the block's kind" — a premise the LRD
+ * signature-epoch gate (`components/lrd-map-gate.ts`) reads and cannot verify, since it
+ * runs post-commit. It holds only while exactly one site emits `input`. Both declaration
+ * shapes are scanned, so emitter N+1 fails whichever it reaches for; an op kind assembled
+ * from a variable has no literal to match, and `test/lrd-map-gate.test.ts` is the
  * outcome-level belt for that.
  */
 

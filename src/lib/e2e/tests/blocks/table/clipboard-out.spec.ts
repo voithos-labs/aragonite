@@ -10,8 +10,7 @@ test.describe('table block: clipboard out', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		// Reset clipboard between tests so leakage from one test cannot mask
-		// another's missing copy.
+		// Reset the clipboard so leakage from one test cannot mask another's missing copy.
 		await page.evaluate(() => navigator.clipboard.writeText(''));
 	});
 
@@ -23,9 +22,8 @@ test.describe('table block: clipboard out', () => {
 		await expect.poll(() => readClipboard(page)).toBe('1');
 	});
 
-	// Keyboard Copy and Cut must write the same payload. A cell's <br> renders as a
-	// zero-textContent widget, so Copy's old browser-default fallback dropped it
-	// while Cut's raw-slice arm kept it — copy→paste silently lost the line break.
+	// Copy and Cut must write the same payload: a cell's <br> renders as a zero-textContent widget,
+	// so Copy's old browser-default fallback dropped it while Cut's raw-slice arm kept it.
 	test('Ctrl+C of a cell with a <br> keeps the widget bytes (Copy/Cut parity)', async ({
 		page
 	}) => {

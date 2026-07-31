@@ -1,9 +1,8 @@
 /**
- * Viewport point → the block under it, for drag hit-testing. Walks ancestors of
- * the topmost element to the nearest `data-block-path` host; a kind with
- * internal coordinate addressing (a table, whose offset is a row-major cellIdx)
- * carries its `foreignDragHitTest` so the drag can resolve a cell-coordinate
- * point. Shared by cross-block drag and intra-table cell drag.
+ * Viewport point to the block under it, for pointer hit-testing: walks ancestors of the topmost
+ * element to the nearest `data-block-path` host. A kind with internal coordinate addressing
+ * carries the point→internals hooks its descriptor declares, so a caller resolves a
+ * cell-coordinate point without knowing the kind.
  */
 
 import type { AnyBlockKind } from '../core/nodes';
@@ -12,15 +11,24 @@ import { readBlockPath } from './path-lookup';
 
 export interface BlockHit {
 	path: number[];
-	/** Editable surface for character-offset hit-testing (or the wrapper when none). */
+	/**
+	 * Editable surface for character-offset hit-testing, or the WRAPPER when the kind declares
+	 * `foreignDragHitTest`: that kind addresses cells and has no character surface to offer.
+	 */
 	element: HTMLElement;
 	/**
-	 * Set for block kinds with internal coordinate addressing (e.g. table, whose
-	 * offset is a row-major cellIdx, not a character index). Pre-bound to the
-	 * block's wrapper; resolved from the kind descriptor so the caller carries no
-	 * block-specific DOM knowledge.
+	 * Point→internal-offset hook for kinds with coordinate addressing (a table's row-major
+	 * cellIdx). Pre-bound to the block's wrapper, resolved from the kind descriptor.
 	 */
 	foreignDragHitTest?: (clientX: number, clientY: number) => number | null;
+	/**
+	 * The caret landing inside such a kind, as an internal child path plus offset. A
+	 * caret-placing gesture reads this where the drag hook declines.
+	 */
+	caretTargetAtPoint?: (
+		clientX: number,
+		clientY: number
+	) => { path: number[]; offset: number } | null;
 }
 
 export function blockAtPoint(
@@ -33,21 +41,23 @@ export function blockAtPoint(
 		if (el instanceof HTMLElement && el.getAttribute('data-block-path')) {
 			const path = readBlockPath(el);
 			if (!path) return null;
-			const kind = el.getAttribute('data-block-kind');
+			const wrapper = el;
+			const kind = wrapper.getAttribute('data-block-kind');
 			// tryGet tolerates junk DOM strings — unregistered kinds resolve undefined.
-			const hitTest = kind
-				? tryGetBlockKindDescriptor(kind as AnyBlockKind)?.foreignDragHitTest
-				: undefined;
-			if (hitTest) {
-				const wrapper = el;
-				return {
-					path,
-					element: wrapper,
-					foreignDragHitTest: (cx, cy) => hitTest(wrapper, cx, cy)
-				};
-			}
-			const editable = el.querySelector('[contenteditable]') as HTMLElement | null;
-			return { path, element: editable ?? el };
+			const descriptor = kind ? tryGetBlockKindDescriptor(kind as AnyBlockKind) : undefined;
+			const dragHitTest = descriptor?.foreignDragHitTest;
+			const caretTarget = descriptor?.caretTargetAtPoint;
+			const editable = wrapper.querySelector('[contenteditable]') as HTMLElement | null;
+			return {
+				path,
+				// The wrapper substitution belongs to the DRAG hook alone: its consumers branch on
+				// that hook and otherwise character-hit-test `element`, so a wrapper handed to them
+				// yields a plausible-but-wrong offset instead of declining. The caret hook says
+				// nothing about a drag.
+				element: dragHitTest ? wrapper : (editable ?? wrapper),
+				foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
+				caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))
+			};
 		}
 		el = el.parentElement;
 	}

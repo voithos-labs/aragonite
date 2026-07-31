@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
 import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
@@ -10,39 +10,22 @@ import {
 	assertParseConvergence
 } from '../../simulation/invariants';
 
-// The image gestures under a rung that CLAIMED the image's bytes. `resizeImage`
-// already drove real Shift+Arrow presses, but only ever over GFM `![alt](url)` that
-// the built-in scanner minted — so the whole borrow-a-built-in-kind class ran
-// outside the oracle stack, which is the exact scar the culture doc names (the
-// plugin surface went a minor version unobserved by the simulation). The gap was a
-// seed, not a verb: `?seed=wiki-embed` installs a `![[` rung minting built-in
-// `image` nodes, and every existing image gesture then runs against bytes the
-// editor is forbidden to re-serialize.
-//
-// What the oracle stack adds over the wiki-embed e2e battery: the live-CST
-// round-trip and live-vs-reparse convergence run after every move, so a resize that
-// wrote plausible-looking bytes which no longer reparse to the same claimed node
-// fails here rather than at the next edit.
+// The image gestures under a rung that CLAIMED the image's bytes: `?seed=wiki-embed`
+// installs a `![[` rung minting built-in `image` nodes, so every existing image gesture runs
+// against bytes the editor is forbidden to re-serialize — the borrow-a-built-in-kind class,
+// which ran outside the oracle stack entirely (`docs/contributing/culture.md` § Testing
+// shape). What this adds over the wiki-embed e2e battery is convergence after every move, so
+// a resize writing plausible bytes that no longer reparse fails here, not at the next edit.
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';
 const EMBED_DOC = `Alpha lead paragraph.\n\n${EMBED}\n\nBeta tail paragraph.\n`;
 
-class ClaimedImageSimPage extends EditorPage {
-	async gotoPlugins(): Promise<void> {
-		await this.page.goto('/test/plugins?seed=wiki-embed');
-		await this.editorContainer.waitFor({ state: 'visible' });
-		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
-	}
-}
-
 test.describe('claimed-image-ops simulation', () => {
-	let editor: ClaimedImageSimPage;
+	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new ClaimedImageSimPage(page);
-		await editor.gotoPlugins();
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('wiki-embed');
 	});
 
 	test('resizing a rung-claimed image keeps its syntax and stays corruption-free', async ({

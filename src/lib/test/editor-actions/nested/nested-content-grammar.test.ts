@@ -3,13 +3,11 @@ import { parse } from '$lib/core/parser';
 import { createGrammarView } from '$lib/schema/block-openers';
 import { makeNestedHarness } from '../../harness/editor-actions';
 
-// The nested content-commit reparse must honor the instance grammar, matching the
-// top-level factory (which threads deps.grammar). Without it, typing a disabled
-// kind's opener inside a container materializes that kind regardless of the
-// instance's enablement — the C-F1 sibling-path gap.
+// Sibling-path parity with the top-level factory (which threads deps.grammar): without
+// it, a disabled kind's opener typed inside a container materializes that kind anyway.
 
 function driveTypeInContainer(grammar: ReturnType<typeof createGrammarView> | undefined) {
-	const doc = parse('> para\n'); // blockquote → child 0 is a paragraph
+	const doc = parse('> para\n');
 	const { deps, bundle } = makeNestedHarness([doc.children[0]], { grammar });
 	return { deps, bundle };
 }
@@ -24,8 +22,7 @@ describe('nested updateBlockContent honors the instance grammar', () => {
 		expect(deps.doc.children[0].children?.[0].kind).toBe('paragraph');
 	});
 
-	// Positive control: with the global grammar the same typing DOES materialize the
-	// heading, so the assertion above is not vacuously passing.
+	// Positive control: the assertion above is not vacuously passing.
 	it('the global grammar still materializes the heading', async () => {
 		const { deps, bundle } = driveTypeInContainer(undefined);
 

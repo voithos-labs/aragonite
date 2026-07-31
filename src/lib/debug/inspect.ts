@@ -1,8 +1,6 @@
 /**
  * Internal debug engine — never exported from the public barrel (`src/lib/index.ts`).
- *
- * Output format is disposable — do not assert on it. Use structured
- * accessors (getSource, kinds, paths) for test assertions.
+ * Output format is disposable: assert on structured accessors (getSource, kinds, paths).
  */
 
 import type { InlineNode } from '../core/nodes';

@@ -1,11 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 
-// preview-block containment across a plugin container: focusing a body leaf inside a
-// `:::name` directive reveals that leaf's own inline markers, but the directive fences
-// (`.directive-marker`) are container chrome and never reveal — they stay hidden.
-// Runs on /test/plugins for the directive grammar. Requirements:
-// e2e/requirements/presentation/presentation-directive-containment.md.
+// preview-block containment across a plugin container: a focused body leaf reveals its OWN
+// inline markers, but the directive fences are container CHROME and never reveal.
+// Requirements: e2e/requirements/presentation/presentation-directive-containment.md.
 
 const DOC = ':::foo\nBody with **bold** here.\n:::\n';
 

@@ -1,13 +1,8 @@
 /**
- * Shared plumbing for the conformance kits — the runner-agnostic assertion
- * primitives and CST tree walks both `container-conformance.ts` (the G4.3
- * container-structural cells) and `kind-conformance.ts` (the generic per-kind
- * closure battery) sit on.
- *
- * Runner-agnostic on purpose: `aragonite/testing` is imported INTO an author's
- * own test case, so a failure is a plain thrown `Error` — reported correctly by
- * Vitest, Jest and `node:test` alike, with no runner import forced on a suite
- * reaching for one seam alone.
+ * Shared plumbing for the conformance kits: the assertion primitives and CST walks
+ * `container-conformance.ts` (G4.3) and `kind-conformance.ts` sit on. Runner-agnostic —
+ * a failure is a plain thrown `Error`, so no suite reaching for one seam is forced to
+ * load a runner.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -17,15 +12,12 @@ import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 // ── Coverage vocabulary ──────────────────────────────────────────────────────
 
 /**
- * How a cell is covered. `assert` runs the real check; `exempt` means the
- * invariant has nothing to bite on; `boundary` means asserting it would need
- * something headless code cannot reach (a mounted component, a DOM, the browser
- * sweep). Both non-assert modes carry a substantive reason — never a silent skip.
+ * How a cell is covered: `assert` runs the real check, `exempt` means the invariant has
+ * nothing to bite on, `boundary` means it needs something headless code cannot reach.
+ * Both non-assert modes carry a substantive reason — never a silent skip.
  */
 export type ConformanceCoverage =
-	| { mode: 'assert' }
-	| { mode: 'exempt'; reason: string }
-	| { mode: 'boundary'; reason: string };
+	{ mode: 'assert' } | { mode: 'exempt'; reason: string } | { mode: 'boundary'; reason: string };
 
 // ── Assertion kit ────────────────────────────────────────────────────────────
 
@@ -71,13 +63,10 @@ export function assertExemptionDocumented(cell: ConformanceCoverage, label: stri
 }
 
 /**
- * A freshly parsed fixture node is canonical, so for a byte-faithful (strip/opaque)
- * rebuild `rebuildRaw` is the parse inverse: it must reproduce the SAME bytes, not
- * merely run twice with the same wrong output — the details-CRLF class the
- * determinism cell alone is blind to. Grid rebuilds canonicalize delimiter/padding
- * widths by contract, so a valid non-canonical grid fixture is legally not a rebuild
- * fixed-point; grid rides the non-throwing run plus the determinism cell instead.
- * Mutates `node.raw` in place — pass a fresh parse, never a shared cell node.
+ * For a byte-faithful (strip/opaque) rebuild, `rebuildRaw` is the parse inverse: it must
+ * reproduce the SAME bytes, not merely run twice with the same wrong output. Grid rebuilds
+ * canonicalize delimiter/padding widths by contract, so they ride the determinism cell
+ * instead. Mutates `node.raw` in place — pass a fresh parse, never a shared cell node.
  */
 export function assertRebuildIsParseCanonical(
 	descriptor: BlockKindDescriptor,
