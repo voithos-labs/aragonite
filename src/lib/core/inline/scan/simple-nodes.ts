@@ -32,10 +32,9 @@ export function handleAmpersand(ctx: ScanContext): void {
 }
 
 /**
- * §6.7 trailing-spaces form: two-plus spaces before the newline become a
- * hardLineBreak covering spaces + newline; one space is a softbreak (plain
- * text). The backslash form is handleBackslash's. Lookback is clamped to the
- * pending text run — spaces inside an already-consumed node cannot count.
+ * §6.7 trailing-spaces form: two-plus spaces before the newline become a hardLineBreak covering
+ * spaces + newline; one space is a softbreak. Lookback is clamped to the pending text run, so
+ * spaces inside an already-consumed node cannot count.
  */
 export function handleNewline(ctx: ScanContext): void {
 	const { raw, pos, textStart } = ctx;

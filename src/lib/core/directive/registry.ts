@@ -1,10 +1,8 @@
 /**
- * Name→kind registry for the directive primitive: the shared opener resolves a
- * fence's `(tier, name)` to a definition here, then either delegates to its
- * `fromDirective` factory or builds a lossless generic node. Register-once,
- * throw-on-duplicate, no unregister — the `customElements` model the schema
- * registries follow. Tier scopes the key, so a container and a leaf may share a
- * name without colliding.
+ * Name-to-kind registry for the directive primitive: the shared opener resolves a fence's
+ * `(tier, name)` here, then delegates to `fromDirective` or builds a lossless generic node.
+ * Register-once with no unregister, the `customElements` model the schema registries follow.
+ * Tier scopes the key, so a container and a leaf may share a name.
  */
 
 import type { DirectiveTier, DirectiveFence } from './grammar';
@@ -14,13 +12,13 @@ import { registerOnce } from '../../schema/register-once';
 export interface ParsedDirective {
 	fence: DirectiveFence;
 	body?: Document;
-	/** The opener's `ctx.leadingTrivia`, passed through so a factory node serializes intact. */
+	/** Passed through so a factory node serializes intact. */
 	leadingTrivia: string;
-	/** The exact consumed byte slice (opener line + body + closer) — a factory sets `node.raw` to this. */
+	/** The exact consumed slice (opener + body + closer); a factory sets `node.raw` to this. */
 	raw: string;
 	closerColonCount: number;
 	closerNewline: boolean;
-	/** Authored line ending (`\n` or `\r\n`) of the opener line — a factory stores it so a rebuild reproduces CRLF chrome lines. */
+	/** Opener line ending; a factory stores it so a rebuild reproduces CRLF chrome lines. */
 	lineEnding: string;
 }
 
@@ -68,9 +66,8 @@ export function resolveDirective(
 }
 
 /**
- * Block-tier factory, pre-narrowed: a 'leaf'/'container' factory constructs a
- * block node by the registration contract above, so the union narrowing lives
- * here at the registry choke point instead of a cast per opener call site.
+ * Pre-narrowed: the registration contract above guarantees a block node for these tiers, so the
+ * union narrowing lives at this choke point instead of a cast per opener call site.
  */
 export function resolveBlockDirectiveFactory(
 	tier: 'leaf' | 'container',
@@ -85,11 +82,8 @@ export function isDirectiveRegistered(tier: DirectiveTier, name: string): boolea
 }
 
 /**
- * Whether any registered directive, in any tier, produces `kind`. The reverse
- * lookup the "does this kind have a standalone recognizer" question needs: a
- * directive kind owns no block opener of its own — the shared `:::` opener
- * recognizes it on the kind's behalf — so an opener-registry probe alone reads
- * the whole directive tier as unrecognizable.
+ * What "does this kind have a recognizer" must ask: a directive kind owns no opener of its own,
+ * so an opener-registry probe alone reads the whole directive tier as unrecognizable.
  */
 export function isDirectiveKind(kind: AnyBlockKind | PluginInlineKind): boolean {
 	for (const def of definitions.values()) {

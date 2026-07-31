@@ -1,11 +1,9 @@
-// `|N` / `|NxM` is an Obsidian extension — not part of GFM.
+// `|N` / `|NxM` is an Obsidian extension, not part of GFM.
 
 const MAX_DIMENSION = 10000;
 
-// Longest zero-free decodable suffix is `|10000x10000`. Bounding the pipe
-// search to that tail keeps nested-label floods linear — the scanner calls
-// this once per nesting level with the whole inner label — at the deliberate
-// cost of not decoding digit runs padded with leading zeros past the bound.
+// The longest zero-free decodable suffix, `|10000x10000`. Bounding the pipe search to that tail
+// keeps nested-label floods linear, at the deliberate cost of not decoding zero-padded runs.
 const MAX_SUFFIX_SEARCH = 12;
 
 export interface ParsedImageAlt {

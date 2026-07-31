@@ -1,8 +1,6 @@
 /**
- * HTML block parser — CommonMark §4.6. Seven block types, each with its own
- * close condition. Types 1-5 close on a per-type pattern; types 6-7 close on
- * a blank line. `parseHtmlBlock` and `canInterruptParagraph` callers read
- * the type tag from `matchHtmlBlock`.
+ * HTML block parser, CommonMark §4.6: seven block types, each with its own close
+ * condition. Types 1-5 close on a per-type pattern; types 6-7 close on a blank line.
  */
 
 import type { ParsedLine } from '../lines';
@@ -13,9 +11,8 @@ import { OPEN_TAG_SOURCE, CLOSE_TAG_SOURCE } from '../inline/html-tag-grammar';
 export type HtmlBlockType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // ── Per-type opener patterns ────────────────────────────────────────────────
-// All patterns anchor to line start with 0-3 spaces of leading indent.
-// Priority: try 1 → 7. First match wins. Script/pre/style/textarea must stay out
-// of type 6's listed-tag union: they close on their end tag, not on a blank line.
+// Priority 1 → 7, first match wins. script/pre/style/textarea must stay out of type 6's
+// tag union: they close on their end tag, not on a blank line.
 
 const TYPE_1_OPEN = /^ {0,3}<(?:script|pre|style|textarea)(?:[\s/>]|$)/i;
 const TYPE_2_OPEN = /^ {0,3}<!--/;
@@ -25,8 +22,6 @@ const TYPE_5_OPEN = /^ {0,3}<!\[CDATA\[/;
 const TYPE_6_TAGS =
 	'address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|template|tfoot|th|thead|title|tr|track|ul';
 
-/** The type-6 line shape over a tag-name alternation: 0-3 indent, an optional
- *  closing slash (captured), the name, then whitespace, `/`, `>`, or end of line. */
 function type6Shape(names: string): string {
 	return `^ {0,3}<(/?)(?:${names})(?:[\\s/>]|$)`;
 }
@@ -34,13 +29,9 @@ function type6Shape(names: string): string {
 const TYPE_6_OPEN = new RegExp(type6Shape(TYPE_6_TAGS), 'i');
 
 /**
- * Recognize a type-6 tag line for ONE of the listed tag names, open or close.
- *
- * For a container kind whose terminator IS an html tag line: what closes such a
- * container is whatever CommonMark hands to raw-HTML passthrough, which is looser
- * than any single canonical spelling (`   </details>`, `</DETAILS>`, `<details >`
- * all qualify). Built from the same shape as the type-6 union above so the two
- * cannot drift — a kind testing this is testing the spec, not a copy of it.
+ * Recognize a type-6 tag line for ONE listed tag name, open or close. Built from the same
+ * shape as the type-6 union so a container whose terminator is an html tag line tests the
+ * spec's looseness (`   </details>`, `</DETAILS>`, `<details >`) rather than a copy of it.
  */
 export function htmlBlockTagLineMatcher(
 	tagName: string
@@ -52,11 +43,9 @@ export function htmlBlockTagLineMatcher(
 	};
 }
 
-// CommonMark §6.6 complete-tag grammar applied at line scope: the same open/
-// close tag sources the inline raw-HTML stage uses (core/inline/html-tag-
-// grammar.ts), wrapped with 0-3 indent before and whitespace-only after. Type 7
-// priority is LAST — types 1 and 6 claim their tag names first, so the spec's
-// exclusion of the type-1 tag names is naturally handled.
+// CommonMark §6.6 complete-tag grammar at line scope, reusing the inline raw-HTML sources
+// (core/inline/html-tag-grammar.ts). Priority LAST: types 1 and 6 claim their names first,
+// which is what implements the spec's exclusion of the type-1 tag names.
 const TYPE_7_OPEN = new RegExp(`^ {0,3}(?:${OPEN_TAG_SOURCE}|${CLOSE_TAG_SOURCE})\\s*$`);
 
 export function matchHtmlBlock(text: string): HtmlBlockType | null {
@@ -70,20 +59,13 @@ export function matchHtmlBlock(text: string): HtmlBlockType | null {
 	return null;
 }
 
-/**
- * True when `text` starts a paragraph-interrupting HTML block (types 1-6).
- * Type 7 (catch-all complete tags) explicitly cannot interrupt a paragraph
- * per CommonMark §4.6.
- */
+/** Types 1-6 interrupt a paragraph; type 7 (catch-all complete tags) cannot, per §4.6. */
 export function canInterruptParagraph(text: string): boolean {
 	const type = matchHtmlBlock(text);
 	return type !== null && type !== 7;
 }
 
 // ── Per-type close conditions ───────────────────────────────────────────────
-// Types 1-5 close on a per-type regex/substring match (case-insensitive for
-// type 1, where any of </script>, </pre>, </style>, </textarea> closes any
-// type-1 block per §4.6). Types 6-7 close on a blank line.
 
 const TYPE_1_CLOSE = /<\/(?:script|pre|style|textarea)>/i;
 
@@ -117,8 +99,7 @@ export function parseHtmlBlock(
 	let i = startIndex;
 	while (i < endIndex) {
 		if (closesOnLine(type, lines[i].text)) {
-			// Types 1-5: include the close-tag line. Types 6-7: leave the
-			// blank line out so parseBlocks accumulates it as pendingTrivia.
+			// Types 6-7 leave their closing blank line out so parseBlocks takes it as pendingTrivia.
 			if (type !== 6 && type !== 7) i++;
 			break;
 		}

@@ -1,12 +1,8 @@
 /**
- * List parser with CommonMark §5.2 lazy continuation: an under-indented
- * non-blank line that would not open a new block extends the item's open
- * paragraph. "Open paragraph" is approximated per-line (non-blank + doesn't
- * interrupt a paragraph) rather than by tracking full block-parser state —
- * the same approximation the blockquote parser makes. Like it, laziness
- * reaches only the item's own top-level paragraph, not a paragraph open
- * inside a nested sub-list: a lazy line after a nested item stays a separate
- * block (pinned in test/core/parsers/list-lazy-continuation.test.ts).
+ * List parser with CommonMark §5.2 lazy continuation. "Open paragraph" is approximated per
+ * line (non-blank, not a paragraph interrupter), as in the blockquote parser. Laziness reaches
+ * only the item's own top-level paragraph, never one open inside a nested sub-list
+ * (test/core/parsers/list-lazy-continuation.test.ts).
  */
 
 import type { CstNode } from '../nodes';
@@ -48,9 +44,8 @@ function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string 
 }
 
 /**
- * CommonMark §5.2: a list marker interrupts a paragraph only if it's a
- * bullet or starts at `1` — avoids misreading "... is 2. bananas" as a
- * list. Standalone list parsing still accepts any ordered number.
+ * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1`, so
+ * "... is 2. bananas" is not a list. Standalone list parsing accepts any ordered number.
  */
 export function canInterruptParagraph(text: string): boolean {
 	if (/^ {0,3}[-*+]\s+/.test(text)) return true;
@@ -75,12 +70,11 @@ export function parseList(
 
 		const contentIndent = itemMatch.indent;
 		const itemStartIndex = i;
-		// The marker line strips to its content (past the marker); a paragraph is
-		// open unless that content itself starts a non-paragraph block.
+		// The marker line strips to its content; a paragraph is open unless that content opens a block.
 		let paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
 		i++;
 
-		// Blank lines are absorbed if followed by indented content — multi-paragraph items.
+		// Blank lines are absorbed if followed by indented content, making multi-paragraph items.
 		while (i < endIndex) {
 			if (isBlankLine(lines[i].text)) {
 				let j = i;
@@ -95,9 +89,8 @@ export function parseList(
 				paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
 				i++;
 			} else if (paragraphOpen && wouldKeepParagraphOpen(lines[i].text)) {
-				// Lazy continuation: an under-indented line that would not open a new
-				// block joins the item's open paragraph (its verbatim bytes stay in
-				// raw; stripListItemLines feeds the paragraph parser one paragraph).
+				// Lazy continuation: the verbatim bytes stay in raw, and stripListItemLines
+				// feeds the paragraph parser one continuous paragraph.
 				i++;
 			} else {
 				break;
@@ -107,8 +100,7 @@ export function parseList(
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
 		const baseLines = stripListItemLines(lines, itemStartIndex, i, contentIndent);
 
-		// A leading `[ ] ` on the first stripped line is the task marker; drop it via a
-		// fresh re-mint so the body's offsets stay consistent with its shortened bytes.
+		// A leading `[ ] ` is the task marker; re-mint so body offsets match its shortened bytes.
 		const task = matchTaskCheckbox(baseLines.length > 0 ? baseLines[0].text : '');
 		const strippedLines = task
 			? remapStrippedLines(baseLines, (line, index) =>
@@ -162,12 +154,9 @@ function getIndent(text: string): number {
 }
 
 /**
- * Lazy continuation only extends an open paragraph. A blank line ends it; any
- * list marker is a block-level item (a sibling of this list or the start of a
- * new one, resolved by the outer item loop — never lazy paragraph text), which
- * is why an ordered marker not starting at 1 must be excluded here even though
- * it cannot interrupt a paragraph (§5.2); any other block opener (heading,
- * fence, thematic break, blockquote, …) ends the paragraph too.
+ * Lazy continuation extends only an open paragraph. Any list marker is block-level, resolved
+ * by the outer item loop, so an ordered marker not starting at 1 is excluded here even though
+ * §5.2 says it cannot interrupt a paragraph.
  */
 function wouldKeepParagraphOpen(strippedText: string): boolean {
 	if (isBlankLine(strippedText)) return false;
@@ -183,7 +172,6 @@ function stripListItemLines(
 	contentIndent: number
 ): ParsedLine[] {
 	return remapStrippedLines(lines.slice(startIndex, endIndex), (line, i) => {
-		// First line strips the marker prefix; continuation lines strip up to contentIndent.
 		const stripCount = i === 0 ? contentIndent : Math.min(getIndent(line.text), contentIndent);
 		return line.text.slice(stripCount);
 	});

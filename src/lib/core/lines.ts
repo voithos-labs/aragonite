@@ -1,7 +1,4 @@
-/**
- * Line splitting (preserving endings and offsets) plus trailing-line-ending
- * helpers. Lives in core/ because the raw/text distinction is parser-level.
- */
+/** Line splitting preserving endings and offsets, plus the trailing-line-ending helpers. */
 
 /** Length of `raw` excluding any trailing line ending (LF or CRLF). */
 export function displayLength(raw: string): number {
@@ -10,36 +7,27 @@ export function displayLength(raw: string): number {
 	return raw.length;
 }
 
-/** Return `raw` with any trailing line ending (LF or CRLF) removed. */
 export function trimTrailingLineEnding(raw: string): string {
 	return raw.slice(0, displayLength(raw));
 }
 
 /**
- * The block's authored trailing line ending — `\r\n` for a CRLF block, `\n`
- * otherwise. Every site that reattaches or mints a line ending reads it here (G4.20)
- * so a CRLF-authored block keeps its ending; a block with no trailing ending keeps
- * the `\n` the commit paths have always appended.
+ * The block's authored trailing line ending. Every site that reattaches or mints one reads it
+ * here (G4.20), so a CRLF-authored block keeps its ending and an unterminated one gets `\n`.
  */
 export function trailingLineEnding(raw: string): '\n' | '\r\n' {
 	return raw.endsWith('\r\n') ? '\r\n' : '\n';
 }
 
 /**
- * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending
- * (G4.20). A slice whose last line stays open swallows whatever text follows it
- * when the bytes stand alone — a delete's surviving head, a clipboard fragment's
- * container closer.
+ * Keep a truncated slice line-terminated, borrowing `sourceRaw`'s own ending (G4.20). A slice
+ * whose last line stays open swallows whatever follows it once the bytes stand alone.
  */
 export function terminateLine(text: string, sourceRaw: string): string {
 	return text.endsWith('\n') ? text : text + trailingLineEnding(sourceRaw);
 }
 
-/**
- * Normalize external text to LF. Paste entry points funnel through here so
- * Windows CRLF doesn't leak into notes and break byte-level cross-platform
- * consistency.
- */
+/** Paste entry points funnel through here so Windows CRLF does not leak into a note. */
 export function normalizeLineEndings(text: string): string {
 	return text.replace(/\r\n/g, '\n');
 }
@@ -75,12 +63,9 @@ export function splitLines(source: string): ParsedLine[] {
 }
 
 /**
- * Re-mint a `ParsedLine[]` after a per-line strip, recomputing `start`/`end` for
- * the stripped stream. Container parsers (list, blockquote) reparse a body from a
- * prefix-stripped copy; `stripLine` supplies each line's new text and the offsets
- * are recomputed so the stream stays byte-consistent with its own `raw`. Recompute,
- * not spread: reusing an input line's offsets after shortening its text desyncs the
- * offsets from the bytes (a latent bug the task-checkbox strip carried).
+ * Re-mint a `ParsedLine[]` after a per-line strip, as the container parsers do when they reparse
+ * a prefix-stripped body. Recompute, not spread: reusing an input line's offsets after shortening
+ * its text desyncs the offsets from the bytes.
  */
 export function remapStrippedLines(
 	lines: ParsedLine[],

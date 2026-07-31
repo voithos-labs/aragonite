@@ -1,7 +1,6 @@
 /**
- * Paragraph fallback. Also owns setext heading and table detection — both
- * emerge from paragraph continuation (next-line lookahead) rather than
- * having their own top-level matchers.
+ * Paragraph fallback. Owns setext-heading and table detection too: both emerge from
+ * paragraph continuation (next-line lookahead), not from their own top-level matchers.
  */
 
 import type { ParsedLine } from '../lines';
@@ -17,8 +16,8 @@ export function parseParagraph(
 ): BlockOpenerResult {
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
-		// GFM §4.10: a header/delimiter cell-count mismatch means no table —
-		// accepting it would truncate surplus header cells out of the model.
+		// GFM §4.10: a header/delimiter count mismatch is no table; accepting it would
+		// truncate surplus header cells out of the model.
 		if (
 			delimiter &&
 			lines[startIndex].text.includes('|') &&

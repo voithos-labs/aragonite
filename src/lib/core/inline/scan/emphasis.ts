@@ -1,11 +1,7 @@
 /**
- * Delimiter runs (`*` `_` `~`) and CommonMark §6.2 phase 2 matching — a
- * faithful port of commonmark.js 0.31.2 processEmphasis (openers_bottom,
- * odd-match on original run lengths, closer re-use). Both lists the reference
- * keeps linked are linked here too, as overlays rather than pointers on the
- * nodes: per-pass delimiter liveness over stack indices, and the working nodes
- * a pass owns over a window into the flat list. Delimiters hold their text
- * node by identity, so neither overlay can leave one pointing at the wrong run.
+ * Delimiter runs (`*` `_` `~`) and CommonMark §6.2 phase 2 matching: a faithful port of
+ * commonmark.js 0.31.2 processEmphasis (openers_bottom, odd-match on original run lengths,
+ * closer re-use). The reference's two linked lists are overlays here, not pointers on the nodes.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -34,9 +30,8 @@ function isWhitespace(ch: string): boolean {
 	return /\s/.test(ch);
 }
 
-// Flanking neighbors are read as full code points: a UTF-16 unit read would
-// classify an astral neighbor as a lone surrogate ("other"), while the spec
-// defines the character classes over code points.
+// Flanking neighbors are read as full code points: a UTF-16 unit read would classify an
+// astral neighbor as a lone surrogate, while the spec defines the classes over code points.
 function codePointBefore(raw: string, pos: number): string {
 	const unit = raw.charCodeAt(pos - 1);
 	if (unit >= 0xdc00 && unit <= 0xdfff && pos >= 2) {
@@ -47,10 +42,8 @@ function codePointBefore(raw: string, pos: number): string {
 }
 
 /**
- * CommonMark §6.2 flanking over code points (astral neighbors classify by
- * category, not surrogate halves). Neighbors are read from raw unclamped:
- * context outside [start, end) still counts, as the spec's source-text
- * reading implies.
+ * CommonMark §6.2 flanking over code points. Neighbors are read from raw unclamped: context
+ * outside [start, end) still counts, as the spec's source-text reading implies.
  */
 export function classifyDelimiterRun(
 	raw: string,
@@ -89,9 +82,8 @@ export function handleDelimiter(ctx: ScanContext): void {
 	while (runEnd < end && raw[runEnd] === char) runEnd++;
 	const length = runEnd - pos;
 
-	// cmark-gfm delimits strikethrough in tilde runs of length 1 or 2; a run of
-	// 3+ never participates and stays literal (the mixed-length non-pairing rule
-	// lives at the match, in processEmphasis).
+	// cmark-gfm delimits strikethrough in tilde runs of length 1 or 2; a run of 3+ never
+	// participates. The mixed-length non-pairing rule lives at the match, in processEmphasis.
 	if (char === '~' && length > 2) {
 		ctx.pos = runEnd;
 		return;
@@ -109,11 +101,7 @@ export function handleDelimiter(ctx: ScanContext): void {
 
 // ── §6.2 phase 2 ────────────────────────────────────────────────────────────
 
-/**
- * Match openers to closers among delimiters at stack index >= floor, wrapping
- * each match's interior nodes into an emphasis/strong/strikethrough node whose
- * range includes both markers. Consumes the stack back down to `floor`.
- */
+/** Matches delimiters at stack index >= floor, then consumes the stack back down to `floor`. */
 export function processEmphasis(ctx: ScanContext, floor: number): void {
 	const { delimiters } = ctx;
 	const top = delimiters.length;
@@ -123,10 +111,8 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 	const win = openNodeWindow(ctx, delimiters[floor].node);
 	const slotOf = mapDelimiterSlots(win, delimiters, floor, top);
 	if (slotOf === null) {
-		// Dropping the pass costs every pair in it, and the runs left behind are
-		// valid literal text, so the loss is invisible without a channel: warn
-		// rather than throw, because the state is currently unreachable and a
-		// false positive must not take a real editor's block to the fallback.
+		// Warn rather than throw: the state is unreachable today, and a false positive must not
+		// take a real editor's block to the fallback. The runs left behind stay literal text.
 		assertInvariant('emphasis-run-node-live', () => ({
 			code: 'emphasis-run-node-missing',
 			message:
@@ -138,9 +124,8 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 		return;
 	}
 
-	// Linked overlay over stack indices [floor, top): retired delimiters
-	// unlink in O(1) without splicing the shared stack (Bracket.delimiterFloor
-	// and openers_bottom hold positions into it).
+	// Linked overlay over stack indices [floor, top): retired delimiters unlink in O(1) without
+	// splicing the shared stack (Bracket.delimiterFloor and openers_bottom index into it).
 	const prev = new Array<number>(top);
 	const next = new Array<number>(top);
 	for (let i = floor; i < top; i++) {
@@ -152,9 +137,8 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 		if (next[i] < top) prev[next[i]] = prev[i];
 	};
 
-	// openers_bottom: per (char, closer canOpen, closer origLength % 3), the
-	// position below which this closer class has already proven no opener
-	// exists — keeps repeated failed searches amortized O(1).
+	// openers_bottom: per (char, closer canOpen, closer origLength % 3), the position below which
+	// this closer class has proven no opener exists. Keeps repeated failed searches amortized O(1).
 	const openersBottom = new Array<number>(18).fill(bottom);
 
 	let ci = floor;
@@ -211,11 +195,7 @@ export function processEmphasis(ctx: ScanContext, floor: number): void {
 
 const CHAR_BUCKET: Record<Delimiter['char'], number> = { '*': 0, _: 6, '~': 12 };
 
-/**
- * Multiple-of-3 rule on ORIGINAL run lengths (commonmark.js `origdelims`):
- * when either run could serve both roles, a combined length divisible by 3
- * blocks the match unless the closer's own length already is.
- */
+/** §6.2 multiple-of-3 rule, on ORIGINAL run lengths (commonmark.js `origdelims`). */
 function isOddMatch(opener: Delimiter, closer: Delimiter): boolean {
 	return (
 		(closer.canOpen || opener.canClose) &&
@@ -225,20 +205,13 @@ function isOddMatch(opener: Delimiter, closer: Delimiter): boolean {
 }
 
 /**
- * cmark-gfm pairs a strikethrough opener and closer only when their runs share a
- * length: a one-tilde run never closes a two-tilde run. (The multiple-of-3 rule
- * misses the flanking-pure `~a~~` / `~~a~` shapes, so this is a distinct gate;
- * `*`/`_` carry no such rule.)
+ * cmark-gfm pairs strikethrough runs only at equal length. A gate of its own: the multiple-of-3
+ * rule misses the flanking-pure `~a~~` / `~~a~` shapes, and `*`/`_` carry no such rule.
  */
 function tildeLengthsAgree(opener: Delimiter, closer: Delimiter): boolean {
 	return closer.char !== '~' || opener.origLength === closer.origLength;
 }
 
-/**
- * Wrap the nodes between opener and closer: consume delimiters from the
- * facing ends of both runs, move the interior into a new parent whose range
- * includes the consumed markers, and drop run nodes that emptied.
- */
 function wrapMatch(
 	win: NodeWindow,
 	raw: string,
@@ -251,10 +224,8 @@ function wrapMatch(
 	const kind: InlineNode['kind'] =
 		opener.char === '~' ? 'strikethrough' : use === 2 ? 'strong' : 'emphasis';
 
-	// The NONE arm bounds this walk, nothing more: the relink below still runs,
-	// and pointing it at a closer the opener cannot reach would cycle the list
-	// that closeNodeWindow walks. What rules that out is the caller's contract —
-	// slots ascend with scan order and every relink skips forward — not this arm.
+	// The NONE arm only bounds this walk. What rules out cycling the list closeNodeWindow walks
+	// is the caller's contract (slots ascend with scan order, relinks skip forward), not this arm.
 	const children: InlineNode[] = [];
 	for (let i = win.next[openerSlot]; i !== closerSlot && i !== NONE; i = win.next[i]) {
 		children.push(win.slot[i]);
@@ -286,15 +257,11 @@ function wrapMatch(
 const NONE = -1;
 
 /**
- * Doubly-linked view over the working nodes one pass owns — the reference's
- * inline node list, scoped to the range a floor can reach and held beside the
- * nodes instead of on them (an InlineNode is output, not scratch). A match
- * detaches its interior by relinking two ends; the array it replaces paid a
- * scan to locate each run node and a tail move to splice, which is what made a
- * paragraph of nothing but pairs quadratic.
+ * Doubly-linked view over the working nodes one pass owns, held beside them rather than on them
+ * (an InlineNode is output, not scratch). The array it replaces made an all-pairs paragraph
+ * quadratic. Link order, not array order, is node order.
  */
 interface NodeWindow {
-	/** Slot storage. Link order, not array order, is node order. */
 	slot: InlineNode[];
 	prev: number[];
 	next: number[];
@@ -304,9 +271,8 @@ interface NodeWindow {
 }
 
 /**
- * Take the window running from `first` to the end of the working list. Nodes
- * before `first` are out of every reachable match's range, so leaving them in
- * place is what keeps a bracket's recorded node position valid across a pass.
+ * Nodes before `first` are out of every reachable match's range, so leaving them in place is
+ * what keeps a bracket's recorded node position valid across the pass.
  */
 function openNodeWindow(ctx: ScanContext, first: InlineNode): NodeWindow {
 	let base = ctx.nodes.length - 1;
@@ -321,12 +287,11 @@ function openNodeWindow(ctx: ScanContext, first: InlineNode): NodeWindow {
 	return { slot, prev, next, head: 0, base };
 }
 
-/** Write the window's link order back over the range it took. */
 function closeNodeWindow(ctx: ScanContext, win: NodeWindow): void {
 	const { nodes } = ctx;
 	nodes.length = win.base;
-	// One at a time: spreading a window this size dies on V8's argument limit,
-	// and that RangeError takes the block to the unhealable failed-block fallback.
+	// One at a time: spreading a window this size hits V8's argument limit, and that
+	// RangeError takes the block to the unhealable failed-block fallback.
 	for (let i = win.head; i !== NONE; i = win.next[i]) nodes.push(win.slot[i]);
 }
 
@@ -349,14 +314,9 @@ function insertNodeAfter(win: NodeWindow, at: number, node: InlineNode): void {
 }
 
 /**
- * Each delimiter's slot in the window. Delimiters and the run nodes they hold
- * are both in scan order, so one merge walk places them all.
- *
- * Null when a run node is missing from the window, which means the pass's own
- * precondition — every live delimiter's node is still in the working list —
- * has been broken upstream. The caller then drops the pass entirely: the runs
- * stay the literal text they already are, where searching for a node that is
- * not there would walk off the end of a linked list that has no end.
+ * Delimiters and their run nodes are both in scan order, so one merge walk places them all.
+ * Null when a run node is missing: the pass's precondition broke upstream, and the caller must
+ * drop the pass rather than walk off a linked list that has no end.
  */
 function mapDelimiterSlots(
 	win: NodeWindow,

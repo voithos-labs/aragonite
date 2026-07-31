@@ -1,11 +1,7 @@
 /**
- * Pure fence grammar for the `:::name` directive primitive: opener/closer
- * recognition and lossless serialization. Framework-free and CST-free — the
- * parser and serializer consume these to build and re-emit the tree.
- *
- * Byte round-trip is the master invariant: `serializeDirective` reproduces the
- * opener colons, the verbatim `info` (leading separator included), the body
- * wrap, and a matched closer exactly.
+ * Pure fence grammar for the `:::name` directive primitive, framework-free and CST-free.
+ * Byte round-trip is the master invariant: `serializeDirective` reproduces the opener colons,
+ * the verbatim `info` (leading separator included), the body wrap, and a matched closer exactly.
  */
 
 // ── Opener / closer ───────────────────────────────────────────────────────────
@@ -16,7 +12,7 @@ export interface DirectiveFence {
 	tier: Exclude<DirectiveTier, 'text'>;
 	/** 2 = leaf, ≥3 = container. */
 	colonCount: number;
-	/** Charset `[A-Za-z][A-Za-z0-9-]*`: letter start, then letters/digits/hyphens (no underscore). */
+	/** Charset `[A-Za-z][A-Za-z0-9-]*`; no underscore. */
 	name: string;
 	/** Verbatim remainder of the line incl. its leading separator; no trailing newline. */
 	info: string;
@@ -38,9 +34,8 @@ export function matchDirectiveOpener(lineText: string): DirectiveFence | null {
 
 const COLON = 0x3a;
 
-// Char-scan, not `new RegExp` per call: the closer test runs inside the parser's
-// per-line loop, so it must not allocate. A closer is a colon run ≥ the opener's
-// count with nothing after it.
+// Char-scan, not `new RegExp` per call: this runs inside the parser's per-line loop and
+// must not allocate.
 export function isDirectiveCloser(lineText: string, openColonCount: number): boolean {
 	let count = 0;
 	while (count < lineText.length && lineText.charCodeAt(count) === COLON) count++;
@@ -48,16 +43,14 @@ export function isDirectiveCloser(lineText: string, openColonCount: number): boo
 }
 
 /**
- * The colon count a fence needs to wrap `body` — one past the body's longest
- * whole-line colon run, never below `minimum`. The write-side inverse of
- * `isDirectiveCloser`: without it, a body line reproducing the terminator reads
- * as the container's own closer and ejects everything below it on reparse.
+ * The colon count needed to wrap `body`: one past its longest whole-line colon run, never below
+ * `minimum`. Without it a body line reproducing the terminator reads as the container's own
+ * closer and ejects everything below it on reparse.
  */
 export function escalatedColonCount(body: string, minimum: number): number {
 	let required = minimum;
 	for (const line of body.split('\n')) {
-		// Splitting on `\n` leaves a CRLF body's `\r` on each segment's tail; a
-		// closer line's text excludes it, so the run test must too.
+		// Splitting on `\n` leaves a CRLF body's `\r` on the tail; a closer line's text excludes it.
 		const text = line.endsWith('\r') ? line.slice(0, -1) : line;
 		if (text.length >= required && isDirectiveCloser(text, required)) required = text.length + 1;
 	}
@@ -75,20 +68,17 @@ export function serializeDirective(parts: {
 	innerSuffix: string;
 	/** Closer colon run; defaults to `colonCount`. A nested `::::` closer widens past its opener. */
 	closerColonCount?: number;
-	/** Whether the closer ends with a newline; defaults to true. False for a document-final directive. */
+	/** Defaults to true; false for a document-final directive. */
 	closerNewline?: boolean;
-	/** Authored line ending for the synthesized opener line; defaults to `\n`. Threaded so a CRLF-authored directive rebuilds CRLF-safe (the body carries its own bytes). */
+	/** Opener line ending, default `\n`. Threaded so a CRLF-authored directive rebuilds CRLF-safe. */
 	lineEnding?: string;
-	/** Authored line ending for the closer line; defaults to `lineEnding`. A mixed-ending directive (LF opener, CRLF closer) keeps each chrome line's own bytes. */
+	/** Closer line ending, default `lineEnding`. A mixed-ending directive keeps each line's bytes. */
 	closerLineEnding?: string;
 }): string {
 	const lineEnding = parts.lineEnding ?? '\n';
 	const inner = `${parts.innerPrefix}${parts.body}${parts.innerSuffix}`;
-	// Re-derived from the body on every emit rather than latched into metadata, so
-	// two emits over the same state always agree (G1.13). `colonCount` is a floor,
-	// not a target: the fence narrows back when the colliding line goes away, though
-	// only within the node's life, since a reparse reads the widened opener as the
-	// new floor.
+	// Re-derived on every emit rather than latched into metadata, so two emits over the same
+	// state always agree (G1.13). `colonCount` is a floor, not a target.
 	const colonCount = escalatedColonCount(inner, parts.colonCount);
 	const opener = ':'.repeat(colonCount);
 	const closer = ':'.repeat(Math.max(colonCount, parts.closerColonCount ?? colonCount));
@@ -107,15 +97,12 @@ export interface DirectiveAttributes {
 
 const LABEL = /^\s*\[([^\]]*)\]/;
 const BRACES = /\{([^}]*)\}/;
-// One attribute token: a run of non-space chars with quoted segments folded in,
-// so `title="a b"` stays whole instead of splitting on its inner space.
+// Quoted segments fold in, so `title="a b"` stays one token instead of splitting on its space.
 const ATTR_TOKEN = /(?:[^\s"]+|"[^"]*")+/g;
 
 /**
- * Opt-in `info → structure` reader: pulls a leading `[label]` and a `{#id .class
- * key=val}` block out of the opener info. Bare or unmatched info yields an empty
- * structure (the callout-title path). One-way only — there is no inverse
- * serializer; the verbatim `info` remains the round-trip source of truth.
+ * Opt-in `info -> structure` reader for a leading `[label]` and a `{#id .class key=val}` block.
+ * One-way: there is no inverse serializer, and the verbatim `info` stays the round-trip truth.
  */
 export function parseDirectiveAttributes(info: string): DirectiveAttributes {
 	const attributes: DirectiveAttributes = { classes: [], properties: {} };

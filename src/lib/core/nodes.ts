@@ -1,7 +1,4 @@
-/**
- * CST node types for the GFM parser. Mutable plain objects — no class
- * hierarchy. See docs/design/syntax-tree.md for the design spec.
- */
+/** CST node types for the GFM parser: mutable plain objects. Spec: docs/design/syntax-tree.md. */
 
 import type { BytesView, NodeView } from './node-views';
 
@@ -24,10 +21,8 @@ export type ContainerBlockKind = 'blockquote' | 'list' | 'listItem' | 'table' | 
 export type BlockKind = LeafBlockKind | ContainerBlockKind;
 
 /**
- * Exhaustive manifest of every BlockKind. The `Record<BlockKind, true>` type
- * forces the compiler to flag a missing or stray member, so this is the single
- * union-derived source for "iterate over all kinds" — replacing hand-maintained
- * kind lists that pass vacuously when a member is forgotten.
+ * The single union-derived source for "iterate over all kinds": `Record<BlockKind, true>` makes
+ * the compiler flag a missing or stray member, where a hand-kept list passes vacuously.
  */
 export const BLOCK_KIND_TABLE: Record<BlockKind, true> = {
 	heading: true,
@@ -51,9 +46,8 @@ export const ALL_BLOCK_KINDS = Object.keys(BLOCK_KIND_TABLE) as BlockKind[];
 
 declare const PluginKindBrand: unique symbol;
 /**
- * A plugin-declared block kind. Runtime value is a plain string; the brand
- * keeps `BlockKind` switches exhaustive over built-ins while letting the
- * schema registries key plugin kinds. Create via `declarePluginKind`.
+ * A plugin-declared block kind, a plain string at runtime. The brand keeps `BlockKind` switches
+ * exhaustive over built-ins while the registries key plugin kinds. Create via `declarePluginKind`.
  */
 export type PluginBlockKind = string & { readonly [PluginKindBrand]: true };
 
@@ -128,10 +122,7 @@ export type BlockMetadata =
 	| ListMetadata
 	| ListItemMetadata;
 
-/**
- * Maps each metadata-carrying BlockKind to its metadata interface. Kinds with
- * no metadata are intentionally absent — `metadataOf` rejects them.
- */
+/** Metadata-less kinds are intentionally absent, so `metadataOf` rejects them. */
 export interface BlockMetadataByKind {
 	heading: HeadingMetadata;
 	setextHeading: SetextHeadingMetadata;
@@ -146,14 +137,9 @@ export interface BlockMetadataByKind {
 }
 
 /**
- * Typed read of a node's metadata for a known kind. Where the node is already a
- * narrowed `BuiltinCstNode` arm, `node.metadata` reads with the right type
- * directly — prefer that. This funnel stays for the un-narrowed contexts: a
- * generic `K`, or a full `CstNode` whose branded plugin arm blocks `kind`
- * narrowing. Its body carries the one sanctioned metadata cast; the `kind`
- * argument selects the return interface. Pass the kind you've already
- * established for `node`. A readonly view yields a readonly metadata view —
- * reads stay legal, writes don't.
+ * The one sanctioned metadata cast, for contexts a narrowed `BuiltinCstNode` arm cannot reach:
+ * a generic `K`, or a full `CstNode` whose branded plugin arm blocks `kind` narrowing. Prefer
+ * reading `node.metadata` off a narrowed arm. Pass the kind you have already established.
  */
 export function metadataOf<K extends keyof BlockMetadataByKind>(
 	node: CstNode,
@@ -172,11 +158,9 @@ export function metadataOf<K extends keyof BlockMetadataByKind>(
 }
 
 /**
- * Store/read a plugin kind's own metadata shape. `BlockMetadata` is a closed
- * union over the built-in kinds with no plugin arm, so bridging a plugin's
- * shape needs a cast; this accessor pair is the one place it lives, mirroring
- * `metadataOf` for built-ins. Keep the stored shape primitive-valued — the
- * one-level undo clone (invariant G1.6) shallow-copies metadata.
+ * `BlockMetadata` is closed over the built-ins, so bridging a plugin's shape needs a cast and
+ * this pair is the one place it lives. Keep the stored shape primitive-valued: the one-level
+ * undo clone (G1.6) shallow-copies metadata.
  */
 export function setPluginMetadata<T>(node: CstNode, data: T): void {
 	node.metadata = data as unknown as BlockMetadata;
@@ -187,11 +171,8 @@ export function getPluginMetadata<T>(node: NodeView): T | undefined {
 }
 
 /**
- * The level of an ATX or setext heading, or null for any other node. The one
- * heading-metadata read the authoring barrel exposes: `metadata.level` narrows
- * only past `isBuiltinBlockNode` (kept off the barrel), so an outline plugin has
- * no other typed path to a heading's depth. Sibling to `getContentRange` in the
- * marker-reading family.
+ * Null for any non-heading node. The one heading-metadata read on the authoring barrel:
+ * `metadata.level` narrows only past `isBuiltinBlockNode`, which the barrel does not export.
  */
 export function headingLevel(node: NodeView): number | null {
 	if (node.kind === 'heading') return metadataOf(node, 'heading').level;
@@ -201,10 +182,7 @@ export function headingLevel(node: NodeView): number | null {
 
 // ── Node Types ──────────────────────────────────────────────────────────────
 
-/**
- * Fields every block node carries. `ownerEpoch` is editor-level sharing
- * bookkeeping for structural-sharing undo — not round-trip bytes.
- */
+/** `ownerEpoch` is structural-sharing bookkeeping, not round-trip bytes. */
 interface BlockNodeBase {
 	leadingTrivia: string;
 	raw: string;
@@ -212,9 +190,8 @@ interface BlockNodeBase {
 }
 
 /**
- * Leaf category. G1.5 forbids `children` and the container structural fields on
- * non-containers, so the arms pin them `undefined` — the union then rejects a
- * leaf that grew a child at the type level, and a narrowed leaf reads them away.
+ * G1.5 forbids `children` and the container structural fields on non-containers, so the arms pin
+ * them `undefined` and the union rejects a leaf that grew a child at the type level.
  */
 interface LeafBlockNodeBase extends BlockNodeBase {
 	children?: undefined;
@@ -224,10 +201,8 @@ interface LeafBlockNodeBase extends BlockNodeBase {
 }
 
 /**
- * Container category. G1.5 is one-directional — a container may be transiently
- * childless mid-edit — so every structural field stays optional; the arms never
- * require them. `childIds` mirrors `children` for keyed rendering; undo restores
- * both together.
+ * G1.5 is one-directional (a container may be transiently childless mid-edit), so every
+ * structural field stays optional. `childIds` mirrors `children` for keyed rendering.
  */
 interface ContainerBlockNodeBase extends BlockNodeBase {
 	children?: CstNode[];
@@ -299,11 +274,9 @@ export interface TableRowNode extends ContainerBlockNodeBase {
 }
 
 /**
- * A block minted by a plugin kind. The kind is a branded string, not a literal,
- * so this arm is NOT discriminable by `switch (node.kind)` — narrow past it with
- * `isBuiltinBlockNode` first. `metadata` rides the shared slot via the cast
- * accessors (`get`/`setPluginMetadata`); a plugin block may be a leaf or a
- * container, so the structural fields stay optional.
+ * A branded-string kind, so this arm is NOT discriminable by `switch (node.kind)`: narrow past
+ * it with `isBuiltinBlockNode` first. A plugin block may be a leaf or a container, so the
+ * structural fields stay optional.
  */
 export interface PluginBlockNode extends BlockNodeBase {
 	kind: PluginBlockKind;
@@ -314,11 +287,7 @@ export interface PluginBlockNode extends BlockNodeBase {
 	childIds?: string[];
 }
 
-/**
- * The built-in block arms — a genuine discriminated union. `switch (node.kind)`
- * on a `BuiltinCstNode` narrows to the exact arm, so `node.metadata` reads as
- * that kind's metadata with no cast.
- */
+/** A genuine discriminated union: `switch (node.kind)` narrows `node.metadata` with no cast. */
 export type BuiltinCstNode =
 	| ParagraphNode
 	| HeadingNode
@@ -337,19 +306,15 @@ export type BuiltinCstNode =
 	| TableRowNode;
 
 /**
- * A CST block node. The built-in arms discriminate on `kind`; the open
- * `PluginBlockNode` arm does not (branded-string kind), so full-union `kind`
- * checks don't narrow — reach the discriminated world through
- * `isBuiltinBlockNode`. Common fields (`raw`, `leadingTrivia`, `kind`) project
- * across every arm and read without narrowing.
+ * The open `PluginBlockNode` arm does not discriminate, so full-union `kind` checks do not
+ * narrow: reach the discriminated world through `isBuiltinBlockNode`. Common fields (`raw`,
+ * `leadingTrivia`, `kind`) project across every arm and read without narrowing.
  */
 export type CstNode = BuiltinCstNode | PluginBlockNode;
 
 /**
- * Narrow a node to the discriminated built-in union — the door to
- * `switch (node.kind)` metadata narrowing that the branded plugin arm otherwise
- * blocks. Mirrored for views: `BytesView<BuiltinCstNode>` discriminates too, so a
- * reader that narrows a `NodeView` reads each arm's metadata with no `metadataOf`.
+ * The door to the `switch (node.kind)` narrowing the branded plugin arm blocks. Mirrored for
+ * views, so a reader that narrows a `NodeView` reads each arm's metadata with no `metadataOf`.
  */
 export function isBuiltinBlockNode(node: CstNode): node is BuiltinCstNode;
 export function isBuiltinBlockNode(node: NodeView): node is BytesView<BuiltinCstNode>;
@@ -358,16 +323,11 @@ export function isBuiltinBlockNode(node: CstNode | NodeView): boolean {
 }
 
 /**
- * Mint a block node from a runtime `kind`. A non-literal kind matches no arm, so
- * the return needs a cast; this funnel is the ONE place it lives. It is a
- * construction door, distinct from the view→mutable strip door (unshare/clone):
- * the spread returns a FRESH object, so passing a view here mints a copy rather
- * than stripping the view's readonly-ness — the funnel cannot open a G1.9 hazard,
- * which is why G4.13 sanctions this file. Field params are mutable by contract.
- *
- * The fields are not checked against the arm, so this can mint a metadata-less
- * node of a metadata-carrying kind — a transient re-parse probe does exactly that.
- * Such a node's `metadata` must not be read before it is re-parsed or discarded.
+ * The ONE place the runtime-kind construction cast lives. A construction door, not the
+ * view-to-mutable strip door: the spread returns a FRESH object, so passing a view mints a copy
+ * instead of stripping its readonly-ness, which is why G4.13 sanctions this file. Fields are not
+ * checked against the arm, so a metadata-less node of a metadata-carrying kind is mintable (a
+ * transient re-parse probe does this) and its `metadata` must not be read before re-parse.
  */
 export function makeBlockNode(fields: {
 	kind: AnyBlockKind;
@@ -408,11 +368,7 @@ export type InlineNodeKind =
 	| 'rawHtml';
 
 declare const InlineKindBrand: unique symbol;
-/**
- * A plugin-declared inline kind. Runtime value is a plain string; the brand
- * keeps `InlineNodeKind` switches exhaustive over built-ins while letting the
- * schema registries key plugin kinds.
- */
+/** The inline sibling of `PluginBlockKind`; create via `declarePluginInlineKind`. */
 export type PluginInlineKind = string & { readonly [InlineKindBrand]: true };
 
 export type AnyInlineKind = InlineNodeKind | PluginInlineKind;
@@ -454,17 +410,15 @@ export interface InlineNode {
 	/** Discriminator for `unresolvedReference` nodes: which form they would have been. */
 	refKind?: 'link' | 'image';
 	/**
-	 * Stamped by the scan when a plugin inline rung claimed these bytes. Derived per
-	 * scan, never persisted — the write paths read it to re-serialize in the claiming
-	 * syntax rather than in the built-in grammar of the node's kind.
+	 * Stamped by the scan when a plugin rung claimed these bytes, derived per scan and never
+	 * persisted. Write paths read it to re-serialize in the claiming syntax, not built-in GFM.
 	 */
 	syntaxClaim?: InlineSyntaxClaim;
 }
 
 /**
- * An image node's fields as they persist into source bytes. Optional keys are
- * omitted rather than set to `undefined`, so a serializer can tell "no title" from
- * "empty title" and reproduce a node that never carried one.
+ * Optional keys are omitted rather than set to `undefined`, so a serializer can tell "no title"
+ * from "empty title" and reproduce a node that never carried one.
  */
 export interface ImageFields {
 	alt: string;
@@ -473,19 +427,15 @@ export interface ImageFields {
 	width?: number;
 	height?: number;
 	/**
-	 * Reference label, present only for reference-style images (`![alt][label]`).
-	 * When set, the built-in serializer emits the reference form and writes no
-	 * url/title — those live in the LRD, so re-inlining them on a resize/alt edit
-	 * would orphan the definition.
+	 * Reference-style images only (`![alt][label]`). When set, the serializer emits the reference
+	 * form and writes no url/title: those live in the LRD, and inlining them would orphan it.
 	 */
 	label?: string;
 }
 
 /**
- * Re-serializes an image node an inline rung minted over its own bytes. `source` is
- * the node's current source slice; the return is its replacement in the rung's
- * syntax, or `null` when the edit has no form in that grammar — which declines the
- * edit rather than rewriting the bytes as GFM.
+ * Re-serializes an image an inline rung minted over its own bytes: `source` in, its replacement
+ * in the rung's syntax out, or `null` to decline the edit rather than rewrite the bytes as GFM.
  */
 export type ImageSyntaxRewriter = (source: string, fields: ImageFields) => string | null;
 

@@ -1,14 +1,8 @@
 /**
- * DOM renderer for InlineNode trees. Over a widget-free range, textContent of
- * the returned fragment equals raw.slice — every character in raw has a
- * corresponding text node.
- *
- * Atomic widgets break that by design: a widget contributes its OWN text (an
- * entity's decoded glyph, one character for six raw bytes) or none at all (an
- * image, a `<br>`), carrying its source bytes on `data-source-*` instead. So a
- * raw offset is recovered only through the shared walk (cursor/widget-offset.ts),
- * never by counting textContent. The property test states the scoped invariant
- * both ways (G2.4).
+ * DOM renderer for InlineNode trees. Over a widget-free range the fragment's textContent equals
+ * raw.slice. Atomic widgets break that by design, contributing their own text or none and
+ * carrying source bytes on `data-source-*`, so a raw offset is recovered only through the shared
+ * walk (cursor/widget-offset.ts), never by counting textContent. Stated both ways by G2.4.
  */
 
 import type { InlineNode } from './nodes';
@@ -26,10 +20,7 @@ export interface RenderInlineOptions {
 	resolveLinkUrl?: (rawUrl: string) => string;
 	/** Whether remote images auto-load (default) or defer to a placeholder. */
 	imageLoadPolicy?: ImageLoadPolicy;
-	/**
-	 * Builds the atomic image-widget DOM. Injected by the component layer so
-	 * `core/` owns no image-widget specifics; absent → images render alt-only.
-	 */
+	/** Injected by the component layer so `core/` owns no image specifics; absent renders alt-only. */
 	buildImageWidget?: (
 		node: InlineNode,
 		raw: string,
@@ -39,17 +30,14 @@ export interface RenderInlineOptions {
 		}
 	) => Node;
 	/**
-	 * Builds a `component`-kind widget's DOM by mounting its Svelte component in the
-	 * atomic-island wrapper. Injected by the component layer so `core/` owns no
-	 * portal specifics; absent or null → the widget falls back to its raw source.
+	 * Mounts a `component`-kind widget in the atomic-island wrapper. Injected for the same reason
+	 * as `buildImageWidget`; absent or null falls the widget back to its raw source.
 	 */
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
 	/**
-	 * Stamp each construct's marker spans (and ref labels) with the construct's raw
-	 * range as `data-construct-start`/`-end`, so preview-inline's construct-reveal
-	 * trigger can address them per construct. Attributes only — textContent is
-	 * untouched, so the offset walk is unaffected. Off by default: the default DOM
-	 * stays byte-identical outside preview-inline.
+	 * Stamp marker spans with the construct's raw range, so preview-inline's reveal trigger can
+	 * address them. Attributes only, leaving textContent and the offset walk untouched. Off by
+	 * default so the DOM stays byte-identical outside preview-inline.
 	 */
 	tagConstructMarkers?: boolean;
 }
@@ -71,8 +59,7 @@ function tagConstruct(el: HTMLElement, node: InlineNode, opts: RenderInlineOptio
 	return el;
 }
 
-// The verbatim-source fallback for inline kinds that render no widget: a classed span
-// whose text is the node's own bytes, so every character still round-trips.
+// The verbatim-source fallback for kinds that render no widget, so every character round-trips.
 function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanElement {
 	const span = document.createElement('span');
 	span.className = className;
@@ -80,9 +67,8 @@ function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanE
 	return span;
 }
 
-// One url-policy choke point for both href sinks (link, autolink): resolve through
-// the caller's rewrite, then gate on the scheme allowlist. Returns the safe href, or
-// undefined when absent or blocked — the caller reads that as "render an inert span".
+// The one url-policy choke point for both href sinks. Undefined means absent or blocked, which
+// the caller reads as "render an inert span".
 function resolveHref(opts: RenderInlineOptions, url: string | undefined): string | undefined {
 	if (url === undefined) return undefined;
 	const resolved = (opts.resolveLinkUrl ?? ((u) => u))(url);
@@ -99,9 +85,8 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	// Fence length is read back off `raw`, not inferred from `node.text`'s length:
-	// the rendered bytes must reconstruct `raw` exactly, so every span this function
-	// emits is a slice of it rather than a parsed field that happens to agree.
+	// Read back off `raw`, not inferred from `node.text`: every span emitted here must be a slice
+	// of raw rather than a parsed field that happens to agree.
 	let contentStart = node.start;
 	while (contentStart < node.end && raw[contentStart] === '`') contentStart++;
 	const tickLen = contentStart - node.start;
@@ -122,13 +107,9 @@ function renderInlineCode(
 // ── Nesting frames ───────────────────────────────────────────────────────────
 
 /**
- * One construct's pending child render. Children accumulate in a detached fragment
- * and `close` assembles the construct from it — wrapper, then closing markers —
- * when the frame drains. Assembly stays bottom-up: appending into a fragment that
- * is still detached keeps each insertion's ancestor bookkeeping O(1) rather than
- * O(depth). Nothing else can reach the construct's container in between, since the
- * frame sits on top of the stack until it drains, so the emitted order is source
- * order.
+ * One construct's pending child render, assembled by `close` when the frame drains. Children
+ * accumulate in a DETACHED fragment, which keeps each insertion's ancestor bookkeeping O(1)
+ * rather than O(depth). Emitted order is source order: the frame owns the top of the stack.
  */
 interface RenderFrame {
 	nodes: InlineNode[];
@@ -155,7 +136,7 @@ function openWrapped(
 		openEnd = children[0].start;
 		closeStart = children[children.length - 1].end;
 	} else {
-		// No children — entire interior is markers; split in half.
+		// No children, so the entire interior is markers; split it in half.
 		const mid = node.start + Math.floor((node.end - node.start) / 2);
 		openEnd = mid;
 		closeStart = mid;
@@ -179,8 +160,7 @@ function openWrapped(
 
 // ── Links ────────────────────────────────────────────────────────────────────
 
-// Markers come from raw.slice; never reconstruct from parsed fields (the parsed
-// url/title can differ from the source bytes).
+// Markers come from raw.slice: the parsed url/title can differ from the source bytes.
 function openLink(
 	node: InlineNode,
 	raw: string,
@@ -201,10 +181,8 @@ function openLink(
 	}
 
 	const lastChild = children[children.length - 1];
-	// Split the close marker into the closing `]` of the text bracket and the
-	// trailing marker (`(url)` for inline form, `[label]` / `[]` for reference
-	// forms). Reference forms get a separate `md-ref-label` class so CSS can dim
-	// them more aggressively than inline markers.
+	// The close marker splits into the text bracket's `]` and the trailing marker. Reference forms
+	// get their own `md-ref-label` class so CSS can dim them harder than inline markers.
 	const closingTextBracket =
 		raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
 	const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
@@ -250,9 +228,8 @@ function openLink(
 // ── Images ───────────────────────────────────────────────────────────────────
 
 /**
- * The widget-free image path — a kind whose descriptor declines image widgets
- * (table cells), or a consumer that injects no builder. Renders source bytes with
- * the alt text left undimmed, so a reading-mode marker collapse leaves the alt.
+ * The widget-free image path (a kind that declines image widgets, or no injected builder).
+ * The alt text stays undimmed, so a reading-mode marker collapse leaves it behind.
  */
 function appendImageSource(
 	node: InlineNode,
@@ -263,10 +240,9 @@ function appendImageSource(
 	const altText = node.alt ?? '';
 	const altStart = node.start + 2;
 	const altEnd = altStart + altText.length;
-	// `alt` locates the split and never supplies text (openLink's rule), and only where
-	// it is literally those bytes: a minted image's markers need not be the two a GFM
-	// image's are. Unlocatable → unmarked source, since markers collapse in reading mode
-	// and a construct nobody can decompose would collapse whole.
+	// `alt` locates the split and never supplies text (openLink's rule), and only where it is
+	// literally those bytes: a minted image's markers need not be a GFM image's. Unlocatable
+	// falls back to unmarked source, since a construct nobody can decompose would collapse whole.
 	if (altEnd > node.end || !raw.startsWith(altText, altStart)) {
 		container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
 		return;
@@ -278,10 +254,7 @@ function appendImageSource(
 
 // ── Main renderer ────────────────────────────────────────────────────────────
 
-/**
- * Append one node's DOM to `container`, returning the frame for its children when
- * it has any — the driver owns the descent so nesting depth costs no call stack.
- */
+/** Returns a frame for the node's children; the driver owns the descent, off the call stack. */
 function renderNode(
 	node: InlineNode,
 	raw: string,
@@ -307,8 +280,8 @@ function renderNode(
 			return openWrapped(node, raw, 's', opts, container);
 
 		case 'hardLineBreak': {
-			// Text node carries the line ending (LF or CRLF) so textContent equals
-			// raw byte-for-byte; <br> would diverge across browsers.
+			// A text node carries the line ending so textContent equals raw byte-for-byte;
+			// a `<br>` would diverge across browsers.
 			const breakRaw = raw.slice(node.start, node.end);
 			const nlIdx = breakRaw.indexOf('\n');
 			const lineEndingStart = nlIdx > 0 && breakRaw[nlIdx - 1] === '\r' ? nlIdx - 1 : nlIdx;
@@ -353,9 +326,8 @@ function renderNode(
 			return null;
 
 		case 'entityReference':
-			// A visibly-rendering reference builds an atomic widget of its decoded
-			// glyph; an invisible one (whitespace/control decoding) is not a widget,
-			// so buildCoreInlineWidget returns null and it keeps its literal-source span.
+			// An invisible reference is not a widget, so the builder returns null and it keeps
+			// its literal-source span.
 			container.appendChild(
 				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
 					sourceSpan(raw, node, 'md-entity')
@@ -382,8 +354,7 @@ function renderNode(
 			return null;
 
 		default:
-			// Registered plugin widget kinds render through the registry; anything
-			// still unrecognized falls back to its raw source, mirroring the
+			// Anything the registry does not claim falls back to raw source, mirroring the
 			// unknown-block fallback so every byte round-trips.
 			container.appendChild(
 				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
@@ -398,11 +369,8 @@ export function renderInlineNodes(
 	raw: string,
 	opts: RenderInlineOptions = {}
 ): DocumentFragment {
-	// Iterative: inline nesting depth is input-controlled (each `*`-run pair nests one
-	// level), so a per-level recursion overflows the call stack on a large paragraph —
-	// and the RangeError strands the block in the failed-block fallback, which cannot
-	// heal. The sibling scan (`scanChildren`, inline/scan/autolinks.ts) is iterative
-	// for the same reason.
+	// Iterative: nesting depth is input-controlled, so per-level recursion overflows the stack and
+	// strands the block in the unhealable fallback. `scanChildren` is iterative for the same reason.
 	const root: RenderFrame = {
 		nodes,
 		index: 0,
@@ -431,17 +399,13 @@ export interface OffsetResult {
 }
 
 /**
- * Find the leaf InlineNode containing `offset`. At boundaries between nodes,
- * prefers the right node; `offset === end` only matches the last node.
- *
- * Model-layer lookup: walks the parsed inline tree, touches no DOM. The DOM-layer
- * counterpart is `cursor/widget-offset.ts` `findDomTextOffsetTarget`, which maps
- * a walk-space offset to a live `(node, offset)` DOM position.
+ * The leaf containing `offset`, preferring the right node at a boundary; `offset === end` only
+ * matches the last node. Model-layer, touching no DOM: the DOM counterpart is
+ * `findDomTextOffsetTarget` in cursor/widget-offset.ts.
  */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
-	// Iterative for the reason the renderer is: nesting depth is input-controlled.
-	// Descent never backtracks — the first containing sibling wins its level — so the
-	// answer is the deepest containing node, or the last one when descent finds none.
+	// Descent never backtracks, the first containing sibling winning its level, so the answer is
+	// the deepest containing node.
 	let level = nodes;
 	let found: OffsetResult | null = null;
 	for (;;) {

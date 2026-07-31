@@ -1,39 +1,24 @@
 /**
- * Visibility gate + DOM builder for the decoded-entity inline widget. A
- * character reference (`&copy;`, `&#169;`) renders as an atomic widget showing
- * its decoded glyph — but only when that glyph is visible. An entity whose
- * decoded value is entirely control / format / whitespace characters
- * (`&nbsp;` → U+00A0, `&ZeroWidthSpace;`, `&NewLine;`) keeps its literal-source
- * span: an invisible atomic island is a caret trap. The widget adopts the
- * generic `[data-inline-widget]` marker + `data-source-*` offsets, so the
- * cursor walk, selection paint, and raw reader handle it with no per-kind
- * plumbing.
+ * Visibility gate and DOM builder for the decoded-entity inline widget. A character reference
+ * renders as an atomic widget showing its decoded glyph, but only when that glyph is visible:
+ * an entity decoding to nothing drawable (`&nbsp;`, `&ZeroWidthSpace;`) keeps its literal
+ * source span, because an invisible atomic island is a caret trap.
  */
 
 import type { InlineNode } from '../nodes';
 import { mintWidgetShell } from './inline-widgets';
 
-// A decoded string renders no glyph when every code point is a control (`Cc`),
-// format (`Cf`), whitespace (`Zs`/`Zl`/`Zp`), or zero-advance mark (`Mn`/`Me`)
-// character. `\p{Zs}` covers the non-breaking space (U+00A0) — `&nbsp;`'s glyph
-// would be an invisible column, so it stays a literal span like a plain space.
-// `\p{Cf}` covers the zero-width joiners and the BOM; `\p{Cc}` covers
-// tab/newline/DEL and the C1 range. `\p{Mn}`/`\p{Me}` cover lone combining
-// marks (`&#x301;`), which render at zero width with nothing to combine with —
-// an invisible island — while spacing marks (`Mc`) keep real advance and stay
-// widgets. The empty string (a non-decoding node) is invisible by the same test.
+// Zero-advance categories only. `Mn`/`Me` are here because a lone combining mark (`&#x301;`)
+// has nothing to combine with and draws nothing; spacing marks (`Mc`) keep real advance and
+// stay widgets. The empty string (a non-decoding node) is invisible by the same test.
 const RENDERS_NO_GLYPH = /^[\p{Cc}\p{Cf}\p{Zs}\p{Zl}\p{Zp}\p{Mn}\p{Me}]*$/u;
 
-/** True when the entity's decoded value renders at least one visible glyph, so
- *  it should render as an atomic widget rather than its literal source span. */
+/** True when the decoded value draws at least one glyph, so it earns a widget. */
 export function entityRendersGlyph(decoded: string | undefined): boolean {
 	return decoded !== undefined && !RENDERS_NO_GLYPH.test(decoded);
 }
 
-/** Build the atomic-widget DOM for a visibly-rendering entity: a
- *  `[data-inline-widget]` shell whose text is the decoded glyph and whose
- *  source bytes ride `data-source-*`, so the raw-aware walk reads back `&copy;`
- *  while the DOM shows `©`. */
+/** Source bytes ride the shell's `data-source-*`, so the raw-aware walk reads back `&copy;`. */
 export function buildEntityWidget(node: InlineNode): HTMLSpanElement {
 	const shell = mintWidgetShell('md-entity-widget', node);
 	shell.textContent = node.decoded ?? '';
