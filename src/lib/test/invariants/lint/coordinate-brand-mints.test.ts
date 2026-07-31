@@ -1,20 +1,9 @@
 /**
- * Coordinate-space brand mints stay enumerable (`docs/contributing/culture.md`
- * § "offset arithmetic has one home"). Two rules over editor source:
- *
- * 1. A bare `as <Brand>` cast exists only in a declared home for that brand —
- *    the numeric spaces in `cursor/coordinate-spaces.ts`; `DocPath` in both
- *    `selection/path-math.ts` (its type + base mint `asDocPath`) and
- *    `cursor/coordinate-spaces.ts` (its composition helpers, at the neutral
- *    coordinate leaf `tree-operations` reaches without a directory cycle).
- *    Everywhere else calls a mint function.
- * 2. An `as<Brand>(…)` mint call exists only in the space home modules and the
- *    declared door files below, so every boundary cast stays findable by
- *    reading one list.
- *
- * Named conversion calls (`toRawOffset`, `toDomTextOffset`, `toEditorX`,
- * `toViewportX`) and the `extendDocPath` / `docPathFrom` compose helpers are the
- * sanctioned inter-space arithmetic and are unrestricted.
+ * Coordinate-space brand mints stay enumerable (`docs/contributing/culture.md` § "offset
+ * arithmetic has one home"). A bare `as <Brand>` cast lives only in that brand's declared
+ * home module, and an `as<Brand>(…)` mint call only in those homes plus the declared door
+ * files below — so every boundary cast stays findable by reading one list. The named
+ * conversion and compose helpers are sanctioned inter-space arithmetic and unrestricted.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -24,10 +13,9 @@ const COORDINATE_HOME = 'src/lib/cursor/coordinate-spaces.ts';
 const DOCPATH_HOME = 'src/lib/selection/path-math.ts';
 
 /**
- * Where each brand's bare `as <Brand>` cast (its mint body) is allowed to live.
- * `DocPath` has two: its base mint lives with the brand in `path-math`, its
- * composition helpers in the neutral `coordinate-spaces` leaf (so composers in
- * `tree-operations` can reach them without importing `selection/`).
+ * Where each brand's bare `as <Brand>` cast may live. `DocPath` has two homes: its base
+ * mint beside the brand, its composers in the neutral `coordinate-spaces` leaf, which
+ * `tree-operations` can reach without importing `selection/`.
  */
 const BRAND_CAST_HOME: Record<string, string | string[]> = {
 	RawOffset: COORDINATE_HOME,
@@ -39,10 +27,8 @@ const BRAND_CAST_HOME: Record<string, string | string[]> = {
 };
 
 /**
- * Files permitted to call an `as*` boundary mint, each with the reason the
- * plain value it launders cannot be branded yet. Adding a mint call anywhere
- * else trips this guard; a new entry here is a new declared door and should be
- * reviewed as one.
+ * Files permitted to call an `as*` boundary mint, each with the reason its plain value
+ * cannot be branded yet. A new entry here is a new declared door; review it as one.
  */
 const MINT_ALLOWLIST: Record<string, string> = {
 	[COORDINATE_HOME]: 'the numeric-space mint definitions themselves',

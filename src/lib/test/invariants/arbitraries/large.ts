@@ -1,26 +1,17 @@
 import fc from 'fast-check';
 
 /**
- * Inputs at the scale the complexity defects actually live at. The standard
- * lanes top out in the hundreds of bytes, while every superlinear-growth and
- * overflow defect the reviews measured sits three or four orders of magnitude
- * past that — a quadratic inline decline, an argument-spread `RangeError` at
- * tens of thousands of matches, a render recursion's stack overflow. No flood
- * and no long run was expressible in the input space at all, so the marquee
- * round-trip invariant was structurally blind to the whole class.
- *
- * Drawn at a low run count: the point is reaching the scale, not sampling it
- * densely, and the shapes are chosen rather than searched.
+ * Inputs at the scale superlinear-growth and overflow defects live at — three or four
+ * orders of magnitude past the standard lanes, which top out in the hundreds of bytes.
+ * Drawn at a low run count: the point is reaching the scale, not sampling it densely.
  */
 
 /** Roughly the byte budget each drawn document aims for. */
 const TARGET_BYTES = 100_000;
 
 /**
- * One flood of a single character. Delimiter runs matter most — a long run is
- * the construct that actually nests, unlike the bracket flood, which cannot
- * (an enclosing link opener is deactivated), so it is the shape that reaches
- * the deep-recursion and quadratic-scan paths.
+ * One flood of a single character. A delimiter run is the shape that reaches the
+ * deep-recursion and quadratic-scan paths, because unlike a bracket flood it nests.
  */
 const flood = fc
 	.tuple(
@@ -51,9 +42,8 @@ const unclosedFence = fc
 	.map((count) => '```js\n' + 'code();\n'.repeat(count));
 
 /**
- * A document assembled from the shapes above until it passes the byte target.
- * Concatenating them is deliberate: a flood ABUTTING a structured block is
- * where a boundary-scan defect surfaces, and neither piece alone reaches it.
+ * A document assembled from the shapes above until it passes the byte target. Abutting
+ * them is deliberate: a boundary-scan defect needs a flood adjoining a structured block.
  */
 export const arbLargeDoc = fc
 	.array(fc.oneof(flood, blankRun, manyBlocks, longLine, unclosedFence), {

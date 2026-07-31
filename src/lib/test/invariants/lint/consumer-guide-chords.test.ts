@@ -1,28 +1,11 @@
 /**
- * Consumer-guide chord coherence (drift guard). Every chord in consumer-guide.md
- * § Keyboard shortcuts must resolve in the code that actually dispatches it, so
- * the hand-listed table can't silently drift from the bindings. Chords route
- * through several owners, and each documented family is validated against its own:
- *
- *   - Editing / Block reorder / Tables → the per-kind + global keymap registry
- *     (`resolveBinding`, which falls through to the global table). The Tables family
- *     joined this resolver when the table's structural chords migrated off the cell
- *     keydown plan onto the `tableCell` keymap: they are ordinary bindings now, so
- *     they are held to the same standard as every other documented chord instead of
- *     to a synthesized-key probe of a plan.
- *   - Find / replace → literal presence in the two dispatch sites
- *     (`editor-root-keydown.ts` / `SearchBar.svelte`) plus the reserved Ctrl+F /
- *     Ctrl+H source (`schema/commands.ts`, read by the root handler via
- *     `isReservedUiChord`); these route outside the keymap by design, so an
- *     unknown find chord fails until it's wired.
- *   - Clipboard → the whole-block key tail (`container-block-component.ts`) and
- *     the text block's clipboard seam (`text-clipboard.ts`). A keydown carries no
- *     ClipboardEvent, so Mod+C/Mod+X route outside the keymap: the tail writes a
- *     viewport-focused block's own Markdown, and the same chords act on a selected
- *     inline widget through the seam. Each chord must show its dispatch branch in
- *     both owners' source, so deleting either drops the row it documents.
- *
- * A new documented chord with no dispatch, or a renamed family header, fails here.
+ * Consumer-guide chord coherence: every chord in consumer-guide.md § Keyboard shortcuts
+ * must resolve in the code that dispatches it, so the hand-listed table can't drift.
+ * Chords route through several owners, and each family is validated against its own:
+ * Editing / Block reorder / Tables against the keymap registry; Find / replace against
+ * literal presence in the two search dispatch sites plus the reserved-chord source; and
+ * Clipboard against BOTH the whole-block key tail and the text block's clipboard seam,
+ * because a keydown carries no ClipboardEvent and Mod+C/Mod+X route outside the keymap.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -51,10 +34,8 @@ function normalizeDocChord(raw: string): string {
 	return normalizeChord([...parts, KEY_ALIASES[key] ?? key].join('+'));
 }
 
-// Family header (`**Editing**`) → normalized chords under it. Chord cells wrap
-// every chord in backticks; parenthetical prose (`(0 clears…)`, `(in the find
-// field)`) is stripped first so its incidental backtick tokens (`#`, `######`)
-// aren't mistaken for chords.
+// Family header → normalized chords under it. Parenthetical prose is stripped first so
+// its incidental backtick tokens aren't mistaken for chords.
 function parseDocumentedChords(): Map<string, string[]> {
 	const guide = readFileSync(path.resolve('docs/guide/consumer-guide.md'), 'utf8');
 	const section = guide.split('## Keyboard shortcuts')[1]?.split('\n## ')[0] ?? '';
@@ -85,10 +66,9 @@ function keymapResolves(chord: string): boolean {
 	return getAllRegisteredKinds().some((kind) => resolveBinding(chord, kind) !== null);
 }
 
-// Find/replace chords route through the search components; the reserved Ctrl+F /
-// Ctrl+H pair single-sources from schema/commands.ts (RESERVED_UI_CHORDS), which
-// the root handler reads via isReservedUiChord. The token each chord must show in
-// that (comment-stripped) source; an undocumented-in-code chord has no entry and fails.
+// Find/replace routes through the search components, and the reserved Ctrl+F / Ctrl+H
+// pair single-sources from schema/commands.ts. Each value is the token the chord must
+// show in that (comment-stripped) source.
 const SEARCH_SOURCE = [
 	readEditorFile('components/editor-root-keydown.ts').code,
 	readEditorFile('components/SearchBar.svelte').code,
@@ -107,13 +87,9 @@ function searchResolves(chord: string): boolean {
 	return tokens !== undefined && tokens.every((t) => SEARCH_SOURCE.includes(t));
 }
 
-// Whole-block copy/cut routes outside the keymap: a keydown carries no
-// ClipboardEvent, so the whole-block key tail writes the focused block's own
-// Markdown on Mod+C/Mod+X, and the text block's clipboard seam runs the same
-// chords over a selected inline widget. Each chord names one token from the tail
-// branch and one from the widget branch; requiring both means deleting either
-// dispatch fails the row it documents (the tail token carries the load-bearing
-// teeth). Tokens are code shapes, so they survive comment-stripping.
+// Each chord names one token from the tail branch and one from the widget branch, so
+// deleting either dispatch fails the row it documents. Tokens are code shapes, so they
+// survive comment-stripping.
 const CLIPBOARD_SOURCE = [
 	readEditorFile('editor-actions/container-block-component.ts').code,
 	readEditorFile('components/blocks/text/text-clipboard.ts').code
@@ -155,8 +131,8 @@ describe('consumer-guide § Keyboard shortcuts — every documented chord resolv
 });
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
-// Without these a broken parser (empty families) or a permanently-true resolver
-// would let the guards above pass on nothing.
+// Without these a broken parser or a permanently-true resolver lets the guards above
+// pass on nothing.
 
 describe('consumer-guide chord coherence — self-tests', () => {
 	it('parses every documented family with a representative chord', () => {

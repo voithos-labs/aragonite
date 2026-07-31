@@ -40,9 +40,8 @@ afterEach(() => {
 	__resetInlineSyntaxForTests();
 });
 
-// The frozen conflict-on-duplicate contract, re-affirmed for the softened seams:
-// under test (`isTest` true) a duplicate still throws. registry-conflict.test.ts
-// pins the block trio; this widens the guarantee to inline syntax + declare.
+// The softened seams must still throw under test. registry-conflict.test.ts pins the
+// block trio; this widens the guarantee to inline syntax + declare.
 describe('register-once still throws on duplicate under test', () => {
 	it('registerInlineSyntax throws on a duplicate trigger', () => {
 		registerInlineSyntax('¬', recognizer());
@@ -55,9 +54,8 @@ describe('register-once still throws on duplicate under test', () => {
 	});
 });
 
-// registerBlockCommand mints (which validates the name) INSIDE apply, before the
-// map write — so a name the mint rejects can never leave an orphaned, unreachable
-// handler behind a thrown registration.
+// The mint validates the name inside apply, before the map write, so a rejected name
+// cannot leave an orphaned handler behind a thrown registration.
 describe('registerBlockCommand validates the name before touching the registry', () => {
 	it('an invalid name throws and leaves no orphaned handler', () => {
 		expect(() => registerBlockCommand('paragraph', 'Invalid Name', () => false)).toThrow();
@@ -65,10 +63,8 @@ describe('registerBlockCommand validates the name before touching the registry',
 	});
 });
 
-// The dev-server survival valve: a re-evaluated registrar (HMR/SSR) re-runs its
-// registerX calls while the registry Map survives. In dev-and-not-test a duplicate
-// REPLACES with a note instead of throwing, so the re-run overwrites its own prior
-// registration and no route 500s. Simulated by flipping the env seam to dev-not-test.
+// The dev-server survival valve: a re-evaluated registrar (HMR/SSR) re-runs its registerX
+// calls against a surviving registry Map, and a throw there 500s the route.
 describe('dev re-registration replaces instead of throwing', () => {
 	function asDevNotTest() {
 		configureEditorEnv({ isDev: true, isTest: false });

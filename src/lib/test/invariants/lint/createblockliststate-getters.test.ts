@@ -1,9 +1,7 @@
 /**
- * G4.1 — `createBlockListState` must be fed a function producing the node (an
- * inline closure or a `getX` thunk reference), never a by-value node. A by-value
- * argument snapshots the node at factory-call time and misses undo's deep-clone
- * reassignment (see `docs/design/editor.md` § Reactive state plumbing). Scans
- * every editor source call site.
+ * G4.1 — `createBlockListState` must be fed a function producing the node, never a
+ * by-value node: a by-value argument snapshots at factory-call time and misses undo's
+ * deep-clone reassignment (`docs/design/editor.md` § Reactive state plumbing).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,9 +13,8 @@ interface ByValueCall {
 }
 
 /**
- * Flag `createBlockListState(<arg>)` calls whose first argument is a by-value
- * node rather than a function producing it. Skips the declaration
- * (`function createBlockListState`) — only call sites count.
+ * Flag calls whose first argument is a by-value node rather than a function producing it.
+ * The declaration is skipped: only call sites count.
  */
 function findByValueCalls(relPath: string, rawText: string): ByValueCall[] {
 	const code = stripComments(rawText);
@@ -55,10 +52,8 @@ function firstArgument(code: string, openParenIndex: number): string | null {
 function isFunctionArgument(arg: string): boolean {
 	// A function by shape: an inline closure or a getter-property object.
 	if (arg.includes('=>') || /\bget\b/.test(arg) || arg.startsWith('{')) return true;
-	// A bare or member function reference (`getNode`, `deps.getNode`) — accepted
-	// only when its terminal identifier follows the `getX` thunk-naming convention,
-	// which keeps the value-vs-thunk call decidable from shape alone: `deps.getNode`
-	// passes, the `deps.node` / `node` by-value snapshot does not.
+	// A function reference, accepted only under the `getX` naming convention, which keeps
+	// value-vs-thunk decidable from shape alone.
 	return /(?:^|\.)get[A-Z]\w*$/.test(arg);
 }
 
@@ -94,10 +89,7 @@ describe('G4.1 createBlockListState function-argument source-scan', () => {
 		expect(findByValueCalls('synthetic.ts', good)).toEqual([]);
 	});
 
-	// The `getX` thunk-naming convention keeps the value-vs-reference call
-	// decidable from shape: a `getNode` / `deps.getNode` reference is a function
-	// producing the node; a bare `node` / `deps.node` is the by-value snapshot the
-	// guard exists to reject. The plugin container factory passes `deps.getNode`.
+	// A bare `node` / `deps.node` is the by-value snapshot the guard exists to reject.
 	it('matcher accepts a getX function reference but flags a by-value member access', () => {
 		const good = 'createBlockListState(deps.getNode)\ncreateBlockListState(getNode)';
 		expect(findByValueCalls('synthetic.ts', good)).toEqual([]);

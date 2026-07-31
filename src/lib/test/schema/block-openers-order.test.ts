@@ -18,7 +18,6 @@ const ALPHA = 'alpha-order' as AnyBlockKind;
 const OMEGA = 'omega-order' as AnyBlockKind;
 const TIE = 9000;
 
-// getOrderedOpeners returns openers, not kinds; map each back through identity.
 function orderedKinds(kindByOpener: Map<BlockOpener, AnyBlockKind>): AnyBlockKind[] {
 	return getOrderedOpeners().map((o) => kindByOpener.get(o)!);
 }
@@ -51,7 +50,6 @@ describe('opener order is registration-independent', () => {
 	});
 
 	it('lets priority dominate the kind tie-break', () => {
-		// omega sorts alphabetically last, but its lower priority wins.
 		const alpha = opener(TIE + 1);
 		const omega = opener(TIE);
 		const kinds = new Map([

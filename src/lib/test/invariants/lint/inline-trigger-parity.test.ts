@@ -1,31 +1,10 @@
 /**
- * G4.18 — inline-trigger parity, three pins on the reserved-trigger contract.
- *
- * (1) `BUILTIN_TRIGGERS` (in `core/inline/scan/plugin-syntax.ts`) must equal the
- * characters the `scanInline` switch in `core/inline/scan/index.ts` dispatches —
- * its `case` labels. A trigger the switch handles but the set omits registers a
- * bare recognizer the switch then silently shadows, the exact failure the reserved
- * check exists to prevent.
- *
- * (2) Every reserved trigger is reachable by exactly one of three routes:
- * scan-visible (in `SPECIAL_CHARS`, so `needsScan` always reaches it), scan-probed
- * (in `SCAN_PROBED_RESERVED`, so `needsScan` reaches it while a rung is registered),
- * or rejected (in `REJECTED_RESERVED`, so registration refuses a prefix rung).
- * A SPECIAL_CHARS edit that orphans a reserved trigger — leaving a prefix rung there a
- * silent no-op the scan never visits — fails here instead of shipping, and so does a
- * trigger claimed by two routes at once, which would make its reachability depend on
- * which check ran first. The probed route's actual wiring is pinned behaviorally, by
- * the `!` cases in `test/core/needs-scan-plugin-trigger.test.ts`: a source-level count
- * of probe call sites would pass on a probe that no longer probes.
- *
- * (3) The pre-switch prefix consultation — the seam a reserved trigger's prefix rung
- * outranks its built-in case through — has exactly one home, ahead of the switch.
- * A regression that copies the gate into a per-case arm (the sibling-path-parity bug
- * shape) would add a second consultation site; this fails the day that copy is born.
- *
- * Pins (1) and (2) read the literals in their source-literal form (`\\`, `\n`,
- * backtick as written) and compare without unescaping, so the newline trigger can't
- * decay into an actual line break mid-scan.
+ * G4.18 — inline-trigger parity. `BUILTIN_TRIGGERS` equals the `scanInline` switch's `case`
+ * labels; every reserved trigger is reachable by exactly ONE of scan-visible,
+ * scan-probed, or rejected; and the pre-switch prefix consultation has exactly one home.
+ * Literals compare in source-escaped form without unescaping, so the newline trigger
+ * can't decay into an actual line break mid-scan. The probed route's wiring is pinned
+ * behaviorally in `test/core/needs-scan-plugin-trigger.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
 import { readEditorFile } from './scan-source';
@@ -102,13 +81,8 @@ describe('G4.18 inline-trigger parity', () => {
 		expect(triggers.has('\\\\')).toBe(true); // the '\\' source literal (two backslash chars)
 	});
 
-	// A reserved trigger the `needsScan` fast bail never visits (absent from
-	// SPECIAL_CHARS) must be named by one of the two on-demand routes, or a prefix rung
-	// on it registers yet silently never fires. `overReach` catches the reverse rot: a
-	// route naming a trigger that became scan-visible (or was never reserved) would
-	// either block a now-valid registration or probe for nothing, with nothing to
-	// notice. `doubleClaimed` catches the third shape — one trigger on two routes, so
-	// which one governs depends on which check runs first.
+	// Three rots, one per set: an orphaned trigger whose prefix rung never fires, a route
+	// naming a trigger that became scan-visible, and a trigger claimed by two routes.
 	it('every reserved trigger takes exactly one route: visible, probed, or rejected', () => {
 		const special = specialChars();
 		const probed = triggerSet('SCAN_PROBED_RESERVED');

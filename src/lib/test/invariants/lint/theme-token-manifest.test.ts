@@ -1,24 +1,10 @@
 /**
- * Drift guard for the published theme-token manifest — the consumer guide's "Theme
- * tokens" role table, which the plugin guide points authors at as the stable
- * host-chrome set. This pins that promise to `editor-theme.css` so a renamed or
- * dropped token fails here instead of silently rendering a plugin's inline fallback
- * forever.
- *
- * The both-themes guarantee is the contract: a themed token carries a light AND a
- * dark value, so it must appear in the base block and the `[data-editor-theme=
- * 'light']` override block. The font tokens are mode-independent — declared once in
- * the base, inherited by light — so they are checked in the base only.
- *
- * THEMED_TOKENS / MODE_INDEPENDENT_TOKENS are the pinned manifest. They are not a
- * hand-kept mirror: the set-equality test below derives the published set from the
- * guide's own table, so a token added to or dropped from the docs fails here rather
- * than drifting unpinned (which is exactly how `--color-ui-faint` went unguarded).
- *
- * Declared-in-both is not the same as responding to the mode: a token can satisfy it
- * with the SAME value twice, which is how `--color-ui-faint` shipped mode-blind. So
- * the values are compared too, and a deliberate one-value token must say so in
- * MODE_BLIND_BY_DESIGN rather than pass silently.
+ * Drift guard for the published theme-token manifest, pinning the consumer guide's "Theme
+ * tokens" role table to `editor-theme.css`. The contract is both-themes: a themed token
+ * carries a light AND a dark value, and since it can satisfy that with the SAME value
+ * twice, values are compared too and a deliberate one-value token joins
+ * MODE_BLIND_BY_DESIGN. The manifest derives from the guide's own table rather than being
+ * a hand-kept mirror.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -73,9 +59,8 @@ function themeTokenSection(): string {
 }
 
 /**
- * Tokens named by the section's role table. Table rows only: the surrounding prose
- * names tokens too (the plugin-fallback example reads `--color-text-muted`), and a
- * manifest that absorbed prose would drift on an unrelated wording edit.
+ * Tokens named by the section's role table. Table ROWS only: the surrounding prose names
+ * tokens too, and a manifest that absorbed prose would drift on a wording edit.
  */
 function tokensInTable(section: string): string[] {
 	const rows = section.split('\n').filter((line) => line.trimStart().startsWith('|'));
@@ -112,15 +97,12 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 		}
 	});
 
-	// Non-vacuity: the split must isolate two real blocks and the matcher must be
-	// able to say "no". Without this a broken split (empty light block) would pass
-	// every "both" assertion vacuously.
+	// Non-vacuity: a broken split (empty light block) passes every "both" assertion.
 	it('the block split and matcher are non-vacuous', () => {
 		const css = stripComments(readEditorFile('styles/editor-theme.css').text);
 		expect(css.indexOf(LIGHT_SELECTOR)).toBeGreaterThan(0);
 		expect(declares(base, '--color-danger')).toBe(true);
 		expect(declares(light, '--color-danger')).toBe(true);
-		// A base-only token is absent from the light block — proves the split is real.
 		expect(declares(light, '--font-editor')).toBe(false);
 		expect(declares(base, '--not-a-real-token')).toBe(false);
 		// The value reader must distinguish two declarations of the same token.
@@ -136,13 +118,12 @@ describe('theme-token manifest ↔ consumer-guide § Theme tokens', () => {
 		);
 	});
 
-	// Non-vacuity: an empty or over-wide slice would make the equality above prove
-	// nothing (or couple it to unrelated prose).
+	// Non-vacuity: an empty or over-wide slice makes the equality above prove nothing.
 	it('the section slice and row filter are non-vacuous', () => {
 		const section = themeTokenSection();
 		expect(section).not.toBe('');
-		// `--syntax-heading` is named by the theming prose ABOVE the section — reaching
-		// it would mean the slice has no upper bound.
+		// Named by the theming prose ABOVE the section, so reaching it means the slice has
+		// no upper bound.
 		expect(tokensInTable(section)).not.toContain('--syntax-heading');
 		expect(tokensInTable('| Role | `--in-table` |\nProse names `--in-prose`.')).toEqual([
 			'--in-table'

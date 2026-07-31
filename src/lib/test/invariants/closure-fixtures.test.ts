@@ -15,12 +15,9 @@ import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { ADMONITION } from '$lib/plugins/admonitions/kinds';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
-// G1.24 rule (c): every declared `conformanceFixture` parses to a tree containing
-// its declaring kind. Kept out of the flush seam — a `parse` import there would
-// close a schema → core/parser → schema cycle — so it runs as this sweep. Scope:
-// built-ins, the generic directive fallback, and the bundled plugins (src/lib/
-// plugins). The routes/consumer fixtures (callout, memo, devprobe) carry the same
-// field and are exercised by their own e2e, not this lib-resident sweep.
+// G1.24 rule (c): every declared `conformanceFixture` parses to a tree containing its
+// declaring kind. A sweep rather than a flush-seam check because a `parse` import there
+// would close a schema → core/parser → schema cycle. Scope is lib-resident kinds only.
 
 function treeContainsKind(
 	node: { kind: string; children?: readonly CstNode[] },

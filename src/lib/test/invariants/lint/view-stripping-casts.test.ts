@@ -1,24 +1,9 @@
 /**
- * G4.13 — the unshare seam is the only view→mutable door. `core/node-views.ts`
- * states G1.9 in the type system: readers hold bytes-readonly views, and a
- * cast back to `CstNode`/`Document` re-opens the byte-write hazard the type
- * closed. The sanctioned zones are `tree-operations/` (the unshare/clone door
- * and ops that already own their nodes) and the commit ceremony
- * (`editor-actions/commit/`), whose scope views are runtime-proven owned.
- * Anywhere else, a view-stripping cast fails this scan.
- *
- * `core/nodes.ts` is sanctioned on separate grounds: it holds `makeBlockNode`,
- * the construction funnel that mints a fresh node from a runtime `kind` (a
- * non-literal kind matches no arm, so the mint needs a cast). That is
- * construction, not a strip — the funnel spreads into a fresh object and never
- * writes through a view — so it is not the G1.9 hazard this scan guards.
- *
- * `as Document` is counted only in files that import the CST `Document` from
- * `core/nodes` — elsewhere the identifier is the DOM `Document`
- * (`blockEl.ownerDocument` casts in selection/native-bridge.ts). Named type
- * aliases of the node shape are out of scope by design: the reviewable rule is
- * the two type names, and an alias minted to dodge the scan would not survive
- * review.
+ * G4.13 — the unshare seam is the only view→mutable door: `core/node-views.ts` states
+ * G1.9 in the type system, so a cast back to `CstNode`/`Document` re-opens the byte-write
+ * hazard. Sanctioned: `tree-operations/`, the commit ceremony, and `core/nodes.ts`, whose
+ * mint builds a fresh object. `as Document` counts only where the CST `Document` is
+ * imported — elsewhere it is the DOM one (`ownerDocument` in selection/native-bridge.ts).
  */
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, stripComments } from './scan-source';

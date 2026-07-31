@@ -1,19 +1,10 @@
 /**
- * `tree-operations/` is documented as pure CST mutations, and the DAG runs one
- * way: `editor-actions -> tree-operations`, dozens of edges. A single reverse
- * import made the two directories a cycle — a paste gate reaching up into
- * `editor-actions/focus/` for its caret dispatch. It inverted to a parameter on
- * the coordinator the paste modules already thread, and this is the scan that
- * fails the day edge N+1 is born instead of at the next audit.
- *
- * `components/` is listed with it: an upward import there would put a rendering
- * artifact under a layer that must stay renderer-agnostic. Root-level `$lib/*.ts`
- * files (`action-contracts`, `block-component`) are contract leaves, not layers,
- * and stay allowed.
- *
- * Miss-analysis: nothing scanned for direction. Every behavioral test passed
- * either way — a cycle is a design defect, not a runtime one, so only a
- * source-scan can hold the rule.
+ * `tree-operations/` is pure CST mutations and the DAG runs one way:
+ * `editor-actions -> tree-operations`. A single reverse import made the two a cycle, and
+ * every behavioral test passed either way — a cycle is a design defect, not a runtime
+ * one, so only a source scan can hold the rule. `components/` is listed with it: an
+ * upward import there would put a rendering artifact under a renderer-agnostic layer.
+ * Root-level `$lib/*.ts` files are contract leaves, not layers, and stay allowed.
  */
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, stripComments } from './scan-source';
@@ -25,10 +16,8 @@ const FORBIDDEN_UPWARD = ['editor-actions', 'components'];
 
 const IMPORT_SOURCE = /\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/g;
 
-// The layer name must end the specifier or be followed by `/`. Requiring the
-// trailing slash matched only deep paths, so importing the layer's BARREL
-// (`'../../editor-actions'`) — the shortest way to reach everything in it —
-// passed the scan clean. The leading boundary keeps `./my-components` out.
+// The layer name must END the specifier or be followed by `/`: requiring the slash let
+// the layer's BARREL import through clean. The leading boundary keeps `./my-components` out.
 const forbiddenLayer = (layer: string) => new RegExp(`(^|/)${layer}(/|$)`);
 
 /** Upward specifiers a file under the guarded layer reaches for, by directory name. */

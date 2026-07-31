@@ -1,20 +1,11 @@
 /**
  * Sibling-path parity for the ancestry rebuild's grammar, the twin of
- * `nested-actions-grammar-thread`. The rebuild re-derives each container's kind
- * from its own bytes, and that re-parse must resolve through the INSTANCE grammar
- * or a kind the instance disabled materializes anyway.
- *
- * The parameter is required-nullable, so the type system already stops a caller
- * from omitting it. What it cannot stop is a caller answering `undefined` because
- * threading was inconvenient — which is exactly how this rule shipped at 3 of 12
- * sites. So the scan's subject is the literal `undefined`: a production call must
- * name a real grammar expression, and a site that genuinely has none declares
- * itself here rather than passing quietly.
- *
- * Exempt: the published container-conformance kit, which carries no editor
- * registry view to source an instance grammar from and asserts raw propagation
- * rather than any kind re-derivation. Tests are outside the scan entirely
- * (`collectEditorSources`), so a bare harness may pass `undefined` freely.
+ * `nested-actions-grammar-thread`: a container's kind re-parse must resolve through the
+ * INSTANCE grammar. The parameter is required-nullable, so the type already stops an
+ * omission; what it cannot stop is a caller answering `undefined` because threading was
+ * inconvenient, which is how the rule shipped at 3 of 12 sites. Hence the scan's subject
+ * is that literal. Exempt: the published container-conformance kit, which has no registry
+ * view to source a grammar from.
  */
 
 import { describe, it, expect } from 'vitest';

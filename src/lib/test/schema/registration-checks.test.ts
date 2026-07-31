@@ -94,10 +94,8 @@ describe('flushPendingRegistrationChecks', () => {
 	});
 
 	it('reports an opener registered pre-flush after an editorless grammar read', () => {
-		// An editorless `parse()` reads the grammar and trips grammar-consumption,
-		// but nothing is pending so it does NOT flush — `didFirstFlush` stays false
-		// (G1.17 pre-flush blindness). An opener registered now is genuinely late:
-		// the already-parsed document will not re-parse to see it.
+		// An editorless `parse()` consumes the grammar without flushing (nothing pending),
+		// so `didFirstFlush` stays false — G1.17 pre-flush blindness.
 		getOrderedOpeners();
 		const kind = declarePluginKind('pre-flush-late');
 		registerBlockKind(kind, leaf);
@@ -113,9 +111,8 @@ describe('flushPendingRegistrationChecks', () => {
 		flushPendingRegistrationChecks();
 		const calloutKind = declarePluginKind('fwd-container');
 		const title = declarePluginKind('fwd-title');
-		// Opener lands before its descriptor; reservedChrome names a chrome kind
-		// registered later in the same batch via registerChromeLeaf — nothing may
-		// fire mid-batch, and the completed batch is fully coherent.
+		// Every reference here resolves only once the batch completes, so a check that
+		// fires mid-batch reports a gap that never existed.
 		registerBlockOpener(calloutKind, opener(9102));
 		registerBlockKind(calloutKind, withChrome(title));
 		registerChromeLeaf(title, TextEditableBlock);
@@ -164,9 +161,8 @@ describe('flushPendingRegistrationChecks', () => {
 
 		__resetSchemaRegistriesForTests();
 
-		// Post-reset registrations are bootstrap again: the first-flush latch is
-		// cleared, so they no-op the enqueue (nothing pending) rather than queueing
-		// as incremental, and the opener must NOT warn late (grammar latch cleared).
+		// Post-reset registrations are bootstrap again: both latches cleared, so they
+		// enqueue nothing and the opener must not warn late.
 		const fresh = declarePluginKind('post-reset');
 		registerBlockKind(fresh, leaf);
 		registerBlockOpener(fresh, opener(9106));
@@ -178,9 +174,8 @@ describe('flushPendingRegistrationChecks', () => {
 	});
 });
 
-// The first flush sweeps the live registry (getAllRegisteredKinds), not just the
-// built-in ALL_BLOCK_KINDS, so a plugin registered before the first mount is
-// validated like any other — closing the pre-mount coverage gap.
+// The first flush sweeps the live registry, not just the built-in ALL_BLOCK_KINDS, so a
+// plugin registered before the first mount is validated like any other.
 describe('registry-derived first-flush sweep', () => {
 	it('flags a pre-mount plugin keymap binding an unknown command', () => {
 		const kind = declarePluginKind('pre-mount-keymap');
@@ -214,16 +209,14 @@ describe('registry-derived first-flush sweep', () => {
 
 		const { violations, report } = collector();
 		flushPendingRegistrationChecks(report);
-		// Built-in components don't load in the unit-test context (see
-		// registry.test.ts), so the first-flush completeness sweep fires on
-		// built-ins here; every other check — the batch's own included — is silent.
+		// Built-in components don't load in the unit-test context (see registry.test.ts), so
+		// the completeness sweep fires on built-ins; every other check must stay silent.
 		expect(violations.filter((v) => v.tag !== 'registry-completeness')).toEqual([]);
 	});
 });
 
-// Twins of the first-sweep keymap cases at the INCREMENTAL path: a regression
-// that scoped keymap coherence to the first flush, or fed the incremental path
-// a builtin-only known-command set, must fail here.
+// Twins of the first-sweep keymap cases at the INCREMENTAL path — the sibling path that
+// a first-flush-only scope, or a builtin-only known-command set, would leave unguarded.
 describe('keymap coherence at the incremental flush', () => {
 	it('accepts a plugin keymap binding its own minted command', () => {
 		flushPendingRegistrationChecks();
@@ -253,10 +246,9 @@ describe('keymap coherence at the incremental flush', () => {
 	});
 });
 
-// A leaf declaring reservedChrome is unrepresentable through the registration
-// shape (the grouped `container` field owns it), so only the chrome-kind gaps
-// remain constructible here; the not-container predicate branch stays covered
-// by direct call in test/invariants/reserved-chrome-coherence.test.ts.
+// A leaf declaring reservedChrome is unrepresentable through the registration shape, so
+// only chrome-kind gaps are constructible here; the not-container branch is covered by
+// direct call in test/invariants/reserved-chrome-coherence.test.ts.
 describe('reservedChrome coherence at the flush', () => {
 	it('flags a chrome kind with no registered component (first-flush sweep)', () => {
 		const title = declarePluginKind('rc-descriptor-only');
@@ -274,10 +266,8 @@ describe('reservedChrome coherence at the flush', () => {
 	});
 });
 
-// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; this
-// proves the flush actually invokes it (G1.24 wiring). Dropping the
-// report('closure-coherence', …) line would silently disable the guard while
-// every predicate test still passes — the sibling-path parity trap.
+// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; this pins the
+// G1.24 wiring, which every predicate test would stay green without.
 describe('closure coherence at the flush', () => {
 	it('flags a registered kind whose closure is incoherent with its descriptor', () => {
 		const kind = declarePluginKind('incoherent-closure');

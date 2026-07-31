@@ -3,13 +3,10 @@ import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { FLANKING_CASES, INTRA_WORD_UNDERSCORE_CASES } from '../support/flanking-corpus';
 
-// G2.3: subtle CommonMark/GFM emphasis rules — left/right flanking, the
-// multiple-of-3 rule, and intra-word `_` suppression. Reference forms,
-// autolink §6.9 trimming, and basic emphasis already have example coverage in
-// test/core/inline/**; this corpus targets only the flanking-algorithm edges
-// those tests don't reach. The §6.2 tables are single-sourced in
-// test/support/flanking-corpus.ts and shared with scan/emphasis-flanking.test.ts,
-// which runs the same cases against the scanner rather than the full pipeline.
+// G2.3 flanking-algorithm edges only — basic emphasis, reference forms, and autolink
+// trimming are covered in test/core/inline/**. The §6.2 tables are single-sourced in
+// test/support/flanking-corpus.ts, shared with scan/emphasis-flanking.test.ts, which
+// runs the same cases against the scanner rather than the full pipeline.
 
 function hasKind(nodes: InlineNode[], kind: InlineNode['kind']): boolean {
 	for (const n of nodes) {
@@ -77,9 +74,8 @@ describe('G2.3 intra-word underscore suppression (CommonMark §6.2)', () => {
 
 describe('G2.3 astral punctuation flanking (code points, not UTF-16 units)', () => {
 	it('astral punctuation neighbors flank like BMP punctuation', () => {
-		// U+10100 (AEGEAN WORD SEPARATOR LINE, category Po) must flank like `.`:
-		// `._x_.` emphasizes, so this must too. Reading UTF-16 units instead of
-		// code points classifies the lone surrogate as "other" and drops the pair.
+		// Reading UTF-16 units instead of code points classifies the lone surrogate as
+		// "other", so this astral Po character stops flanking the way `.` does.
 		const source = '\u{10100}_x_\u{10100}';
 		const nodes = parseInline(source, 0, source.length);
 		expect(sortedSpans(nodes, source)).toEqual(['_x_']);
@@ -96,21 +92,17 @@ describe('G2.3 multiple-of-3 rule (CommonMark §6.2)', () => {
 	});
 
 	it('asymmetric run leaves the surplus inner delimiter literal', () => {
-		// `**foo*bar**baz*` — the inner `*` cannot pair across the `**` close
-		// under the multiple-of-3 rule, so it survives as text inside the strong.
+		// The inner `*` cannot pair across the `**` close under the multiple-of-3 rule.
 		const source = '**foo*bar**baz*';
 		const nodes = parseInline(source, 0, source.length);
 		const strong = nodes.find((n) => n.kind === 'strong');
 		expect(strong).toBeDefined();
 		expect(strong!.children?.some((c) => c.kind === 'text' && c.text === '*')).toBe(true);
-		// The trailing `*baz*` after the strong stays literal (no second emphasis).
 		expect(nodes.filter((n) => n.kind === 'emphasis')).toHaveLength(0);
 	});
 
-	// The rule applies to ORIGINAL delimiter-run lengths, not the still-unconsumed
-	// remainder after partial matches (commonmark.js `origdelims`). Shapes mined
-	// from a brute-force diff against commonmark.js 0.31.2, each with a distinct
-	// opener/closer decay pattern.
+	// The rule reads ORIGINAL delimiter-run lengths, not the unconsumed remainder after
+	// partial matches (commonmark.js `origdelims`); each shape decays differently.
 	const originalRunLengthCases = [
 		{ source: 'x**y*z****w', shape: 'x**y<em>z</em>***w' },
 		{ source: 'a***a****', shape: 'a<em><strong>a</strong></em>*' },

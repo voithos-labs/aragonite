@@ -1,22 +1,10 @@
 /**
- * G4.12 — caret-edge destructive-key funnel. Every plain (no ctrl/meta/alt)
- * Backspace/Delete intercepted at a caret edge in a prose block routes through ONE
- * dispatch (`edge-policy-dispatch.ts`) and commits via `blockEdit.updateBlockContent`,
- * never native contenteditable mutation. The dispatch classifies the construct at the
- * edge — CST inline widget, decoration island, ambient-marker overlap — and resolves
- * each against its declarative edge policy, so a fourth caret-edge interception cannot
- * be born as a fourth sibling seam.
- *
- * The allowlist is the funnel plus one carve-out: `widget-interaction.ts` keeps the
- * SELECTED-widget second-press delete, a selected-STATE seam that runs before the
- * shared keymap (selection clears the native range, so the shared boundary branch
- * would misfire) and therefore cannot move into the post-shared-keymap dispatch
- * without a behavior-changing reorder. It still routes through `updateBlockContent`.
- *
- * A NEW file under `components/blocks/text/` that intercepts a plain destructive key
- * with `preventDefault` is the exact shape that must route through the dispatch — the
- * guard fails the day it appears unallowlisted. The scan is scoped to this directory
- * because Backspace/Delete handling is common elsewhere and would drown the signal.
+ * G4.12 — caret-edge destructive-key funnel: every plain Backspace/Delete intercepted at
+ * a caret edge in a prose block routes through `edge-policy-dispatch.ts` and commits via
+ * `blockEdit.updateBlockContent`, never native mutation. The allowlist adds
+ * `widget-interaction.ts`, a selected-STATE seam that must run before the shared keymap.
+ * Scope is `components/blocks/text/`, since destructive-key handling elsewhere would
+ * drown the signal.
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
@@ -24,9 +12,8 @@ import { collectEditorSources, type SourceFile } from './scan-source';
 
 const TEXT_BLOCK_SRC = path.resolve('src/lib/components/blocks/text');
 
-// The intercept shape: a Backspace/Delete key literal AND a preventDefault. The
-// CST-routing requirement is checked separately so an unallowlisted native-mutating
-// interceptor (the bug) is still caught even though it omits updateBlockContent.
+// The CST-routing requirement is checked separately, so an unallowlisted
+// native-mutating interceptor is still caught despite omitting updateBlockContent.
 const DESTRUCTIVE_KEY_RE = /(['"])(?:Backspace|Delete)\1/;
 const PREVENT_DEFAULT_RE = /\.preventDefault\s*\(/;
 const UPDATE_CONTENT_RE = /\bupdateBlockContent\s*\(/;

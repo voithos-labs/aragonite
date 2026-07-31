@@ -19,20 +19,11 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
 
 /**
- * G2.8 — after every structural op the three parallel arrays stay length-matched
- * and index-aligned: `children` ↔ keyed-id array ↔ ref array. This is the
- * post-`splitBlock` keyed-`{#each}` corruption regression that was protected
- * only by "don't do it"; a desync here makes Svelte destroy+recreate the wrong
- * component, dropping IME state or stranding focus.
- *
- * `applyStructuralChangeToIdsRefs` (the commit primitive's auto-sync) is the
- * code under test; the ops drive it through the real action bundles.
- *
- * Ops covered: split / merge / delete / replaceBlock (the structural-paste
- * live path — a paste splices its folded replacement through `replaceBlock`)
- * and reorder (a `replace` whose `idMap` permutes the spanned window) — the
- * shape most likely to desync ids/refs, since every moved slot reuses an
- * existing id rather than minting one.
+ * G2.8 — after every structural op `children` ↔ keyed-id array ↔ ref array stay
+ * length-matched and index-aligned. A desync makes Svelte destroy+recreate the wrong
+ * component, dropping IME state or stranding focus. Ops drive the real action bundles, so
+ * `applyStructuralChangeToIdsRefs` is what is under test; reorder is the shape most likely
+ * to desync, since every moved slot reuses an existing id rather than minting one.
  */
 
 // ── Top-level alignment ──────────────────────────────────────────────────────
@@ -76,8 +67,7 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 		assertAligned(h);
 		expect(h.doc.children).toHaveLength(3);
-		// Split is a replace with idMap {0:0}: first half inherits id0 + ref0,
-		// the new second half is fresh, the untouched sibling keeps id1.
+		// Split is a replace with idMap {0:0}, so the first half inherits id0 + ref0.
 		expect(h.ids()[0]).toBe(id0);
 		expect(h.refs()[0]).toBe(ref0);
 		expect(h.ids()[1]).not.toBe(id0);
@@ -124,20 +114,17 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['aaa\n', 'bbb\n', 'ccc\n']);
 		const [id0, id1, id2] = h.ids();
 
-		await h.reorder.nudgeReorderUnit([0], 1); // move 'aaa' down past 'bbb'
+		await h.reorder.nudgeReorderUnit([0], 1);
 
 		assertAligned(h);
-		// permutation -> [bbb, aaa, ccc]; every slot reuses an existing id (no mint).
 		expect(h.ids()).toEqual([id1, id0, id2]);
 	});
 
 	it('round-trip stays byte-stable across a sequence of ops', async () => {
 		const h = makeTop(['one\n', 'two\n', 'three\n']);
-		// Byte round-trip only here: makeTop builds separator-less paragraphs, so
-		// the fixture serializes to a lazy-continuation join that reparses as one
-		// paragraph — non-convergent by construction, independent of the ops. The
-		// convergence oracle bites in the container test below, whose fixture is a
-		// real parsed blockquote.
+		// Byte round-trip only: makeTop's separator-less paragraphs serialize to a lazy
+		// continuation, non-convergent by construction. The convergence oracle bites in
+		// the container test below, whose fixture is a real parsed blockquote.
 		const stable = () => {
 			const live = serialize(h.doc);
 			expect(serialize(parse(live))).toBe(live);
@@ -166,10 +153,8 @@ interface ContainerHarness {
 	reorder: ReturnType<typeof createReorderAction>;
 }
 
-// Seed innerBlockRefs to mirror a mounted container: createBlockListState starts
-// refs as an empty $state array (the {#each} fills it on mount, which never runs
-// in node env), so without seeding the ref-alignment check would chase a harness
-// artifact, not a real bug.
+// Seed innerBlockRefs to mirror a mounted container: the {#each} that fills them never
+// runs in node env, so an unseeded ref-alignment check chases a harness artifact.
 function makeContainer(source: string): ContainerHarness {
 	const initial = parse(source).children[0];
 	expect(initial.children, 'container has children').toBeTruthy();
@@ -188,9 +173,8 @@ function assertContainerAligned(h: ContainerHarness) {
 	expect(new Set(h.state.innerBlockIds).size, 'inner ids unique').toBe(n);
 }
 
-// A blockquote of paragraphs (blank `>` separators) gives prose children whose
-// pairwise merge is eligible — exercising the merge path inside a container,
-// which a list of items would not (listItem↔listItem isn't directly mergeable).
+// Prose children so the pairwise merge is eligible — a list of items would not reach the
+// in-container merge path, since listItem↔listItem isn't directly mergeable.
 const BQ_THREE = '> aaaa\n>\n> bbbb\n>\n> cccc\n';
 const BQ_TWO = '> aaaa\n>\n> bbbb\n';
 
@@ -232,7 +216,6 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds).toEqual([id0, id2]);
-		// The surviving leading slot keeps its ref — the splice removed index 1.
 		expect(h.state.innerBlockRefs[0]).toBe(ref0);
 	});
 
@@ -247,7 +230,6 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 		assertContainerAligned(h);
 		expect(h.state.innerBlockIds[0]).toBe(id0);
-		// id1 (the untouched second child) survives at the tail.
 		expect(h.state.innerBlockIds).toContain(id1);
 	});
 
@@ -255,36 +237,30 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		const h = makeContainer(BQ_THREE);
 		const [id0, id1, id2] = h.state.innerBlockIds;
 
-		await h.reorder.nudgeReorderUnit([0, 0], 1); // move first bq child down
+		await h.reorder.nudgeReorderUnit([0, 0], 1);
 
 		assertContainerAligned(h);
-		// permutation -> [bbbb, aaaa, cccc]; ids follow the move, none minted.
 		expect(h.state.innerBlockIds).toEqual([id1, id0, id2]);
 	});
 
 	it('round-trip stays byte-stable and serialized raw tracks the mutated children', async () => {
 		const h = makeContainer(BQ_THREE);
-		// The byte round-trip alone passes even on a STALE container raw
-		// (valid-but-unupdated GFM self-round-trips) — the exact blindness this file
-		// documented and worked around with the hand-written content grep below.
-		// expectParseConverged is that content oracle generalized: the live tree
-		// must match a fresh parse of its bytes, so a stale blockquote raw fires.
+		// A byte round-trip alone passes on a STALE container raw (valid-but-unupdated GFM
+		// self-round-trips), so the convergence oracle is what makes a stale raw fire.
 		const stable = () => {
 			expectParseConverged(h.doc);
 			const live = serialize(h.doc);
 			expect(serialize(parse(live))).toBe(live);
 		};
 
-		// Delete the first paragraph: its text must vanish from the serialized
-		// blockquote. Without rebuildRaw the container's stale raw still carries
-		// "aaaa", so this trips — proving the round-trip + content pair is real.
+		// Without rebuildRaw the container's stale raw still carries "aaaa", so the
+		// round-trip + content pair below is non-vacuous.
 		await h.bundle.blockEdit.deleteBlock(0);
 		stable();
 		assertContainerAligned(h);
 		expect(serialize(h.doc)).not.toContain('aaaa');
 		expect(serialize(h.doc)).toContain('bbbb');
 
-		// Merge the now-first two paragraphs: still byte-stable, still aligned.
 		await h.bundle.blockEdit.mergeWithNext(0);
 		stable();
 		assertContainerAligned(h);
@@ -294,18 +270,12 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 // ── Deep childIds backfill on reparse-into-container (G2.8 / #4 class) ─────────
 
 /**
- * A freshly-PARSED subtree spliced under a preserved component id (replaceBlock /
- * kind-change, paste, search-replace) carries no `childIds` on its containers. If
- * the reused container's keyed-`{#each}` renders before `createBlockListState`'s
- * post-render re-init effect, undefined keys reach Svelte — a duplicate-key crash
- * once a nested container holds ≥2 children (the original Replace-All-over-"list"
- * failure). `stampStructuralChange` backfills childIds at every container level
- * before publish, at the single seam every new-node op routes through, so this
- * holds for ALL paths — not just the one that first surfaced it.
- *
- * The fixture mirrors that crash shape: item 0 has a continuation paragraph (2
- * children) and item 1 nests a sub-list (2 children) — multiple nested containers
- * with ≥2 children, the duplicate-key condition.
+ * A freshly-PARSED subtree spliced under a preserved component id carries no `childIds`,
+ * so undefined keys reach Svelte if the reused container renders before the re-init
+ * effect — a duplicate-key crash once a nested container holds ≥2 children. The backfill
+ * lives in `stampStructuralChange`, the publish seam every new-node op routes through, so
+ * the guard covers ALL paths; the fixture nests two such containers to meet the crash
+ * condition.
  */
 const NESTED_LIST = '1. First.\n\n   Continuation.\n2. Second:\n   - x\n   - y\n';
 
@@ -339,9 +309,8 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const h = makeTop(['head\n', 'tail\n']);
 		const nested = parse(NESTED_LIST).children;
 
-		// The live structural-paste path folds the clipboard into a replacement and
-		// splices it through replaceBlock (defaultStructuralHook → buildPastedReplacement
-		// → replaceBlockAtParent), so the childIds backfill must reach every level here too.
+		// The live paste path folds the clipboard and splices it through replaceBlock
+		// (defaultStructuralHook → buildPastedReplacement), a second route to the backfill.
 		const replacement = buildPastedReplacement(h.doc.children[0], 4, nested);
 		await h.actions.replaceBlock(0, replacement);
 
@@ -349,11 +318,8 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		assertDeepChildIdsAligned(h.doc.children);
 	});
 
-	// merge-prev (mergeIntoPrevDeepLeaf) is the one new-node-ish path that bypasses
-	// stampStructuralChange. It writes text into an EXISTING deep leaf and deletes the
-	// merged block — it mints no fresh container — so the deep childIds it inherits stay
-	// aligned. This pins that: a future change that made merge-prev reparse into a
-	// container would desync here (it would need the same backfill the other paths get).
+	// merge-prev is the one new-node-ish path that bypasses the backfill seam: it mints no
+	// container, so a change that made it reparse into one would desync here.
 	it('mergeWithPrevious into a container leaf keeps deep childIds aligned', async () => {
 		const list = parse(NESTED_LIST).children[0];
 		expect(list.kind).toBe('list');
@@ -361,11 +327,11 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const { deps, doc } = makeEditorActionsDeps([list, makeNode('paragraph', 'tail\n')]);
 		const actions = createBlockEditActions(deps, createUndoController(deps));
 
-		// prev (list = container) + curr (paragraph = prose) is merge-eligible: the
-		// paragraph folds into the list's deepest prose leaf, no parse().
+		// container + prose is merge-eligible: the paragraph folds into the list's deepest
+		// prose leaf, with no parse().
 		await actions.mergeWithPrevious(1);
 
-		expect(doc.children).toHaveLength(1); // the paragraph merged into the list
+		expect(doc.children).toHaveLength(1);
 		assertDeepChildIdsAligned(doc.children);
 	});
 });

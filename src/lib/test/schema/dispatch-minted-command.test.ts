@@ -24,8 +24,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-// A minted command bound to a leaf kind used to dead-key on the leaf path (the
-// registry tier was deferred). It now resolves when the focused surface supplies a
+// A minted command bound to a leaf kind resolves once the focused surface supplies a
 // command context — the same seam the container-bubble path uses.
 describe('leaf-path dispatch of a minted block command', () => {
 	it('runs the handler with the target context + binding arg when a context is supplied', () => {
@@ -51,9 +50,8 @@ describe('leaf-path dispatch of a minted block command', () => {
 	});
 });
 
-// A plugin handler that throws must not escape as an uncaught error. Both dispatch
-// paths route the throw to the caller's sink and no-op the gesture. Built-in
-// command execution stays UNwrapped — its throws are editor bugs and stay loud.
+// A plugin throw routes to the caller's sink on both dispatch paths; built-in command
+// execution stays UNwrapped, because its throws are editor bugs and stay loud.
 describe('a throwing plugin handler is contained at the dispatch seam', () => {
 	it('contains a leaf-path throw, reports it, and consumes the key', () => {
 		const boom = new Error('leaf boom');
