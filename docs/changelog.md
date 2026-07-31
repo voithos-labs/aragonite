@@ -1,6 +1,6 @@
 # Changelog
 
-Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`.
+Editor version history (CST block editor). **Style (pre-v1):** one tight entry per minor version; patch versions are working notes that collapse into the parent minor at the next bump — per-bug narratives belong in `git log`. **Product changes only:** an entry describes how the editor behaves or what its API ships; repo meta-work (conventions, comment or docs hygiene, tooling, process) is never an entry.
 
 ### 0.9.36 (unreleased)
 
