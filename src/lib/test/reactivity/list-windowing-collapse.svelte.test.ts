@@ -136,10 +136,9 @@ describe('expand after collapse', () => {
 		let collapsed = $state(true);
 		const { windowing, cleanup } = setup(4, () => collapsed);
 
-		// A child mounting on expand registers without bumping reactive state; only
-		// a change in the batch effect's key drains it. For a small container the
-		// RAW result is identical before and after the flip (inactive, [0,4)), so
-		// keying on it would strand this measurement in pending until a scroll.
+		// A child mounting on expand registers without bumping reactive state, and for a
+		// small container the RAW window result is identical across the flip — so keying
+		// the batch effect on it would strand this measurement until the next scroll.
 		const applyHeight = vi.fn();
 		windowing.registerChild('b1', { readHeight: () => 42, applyHeight });
 		flushSync();

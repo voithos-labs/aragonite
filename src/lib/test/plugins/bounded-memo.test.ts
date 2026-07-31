@@ -110,9 +110,8 @@ describe('createBoundedMemo', () => {
 	});
 });
 
-// `cap` is on the published plugin surface, so a nonsensical value must report
-// rather than throw: cap 0 silently behaved as cap 1 (evict-then-insert), which
-// reads as "caching is off" right up until a plugin author debugs a stale entry.
+// `cap` is on the published plugin surface, so a nonsensical value must report rather
+// than throw — cap 0 otherwise reads as "caching is off" until an author debugs it.
 describe('createBoundedMemo with a non-positive cap', () => {
 	it('dev-warns at creation and clamps to a usable cap', () => {
 		vi.mocked(devWarn).mockClear();

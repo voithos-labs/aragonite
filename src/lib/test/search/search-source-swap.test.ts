@@ -3,9 +3,8 @@ import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
 import { createSearchState } from '../../search/search-state.svelte';
 
-// A whole-document swap and an in-place edit both bump the edit epoch, so the
-// epoch alone cannot tell them apart. The generation counter is the discriminator:
-// only the `source` prop branch bumps it.
+// A swap and an in-place edit both bump the edit epoch, so the generation counter is
+// the only discriminator: the `source` prop branch alone bumps it.
 function makeSwapHarness(source: string) {
 	let doc = parse(source);
 	let generation = 0;

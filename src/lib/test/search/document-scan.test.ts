@@ -98,9 +98,8 @@ describe('scanDocument — childless opaque containers', () => {
 	});
 
 	it('an EMPTY strip container stays unscanned (its raw is marker bytes, not content)', () => {
-		// `- \n` parses to a childless listItem and `> \n` to a childless blockquote;
-		// both are editable, but their raw is ambient marker syntax — searchable
-		// bytes would resurrect the marker-match class the ambient-prefix rule kills.
+		// These childless containers are editable, but their raw is ambient marker
+		// syntax — scanning it resurrects the marker-match class the ambient rule kills.
 		expect(scanDocument(parse('- \n'), matcherFor('- '))).toEqual([]);
 		expect(scanDocument(parse('> \n'), matcherFor('>'))).toEqual([]);
 	});

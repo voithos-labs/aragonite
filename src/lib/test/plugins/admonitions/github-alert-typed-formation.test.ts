@@ -8,11 +8,10 @@ import { nodeAt } from '$lib/tree-operations';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { containerAt, typeSlowly } from './formation-harness';
 
-// Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time
-// only ever writes the container's inner leaf, so nothing in the leaf's own reparse
-// can notice that the blockquote's rebuilt raw now opens as a `githubAlert`. Only an
-// atomic whole-marker insert used to classify, which is why both drivers passed while
-// the live tree diverged from a reparse of its own bytes.
+// Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time only
+// ever writes the container's inner leaf, so nothing in the leaf's own reparse can
+// notice that the blockquote's rebuilt raw now opens as a `githubAlert` — the atomic
+// whole-marker insert classifies while this route silently diverges.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -106,9 +105,8 @@ describe('github alert — per-keystroke marker formation', () => {
 		);
 	});
 
-	// A post-fix guard, not a red-first pin: with no reclassification the snapshot is
-	// trivially a blockquote, so this passes on pre-fix code too. It earns its place by
-	// failing if a future swap corrupts the shared snapshot.
+	// Guards the shared snapshot against a future swap corrupting it — it cannot red on
+	// a missing reclassification, where the snapshot is trivially a blockquote.
 	it('restores the pre-formation blockquote on undo', async () => {
 		const h = containerAt('> [!TI\n', [0]);
 		await typeSlowly(h.bundle, 0, '[!TI', 'P]');

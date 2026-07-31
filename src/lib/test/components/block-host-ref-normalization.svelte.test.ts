@@ -1,14 +1,11 @@
 // @vitest-environment jsdom
 //
 // BlockHost is the one place that knows a container publishes its whole
-// `BlockComponent` surface under a single `containerApi` export — Svelte 5 instance
-// exports are individual top-level declarations with no spread, and re-declaring a
-// dozen of them by hand once let four blocks drop the park door one at a time.
-//
-// Everything downstream reads what this resolves: the parent's `innerBlockRefs`
-// focus/reveal walks, both overlays, the cross-block dispatcher. A slot left holding
-// the raw instance is a block whose caret never lands, and it fails nowhere near
-// here — so the resolution is asserted at the slot, over a REAL container.
+// `BlockComponent` surface under a single `containerApi` export (Svelte 5 instance
+// exports have no spread, so hand-redeclaring the members drops doors one at a time).
+// A slot left holding the raw instance is a block whose caret never lands, and it
+// fails nowhere near here — so the resolution is asserted at the slot, over a REAL
+// container.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
@@ -24,9 +21,8 @@ import {
 	type MountedHost
 } from './mount-host';
 
-// The vitest setup registers built-in DESCRIPTORS only; the container assertions
-// below need BlockHost to dispatch a real blockquote, so the component registry is
-// bootstrapped here too. Built-ins survive `__resetSchemaRegistriesForTests`.
+// The vitest setup registers built-in DESCRIPTORS only, but the container assertions
+// need BlockHost to dispatch a real blockquote.
 beforeAll(() => {
 	installBlockHostLayoutStubs();
 	registerBuiltInBlocks();

@@ -1,12 +1,9 @@
 /**
  * Type pins for the view-typed public plugin surface (G1.9 at the barrel). The
- * `@ts-expect-error` directives are the assertions: `npm run check` fails if a
- * byte write starts compiling through a public read surface, or if an
- * implementation can re-widen its view param to the mutable type — the read
- * hooks are function-type properties, so params check contravariantly instead
- * of slipping through method bivariance. The pin function is never invoked;
- * the runtime case covers the one direction that runs: a freshly parsed
- * mutable Document feeds every view-typed reader with no conversion step.
+ * `@ts-expect-error` directives are the assertions: `npm run check` fails if a byte
+ * write starts compiling through a public read surface, or if an implementation
+ * re-widens its view param to the mutable type — the read hooks are function-type
+ * properties, so params check contravariantly rather than bivariantly.
  */
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';

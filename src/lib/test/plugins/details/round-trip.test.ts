@@ -124,11 +124,9 @@ describe('details opener paragraph-interrupt parity', () => {
 	});
 });
 
-// The round-trip suite above only exercises the opener's verbatim `raw`; these
-// guard `rebuildDetailsRaw` directly — the container-rebuild inverse the editor
-// runs when the details' children mutate (summary + open state return to the
-// header lines). A stale/nondeterministic rebuild trips the opaque-container
-// invariants (G1.12/G1.13), so determinism is asserted explicitly.
+// The suite above only exercises the opener's verbatim `raw`; these guard the rebuild
+// inverse the editor runs when the children mutate. A stale or nondeterministic
+// rebuild trips G1.12/G1.13, so determinism is asserted explicitly.
 describe('details rebuildRaw is the opener inverse', () => {
 	beforeEach(resetAndRegister);
 

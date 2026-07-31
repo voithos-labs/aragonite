@@ -7,10 +7,9 @@ import { parseConverges } from '$lib/testing/parse-convergence';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { containerAt, typeSlowly } from './formation-harness';
 
-// The sibling gestures that reach the same container kind re-derivation as typing:
-// a paste whose text spans blocks (the structural arm of the content commit, so the
-// re-derivation runs inside the commit ceremony rather than the routine spine write),
-// and the history round trip across the formation.
+// The sibling gestures reaching the same kind re-derivation as typing: a block-spanning
+// paste, whose re-derivation runs inside the commit ceremony rather than the routine
+// spine write, and the history round trip across the formation.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -28,9 +27,8 @@ describe('github alert — formation through sibling paths', () => {
 		expect(parseConverges(h.deps.doc)).toBe(true);
 	});
 
-	// The mirror direction, at the one seam that reaches it: an alert's marker is
-	// metadata-derived, so no editing gesture can damage it — a metadata write can.
-	// Top level on purpose: that commit takes the document branch, which runs no chain
+	// The marker is metadata-derived, so only a metadata write can demote an alert. Top
+	// level on purpose: that commit takes the document branch, which runs no chain
 	// rebuild, so the re-derivation has to reach the metadata seam directly.
 	it('demotes a top-level alert whose type metadata stops naming an alert', async () => {
 		const harness = makeEditorActionsDeps(parse('> [!TIP]\n> body\n').children);

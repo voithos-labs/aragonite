@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { publishRefSlot, whenRefMounted } from '../../reactivity/publish-ref.svelte';
 
-// Did `p` resolve through the registry (synchronously / already), versus still
-// waiting on a mount? A `.then` flag plus a few microtask drains: an already-
-// resolved or just-published promise flips the flag; a true pending one doesn't.
-// Microtask-only, no wall-clock timer (Design Rule #2 / G4.4).
+// Distinguishes "resolved through the registry" from "still waiting on a mount".
+// Microtask drains only, no wall-clock timer (Design Rule #2 / G4.4).
 async function isSettled(p: Promise<unknown>): Promise<boolean> {
 	let settled = false;
 	void p.then(() => {
@@ -14,8 +12,7 @@ async function isSettled(p: Promise<unknown>): Promise<boolean> {
 	return settled;
 }
 
-// Backs publishRefSlot's setRef/getRef with a plain array, mirroring the
-// editor's blockRefs slots.
+// Mirrors the editor's blockRefs slots behind publishRefSlot's setRef/getRef.
 function makeSlots() {
 	const refs: (object | undefined)[] = [];
 	return {

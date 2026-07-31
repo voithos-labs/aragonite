@@ -11,13 +11,10 @@ import {
 	resetPerfInstruments
 } from '$lib/perf/instruments';
 
-// The kind re-derivation costs a `parse` of the container's WHOLE raw — linear in
-// container bytes — so it is gated twice: the container's first line must have
-// changed across its rebuild, AND that line's opener verdict (what the grammar
-// opens the line as, read in isolation) must have moved. The second gate is what
-// keeps keystroke cost off the container-size axis: typing into a list's first item
-// or a callout title rewrites the opener line on every keystroke without moving any
-// verdict.
+// Kind re-derivation costs a `parse` of the container's WHOLE raw, so it is gated on
+// the first line having changed AND that line's opener verdict having moved. The
+// second gate is what keeps keystroke cost off the container-size axis: typing into a
+// list's first item rewrites the opener line without moving any verdict.
 
 const KEYSTROKES = 20;
 
@@ -54,11 +51,9 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// First gate passes, second holds. Each of these rewrites the container's opener
-	// line on every keystroke — a blockquote's first paragraph shares it, a list item's
-	// text rides its marker line — and the rewritten line still opens as the kind the
-	// node already is. These are the rows that put the cost on the container-size axis
-	// when only the first gate exists.
+	// First gate passes, second holds: each of these rewrites the container's opener
+	// line on every keystroke while its verdict stays put. The rows that put the cost
+	// on the container-size axis when only the first gate exists.
 	it.each([
 		['blockquote first paragraph', '> head\n>\n> body\n', [0, 0]],
 		['list first item', '- one\n- two\n- three\n', [0, 0, 0]]
@@ -68,21 +63,18 @@ describe('container kind re-derivation gate', () => {
 		expect(reparses()).toBe(0);
 	});
 
-	// The conservative half costs nothing by typing. A directive container's opener
-	// declines a one-line probe (it wants its `:::` closer), so the second gate can
-	// never confirm it and every edit to ITS opener line would fall through to the
-	// full parse — but that line carries only the directive name, which typing never
-	// reaches. The first gate is what holds here, and this row is where that shows.
+	// A directive's opener declines a one-line probe (it wants its `:::` closer), so
+	// the second gate can never confirm it and only the FIRST gate holds here. Costs
+	// nothing by typing: that line carries only the directive name.
 	it('reparses nothing while typing into a directive container body', () => {
 		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
 
 		expect(reparses()).toBe(0);
 	});
 
-	// The arm the pass exists for: exactly the keystroke that closes the marker moves
-	// the opener verdict, and only it pays the container reparse. The trailing `x`
-	// keeps a post-formation keystroke in the stream, so a gate that latched open
-	// would over-count.
+	// Only the keystroke that closes the marker moves the verdict. The trailing `x`
+	// keeps a post-formation keystroke in the stream, so a latched-open gate
+	// over-counts here.
 	it('reparses only on the keystroke that moves the opener verdict', () => {
 		const doc = parse('> [!TI\n');
 		const sharing = createSharingState();

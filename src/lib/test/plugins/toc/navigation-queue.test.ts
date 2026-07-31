@@ -31,9 +31,8 @@ describe('createNavigationQueue', () => {
 		await settle();
 		expect(calls).toEqual([[1]]);
 
-		// A second navigate while the first is still in flight must NOT issue a
-		// concurrent one — this is the strict-serialization guard (the whole point
-		// of the queue). Unserialized, navigateTo([2]) fires here and reddens.
+		// The strict-serialization guard: unserialized, navigateTo([2]) fires here
+		// concurrently with the first and reddens.
 		void queue.navigateTo([2]);
 		await settle();
 		expect(calls).toEqual([[1]]);

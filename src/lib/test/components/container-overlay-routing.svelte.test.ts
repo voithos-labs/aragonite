@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 //
-// Who paints a container's selection rects — the container's own overlay, or its
-// children's. A child-bearing container delegates downward; a container with no child
-// hosts (a grid, whose rows render inside its own component; a childless
-// render-primary block) paints itself.
-//
-// The routing used to be read off `blockRef.measurePartialRects` PRESENCE, which
-// worked only because a strip container happened not to forward that member. Once
-// containers publish one `containerApi` — the shim's whole surface, measure included —
-// presence stopped discriminating, and every blockquote and list inside a cross-block
-// range would wash its whole box on top of its children's rects. So the routing is
-// pinned behaviorally here, at the host that decides it.
+// Who paints a container's selection rects: a child-bearing container delegates
+// downward, one with no child hosts paints itself. Pinned behaviorally at the host
+// that decides, because the members a `containerApi` publisher exposes no longer
+// discriminate the two — a presence check washes every blockquote and list inside a
+// cross-block range over its children's rects.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -52,9 +46,8 @@ describe('a container inside a cross-block range delegates its painting downward
 		expect(ownOverlays(mounted).length).toBe(0);
 	});
 
-	// Non-vacuity: the same range DOES paint a middle block whose content is a leaf, so
-	// the assertion above is about the container's delegation, not about the range being
-	// inert or the classification never reaching 'middle'.
+	// Non-vacuity: without this the assertion above passes on an inert range or a
+	// classification that never reaches 'middle'.
 	it('still paints a middle leaf under the same range', () => {
 		const doc = parse('lead\n\nmiddle prose\n\ntail\n');
 		const selection = rangeAcrossThreeBlocks();

@@ -1,11 +1,8 @@
 /**
- * Op vocabulary + driver for the undo-restoration property test. Every op
- * routes through the REAL action factories (top-level block edit, nested
- * chains, list/table contexts, cross-block range delete) over the headless
- * harness — never the commit primitive directly. Headless boundary: table
- * cell typing drives the row bundle's updateBlockContent (the same entry
- * TableCellBlock uses); cell-addressed focus and IME paths need a DOM and
- * stay with the e2e suites.
+ * Op vocabulary + driver for the undo-restoration property test. Every op routes
+ * through the REAL action factories, never the commit primitive directly, so the
+ * walk exercises the entry paths a user reaches. Headless boundary: cell-addressed
+ * focus and IME paths need a DOM and stay with the e2e suites.
  */
 
 import fc from 'fast-check';
@@ -58,20 +55,12 @@ export type Op =
 	| { t: 'undo' }
 	| { t: 'redo' };
 
-/**
- * Block- and inline-significant Markdown characters. Typing one mid-content is
- * the class the neutral fillers (`x`/`y`/`q`/`z`) can't reach: a pipe inside a
- * cell, a fence marker inside prose, a `>` that re-classifies the block — the
- * live-tree-vs-raw divergences the convergence oracle exists to catch.
- */
+/** Typing one of these mid-content re-classifies the block, which is the
+ *  live-tree-vs-raw divergence class neutral filler characters cannot reach. */
 export const MARKDOWN_TYPE_CHARS = ['|', '#', '>', '-', '*', '`', '[', ']', '!'] as const;
 
-/**
- * Code-point insertion index for a `typeChar` op — resolves the arbitrary `off`
- * against the body's code-point length so an astral source is never sliced
- * through a surrogate pair (offsets here are UTF-16 in the raw string, but
- * `displayLength` counts UTF-16 units, so index by code point instead).
- */
+/** Resolves the arbitrary `off` by code point, not by `displayLength`'s UTF-16
+ *  units, so an astral source is never sliced through a surrogate pair. */
 export function typeCharCodePointOffset(body: string, off: number): number {
 	return off % ([...body].length + 1);
 }
@@ -103,10 +92,8 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({ t: fc.constant('redo' as const) })
 );
 
-// CRLF and astral/combining variants join the ASCII/LF fixtures: the marker-char
-// class the audit missed lives partly in line-ending and code-point handling, so
-// the generator must reach a `\r\n`-authored block and a surrogate-pair /
-// combining-mark block, not just plain ASCII.
+// CRLF and astral/combining sources join the ASCII/LF ones because the divergence
+// class lives partly in line-ending and code-point handling.
 export const arbSource = fc.constantFrom(
 	'alpha\n\n- one\n- two\n- three\n\nomega\n',
 	'1. first\n2. second\n3. third\n',
@@ -213,14 +200,9 @@ async function runTopOp(
 	}
 }
 
-/**
- * Splice one Markdown-significant character into a top-level paragraph at an
- * arbitrary code-point offset, through the same `updateBlockContent` entry
- * TextEditableBlock types on. The entry reparses, so a `>` at offset 0 (or a
- * mid-line fence marker) re-classifies the block exactly as a live keystroke
- * would — the convergence oracle then holds only if that re-classification is
- * byte-faithful.
- */
+/** Splices through the same `updateBlockContent` entry TextEditableBlock types on,
+ *  which reparses — so a `>` at offset 0 re-classifies the block as a live keystroke
+ *  would, and the oracle holds only if that re-classification is byte-faithful. */
 async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Promise<void> {
 	const doc = h.deps.doc;
 	const paragraphs = doc.children
@@ -425,12 +407,9 @@ async function runRangeDelete(
 	});
 }
 
-/**
- * Synthetic selection endpoint inside `block` (top-level index `i`): prose
- * blocks anchor directly; list/blockquote endpoints descend to a paragraph
- * leaf. Tables return null — their endpoints carry cell-coordinate offsets,
- * a DOM-driven encoding the headless driver does not synthesize.
- */
+/** Synthetic selection endpoint inside `block` (top-level index `i`). Tables return
+ *  null: their endpoints carry cell coordinates, a DOM-driven encoding this driver
+ *  does not synthesize. */
 function leafPoint(block: CstNode, i: number, off: number): SelectionPoint | null {
 	if (block.kind === 'paragraph' || block.kind === 'heading') {
 		return { path: [i], offset: Math.min(off, displayLength(block.raw)) };

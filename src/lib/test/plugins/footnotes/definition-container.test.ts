@@ -4,10 +4,9 @@ import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
 import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definition';
 
-// The definition is a strip container in the listItem mold: line 1's post-marker
-// text plus dedented four-space continuations parse as real child blocks; the
-// `[^label]: ` marker is pure syntax that lives only in the container's own raw,
-// never in a child (so `strip(raw) === serialize(children)`).
+// The definition is a strip container in the listItem mold: its `[^label]: ` marker is
+// pure syntax living only in the container's own raw, never in a child — which is what
+// makes `strip(raw) === serialize(children)` hold.
 
 describe('footnote definition strip decomposition', () => {
 	beforeEach(() => {

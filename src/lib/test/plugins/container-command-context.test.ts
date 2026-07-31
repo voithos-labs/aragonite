@@ -16,18 +16,16 @@ import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 
-// Branded plugin kinds — a bare string is not assignable to AnyBlockKind.
-// Declared once at module scope (the reset clears the command registry, not the
-// plugin-kind declarations; a per-test declare would double-throw).
+// Declared once at module scope: the reset clears the command registry, not the
+// plugin-kind declarations, so a per-test declare would double-throw.
 const note = declarePluginKind('demoNote');
 const noteAlt = declarePluginKind('demoNoteAlt');
 
 const noteNode = (kind = note): CstNode => ({ kind, leadingTrivia: '', raw: '' });
 
-// The public `keybindings` prop types `kind` as a built-in BlockKind, so a
-// plugin-kind binding is expressed by its compiled map form directly (the same
-// shape a plugin's own keymap resolves through). Resolution is dispatchKindCommand's
-// concern; this suite exercises only the target the container hands it.
+// The public `keybindings` prop types `kind` as a built-in BlockKind, so a plugin-kind
+// binding goes in as its compiled map form — the shape a plugin's own keymap resolves
+// through. This suite exercises only the target the container hands the dispatcher.
 function bindKindChord(
 	kind: AnyBlockKind,
 	chord: string,

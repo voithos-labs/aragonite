@@ -34,10 +34,9 @@ import { stripComments } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind } from '$lib/plugin';
 
-// Registers one thing through each public register-once entry the aggregate must
-// clear. A new public registration added without wiring its reset into
-// `resetPluginPlatformForTests` re-throws its dup here on the re-install below —
-// keep this in lockstep with the aggregate.
+// One registration through each public register-once entry, so a new one added without
+// wiring its reset into `resetPluginPlatformForTests` re-throws its dup on the
+// re-install below. Keep in lockstep with the aggregate.
 function installProbePlugin(): void {
 	const block = declarePluginKind('probe-block');
 	const inline = declarePluginInlineKind('probe-inline');
@@ -143,18 +142,17 @@ describe('aragonite/testing dependency rules', () => {
 		expect(sources.flatMap((s) => s.specifiers).length).toBeGreaterThan(5);
 	});
 
-	// The conformance kit runs INSIDE an author's own test case. A static runner
-	// import would force that runner (an unlisted dep) on every suite that reaches
-	// for `resetPluginPlatformForTests` alone — including one on Jest or node:test.
-	// The kit throws plain `Error`s instead; keep it that way.
+	// The kit runs INSIDE an author's own case, so a static runner import would force
+	// that runner on every suite reaching for `resetPluginPlatformForTests` alone —
+	// including one on Jest or node:test. It throws plain `Error`s instead.
 	it('imports no test runner', () => {
 		const offenders = offendersMatching(sources, /^(vitest|jest|@jest\/|node:test|chai)/);
 		expect(offenders, 'runner imports on the published testing surface').toEqual([]);
 	});
 
-	// `prune-dist.mjs` deletes `dist/test` before pack, and `verify-pack.mjs` fails
-	// on any test file that ships. An import reaching into `test/` therefore resolves
-	// in the repo and 404s in the published package — a break no in-repo suite sees.
+	// `prune-dist.mjs` deletes `dist/test` before pack and `verify-pack.mjs` rejects any
+	// that ship, so an import reaching into `test/` resolves in the repo and 404s in the
+	// published package — a break no in-repo suite sees.
 	it('reaches into no directory that is stripped from the published package', () => {
 		const offenders = offendersMatching(sources, /(^|\/)(test|e2e)\//);
 		expect(offenders, 'imports of paths pruned from dist/').toEqual([]);

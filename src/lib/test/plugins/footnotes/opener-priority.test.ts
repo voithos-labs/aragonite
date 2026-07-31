@@ -28,10 +28,9 @@ describe('footnote definition opener priority', () => {
 	});
 
 	it('claims every [^label]: form, including a valid-URL body', () => {
-		// The matcher keys on the leading-caret label, not the body — so a
-		// url-content footnote is claimed too. (The built-in reserves leading-caret
-		// labels away from link reference definitions, so there is in fact no
-		// priority contest here — see wall log W3.)
+		// The matcher keys on the leading-caret label, not the body, so a url-content
+		// footnote is claimed too — the built-in reserves those labels away from link
+		// reference definitions, so there is no priority contest to lose.
 		const doc = parse('[^1]: https://example.com\n');
 		expect(doc.children[0].kind).toBe(FOOTNOTE_DEF_KIND);
 	});

@@ -20,10 +20,8 @@ describe('assignIds', () => {
 	});
 });
 
-// `crypto.randomUUID` is secure-context-only. An embedder serving the editor over
-// plain http (an intranet, a LAN preview) has `crypto` but not that method, and a
-// throwing id generator takes down every keyed render — while these ids are
-// keyed-each keys, not secrets.
+// `crypto.randomUUID` is secure-context-only, so an embedder on plain http has
+// `crypto` without it — and a throwing id generator takes down every keyed render.
 describe('generateBlockId without randomUUID', () => {
 	it('falls back to a unique id instead of throwing', () => {
 		// `randomUUID` lives on Crypto.prototype, so shadow it with an own undefined

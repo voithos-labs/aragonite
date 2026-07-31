@@ -8,12 +8,9 @@ import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 
-// Both grammars ride the bare `:` trigger on their own rungs — the directive text
-// tier at the default `plugin` rung (consulted first), emoji at `plugin + 10`. The
-// register-once grain forbids the same (trigger, prefix, priority) twice, so the
-// +10 is what lets them coexist. Their grammars are disjoint (emoji needs a closing
-// colon and a table hit; a directive name needs a following `[`/`{`), so the order
-// only decides first refusal, never a contested claim.
+// Both grammars ride the bare `:` trigger, and register-once forbids the same
+// (trigger, prefix, priority) twice — so emoji's `plugin + 10` rung is what lets them
+// coexist. The grammars are disjoint, so the order decides first refusal only.
 beforeEach(() => {
 	resetPluginPlatformForTests();
 	activateDirectiveGrammar();
@@ -47,12 +44,9 @@ describe('emoji and the directive text tier coexist on `:`', () => {
 	});
 });
 
-// The order above is one of two a consumer can write. `emojiPlugin()` before the
-// plugin that activates directives (`admonitionsPlugin()` calls it) puts a rung on
-// `:` first, and the activation's inline step used to read "does anyone own `:`"
-// rather than "did I already register" — so it skipped its own recognizer and left
-// the directive tier dead while its kind and widget stayed live. Byte round-trip is
-// blind to it: the bytes stay literal prose either way.
+// The other install order a consumer can write: emoji claims `:` first, so an
+// activation asking "does anyone own `:`" rather than "did I already register" skips
+// its own recognizer and leaves the tier dead. Byte round-trip is blind to it.
 describe('the directive text tier survives a plugin that took `:` first', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();

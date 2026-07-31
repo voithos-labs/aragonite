@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 //
-// The two things BlockHost hands its child that nothing else can: the props it
-// reads from editor context (`document`, `rects`), and the ref slot it publishes
-// the mounted component into — the slot every container's focus, reveal and
-// clipboard walk resolves through.
-//
-// Only the registered-component branch can be asked behaviorally: the fallback's
-// TextEditableBlock accepts `document` for props parity and deliberately never
-// binds it, so both branches' threading stays pinned by the source scan in
-// invariants/lint/block-host-prop-thread.
+// The two things BlockHost hands its child that nothing else can: the props it reads
+// from editor context, and the ref slot every container's focus, reveal and clipboard
+// walk resolves through. Only the registered-component branch answers behaviorally —
+// the fallback accepts `document` for parity and never binds it, so both branches stay
+// pinned by the source scan in invariants/lint/block-host-prop-thread.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
@@ -75,9 +71,8 @@ describe('BlockHost delivers its context-read props to the component it dispatch
 });
 
 describe('BlockHost publishes its component into the caller’s ref slot', () => {
-	// The slot index is the claim here, not the document shape, so the node is
-	// named explicitly and the index moved around it. `props` is the object the
-	// host is mounted with — a `$state` one stays live after mount.
+	// The slot index is the claim, not the document shape, so the node is named
+	// explicitly and the index moved around it. A `$state` props object stays live.
 	function mountAtSlot(props: HostProps): MountedHost {
 		const doc = recordingDoc('recorded\n');
 		props.node = doc.children[0];

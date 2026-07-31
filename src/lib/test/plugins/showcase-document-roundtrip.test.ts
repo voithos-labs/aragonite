@@ -15,13 +15,10 @@ import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { SHOWCASE_DOCUMENT } from '../../../routes/showcase-content';
 
 /**
- * The `/` showcase is the broadest realistic document in the repo — every
- * built-in kind beside eight bundled plugins' syntax — and it is the 1.0 pitch
- * surface, so a construct in it that fails to round-trip reaches a consumer on
- * their first edit of the demo rather than CI. Its browser spec is
- * DOM-presence-only by design (the route exposes no `window.__test` bridge), and
- * no single page load installs all eight plugins in the plugins harness anyway
- * (footnotes and emoji are seed-gated), so this pin has to be a unit case.
+ * The `/` showcase is the broadest realistic document in the repo and the 1.0 pitch
+ * surface, so a construct in it that fails to round-trip reaches a consumer on their
+ * first edit of the demo rather than CI. A unit case by necessity: the route exposes no
+ * `window.__test` bridge, and no single page load installs all the bundled plugins.
  */
 
 beforeAll(() => {

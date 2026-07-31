@@ -3,26 +3,14 @@
 // one routes through window.getSelection.)
 
 /**
- * Structural-sharing undo keystone: random op sequences over real action
- * factories (top-level + nested chains + multi-scope list ops + table ops +
- * cross-block range deletes + Markdown-char typing at arbitrary offsets), with
- * `undo`/`redo` interleaved INTO the walk. Every undo restores the serialization
- * captured when its entry was pushed; every redo restores the live state captured
- * at the undo that spawned it — both byte-exactly. A single missed copy-path-on-
- * write corrupts an entry and fails the comparison.
+ * Structural-sharing undo keystone: random op sequences over the real action
+ * factories with undo/redo interleaved, since a single missed copy-path-on-write
+ * corrupts one entry and nothing but a byte comparison catches it.
  *
- * Convergence cadence: SETTLED endpoint only, not per-op. A mid-paragraph split
- * intentionally leaves two adjacent blocks that serialize as one paragraph (a
- * soft split — block-edit-core.test.ts), a legal live-tree-vs-raw divergence the
- * oracle flags but which is not corruption; the sim runs the oracle at checkpoint
- * cadence for the same reason. The drained endpoint IS settled (= original), so
- * asserting convergence there catches a restored tree whose bytes are right but
- * whose live kind/structure drifted (the join-paste-stale-kind class the byte
- * comparison is blind to).
- *
- * Case budget: numRuns 40 × up to 12 ops. The 12-op ceiling (was 8) buys room for
- * undo/redo interleaving to reach non-trivial stack depths without blowing the
- * unit budget.
+ * Convergence runs at the SETTLED endpoint only. A mid-paragraph split leaves two
+ * blocks that serialize as one paragraph (a soft split — block-edit-core.test.ts):
+ * a legal live-tree-vs-raw divergence per-op, so only the drained endpoint can
+ * catch a restoration whose bytes are right but whose live structure drifted.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -53,10 +41,8 @@ describe('undo restoration property (structural sharing)', () => {
 					const original = serialize(h.deps.doc);
 					const stacks = () => h.deps.undoManager.getStacks();
 
-					// Each stack entry, modelled as the serialization it restores TO when
-					// applied. A push records the pre-op state; undo/redo move the live
-					// pre-swap state onto the opposite stack (undoManager.undo/redo store
-					// `currentState` as the inverse entry).
+					// Each stack entry modelled as the serialization it restores TO: a push
+					// records the pre-op state, undo/redo move it onto the opposite stack.
 					const expectedUndo: string[] = [];
 					const expectedRedo: string[] = [];
 
@@ -99,10 +85,8 @@ describe('undo restoration property (structural sharing)', () => {
 					}
 					expect(serialize(h.deps.doc)).toBe(original);
 
-					// Drain phase B — redo everything back up. Random mid-walk redo ops
-					// almost never land on a non-empty redo stack, so THIS phase is what
-					// actually pins redo restoration: every entry undone above is redone
-					// here and its forward target checked byte-exactly.
+					// Drain phase B — redo everything back up. Random mid-walk redo ops almost
+					// never land on a non-empty redo stack, so this phase is what pins redo.
 					while (stacks().redo.length > 0) {
 						const before = serialize(h.deps.doc);
 						const target = expectedRedo.pop()!;
@@ -125,9 +109,8 @@ describe('undo restoration property (structural sharing)', () => {
 		);
 	});
 
-	// Reachability self-test (house pattern): a generator that cannot reach the
-	// class it is meant to stress proves nothing. Assert the sequences actually
-	// produce interior-offset Markdown-char typing and redo replays.
+	// Reachability self-test: a generator that cannot reach the class it is meant to
+	// stress proves nothing about it.
 	it('generates interior-offset marker typing and undo/redo ops', () => {
 		const samples = fc.sample(fc.array(arbOp, { minLength: 1, maxLength: 12 }), {
 			numRuns: 300,

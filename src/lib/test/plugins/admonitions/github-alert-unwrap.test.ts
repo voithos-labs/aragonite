@@ -3,10 +3,9 @@ import { installPlugins, parse } from '$lib';
 import { unwrapFirstChildFromQuote } from '$lib/tree-operations';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
-// The alert branch of the shared quote-unwrap primitive (Rule U2). A GitHub alert's
-// `[!TYPE]` marker is opener-only, so lifting a body child drops it: the remainder
-// reparses as a plain blockquote, not another alert. Blockquote coverage lives in
-// tree-operations/unwrap-blockquote.
+// The alert branch of the shared quote-unwrap primitive (Rule U2): a `[!TYPE]` marker
+// is opener-only, so lifting a body child drops it and the remainder reparses as a
+// plain blockquote. Blockquote coverage lives in tree-operations/unwrap-blockquote.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);

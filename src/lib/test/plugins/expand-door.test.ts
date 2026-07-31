@@ -7,10 +7,9 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { resetEditorEnv } from '../../env';
 
-// The expand door: what a reveal into a collapsed body commits, and when it declines.
-// The declaration lives beside the collapse probe (`reservedChrome.expandPatch`), so the
-// clamp that hides a body and the reveal that opens it read one source. The dogfood
-// details declaration shape, without its rendering.
+// What a reveal into a collapsed body commits, and when it declines. The door is
+// declared beside the collapse probe (`reservedChrome.expandPatch`), so the clamp that
+// hides a body and the reveal that opens it read one source.
 
 function registerCollapsible(name: string, withDoor: boolean) {
 	const chrome = declarePluginKind(`${name}-chrome`);

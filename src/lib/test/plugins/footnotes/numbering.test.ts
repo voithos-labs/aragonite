@@ -59,9 +59,8 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(numbers.get('e')).toBe(1);
 	});
 
-	// The definition's marker lives in its own container raw, never a prose child, so
-	// a def's own label is never miscounted as a reference of itself. A childless
-	// (empty-body) def is a non-prose leaf, so the walk skips it too.
+	// The marker lives in the container raw, never a prose child, so a def's own label
+	// cannot count as a reference of itself. A childless def is skipped as a non-leaf.
 	it('does not count a definition marker as a reference of itself', () => {
 		const numbers = assignFootnoteNumbers(parse('[^self]: A body that mentions nothing.\n'));
 		expect(numbers.size).toBe(0);
@@ -69,9 +68,8 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(emptyDef.size).toBe(0);
 	});
 
-	// A `[^x]` inside an inline code span is an `inlineCode` node, never a
-	// `footnote-ref` — the false positive the regex probe documented is fixed by
-	// construction now that references are parsed, not text-scanned.
+	// A `[^x]` in a code span is an `inlineCode` node, so parsing references rather than
+	// text-scanning them rules out this false positive by construction.
 	it('ignores a reference-shaped run inside an inline code span', () => {
 		const numbers = assignFootnoteNumbers(parse('Literal `[^x]` but real [^y].\n'));
 		expect(numbers.get('x')).toBeUndefined();
@@ -80,10 +78,9 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	});
 });
 
-// Every mounted reference widget derives its own number, so the walk above is
-// shared per flush through this memo. Its key must include the content version:
-// the editor's document is mutated IN PLACE, so keying on the document alone hits
-// forever and freezes the numbering at whatever the first widget saw.
+// The memo key must include the content version: the editor's document is mutated IN
+// PLACE, so keying on the document alone hits forever and freezes the numbering at
+// whatever the first widget saw.
 describe('footnote numbering — the shared per-version walk', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();

@@ -1,24 +1,10 @@
-// Growth harness for the inline scan-bounds suites. A recognizer that declines by
-// scanning to the end of its block is quadratic in block size, and the wall time
-// that proves it is machine-dependent — so these suites compare the same shape at N
-// and 4N instead. The ratio cancels machine speed out: a bounded scan lands near 4,
-// an unbounded one near 16.
-//
-// A ratio is only as trustworthy as the symmetry between its two measurements, and
-// under parallel test workers an asymmetry does not average out: it lands on one
-// size and fabricates growth. Two are designed out here.
-//
-//   Warm-up. The first samples at a size run several times slower than its settled
-//   cost, so a size whose timed samples are its first ones reports the ramp instead
-//   of the cost. Both sizes are warmed, not just one.
-//
-//   Drift. Load arriving between the two sizes' sample windows lands entirely on
-//   whichever is measured second. The sizes are sampled inside the same window,
-//   alternating which goes first so intra-window drift cancels across repetitions.
-//
-// Min-over-repetitions sits on top of both: contention only ever inflates, so the
-// minimum converges on the true cost. It cannot substitute for the symmetry work —
-// a min over samples that are all cold is still a cold measurement.
+// Growth harness for the inline scan-bounds suites. Wall time is machine-dependent,
+// so these suites time the same shape at N and 4N: the ratio cancels machine speed
+// out, landing near 4 when the scan is bounded and near 16 when it is quadratic.
+// Under parallel workers an asymmetry between the two measurements does not average
+// out — it lands on one size and fabricates growth. Hence both sizes are warmed (the
+// first samples run several times slow), and sampled in one alternating window so
+// drift arriving mid-run cancels instead of loading whichever went second.
 
 /** Distinct-per-sample tail: the scan indexes memoize on the block's raw, so a
  *  second run of the identical string would time a cache hit, not the scan. Trailing

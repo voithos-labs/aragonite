@@ -17,9 +17,8 @@ function makeHarness(source: string, replace: ReplaceStub = stubReplace) {
 	const engine = createDecorationEngine({ getDoc: () => doc });
 	const state = createSearchState({
 		getDoc: () => doc,
-		// rescan reads the generation exactly once, at its top — and scans the doc the
-		// decoration registry hands `provide`, not this getter — so the generation read
-		// is what counts rescans.
+		// rescan reads the generation exactly once at its top, and scans the doc the
+		// registry hands `provide` rather than this getter — so this read counts rescans.
 		getDocumentGeneration: () => {
 			scans++;
 			return 0;
@@ -83,11 +82,9 @@ describe('search as decoration source', () => {
 		expect(engine.marksForPath([0])).toHaveLength(2);
 	});
 
-	// Replace mutates the doc but the memo key (epoch + query + options) is
-	// unchanged until the deferred edit notification, so an invalidate-only
-	// refresh serves the pre-replace matches from a memo hit. The replace path
-	// must rescan before it invalidates so `matches` reflects the new document
-	// synchronously after the await — the headless (no-handle) path always did.
+	// Replace mutates the doc while the memo key (epoch + query + options) stays put
+	// until the deferred edit notification, so an invalidate-only refresh serves the
+	// pre-replace matches from a memo hit. Rescan must precede invalidate.
 	it('replaceCurrent refreshes matches synchronously on the bar-open path', async () => {
 		const { doc, state } = makeHarness('cat cat\n', {
 			replaceOne: async (_m, text) => {

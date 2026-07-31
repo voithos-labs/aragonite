@@ -22,16 +22,12 @@ import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 
 /**
- * `</details>` is a fixed terminator with no fence length to escalate, so bytes
- * reproducing it cannot be emitted into the body as-is. The repair is a
- * commit-path escape: the container's `bodyWrite` rule rewrites the offending
- * line's `<` to `&lt;` BEFORE the write lands, so the child's own raw carries the
- * escaped bytes and the container's raw never disagrees with its children.
- *
- * These pin both halves — that the escape fires where the container's grammar is
- * at stake, and that it declines everywhere else. The escape's placement upstream
- * of the leaf reparse is load-bearing and pinned here too: escaped bytes parse as
- * a paragraph, so the kind the child ends up with is the kind its bytes describe.
+ * `</details>` is a fixed terminator with no fence length to escalate, so the repair
+ * is a commit-path escape: `bodyWrite` rewrites the offending line's `<` to `&lt;`
+ * BEFORE the write lands, keeping the container's raw in agreement with its children.
+ * Both halves are pinned — that the escape fires where the grammar is at stake and
+ * declines everywhere else — plus its placement upstream of the leaf reparse, so the
+ * child's kind follows the bytes it ends up with.
  */
 beforeEach(() => {
 	__resetSchemaRegistriesForTests();
@@ -113,10 +109,9 @@ describe('details terminator collision through the real commit path', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
-	// What closes the element is whatever CommonMark hands to raw-HTML passthrough,
-	// which is looser than the container's own canonical recognizer. Each of these
-	// reloads intact in aragonite — its recognizer never sees them — and closes the
-	// element on GitHub, so the escape answers to the SPEC's tag-line shape.
+	// What closes the element is raw-HTML passthrough, looser than the container's own
+	// recognizer: each of these reloads intact here yet closes the element on GitHub,
+	// so the escape answers to the SPEC's tag-line shape.
 	const passthroughVariants = [
 		[' </details>', ' &lt;/details>'],
 		['   </details>', '   &lt;/details>'],
@@ -135,9 +130,8 @@ describe('details terminator collision through the real commit path', () => {
 		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
 	});
 
-	// A balanced nested pair inside one htmlBlock child is legal markup the
-	// container's depth scan already handles. Escaping it would rewrite the user's
-	// HTML, which is why the rule is a depth scan and not a line match.
+	// A balanced nested pair is legal markup the container's depth scan already
+	// handles; escaping it would rewrite the user's HTML. Hence a scan, not a match.
 	it('declines to escape a balanced nested pair inside an html child', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		const nested = '<div>\n<details>\n<summary>x</summary>\n</details>\n</div>\n';
@@ -261,10 +255,8 @@ describe('details terminator escape caret image', () => {
 		}
 	});
 
-	// A caret is mapped through the same escape that moved the bytes, so folding the
-	// entities back must reproduce the prefix the user had. Checked at every offset:
-	// a per-line predicate with multi-byte insertions is exactly where an off-by-one
-	// hides from a hand-picked case.
+	// Checked at every offset, not a hand-picked one: a per-line predicate with
+	// multi-byte insertions is exactly where an off-by-one hides.
 	it('mapOffset is the exact image of normalize at every offset', () => {
 		const bodyWrite = getBlockKindDescriptor(declaredPluginKind(DETAILS)).bodyWrite!;
 		const inputs = ['</details>\n', ' </details>\nx\n', '</details>\n<details>\n', 'plain\n'];
@@ -277,11 +269,9 @@ describe('details terminator escape caret image', () => {
 		}
 	});
 
-	// Every prefix of the tag, keystroke by keystroke. `</details` — no `>` yet — is
-	// ALREADY a type-6 line (the shape's tail admits end-of-line), and a browser
-	// left holding it swallows what follows until it finds a `>`. Escaping from that
-	// keystroke on also means the block never oscillates through htmlBlock: the kind
-	// stays prose the whole way, so no intermediate state is a kind change.
+	// `</details` with no `>` yet is ALREADY a type-6 line, and a browser left holding
+	// it swallows what follows. Escaping from that keystroke on also keeps the block
+	// from oscillating through htmlBlock, so no intermediate state is a kind change.
 	it('escapes from the first keystroke the spec would pass through, never oscillating', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		const typed = '</details>';
@@ -297,9 +287,8 @@ describe('details terminator escape caret image', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
-	// The structural door: a commit whose kind genuinely changes still escapes. Its
-	// caret mapping is pinned end-to-end in the details e2e — the unit harness mounts
-	// no refs, so no focus landing is observable here.
+	// The structural door: a commit whose kind genuinely changes still escapes. Caret
+	// mapping is pinned in the details e2e — this harness mounts no refs.
 	it('escapes on a kind-changing commit, the structural door', async () => {
 		const h = mountDetails('<details>\n<summary>T</summary>\n\n```\nx\n```\n\n</details>\n');
 		expect(h.deps.doc.children[0].children?.[1].kind).toBe('fencedCode');
