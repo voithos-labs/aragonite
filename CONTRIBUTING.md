@@ -29,6 +29,10 @@ Symbol-prefixed, lowercase, one logical change per commit. Full convention: [`do
 
 [`docs/contributing/culture.md`](docs/contributing/culture.md) is the incident-backed rule set — the conventions that aren't derivable from reading the source, each one paid for by a real bug. Read it before your first edit.
 
+## Filing defects
+
+Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), each labelled with one `severity:` and one `area:` label.
+
 ## Fixing bugs
 
 Root-cause first — never patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis — what test should have caught this, and why none did — in the commit message.
