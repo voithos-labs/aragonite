@@ -1,12 +1,8 @@
 /**
- * Override factory for ListBlock — list-wrapper-level structural overrides
- * that ListBlock layers over the standard nested actions bundle: item-level
- * no-ops and last-item forward-merge delegation. Item delete and item replace
- * fall through to the shared block-edit core (via the container scope), which
- * carries the noop-discard, focus-offset snapshot, and empty-container backfill
- * guards this override used to re-implement by hand. Backspace unwrap (U1/M1)
- * is declaration-driven — the list's `unwrapRole` selects strategies in
- * `unwrap-strategies.ts`.
+ * Override factory for ListBlock: item-level no-ops and last-item forward-merge
+ * delegation. Item delete and replace fall through to the shared block-edit core.
+ * Backspace unwrap (U1/M1) is declaration-driven — the list's `unwrapRole` selects
+ * strategies in `unwrap-strategies.ts`.
  */
 
 import type { BlockEditActions } from '../action-contracts';
@@ -23,8 +19,8 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 			splitBlock: async (): Promise<void> => {},
 			updateBlockContent: (): void => {},
 
-			// Forward-delete is a no-op between items (structural peers, not text-mergeable).
-			// For the LAST item, delegate upward so the following block merges into this list's deepest leaf.
+			// Items are structural peers, not text-mergeable. Only the LAST item delegates
+			// upward, so the following block merges into this list's deepest leaf.
 			mergeWithNext: async (itemIndex: number): Promise<void> => {
 				const node = deps.scope.node;
 				if (!node.children) return;

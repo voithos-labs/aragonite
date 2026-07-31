@@ -13,24 +13,19 @@ import type { NestedActionsDeps } from './nested-actions';
 export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps): FocusActions {
 	const { stickyColumn, parent } = deps;
 	return {
-		// Bubble reveal to the parent: a nested scope's reveal is the editor's
-		// recursive revealPath descending through this container, so this scope
-		// doesn't own it. (Nested scopes do window, but moveFocus below doesn't
-		// need to reveal; see its adjacent-only contract.)
+		// A nested scope's reveal IS the editor's recursive revealPath descending
+		// through this container, so this scope doesn't own it.
 		revealPath: parent.focus.revealPath,
-		// `moveFocus` is sync and does not reveal an off-window inner target,
-		// unlike the root `moveFocus` (which routes through `revealPath`). The
-		// adjacent-only precondition is the caller's: the target must sit within
-		// overscan of the pinned caret. A caller whose inner index can scale with
-		// anything other than caret distance must reveal first — VR-12 (nested
-		// analog; docs/design/virtual-rendering.md § VR Identifier Catalog).
+		// Sync, and does not reveal an off-window inner target, unlike the root
+		// `moveFocus`. The adjacent-only precondition is the caller's — VR-12
+		// (docs/design/virtual-rendering.md).
 		async moveFocus(
 			innerIndex: number,
 			position: FocusPosition,
 			options?: MoveFocusOptions
 		): Promise<void> {
-			// node.children.length is authoritative: refs.length lags after
-			// structural ops because bind:this fires asynchronously.
+			// node.children.length is authoritative: refs.length lags after structural
+			// ops because bind:this fires asynchronously.
 			await dispatchMoveFocus(
 				state.innerBlockRefs,
 				innerIndex,

@@ -1,11 +1,8 @@
 /**
- * HistoryActions factory. requestUndo/requestRedo capture current state
- * for the swap entry, replay the entry's snapshot, and restore the saved
- * selection. Snapshots share the live tree's nodes, so a restore re-marks
- * the epoch (the restored nodes are now also held by the swap entry) and
- * re-copies the children array so later publishes never write the stack's
- * entry. Inline content is computed lazily on read, so restore parses no
- * inline — rendered blocks recompute on demand.
+ * HistoryActions factory: capture current state for the swap entry, replay the
+ * entry's snapshot, restore the saved selection. Snapshots share the live tree's
+ * nodes, so a restore re-marks the epoch and re-copies the children array — else a
+ * later publish writes the stack's own entry.
  */
 
 import { tick } from 'svelte';
@@ -36,25 +33,20 @@ export function createHistoryActions(
 			selectionState: deps.selectionState,
 			getBlockElByPath: deps.getBlockElByPath,
 			// Mount, not scroll into view: a history swap must not move the viewport for
-			// a target that is already on screen. The consumer restore door promises the
-			// stronger guarantee and passes the stronger primitive.
+			// a target already on screen.
 			revealTarget: async (path) => (await deps.revealPath(path)) !== null
 		});
-		// An entry can name a slot that never existed in its own snapshot — the
+		// An entry can name a slot that never existed in its own snapshot (the
 		// append-past-end op declares the one-past-the-end coordinate as its restore
-		// fallback (editor-actions/focus/focus.ts) — and the swap would otherwise leave
-		// the pre-swap selection painted over a document that changed underneath it.
-		// The seam declines such a snapshot without side effects, which is right for the
-		// consumer door (it must never disturb a live selection) and leaves this policy
-		// here, where "the doc was replaced" is known.
+		// fallback). The seam declines without side effects, so clearing is this
+		// caller's policy — the one place that knows the doc was replaced.
 		if (outcome === 'unresolvable') deps.selectionState.clear();
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}
 
-	// Flush any armed keystroke batch before the history swap: interrupt clears
-	// the debounce timer (so it can't push a stale snapshot after the stack moves
-	// underneath it) AND emits the batch's pending `input` event, so its bytes
-	// aren't dropped from the edit channel — discarding lost them.
+	// Flush, not discard: interrupt clears the debounce timer so it can't push a stale
+	// snapshot after the stack moves, AND emits the batch's pending `input` event so
+	// its bytes aren't dropped from the edit channel.
 	function beginHistorySwap(): void {
 		deps.stickyColumn.reset();
 		controller.flushDebouncedCheckpoint();
@@ -63,9 +55,8 @@ export function createHistoryActions(
 	return {
 		async requestUndo(): Promise<void> {
 			beginHistorySwap();
-			// Check the stack before capturing: captureCurrentState marks the whole
-			// tree snapshot-shared, forcing copy-on-write spines on the next edit — a
-			// wasted cost when Ctrl+Z is a no-op on an empty undo stack.
+			// Check the stack before capturing: captureCurrentState marks the whole tree
+			// snapshot-shared, forcing copy-on-write spines on the next edit.
 			if (!deps.undoManager.canUndo) return;
 			const entry = deps.undoManager.undo(controller.captureCurrentState());
 			if (!entry) return;

@@ -1,8 +1,7 @@
 /**
- * Keystroke-batch lifecycle for the undo controller: one undo entry per burst
- * of typing, broken by a wall-clock pause, a batch-key change, or a structural
- * commit. Owns the debounce timer and the pending input-event batch; snapshot
- * capture itself stays with the controller (injected).
+ * Keystroke-batch lifecycle: one undo entry per burst of typing, broken by a
+ * wall-clock pause, a batch-key change, or a structural commit. Snapshot capture
+ * itself stays with the controller, injected.
  */
 
 export interface TextBatchDeps {
@@ -14,26 +13,18 @@ export interface TextBatchDeps {
 
 export interface TextBatch {
 	/**
-	 * Record one keystroke. The first keystroke of a batch (new batch key, or
-	 * after an interrupt/flush) pushes a snapshot; every keystroke re-arms the
-	 * pause timer. `leafPath` is the edited leaf's doc-absolute path (snapshot
-	 * seed + input-event target). `batchKey` identifies the leaf being typed in
-	 * (stable string id for container scopes; the path itself as fallback) —
-	 * sibling leaves inside one container must not share a batch across focus
-	 * moves.
+	 * The first keystroke of a batch pushes a snapshot. `batchKey` identifies the leaf
+	 * being typed in, so sibling leaves never share a batch across a focus move.
 	 */
 	keystroke(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
-	 * Structural-commit interrupt: cancel the pause timer, flush the pending
-	 * input event, and require a fresh snapshot from the next keystroke.
+	 * Structural-commit interrupt: cancel the pause timer, flush the pending input
+	 * event, and require a fresh snapshot from the next keystroke.
 	 */
 	interrupt(): void;
 }
 
-/**
- * 500 ms reverted entire half-words at typical typing speeds; 250 ms roughly
- * matches Obsidian. Word-boundary flushing is a potential refinement.
- */
+/** 500 ms reverted entire half-words at typical typing speeds; 250 ms matches Obsidian. */
 export const UNDO_DEBOUNCE_MS = 250;
 
 export function createTextBatch(deps: TextBatchDeps): TextBatch {
@@ -44,8 +35,8 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 	let batchByteLength = 0;
 
 	/**
-	 * Must run before the batch is repointed or reset — otherwise edit-channel
-	 * observers never see the batch's `input` event and under-count keystrokes.
+	 * Must run before the batch is repointed or reset, else edit-channel observers
+	 * never see the batch's `input` event and under-count keystrokes.
 	 */
 	function flushPendingInput(): void {
 		if (batchByteLength > 0 && batchPath) {

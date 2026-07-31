@@ -1,10 +1,8 @@
 /**
- * Container BlockEditActions factory. Interior split/merge/delete/replace/
- * metadata route through the shared `block-edit-core` against a container
- * `CommitScope`; this wrapper adds the container-only concerns the core can't
- * own: the `if (!deps.node.children) return` guards, boundary delegation
- * (edge merges/deletes hand UP to `parent.blockEdit`), the unwrap dispatch
- * (first/middle-child backspace strategies), and `updateBlockContent`.
+ * Container BlockEditActions factory. Interior mutations route through the shared
+ * `block-edit-core` against a container `CommitScope`; this wrapper owns what the
+ * core can't: the children guards, boundary delegation up to `parent.blockEdit`, the
+ * unwrap dispatch, and `updateBlockContent`.
  */
 
 import { tick } from 'svelte';
@@ -39,9 +37,8 @@ export function createNestedBlockEdit(
 
 	/**
 	 * Where a caret at `offset` lands once this container's body-write rule has
-	 * rewritten `text`. Both caret doors read it: the surface's post-commit restore
-	 * (through the exposed method) and the structural commit's own focus landing,
-	 * which arrives from a component that measured the DOM before the rewrite.
+	 * rewritten `text`. Both caret doors read it, since either can arrive from a
+	 * component that measured the DOM before the rewrite.
 	 */
 	function mapCommittedOffset(text: string, offset: number): number {
 		const bodyWrite = tryGetBlockKindDescriptor(deps.node.kind)?.bodyWrite;
@@ -70,9 +67,8 @@ export function createNestedBlockEdit(
 					await firstChildUnwrapStrategies[unwrapRole.firstChildBackspace]({ deps, state });
 					return;
 				}
-				// Undeclared containers delegate upward (listItem children land here).
-				// Await so caller continuations (focus placement) run after the
-				// upward chain settles.
+				// Undeclared containers delegate upward. Awaited so caller continuations
+				// (focus placement) run after the upward chain settles.
 				await parent.blockEdit.mergeWithPrevious(deps.index);
 				return;
 			}
@@ -95,12 +91,10 @@ export function createNestedBlockEdit(
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
-			// A collapsed container's body children are unmounted, so the chrome row is
-			// the last VISIBLE child. Forward-Delete exits past the container rather than
-			// merging into (or dead-ending on) the invisible body — an I-1-consistent
-			// focus move, no mutation (mirrors gateMoveFocusOnCollapse). `append: false`
-			// keeps the last-block case inert: without it, exiting past the final block
-			// mints a trailing paragraph (root focus append path), mutating on a Delete.
+			// A collapsed container's body is unmounted, so forward-Delete exits past the
+			// container rather than dead-ending on the invisible body — a focus move, no
+			// mutation. `append: false` keeps the last-block case inert: without it,
+			// exiting past the final block mints a trailing paragraph.
 			if (isCollapsedContainer(deps.node)) {
 				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
 				return;
@@ -147,9 +141,8 @@ export function createNestedBlockEdit(
 
 			if (preview.op !== 'noop') {
 				// Mapped, because a caret measured before the rewrite names a position in
-				// bytes that never landed. Reachable on this path and not only the routine
-				// one: completing `</details>` turns an htmlBlock (`</details` alone is a
-				// type-6 opener) into the escaped paragraph, and a kind change commits here.
+				// bytes that never landed. Reachable here and not only on the routine path:
+				// completing `</details>` is a kind change, and a kind change commits.
 				const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
 				let change: StructuralChange = { op: 'noop' };
 				await parent.containerEdit.commitContainer({
@@ -179,9 +172,8 @@ export function createNestedBlockEdit(
 				return;
 			}
 
-			// Routine typing — debounced undo path, no structural commit. Pass
-			// the inner leaf's id as the batch key so focus moves between
-			// sibling leaves inside this container break the typing batch.
+			// Routine typing — debounced undo path, no structural commit. The inner leaf's
+			// id is the batch key, so a focus move between sibling leaves breaks the batch.
 			parent.containerEdit.pushDebouncedCheckpoint(
 				leafPath,
 				preEditOffset ?? 0,
@@ -204,18 +196,16 @@ export function createNestedBlockEdit(
 					text,
 					deps.grammar
 				);
-				// listItem's taskItem metadata is extracted at parse time from the
-				// first stripped line; live typing into the inner paragraph would
-				// otherwise leave metadata frozen while serialized source drifts.
+				// taskItem metadata is extracted at parse time from the first stripped
+				// line, so without this it freezes while the serialized source drifts.
 				if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
 					reconcileTaskMetadata(ownedContainer);
 				}
 			});
 			parent.containerEdit.nudgeReactivity();
-			// The rebuild re-kinded a container on this spine (the typed `> [!TIP]`
-			// marker moved out of the leaf and into the container's own bytes), so the
-			// edited leaf no longer exists. Re-enter the container at its start; its
-			// focus walk lands in the body, where the marker line never was.
+			// The rebuild re-kinded a container on this spine (a typed `> [!TIP]` marker
+			// moves into the container's own bytes), so the edited leaf no longer exists.
+			// Re-enter at the container's start; its focus walk lands in the body.
 			if (reclassified) {
 				await tick();
 				await parent.focus.moveFocus(deps.index, 'start');

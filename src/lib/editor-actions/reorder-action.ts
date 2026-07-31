@@ -1,15 +1,9 @@
 /**
- * Sibling-reorder action for the drag-and-drop and keyboard-nudge callers.
- * Resolves the reorderable unit a path points into, clamps the destination,
- * and commits one permutation of the parent's children — document scope through
- * `commitStructural`, container scope through `commitContainerStructural`.
- *
- * A reorder creates no node: each moved block keeps its id + ref via the
- * `reorderChildren` idMap (no stamp, no destroy/recreate). The only writes are
- * positional separators (`leadingTrivia` stays with the slot, not the node —
- * see `reorderChildrenWithTrivia`) and ordered-list marker renumbering; the
- * container's raw is rebuilt by the commit ceremony through the descriptor's
- * rebuildRaw, so no kind is named here.
+ * Sibling-reorder action for the drag-and-drop and keyboard-nudge callers: resolve
+ * the unit a path points into, clamp the destination, commit one permutation. A
+ * reorder creates no node — each moved block keeps its id and ref through the
+ * `reorderChildren` idMap. The only writes are positional separators (`leadingTrivia`
+ * stays with the slot, see `reorderChildrenWithTrivia`) and marker renumbering.
  */
 
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
@@ -67,9 +61,8 @@ export function createReorderAction(
 			mutate: (scope) => {
 				const change = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
 				if (unit.renumberMarkers) {
-					// Ordered-list markers are position-dependent: unshare each item whose
-					// marker it rewrites (scope.sharing) so the ceremony's descriptor rebuild
-					// concatenates the renumbered raws. No-op on unordered lists.
+					// Ordered markers are position-dependent, so this unshares each item whose
+					// marker it rewrites; the ceremony's rebuild then concatenates fresh raws.
 					renumberOrderedList(scope.node, 0, scope.sharing);
 				}
 				return change;
@@ -98,7 +91,7 @@ export function createReorderAction(
 		const target = resolveAndClamp(fromPath, computeTo);
 		if (!target) return;
 		// Drop any cross-block selection so the overlay doesn't fight the move; the
-		// commit's afterTick re-places the caret in the moved block.
+		// commit's afterTick re-places the caret.
 		deps.selectionState.collapse();
 		await commitReorder(target.unit, target.to, caretOffset());
 		onReorder?.(target.to, target.total);

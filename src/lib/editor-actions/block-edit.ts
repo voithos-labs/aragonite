@@ -1,9 +1,7 @@
 /**
- * Top-level BlockEditActions factory. Structural split/merge/delete/replace/
- * metadata route through the shared `block-edit-core` against a top-level
- * `CommitScope`; this factory adds the edge guards (sticky-column reset,
- * first/last-block bounds) and keeps the one per-level body the core can't
- * share: `updateBlockContent`.
+ * Top-level BlockEditActions factory. Structural mutations route through the shared
+ * `block-edit-core` against a top-level `CommitScope`; this factory adds the edge
+ * guards and the one per-level body the core can't share, `updateBlockContent`.
  */
 
 import type { BlockEditActions } from '../action-contracts';
@@ -54,16 +52,15 @@ export function createBlockEditActions(
 			postEditFocusOffset?: number
 		): Promise<void> {
 			deps.stickyColumn.reset();
-			// Keyed by block, not by slot — the container sibling's rule. A bare index
-			// identifies the position, so a different block arriving at the same
-			// top-level slot would silently continue the previous block's batch.
+			// Keyed by block, not by slot: a bare index identifies the position, so a
+			// different block arriving at the same slot would continue its batch.
 			controller.pushUndoSnapshotDebounced(
 				[blockIndex],
 				preEditOffset ?? 0,
 				deps.blockIds[blockIndex]
 			);
 
-			// The live mutation for the structural path runs inside the ceremony so a
+			// The structural path's live mutation runs inside the ceremony, so a
 			// multi-block splice never touches the live children array out-of-commit.
 			const preview = previewContentReparse(deps.doc.children[blockIndex], text, deps.grammar);
 
@@ -74,9 +71,8 @@ export function createBlockEditActions(
 					snapshot: 'skip',
 					eventTarget: blockIndex,
 					op: { kind: 'updateContent', detail: { length: text.length } },
-					// ownerKind undefined is the ANSWER, not an omission: this factory is
-					// the document root's, and the root imposes no body grammar. The
-					// container factory is where a real owner rides.
+					// ownerKind undefined is the ANSWER, not an omission: the document root
+					// imposes no body grammar.
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
 						change = performUpdate(
@@ -93,10 +89,8 @@ export function createBlockEditActions(
 				return;
 			}
 
-			// Routine typing (kind held, single block): out-of-ceremony in-place
-			// write — copy the node first when a snapshot shares it (once per
-			// keystroke batch). The debounced snapshot above holds the undo seam;
-			// `input` edit events fire at debounce-flush time.
+			// Routine typing: an out-of-ceremony in-place write, so copy the node first
+			// when a snapshot shares it. The debounced snapshot above holds the undo seam.
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
 			performUpdate(deps.doc, blockIndex, text, deps.grammar);
 		}
