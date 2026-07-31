@@ -57,11 +57,11 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 
 The moving state, and the background material behind it.
 
-| Doc                                                                              | Scope                                                    |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| [`roadmap.md`](roadmap.md)                                                       | Forward plan — nothing shipped                           |
-| [`changelog.md`](changelog.md)                                                   | Shipped history — nothing speculative                    |
+| Doc                                                                              | Scope                                                                   |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`roadmap.md`](roadmap.md)                                                       | Forward plan — nothing shipped                                          |
+| [`changelog.md`](changelog.md)                                                   | Shipped history — nothing speculative                                   |
 | [GitHub Issues](https://github.com/voithos-labs/aragonite/issues)                | Defect ledger — severity + area labelled, closed by the shipping commit |
-| [`research/gfm-reference.md`](research/gfm-reference.md)                         | The GFM syntax the editor parses                         |
-| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What a plugin system must expose; where aragonite stands |
-| [`research/code-smells.md`](research/code-smells.md)                             | Code-smell vocabulary used in reviews                    |
+| [`research/gfm-reference.md`](research/gfm-reference.md)                         | The GFM syntax the editor parses                                        |
+| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What a plugin system must expose; where aragonite stands                |
+| [`research/code-smells.md`](research/code-smells.md)                             | Code-smell vocabulary used in reviews                                   |
