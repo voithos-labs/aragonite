@@ -5,23 +5,19 @@ import { DetailsPage, bodyHostCount, capturedErrors } from './details-helpers';
 
 /**
  * Reveal into a collapsed container expands it (requirements/plugins/details-reveal-expand.md).
- * A collapsed `<details>` clamps its window to the summary row, so a reveal aimed at a
- * body child used to find its target outside the live window and return — a dead toc
- * click. The reveal seam now opens the kind's declared expand door first and commits it,
- * so the target mounts and scrolls. The decision itself is unit-covered; what this gate
- * proves is that expand → mount → scroll compose on the real navigation path, and that
- * the committed expansion is exactly one undo entry.
- *
- * The reading-mode floor (a reveal that must NOT commit) stays in `details-reveal.spec.ts`.
+ * A collapsed `<details>` clamps its window to the summary row, so a reveal aimed at a body child
+ * used to find its target outside the live window and return — a dead toc click. The seam now
+ * opens the kind's expand door first and commits it; this gate proves expand → mount → scroll
+ * compose on the real path, as one undo entry. Reading-mode floor: details-reveal.spec.ts.
  */
 
 // Capped viewport → the editor is a real scroll container, so the collapsed section and
 // its tail window out and the navigation click has real work to do.
 test.use({ viewport: { width: 1000, height: 700 } });
 
-// `[[toc]]` at block 0 (stable entry locator), a visible heading, then a CLOSED details
-// whose body holds both a heading (the toc target) and a needle found nowhere else (the
-// search target), then filler so the document scrolls.
+// `[[toc]]` at block 0 (stable entry locator), a visible heading, then a CLOSED details whose body
+// holds both a heading (the toc target) and a needle found nowhere else (the search target), then
+// filler so the document scrolls.
 function collapsedDoc(): string {
 	const parts = [
 		'[[toc]]',
@@ -114,9 +110,9 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		await editor.bridge.waitForSourceContains('<details open>');
 		await editor.waitForUndoBatchFlush();
 
-		// Straight to Ctrl+Z, with no click to put the caret back first: the navigation
-		// lands it in the revealed heading, so the gesture that made the edit leaves
-		// focus where the undo for it can be typed.
+		// Straight to Ctrl+Z with no click first: the navigation lands the caret in the revealed
+		// heading, so the gesture that made the edit leaves focus where the undo for it can be
+		// typed.
 		await editor.undo();
 		await editor.waitForRenderFlush();
 
@@ -179,8 +175,6 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 		await editor.waitForRenderFlush();
 		await editor.waitForRenderFlush();
 
-		// Reading mode commits nothing: the container stays closed, the body stays
-		// unmounted, and the document is byte-identical.
 		expect(await editor.bridge.getSource()).toBe(source);
 		await expect(editor.toggle).toHaveAttribute('aria-expanded', 'false');
 		expect(await bodyHostCount(page)).toBe(1);

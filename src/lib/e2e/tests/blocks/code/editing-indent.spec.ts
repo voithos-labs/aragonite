@@ -1,10 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Tab / Shift+Tab behavior inside a code block: literal-tab insertion,
-// single-line dedent of tabs or up-to-4 leading spaces, and multi-line
-// selection indent/dedent.
-
 test.describe('code block tab / indent', () => {
 	let editor: EditorPage;
 
@@ -74,8 +70,8 @@ test.describe('code block tab / indent', () => {
 		}
 		const sourceBefore = await editor.bridge.getSource();
 		await page.keyboard.press('Shift+Tab');
-		// Type a marker to flush any async edit path that Shift+Tab might trigger;
-		// if it had dedented or inserted anything else, the assertion below would catch it.
+		// The marker flushes any async edit Shift+Tab might trigger, so the no-op assertion can't
+		// pass vacuously.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');

@@ -1,10 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Selected image-widget copy/cut (requirements/blocks/image/clipboard.md). The
-// widget is selected via the ArrowLeft boundary gesture, which keeps a collapsed
-// caret in the prose contenteditable — so Ctrl+C/Ctrl+X fire real copy/cut events
-// that reach the block's clipboard handlers (setData, the house-rule sync path).
+// The widget is selected via the ArrowLeft boundary gesture, which keeps a collapsed caret in the
+// prose contenteditable, so Ctrl+C/Ctrl+X fire real events
+// (requirements/blocks/image/clipboard.md).
 
 const IMG_MD = '![cat](/test-fixtures/sample.png)';
 const DOC = `lead${IMG_MD}\n`;

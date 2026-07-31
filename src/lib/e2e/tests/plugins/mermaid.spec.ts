@@ -3,10 +3,9 @@ import { PluginsPage, roundTripStable, activeBlockPath } from './helpers';
 
 /**
  * Mermaid reference plugin: render-primary block with plugin-owned editing
- * (requirements/plugins/mermaid.md). Seed `?seed=mermaid`: heading, two valid
- * diagrams, one invalid diagram, a ```js fence, a trailing paragraph. The first
- * SVG waits carry a generous timeout — the engine loads through a dynamic
- * import the dev server transforms on first hit.
+ * (requirements/plugins/mermaid.md). Seed `?seed=mermaid`: heading, two valid diagrams, one invalid
+ * diagram, a ```js fence, a trailing paragraph. The first SVG waits carry a generous timeout — the
+ * engine loads through a dynamic import the dev server transforms on first hit.
  */
 
 const SEED = [

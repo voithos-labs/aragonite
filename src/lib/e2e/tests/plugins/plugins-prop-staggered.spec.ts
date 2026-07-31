@@ -1,16 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { type ConsoleMessage, type Page } from '@playwright/test';
 
-// The `/test/plugins/staggered` harness mounts editor 1 (`[calloutPlugin()]`) at load,
-// then editor 2 (`[calloutPlugin(), detailsPlugin()]`) on a button click — a second
-// editor arriving late with a plugin the first never had. These gates pin the
-// additive-`plugins`-prop-for-late-mounts claim the design rests on, reading each
-// editor's CST by path (`__test` / the distinct `__test2` handle).
+// The `/test/plugins/staggered` harness mounts editor 1 (`[calloutPlugin()]`) at load, then editor
+// 2 (adding `detailsPlugin()`) on a button click — a second editor arriving late with a plugin the
+// first never had. Each editor's CST is read by path (`__test` / the distinct `__test2` handle).
 //
-// detailsPlugin registers the `details` opener AFTER editor 1 has parsed and consumed
-// the grammar, so exactly one `[invariant:late-opener-registration]` is expected. The
-// fixture requires that tag and forbids every other; the local count below adds the
-// part the fixture cannot express — that it fires once, not twice.
+// detailsPlugin registers the `details` opener AFTER editor 1 parsed and consumed the grammar, so
+// exactly one `[invariant:late-opener-registration]` is expected. The fixture requires that tag and
+// forbids the rest; the local count adds what it cannot express — that it fires once, not twice.
 test.use({ expectInvariants: ['late-opener-registration'] });
 
 interface BlockInfo {

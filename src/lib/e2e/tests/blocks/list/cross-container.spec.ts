@@ -1,9 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Fixtures separate the trailing paragraph from the list with a blank line: an
-// under-indented line touching the list is a lazy continuation of the last item
-// (CommonMark §5.2), so only the blank line makes it a distinct following block.
+// Fixtures separate the trailing paragraph from the list with a blank line: an under-indented line
+// touching the list is a lazy continuation of the last item (CommonMark §5.2).
 test.describe('cross-container merge on Backspace (list prev)', () => {
 	let editor: EditorPage;
 
@@ -75,9 +74,8 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		expect(source).not.toMatch(/^text$/m);
 	});
 
-	// The fallback moves the caret into the code block and leaves the tree alone,
-	// so absence-of-mutation is the whole observable — no source predicate can
-	// discriminate it, and a byte-exact re-read is the only honest oracle.
+	// The fallback leaves the tree alone, so absence-of-mutation is the whole observable: no source
+	// predicate can discriminate it, and a byte-exact re-read is the only honest oracle.
 	test('list with opaque deepest leaf: fall back to move-focus', async () => {
 		await editor.loadContent('- item\n\n  ```\n  code\n  ```\ntext\n');
 		const para = editor.page.locator('[contenteditable="true"]', { hasText: /^text$/ });

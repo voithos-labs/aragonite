@@ -3,17 +3,12 @@ import { primaryModifier } from '../../platform';
 import { PluginsPage, roundTripStable } from './helpers';
 
 /**
- * Command-mint dogfood driver: the `:::note` callout mints `callout.setKind` and
- * binds it to two arg-bearing chords (Mod+7→'note', Mod+8→'warning'). Each test
- * drives a REAL keypress on an inner leaf and proves the bubble-dispatch chain
- * end to end — keypress → eventToChord → leaf declines → container handleKeydown →
- * note-kind keymap → registered handler → metadata commit → rebuildCalloutRaw.
- * Blocks are addressed by path via the `window.__test` bridge, never visuals.
- *
- * Chord choice: Mod+7/8 (no Shift) — a Shift-held digit's key token is browser-
- * translated ('1'→'!'), so `Mod+Shift+1/2` would be dead keys under real keyboard
- * simulation; the Shift-free 7/8 sit past the Mod+0–6 heading range. See
- * callout-kind.ts for the full rationale.
+ * Command-mint dogfood driver: the `:::note` callout mints `callout.setKind` and binds it to two
+ * arg-bearing chords (Mod+7→'note', Mod+8→'warning'). Each test drives a REAL keypress on an inner
+ * leaf and proves the bubble-dispatch chain end to end — keypress → eventToChord → leaf declines →
+ * container handleKeydown → keymap → registered handler → metadata commit → rebuildCalloutRaw.
+ * Chord choice: a Shift-held digit's key token is browser-translated ('1'→'!'), so Mod+Shift+1/2
+ * would be dead keys under real keyboard simulation; see callout-kind.ts.
  */
 
 const NOTE_DOC = ':::note\nbody\n:::\n';

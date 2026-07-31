@@ -4,11 +4,8 @@ import { dragBetweenCells } from './helpers';
 
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 
-// Multi-character, distinctive cells on purpose: the buggy fall-through path
-// places the caret at the row-major linear index read as a CHARACTER offset into
-// the table's concatenated text. With single-char cells those two coincide, so a
-// regression would still land in the right cell — only multi-char cells separate
-// the linear index from the char offset and make the bug observable.
+// Multi-character cells on purpose: the buggy fall-through places the caret at the row-major linear
+// index read as a CHARACTER offset, and with single-char cells the two coincide, hiding the bug.
 const TABLE_MULTICHAR =
 	'| h1 | h2 | h3 |\n| --- | --- | --- |\n| aaa | bbb | ccc |\n| ddd | eee | fff |\n';
 
@@ -115,11 +112,9 @@ test.describe('table block: pointer selection', () => {
 		expect(sel!.focus.path[0]).toBe(1);
 	});
 
-	// F3: a pointer-drag table endpoint must carry cellCoordinate:true so collapse
-	// routes to the DEEP [table,row,col] cell, matching the keyboard path. Without the
-	// flag, collapse lands on the table WRAPPER at a meaningless char offset and the
-	// typed marker misses the cell. Multi-char cells separate the row-major linear
-	// index from a char offset, making the wrong-landing observable.
+	// A pointer-drag table endpoint must carry cellCoordinate:true so collapse routes to the DEEP
+	// [table,row,col] cell, matching the keyboard path; without the flag, collapse lands on the
+	// table WRAPPER at a meaningless char offset and the typed marker misses the cell.
 	test('collapsing a pointer-dragged table selection lands the caret in the deep cell (F3)', async ({
 		page
 	}) => {
@@ -179,9 +174,9 @@ test.describe('table block: pointer selection', () => {
 		page
 	}) => {
 		await editor.loadContent(TABLE_MULTICHAR);
-		// The windowing-gate safety story only covered the giant (windowed) table;
-		// this is the same collapse path on an unwindowed grid, where the cell-
-		// coordinate branch corrects a pre-existing meaningless-offset caret bug.
+		// The windowing-gate story only covered the giant (windowed) table; this is the same
+		// collapse path on an unwindowed grid, where the cell-coordinate branch corrects a
+		// meaningless-offset caret.
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
@@ -199,11 +194,9 @@ test.describe('table block: pointer selection', () => {
 		expect(await cells.nth(4).textContent()).not.toContain('END_MARK');
 	});
 
-	// Regression: TableCellBlock ran cellKeydownPlan BEFORE cross-block dispatch,
-	// so a plan-claimed key (ArrowLeft@0, ArrowUp/Down) never collapsed an active
-	// cross-block selection. The next keystroke then range-replaced the whole
-	// table body. ArrowRight "lucked out" (offset-gated, declined by the plan at a
-	// non-end caret); ArrowLeft and ArrowDown are claimed and wiped.
+	// TableCellBlock ran cellKeydownPlan BEFORE cross-block dispatch, so a plan-claimed key
+	// (ArrowLeft@0, ArrowUp/Down) never collapsed an active cross-block selection and the next
+	// keystroke range-replaced the whole table body.
 	test('Ctrl+Shift+End then ArrowLeft collapses to start without wiping the table body', async ({
 		page
 	}) => {
@@ -244,9 +237,9 @@ test.describe('table block: pointer selection', () => {
 		expect(await cells.last().textContent()).toContain('DOWN_MARK');
 	});
 
-	// The 3-stage Ctrl+A (cell -> table -> document) must survive the cross-block-
-	// first dispatch: stage 2 sets isCrossBlock, so the new gate routes stage 3
-	// into the cross-block Ctrl+A handler. End state must still be whole-document.
+	// The 3-stage Ctrl+A (cell → table → document) must survive the cross-block-first dispatch:
+	// stage 2 sets isCrossBlock, so stage 3 routes into the cross-block handler and must still end
+	// whole-document.
 	test('three Ctrl+A presses in a cell select the whole document', async ({ page }) => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR + '\nAfter.\n');
 

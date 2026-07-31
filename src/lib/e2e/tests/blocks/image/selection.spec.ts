@@ -9,9 +9,8 @@ test.describe('image widget selection', () => {
 		await editor.goto();
 	});
 
-	// Selection feedback is the overlay portal (popover + resize handles) rendered
-	// at the widget's bounds. Its presence is the only externally-observable
-	// signal of widget-selected state.
+	// The overlay portal rendered at the widget's bounds is the only externally-observable signal
+	// of widget-selected state.
 	const overlay = (page: import('@playwright/test').Page) => page.locator('[data-image-overlay]');
 
 	test('click on widget enters selected state', async ({ page }) => {

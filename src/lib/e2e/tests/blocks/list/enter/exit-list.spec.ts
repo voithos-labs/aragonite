@@ -8,11 +8,9 @@ test.describe('list Enter — exit list on empty item', () => {
 		await editor.goto();
 	});
 
-	// Pre-fix: `assembleListHalf` produced the surviving list with `childIds`
-	// undefined; the `{#each}` keyed block read undefined keys and Svelte's
-	// reconciliation left the stale empty list-item in the DOM. After the
-	// list-exit replace the LIVE tree had two items but the DOM still rendered
-	// three.
+	// `assembleListHalf` produced the surviving list with `childIds` undefined; the keyed `{#each}`
+	// read undefined keys and Svelte left the stale empty list-item in the DOM — live tree two
+	// items, DOM three.
 	test('Enter on empty middle item removes the empty item from the DOM', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
@@ -30,12 +28,10 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(counts.listItems).toBe(2);
 	});
 
-	// Regression (found by the note-taking simulation's always-on nested-state
-	// oracle): exiting a list reuses the ListBlock component instance (the
-	// document-scope replace idMap-preserves the list's id) and swaps in a
-	// shorter list node. The inner {#each} re-keys, but innerBlockRefs kept its
-	// stale trailing slot — auditBlockListStateConsistency reported refsLen =
-	// childrenLen + 1. The DOM-count assertion above can't see it; the audit can.
+	// Exiting a list reuses the ListBlock instance (the document-scope replace preserves the list's
+	// id) and swaps in a shorter node; the inner {#each} re-keys but innerBlockRefs kept its stale
+	// trailing slot. The DOM-count assertion above cannot see that — auditBlockListStateConsistency
+	// can.
 	test('Enter exiting a list leaves the surviving list BlockListState in sync', async () => {
 		await editor.loadContent('- Alpha\n- Beta\n');
 		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'Beta' });

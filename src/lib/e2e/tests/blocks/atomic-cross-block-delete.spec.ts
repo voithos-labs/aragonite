@@ -6,11 +6,8 @@ import { waitForClipboardContains } from '../clipboard/complex-copy-paste/helper
 const CODE_FIXTURE = 'before alpha\n\n```\nconst x = 42;\n```\n\nafter omega\n';
 const BREAK_FIXTURE = 'before alpha\n\n---\n\nafter omega\n';
 
-// Captures console errors and page errors, attributed to a window the caller opens
-// with `clear()` immediately before the gesture. The test page emits a benign
-// load-time 404 a whole-session collector would trip on; clearing before the op
-// keeps full teeth for anything the destructive op emits. Invariant fires are owned
-// by the shared `[invariant:…]` fixture, which asserts on every page.
+// Scoped to a window the caller opens with `clear()`: the test page's benign load-time 404 would
+// trip a whole-session collector. Invariant fires are owned by the shared `[invariant:…]` fixture.
 function opWindowErrors(page: Page): { clear: () => void; collected: () => string[] } {
 	let errors: string[] = [];
 	page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -20,12 +17,9 @@ function opWindowErrors(page: Page): { clear: () => void; collected: () => strin
 	return { clear: () => (errors = []), collected: () => errors };
 }
 
-// Drive a partial cross-block selection from inside the first paragraph, through the
-// atomic block at [1], into the trailing paragraph at [2]. Pointer drag is the real
-// user gesture; if it fails to cross the boundary (geometry can vary), fall back to
-// a shift-click at the same partial focus offset. Both paths leave prose on BOTH
-// endpoints, so the focus-side leftover must merge across the boundary — the
-// `4after` fusion mechanism this class is known for.
+// Drag is the real gesture; geometry can vary, so fall back to a shift-click at the same focus
+// offset. Both endpoints keep prose, so the focus-side leftover must merge — the `4after` fusion
+// class.
 async function selectAcrossAtomic(editor: EditorPage): Promise<void> {
 	await editor.dragFromTo([0], 7, [2], 6);
 	if (await editor.bridge.isCrossBlockActive()) return;
@@ -92,11 +86,9 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 	}
 });
 
-// The atomic block and the selected span are gone; the surviving prose endpoints
-// (`before` head, `omega` tail) merge into clean prose with no fused atomic-block
-// content and no orphaned fence. roundTrip is the serializer-corruption backstop;
-// parseConverged is the live-tree oracle — a delete that left a stale grid or
-// split-separator shape diverges from a reparse where the byte check is blind.
+// roundTrip is the serializer-corruption backstop; parseConverged is the live-tree oracle — a
+// delete that leaves a stale grid or split separator diverges from a reparse where the byte check
+// is blind.
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
 	expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);

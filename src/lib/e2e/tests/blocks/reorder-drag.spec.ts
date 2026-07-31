@@ -1,9 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-// Real pointer drag from the hover handle. Drop index is direction-dependent
-// (removing the dragged block shifts later indices), so both DOWN and UP and a
-// within-container drag are covered to catch an off-by-one.
+// Drop index is direction-dependent (removing the dragged block shifts later indices), so DOWN, UP,
+// and a within-container drag are all covered to catch an off-by-one.
 test.describe('drag to reorder', () => {
 	let editor: EditorPage;
 
@@ -60,9 +59,8 @@ test.describe('drag to reorder', () => {
 		await editor.bridge.waitForSourceMatches(/- two[\s\S]*- three[\s\S]*- one/);
 	});
 
-	// Scope cue: a nested drag reorders only within its container, so the container
-	// is marked (a faint transient cue) for the drag's duration to read as
-	// "reorder within this list" rather than "broken". Cleared on drop.
+	// A nested drag reorders only within its container, so the container is marked for the drag's
+	// duration to read as "reorder within this list" rather than "broken".
 	test('a nested drag marks its scope container and clears it on drop', async () => {
 		await editor.loadContent('- one\n- two\n- three\n');
 		await expect(editor.page.locator('.reorder-scope')).toHaveCount(0);
@@ -156,10 +154,9 @@ test.describe('drag to reorder', () => {
 		await editor.page.mouse.down();
 		await editor.page.mouse.move(edgeX, edgeY, { steps: 8 });
 
-		// Autoscroll is a self-driving rAF loop once the pointer is held near the
-		// edge. Poll scrollTop until it has advanced past a full viewport height
-		// (guarantees an off-window region is reached); jitter the pointer each
-		// iteration to keep Playwright's pointer state fresh. NEVER waitForTimeout.
+		// Autoscroll is a self-driving rAF loop; poll scrollTop until it advances past a full
+		// viewport height, jittering the pointer each iteration to keep Playwright's pointer state
+		// fresh. Never waitForTimeout.
 		await expect
 			.poll(
 				async () => {
@@ -170,9 +167,8 @@ test.describe('drag to reorder', () => {
 			)
 			.toBeGreaterThan(startScroll + edgeBox.height);
 
-		// Move out of the threshold band onto a now-visible block so autoscroll
-		// halts and geometry stabilizes before we read the drop target. Reading a
-		// boundingBox while the loop still scrolls would be stale on drop.
+		// Move out of the threshold band so autoscroll halts and geometry stabilizes: a boundingBox
+		// read while the loop still scrolls is stale by the time of the drop.
 		const drop = await editor.page.evaluate(() => {
 			const root = document.querySelector('.editor') as HTMLElement;
 			const rootRect = root.getBoundingClientRect();

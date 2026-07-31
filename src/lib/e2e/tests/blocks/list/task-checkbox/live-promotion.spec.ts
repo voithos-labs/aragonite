@@ -11,8 +11,6 @@ test.describe('task checkbox — live promotion from typing', () => {
 	});
 
 	test('typing `[ ] ` at start of plain list item promotes to task item live', async () => {
-		// Regression: listItem task metadata reconciles on live typing so the
-		// checkbox renders immediately, no reload required.
 		await editor.loadContent('- plain\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('[ ] ');

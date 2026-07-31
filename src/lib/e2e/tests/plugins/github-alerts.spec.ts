@@ -9,11 +9,10 @@ import {
 } from './helpers';
 
 /**
- * Native GitHub alerts: a `> [!TYPE]` blockquote renders as a styled alert box with
- * its bytes untouched, editable in the body, kind-stable across edits. On
- * `/test/plugins?seed=admonitions` the seed's native alert is a `caution` (block 5);
- * the callout dogfood owns `note`/`warning`, so a typed alert uses `tip`. Gates read
- * the CST/source by path via `window.__test`; input is real keyboard/mouse.
+ * Native GitHub alerts: a `> [!TYPE]` blockquote renders as a styled alert box with its bytes
+ * untouched, editable in the body, kind-stable across edits. On `/test/plugins?seed=admonitions`
+ * the seed's native alert is a `caution` (block 5); the callout dogfood owns `note`/`warning`, so a
+ * typed alert uses `tip`.
  */
 
 test.describe('plugin github alerts', () => {
@@ -84,9 +83,9 @@ test.describe('plugin github alerts', () => {
 		await editor.focusBlockAtPath([0, 1], 0); // start of the second body paragraph
 		await page.keyboard.press('Backspace');
 
-		// The middle child folds into the previous body block (default-merge). The
-		// alert stays one githubAlert root with its marker intact — the merge is
-		// contained, never lifting the block out or dropping the marker.
+		// The middle child folds into the previous body block (default-merge). The alert stays one
+		// githubAlert root with its marker intact — the merge is contained, never lifting the block
+		// out or dropping the marker.
 		const alert = await waitForContainer(page, 0, (s) => s.childCount === 1);
 		expect(alert.rootCount).toBe(1);
 		expect(alert.kind).toBe('githubAlert');
@@ -126,9 +125,9 @@ test.describe('plugin github alerts', () => {
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('Enter');
 		// Per keystroke, so the editor crosses the blockquote promotion at `>`, the inline
-		// recognizer's `[` rung, and the alert reclassification at `]` as distinct input
-		// events. Completing the marker forms an empty alert with the caret in its body, so
-		// the body is typed straight on — no second Enter (which would exit the quote).
+		// recognizer's `[` rung, and the alert reclassification at `]` as distinct input events.
+		// Completing the marker forms an empty alert with the caret in its body, so the body is
+		// typed straight on — no second Enter, which would exit the quote.
 		await editor.typeSlowly('>');
 		await waitForDoc(page, (s) => s.kinds[1] === 'blockquote');
 		await editor.typeSlowly('[!TIP]');

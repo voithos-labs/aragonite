@@ -3,10 +3,10 @@ import { PluginsPage } from './helpers';
 import type { Page } from '@playwright/test';
 
 /**
- * Mermaid diagrams follow the editor theme (requirements/plugins/mermaid-theme.md).
- * The engine writes its palette INTO the SVG it returns, so the oracle reads painted
- * color — the colors in each diagram's own embedded stylesheet, plus one computed
- * fill. A CSS-variable-only seam would leave both unchanged.
+ * Mermaid diagrams follow the editor theme (requirements/plugins/mermaid-theme.md). The engine
+ * writes its palette INTO the SVG it returns, so the oracle reads painted color — the colors in
+ * each diagram's own embedded stylesheet, plus one computed fill. A CSS-variable-only seam would
+ * leave both unchanged.
  */
 
 /** Per mounted diagram, the palette the engine painted into its own <style> block. */

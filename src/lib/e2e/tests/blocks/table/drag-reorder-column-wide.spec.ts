@@ -3,9 +3,8 @@ import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 import { capturePageErrors } from '../../../page-probes';
 
-// 12 columns at ~150px each overflow `.table-block`'s overflow-x in an 800px
-// viewport, so the late columns start scrolled off the right edge. Header row is
-// row 0 (parser strips the alignment row): cells "Header-Col-1".."Header-Col-12".
+// 12 columns at ~150px each overflow `.table-block`'s overflow-x in an 800px viewport, so the late
+// columns start scrolled off the right edge. Header is row 0 (the parser strips the alignment row).
 const COLS = 12;
 const HEAD =
 	'| ' + Array.from({ length: COLS }, (_, i) => `Header-Col-${i + 1}`).join(' | ') + ' |\n';
@@ -60,9 +59,9 @@ test.describe('table block: column drag on a wide (overflowing) table', () => {
 		await page.mouse.down();
 		await page.mouse.move(bandX, bandY, { steps: 6 });
 
-		// The autoscroll rAF loop self-drives on the held pointer; poll scrollLeft past
-		// half the max so late columns scroll into view. Jitter the pointer each
-		// iteration to keep Playwright's pointer state fresh. Never waitForTimeout.
+		// The autoscroll rAF loop self-drives on the held pointer; poll scrollLeft past half the
+		// max so late columns scroll into view, jittering the pointer each iteration to keep
+		// Playwright's pointer state fresh. Never waitForTimeout.
 		const maxScroll = await tableEl.evaluate((el) => el.scrollWidth - el.clientWidth);
 		await expect
 			.poll(
@@ -93,9 +92,9 @@ test.describe('table block: column drag on a wide (overflowing) table', () => {
 			)
 			.toBe(true);
 
-		// A header column now fully visible, clear of both autoscroll bands, past the
-		// start-visible set, and not the last column (so its +1 neighbor exists for the
-		// order assertion). Read its label from text rather than trusting the index.
+		// A header column now fully visible, clear of both autoscroll bands, past the start-visible
+		// set, and not the last column (so its +1 neighbor exists). Read its label from text rather
+		// than trusting the index.
 		const target = await page.evaluate((maxVisible) => {
 			const table = document.querySelector('[role="table"]') as HTMLElement;
 			const tableRect = table.getBoundingClientRect();

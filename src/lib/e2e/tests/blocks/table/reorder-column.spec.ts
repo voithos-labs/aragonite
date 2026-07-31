@@ -3,10 +3,9 @@ import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 import { capturePageErrors } from '../../../page-probes';
 
-// Cells render row-major, header first: a 1-body-row 3-col table exposes header
-// cells 0,1,2 (columns A,B,C) then body cells 3,4,5. Columns have no fixed
-// header, so any column index is a valid reorder source. Alt+←/→ moves the
-// focused cell's column; focus follows it into the new position.
+// Cells render row-major, header first: a 1-body-row 3-col table exposes header cells 0,1,2
+// (columns A,B,C) then body cells 3,4,5. Columns have no fixed header, so any column index is a
+// valid reorder source; Alt+←/→ moves the focused cell's column and focus follows it.
 const TABLE_3COL = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
 
 test.describe('table block: keyboard column reorder', () => {
@@ -41,9 +40,9 @@ test.describe('table block: keyboard column reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| 2 \| (?:X1|1X) \| 3 \|/);
 	});
 
-	// Boundary clamp: a move with no column in that direction must change nothing
-	// AND push no undo entry — otherwise the boundary press silently consumes a
-	// Ctrl+Z. Type → boundary-press → Ctrl+Z must undo the TYPING.
+	// Boundary clamp: a move with no column in that direction must change nothing AND push no undo
+	// entry, or the boundary press silently consumes a Ctrl+Z. Type → boundary-press → Ctrl+Z must
+	// undo the TYPING.
 	test('Alt+ArrowLeft on the first column is a no-op and creates no undo entry', async ({
 		page
 	}) => {
@@ -73,9 +72,9 @@ test.describe('table block: keyboard column reorder', () => {
 		expect(pageErrors).toEqual([]);
 	});
 
-	// Real-browser undo-restoration fidelity on a non-canonical table: the column
-	// edit canonicalizes the live view, so undo must restore the exact original
-	// tight bytes. Mirrors the row spec's non-canonical undo guard.
+	// Real-browser undo fidelity on a non-canonical table: the column edit canonicalizes the live
+	// view, so undo must restore the exact original tight bytes. Mirrors the row spec's
+	// non-canonical undo guard.
 	test('column move → undo restores a non-canonical table byte-exactly', async ({ page }) => {
 		const NONCANON = '|A|B|C|\n|---|---|---|\n|1|2|3|\n';
 		await editor.loadContent(NONCANON);

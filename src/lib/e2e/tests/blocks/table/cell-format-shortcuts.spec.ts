@@ -1,9 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Cells declare supportsInline, so Mod+B / Mod+I must format the selection the
-// same as in prose. They used to fall through to a native no-op — no keymap
-// binding, no command dispatch on the cell surface.
+// Cells declare supportsInline, so Mod+B / Mod+I must format the selection as in prose; they used
+// to fall through to a native no-op — no keymap binding, no command dispatch on the cell surface.
 test.describe('table cell: inline-format shortcuts', () => {
 	let editor: EditorPage;
 

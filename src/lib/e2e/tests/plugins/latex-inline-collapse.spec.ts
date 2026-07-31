@@ -2,13 +2,12 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, clickWidgetCenter } from './helpers';
 
 /**
- * Reveal COLLAPSE scoping for inline math, on the two-equations-one-paragraph
- * seed (the showcase shape that surfaced the class). Collapse must be
- * selection-containment-scoped, not blur-scoped: any caret escape inside the
- * block folds the revealed source, and clicking the second widget while the
- * first is revealed is ONE fold→reveal gesture. The switch case is the race
- * oracle — it only fails under the real reactive rebuild, which is why the unit
- * layer (widget-reveal-collapse.test.ts) cannot stand in for it.
+ * Reveal COLLAPSE scoping for inline math, on the two-equations-one-paragraph seed (the showcase
+ * shape that surfaced the class). Collapse must be selection-containment-scoped, not blur-scoped:
+ * any caret escape inside the block folds the revealed source, and clicking the second widget while
+ * the first is revealed is ONE fold→reveal gesture. The switch case is the race oracle — it only
+ * fails under the real reactive rebuild, which is why the unit layer
+ * (widget-reveal-collapse.test.ts) cannot stand in for it.
  */
 
 const EQ1 = '$E=mc^2$';
@@ -24,9 +23,11 @@ class TwoMathPage extends PluginsPage {
 		await expect(this.widgets).toHaveCount(2);
 	}
 
-	/** Reveal the first equation and assert the reveal HOLDS: a transient count
-	 *  check alone passes straight through the self-fold race (open → fold within
-	 *  ~50ms on the click's own queued selectionchange). */
+	/**
+	 * Reveal the first equation and assert the reveal HOLDS: a transient count check alone passes
+	 * straight through the self-fold race (open → fold within ~50ms on the click's own queued
+	 * selectionchange).
+	 */
 	async revealFirstByClick(): Promise<void> {
 		await clickWidgetCenter(this.widgets.first());
 		await expect(this.widgets).toHaveCount(1);

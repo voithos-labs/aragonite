@@ -2,9 +2,9 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
 const COLS = 12;
-// Long header content forces each column past the 80px floor (~150px each), so
-// the total table width exceeds the default 1280px Playwright viewport and
-// `.table-block` actually engages its `overflow-x: auto` scrollbar.
+// Long header content forces each column past the 80px floor (~150px each), so the table exceeds
+// the default 1280px Playwright viewport and `.table-block` actually engages its `overflow-x: auto`
+// scrollbar.
 const HEAD =
 	'| ' + Array.from({ length: COLS }, (_, i) => `Header-Col-${i + 1}`).join(' | ') + ' |\n';
 const SEP = '| ' + Array.from({ length: COLS }, () => '---').join(' | ') + ' |\n';
@@ -21,9 +21,8 @@ test.describe('table block: wide-table horizontal scroll', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
-		// Constrain viewport so a 12-col table at ~150px/col reliably exceeds the
-		// editor's content width and `.table-block` engages its overflow:auto.
-		// Independent of host display size and Playwright defaults.
+		// Constrain the viewport so a 12-col table at ~150px/col reliably exceeds the editor's
+		// content width and `.table-block` engages overflow:auto, independent of host display size.
 		await page.setViewportSize({ width: 800, height: 720 });
 		editor = new EditorPage(page);
 		await editor.goto();
@@ -91,10 +90,9 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		await page.mouse.move(tableBox.x + tableBox.width - 5, firstBox.y + firstBox.height / 2, {
 			steps: 5
 		});
-		// Autoscroll runs as a self-driving rAF loop once the pointer is held
-		// near the threshold. Poll scrollLeft until it advances; jitter the
-		// pointer each iteration to keep the pointer state fresh in case
-		// Playwright's mouse state needs continued events.
+		// Autoscroll is a self-driving rAF loop once the pointer is held near the threshold; poll
+		// scrollLeft until it advances, jittering the pointer each iteration to keep Playwright's
+		// pointer state fresh.
 		await expect
 			.poll(
 				async () => {
@@ -123,17 +121,16 @@ test.describe('table block: wide-table horizontal scroll', () => {
 			});
 		await page.mouse.click(b4Center.x, b4Center.y);
 
-		// ArrowDown exits the table; sticky X is captured at b4's cursor.
-		// ArrowUp re-enters the last body row at the sticky-X column.
-		// No typing in the paragraph in between — input events would reset sticky.
+		// ArrowDown exits the table capturing the sticky X at b4's cursor; ArrowUp re-enters the
+		// last body row at that column. No typing in between — input events would reset the sticky
+		// column.
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.press('ArrowUp');
 		await editor.typeSlowly('Z');
 
 		const after = await editor.bridge.getSource();
-		// Z lands at offset 0 of the target cell (focusCell uses 'start'), in
-		// body row 1 (the bottom row). Allow ±1 col tolerance for sub-pixel
-		// column-boundary crossings — b3, b4, or b5 is acceptable.
+		// Z lands at offset 0 of the target cell (focusCell uses 'start') in body row 1, the bottom
+		// row; allow ±1 column of tolerance for sub-pixel boundary crossings.
 		expect(after).toMatch(/\| Zb[345] \|/);
 		// Z must NOT land in the header or in body row 0 (a*).
 		expect(after).not.toMatch(/\| ZHeader-Col-\d+ \|/);

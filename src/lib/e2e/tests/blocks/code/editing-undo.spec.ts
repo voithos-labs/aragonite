@@ -1,8 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Undo and multi-line typing flows that cross block boundaries. Pure typing/
-// Enter behavior lives in editing-typing-enter.spec.ts.
+// Pure typing/Enter behavior lives in editing-typing-enter.spec.ts.
 
 test.describe('code block editing — user interactions', () => {
 	let editor: EditorPage;
@@ -12,14 +11,12 @@ test.describe('code block editing — user interactions', () => {
 		await editor.goto();
 	});
 
-	// Two ArrowDowns leave the block: the closer fence is its own visual line. One press
-	// used to look like an exit only because the following text landed on that line and
-	// broke the fence (see editing-block-exit.spec.ts).
+	// Two ArrowDowns leave the block — the closer fence is its own visual line (see
+	// editing-block-exit.spec.ts).
 	test('type multi-line code then navigate out via ArrowDown', async () => {
 		await editor.loadContent('```\n\n```\n\nTarget\n');
 		await editor.getBlock(0).click();
-		// Real keystrokes: insertText hands the browser one multi-line string, whose
-		// newlines never reach the CST, so the block would hold "line 1line 2line 3".
+		// Real keystrokes: one insertText's newlines never reach the CST ("line 1line 2line 3").
 		await editor.typeSlowly('line 1\nline 2\nline 3');
 		await editor.bridge.waitForSourceContains('line 3');
 		await editor.page.keyboard.press('ArrowDown');

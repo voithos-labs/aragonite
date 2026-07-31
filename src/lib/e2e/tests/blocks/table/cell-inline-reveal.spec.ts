@@ -3,12 +3,10 @@ import { PluginsPage, revealWidget, roundTripStable } from '../../plugins/helper
 
 /**
  * Inline `$…$` reveal-to-edit inside a table cell
- * (requirements/blocks/table/cell-inline-reveal.md). The cell surface threads the
- * same widgetInteraction + caret-edge dispatch as the prose block, so clicking a
- * cell's math reveals its source, Enter/blur commit, Escape cancels. Cell-specific:
- * a `|` typed into a revealed formula escapes to `\|` on commit, so it can never
- * split the row on reparse. Seed `mathtable`:
- * `| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n`.
+ * (requirements/blocks/table/cell-inline-reveal.md). The cell surface threads the same
+ * widgetInteraction + caret-edge dispatch as the prose block, so clicking a cell's math reveals its
+ * source, Enter/blur commit, Escape cancels. Cell-specific: a `|` typed into a revealed formula
+ * escapes on commit, so it can never split the row on reparse.
  */
 
 const SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
@@ -87,8 +85,7 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		await editor.bridge.waitForSourceContains('$yx^2$');
 		await expect(editor.mathWidget).toHaveCount(1);
 
-		// One Ctrl+Z reverts the whole reveal edit — a single undo entry, not a
-		// per-keystroke stack.
+		// One Ctrl+Z reverts the whole reveal edit — a single entry, not a per-keystroke stack.
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('$x^2$');
 		expect(await editor.bridge.getSource()).toBe(SEED);
@@ -113,8 +110,8 @@ test.describe('table cell: inline math reveal-to-edit', () => {
 		await page.keyboard.press('Shift+Tab');
 		await expect(editor.formulaCell).toBeFocused();
 
-		// Backspace at the widget's trailing edge enters it: a reveal-capable kind
-		// reveals its source rather than deleting the atomic widget.
+		// Backspace at the widget's trailing edge enters it: a reveal-capable kind reveals its
+		// source rather than deleting the atomic widget.
 		await page.keyboard.press('Backspace');
 		await expect(editor.mathWidget).toHaveCount(0);
 		await expect(editor.formulaCell).toContainText('$x^2$');

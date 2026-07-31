@@ -14,9 +14,8 @@ test.beforeEach(async ({ page }) => {
 	await editor.goto();
 });
 
-// Press a row grip and drag it onto a destination cell. Rows are display:contents
-// (no box), so the drop point is read from a cell, not the [role="row"] element.
-// `dropY` picks the vertical landing within that cell (top vs bottom edge).
+// Rows are display:contents (no box), so the drop point is read from a cell, not the [role="row"]
+// element; `dropY` picks the vertical landing within that cell (top vs bottom edge).
 async function dragGripToCell(
 	page: Page,
 	gripNth: number,
@@ -39,8 +38,7 @@ async function dragRowGripPastNext(page: Page): Promise<void> {
 	await dragGripToCell(page, 1, 4, (b) => b.y + b.height - 2);
 }
 
-// Press a body-row grip, cross the move threshold, then release BACK on the same
-// grip. Mirrors dragGripToCell, but the drop lands on the origin grip so a click
+// Press a body-row grip, cross the move threshold, then release BACK on the same grip so a click
 // still fires — the recognized-drag flag is what must suppress the menu.
 async function dragGripAndReleaseOnSelf(page: Page, gripNth: number): Promise<void> {
 	await page.hover('[role="table"]');
@@ -64,9 +62,8 @@ test.describe('table block: mouse drag row reorder', () => {
 		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|[\s\S]*\| 1 \| 2 \|[\s\S]*\| 5 \| 6 \|/);
 	});
 
-	// The `gap <= from` branch of the target formula — only an UPWARD drag hits it
-	// (mirrors the keyboard Alt+ArrowUp case). Second body row ("3 4", grip nth 2)
-	// dragged onto the TOP of the first body row → lands before "1 2".
+	// The `gap <= from` branch of the target formula — only an UPWARD drag hits it. Second body row
+	// ("3 4", grip nth 2) dragged onto the TOP of the first body row lands before "1 2".
 	test('dragging a body-row grip onto an earlier row reorders upward', async ({ page }) => {
 		await editor.loadContent(T);
 		await dragGripToCell(page, 2, 2, (b) => b.y + 3);
@@ -111,7 +108,6 @@ test.describe('table block: mouse drag row reorder', () => {
 		await editor.bridge.waitForSourceContains('X');
 	});
 
-	// The insertion line marks the drop gap mid-drag and clears on release.
 	test('an insertion line appears during the drag and clears on release', async ({ page }) => {
 		await editor.loadContent(T);
 		await page.hover('[role="table"]');

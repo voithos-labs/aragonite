@@ -2,13 +2,12 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from './helpers';
 
 /**
- * Block `$$…$$` display math: render-primary, source-on-focus (design §"Block math",
- * flagship axes A1 caret-across-swap and A7 multiline render). The reactive render↔
- * source swap and the caret's survival across it are exactly what the unit layer could
- * not prove (the Task 10 reveal-primitive finding deferred it here), so reveal, edit,
- * blur, and navigation are driven through real mouse/keyboard only. The folded render
- * is `.math-block-render` (KaTeX output `.katex`); the revealed source is the plain
- * `$$…$$` text of `.math-block-source`. Seed: `Before` / `$$x^2$$` / `After`.
+ * Block `$$…$$` display math: render-primary, source-on-focus (design §"Block math", flagship axes
+ * A1 caret-across-swap and A7 multiline render). The reactive render↔source swap and the caret's
+ * survival across it are exactly what the unit layer could not prove, so reveal, edit, blur, and
+ * navigation are driven through real mouse/keyboard only. The folded render is `.math-block-render`
+ * (KaTeX output `.katex`); the revealed source is the plain `$$…$$` text of `.math-block-source`.
+ * Seed: `Before` / `$$x^2$$` / `After`.
  */
 
 class BlockMathPage extends PluginsPage {
@@ -29,9 +28,11 @@ class BlockMathPage extends PluginsPage {
 		return this.page.locator('.math-block-render .katex');
 	}
 
-	/** Click the folded render to reveal its source. Block math swaps in a distinct
-	 *  `.math-block-source` element rather than removing the widget, so it settles on
-	 *  that element's arrival — not on the shared `revealWidget` count-to-zero. */
+	/**
+	 * Click the folded render to reveal its source. Block math swaps in a distinct
+	 * `.math-block-source` element rather than removing the widget, so it settles on that element's
+	 * arrival — not on the shared `revealWidget` count-to-zero.
+	 */
 	async revealByClick(): Promise<void> {
 		await this.render.click();
 		await expect(this.source).toHaveCount(1);
@@ -146,9 +147,9 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		});
 		await page.keyboard.press('Control+v');
 
-		// The ephemeral source edit takes the text/plain payload, not the HTML markup —
-		// pre-fix the render-primary leaf bound no onpaste, so the native paste dropped
-		// live <b> into the revealed contenteditable.
+		// The ephemeral source edit takes the text/plain payload, not the HTML markup — pre-fix the
+		// render-primary leaf bound no onpaste, so the native paste dropped live <b> into the
+		// revealed contenteditable.
 		const html = await editor.source.innerHTML();
 		expect(html).not.toContain('<b>');
 		expect(await editor.sourceText()).toContain(' plain');

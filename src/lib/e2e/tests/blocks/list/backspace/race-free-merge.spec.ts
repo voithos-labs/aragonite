@@ -1,9 +1,8 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
-// J3 regression: the typed marker raced the merge — landing on a stale block
-// before the parent merge published. Backspace + immediate type must land at
-// the merge boundary.
+// The typed marker once raced the merge, landing on a stale block before the parent merge
+// published: Backspace + immediate type must land at the merge boundary.
 test.describe('list Backspace — race-free merge then type', () => {
 	let editor: EditorPage;
 	test.beforeEach(async ({ page }) => {

@@ -1,11 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Ranged edits that span a fence line: every gesture that rewrites a range on the
-// code surface (delete, forward-delete, type-over, cut, paste-over, select-all)
-// applies to the selection's intersection with the BODY, so neither fence line can
-// be rewritten into an unclosed fence that absorbs the rest of the document.
-// Requirements: fence-ranged-edit.md.
+// Every ranged gesture applies to the selection's intersection with the BODY, so neither fence line
+// can be rewritten into an unclosed fence that absorbs the document. Requirements:
+// fence-ranged-edit.md.
 
 // Fixture display text "```js\nconst x = 1\n```":
 // opener text [0,5) · body [6,17) · closer text [18,21).
@@ -68,8 +66,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.page.keyboard.press('Control+x');
 		await editor.bridge.waitForSourceContains('const \n');
 
-		// The asymmetry: the clipboard keeps the literal bytes the user selected,
-		// including the fence characters the delete refused to touch.
+		// The clipboard keeps the literal bytes the user selected, including the fence characters
+		// the delete refused.
 		expect(await editor.page.evaluate(() => navigator.clipboard.readText())).toBe('x = 1\n``');
 		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
 	});
@@ -83,8 +81,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
 	});
 
-	// Paste follows the same refusal as typing: a target confined to structure has no
-	// content to write into, so the payload lands nowhere rather than at the body edge.
+	// Paste follows the same refusal as typing: a target confined to structure has nowhere to
+	// write.
 	test('paste with the caret inside a fence run is inert', async ({ page }) => {
 		await page.evaluate(() => navigator.clipboard.writeText('Y'));
 
@@ -110,7 +108,6 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await selectFrom(editor, 3, 6); // "js\ncon"
 		await editor.page.keyboard.press('Backspace');
 		// Equality, not a fragment: what survives this edit is a substring of the
-		// fixture, so a `contains` would settle on the first poll and observe nothing.
 		await editor.bridge.waitForSourceEquals('```js\nst x = 1\n```\n');
 	});
 
@@ -139,8 +136,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	// The browser, not the user, ranges this one: the caret is collapsed and the
-	// pending edit's target range covers the opener's line ending.
+	// The browser ranges this one: the caret is collapsed, but the pending edit's target covers the
+	// opener's line ending.
 	test('word-delete at the body start is inert', async () => {
 		await editor.focusBlock(0, 6);
 		await editor.page.keyboard.press('Control+Backspace');
@@ -149,8 +146,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	// A closed fence's marker runs are structure: one character typed or deleted in
-	// either leaves an unclosed fence that swallows the rest of the document.
+	// A closed fence's marker runs are structure: one character either way leaves an unclosed fence
+	// that swallows the document.
 	test('typing inside the closer fence is inert', async () => {
 		await editor.focusBlock(0, 19);
 		await editor.typeText('x');
@@ -184,15 +181,15 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	// An unclosed fence has no closer to orphan, so its markers stay editable —
-	// otherwise a just-typed ``` could not be un-typed.
+	// An unclosed fence has no closer to orphan, so its markers stay editable — a just-typed ```
+	// must be un-typable.
 	test('an unclosed fence keeps its markers editable', async () => {
 		await editor.loadContent('```js\nconst x\n');
 		await editor.getBlock(0).click();
 		await selectFrom(editor, 0, 3);
 		await editor.page.keyboard.press('Backspace');
-		// Equality for the same reason: the post-state is the fixture minus a prefix, so
-		// every fragment of it is already true before the gesture.
+		// Equality again: the post-state is the fixture minus a prefix, so every fragment is
+		// already true before the gesture.
 		await editor.bridge.waitForSourceEquals('js\nconst x\n');
 	});
 });

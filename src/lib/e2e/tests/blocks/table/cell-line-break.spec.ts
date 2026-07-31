@@ -23,9 +23,9 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 		expect(await editor.bridge.getSource()).toContain('| Left<br>Right |');
 	});
 
-	// The caret sits right after the widget when Shift+Enter returns, so Backspace here
-	// is the exact gesture that used to move the caret without deleting a byte — and
-	// whose second press then ate a non-adjacent one.
+	// The caret sits right after the widget when Shift+Enter returns, so Backspace here is the
+	// exact gesture that used to move the caret without deleting a byte — and whose second press
+	// then ate a non-adjacent one.
 	test('Backspace at the <br> edge removes the whole tag in one press', async ({ page }) => {
 		await editor.loadContent(TABLE_1COL);
 		await page.locator('[role="cell"]').nth(1).click();
@@ -53,7 +53,6 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 
 		const cell = page.locator('[role="cell"]').nth(1);
 		await expect(cell.locator('.md-br-widget')).toHaveCount(1);
-		// The literal "<br>" string must NOT appear as cell text.
 		await expect(cell).not.toContainText('<br>');
 	});
 });

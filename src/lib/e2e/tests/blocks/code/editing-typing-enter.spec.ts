@@ -1,10 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Typing and Enter behavior inside a fenced code block: plain typing, literal
-// newline insertion, mid-line splits, and the open/closed fence Enter paths.
-// Block-exit navigation, keyboard parity, highlighting, paste, and indent live
-// in sibling editing-*.spec.ts files.
+// Block-exit navigation, keyboard parity, highlighting, paste, and indent live in sibling
+// editing-*.spec.ts files.
 
 test.describe('code block editing — happy paths', () => {
 	let editor: EditorPage;
@@ -119,12 +117,9 @@ test.describe('code block editing — happy paths', () => {
 	test('typing at the body start (opener-line end) lands in the body, not the opener', async ({
 		page
 	}) => {
-		// Chromium under `white-space: pre` mis-routes an insertText when the caret
-		// sits at the end of a `\n` nested inside a styled span — the typed char lands
-		// BEFORE the `\n`, in the opener line. The renderer wraps each fence line in
-		// `.md-fence-line` so reading/preview can hide it; this pins that the wrapper
-		// did NOT reintroduce the mis-route. Caret at DOM offset 6 = end of the opener
-		// `\n` = body start.
+		// Chromium under `white-space: pre` mis-routes insertText when the caret sits at the end of
+		// a `\n` nested in a styled span; `.md-fence-line` must not reintroduce it. DOM offset 6 =
+		// body start.
 		await editor.loadContent('```js\nconst x = 1;\n```\n');
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
