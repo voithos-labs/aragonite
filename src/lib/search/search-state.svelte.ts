@@ -106,15 +106,13 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			rescan(doc);
 			return null;
 		});
-		return matches.map(
-			(m, i): MarkDecoration => ({
-				type: 'mark',
-				path: m.path,
-				start: m.start,
-				end: m.end,
-				class: i === activeIndex ? 'match-overlay match-overlay-active' : 'match-overlay'
-			})
-		);
+		return matches.map((m, i): MarkDecoration => ({
+			type: 'mark',
+			path: m.path,
+			start: m.start,
+			end: m.end,
+			class: i === activeIndex ? 'match-overlay match-overlay-active' : 'match-overlay'
+		}));
 	}
 
 	function rescan(doc: DocumentView = deps.getDoc()): void {

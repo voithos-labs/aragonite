@@ -53,15 +53,13 @@ describe('plugin surface views', () => {
 		const source: DecorationSource = {
 			name: 'reader',
 			provide: (d) =>
-				d.children.map(
-					(child, i): MarkDecoration => ({
-						type: 'mark',
-						path: [i],
-						start: 0,
-						end: child.raw.length,
-						class: 'pin'
-					})
-				)
+				d.children.map((child, i): MarkDecoration => ({
+					type: 'mark',
+					path: [i],
+					start: 0,
+					end: child.raw.length,
+					class: 'pin'
+				}))
 		};
 		expect(source.provide(doc, { editEpoch: 0 })).toHaveLength(2);
 	});

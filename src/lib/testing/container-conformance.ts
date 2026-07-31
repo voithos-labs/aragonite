@@ -150,12 +150,7 @@ export interface ContainerConformanceProfile {
 // ── Report ───────────────────────────────────────────────────────────────────
 
 export type ConformanceCell =
-	| 'localIndex'
-	| 'ancestry'
-	| 'multiScope'
-	| 'focusBubble'
-	| 'terminatorCollision'
-	| 'declarations';
+	'localIndex' | 'ancestry' | 'multiScope' | 'focusBubble' | 'terminatorCollision' | 'declarations';
 
 export interface ConformanceCellReport {
 	cell: ConformanceCell;

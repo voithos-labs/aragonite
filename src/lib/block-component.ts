@@ -286,8 +286,7 @@ export type ContainerBlockComponent = BlockComponent &
  * exactly as one publishing nothing is.
  */
 export type BlockComponentExports =
-	| BlockComponent
-	| { readonly containerApi: ContainerBlockComponent };
+	BlockComponent | { readonly containerApi: ContainerBlockComponent };
 
 /**
  * The `BlockComponent` behind a published instance — the one point that knows a
