@@ -9,8 +9,9 @@ import { vi } from 'vitest';
 import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { TableContext } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import type { EditorServices } from '$lib/editor-keys';
+import type { CstNode, Document } from '$lib/core/nodes';
+import { parse } from '$lib/core/parser';
+import type { EditorPolicies, EditorServices } from '$lib/editor-keys';
 import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
@@ -65,8 +66,16 @@ export interface MountedCell {
 	dispose(): Promise<void>;
 }
 
+/** The document `myPath` addresses: a real 2x2 table holding this cell at [0, 1, 0]. A door
+ *  that reads its own target back out of the document (paste) resolves nothing without it. */
+function documentAround(node: CstNode): Document {
+	const doc = parse('| A | B |\n| --- | --- |\n| x | keep |\n');
+	doc.children[0].children![1].children![0] = node;
+	return doc;
+}
+
 /** The last row of a 2x2 table, so a vertical move exits rather than staying inside. */
-export function mountCell(raw: string): MountedCell {
+export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): MountedCell {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
 	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
@@ -74,9 +83,11 @@ export function mountCell(raw: string): MountedCell {
 	const selection = createSelectionState();
 	const tableContext = makeStubTableContext();
 
+	const doc = documentAround(node);
 	const context = editorMountContext({
 		blockEdit,
-		doc: { doc: () => ({ kind: 'document', prefix: '', children: [node], suffix: '' }) },
+		policies,
+		doc: { doc: () => doc },
 		services: {
 			decorations: noIslands,
 			selection,
