@@ -27,10 +27,8 @@ describe('footnote definition conformance', () => {
 		expect(report.cells.map((c) => c.column).sort()).toEqual([...ALL_COLUMNS].sort());
 	});
 
-	// The two headlessly-executed cells that would regress if the strip container
-	// broke: roundTrip must actually run the rebuildRaw parse-identity + determinism
-	// check (a boundary here means the fixture stopped parsing to the kind), and the
-	// not-mergeable merge cell must execute its eligibility restatement.
+	// The two cells that would regress if the strip container broke. A `boundary` on
+	// roundTrip means the fixture stopped parsing to the kind, not that it passed.
 	it('executes the round-trip and merge cells rather than deferring them', async () => {
 		const { cells } = await runKindConformance(declaredPluginKind(FOOTNOTE_DEF_KIND));
 		const roundTrip = cells.find((c) => c.column === 'roundTrip')!;

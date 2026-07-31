@@ -7,9 +7,8 @@ import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { configureEditorEnv, resetEditorEnv } from '../../env';
 
-// A collapsible container kind whose declared `reservedChrome.isCollapsed` probe
-// reads an `open` metadata flag — the dogfood details declaration shape without
-// its rendering.
+// The dogfood details declaration shape without its rendering: a `reservedChrome`
+// collapse probe reading an `open` metadata flag.
 function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	const chrome = declarePluginKind('collapse-probe-chrome');
 	const kind = declarePluginKind('collapse-probe-container');
@@ -87,10 +86,9 @@ describe('composeCollapseProbe', () => {
 		warnSpy.mockRestore();
 	});
 
-	// Reading mode is the ONE place a view/document divergence is legitimate: a reader
-	// may open a collapsed container transiently, and that flip writes no bytes by
-	// construction. The cross-check has to allow it, or the affordance dev-warns on
-	// every read for as long as the reader leaves the section open.
+	// Reading mode is the ONE place a view/document divergence is legitimate, because a
+	// reader's flip writes no bytes by construction. Without the carve-out the
+	// affordance dev-warns for as long as the reader leaves the section open.
 	it('allows a reading-mode view divergence without warning', () => {
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		configureEditorEnv({ isDev: true, isTest: false });
@@ -108,9 +106,8 @@ describe('composeCollapseProbe', () => {
 		warnSpy.mockRestore();
 	});
 
-	// The carve-out is scoped to reading, not to "any mode with a getter": the live
-	// preview modes edit, so a divergence there is still the half-collapsed hybrid the
-	// cross-check exists to catch.
+	// Scoped to reading, not "any mode with a getter": a preview mode edits, so a
+	// divergence there is still the half-collapsed hybrid the cross-check catches.
 	it('still warns in a live preview mode', () => {
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		configureEditorEnv({ isDev: true, isTest: false });

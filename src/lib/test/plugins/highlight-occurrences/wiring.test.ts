@@ -1,6 +1,3 @@
-// The plugin's onEditor wiring: it registers one selection-driven decoration
-// source on attach, invalidates it on selectionChange (having first pushed the new
-// selection into the source), and disposes the source + unsubscribes on cleanup.
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';

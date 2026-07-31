@@ -1,9 +1,7 @@
 /**
- * Shared CommonMark §6.2 emphasis-flanking corpus. Single-sourced because two
- * suites run the SAME cases against DIFFERENT SUTs — `inline-conformance` drives
- * the full `parseInline` pipeline (G2.3), `emphasis-flanking` drives the
- * `scanInline` scanner — and the two must never drift. Positives pin the exact
- * set of emphasized runs (markers included); negatives pin no emphasis.
+ * Shared CommonMark §6.2 emphasis-flanking corpus. Single-sourced because two suites
+ * run these cases against DIFFERENT SUTs — `inline-conformance` drives `parseInline`
+ * (G2.3), `emphasis-flanking` drives the `scanInline` scanner — and must never drift.
  */
 
 export interface FlankingCase {

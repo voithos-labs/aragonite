@@ -15,12 +15,9 @@ function convertedAlertRegion(source: string): string {
 	return convertAlertBlockquoteRaw(alert.raw)!;
 }
 
-// Both converters take their extent from `blockquoteExtent` — one handed the
-// extent the parser decided, one running that same scanner over a line window —
-// so CommonMark §5.1 lazy continuation lands identically on both. The last two
-// rows are the shapes that forked while the stream scanner used a line regex:
-// only a stateful extent absorbs a lazy line while a paragraph is open, and only
-// a stateful extent stops claiming once a body line has closed it.
+// Both converters take their extent from `blockquoteExtent`, so CommonMark §5.1 lazy
+// continuation must land identically on both. The last two rows are the shapes only a
+// STATEFUL extent gets right — a line regex forks on them.
 const AGREEING_SOURCES: [string, string][] = [
 	['plain quoted body', '> [!NOTE]\n> a\n> b\n'],
 	['tab-indented continuation line', '> [!NOTE]\n\t> body\n'],

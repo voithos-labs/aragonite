@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 //
-// The content version is the memo key every whole-document derivation hangs on,
-// so its one contract is coverage: if a byte-carrying field can move without the
-// version moving, a consumer memoized on it silently serves a stale answer. These
-// cases walk the `BytesView` field set (core/node-views.ts) one field at a time,
-// plus the stability case that makes it a memo key rather than a clock.
+// The content version is the memo key every whole-document derivation hangs on, so a
+// byte-carrying field that moves without it silently serves stale answers. Walks the
+// `BytesView` field set (core/node-views.ts) one field at a time.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { createContentVersion } from '../../reactivity/content-version.svelte';

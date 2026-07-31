@@ -5,10 +5,9 @@ import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import type { GithubAlertMetadata } from '$lib/plugins/admonitions/kinds';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// Native GitHub alerts: a blockquote whose FIRST line is exactly `> [!TYPE]` parses
-// as its own `githubAlert` container kind, bytes untouched. The marker line lives in
-// the container raw + metadata only; body children are the `> `-stripped lines after
-// it. Every NON-alert blockquote (mid-quote marker, trailing text) still parses plain.
+// Native GitHub alerts: a blockquote whose FIRST line is exactly `> [!TYPE]` becomes
+// its own `githubAlert` kind, with the marker line in the container raw + metadata
+// only. Every NON-alert blockquote must still parse plain.
 
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -52,10 +51,8 @@ describe('github alert — the marker grammar claims a githubAlert', () => {
 });
 
 describe('github alert — MARKER whitespace edges', () => {
-	// MARKER allows optional spacing after `>` (`>[ \t]*`) and trailing whitespace
-	// after the `]` (`[ \t]*$`); only trailing non-whitespace content declines (the
-	// "marker with trailing text" decline below). These pin the whitespace edges the
-	// regex flags imply so a tightening of the spacing rule can't slip through green.
+	// The edges MARKER's regex flags imply but no other case reaches, so a tightening
+	// of the spacing rule cannot slip through green.
 
 	it('accepts trailing whitespace after the `]`', () => {
 		expect(firstKind('> [!NOTE]   \n> x\n')).toBe('githubAlert');
@@ -73,10 +70,8 @@ describe('github alert — MARKER whitespace edges', () => {
 });
 
 describe('github alert — the CommonMark block-indent boundary', () => {
-	// 4+ spaces (or a tab) makes a line indented code, not a blockquote, so
-	// `blockquoteExtent` refuses to claim it. A marker regex that accepted the indent
-	// anyway matched, consumed nothing, and returned a non-advancing index — the
-	// parse-loop hang. The 3-space case pins the legal side of the same boundary.
+	// 4+ spaces makes a line indented code, so `blockquoteExtent` refuses it. A marker
+	// regex accepting the indent anyway consumes nothing and hangs the parse loop.
 
 	it('claims a marker indented up to three spaces', () => {
 		expect(firstKind('   > [!NOTE]\n   > body\n')).toBe('githubAlert');

@@ -36,9 +36,9 @@ describe('fixture generators', () => {
 		});
 	}
 
-	// Baseline numbers are keyed to these exact bytes — corpus edits must fail
-	// loudly and force deliberate re-baselining. Inline snapshots need distinct
-	// call sites, so one pin per shape instead of a loop.
+	// Baseline numbers are keyed to these exact bytes, so a corpus edit must fail loudly
+	// and force deliberate re-baselining. One pin per shape: inline snapshots need
+	// distinct call sites, so a loop cannot carry them.
 	it('flat-prose: exact output pinned', () => {
 		expect(generateFixture('flat-prose', 200, 7)).toMatchInlineSnapshot(`
 			"## alpha alpha papa lima
@@ -231,9 +231,8 @@ describe('generateTriggerDense', () => {
 			expect(serialize(parse(src))).toBe(src);
 		});
 
-		// The rows measure a per-trigger cost, so a fixture must actually be dense in
-		// its trigger — and every paragraph must carry one, since only the viewport
-		// slice mounts and the caret block is block 0.
+		// The rows measure a per-trigger cost, and only the viewport slice mounts, so
+		// every paragraph has to carry the trigger for the density to be real.
 		it(`${kind}: every paragraph carries the trigger`, () => {
 			const doc = parse(generateTriggerDense(kind, 20_000, 7));
 			const trigger = { 'bracket-footnote': '[', colon: ':', dollar: '$' }[kind];
@@ -242,9 +241,8 @@ describe('generateTriggerDense', () => {
 		});
 	}
 
-	// The T7 mechanism: a mounted reference re-derives from a whole-document walk, so
-	// the fixture's FIRST block must carry a reference — that is the block the caret
-	// types into and the one guaranteed mounted at scrollTop 0.
+	// A mounted reference re-derives from a whole-document walk, so the reference has to
+	// be in block 0 — the caret's block, and the only one guaranteed mounted.
 	it('bracket-footnote: block 0 carries a footnote reference and bracket density', () => {
 		const doc = parse(generateTriggerDense('bracket-footnote', 20_000, 7));
 		expect(doc.children[0].raw).toContain('[^fn-0]');
@@ -322,10 +320,8 @@ describe('generateDeepNested', () => {
 		expect(leaf.children).toBeUndefined();
 	});
 
-	// The load-bearing property: every level carries sibling bytes, so each spine
-	// container's raw materializes everything from its level inward and sheds one
-	// level's worth going deeper. A spine-only tree (tiny per-level raw) would fail
-	// this and silently understate the ancestry-rebuild tax the bench measures.
+	// Every level must carry sibling bytes: a spine-only tree passes the shape checks
+	// above while silently understating the ancestry-rebuild tax the bench measures.
 	it('each level carries bytes: spine raws non-increasing, outermost ≈ whole doc', () => {
 		const doc = parse(generateDeepNested(8, 10_000, 7));
 		const raws = spineContainerRaws(doc.children[0]);

@@ -1,11 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { revealChildOrWait, publishRefSlot } from '../../reactivity/publish-ref.svelte';
 
-// Resolves true if `p` settles within a bounded number of microtask turns, false
-// otherwise. The termination tests below assert a reveal whose target never mounts
-// RESOLVES rather than hanging; an unbounded wait would leave `p` pending forever, so
-// the race against a fixed microtask budget reads false — a hang would FAIL the test
-// (and the suite would not stall, since this returns either way).
+// Racing a fixed microtask budget rather than awaiting `p`: the termination tests
+// below would otherwise stall the whole suite on the hang they exist to catch.
 async function settlesWithin(p: Promise<unknown>, turns = 50): Promise<boolean> {
 	let settled = false;
 	void p.then(() => {
@@ -20,9 +17,8 @@ async function settlesWithin(p: Promise<unknown>, turns = 50): Promise<boolean> 
 let nextIndex = 5000;
 const freshIndex = () => nextIndex++;
 
-// A windowed scope: a slot array plus a revealChild that, on the next microtask,
-// publishes a fresh ref into the target slot (mirrors a row/item mounting after a
-// scroll). Tracks whether revealChild ran.
+// A windowed scope whose revealChild publishes a fresh ref one microtask later,
+// mirroring a row/item mounting after a scroll.
 function makeScope() {
 	const refs: (object | undefined)[] = [];
 	const revealChild = vi.fn(async (i: number) => {
@@ -124,15 +120,13 @@ describe('revealChildOrWait', () => {
 		expect(refs[i]).toBeUndefined();
 	});
 
-	// VR-5: the loop is woken ONLY by a same-index mount, so a scroll that misses
-	// (stale model → target stays outside the recomputed window) would otherwise hang
-	// forever. These assert TERMINATION: the call must settle even when the target
-	// never mounts.
+	// VR-5: the loop is woken ONLY by a same-index mount, so a scroll that misses would
+	// hang forever. These assert termination, not placement.
 	describe('terminates instead of hanging when the reveal misses (VR-5)', () => {
 		it('resolves without mounting when the recomputed window excludes the target', async () => {
 			const i = freshIndex();
-			// A scroll that does NOT mount the target (the model was stale at call time):
-			// the slot stays empty and isInWindow reports the target outside [start,end).
+			// A stale model at call time: the slot stays empty and the target is reported
+			// outside the recomputed window.
 			const revealChild = vi.fn(async () => {
 				await Promise.resolve();
 			});
@@ -144,19 +138,16 @@ describe('revealChildOrWait', () => {
 				isInWindow: () => false
 			});
 
-			// The mount registry is never woken for index i, so an unbounded wait would
-			// leave this pending forever. The membership short-circuit returns instead.
+			// Nothing ever wakes the registry for index i, so settling at all proves the
+			// membership short-circuit returned before the mount-wait loop.
 			expect(await settlesWithin(call)).toBe(true);
 			expect(revealChild).toHaveBeenCalledWith(i);
-			// No spurious wake was fired, yet it still terminated — proving it never
-			// entered the mount-wait loop (which only this never-firing registry could wake).
 		});
 
 		it('degrades when an in-window target never publishes (failed-render boundary)', async () => {
 			const i = freshIndex();
-			// The child IS mounted (in-window) but renders its failed boundary, so
-			// bind:this never assigns and no same-index mount will ever fire. The
-			// reveal must return so the caller degrades, not park forever.
+			// In-window but rendering its failed boundary, so bind:this never assigns and
+			// no same-index mount will ever fire.
 			const revealChild = vi.fn(async () => {
 				await Promise.resolve();
 			});
@@ -174,11 +165,8 @@ describe('revealChildOrWait', () => {
 
 		it('degrades when a non-windowing target never mounts and no wake ever fires', async () => {
 			const i = freshIndex();
-			// A non-windowing caller (isInWindow omitted) whose target never publishes —
-			// a failed-render boundary leaves bind:this unset — AND whose shared registry
-			// is never woken (no foreign-scope mount). The open-ended event wait would hang
-			// forever; the tick-bounded loop degrades. A larger settle budget than the
-			// default accommodates the full re-wait cap of tick-length waits.
+			// Neither membership nor a wake can end this one, so only the tick-bounded loop
+			// does. The raised settle budget covers its full re-wait cap.
 			const revealChild = vi.fn(async () => {
 				await Promise.resolve();
 			});
@@ -195,11 +183,9 @@ describe('revealChildOrWait', () => {
 
 		it('still terminates under a storm of spurious same-index wakes (re-wait cap)', async () => {
 			const i = freshIndex();
-			// Membership is unknown to this scope (isInWindow omitted), so the call enters
-			// the bounded mount-wait loop. THIS scope's slot never fills; instead a flood of
-			// spurious wakes — a DIFFERENT scope mounting a child at the same local index i —
-			// fires the shared registry and re-checks this scope (still empty). The per-wake
-			// cap must stop the loop rather than re-waiting forever on the storm.
+			// Membership is unknown, so the call enters the mount-wait loop and a foreign
+			// scope mounting at the same local index re-checks it forever unless the
+			// per-wake cap stops the storm.
 			const revealChild = vi.fn(async () => {
 				await Promise.resolve();
 			});
@@ -210,9 +196,8 @@ describe('revealChildOrWait', () => {
 				revealChild
 			});
 
-			// Each turn yields to the loop's await, then a foreign-scope mount at the same
-			// index wakes it. publishRefSlot into a SEPARATE refs array (a different scope)
-			// resolves the shared waiter without ever populating this scope's getRef.
+			// Publishing into a SEPARATE refs array resolves the shared waiter without ever
+			// populating this scope's getRef — which is what makes the wake spurious.
 			const foreignRefs: (object | undefined)[] = [];
 			for (let pump = 0; pump < 500; pump++) {
 				await Promise.resolve();

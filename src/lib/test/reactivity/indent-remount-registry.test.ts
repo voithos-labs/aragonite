@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
 //
-// Indenting a list item splices the item's NODE into a new parent, so the same
-// node is claimed by a dying mount and a fresh one. The registry's contested-claim
-// report has to read that as a handoff, not as corruption — it used to warn on
-// every Tab. The regression this guards
-// in the other direction is the handoff landing backwards: the registry entry must
-// be the LIVE mount's state, or every later commit at that scope addresses refs
-// nothing renders.
+// Indenting a list item splices the item's NODE into a new parent, so a dying mount
+// and a fresh one claim it at once. The registry must read that as a handoff rather
+// than corruption, and must land it forwards: the entry has to be the LIVE mount's
+// state, or every later commit at that scope addresses refs nothing renders.
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../blocks/editor-mount';
 import { getStateForNode } from '$lib/reactivity/state-registry';

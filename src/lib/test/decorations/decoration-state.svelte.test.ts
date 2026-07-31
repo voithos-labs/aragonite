@@ -81,9 +81,8 @@ describe('createDecorationEngine', () => {
 		expect(b).toEqual([0, 1, 2]);
 	});
 
-	// "Republish" is a reactive-graph event: only a subscribed consumer can observe it.
-	// A standalone bucket read recomputes every time regardless, so identity can't see
-	// the skip — an $effect tracking the bucket can.
+	// "Republish" is a reactive-graph event, so only a subscribed consumer can observe
+	// it — a standalone bucket read recomputes regardless and can't see the skip.
 	it('an empty→empty re-run skips the reactive republish; a real change still fires it', () => {
 		const engine = makeEngine();
 		const aHandle = engine.addSource({ name: 'a', provide: () => [mark([0])] });
@@ -174,10 +173,8 @@ describe('createDecorationEngine', () => {
 		expect(engine.blockDecorationsForPath([2]).map((d) => d.class)).toEqual(['b']);
 	});
 
-	// A whole-document replacement reaches the engine as notifyEdit — the same signal a
-	// commit sends, because the epoch means "the document changed", not "a key was
-	// pressed". What the buckets hold afterwards must be the NEW document's output with
-	// nothing left standing from the old one.
+	// A whole-document replacement arrives as the same notifyEdit a keystroke sends, so
+	// nothing from the old document may survive in the buckets afterwards.
 	it('a document replacement re-provides every source against the new doc and replaces its bucket', () => {
 		let current = parse('one\n\ntwo\n');
 		const engine = createDecorationEngine({ getDoc: () => current });
@@ -204,9 +201,8 @@ describe('createDecorationEngine', () => {
 	});
 });
 
-// [0] paragraph (prose), [1] thematicBreak, [2] fencedCode — the last two render no
-// inline pass, so an island targeting them never appears. The engine flags that at
-// the source seam so the author isn't left guessing why nothing rendered.
+// [1] thematicBreak and [2] fencedCode render no inline pass, so an island targeting
+// them never appears — the engine flags that at the source seam rather than silently.
 const mixedDoc = parse('para\n\n---\n\n```\ncode\n```\n');
 
 describe('non-prose island dev-warn', () => {

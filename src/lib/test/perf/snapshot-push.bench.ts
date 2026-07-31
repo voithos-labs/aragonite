@@ -1,13 +1,8 @@
-// Real undo-push path (controller.pushUndoSnapshot over harness deps). Under
-// structural sharing a push copies only the top-level children/ids arrays —
-// O(top-level children), not O(all nodes) — and this bench exists to pin that
-// property.
-//
-// Vitest sets DEV, so every push also computes the integrity digest
-// (~O(doc bytes)); production pushes skip it. The digestDoc rows isolate that
-// share — production push ≈ push − digest. The undo stack saturates at
-// MAX_UNDO during sampling, so means include the shift-at-cap: steady-state
-// long-session behavior, not first-push behavior.
+// Pins that a push costs O(top-level children), not O(all nodes), over the real
+// controller path. Vitest sets DEV so every push also computes the integrity digest
+// that production skips; the digestDoc rows isolate it (production ≈ push − digest).
+// The stack saturates at MAX_UNDO during sampling, so means report steady-state
+// long-session behavior rather than first-push behavior.
 import { bench, describe } from 'vitest';
 import { parse } from '../../core/parser';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';

@@ -1,7 +1,6 @@
-// A footnote definition's body is real child blocks, so Enter at the end of the
-// last one reaches the shared split. Without a separator the two children re-emit
-// as `[^a]: one\n    two\n`, whose reparse folds them back into one paragraph —
-// the strip-container face of the split-separator class.
+// The strip-container face of the split-separator class: a definition's body is real
+// child blocks, so without a separator the two children re-emit as continuation lines
+// whose reparse folds them back into one paragraph.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';

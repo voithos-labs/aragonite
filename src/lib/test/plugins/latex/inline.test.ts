@@ -82,11 +82,9 @@ describe('inline math round-trip', () => {
 	});
 });
 
-// Post-migration mechanics: math renders through a `component`, so the descriptor
-// carries no synchronous builder — the render layer's injected portal builder owns
-// the atomic-island shell (asserted in the e2e). The shell-stamping unit tests moved
-// with `buildMathWidget`'s deletion; the reveal-source policy and the dispatch
-// contract are what stay unit-provable here.
+// Math renders through a `component`, so the descriptor carries no synchronous builder
+// and the injected portal builder owns the island shell (asserted in the e2e). What
+// stays unit-provable is the reveal-source policy and the dispatch contract.
 describe('math widget dispatch', () => {
 	beforeEach(() => registerMathInline());
 

@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// A reveal in flight outranks either anchor rule: the target's absolute position is
-// re-asserted after the mutation, because the browser's scroll auto-clamp outpaces
-// delta compensation while off-window images measure ~0. The numeric corrector
-// carried that branch; the STRUCTURAL one (used for every count change and reorder)
-// did not, so a structural edit landing during a reveal delta-compensated instead
-// and dragged the revealed block off screen.
+// A reveal in flight outranks either anchor rule: both correctors must re-assert the
+// target's absolute position after a mutation, because the browser's scroll auto-clamp
+// outpaces delta compensation while off-window images still measure ~0.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import {
@@ -27,8 +24,7 @@ const oracle: HeightOracle = {
 };
 
 /** `maxScrollTop` models the browser's own clamp, which a plain property cannot: a
- *  scroll position past the content's end is silently refused, so a target beyond it is
- *  one the anchor can never actually be holding. */
+ *  scroll past the content end is refused, so the anchor can never hold that target. */
 function stubScrollEl(height: number, maxScrollTop = Infinity) {
 	let scrollTop = 0;
 	return {
@@ -46,11 +42,9 @@ function stubScrollEl(height: number, maxScrollTop = Infinity) {
 	} as unknown as HTMLElement;
 }
 
-/** The list scrolls WITH the content, so its viewport top moves by -scrollTop —
- *  without that, `listTopWithinContent` reads the scroll offset twice and the two
- *  anchor rules coincide in the stub while diverging in a browser. `headerHeight` is
- *  content ABOVE the list inside the same scrollport (the header slot), which is what
- *  `listTopWithinContent` resolves to. */
+/** The list scrolls WITH the content, so its viewport top must move by -scrollTop —
+ *  otherwise `listTopWithinContent` reads the scroll offset twice and the two anchor
+ *  rules coincide in the stub while diverging in a browser. */
 function stubListEl(height: number, scrollEl: HTMLElement, headerHeight = 0) {
 	return {
 		scrollTop: 0,
@@ -123,10 +117,8 @@ describe('list-windowing reveal anchor', () => {
 		expect(scrollEl.scrollTop).toBe(10);
 		revealTarget = topLevel(5);
 
-		// Delete b3 — BETWEEN the anchor and the target. The anchor's own offset is
-		// unchanged, so the stable-id rule corrects by zero and holds b1 in place
-		// while the pinned block slides 40px up the viewport. The reveal claim
-		// re-asserts the target instead: b5 now sits at 110.
+		// Delete b3 — BETWEEN the anchor and the target, so the stable-id rule corrects
+		// by zero while the pinned block slides 40px up. The reveal claim must win.
 		children.splice(3, 1);
 		ids.splice(3, 1);
 		revealTarget = topLevel(4);
@@ -136,10 +128,8 @@ describe('list-windowing reveal anchor', () => {
 		cleanup();
 	});
 
-	// A target nested inside a container is not the container: re-asserting the
-	// ancestor's top pushes the resolved target a container-height out of view on the
-	// next measure pass, which is what the top-level narrowing used to do. Same
-	// structural trigger as above — what differs is where the pin lands.
+	// A nested target is not its container: re-asserting the ancestor's top pushes the
+	// resolved target a container-height out of view on the next measure pass.
 	const NESTED = { innerOffset: 35, height: 8 };
 	const NESTED_CASES: Array<[RevealAnchorPlacement['block'], number, number]> = [
 		// b5 lands at 110 after the delete; the target sits 35px into it.
@@ -182,17 +172,11 @@ describe('list-windowing reveal anchor', () => {
 	}
 });
 
-// `revealHoldsScroll` is what a SECOND writer of the same scrollTop asks before adding a
-// relative delta. It is not "is a claim live" — that question is answerable `true` over a
-// target the anchor is not holding, and a writer that trusted it would re-place the reader
-// instead of compensating them. It is exactly "would `placeRevealTarget()` be a no-op
-// right now": same formula, and a ResizeObserver callback runs after layout, so whatever
-// just resized is already inside the number both sides compute.
-//
-// Every row below is deterministic here and two of them are unreachable from the e2e
-// harness — the observer never won the race in any trace, and the clamped case needs a
-// document shorter than its own reveal target. That gap is what let an authority-based
-// first fix ship green.
+// `revealHoldsScroll` asks "would `placeRevealTarget()` be a no-op right now", NOT "is a
+// claim live" — the latter answers true over a target the anchor is not holding, and a
+// second writer that trusted it would re-place the reader instead of compensating them.
+// Two rows below are unreachable from the e2e harness (the observer never wins the race
+// in a real trace; the clamped case needs a document shorter than its reveal target).
 describe('revealHoldsScroll — the orderings a second writer can land in', () => {
 	const HEADER_BEFORE = 80;
 	const HEADER_AFTER = 240;

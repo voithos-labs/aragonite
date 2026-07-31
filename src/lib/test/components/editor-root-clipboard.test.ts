@@ -8,10 +8,9 @@ import { createEditorEvents, type EditorError } from '$lib/editor-events';
 import type { PasteImageHook } from '$lib/editor-keys';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 
-// The escape this seam exists for: Chromium retargets the clipboard event to
-// <body> when the cross-block park found no caret at the focus endpoint. The
-// tests drive that retarget directly — target, not activeElement, is what the
-// gate can see (a block still held focus in every real reproduction).
+// The escape this seam exists for: Chromium retargets the clipboard event to <body>
+// when the cross-block park found no caret. Driven through `target`, not
+// `activeElement` — a block still held focus in every real reproduction.
 
 interface HarnessOptions {
 	onPasteImage?: PasteImageHook;
@@ -34,10 +33,9 @@ function harness(options: HarnessOptions = {}) {
 		handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
 			pasted.push(replacement);
 			if (options.crossBlockClaims ?? true) return true;
-			// Faithful to the only way the real seam declines: it re-reads the selection
-			// and finds it no longer cross-block. A stub that returned false with the
-			// range still standing would let a decline-time read of `selection.start`
-			// look correct, which is precisely the bug the path pin exists to catch.
+			// The real seam declines only by re-reading a collapsed selection. Leaving
+			// the range standing would make a decline-time `selection.start` read look
+			// correct — the exact bug the path pin exists to catch.
 			selection.collapse();
 			return false;
 		},
@@ -159,9 +157,8 @@ describe('editor-root clipboard routing', () => {
 		expect(h.pasted).toEqual([undefined]);
 	});
 
-	// The gap the fallback did not close: a block surface offers the host hook its
-	// files first, and this seam went straight to the cross-block arm — where a
-	// pure-image paste carries no text/plain and was discarded.
+	// The host hook must be offered the files before the cross-block arm, which
+	// discards a pure-image paste for carrying no text/plain.
 	describe('image-bearing paste', () => {
 		it('offers the files to the host hook before the cross-block arm', async () => {
 			const imported: string[] = [];
@@ -194,9 +191,8 @@ describe('editor-root clipboard routing', () => {
 			h.fire('paste', document.body, { files: [pngFile()] });
 
 			await vi.waitFor(() => expect(h.errors.map((e) => e.origin)).toEqual(['clipboard']));
-			// Captured synchronously with the event. Reading it at the decline instead
-			// would report nothing every time: the only way to REACH the decline is a
-			// selection that collapsed, and a collapsed selection has no start.
+			// Captured synchronously with the event: a collapsed selection has no start,
+			// and collapsing is the only way to reach this decline.
 			expect(h.errors[0].context?.path).toEqual([0]);
 		});
 

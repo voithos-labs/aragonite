@@ -1,12 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { joinMermaidBody } from '$lib/plugins/mermaid/mermaid-kind';
 
-// The edit textarea LF-normalizes its value, so a commit that appended a bare
-// `\n` (`value + '\n'`) flipped every body line of a CRLF-authored diagram to LF
-// while the opener/closer chrome kept `\r\n` — one edit left the block mixed-EOL.
-// `joinMermaidBody` rejoins the draft with the block's authored ending so a
-// CRLF diagram stays CRLF end-to-end. The opener line ending is the single
-// authored ending threaded through metadata.
+// The edit textarea LF-normalizes its value, so a commit appending a bare `\n` flips a
+// CRLF diagram's body to LF while its chrome keeps `\r\n` — one edit, mixed-EOL block.
+// The opener's ending, threaded through metadata, is the single authored ending.
 
 describe('joinMermaidBody rejoins the draft with the authored line ending', () => {
 	it('rejoins a multi-line CRLF draft, preserving every interior + trailing ending', () => {

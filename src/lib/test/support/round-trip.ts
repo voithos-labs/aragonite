@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 
-// The suite's marquee guarantee — serialize(parse(source)) === source — is pinned
-// by ~two dozen table loops across the parser, plugin, and invariant suites. This
-// is their shared driver; the loops become fixture tables. A bare-string case names
-// itself with its JSON-escaped source; a labelled case names itself by its label.
+// Shared driver for the round-trip guarantee (serialize(parse(source)) === source),
+// so the table loops pinning it across the parser, plugin, and invariant suites
+// stay fixture tables rather than copies of the assertion.
 
 export type RoundTripCase = string | { name: string; source: string };
 

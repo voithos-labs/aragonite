@@ -99,10 +99,8 @@ const mathRung: InlineConformanceProfile = {
 describe('every bundled inline rung passes the conformance kit', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
-		// Emoji BEFORE the directive activation on purpose: `:` is a shared trigger, and
-		// this is the order that used to leave the directive tier's recognizer
-		// unregistered. Enrolling the tier under it makes its `registration` cell a live
-		// guard rather than a restatement of the order that always worked.
+		// Emoji BEFORE the directive activation on purpose: that order is what leaves the
+		// tier's recognizer unregistered, making its `registration` cell a live guard.
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
 		activateDirectiveGrammar();
 	});
@@ -126,16 +124,11 @@ describe('every bundled inline rung passes the conformance kit', () => {
 	});
 });
 
-// A cell recorded rather than executed proves nothing, so the shapes each rung is
-// meant to exercise are pinned by status — a fixture that stopped being claimed, or
-// a jsdom-less run, would otherwise pass as a quiet `boundary`.
+// A cell recorded rather than executed proves nothing: a fixture that stopped being
+// claimed, or a jsdom-less run, would otherwise pass as a quiet `boundary`.
 describe('the enrolled rungs execute the cells their shape owns', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
-		// Emoji BEFORE the directive activation on purpose: `:` is a shared trigger, and
-		// this is the order that used to leave the directive tier's recognizer
-		// unregistered. Enrolling the tier under it makes its `registration` cell a live
-		// guard rather than a restatement of the order that always worked.
 		installPlugins([emojiPlugin(), footnotesPlugin(), latexPlugin({ renderer: stubRenderer })]);
 		activateDirectiveGrammar();
 	});
@@ -149,9 +142,8 @@ describe('the enrolled rungs execute the cells their shape owns', () => {
 		expect(cell.detail).toContain('offset-walk length');
 	});
 
-	// The island of a `component` kind is the editor's, so that half does not run —
-	// and the cell must SAY so. Reporting `asserted` over work it skipped is the
-	// silent skip the coverage vocabulary exists to refuse.
+	// The island of a `component` kind is the editor's, so that half does not run and
+	// the cell must SAY so — `asserted` over skipped work is the silent skip.
 	it('reports the island half of a `component` widget as a boundary', () => {
 		const cell = cellOf(footnoteRung, 'widget');
 		expect(cell.status).toBe('boundary');

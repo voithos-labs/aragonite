@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 //
-// The content version reaches a mounted widget, and the widgets share one walk.
-// Every hop between the editor's document facet and the widget's props is
-// optional-typed, and FootnoteReference falls back to an unshared walk when the
-// version is absent — a fallback that is CORRECT, so a broken hop would leave
-// every numbering and renumber test passing on the old O(widgets × leaves) path.
-// Counting the walks through the real render path is what tells the two apart.
+// Every hop from the document facet to the widget's props is optional-typed, and the
+// fallback for a missing version is CORRECT — just O(widgets × leaves). So a broken hop
+// leaves every numbering test green, and only counting walks tells the two apart.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
@@ -74,11 +71,9 @@ describe('footnote reference widgets read the editor content version', () => {
 		mounted = mountReferences(() => 4242);
 		expect(mounted.refs.map((el) => el.textContent)).toEqual(['1', '2']);
 
-		// Assert the WALK COUNT, not the raw compute total: one numbering walk is
-		// LEAVES computes, and the block's own render adds a small constant on top.
-		// Rounding lands the verdict midway between one walk and two, so the pin
-		// discriminates the regression it exists to catch rather than sitting a
-		// single incidental compute away from being unable to fail.
+		// The WALK COUNT, not the raw compute total: the block's own render adds a small
+		// constant, so rounding puts the verdict midway between one walk and two rather
+		// than one incidental compute away from being unable to fail.
 		const walks = Math.round(perfSnapshot().inlineComputeCount / LEAVES);
 		expect(walks).toBe(1);
 	});

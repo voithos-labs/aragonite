@@ -1,9 +1,8 @@
 /**
- * The case plugin-guide §6 calls "the case that matters most": a document
- * authored with the directive but with the plugin NOT registered must still
- * round-trip byte-for-byte through the generic fallback — so uninstalling the
- * plugin never corrupts a saved document. This file activates directives only;
- * it never installs the admonition kind.
+ * plugin-guide §6's "case that matters most": a document authored with the directive
+ * but with the plugin NOT registered still round-trips byte-for-byte through the
+ * generic fallback, so uninstalling never corrupts a saved document. Activates
+ * directives only; never installs the admonition kind.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse, serialize } from '$lib';

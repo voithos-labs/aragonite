@@ -107,11 +107,9 @@ describe('renderMermaid memoization', () => {
 });
 
 describe('absent-renderer fallback', () => {
-	// The component's static branch (code shown verbatim + the "renderer not
-	// configured" note) keys on this module seam. The branch's markup itself has
-	// no honest test level: mounting MermaidBlock needs six editor contexts keyed
-	// by unexported symbols, and the harness page installs the plugin
-	// renderer-equipped process-wide. So the seam is the pin.
+	// The seam is the pin because the component's static branch has no honest test
+	// level: mounting MermaidBlock needs six contexts keyed by unexported symbols, and
+	// the harness page installs the plugin renderer-equipped process-wide.
 	it('reports no renderer when unset and resolves to the configured-note error', async () => {
 		expect(hasMermaidRenderer()).toBe(false);
 		expect((await renderMermaid('graph TD', THEME)).error).toBe('renderer not configured');

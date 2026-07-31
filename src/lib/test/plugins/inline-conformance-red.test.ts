@@ -45,10 +45,9 @@ const run = (profile: InlineConformanceProfile) => () => runInlineKindConformanc
 // ── overlapDecline: the flagship ─────────────────────────────────────────────
 
 describe('overlapDecline reds a rung that swallows the grammar overlap', () => {
-	// `![[a]](u)` is a built-in image whose alt text is `[a]`. A prefix rung on `!` is
-	// consulted BEFORE the image case, so a recognizer that claims every `![[…]]`
-	// takes those bytes off the built-in — and the document still round-trips, as a
-	// wiki embed the author never wrote.
+	// `![[a]](u)` is a built-in image, and a prefix rung on `!` is consulted first — so
+	// a recognizer claiming every `![[…]]` takes those bytes and the document still
+	// round-trips, as a wiki embed the author never wrote.
 	const swallowEverything = (raw: string, pos: number, end: number): InlineNode | null => {
 		const close = raw.indexOf(']]', pos + 3);
 		if (!raw.startsWith('![[', pos) || close < 0 || close + 2 > end) return null;
@@ -211,15 +210,11 @@ describe('widget reds a claim that cannot stand on its own bytes', () => {
 
 // ── roundTrip ────────────────────────────────────────────────────────────────
 
-// A block's scan range is not always its whole raw — a heading's excludes a closing
-// `#` run, a table cell's excludes its `|`. A rung that reads the string instead of
-// the range swallows those bytes into its widget's source span, and every caret
-// offset after it is off by the difference with nothing moving in the document.
-//
-// The dispatch throws on such a claim, so the kit is not the enforcer here — what it
-// owns is WHEN the author hears about it. These cases pin that the kit drives a
-// restricted range at all: without those drives the rung is only caught at first
-// render of a heading, in the consumer's app rather than in the plugin's own suite.
+// A block's scan range is not always its whole raw, so a rung reading the string
+// instead of the range swallows chrome bytes into its widget's span and offsets every
+// later caret. The dispatch already throws on such a claim; what the kit owns is WHEN
+// the author hears about it, so these pin that it drives a RESTRICTED range at all —
+// otherwise the rung is only caught in the consumer's app, at the first heading.
 describe('roundTrip reds a claim that reads past the range the block offered', () => {
 	/** Registers `@…@` with an `end`-unaware recognizer of the caller's shape. */
 	function registerOverrunningRung(
@@ -247,10 +242,9 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 		);
 	});
 
-	// The terminator-search shape, and the reason the range is also cut just past an
-	// opener: this rung stops at a real closer, so inert bytes never reach it. Only a
-	// tail carrying the author's OWN grammar puts a closer beyond `end` to find, and
-	// only the straddling cut guarantees an opener sits at the boundary to look from.
+	// The terminator-search shape stops at a real closer, so only a tail carrying the
+	// author's OWN grammar puts one beyond `end` — which is why the kit also cuts the
+	// range just past an opener, straddling it.
 	it('fails a terminator search with no `end` bound', () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);
@@ -261,9 +255,8 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 		);
 	});
 
-	// The same overrun behind a fixture that carries prose before its claim. The cut
-	// has to LOCATE the opener rather than assume it at offset 0, or the range ends
-	// inside the leading prose and no rung is consulted at the boundary at all.
+	// With leading prose the cut has to LOCATE the opener rather than assume offset 0,
+	// or the range ends inside the prose and no rung is consulted at the boundary.
 	it('fails a terminator search behind a fixture with leading prose', () => {
 		const kind = registerOverrunningRung((raw, pos) => {
 			const close = raw.indexOf('@', pos + 1);

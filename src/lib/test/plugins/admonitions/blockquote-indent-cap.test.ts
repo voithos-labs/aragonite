@@ -59,9 +59,8 @@ describe('the transform caps the gates the parser caps, and no others', () => {
 		expect(converted).toBe('    > x\n:::note\nbody\n:::\n');
 	});
 
-	// The body scan is NOT capped. A cap declines a strip but STOPS a scan, and
-	// stopping ejected the rest of the alert — the parser absorbs the line as lazy
-	// continuation, so the converted container has to keep it too, bytes untouched.
+	// The body scan is NOT capped: the parser absorbs this line as lazy continuation,
+	// so a cap that stopped the scan would eject the rest of the alert.
 	it('keeps an over-indented body line inside the alert instead of ejecting it', () => {
 		const { converted } = convertGithubAlerts('> [!NOTE]\n> in\n    > out\n');
 		expect(converted).toBe(':::note\nin\n    > out\n:::\n');

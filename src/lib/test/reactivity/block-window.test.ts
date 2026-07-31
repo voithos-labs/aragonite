@@ -86,9 +86,8 @@ describe('computeWindow', () => {
 		expect(computeWindow(mid, { ...base, active: true }).active).toBe(true);
 	});
 
-	// Host-scroll mode: no scrollport, so no viewport to window against. The gate
-	// outranks the watermark AND the hysteresis latch, and the result is the same
-	// mount-everything shape a document under the watermark produces.
+	// Host-scroll mode has no scrollport to window against, so the gate must outrank
+	// both the watermark and the hysteresis latch.
 	it('never activates while windowing is disabled', () => {
 		const tall = model(); // 5000px total, far above the high watermark
 		for (const active of [false, true]) {
@@ -101,9 +100,8 @@ describe('computeWindow', () => {
 		}
 	});
 
-	// Guards the under-mount direction of the half-open boundary: a block whose
-	// range straddles the bottom edge must stay mounted (no visible gap). The
-	// aligned-scrollTop cases above can't catch a regression here.
+	// The under-mount direction of the half-open boundary — a visible gap. The
+	// aligned-scrollTop cases above all miss it.
 	it('mounts a block straddling the half-open bottom edge', () => {
 		// viewport [1010, 1510); block 30 = [1500, 1550) is partially visible.
 		const w = computeWindow(model(), { ...base, scrollTop: 1010 });

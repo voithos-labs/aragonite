@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 //
-// The `source` prop swap is an entry path that produces the edit epoch, and it was
-// the one such path with no test of its own: whether a whole-document replacement
-// reaches the decoration engine can only be asked of the mounted component, since
-// the engine sees a swap and an edit as the same `getDoc()` read.
+// Whether a whole-document `source` swap reaches the decoration engine can only be
+// asked of the mounted component: the engine sees a swap and an edit as the same
+// `getDoc()` read.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
 import Editor from '$lib/components/Editor.svelte';

@@ -8,10 +8,8 @@ import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 
-// The leaves built on simpleLeafClosure. Their real registered descriptors must
-// satisfy G1.24 — a migration that produced an incoherent block (a container
-// contract slipped in, the not-mergeable mergeBackspace downgraded) fails here at
-// install, not at the next bootstrap flush.
+// The leaves built on simpleLeafClosure. Asserting G1.24 over their REAL registered
+// descriptors fails an incoherent migration at install, not at the next flush.
 const MIGRATED: { kind: string; install: () => void }[] = [
 	{ kind: TOC_BLOCK, install: registerTocBlock },
 	{ kind: MATH_BLOCK, install: registerMathBlock },

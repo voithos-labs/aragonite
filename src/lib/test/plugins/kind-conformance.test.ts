@@ -26,10 +26,9 @@ import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/la
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
-// The generic battery pointed at real PLUGIN kinds — registering a plugin kind
-// enrolls its headless cells exactly as a built-in's. Plugin kinds only exist once
-// their setup installs them, so each case resets and re-installs (the platform is
-// register-once — docs/contributing/culture.md).
+// The generic battery pointed at real PLUGIN kinds. They only exist once their setup
+// installs them, so each case resets and re-installs — the platform is register-once
+// (docs/contributing/culture.md).
 
 const MEMO_KIND = () => declaredPluginKind(MEMO_BLOCK);
 const NOTE_KIND = () => declaredPluginKind(NOTE);
@@ -44,9 +43,8 @@ describe('kind conformance — plugin kinds enroll', () => {
 		registerCalloutKind();
 	});
 
-	// An editable leaf with inherit-default clipboard: its byte-slice copy cell
-	// EXECUTES green through the same runner the built-ins use — the closure battery
-	// is not built-in-only.
+	// The byte-slice copy cell EXECUTES through the same runner the built-ins use, so
+	// the closure battery is not built-in-only.
 	it('executes the byte-slice clipboard cell for an editable leaf', async () => {
 		const report = await runKindConformance(MEMO_KIND());
 		expect(statusOf(report, 'roundTrip')).toBe('executed');
@@ -64,9 +62,8 @@ describe('kind conformance — plugin kinds enroll', () => {
 		expect(statusOf(report, 'clipboard')).toBe('boundary');
 	});
 
-	// Mirrors the bundled per-registrar sweep below: the dogfood registrars' chrome
-	// ride-ins (callout's note-title) execute their fixture-free cells too — no
-	// registered kind sits outside every battery.
+	// Mirrors the bundled sweep below: chrome ride-ins run their fixture-free cells too,
+	// so no registered kind sits outside every battery.
 	it('every kind the dogfood registrars register executes its headless cells', async () => {
 		const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
 		expect(registered).toContain(declaredPluginKind(NOTE_TITLE));
@@ -80,13 +77,10 @@ describe('kind conformance — plugin kinds enroll', () => {
 });
 
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
-// Every block kind under `$lib/plugins` carries a required closure block; registering
-// one must enroll its headless cells exactly as a built-in's. The plugins DIRECTORY
-// listing is the canonical bundled set (the plugin-pack-parity lint derives from the
-// same listing), so a plugin dir born or dropped outside BUNDLED_INSTALLS fails the
-// dir lockstep below at birth. (highlight-occurrences registers no block kind —
-// decoration source only; emoji registers an inline kind only; latex's inline
-// `math` is an inline kind, not a block.)
+// Registering a bundled kind must enroll its headless cells exactly as a built-in's.
+// The `$lib/plugins` DIRECTORY listing is the canonical bundled set (as for the
+// plugin-pack-parity lint), so a dir born or dropped outside this table fails the dir
+// lockstep below at birth.
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },
 	{ dir: 'footnotes', kind: FOOTNOTE_DEF_KIND, install: registerFootnoteDefinition },
@@ -101,9 +95,8 @@ const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);
 describe('kind conformance — bundled plugin kinds enroll', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 
-	// The battery runs over EVERY kind the registrar registers, not only the headline
-	// one — fixtureless chrome kinds (details summary, admonition title) and the
-	// directive-fallback ride-ins run their fixture-free cells like built-ins do.
+	// EVERY kind the registrar registers, not only the headline one: fixtureless chrome
+	// kinds and directive-fallback ride-ins run their fixture-free cells too.
 	it.each(BUNDLED_INSTALLS)(
 		'$kind registrar: every registered kind executes its headless cells',
 		async ({ kind, install }) => {
@@ -123,9 +116,8 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 		}
 	);
 
-	// Lockstep, dir tier: the fs listing of src/lib/plugins is the canonical bundled
-	// set — every plugin directory is enrolled or a declared no-block-kind exception,
-	// and neither list names a directory that no longer exists.
+	// Lockstep, dir tier: both directions, so neither an unenrolled new plugin nor a
+	// stale entry for a deleted one survives.
 	it('every plugin directory on disk is enrolled or a declared exception', () => {
 		const dirs = readdirSync(path.resolve('src/lib/plugins'), { withFileTypes: true })
 			.filter((e) => e.isDirectory())
@@ -137,13 +129,9 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 		expect(stale, 'enrolled/exception entries with no plugin directory').toEqual([]);
 	});
 
-	// Lockstep, kind tier: installing every bundled registrar registers exactly the
-	// swept kinds. `registerAdmonitions` activates the shared directive grammar, so
-	// the core generic-directive fallback kinds ride in — excluded here as they are
-	// core, not bundled plugins, and covered by `closure-fixtures.test.ts` + G1.24.
-	// It also co-registers the native `githubAlert` kind (a second fixtured kind under
-	// one dir), so that rides in too; `registerMathBlock` likewise co-registers the
-	// ```math fence kind under the latex dir.
+	// Lockstep, kind tier. The directive-fallback kinds ride in on `registerAdmonitions`
+	// but are core, not bundled, and covered by `closure-fixtures.test.ts` + G1.24.
+	// These two are second fixtured kinds co-registered under one dir.
 	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT, MATH_FENCE];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
@@ -157,12 +145,9 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 		);
 	});
 
-	// Cross-plugin priority parity: a shared opener priority is invisible to every
-	// isolated suite — it only surfaces at runtime when the colliding plugins are
-	// co-installed AND a parse runs (the exact hole that hid footnote-def tying toc's
-	// `linkReferenceDefinition - 5` until an e2e mounted the whole bundle). Install the
-	// bundled set at once and assert the registry has no two openers sharing a priority,
-	// so a plugin landing on an occupied slot fails here rather than at the next e2e.
+	// A shared opener priority is invisible to every isolated suite — it surfaces only
+	// once the colliding plugins are co-installed AND a parse runs, which is why a tie
+	// once survived to an e2e. Installing the whole bundle fails it here instead.
 	it('the co-installed bundle declares distinct opener priorities', () => {
 		for (const { install } of BUNDLED_INSTALLS) install();
 		const kindsByPriority = new Map<number, string[]>();
@@ -178,18 +163,16 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 	});
 });
 
-// Non-vacuity. A battery that passes everything guards nothing — these break a
-// plugin registration on purpose and require the red, mirroring the broken-unwrapRole
-// / drifted-fixture pattern in `container-conformance.test.ts`.
+// Non-vacuity: a battery that passes everything guards nothing, so these break a
+// plugin registration on purpose and require the red.
 describe('kind conformance — a broken plugin registration fails', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		registerMemoBlock();
 	});
 
-	// Profile drift: the author's fixture stops producing their kind (a renamed
-	// opener, a declined recognizer). The runner must refuse a tree it never saw the
-	// kind in, rather than exercising the wrong nodes.
+	// Profile drift: when an author's fixture stops producing their kind, the runner
+	// must refuse the tree rather than exercise the wrong nodes.
 	it('rejects a conformanceFixture that parses to the wrong kind', async () => {
 		augmentBlockKind(MEMO_KIND(), { conformanceFixture: 'just a paragraph\n' });
 		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(
@@ -197,13 +180,9 @@ describe('kind conformance — a broken plugin registration fails', () => {
 		);
 	});
 
-	// A false `searchPaint: not-supported` on a searchable editable leaf: the
-	// degradation executor asserts the document scan finds NOTHING, but the leaf's
-	// text is scannable, so the scan DOES find it — the false cell goes red. The
-	// clipboard analog (a false inherit-default on a synthesizing kind) is the
-	// table-bug shape, reproduced against the real table in
-	// `test/invariants/kind-conformance.test.ts` — a plugin leaf's copy is always a
-	// true byte slice, so it cannot reproduce the synthesis.
+	// A false `not-supported` reds because the degradation executor asserts the scan
+	// finds NOTHING while this leaf's text is scannable. The clipboard analog needs a
+	// synthesizing kind, so it lives in `test/invariants/kind-conformance.test.ts`.
 	it('rejects a false searchPaint:not-supported on searchable text', async () => {
 		const closure = getBlockKindDescriptor(MEMO_KIND()).closure;
 		augmentBlockKind(MEMO_KIND(), {

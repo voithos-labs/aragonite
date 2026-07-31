@@ -4,10 +4,8 @@ import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerMathFence, MATH_FENCE, mathDisplaySource } from '$lib/plugins/latex/latex-kind';
 
-// GitHub's third math form: a fenced code block whose info string's first token is
-// exactly `math`. The opener prices below `fencedCode` (that superset matcher would
-// otherwise claim every fence), and the block is a source-holding leaf, so round-trip
-// is byte-level on `raw`.
+// GitHub's third math form: a fence whose info string opens with `math`. Priced below
+// `fencedCode`, whose superset matcher would otherwise claim every fence.
 
 describe('math fence claims and declines', () => {
 	beforeEach(() => {

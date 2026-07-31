@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// The model rebuild must follow a same-length PERMUTATION (a reorder), not only a
-// count change: otherwise `modelChildIds` and the per-index heights stay in the old
-// order until the next count-change rebuild, which then remaps the anchor off a
-// stale id (a one-shot scroll jump).
+// The rebuild must follow a same-length PERMUTATION, not only a count change, or the
+// per-index heights stay in the old order until the next count change then remaps the
+// anchor off a stale id — a one-shot scroll jump.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
