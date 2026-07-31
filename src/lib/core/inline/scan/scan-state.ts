@@ -1,9 +1,7 @@
 /**
- * Scanner working state. One ScanContext per scanInline call. Handlers
- * append the nodes they match and advance `pos` past them; bytes no handler
- * claims accumulate as the pending text run [textStart, pos), flushed to a
- * text node before each appended node — so nodes + pending run cover
- * [start, pos) at every step of the scan.
+ * Scanner working state, one ScanContext per scanInline call. Handlers append what they match
+ * and advance `pos`; unclaimed bytes accumulate as the pending run [textStart, pos), flushed
+ * before each appended node, so nodes + pending run cover [start, pos) at every step.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -15,24 +13,19 @@ export interface ScanContext {
 	end: number;
 	/** Working list, flat, offset-ordered; emphasis wraps later. */
 	nodes: InlineNode[];
-	/** Start of the pending text run: bytes in [textStart, pos) not yet claimed by any node. */
 	textStart: number;
 	delimiters: Delimiter[];
 	brackets: Bracket[];
 	resolver?: LinkReferenceResolver;
 	/**
-	 * Backtick-run positions by length, built lazily on the first code-span probe
-	 * and reused for every later opener so a flood stays linear (see backticks.ts).
+	 * Backtick-run positions by length, built lazily on the first code-span probe and reused by
+	 * every later opener so a flood stays linear (backticks.ts).
 	 */
 	backtickRuns?: Map<number, number[]>;
 }
 
 export interface Delimiter {
-	/**
-	 * The text node holding the run's bytes, by identity: processEmphasis
-	 * reorders `nodes` when it wraps a match, so a position would go stale
-	 * where an object reference cannot.
-	 */
+	/** Held by identity: processEmphasis reorders `nodes`, so a position would go stale. */
 	node: InlineNode;
 	char: '*' | '_' | '~';
 	/** Remaining unconsumed run length. */
@@ -44,26 +37,14 @@ export interface Delimiter {
 }
 
 export interface Bracket {
-	/**
-	 * The '[' / '![' text node's position. Stays valid across processEmphasis:
-	 * a floor-f call only wraps nodes appended after the bracket that recorded
-	 * floor f, so positions at or before any live bracket never shift.
-	 */
+	/** Stays valid across processEmphasis: a floor-f call only wraps nodes appended after it. */
 	nodeIndex: number;
 	isImage: boolean;
 	/** Deactivated by the links-in-links rule. */
 	active: boolean;
-	/**
-	 * A later bracket opened while this one was innermost. Collapsed/shortcut
-	 * references reuse the link text as label, and a label cannot contain an
-	 * unescaped bracket — the `]` handler skips their lookup outright.
-	 */
+	/** A collapsed/shortcut label cannot hold an unescaped bracket, so `]` skips its lookup. */
 	bracketAfter: boolean;
-	/**
-	 * delimiters.length at push — processEmphasis floor on match. A floor-f
-	 * call truncates the delimiter stack back to f, so floors recorded by
-	 * enclosing brackets (all <= f) stay valid.
-	 */
+	/** delimiters.length at push; processEmphasis truncates back to it on match. */
 	delimiterFloor: number;
 }
 
@@ -85,7 +66,6 @@ export function createScanContext(
 	};
 }
 
-/** Flush the pending text run as a text node ending at `upTo`. */
 export function flushPendingText(ctx: ScanContext, upTo: number): void {
 	if (ctx.textStart >= upTo) return;
 	ctx.nodes.push({
@@ -97,7 +77,6 @@ export function flushPendingText(ctx: ScanContext, upTo: number): void {
 	ctx.textStart = upTo;
 }
 
-/** Append a matched node, flushing pending text before it and advancing past it. */
 export function appendNode(ctx: ScanContext, node: InlineNode): void {
 	flushPendingText(ctx, node.start);
 	ctx.nodes.push(node);

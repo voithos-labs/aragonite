@@ -1,6 +1,4 @@
-// Structurally typed: accepts any object with prefix/children/suffix so nested
-// containers (blockquote, list, listItem) and readonly node views can
-// serialize without a class.
+// Structurally typed so nested containers and readonly node views serialize without a class.
 
 interface Serializable {
 	readonly prefix: string;

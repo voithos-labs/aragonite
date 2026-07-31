@@ -1,10 +1,8 @@
 /**
- * The one block opener owning `:::`/`::` directive syntax. It dispatches by name
- * through the directive registry: a registered name delegates to its
- * `fromDirective` factory, an unregistered name falls back to the lossless
- * generic kinds. Priority 45 sits between blockquote (40) and list (50) — no
- * built-in claims a colon fence, so the slot is free. Core-relative imports, not
- * `$lib/plugin` — the barrel pulls a Svelte component in and would cycle.
+ * The one block opener owning `:::`/`::` directive syntax, dispatching by name through the
+ * registry: a registered name delegates to its `fromDirective` factory, an unregistered one
+ * falls back to the lossless generic kinds. Imports stay core-relative because the
+ * `$lib/plugin` barrel pulls in a Svelte component and would cycle.
  */
 
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
@@ -31,9 +29,8 @@ export function registerDirectiveOpeners(): void {
 	const leaf = declaredPluginKind(DIRECTIVE_LEAF);
 
 	registerBlockOpener(container, {
-		// Priced off the ladder, never as a bare integer: renumbering a built-in has
-		// to move this with it. A colon fence collides with no built-in matcher, so
-		// it only needs to sit in the gap between blockquote and list.
+		// Priced off the ladder, never as a bare integer, so renumbering a built-in moves this
+		// with it. A colon fence collides with no built-in matcher; it only needs the gap.
 		priority: OPENER_PRIORITIES.blockquote + 5,
 		interruptsParagraph: (line) => matchDirectiveOpener(line) !== null,
 		tryOpen(ctx) {
@@ -57,8 +54,7 @@ export function registerDirectiveOpeners(): void {
 					};
 					return { node: factory(parsed), consumed: 1 };
 				}
-				// A leaf re-derives its content range from `node.raw`, so a generic leaf
-				// needs no metadata; a kind-only registration just restamps the kind.
+				// A leaf re-derives its content range from `node.raw`, so it needs no metadata.
 				const node = makeBlockNode({
 					kind: (def?.kind ?? leaf) as AnyBlockKind,
 					leadingTrivia: ctx.leadingTrivia,
@@ -67,23 +63,18 @@ export function registerDirectiveOpeners(): void {
 				return { node, consumed: 1 };
 			}
 
-			// Colon-count-aware lookup of the matching closer: a shorter nested closer
-			// (`:::` inside a `::::`) does not close here. Closer positions are indexed
-			// once per line array, so an unclosed-opener flood stays linear instead of
-			// rescanning to EOF per opener.
+			// Colon-count-aware: a shorter nested closer (`:::` inside a `::::`) does not close here.
 			const closerIdx = findDirectiveCloser(ctx.lines, ctx.index, ctx.end, fence.colonCount);
 			if (closerIdx === -1) return null; // unterminated declines to paragraph
 
 			const closerLine = ctx.lines[closerIdx];
 			const bodyText = joinRaw(ctx.lines, ctx.index + 1, closerIdx);
 			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
-			// Reparse the body one nesting level deeper, so nested directives share
-			// the container-depth cap instead of overflowing via a fresh parse().
+			// One nesting level deeper, so nested directives share the container-depth cap.
 			const bodyLines = splitLines(bodyText);
 			const inner = parseBlocks(bodyLines, 0, bodyLines.length, defaultGrammarView, ctx.depth + 1);
 			const body: Document = { kind: 'document', ...inner };
-			// The closer line is all colons (isDirectiveCloser guarantees an empty
-			// remainder), so its text length is the exact closer colon count.
+			// isDirectiveCloser guarantees an all-colon line, so its length IS the colon count.
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
 
@@ -124,19 +115,11 @@ export function registerDirectiveOpeners(): void {
 
 // ── Closer indexing ─────────────────────────────────────────────────────────
 
-// A closer is a line that is entirely colons (`isDirectiveCloser(text, 1)`),
-// closing any opener whose colon count is ≤ the line's length. Their positions and
-// counts are indexed once per line array — an unclosed-opener flood otherwise
-// rescans to EOF per opener (O(n²)). Keyed by array identity, so nested reparses
-// (their own stripped arrays) and windows cache independently, and the entry is
-// collected with the array.
-//
-// `maxCounts` is a max-tree over `counts`, so "first closer at or after k whose run
-// is long enough" is a descent rather than a forward walk. Bucketing positions per
-// exact colon count — the obvious alternative — fixes only the single-count case: a
-// document spanning K distinct run lengths pays a binary search per candidate count,
-// which is worse than the walk it replaces. The tree is indifferent to how the
-// counts are distributed.
+// A closer is an all-colon line, closing any opener whose colon count is <= its length.
+// Positions are indexed once per line array, keyed by array identity, because an
+// unclosed-opener flood otherwise rescans to EOF per opener (O(n^2)). `maxCounts` is a max-tree
+// over `counts`, so "first closer at or after k with a long enough run" is a descent, at a cost
+// indifferent to how the run lengths are distributed.
 interface CloserIndex {
 	positions: Int32Array;
 	counts: Int32Array;
@@ -177,9 +160,8 @@ function closerIndex(lines: ParsedLine[]): CloserIndex {
 }
 
 /**
- * Smallest closer-index slot at or after `from` whose count is ≥ `min`, or -1.
- * Padding leaves hold 0 and a directive opener runs at least two colons, so they
- * never match.
+ * Smallest closer-index slot at or after `from` whose count is >= `min`, or -1. Padding leaves
+ * hold 0 and an opener runs at least two colons, so they never match.
  */
 function firstCloserAtLeast(index: CloserIndex, from: number, min: number): number {
 	const descend = (node: number, lo: number, hi: number): number => {
@@ -192,11 +174,7 @@ function firstCloserAtLeast(index: CloserIndex, from: number, min: number): numb
 	return descend(1, 0, index.leafBase);
 }
 
-/**
- * First line index in `(afterIndex, end)` that closes an opener of `colonCount`
- * colons (a colon run of length ≥ `colonCount`), or -1 when unterminated.
- * Equivalent to scanning `isDirectiveCloser` forward, over the closer index.
- */
+/** Equivalent to scanning `isDirectiveCloser` forward from `afterIndex`, over the index. */
 function findDirectiveCloser(
 	lines: ParsedLine[],
 	afterIndex: number,

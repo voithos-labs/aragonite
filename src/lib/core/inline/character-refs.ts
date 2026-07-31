@@ -1,9 +1,6 @@
 /**
- * CommonMark §2.5 entity and numeric character references. Three forms —
- * named (`&copy;`), decimal (`&#NNN;`), hex (`&#xNNNN;` or `&#XNNNN;`).
- *
- * Per spec, code points that are zero, exceed 0x10FFFF, or fall in the
- * surrogate range 0xD800–0xDFFF decode to U+FFFD (replacement character).
+ * CommonMark §2.5 entity and numeric character references: named (`&copy;`), decimal, hex.
+ * Per spec, zero, out-of-range, and surrogate code points decode to U+FFFD.
  */
 
 import type { InlineNode } from '../nodes';
@@ -11,10 +8,8 @@ import { HTML5_NAMED_ENTITIES } from './html-entities';
 
 const REPLACEMENT = '�';
 
-// Longest reference body that can possibly decode: the longest named entity
-// is 31 chars (`CounterClockwiseContourIntegral`); numeric forms are at most
-// 8. Capping the `;` search here keeps `&`-floods linear — an unbounded
-// indexOf rescans to the end of the region per candidate.
+// The longest body that can decode (`CounterClockwiseContourIntegral`). Capping the `;` search
+// keeps `&`-floods linear, where an unbounded indexOf rescans the region per candidate.
 const MAX_REFERENCE_BODY = 31;
 
 /** Match one character reference; `pos` must point at an `&`. */
@@ -65,8 +60,7 @@ function decodeNumeric(body: string): string | null {
 	if (codePoint === 0) return REPLACEMENT;
 	if (codePoint > 0x10ffff) return REPLACEMENT;
 	if (codePoint >= 0xd800 && codePoint <= 0xdfff) return REPLACEMENT;
-	// C1 range (0x80–0x9F, e.g. `&#128;`) decodes verbatim, no cp1252 remap: if a
-	// corpus widening ever spells one, a divergence from an HTML5 reference is
-	// deliberate — we follow CommonMark §2.5's letter (probe-verified spec-correct).
+	// The C1 range decodes verbatim, no cp1252 remap: a divergence from an HTML5 reference here
+	// is deliberate, following CommonMark §2.5's letter.
 	return String.fromCodePoint(codePoint);
 }

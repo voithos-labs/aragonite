@@ -1,11 +1,8 @@
 /**
- * Registers the built-in block openers. Lives beside the matcher
- * implementations (schema/block-kind-descriptor.ts cannot import them —
- * parsers/* import parser.ts, which reads the opener registry, so the
- * import would cycle). Applied by an explicit `registerBuiltInOpeners()`
- * call from core/parser.ts, so every parse() entry point sees the built-ins
- * registered — a bare side-effect import is tree-shaken out of the
- * production Rollup build (see built-in-descriptors.ts).
+ * Registers the built-in block openers. Lives beside the matchers because
+ * schema/block-kind-descriptor.ts importing them would cycle (parsers/* import
+ * parser.ts, which reads the opener registry). Called explicitly from core/parser.ts:
+ * a bare side-effect import is tree-shaken out of the production build.
  */
 
 import { registerBlockOpener } from '../../schema/block-openers';
@@ -76,8 +73,7 @@ export function registerBuiltInOpeners(): void {
 				consumed: 1
 			};
 		},
-		// `---` is ambiguous with a setext L2 underline — the setext branch has
-		// first claim, so only `*`/`_` breaks interrupt a paragraph.
+		// `---` is ambiguous with a setext L2 underline, which has first claim.
 		interruptsParagraph: (t) => {
 			const marker = matchThematicBreak(t);
 			return marker === '*' || marker === '_';
@@ -108,10 +104,8 @@ export function registerBuiltInOpeners(): void {
 			if (!matchIndentedCode(ctx.line.text)) return null;
 			return parseIndentedCode(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
 		},
-		// GFM §4.4: indented code cannot interrupt a paragraph. An open paragraph
-		// already absorbs a following indented line as lazy continuation, so the
-		// line only reaches this opener when no paragraph is open — where indented
-		// code opens with no blank line required.
+		// GFM §4.4: indented code cannot interrupt a paragraph. An open paragraph absorbs the
+		// indented line lazily, so this opener only sees lines with no paragraph open.
 		interruptsParagraph: false
 	});
 

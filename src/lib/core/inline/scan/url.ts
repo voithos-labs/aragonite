@@ -1,7 +1,6 @@
 /**
- * Spec destination/title processing — the reference's unescapeString +
- * normalizeURI pair, applied to link destinations and autolink targets.
- * Offsets stay lossless; serialization never reads the processed values.
+ * Spec destination/title processing: the reference's unescapeString + normalizeURI pair, over
+ * link destinations and autolink targets. Never serialized, so offsets stay lossless.
  */
 
 import { matchCharacterReference } from '../character-refs';
@@ -36,8 +35,8 @@ export function unescapeSpecString(s: string): string {
 	return out;
 }
 
-// The mdurl encode() kept set — commonmark.js normalizes destinations
-// through it, so the differ needs byte-equal output.
+// The mdurl encode() kept set: commonmark.js normalizes destinations through it, so the
+// differ needs byte-equal output.
 const URI_SAFE = buildUriSafeTable(";/?:@&=+$,-_.!~*'()#");
 
 function buildUriSafeTable(kept: string): boolean[] {
@@ -52,9 +51,8 @@ function buildUriSafeTable(kept: string): boolean[] {
 const HEX_PAIR = /^[0-9a-f]{2}$/i;
 
 /**
- * mdurl-style percent-encoding: keeps valid `%XX` sequences, encodes other
- * ASCII outside the kept set with uppercase hex, UTF-8 percent-encodes the
- * rest; a lone surrogate becomes the encoded replacement character.
+ * mdurl-style percent-encoding: keeps valid `%XX`, encodes other ASCII outside the kept set with
+ * uppercase hex, UTF-8 percent-encodes the rest; a lone surrogate becomes the replacement char.
  */
 export function percentEncodeUri(s: string): string {
 	let out = '';

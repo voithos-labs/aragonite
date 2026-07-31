@@ -1,15 +1,9 @@
 /**
- * Bracket stack — inline and reference links/images (CommonMark §6.3), a port
- * of the reference parseOpenBracket/parseBang/parseCloseBracket onto the flat
- * working-node list. A failed `]` leaves its brackets as literal text with
- * any inner nodes standing — except full/collapsed reference forms whose
- * label misses the resolver: those commit to one opaque `unresolvedReference`
- * node over the whole construct (editor deviation; the renderer flags it).
- *
- * `url`/`title` carry the reference AST's spec-processed values for inline
- * forms, and the resolver's values byte-for-byte for reference forms (LRD
- * destinations are stored raw). Offsets stay lossless — serialization never
- * reads these fields.
+ * Bracket stack for inline and reference links/images (CommonMark §6.3), ported onto the flat
+ * working-node list. A failed `]` leaves its brackets literal, except full/collapsed references
+ * that miss the resolver: those commit to one opaque `unresolvedReference` node (editor deviation).
+ * `url`/`title` are spec-processed for inline forms and byte-exact from the resolver for reference
+ * forms; neither is ever serialized, so offsets stay lossless.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -89,7 +83,6 @@ export function handleCloseBracket(ctx: ScanContext): void {
 	});
 }
 
-/** Replace the opener and inner nodes with the matched link/image node. */
 function wrapMatchedBracket(
 	ctx: ScanContext,
 	bracket: Bracket,
@@ -108,8 +101,7 @@ function wrapMatchedBracket(
 	ctx.pos = target.end;
 	ctx.textStart = target.end;
 
-	// §6.3: no links inside links — a matched link deactivates every
-	// enclosing link opener; image openers stay live.
+	// §6.3 no links inside links: a matched link deactivates enclosing link openers, not images.
 	if (!bracket.isImage) {
 		for (const open of ctx.brackets) {
 			if (!open.isImage) open.active = false;
@@ -151,11 +143,10 @@ function buildImage(
 	};
 }
 
-/** Where a matched bracket points — an inline `(…)` tail or a resolved reference. */
 interface LinkTarget {
 	url: string;
 	title?: string;
-	/** Normalized label, reference forms only (renderer and image round-trip read it). */
+	/** Normalized label, reference forms only. */
 	label?: string;
 	/** Offset just past the closing `)` or the reference's final `]`. */
 	end: number;
@@ -164,11 +155,10 @@ interface LinkTarget {
 // ── Reference tail: [label], [], or nothing after the text (§6.3) ───────────
 
 interface ReferenceTail {
-	/** Normalized lookup label. */
 	label: string;
 	/** Offset just past the form's final `]`; the text's `]` + 1 for shortcut. */
 	end: number;
-	/** Lookup miss — full/collapsed forms commit to unresolvedReference. */
+	/** Undefined is a lookup miss: full/collapsed forms commit to unresolvedReference. */
 	resolved: ResolvedReference | undefined;
 }
 
@@ -187,9 +177,8 @@ function parseReferenceTail(
 		return { label: normalizeLinkLabel(rawLabel), end: secondEnd, resolved: resolver(rawLabel) };
 	}
 
-	// Collapsed/shortcut reuse the link text as label; a bracket opened inside
-	// it can never be part of a valid label — skip the lookup outright
-	// (the reference's bracketAfter guard).
+	// Collapsed/shortcut reuse the link text as label, and a bracket opened inside it can never
+	// be part of a valid label, so skip the lookup outright (the reference's bracketAfter guard).
 	if (bracket.bracketAfter) return null;
 	const rawLabel = raw.slice(ctx.nodes[bracket.nodeIndex].end, labelEnd);
 	if (secondEnd !== null) {
@@ -200,11 +189,7 @@ function parseReferenceTail(
 	return { label: normalizeLinkLabel(rawLabel), end: afterText, resolved };
 }
 
-/**
- * Link label at `pos`: `[`, at most 999 content chars with no unescaped
- * brackets (a backslash escapes any char), `]`. Returns the offset just past
- * the closing `]`, or null.
- */
+/** CommonMark §6.3 label: at most 999 content chars, no unescaped brackets. */
 function parseLinkLabel(raw: string, pos: number, end: number): number | null {
 	if (pos >= end || raw[pos] !== '[') return null;
 	let i = pos + 1;
@@ -217,7 +202,6 @@ function parseLinkLabel(raw: string, pos: number, end: number): number | null {
 	return null;
 }
 
-/** Replace the opener, inner nodes, and their delimiters with the opaque node. */
 function emitUnresolvedReference(ctx: ScanContext, bracket: Bracket, ref: ReferenceTail): void {
 	ctx.brackets.pop();
 	ctx.delimiters.length = bracket.delimiterFloor;
@@ -243,8 +227,7 @@ function parseInlineLinkTail(raw: string, pos: number, end: number): LinkTarget 
 	if (dest === null) return null;
 	i = skipSpnl(raw, dest.end, end);
 
-	// A title needs real whitespace after the destination: a quote abutting
-	// it is destination content (the quote-split rule).
+	// A title needs real whitespace after the destination; a quote abutting it is destination content.
 	let title: string | undefined;
 	if (i > dest.end) {
 		const parsed = parseTitle(raw, i, end);
@@ -276,7 +259,6 @@ function parseDestination(
 	return parseBareDestination(raw, pos, end);
 }
 
-/** `<…>` form: no unescaped `<`/`>`/newline inside; a backslash escapes any non-newline char. */
 function parseAngleDestination(
 	raw: string,
 	pos: number,
@@ -300,15 +282,11 @@ function parseAngleDestination(
 	return null;
 }
 
-// The reference's destination terminator set (reWhitespaceChar): other
-// control characters — and U+00A0 — are destination content.
+// The reference's destination terminator set (reWhitespaceChar): other control characters,
+// and U+00A0, are destination content.
 const DESTINATION_TERMINATORS = new Set(' \t\n\u000b\u000c\r');
 
-/**
- * Bare form: balanced unescaped parens with no depth cap, backslash consumes
- * a following escapable char, terminates on ASCII whitespace. Empty is valid
- * only immediately before the closing `)`.
- */
+/** Bare form: balanced parens, no depth cap. Empty is valid only just before the closing `)`. */
 function parseBareDestination(
 	raw: string,
 	pos: number,
@@ -338,7 +316,7 @@ function parseBareDestination(
 	return { url: processDestination(raw.slice(pos, i)), end: i };
 }
 
-/** `"…"`, `'…'`, or `(…)` title; backslash consumes the next char; paren titles cannot nest. */
+/** Paren titles cannot nest. */
 function parseTitle(raw: string, pos: number, end: number): { title: string; end: number } | null {
 	const marker = raw[pos];
 	if (marker !== '"' && marker !== "'" && marker !== '(') return null;

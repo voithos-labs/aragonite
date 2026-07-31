@@ -1,17 +1,9 @@
-/**
- * CommonMark §4.7 link-label normalization plus the document-level
- * resolver built from `linkReferenceDefinition` nodes.
- */
+/** CommonMark §4.7 label normalization plus the resolver built from LRD nodes. */
 
 import type { CstNode } from '../nodes';
 import { metadataOf } from '../nodes';
 
-/**
- * Normalize a link label per CommonMark §4.7:
- * strip leading/trailing whitespace, collapse internal whitespace runs to
- * a single space, lowercase. BMP-only — full Unicode case-fold deferred
- * until reported.
- */
+/** CommonMark §4.7 normalization. BMP-only: full Unicode case-fold is deferred until reported. */
 export function normalizeLinkLabel(raw: string): string {
 	return raw.trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -20,23 +12,17 @@ export type ResolvedReference = Readonly<{ url: string; title?: string }>;
 export type LinkReferenceResolver = (label: string) => ResolvedReference | undefined;
 
 export interface LinkReferenceMap {
-	/** Look up a (non-normalized) label and return the resolved reference, or undefined. */
+	/** Takes a non-normalized label. */
 	resolve: LinkReferenceResolver;
 	/**
-	 * Stable string snapshot of the LRD set (sorted `label<:>url<:>title`
-	 * join). The lazy inline cache validates reference-bearing blocks on it, so an
-	 * LRD change elsewhere re-resolves them. The block render path keys on a compact
-	 * epoch the shell bumps in lockstep (never the whole string — it reaches ~MB
-	 * scale in reference-heavy documents).
+	 * Stable snapshot of the LRD set. The lazy inline cache validates reference-bearing blocks
+	 * on it, so an LRD change elsewhere re-resolves them. The render path keys on a compact
+	 * epoch instead, never this string: it reaches ~MB scale in reference-heavy documents.
 	 */
 	readonly signature: string;
 }
 
-/**
- * Build a label→{url, title} map from every `linkReferenceDefinition` node in the
- * document tree — nested inside any container included. First-wins on duplicate
- * normalized labels (CommonMark §4.7).
- */
+/** Collects LRDs nested inside containers too. First-wins on duplicate labels (§4.7). */
 export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 	const entries = new Map<string, ResolvedReference>();
 	collectLinkReferences(nodes, entries);

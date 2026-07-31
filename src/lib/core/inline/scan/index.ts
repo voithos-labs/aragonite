@@ -1,7 +1,6 @@
 /**
- * scanInline — single-pass inline scanner (the CommonMark reference
- * architecture), exported as `parseInline` from ../index.ts. Contract:
- * InlineNode[] with absolute offsets into raw, total coverage of [start, end).
+ * Single-pass inline scanner (the CommonMark reference architecture), exported as `parseInline`
+ * from ../index.ts. Contract: InlineNode[] with absolute offsets into raw, covering [start, end).
  */
 
 import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
@@ -28,20 +27,14 @@ import {
 	type InlineRung
 } from './plugin-syntax';
 
-// Every character that can start a construct or anchor a lookback: the
-// dispatch cases below plus `@` (GFM email lookback). `!` and `]` are
-// deliberately absent — they only matter in ranges that also contain `[`.
-// A plugin rung can make `!` visible per registration (SCAN_PROBED_RESERVED in
-// plugin-syntax.ts) rather than by joining this set, which would drag every
-// prose `"Hello!"` through the scan loop for a syntax most documents never use.
+// Every character that can start a construct or anchor a lookback: the dispatch cases below
+// plus `@` (GFM email lookback). `!` and `]` are deliberately absent, mattering only in ranges
+// that also contain `[`; a plugin rung makes `!` visible per registration (plugin-syntax.ts).
 const SPECIAL_CHARS = '\\`&\n<[*_~@';
 
-// GFM bare http/www autolinks contain no character from the set above, so
-// their starts get conditional probes instead of unconditional membership:
-// `:` (too common in prose to forfeit the bail) counts only when `//`
-// follows, `w`/`W` only when they complete a `www.` prefix. Each probe adds
-// at most three comparisons at its trigger character; the lookahead may read
-// past `end` and over-trigger, which costs one wasted scan, never a node.
+// GFM bare http/www autolinks contain no character from the set above, so their starts get
+// conditional probes: `:` counts only when `//` follows, `w`/`W` only on a `www.` prefix. The
+// lookahead may read past `end` and over-trigger, which costs one wasted scan, never a node.
 const PROBE_SCHEME = 2;
 const PROBE_WWW = 3;
 
@@ -53,11 +46,8 @@ SPECIAL[0x77] = PROBE_WWW; // w
 
 /** Fast bail for the per-keystroke hot path: plain prose skips the scan loop. */
 function needsScan(raw: string, start: number, end: number): boolean {
-	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them
-	// only when something is registered — the empty registry stays byte-identical.
-	// The registry answers for both rung shapes through one hoisted flag and one
-	// lookup, so an unregistered scan pays exactly the single always-false test per
-	// character it paid before reserved `!` could be registered at all.
+	// Registered plugin triggers are held out of SPECIAL_CHARS, so probe them only when
+	// something is registered; an unregistered scan pays one always-false test per character.
 	const probePlugins = hasScanProbeRungs();
 	for (let i = start; i < end; i++) {
 		const code = raw.charCodeAt(i);
@@ -88,13 +78,9 @@ function needsScan(raw: string, start: number, end: number): boolean {
 	return false;
 }
 
-// Try a trigger's rungs in dispatch order: the first whose prefix matches at
-// `ctx.pos` and whose recognizer claims wins. The claim validation (a node must
-// start at the cursor, advance, and stay inside the range) lives here once — both
-// the pre-switch consultation and the `default` arm route through it. A decline
-// leaves `ctx` untouched, so a fall-through to a built-in case reads byte-identical
-// bytes. The three checks sit on the CLAIM path, past the decline, so a rung that
-// declines pays none of them.
+// Try a trigger's rungs in dispatch order: the first whose prefix matches at `ctx.pos` and whose
+// recognizer claims wins. Claim validation lives here once, on both dispatch paths, and sits past
+// the decline so a declining rung pays none of it and leaves `ctx` byte-identical.
 function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode | null {
 	if (!rungs) return null;
 	const { raw, pos, end } = ctx;
@@ -108,14 +94,10 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 		if (node.end <= pos) {
 			throw new Error(`inline-syntax "${rung.prefix}" did not advance`);
 		}
-		// A block's scan range is not always its raw — a heading's excludes the closing
-		// `#` run, a table cell's the `|` — so a recognizer that searches the STRING
-		// rather than the range claims bytes the block still needs. The overrun left no
-		// trace: the node was appended and `ctx.pos` jumped past `ctx.end`, so the loop
-		// exited as if it had finished, with every later caret offset wrong and no byte
-		// moved. Half-open `[start, end)` — `end` IS the advance, so ending AT the range
-		// end is the ordinary case and only past it is a fault. Top-level only:
-		// descendants sit inside the claimed range by construction.
+		// A block's scan range is not always its raw (a heading's excludes the closing `#` run, a
+		// table cell's the `|`), so a recognizer searching the STRING claims bytes the block still
+		// needs, and the overrun leaves no trace beyond wrong caret offsets. Half-open: ending AT
+		// `end` is ordinary, only past it is a fault.
 		if (node.end > end) {
 			throw new Error(
 				`inline-syntax "${rung.prefix}" claimed [${node.start}, ${node.end}), past the scan ` +
@@ -128,15 +110,10 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 	return null;
 }
 
-// The claim is knowable only here, and a built-in write path needs it: a rung that
-// mints a BUILT-IN kind borrows the editor's model for bytes of its own, and the
-// editor's inverse for that kind emits the built-in grammar — so an image minted
-// over `![[cat.png]]` would resize into GFM and take the author's syntax with it. A
-// rung's own kind needs no stamp and gets none: the editor has no grammar for it,
-// so nothing outside the plugin can ever re-serialize one. Descendants are stamped
-// on the same rule — they sit inside the claimed range, so a built-in child of a
-// plugin node rewrites into the middle of the rung's bytes. Assigned, never merged:
-// a recognizer handing back a stamp of its own does not get to name its claimer.
+// A rung minting a BUILT-IN kind borrows the editor's model for bytes of its own, and the
+// editor's inverse emits built-in grammar, so an image minted over `![[cat.png]]` would resize
+// into GFM and take the author's syntax with it. Descendants stamp on the same rule; a rung's
+// own kind needs no stamp. Assigned, never merged, so a recognizer cannot name its own claimer.
 function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
 	if (isBuiltinInlineKind(node.kind)) node.syntaxClaim = claim;
 	if (node.children) for (const child of node.children) stampClaim(child, claim);
@@ -154,11 +131,9 @@ export function scanInline(
 	}
 
 	const ctx = createScanContext(raw, start, end, resolver);
-	// Reserved-trigger prefix rungs are consulted before the switch so they can
-	// outrank a built-in case — the only order that can work, because a handler
-	// consumes its trigger and advances (`handleBang` eats `![` as one unit), so the
-	// scan never returns to a position the switch has already read. Hoisted so an
-	// empty registry adds no per-char cost.
+	// Reserved-trigger prefix rungs are consulted before the switch so they can outrank a
+	// built-in case: a handler consumes its trigger and advances (`handleBang` eats `![` whole),
+	// so the scan never returns to a position the switch has read. Hoisted for the empty registry.
 	const consultPrefixRungs = hasPrefixRungs();
 	while (ctx.pos < ctx.end) {
 		if (consultPrefixRungs) {

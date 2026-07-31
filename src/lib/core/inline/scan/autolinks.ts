@@ -1,13 +1,8 @@
 /**
- * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) and the GFM §6.9
- * bare/www/email autolink pass over completed text runs.
- *
- * The conformance reference has no autolink extension, so the GFM rules here
- * answer to the GFM spec text where it is explicit — including the blanket
- * leading-boundary rule, which every form here applies and cmark-gfm applies to
- * the `www.` form alone. Where the prose runs out, cmark-gfm settles the corner,
- * since it is what GitHub runs (see `scanEmailDomain`). Its `np > 10` underscore
- * escape is the one exception, called out at `hasValidDomain`.
+ * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) plus the GFM §6.9 bare/www/email pass
+ * over completed text runs. No conformance reference covers the extension: these rules follow
+ * the GFM spec text, then cmark-gfm where its prose runs out (`scanEmailDomain`), with one
+ * deliberate divergence at `hasValidDomain`.
  */
 
 import type { InlineNode } from '../../nodes';
@@ -20,17 +15,12 @@ import { percentEncodeUri } from './url';
 const TRAILING_PUNCT = new Set(['?', '!', '.', ',', ':', '*', '_', '~']);
 
 /**
- * Trim trailing punctuation per GFM §6.9. Returns the adjusted end offset.
- *
- * Conditional ): only when there are more `)` than `(` in [urlStart, end).
- * Conditional ;: a `;` is not trailing punctuation, so it normally stays; but a
- * tail resembling an entity reference (`&` + one or more alphanumerics + `;`) is
- * excluded — the `&` and everything after — then trimming continues (spec ex. 626).
+ * GFM §6.9 trailing-punctuation trim. `)` goes only when unbalanced; `;` normally stays, but an
+ * entity-shaped tail (`&` + alphanumerics + `;`) is excluded with its `&` (spec ex. 626).
  */
 export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: number): number {
-	// Parens are counted once and the balance maintained while trimming — a
-	// recount per trimmed `)` makes paren floods quadratic. Only the `)` branch
-	// removes parens, so decrementing `closes` there keeps the counts exact.
+	// Parens counted once and the balance maintained while trimming: a recount per
+	// trimmed `)` makes paren floods quadratic.
 	let opens = 0;
 	let closes = 0;
 	for (let i = urlStart; i < urlEnd; i++) {
@@ -53,9 +43,6 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 			break;
 		}
 		if (ch === ';') {
-			// An entity-shaped tail (`&` + one-or-more alphanumerics + `;`) is excluded
-			// with the `&`; a `;` that does not resemble an entity is not trailing
-			// punctuation and stays in the url.
 			let j = end - 2;
 			while (j > urlStart && /[A-Za-z0-9]/.test(raw[j])) j--;
 			if (j >= urlStart && raw[j] === '&' && j < end - 2) {
@@ -72,14 +59,9 @@ export function trimTrailingPunctuation(raw: string, urlStart: number, urlEnd: n
 const HOST_CHAR = /[\p{L}\p{N}_.-]/u;
 
 /**
- * Per GFM §6.9 a valid domain carries no underscore in either of its last two
- * dot-separated segments, so `www.xxx._yyy.zzz` stays literal while
- * `www._xxx.yyy.zzz` links. The host ends at the first non-host character, which
- * is what keeps an underscore in a path or query out of the decision.
- *
- * cmark-gfm additionally exempts hosts carrying more than ten dots, an artifact
- * of its two-counter implementation rather than spec text; this module answers to
- * the spec (see the file header), so that escape is deliberately not reproduced.
+ * GFM §6.9: no underscore in either of a domain's last two dot-separated segments, so
+ * `www.xxx._yyy.zzz` stays literal while `www._xxx.yyy.zzz` links. cmark-gfm's extra exemption
+ * for 10+-dot hosts is an implementation artifact, deliberately not reproduced (file header).
  */
 function hasValidDomain(raw: string, domainStart: number, limit: number): boolean {
 	let hostEnd = domainStart;
@@ -95,8 +77,8 @@ function hasValidDomain(raw: string, domainStart: number, limit: number): boolea
 }
 
 /**
- * Per GFM §6.9: a bare autolink is valid only at start-of-region or after
- * whitespace, `*`, `_`, `~`, or `(`.
+ * GFM §6.9: valid only at start-of-region or after whitespace, `*`, `_`, `~`, or `(`. Applied to
+ * every bare form here, per the spec text; cmark-gfm applies it to the `www.` form alone.
  */
 export function isValidLeadingBoundary(raw: string, pos: number, regionStart: number): boolean {
 	if (pos <= regionStart) return true;
@@ -146,11 +128,8 @@ function matchAngleConstruct(raw: string, pos: number, end: number): InlineNode 
 // ── GFM §6.9 pass over completed text runs ──────────────────────────────────
 
 /**
- * Scan every maximal run of adjacent text nodes for bare autolinks. Runs
- * before emphasis pairing so a delimiter absorbed into a URL can never pair;
- * run boundaries (claimed constructs) end URLs. Consumed delimiters are
- * pruned; runs inside already-wrapped link/image children are scanned too —
- * they were spliced out of the top-level list before this pass saw them.
+ * Runs before emphasis pairing so a delimiter absorbed into a URL can never pair; consumed
+ * delimiters are pruned. Children of already-wrapped link/image nodes are scanned too.
  */
 export function scanGfmAutolinks(ctx: ScanContext): void {
 	const matches = spliceBareAutolinks(ctx.raw, ctx.nodes);
@@ -160,12 +139,7 @@ export function scanGfmAutolinks(ctx: ScanContext): void {
 	scanChildren(ctx.raw, ctx.nodes);
 }
 
-/**
- * Whether `[start, end)` overlaps any match. Matches are disjoint and ascending —
- * one left-to-right pass per run, runs walked in order — so the first match ending
- * past `start` is the only candidate. Asking every delimiter about every match is
- * O(delimiters x matches), quadratic on a block that is dense in both.
- */
+/** Matches are disjoint and ascending; the linear alternative is quadratic on a dense block. */
 function meetsAMatch(matches: InlineNode[], start: number, end: number): boolean {
 	let lo = 0;
 	let hi = matches.length;
@@ -178,8 +152,7 @@ function meetsAMatch(matches: InlineNode[], start: number, end: number): boolean
 }
 
 function scanChildren(raw: string, nodes: InlineNode[]): void {
-	// Iterative: nesting depth is input-controlled (images nest without bound),
-	// so a per-level recursion is a call-stack overflow on adversarial input.
+	// Iterative: nesting depth is input-controlled, so per-level recursion overflows the stack.
 	const pending: InlineNode[][] = [nodes];
 	while (pending.length > 0) {
 		for (const node of pending.pop()!) {
@@ -192,13 +165,8 @@ function scanChildren(raw: string, nodes: InlineNode[]): void {
 }
 
 /**
- * Match and splice bare autolinks into `nodes` in place; returns the matches.
- *
- * The replacement is accumulated and written back rather than spliced in per run:
- * spreading a match array as call arguments dies on V8's argument limit past ~65k
- * matches, and that RangeError drops the whole block to the failed-block fallback,
- * which cannot heal — its error boundary resets on a `raw` change the block is no
- * longer editable enough to receive.
+ * The replacement is accumulated and written back rather than spliced per run: spreading a match
+ * array as call arguments hits V8's argument limit past ~65k matches, and the block never heals.
  */
 function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 	const all: InlineNode[] = [];
@@ -230,9 +198,8 @@ function spliceBareAutolinks(raw: string, nodes: InlineNode[]): InlineNode[] {
 }
 
 /**
- * Rebuild one text run around its matches. Untouched text nodes keep their
- * identity — live delimiters reference their run node by object, and only
- * nodes overlapping a match may be re-cut (their delimiters are pruned).
+ * Untouched text nodes keep their identity: live delimiters reference their run node by object,
+ * so only nodes overlapping a match may be re-cut (their delimiters having been pruned).
  */
 function spliceRun(raw: string, runNodes: InlineNode[], matches: InlineNode[]): InlineNode[] {
 	const runEnd = runNodes[runNodes.length - 1].end;
@@ -284,9 +251,8 @@ function scanRunForBareAutolinks(raw: string, start: number, end: number): Inlin
 // ── GFM bare/www/email matchers ─────────────────────────────────────────────
 
 /**
- * Allocation-free case-insensitive ASCII prefix check; `lit` is lowercase.
- * Case folds on letters only — a blind `| 0x20` would let control characters
- * alias punctuation (0x0E | 0x20 is `.`).
+ * `lit` is lowercase. Folds letters only: a blind `| 0x20` would let control characters alias
+ * punctuation (0x0E | 0x20 is `.`).
  */
 function matchesCI(raw: string, pos: number, lit: string): boolean {
 	for (let i = 0; i < lit.length; i++) {
@@ -327,14 +293,12 @@ function matchBareWwwAutolink(
 	while (urlEnd < end && !/\s/.test(raw[urlEnd])) urlEnd++;
 	if (urlEnd <= pos + 4) return null;
 	urlEnd = trimTrailingPunctuation(raw, pos, urlEnd);
-	// `.` is trailing punctuation, so the trim can cross the `www.` prefix itself
-	// and leave a bare `www` — a live link to a host the user never wrote. Every
-	// floor check in this family is at-or-below for that reason.
+	// `.` is trailing punctuation, so the trim can cross the `www.` prefix and leave a bare
+	// `www`, a live link to a host the user never wrote. Hence at-or-below floor checks here.
 	if (urlEnd <= pos + 4) return null;
 	if (!hasValidDomain(raw, pos, urlEnd)) return null;
-	// GFM §6.9: a www autolink has no scheme in its bytes; `http` is inserted
-	// automatically. The node's raw span stays verbatim (start..urlEnd) — only
-	// the derived href gains the scheme, exactly like email prepends `mailto:`.
+	// GFM §6.9: a www autolink carries no scheme in its bytes. The raw span stays verbatim;
+	// only the derived href gains `http://`, exactly as email prepends `mailto:`.
 	return { kind: 'autolink', start: pos, end: urlEnd, url: 'http://' + raw.slice(pos, urlEnd) };
 }
 
@@ -344,13 +308,10 @@ const EMAIL_LABEL_START = /[A-Za-z0-9]/;
 const EMAIL_DOMAIN_END = /[A-Za-z]/;
 
 /**
- * The email domain per GFM §6.9 — "characters which are alphanumeric, or `-` or
- * `_`, separated by periods", at least one period, and no `-` or `_` at the end.
- * Where that prose runs out the rule is cmark-gfm's, since it is what GitHub
- * runs: the last character must be a LETTER, and a `.` separates labels only
- * when an alphanumeric follows it (so `a@b._c` and `a@b.c1` stay literal, while
- * an empty first label in `a@.b` is accepted). Returns the domain's end offset,
- * or -1 when the address is not one.
+ * The email domain per GFM §6.9: alphanumerics/`-`/`_` separated by periods, at least one
+ * period, no `-`/`_` at the end. Past that prose the rule is cmark-gfm's: the last character
+ * must be a LETTER, and a `.` separates labels only when an alphanumeric follows (`a@b._c` and
+ * `a@b.c1` stay literal; `a@.b` is accepted). Returns the domain end, or -1.
  */
 function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): number {
 	let end = domainStart;
@@ -366,8 +327,7 @@ function scanEmailDomain(raw: string, domainStart: number, regionEnd: number): n
 		end++;
 	}
 	if (separators === 0) return -1;
-	// The walk stops before a `.` it did not count, so `end - 1` is a domain
-	// character and a trailing-punctuation trim would have nothing to remove.
+	// The walk stops before any `.` it did not count, so `end - 1` is a domain character.
 	return EMAIL_DOMAIN_END.test(raw[end - 1]) ? end : -1;
 }
 
@@ -377,11 +337,10 @@ function matchBareEmailAutolink(
 	regionStart: number,
 	regionEnd: number
 ): InlineNode | null {
-	// Scan backward for local-part.
 	let localStart = atPos;
 	while (localStart > regionStart && EMAIL_LOCAL.test(raw[localStart - 1])) localStart--;
 	if (localStart === atPos) return null; // empty local-part
-	// Boundary applies at the start of the URL, which for email is the local-part start.
+	// The boundary applies at the URL's start, which for email is the local-part start.
 	if (!isValidLeadingBoundary(raw, localStart, regionStart)) return null;
 
 	const domainEnd = scanEmailDomain(raw, atPos + 1, regionEnd);

@@ -3,9 +3,8 @@ import { joinRaw } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
 
 /**
- * The recognizer-grade fence-open shape, re-exported on `aragonite/plugin` for
- * fence-claiming openers: `info` is the trimmed dispatch string; `indent` and
- * `infoRaw` are the verbatim bytes a byte-exact rebuild needs.
+ * The fence-open shape, re-exported on `aragonite/plugin` for fence-claiming openers:
+ * `info` is the trimmed dispatch string; `indent`/`infoRaw` are the verbatim rebuild bytes.
  */
 export interface FenceOpen {
 	marker: '`' | '~';
@@ -39,27 +38,21 @@ export function matchFenceClose(text: string, marker: '`' | '~', minLength: numb
 }
 
 /**
- * The fence length a block needs to wrap `body` — one past every body line the
- * parser would read as this block's closer, never below `minimum`. The write-side
- * inverse of `matchFenceClose`, and the sibling of `escalatedColonCount` for
- * directives: without it a body line reproducing the terminator closes the block
- * early and everything below it is ejected on reparse.
- *
- * A floor, not a target: it never shortens a fence, so a block whose colliding line
- * goes away keeps the wider run until a reparse reads it as the new floor.
+ * The fence length needed to wrap `body`: one past every body line the parser would read
+ * as this block's closer, never below `minimum`. Without it a body line reproducing the
+ * terminator closes the block early and ejects everything below it on reparse. A floor,
+ * not a target: it never shortens an existing fence.
  */
 export function escalatedFenceLength(body: string, marker: '`' | '~', minimum: number): number {
 	let required = minimum;
 	for (const line of body.split('\n')) {
-		// Splitting on `\n` leaves a CRLF body's `\r` on each segment's tail; a closer
-		// line's text excludes it, so the run test must too.
+		// Splitting on `\n` leaves a CRLF body's `\r` on the tail; a closer line's text excludes it.
 		const text = line.endsWith('\r') ? line.slice(0, -1) : line;
 		if (matchFenceClose(text, marker, required)) required = fenceRunLength(text, marker) + 1;
 	}
 	return required;
 }
 
-/** The marker run at the head of a line, past any indentation. */
 function fenceRunLength(text: string, marker: '`' | '~'): number {
 	let index = 0;
 	while (text[index] === ' ') index++;
