@@ -1,15 +1,8 @@
 /**
- * The image byte-write seam (G4.21). An inline rung may mint a built-in `image`
- * over syntax of its own — `![[cat.png|300]]` — and every read path then treats it
- * as an image, which is the point. The write paths must not: re-emitting that
- * node's fields through the GFM serializer replaces the author's bytes wholesale,
- * which is what shipped until `buildImageEditBytes` became the funnel.
- *
- * The funnel cannot be closed by unexporting the serializer — it is the GFM branch
- * and carries its own unit suite — so the rule is scanned instead: only the seam's
- * own module names it. Three write sites carried the bytes independently (the
- * commit path, the keyboard resize, the popover's dirty check) and all three
- * emitted GFM; a fourth is the shape this fails on.
+ * The image byte-write seam (G4.21). An inline rung may mint a built-in `image` over
+ * syntax of its own, which read paths treat as an image and write paths must not:
+ * re-emitting its fields through the GFM serializer replaces the author's bytes wholesale.
+ * That serializer cannot be unexported, so the rule is scanned instead.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,9 +14,8 @@ const GFM_SERIALIZER = /\bbuildImageSourceBytes\b/;
 const SEAM_CALL = /\bbuildImageEditBytes\b/;
 
 /**
- * Every file naming the seam in code, and why. A new name here is a new image
- * write path — welcome, but it routes through the seam by construction, so add it
- * with its reason rather than inherit the funnel by accident.
+ * Every file naming the seam in code, and why. A new name is a new image write path: add
+ * it with its reason rather than inherit the funnel by accident.
  */
 const SEAM_SITES: Record<string, string> = {
 	[SEAM]: 'the seam itself',
@@ -53,9 +45,8 @@ describe('every image byte write routes through the claim-aware seam', () => {
 		expect(namesInCode(sources, SEAM_CALL)).toEqual(Object.keys(SEAM_SITES).sort());
 	});
 
-	// The popover decides whether to commit by comparing bytes, so it needs the
-	// seam's answer too — but it takes it as a prop rather than importing, which
-	// the file-set check above cannot see.
+	// The popover needs the seam's answer to compare bytes, but takes it as a prop rather
+	// than importing, which the file-set check above cannot see.
 	it('the properties popover compares the bytes a commit would write, not GFM', () => {
 		const popover = sources.find(
 			(f) => f.relPath === 'src/lib/components/image/ImageProperties.svelte'

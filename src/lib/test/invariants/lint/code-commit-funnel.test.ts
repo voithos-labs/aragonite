@@ -1,16 +1,11 @@
 /**
- * G4.24 — the code surface commits its display through one door.
- *
- * A fenced code block's write rule cannot be carried per gesture: the reconciliation
- * that grows the fence past a body line the parser would read as its closer has to
- * run on EVERY display commit, and the two gestures that predated the seam
- * (`codeNewline` splitting a line around a mid-line run, `dedentSelection` moving an
- * indented run to column 0) each split the block by rewriting bytes without adding a
- * character. So `commitDisplay` is the block's only call site for
- * `updateBlockContent`, and this fails the day an eleventh gesture writes around it.
- *
- * Scoped to the one file on purpose: the rule is this surface's, not a repo-wide one.
- * Other blocks commit through their own paths and have no fence to escalate.
+ * G4.24 — the code surface commits its display through one door. A fenced block's write
+ * rule cannot be carried per gesture: the reconciliation that grows the fence past a body
+ * line the parser would read as its closer has to run on EVERY display commit, and two
+ * gestures split the block by rewriting bytes without adding a character. So
+ * `commitDisplay` is the block's only `updateBlockContent` call site, and this fails the
+ * day another gesture writes around it. Scoped to the one file: the rule is this
+ * surface's, and other blocks have no fence to escalate.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

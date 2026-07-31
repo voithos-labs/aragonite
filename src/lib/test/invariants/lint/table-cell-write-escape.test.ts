@@ -1,19 +1,10 @@
 /**
- * The tableCell raw-write seam. A cell's raw is joined verbatim into its row
- * (`schema/container-rebuilders.rebuildTableRowRaw`) and the parser truncates a
- * row that reparses wider than the delimiter's column count, so one unescaped
- * `|` reaching a cell raw silently deletes the last column's content.
- *
- * The rule is the kind's (`normalizeRawWrite`) and runs at the write sink, so no
- * gesture carries it. Cut, Mod+B and Shift+Enter each carried an escape at the
- * call site and each lost it; a fourth carrier was then added above the sink and
- * a bare write past all three still corrupted the row. These pin the seam
- * instead of a directory: the kind declares, the sink applies, and the one write
- * that cannot reach the sink is named here rather than left to be rediscovered.
- *
- * The door rule below is the caret half, which no seam can absorb: the offset a
- * caller reports addresses the text it wrote, and the sink's inserted backslashes
- * move it, so cell writes must name the mapping wrapper.
+ * The tableCell raw-write seam. A cell's raw is joined verbatim into its row and the
+ * parser truncates a row that reparses wider than the delimiter's column count, so one
+ * unescaped `|` silently deletes the last column's content. The rule belongs to the kind
+ * and runs at the write sink, because three gestures each carried it at their call site
+ * and each lost it. The door rule below is the caret half no seam can absorb — the
+ * sink's inserted backslashes move the offset a caller reports.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -24,11 +15,8 @@ const SINK = 'src/lib/tree-operations/node-ops.ts';
 const CELL = 'src/lib/components/blocks/table/TableCellBlock.svelte';
 
 /**
- * Every file naming the capability in code, and why. `updateNodeContent` is the
- * sink every gesture's text funnels through; find/replace is the one write that
- * cannot use it (it substitutes into a private clone and reparses), so it applies
- * the kind's rule itself. A new name here is a new write path that skipped the
- * sink — decide explicitly rather than inherit an escape by accident.
+ * Every file naming the capability in code, and why. A new name here is a new write path
+ * that skipped the sink — decide explicitly rather than inherit an escape by accident.
  */
 const CAPABILITY_SITES: Record<string, string> = {
 	'src/lib/schema/block-kind-descriptor.ts': 'the field declaration',
@@ -46,8 +34,8 @@ const RULE_READERS: Record<string, string> = {
 };
 
 const CAPABILITY = /\bnormalizeRawWrite\b/;
-// `?.` included: an optional-chained bundle write is the same write, and the
-// receiver-name rule below is the only thing standing between it and a bare raw.
+// `?.` included: an optional-chained bundle write is the same write, and only the
+// receiver-name rule below stands between it and a bare raw.
 const WRITE_CALL = /\b(\w+)\??\.updateBlockContent\s*\(/g;
 const CONTEXT_BIND =
 	/\b(?:const|let)\s+(\w+)\s*(?::[^=]+)?=\s*getContext<[^>]*>\(\s*BLOCK_EDIT_KEY/g;
@@ -103,8 +91,8 @@ describe('every cell content write routes through the caret-mapping wrapper', ()
 		expect(raw).toEqual(['parentBlockEdit']);
 	});
 
-	// Repo-wide, not table-only: the receiver name is the rule, and a content write
-	// grabbing an unwrapped bundle is the shape that lost the escape three times.
+	// Repo-wide, not table-only: a content write grabbing an unwrapped bundle is the shape
+	// that lost the escape three times.
 	it('no content write anywhere names anything but the wrapper or that one raw write', () => {
 		const offenders = sources.flatMap((f) =>
 			receivers(f.code)

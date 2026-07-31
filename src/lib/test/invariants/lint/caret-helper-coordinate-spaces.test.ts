@@ -1,16 +1,9 @@
 /**
- * The two e2e caret helpers address DIFFERENT coordinate spaces and must stay
- * that way (or be unified deliberately, not by accident):
- *
- *   - `placeCaretInBlock(index, number)` counts ALL text nodes, `.md-marker`
- *     ambient spans included — a DOM-textContent offset.
- *   - `focusBlockAtPath(path, offset)` filters `.md-marker` — a raw-semantic
- *     offset, matching `pointForOffset` and the block components' own offsets.
- *
- * 45 numeric `focusBlock(index, offset)` call sites depend on the marker-counting
- * space today, so unifying is deferred (churn > payoff). This guard fails the day
- * someone flips one helper's space without the other — forcing the divergence to
- * be re-decided, not silently broken. Deferral tracked in the T2-F8 sweep.
+ * The two e2e caret helpers address DIFFERENT coordinate spaces: `placeCaretInBlock`
+ * counts ALL text nodes including `.md-marker` ambient spans, `focusBlockAtPath` filters
+ * them for a raw-semantic offset. Dozens of numeric call sites depend on the
+ * marker-counting one, so unification is deferred (T2-F8 sweep) and this fails the day
+ * one helper's space flips without the other.
  */
 
 import { describe, it, expect } from 'vitest';

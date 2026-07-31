@@ -13,19 +13,16 @@ import {
 } from '$lib/testing/container-conformance';
 import { CONTAINER_PROFILES } from './builtin-container-profiles';
 
-// Registry-derived: every kind whose descriptor declares it a container. Built-ins
-// only — a plugin container is not in this process's registry unless its suite
-// installed it, so it opts into the same kit explicitly through
-// `runContainerConformance` (`aragonite/testing`); see
-// `test/plugins/container-conformance-plugin.test.ts`.
+// Built-ins only: a plugin container is absent from this process's registry unless its own
+// suite installed it, and opts into the same kit through `runContainerConformance` (see
+// `test/plugins/container-conformance-plugin.test.ts`).
 const registeredContainerKinds = getAllRegisteredKinds()
 	.filter(isBuiltinBlockKind)
 	.filter((k) => getBlockKindDescriptor(k).isContainer);
 
 // ── Completeness: the auto-coverage mechanism ───────────────────────────────────
-// A registered built-in container with no profile FAILS here, so a new built-in
-// container kind can't slip through untested; a stale profile (no matching
-// registered kind) also fails, so the map can't silently drift from the registry.
+// Both directions fail: an unprofiled container kind slips through untested, and a stale
+// profile means the map drifted from the registry.
 
 describe('G4.3 container conformance — registry coverage', () => {
 	it('every registered container kind has a conformance profile', () => {
@@ -46,8 +43,8 @@ describe('G4.3 container conformance — registry coverage', () => {
 });
 
 // ── Parametrized per-kind kit ───────────────────────────────────────────────────
-// Coverage matrix (assert / exempt / boundary) lives in CONTAINER_PROFILES. One
-// case per invariant, so a failure names the invariant that broke.
+// Coverage matrix (assert / exempt / boundary) lives in CONTAINER_PROFILES. One case per
+// invariant, so a failure names the invariant that broke.
 
 describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) => {
 	const profile = CONTAINER_PROFILES[kind]!;
@@ -91,8 +88,7 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 		await checkFocusBubbleTermination(kind, profile);
 	});
 
-	// Applies to every container kind — conditional internally on what the
-	// descriptor declares, so no coverage cell.
+	// Conditional internally on what the descriptor declares, so it has no coverage cell.
 	it('(e) declaration sanity (unwrapRole / containerPaste / rebuildRaw)', () => {
 		checkDeclarationSanity(kind, profile);
 	});

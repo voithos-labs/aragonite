@@ -165,16 +165,13 @@ describe('containerContract — strip / grid / opaque container-shape union', ()
 	});
 });
 
-// blockFocus is a leaf-level, additive descriptor field: it must survive
-// normalization untouched (it is NOT container-only, so stripContainerOnlyKeys
-// keeps it) whether the kind registers as a leaf or with a container group — the
-// mermaid case, an opaque container that also opts into whole-block focus.
+// blockFocus is not container-only, so stripContainerOnlyKeys must keep it whether the
+// kind registers as a leaf or with a container group — the mermaid case.
 describe('blockFocus — whole-block-focus opt-in', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
 
-	// thematicBreak is the one built-in on the model — an opaque, childless rule that
-	// is its own focus target. Pinned as an exact set, so a kind gaining or losing the
-	// declaration has to be a deliberate edit here rather than a silent widening.
+	// Pinned as an exact set, so a kind gaining or losing the declaration has to be a
+	// deliberate edit here rather than a silent widening.
 	it('thematicBreak is the only built-in kind declaring blockFocus', () => {
 		const declaring = ALL_BLOCK_KINDS.filter(
 			(kind) => getBlockKindDescriptor(kind).blockFocus !== undefined

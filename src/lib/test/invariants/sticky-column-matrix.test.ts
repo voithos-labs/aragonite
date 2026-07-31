@@ -6,12 +6,8 @@ import { classifyStickyKey, PRESERVE_KEYS_NON_ARROW } from '$lib/cursor/sticky-c
 import { eventToChord } from '$lib/schema/keybindings';
 import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
 
-// G2.10 sticky-column matrix. The idempotent-capture and non-finite guards live
-// on the state object itself and are covered in cursor/sticky-column.test.ts;
-// here we pin the two faces the plan calls out that those tests don't reach:
-// (1) the key→action decision every keydown path enacts through noteKey
-// (classifyStickyKey), and (2) the structural reset policy — commit ceremony
-// resets sticky on every structural op.
+// G2.10 sticky-column matrix: the key→action decision every keydown path enacts, and the
+// structural reset policy. The state object's own guards live in cursor/sticky-column.test.ts.
 
 // ── Decision matrix (classifyStickyKey) ──────────────────────────────────────
 
@@ -32,10 +28,8 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 		}
 	});
 
-	// The keydown flow carried two hand-written bare-modifier lists that disagreed:
-	// the chord parser's (which decides "this keystroke is not a chord yet") had
-	// AltGraph and CapsLock, the sticky list did not — so an AltGraph press
-	// mid-`ArrowDown`-run, or a CapsLock tap, silently dropped the column.
+	// Two hand-written bare-modifier lists that disagree silently drop the column mid-run:
+	// a key the chord parser ignores but the sticky list does not know about.
 	it('every bare modifier the chord parser ignores also preserves', () => {
 		const press = (key: string) =>
 			({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false }) as KeyboardEvent;
@@ -51,8 +45,7 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 		}
 	});
 
-	// Mutation guard: the three branches must be mutually exclusive and total —
-	// no key falls through to a different bucket than intended.
+	// Mutation guard: the three branches must be mutually exclusive and total.
 	it('partitions keys: capture ∩ preserve ∩ reset are disjoint', () => {
 		const arrows = ['ArrowUp', 'ArrowDown'];
 		for (const key of arrows) expect(classifyStickyKey(key)).toBe('capture');
@@ -66,16 +59,14 @@ describe('G2.10 classifyStickyKey decision matrix', () => {
 
 // ── Structural reset policy ──────────────────────────────────────────────────
 
-// A structural commit must drop the sticky column: the document shape changed,
-// so a column captured against the old layout is stale. The commit primitive
-// resets unconditionally; assert real ops honor it via the spied state.
+// A column captured against the old layout is stale once the shape changes, so real ops
+// are asserted to honor the commit primitive's unconditional reset.
 
 describe('G2.10 structural reset policy', () => {
 	async function exercise(run: (actions: BlockEditActions) => void | Promise<void>): Promise<Mock> {
 		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'hello world\n')]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
-		// makeStickyColumn() in the harness backs reset/capture with vi.fn().
 		const reset = deps.stickyColumn.reset as Mock;
 		reset.mockClear();
 		await run(actions);

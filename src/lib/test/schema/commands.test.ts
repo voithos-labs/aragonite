@@ -67,7 +67,6 @@ describe('resolveBinding order', () => {
 		} finally {
 			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}
-		// fencedCode doesn't bind Mod+Z → falls through to the global table
 		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
 	});
 });
@@ -84,9 +83,8 @@ describe('resolveKindBinding (no global fallthrough)', () => {
 });
 
 describe('fencedCode keymap', () => {
-	// CodeBlock's transformative keydown branches each map to a code-specific
-	// command; Backspace/Delete are fence-exit / pair-delete, not block merges,
-	// so they get their own ids rather than reusing block.mergePrev/mergeNext.
+	// Backspace/Delete here are fence-exit / pair-delete, not block merges, so they get
+	// their own ids rather than reusing block.mergePrev/mergeNext.
 	const FENCED_CODE_BINDINGS = [
 		['Enter', 'code.newline'],
 		['Tab', 'code.indent'],
@@ -108,10 +106,9 @@ describe('fencedCode keymap', () => {
 });
 
 describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
-	// The cell is the surface that holds the caret, so every table chord binds on THIS
-	// kind; an override scoped to `table` would resolve against a block that never
-	// receives a keystroke. Behavior is pinned in blocks/table/cell-table-chords.test.ts —
-	// this is the resolution the consumer guide's Tables family is checked against.
+	// The cell holds the caret, so every table chord binds on THIS kind — a `table`-scoped
+	// override resolves against a block that never sees a keystroke. Behavior is pinned in
+	// blocks/table/cell-table-chords.test.ts.
 	const TABLE_CELL_BINDINGS = [
 		['Mod+Enter', 'table.insertRowBelow'],
 		['Mod+Shift+Enter', 'table.insertRowAbove'],
@@ -154,8 +151,7 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 });
 
 describe('thematicBreak keymap — keyboard reorder', () => {
-	// The hr renders a drag handle whose tooltip promises Alt+↑/↓; those chords
-	// must resolve to the block-move commands. Plain arrows stay unbound so the
+	// The hr's drag handle tooltip promises Alt+↑/↓. Plain arrows stay unbound so the
 	// component's own focus-navigation handles them.
 	it('binds Alt+↑/↓ to block move and leaves plain arrows unbound', () => {
 		expect(resolveBinding('Alt+ArrowUp', 'thematicBreak')?.command).toBe('block.moveUp');
@@ -185,9 +181,8 @@ describe('tableCell keymap', () => {
 });
 
 describe('text-editable keymap breadth', () => {
-	// The same transformative chords must resolve for prose AND the raw-editable
-	// fallback kinds — TextEditableBlock renders both, and its keydown applied
-	// these uniformly before the command-registry migration.
+	// TextEditableBlock renders prose AND the raw-editable fallback kinds, so the same
+	// transformative chords must resolve for both.
 	const TEXT_EDITABLE_KINDS = [
 		'paragraph',
 		'heading',

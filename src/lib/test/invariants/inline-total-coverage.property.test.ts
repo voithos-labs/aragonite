@@ -20,13 +20,12 @@ import {
 	assertConstructCoverage
 } from '../core/inline/scan/scan-test-helpers';
 
-// G2.11: the scanner's editor-facing contract, which no conformance diff can
-// judge — commonmark carries no offsets. Every byte of [start, end) lands in
-// exactly one top-level node range, construct children tile their parent minus
-// its markers, and every kind is in the InlineNodeKind vocabulary.
+// G2.11: every byte of [start, end) lands in exactly one top-level node range, construct
+// children tile their parent minus its markers, and every kind is in the vocabulary. No
+// conformance diff can judge this — commonmark carries no offsets.
 
-// `satisfies` keeps this runtime mirror exhaustive both ways: a union change
-// without a matching edit here is a type error.
+// `satisfies` keeps this runtime mirror exhaustive: a union change without a matching
+// edit here is a type error.
 const KIND_VOCABULARY = {
 	text: true,
 	emphasis: true,
@@ -46,11 +45,9 @@ const KIND_VOCABULARY = {
 const KNOWN_KINDS: ReadonlySet<string> = new Set(Object.keys(KIND_VOCABULARY));
 
 /**
- * The VOCABULARY half: every kind is a built-in, or one an installed plugin
- * declared. Kept separate from the contract half because the built-in union is
- * not the whole vocabulary — a registered rung emits its own declared kind, and
- * asserting the union alone made this property throw on the vocabulary check
- * before it could test tiling, which is why no rung was ever under it.
+ * The VOCABULARY half: every kind is a built-in, or one an installed plugin declared.
+ * Split from the contract half because a registered rung emits its own declared kind, so
+ * asserting the union alone throws on vocabulary before it can test tiling.
  */
 function assertKindVocabulary(nodes: InlineNode[]): void {
 	for (const node of nodes) {
@@ -71,8 +68,8 @@ function assertScanContract(raw: string, start: number, end: number): void {
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
-// The rungs-installed lane registers into process-global registries; reset after
-// every case so the bare-grammar lanes in this file (and this worker) stay bare.
+// The rungs-installed lane registers into process-global registries, so the bare-grammar
+// lanes in this worker need the reset to stay bare.
 afterEach(() => resetPluginPlatformForTests());
 
 describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', () => {
@@ -96,9 +93,8 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	});
 
 	it('holds with the bundled inline rungs installed', () => {
-		// The lane the vocabulary split exists for. Registries are register-once, so
-		// the rungs are installed ONCE for the whole property rather than per case;
-		// the scan reads no state the cases mutate, so one install serves them all.
+		// Registries are register-once, so the rungs install ONCE for the whole property;
+		// the scan reads no state the cases mutate.
 		resetPluginPlatformForTests();
 		// The scan never renders, so a no-op renderer satisfies latex's required option.
 		installPlugins([
@@ -106,8 +102,8 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 			emojiPlugin(),
 			latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) })
 		]);
-		// Proves the install took: without it a failed setup would leave the bare
-		// grammar running and the lane would pass for the wrong reason.
+		// Without this a failed setup leaves the bare grammar running and the lane passes
+		// for the wrong reason.
 		for (const kind of [FOOTNOTE_REF_KIND, EMOJI_KIND, MATH_INLINE]) {
 			expect(isInlineKindDeclared(kind), `rung not installed: ${kind}`).toBe(true);
 		}
@@ -120,10 +116,8 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 		);
 	});
 
-	// The size tier. The tiling contract is asserted per node, so a boundary error
-	// that only appears past some index — a quadratic decline's bail-out, an offset
-	// that overflows a scan window — needs an input orders of magnitude past the
-	// standard lane's few hundred bytes to reach it at all.
+	// The size tier: a boundary error appearing only past some index (a quadratic decline's
+	// bail-out, an offset overflowing a scan window) is unreachable at a few hundred bytes.
 	it('holds over ~60KB single-line inputs', () => {
 		fc.assert(
 			fc.property(arbLargeDoc, (doc) => {
@@ -135,8 +129,8 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 	}, 60_000);
 
 	it('holds over the seeded conformance corpus', () => {
-		// Spec examples included because generated corpora statistically miss
-		// image-construct tiling (nested labels, dimension suffixes).
+		// Generated corpora statistically miss image-construct tiling (nested labels,
+		// dimension suffixes), so the spec examples are drawn in too.
 		const inputs = [
 			...loadSpecExamples().map((example) => example.markdown.replace(/\n$/, '')),
 			...enumerateCorpus(3),

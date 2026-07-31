@@ -1,12 +1,9 @@
 /**
- * Sibling-path parity: BlockHost dispatches a block to one of TWO component
- * branches (the registered component, or the raw-editable fallback), and the
- * instance-delivered props read from editor context — `document` and `rects` —
- * must ride BOTH. A prop threaded on one branch but not the other is invisible to
- * any block that happens to render through the missing branch (a raw fallback, a
- * container's nested child), the exact hole the toc dogfood's nested e2e guards
- * for `document`. This scans the source so a NEW context-delivered prop, or a
- * dropped one, fails the day it lands rather than at the next audit.
+ * Sibling-path parity: BlockHost dispatches a block to one of TWO component branches, and
+ * the instance-delivered props read from editor context must ride BOTH. A prop threaded
+ * on one branch only is invisible to any block rendering through the other — a raw
+ * fallback, a container's nested child. This scans the source so a NEW context-delivered
+ * prop, or a dropped one, fails the day it lands.
  */
 
 import { describe, it, expect } from 'vitest';

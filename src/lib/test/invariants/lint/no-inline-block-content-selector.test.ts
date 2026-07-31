@@ -1,18 +1,8 @@
 /**
- * A block's content element is addressed by the first-non-overlay-child selector,
- * a parity rule that predates decoration badges: an inline `:scope >
- * :not(.selection-overlay)` in a spec silently breaks on a badge-bearing block
- * because it never excludes `.decoration-badge`. The one definition lives in
- * `components/block-content-selector.ts` (`BLOCK_CONTENT_SELECTOR`), re-exported
- * from the e2e page-object; specs must route their in-`evaluate` block lookups
- * through it, or the page-object helpers (`focusBlockAtPath`, `getBlock`).
- *
- * This guard fails the day a spec inlines the `:not(.selection-overlay)` exclusion
- * again, instead of at the next audit. Bare `.selection-overlay` references
- * (overlay-presence and geometry assertions) are legitimate and not matched.
- *
- * Scope is `src/lib/e2e/tests/**` only — the constant's home and the page-object
- * (which OWN the selector) live outside it and are not scanned.
+ * A block's content element is addressed through `components/block-content-selector.ts`.
+ * An inline `:not(.selection-overlay)` in a spec silently breaks on a badge-bearing
+ * block, never having excluded `.decoration-badge`. Bare `.selection-overlay` reads stay
+ * legitimate; scope is the e2e specs, since the constant's home OWNS the selector.
  */
 
 import { describe, it, expect } from 'vitest';

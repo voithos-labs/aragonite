@@ -72,9 +72,8 @@ describe('registerBlockKind normalizes the container group', () => {
 		expect(tryGetBlockKindDescriptor(kind)?.isContainer).toBe(false);
 	});
 
-	// A flat descriptor is structurally assignable to the registration types —
-	// excess-property checks bite only fresh literals — so the widened calls
-	// below COMPILE with no cast; the runtime strip is the defense these pin.
+	// Excess-property checks bite only fresh literals, so the widened calls below compile
+	// with no cast — the runtime strip is the only defense left to pin.
 	it('a widened flat descriptor cannot smuggle container-only fields past the group', () => {
 		const kind = declarePluginKind('norm-widened');
 		registerBlockKind(kind, getBlockKindDescriptor('blockquote'));
@@ -130,10 +129,8 @@ describe('augment merges a partial container group', () => {
 		expect(tryGetBlockKindDescriptor(kind)?.rebuildRaw).toBe(rebuildRaw);
 	});
 
-	// The merge reads the group generically, so this one field stands for all of
-	// them. A hand-kept field list silently swallowed whichever group field it had
-	// not caught up with — the augment succeeded and the descriptor kept the old
-	// value, with nothing to catch it.
+	// The merge must read the group generically: a hand-kept field list silently swallows
+	// whichever group field it has not caught up with, and the augment still "succeeds".
 	it('carries a group field the merge was never written to name', () => {
 		const { kind } = registerContainer('aug-every-field');
 		const bodyWrite = { normalize: (raw: string) => raw, mapOffset: (_r: string, o: number) => o };

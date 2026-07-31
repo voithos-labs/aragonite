@@ -1,50 +1,11 @@
 /**
- * G4.20 — trailing-line-ending reconstruction parity across keystroke-commit
- * sites (`docs/contributing/culture.md` § The bug shape to fear). A keystroke-commit
- * site reads a block's edited text back — from the DOM, or from a
- * `trimTrailingLineEnding(node.raw)` view of it — stripping the block's trailing
- * line ending in the process, then commits the result via `updateBlockContent`. It
- * must reconstruct that ending as `trailingLineEnding(<node>.raw)`, never a bare
- * newline string literal: a literal downgrades a CRLF block's trailing bytes to LF
- * and breaks `serialize(parse(source)) === source`.
- *
- * Why a lint and not a seam: a normalize inside `updateBlockContent` would be wrong.
- * A block at EOF may legitimately lack a trailing newline, and structural/paste
- * callers pass already-raw-shaped text that must not be rewritten — so reconstructing
- * the ending is deliberately a call-site responsibility, and the parity rule is the
- * correct rung.
- *
- * Five arms, because a site can drop the ending five ways:
- *  - Wrong reconstruction — a content argument appends a string-literal newline
- *    instead of `trailingLineEnding(...)`. Caught structurally at the call site.
- *    The scan reads the content argument's TAIL only, so a newline hoisted into a
- *    variable first (`const c = x + '\n'; updateBlockContent(i, c)`) slips past
- *    this arm — Arm 2 still covers any such hoist inside a `commitInput` funnel.
- *    Mid-content newline literals (e.g. electric-indent splicing a new inner line)
- *    are out of scope by design: only the reconstructed trailing ending is at issue.
- *  - Missing reconstruction — a new editable surface whose `commitInput` funnel omits
- *    the append entirely. Caught by requiring every `commitInput` that reaches
- *    `updateBlockContent` to carry `trailingLineEnding(`; a GFM table cell holds no
- *    raw newline, so it is the one allowlisted funnel that appends nothing.
- *  - Authored reconstruction — a container `rebuildRaw` re-emits bytes no keystroke
- *    touched, so every ending it writes must come from the source it is re-emitting.
- *    Any newline literal in such a body is a violation unless it is a `split`/`join`
- *    separator or the right operand of `??`/`||` (an authored-ending default).
- *  - A private copy of the seam. `trailingLineEnding`'s body was written out longhand
- *    at twelve sites, and that inline idiom — not the seam — is what the next
- *    contributor copied; four confirmed CRLF downgrades were imperfect copies of it.
- *    The expression belongs to `core/lines.ts` alone, so copy #13 has no local model.
- *  - Outside a funnel entirely. The first two arms watch `updateBlockContent` and
- *    `commitInput`; a rebuilder, a list terminator and a range-delete branch all
- *    write `node.raw` directly and were outside both. The domain arm is the rule
- *    stated over its real subject: any write to a node's bytes.
- *
- * These arms see literal shapes only. A breach that drops the ending in a blank-line
- * comparison, in a default parameter below the branch, or inside a pure raw transform
- * the keymap calls has no shape to match — `invariants/crlf-edit-mirror.test.ts` is
- * the outcome-level oracle that covers those, and gesture N+1, by construction.
- *
- * The scan excludes `test/`, so this file's own synthetic examples aren't inspected.
+ * G4.20 — trailing-line-ending reconstruction parity across keystroke-commit sites
+ * (`docs/contributing/culture.md` § The bug shape to fear): a site that reads a block's
+ * text back rebuilds the ending as `trailingLineEnding(<node>.raw)`, never a literal
+ * newline, which downgrades a CRLF block and breaks round-trip. Reconstruction stays a
+ * call-site duty because a block at EOF may legitimately lack an ending. Five arms, all
+ * matching literal shapes — `invariants/crlf-edit-mirror.test.ts` is the outcome oracle
+ * for the rest. The scan excludes `test/`, so this file's own examples aren't inspected.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -179,11 +140,9 @@ const HAS_TRAILING_APPEND = /\btrailingLineEnding\s*\(/;
 /** A newline escape inside a source string literal — the two characters `\` `n`. */
 const LITERAL_NEWLINE = /\\n/;
 /**
- * The literal reaches the emitted bytes: concatenated, or assigned straight to
- * `raw`. A newline literal a rebuilder only READS — a `split`/`join` separator, an
- * `endsWith` probe, the right operand of `??` (an authored-ending default) — never
- * lands in the output and is left alone. Hoisting the literal into a variable first
- * slips past, as in Arm 1; the CRLF-mirror oracle is what covers the hoist.
+ * The literal reaches the emitted bytes rather than only being READ (a `split` separator,
+ * an `endsWith` probe, an `??` default). A literal hoisted into a variable first slips
+ * past, as in Arm 1; the CRLF-mirror oracle covers the hoist.
  */
 const EMITTED_BEFORE = /(?:\+|\braw\s*\+?=)\s*$/;
 const EMITTED_AFTER = /^\s*\+/;
@@ -224,22 +183,13 @@ const TERNARY_RULE =
 
 // ── Arm 5 support: the rule's domain ─────────────────────────────────────────
 
-/**
- * How far past the `=` a statement may run before the scan gives up. A real
- * assignment is far shorter; the bound just stops a missing semicolon from
- * swallowing the rest of the file.
- */
+/** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
 const MAX_STATEMENT_SPAN = 600;
 
 /**
- * Every `<expr>.raw = …;` / `.raw += …;` statement, as the text through its `;`.
- *
- * The terminator is the semicolon, NOT a newline: Prettier breaks a long
- * right-hand side onto its own line, so stopping at the first newline truncates
- * the statement to `.raw =` and the classifier sees no literal at all — the
- * violation shape most likely to be formatted that way is exactly the long
- * concatenation this arm exists to catch. A blank line is the backstop, since no
- * assignment spans one.
+ * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and NOT
+ * at a newline: Prettier wraps exactly the long concatenations this arm exists to catch,
+ * and stopping at the first newline truncates them to `.raw =` with no literal in sight.
  */
 function rawAssignments(sources: SourceFile[]): Array<{ relPath: string; statement: string }> {
 	const out: Array<{ relPath: string; statement: string }> = [];
@@ -276,10 +226,8 @@ function rawAssignments(sources: SourceFile[]): Array<{ relPath: string; stateme
 }
 
 /**
- * Writes that mint a newline literal into a node's bytes, with why each is
- * legitimate and how many the file holds. The count is part of the entry so an
- * allowlisted file can't grow write N+1 for a new reason unnoticed — the
- * file-granular allowlist is the shape that let sibling-parity bugs through.
+ * Writes that legitimately mint a newline literal into a node's bytes. The count is part
+ * of the entry because a file-granular allowlist lets write N+1 in unnoticed.
  */
 const RAW_LITERAL_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	'src/lib/selection/range-delete-ceremony.ts': {
@@ -449,7 +397,7 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		expect(RECONSTRUCTS_COMPLIANT.test(good)).toBe(true);
 		expect(RECONSTRUCTS_LITERAL.test(good)).toBe(false);
 
-		expect(RECONSTRUCTS_LITERAL.test("x + '\\r\\n'")).toBe(true); // CRLF literal also caught
+		expect(RECONSTRUCTS_LITERAL.test("x + '\\r\\n'")).toBe(true);
 	});
 
 	it('leaves a raw pass-through commit out of both arms', () => {

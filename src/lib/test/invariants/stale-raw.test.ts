@@ -17,9 +17,8 @@ function emptyParagraph(): CstNode {
 
 describe('checkStaleRaw (G1.1)', () => {
 	// ── Valid documents must not fire ──────────────────────────────────────────
-	// These pin the regression: `rebuildRaw` canonicalizes (re-derives `> `,
-	// strips indentation), so byte-comparing a rebuild false-fired on faithful,
-	// freshly-parsed nodes. The strip(raw)-vs-serialize(children) check tolerates them.
+	// `rebuildRaw` canonicalizes, so byte-comparing against a rebuild false-fires on
+	// faithful freshly-parsed nodes; the strip-vs-serialize check tolerates them.
 
 	it('passes for blockquote with no space after marker (>foo)', () => {
 		expect(checkStaleRaw(firstBlock('>foo\n'))).toBeNull();
@@ -47,9 +46,8 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(checkStaleRaw(firstBlock('- a\n- b\n').children![0])).toBeNull();
 	});
 
-	// An empty editable list item holds an empty-paragraph placeholder (so it has
-	// a focusable leaf); the parser emits a childless item for the same `- \n`.
-	// Both satisfy the byte invariant, so neither form may fire.
+	// The editor's empty item holds a placeholder leaf where the parser emits a childless
+	// item; both satisfy the byte invariant, so neither form may fire.
 	it('passes for an empty list item holding an empty-paragraph placeholder', () => {
 		const listTemplate = firstBlock('- a\n');
 		const emptyItem = buildListItemWithContent(listTemplate.children![0], [emptyParagraph()]);
@@ -61,9 +59,8 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(checkStaleRaw(list)).toBeNull();
 	});
 
-	// A blockquote ending in a blank quoted line: the parser keeps the blank in
-	// `innerSuffix`, the editor materializes it as a trailing empty paragraph.
-	// Byte-faithful, so it must not fire (the multi-seed simulation's case).
+	// The parser keeps a trailing blank quote line in `innerSuffix` where the editor
+	// materializes it as an empty paragraph. Byte-faithful either way.
 	it('passes for a blockquote with a trailing empty-paragraph placeholder', () => {
 		const bq = firstBlock('> hi\n>\n');
 		expect(bq.kind).toBe('blockquote');
@@ -95,8 +92,8 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(checkStaleRaw(list)).not.toBeNull();
 	});
 
-	// The empty-placeholder tolerance is sole-child only — these guard it from
-	// swallowing real drift.
+	// The empty-placeholder tolerance is sole-child only; these guard it from swallowing
+	// real drift.
 
 	it('fires when raw carries content but the sole child is an empty placeholder', () => {
 		const item = buildListItemWithContent(firstBlock('- a\n').children![0], [emptyParagraph()]);

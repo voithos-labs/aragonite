@@ -1,15 +1,9 @@
 /**
- * Sibling-path parity: every container that composes a nested-actions bundle must
- * thread the instance grammar, so a disabled kind's opener stays skipped when the
- * container reparses child content. The
- * rule lives at the choke point every container passes through —
- * `createStandardNestedActions` — so a NEW container that forgets `grammar` fails
- * the day it is born, not at the next audit.
- *
- * Exempt: the declaration itself, and the published container-conformance kit
- * (`testing/container-conformance.ts`), which exercises LOCAL-INDEX ADDRESSING via
- * deleteBlock — it never reparses content, so grammar is irrelevant there and it
- * carries no editor registry view to source one from.
+ * Sibling-path parity: every container composing a nested-actions bundle must thread the
+ * instance grammar, so a disabled kind's opener stays skipped when the container reparses
+ * child content. The rule sits at the choke point every container passes through, so a
+ * NEW container that forgets `grammar` fails the day it is born. Exempt: the declaration,
+ * and the published container-conformance kit, which never reparses content.
  */
 
 import { describe, it, expect } from 'vitest';

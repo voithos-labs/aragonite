@@ -4,14 +4,9 @@
  * LF-authored and once mirrored to CRLF, and the CRLF result must be the LF result
  * mirrored. Any other byte difference is the bug.
  *
- * Why this and not another source-scan arm: the lint arms see literal shapes
- * (`+ '\n'` at a commit, a newline literal in a rebuilder). Three of the four
- * G4.20 breaches this oracle was minted for had no such shape — one dropped the
- * ending in a blank-line comparison (`line === ''` never matches `'\r'`), one in a
- * default parameter three calls below the branch, one inside a pure raw transform
- * the keymap calls before committing. A scanner reaching those would be matching
- * incidental syntax; the outcome is the thing the invariant is about, so the guard
- * reads the outcome. It also fires for gesture N+1 without being taught about it.
+ * An outcome oracle rather than another source-scan arm because most G4.20 breaches carry
+ * no literal shape to scan for (a blank-line comparison, a default parameter three calls
+ * down), and because this fires for gesture N+1 without being taught about it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -151,9 +146,8 @@ const GESTURES: EditGesture[] = [
 			)
 	},
 	{
-		// Both tables are consumed whole, so the document empties and the caret
-		// fallback mints the only surviving block. Nothing is left to read an ending
-		// from, which is exactly why the ending must be captured before the delete.
+		// The document empties, so nothing survives to read an ending from — which is why
+		// the ending has to be captured before the delete.
 		name: 'range delete emptying the document across two tables',
 		source: '| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n',
 		apply: (doc) =>
@@ -197,10 +191,8 @@ const mirrorToCrlf = (bytes: string) => bytes.replace(/\n/g, '\r\n');
 describe('G4.20 CRLF-mirror oracle', () => {
 	for (const gesture of GESTURES) {
 		it(`${gesture.name} emits the CRLF mirror of its LF result`, () => {
-			// Mirror-identity, not "contains no lone LF": a dropped ending and a
-			// rewritten untouched line (`>` re-emitted as `> ` because the blank-line
-			// test never matched a bare CR) are both byte differences, and only the
-			// first is a stray LF.
+			// Mirror-identity, not "contains no lone LF": an untouched line rewritten under a
+			// blank-line test that never matched a bare CR is a byte difference with no stray LF.
 			const lf = gesture.apply(parse(gesture.source));
 			const crlf = gesture.apply(parse(mirrorToCrlf(gesture.source)));
 			expect(crlf).toBe(mirrorToCrlf(lf));

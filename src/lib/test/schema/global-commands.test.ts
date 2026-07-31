@@ -79,10 +79,8 @@ describe('registerGlobalCommand', () => {
 		);
 	});
 
-	// Red-first: pre-fix, assertPluginGlobalChordAvailable normalized `Ctrl+W`
-	// (non-strict) to a bare `W` — not reserved, no collision — so registration
-	// SUCCEEDED and `resolveBinding('W', 'paragraph')` returned the probe binding,
-	// firing the handler on every plain `w`.
+	// A non-strict normalize collapses `Ctrl+W` to a bare `W`, which is neither reserved
+	// nor colliding — so the binding registers and fires on every plain `w`.
 	it('rejects a malformed chord and binds nothing (the Ctrl+W trap)', () => {
 		expect(() => registerGlobalCommand('demo.malformed', () => true, { chord: 'Ctrl+W' })).toThrow(
 			/malformed/
@@ -105,11 +103,8 @@ describe('registerGlobalCommand', () => {
 	});
 });
 
-// The SSR/HMR registrar-poison residual: a chorded global command re-runs its
-// registration on a dev-server re-eval and its chord collision throw 500'd the
-// route. In dev-and-not-test a same-command re-bind now replaces idempotently;
-// cross-command collisions and reserved chords keep the throw, and prod/test keep
-// the register-once throw everywhere.
+// The SSR/HMR registrar-poison class: a re-evaluated registrar's chord collision must not
+// 500 the route. Only a same-command re-bind in dev-not-test softens; the rest still throw.
 describe('chorded global command survives dev re-eval', () => {
 	afterEach(() => resetEditorEnv());
 
@@ -145,10 +140,8 @@ describe('chorded global command survives dev re-eval', () => {
 	});
 });
 
-// The mint's owner is what distinguishes a plugin re-minting its own name from a
-// cross-plugin collision, and it is what the collision message names. The block
-// sibling passes it; this one minted anonymously, so a second plugin's collision
-// reported "another registration" and named nobody.
+// The mint's owner is what separates a plugin re-minting its own name from a cross-plugin
+// collision, and it is what the collision message names — this mint once passed none.
 describe('registerGlobalCommand owner attribution', () => {
 	afterEach(() => {
 		__resetInstalledPluginsForTests();

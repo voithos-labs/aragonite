@@ -44,10 +44,8 @@ describe('checkRegistryCompleteness (G1.2)', () => {
 		expect(violation?.detail).toEqual({ kind: 'paragraph', missing: 'descriptor' });
 	});
 
-	// Every union member has a real descriptor — catches "added a kind, forgot
-	// to register it". Component lookup is stubbed because components don't load
-	// in the unit-test context; the one real component gap (`listItem`) is exempt
-	// by design and verified below.
+	// Component lookup is stubbed because components don't load in the unit-test context;
+	// the one real gap (`listItem`) is exempt by design and verified below.
 	it('passes over real descriptors for all kinds', () => {
 		expect(
 			checkRegistryCompleteness(

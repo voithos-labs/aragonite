@@ -11,9 +11,8 @@ import {
 	__resetInstalledPluginsForTests
 } from '$lib/schema/plugin-install';
 
-// A plugin kind is a branded string; the bare literal 'note' is not assignable
-// to AnyBlockKind. Declared once — the reset clears the command registries, not
-// the plugin-kind declarations (a per-test declare would double-throw).
+// Declared once at module scope: the reset clears the command registries but not the
+// plugin-kind declarations, so a per-test declare would double-throw.
 const note = declarePluginKind('note');
 const noteA = declarePluginKind('note-a');
 const noteB = declarePluginKind('note-b');
@@ -46,10 +45,8 @@ describe('block-command registry', () => {
 		expect(getBlockCommand('paragraph', id)).toBeUndefined();
 	});
 
-	// One plugin owning several kinds names the same command on each — the mint is
-	// name-global, but attribution (currentInstallingPlugin) lets the same installer
-	// re-mint for another kind. This drives the real install path so a regression that
-	// drops the attribution thread (not just the mint idempotence) fails here.
+	// The mint is name-global, so only owner attribution lets one installer re-mint for
+	// another of its kinds. Driven through the real install path to pin that thread.
 	it('lets one plugin register the same command on two of its kinds', () => {
 		let idA: ReturnType<typeof registerBlockCommand> | undefined;
 		let idB: ReturnType<typeof registerBlockCommand> | undefined;
