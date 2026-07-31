@@ -23,9 +23,7 @@ import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
  * sweep). Both non-assert modes carry a substantive reason — never a silent skip.
  */
 export type ConformanceCoverage =
-	| { mode: 'assert' }
-	| { mode: 'exempt'; reason: string }
-	| { mode: 'boundary'; reason: string };
+	{ mode: 'assert' } | { mode: 'exempt'; reason: string } | { mode: 'boundary'; reason: string };
 
 // ── Assertion kit ────────────────────────────────────────────────────────────
 

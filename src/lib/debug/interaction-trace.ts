@@ -126,12 +126,7 @@ export function traceRevealOpen(tier: 'inline' | 'leaf' | 'construct', construct
 }
 
 export type RevealFoldReason =
-	| 'commit'
-	| 'cancel'
-	| 'no-edit'
-	| 'selection-escape'
-	| 'blur'
-	| 'caret-exit';
+	'commit' | 'cancel' | 'no-edit' | 'selection-escape' | 'blur' | 'caret-exit';
 
 export function traceRevealFold(reason: RevealFoldReason, construct?: string): void {
 	if (!enabled) return;

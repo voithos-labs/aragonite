@@ -24,28 +24,26 @@ export const foldPlugin = definePlugin({
 				provide: (doc) =>
 					findFoldRanges(doc)
 						.filter((range) => !opened.has(keyOf(range)))
-						.map(
-							(range): Decoration => ({
-								type: 'replace',
-								path: range.path,
-								start: range.start,
-								end: range.end,
-								class: 'fold-island',
-								widget: {
-									buildDom: () => {
-										const el = document.createElement('span');
-										el.className = 'fold-ellipsis';
-										el.textContent = '…';
-										el.style.cursor = 'pointer';
-										el.addEventListener('click', () => {
-											opened.add(keyOf(range));
-											handle.invalidate();
-										});
-										return el;
-									}
+						.map((range): Decoration => ({
+							type: 'replace',
+							path: range.path,
+							start: range.start,
+							end: range.end,
+							class: 'fold-island',
+							widget: {
+								buildDom: () => {
+									const el = document.createElement('span');
+									el.className = 'fold-ellipsis';
+									el.textContent = '…';
+									el.style.cursor = 'pointer';
+									el.addEventListener('click', () => {
+										opened.add(keyOf(range));
+										handle.invalidate();
+									});
+									return el;
 								}
-							})
-						)
+							}
+						}))
 			});
 			return () => handle.dispose();
 		});
