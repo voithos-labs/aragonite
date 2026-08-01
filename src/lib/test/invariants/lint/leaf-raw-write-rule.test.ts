@@ -1,9 +1,10 @@
 /**
- * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through one reader,
- * `writeOwnRaw`, and every sink writing a leaf's raw without the kind's surface or a
- * reparse behind it calls it. Issue #45 was the parity hole: the G4.24 funnel lint pinned
- * the code SURFACE's write sites, so find-and-replace wrote a fence terminator into a code
- * body through a door nothing watched. The site lists below make sink N+1 a decision.
+ * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through two readers —
+ * `writeOwnRaw` in place, `normalizeOwnRaw` for a sink that reparses the result — and every
+ * sink writing a leaf's raw without the kind's surface calls one. Issues #45 and #55 were the
+ * parity holes: the G4.24 funnel lint pinned the code SURFACE's write sites, so find-and-replace
+ * and the delete truncations reached a fence through doors nothing watched. The site lists
+ * below make sink N+1 a decision.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,13 +20,35 @@ const CAPABILITY_SITES: Record<string, string> = {
 	[SINK]: 'the reader dispatches it'
 };
 
-/** Every sink that writes a leaf's raw and owes the kind's rule. */
+/** Every sink that writes a leaf's raw in place and owes the kind's rule. */
 const READER_SITES: Record<string, string> = {
 	[SINK]: 'the reader itself, plus the context-dependent-kind write',
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',
 	'src/lib/selection/cross-block/type-replace.ts': 'the degraded arm splices raw',
 	'src/lib/tree-operations/paste/container-match.ts': 'splices clipboard text into the target leaf'
+};
+
+/**
+ * Every sink that REPLACES the leaf with a reparse of the bytes it built. The reparse re-derives
+ * metadata, so the rule runs against the OLD node or the structure it would restore is gone.
+ */
+const PRE_REPARSE_SITES: Record<string, string> = {
+	[SINK]: 'the reader itself',
+	'src/lib/selection/range-delete.ts': 'the cross-block merge reparses the joined raw',
+	'src/lib/selection/range-delete-chrome.ts':
+		'the truncated-endpoint reparse, shared with the table branch'
+};
+
+/**
+ * A branch inherits the rule by routing through that shared endpoint reparse rather than naming
+ * a reader, which the per-file scan above cannot see. Rebuilding the reparse locally drops the
+ * rule silently, so the inheritance is pinned on the helper's own name.
+ */
+const PRE_REPARSE_INHERITORS: Record<string, string> = {
+	'src/lib/selection/range-delete-chrome.ts': 'defines it, and uses it for both endpoints',
+	'src/lib/selection/range-delete-table.ts':
+		'both prose endpoints of a table range route through it'
 };
 
 /** The fence rule has one implementation, shared by the display funnel and the byte sink. */
@@ -38,6 +61,8 @@ const FENCE_READERS: Record<string, string> = {
 
 const CAPABILITY = /\bnormalizeRawWrite\b/;
 const READER = /\bwriteOwnRaw\b/;
+const PRE_REPARSE_READER = /\bnormalizeOwnRaw\b/;
+const PRE_REPARSE_HELPER = /\breparseTruncatedEndpoint\b/;
 
 function namesInCode(sources: { relPath: string; code: string }[], re: RegExp): string[] {
 	return sources
@@ -71,6 +96,16 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 	// `.raw =` write never names the reader and still escapes this scan.
 	it('exactly the documented sinks call the reader', () => {
 		expect(namesInCode(sources, READER)).toEqual(Object.keys(READER_SITES).sort());
+	});
+
+	it('exactly the documented sinks normalize ahead of their own reparse', () => {
+		expect(namesInCode(sources, PRE_REPARSE_READER)).toEqual(Object.keys(PRE_REPARSE_SITES).sort());
+	});
+
+	it('exactly the documented branches inherit the rule through the shared reparse', () => {
+		expect(namesInCode(sources, PRE_REPARSE_HELPER)).toEqual(
+			Object.keys(PRE_REPARSE_INHERITORS).sort()
+		);
 	});
 });
 

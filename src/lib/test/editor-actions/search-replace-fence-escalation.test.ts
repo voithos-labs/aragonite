@@ -10,7 +10,8 @@ import { expectParseConverged } from '../harness/parse-converged';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
 // A replacement is literal content, so a fence run it lands in a code body must grow the
-// block's fence instead of terminating it. Miss-analysis: the G4.24 funnel lint pinned the
+// block's fence instead of terminating it, and a replacement that CONSUMES the closer must
+// get it back (issue #55, same door). Miss-analysis: the G4.24 funnel lint pinned the
 // COMPONENT's write sites, and no test drove a byte sink that reaches a fencedCode raw
 // without the surface — the descriptor-hook route (`normalizeRawWrite`) had no fence arm at
 // all. Issue #45.
@@ -149,6 +150,17 @@ describe('search/replace into a fenced code block', () => {
 		const entry = deps.undoManager.getStacks().undo[0];
 		expect(entry.selection.anchor.path).toEqual(match.path);
 		expect(entry.selection.anchor.offset).toBe(match.start);
+	});
+
+	// The match spans the body into the closer line, so the substitution deletes a terminator
+	// the metadata still claims — the block would otherwise absorb the heading on reload.
+	it('restores a closer the replacement consumed', async () => {
+		const { deps, replace } = makeDoc('```js\nbody\n```\n\n# Heading\n');
+
+		await replace.replaceAll(scan(deps.doc, `body\n${BACKTICKS}`), 'x');
+
+		expect(serialize(deps.doc)).toBe('```js\nx\n```\n\n# Heading\n');
+		expectParseConverged(deps.doc);
 	});
 
 	it('is idempotent — replacing into an already-escalated fence adds no backticks', async () => {

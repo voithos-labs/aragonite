@@ -17,6 +17,7 @@ import {
 	blockNodeAt,
 	emptyParagraph,
 	normalizeBodyWrite,
+	normalizeOwnRaw,
 	writeOwnRaw
 } from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
@@ -105,9 +106,13 @@ export function rangeDelete(
 	}
 
 	// A range consuming both endpoints whole leaves only a bare ending to reparse, which yields
-	// no blocks; the placeholder takes the start block's ending, not a literal LF (G4.20).
+	// no blocks; the placeholder takes the start block's ending, not a literal LF (G4.20). The
+	// survivor lands in start's slot, so start's own rule answers for the joined bytes BEFORE
+	// the reparse re-derives metadata: a range past the closer takes structure with it.
 	const lineEnding = trailingLineEnding(startRaw);
-	const reparsed = parse(mergedRaw || lineEnding, { scope: 'fragment' });
+	const reparsed = parse(normalizeOwnRaw(startBlock, mergedRaw) || lineEnding, {
+		scope: 'fragment'
+	});
 	const replacement: CstNode[] =
 		reparsed.children.length > 0 ? reparsed.children : [emptyParagraph('', lineEnding)];
 	for (const node of replacement) sharing.stamp(node);

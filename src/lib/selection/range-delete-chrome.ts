@@ -15,7 +15,7 @@ import { displayLength, terminateLine, trailingLineEnding } from '../core/lines'
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathsEqual } from './path-math';
 import { replaceAtPath } from '../tree-operations/path-mutate';
-import { emptyParagraph } from '../tree-operations/node-ops';
+import { emptyParagraph, normalizeOwnRaw } from '../tree-operations/node-ops';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
@@ -84,11 +84,7 @@ export function chromeAwareRangeDelete(
 		if (endC && isChromeChild(endC, end.path)) {
 			endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
 		} else {
-			const tailReplacement = reparseWithFallback(
-				endTail || trailingLineEnding(endBlock.raw),
-				endBlock.leadingTrivia,
-				trailingLineEnding(endBlock.raw)
-			);
+			const tailReplacement = reparseTruncatedEndpoint(endBlock, endTail);
 			for (const node of tailReplacement) sharing.stamp(node);
 			replaceAtPath(doc, end.path, tailReplacement);
 		}
@@ -103,10 +99,9 @@ export function chromeAwareRangeDelete(
 	if (startC && isChromeChild(startC, start.path)) {
 		startBlock.raw = terminateLine(startHead, startBlock.raw);
 	} else {
-		const headReplacement = reparseWithFallback(
-			terminateLine(startHead, startBlock.raw),
-			startBlock.leadingTrivia,
-			trailingLineEnding(startBlock.raw)
+		const headReplacement = reparseTruncatedEndpoint(
+			startBlock,
+			terminateLine(startHead, startBlock.raw)
 		);
 		for (const node of headReplacement) sharing.stamp(node);
 		replaceAtPath(doc, start.path, headReplacement);
@@ -175,20 +170,18 @@ export function lastChildDescendant(container: ChromeContainer, path: number[]):
 }
 
 /**
- * Reparse a truncated endpoint slice, preserving its leading trivia; empty gives a bare
- * paragraph. `lineEnding` is the source block's (G4.20): a slice that is nothing but an ending
- * parses to no blocks, and the placeholder must not downgrade a CRLF block to LF.
+ * Reparse a truncated endpoint's surviving slice, through the source kind's own write rule:
+ * the reparse re-derives metadata from bytes, so structure the truncation dropped and the rule
+ * restores (a fence closer) has to land before it. Leading trivia is preserved and an empty
+ * slice gives a bare paragraph, on the source block's line ending (G4.20).
  */
-export function reparseWithFallback(
-	raw: string,
-	leadingTrivia: string,
-	lineEnding: string
-): CstNode[] {
-	const reparsed = parse(raw || lineEnding, { scope: 'fragment' });
+export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[] {
+	const lineEnding = trailingLineEnding(node.raw);
+	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, { scope: 'fragment' });
 	if (reparsed.children.length === 0) {
-		return [emptyParagraph(leadingTrivia, lineEnding)];
+		return [emptyParagraph(node.leadingTrivia, lineEnding)];
 	}
 	const cloned = reparsed.children.slice();
-	cloned[0] = { ...cloned[0], leadingTrivia };
+	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
 	return cloned;
 }

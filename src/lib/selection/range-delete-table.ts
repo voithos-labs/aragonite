@@ -33,7 +33,11 @@ import {
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
-import { nearestChromeContainer, isChromeChild, reparseWithFallback } from './range-delete-chrome';
+import {
+	nearestChromeContainer,
+	isChromeChild,
+	reparseTruncatedEndpoint
+} from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -146,10 +150,9 @@ function deleteFromProseIntoTable(
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	let truncatedReplacement: CstNode[] | null = null;
 	if (!startIsChrome) {
-		truncatedReplacement = reparseWithFallback(
-			terminateLine(startHead, startBlock.raw),
-			startBlock.leadingTrivia,
-			trailingLineEnding(startBlock.raw)
+		truncatedReplacement = reparseTruncatedEndpoint(
+			startBlock,
+			terminateLine(startHead, startBlock.raw)
 		);
 		for (const node of truncatedReplacement) sharing.stamp(node);
 	}
@@ -221,11 +224,7 @@ function deleteFromTableIntoProse(
 	if (!consumed) {
 		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
 		if (!endIsChrome) {
-			tailReplacement = reparseWithFallback(
-				endTail || trailingLineEnding(endBlock.raw),
-				endBlock.leadingTrivia,
-				trailingLineEnding(endBlock.raw)
-			);
+			tailReplacement = reparseTruncatedEndpoint(endBlock, endTail);
 			for (const node of tailReplacement) sharing.stamp(node);
 		}
 	}

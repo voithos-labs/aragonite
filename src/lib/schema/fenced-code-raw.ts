@@ -1,9 +1,9 @@
 /**
  * The fencedCode raw-write rule, declared on the kind as `normalizeRawWrite` and applied at
- * every write sink. ESCALATE grows both runs past a body line that would read as the closer;
- * SANITIZE drops backticks from a backtick fence's info string (CommonMark §4.5). Both read
- * the block's OWN fence shape, which is why the pass takes a node and not just bytes. An
- * authored open fence is exempt: typing the closer is the gesture.
+ * every write sink. RESTORE re-appends a closer a truncating write dropped, ESCALATE grows both
+ * runs past a body line that would read as the closer, SANITIZE drops backticks from a backtick
+ * fence's info string (CommonMark §4.5) — all off the block's OWN fence shape, which is why the
+ * pass takes a node. An authored open fence is exempt: typing the closer is the gesture.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -51,13 +51,15 @@ export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 /**
  * A whole fencedCode `raw` made legal — the kind's `normalizeRawWrite`. Literal by
  * construction: a sink reaching a node's bytes without its surface is never the author
- * typing the block's own syntax.
+ * typing the block's own syntax. RESTORE runs first, so ESCALATE measures a body that
+ * ends where the closer does.
  */
 export function normalizeFencedRaw(raw: string, node: NodeView): string {
+	const fence = fenceShapeOf(node);
 	const written = reconcileFenceWrite({
-		display: trimTrailingLineEnding(raw),
+		display: restoreCloser(trimTrailingLineEnding(raw), fence, trailingLineEnding(node.raw)),
 		caret: 0,
-		fence: fenceShapeOf(node),
+		fence,
 		mode: 'literal'
 	});
 	return written.display + trailingLineEnding(raw);
@@ -81,6 +83,23 @@ function splitOpener(line: string, fence: FenceShape): OpenerParts | null {
 	const runEnd = indent.length + fence.length;
 	if (line.slice(indent.length, runEnd) !== fence.marker.repeat(fence.length)) return null;
 	return { indent, info: line.slice(runEnd), runEnd };
+}
+
+/**
+ * The closer a truncating write dropped, re-appended — an unclosed fence absorbs every block
+ * below it at the next parse. Declines unless line 0 is this block's OWN opener: a longer run,
+ * or a lone line reading as this fence's closer, is a STRANDED closer no metadata claims, and
+ * sizing a fence to it would invent a block the CST never had (issue #58). The ending is the
+ * BLOCK's, not the written slice's, which may be unterminated (G4.20).
+ */
+function restoreCloser(display: string, fence: FenceShape, blockEnding: string): string {
+	if (!fence.closed) return display;
+	const lines = display.split('\n');
+	const opener = splitOpener(lines[0], fence);
+	if (!opener || opener.info.startsWith(fence.marker)) return display;
+	if (lines.length === 1 && matchFenceClose(lines[0], fence.marker, fence.length)) return display;
+	if (lastCloserIndex(lines, fence) !== -1) return display;
+	return display + blockEnding + opener.indent + fence.marker.repeat(fence.length);
 }
 
 function sanitizeInfoString(input: FenceWriteInput): FenceWriteResult {
