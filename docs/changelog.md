@@ -1203,7 +1203,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   included, would do the same. The field is inert for anyone installing aragonite (npm reads
   `overrides` only from the top-level project) and ships in the tarball as dead metadata.
 
-Ship gates: unit 5913, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
+Ship gates: unit 5943, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
 container-head rows plus the row-shape verification at the batch base). The e2e figure is the
 last full battery's; the unit figure is current.
