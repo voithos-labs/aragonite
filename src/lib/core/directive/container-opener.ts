@@ -13,7 +13,12 @@ import { parseContainerBody, joinRaw } from '../parser';
 import { trailingLineEnding, type ParsedLine } from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
+import {
+	DIRECTIVE_BODY_WRAP,
+	DIRECTIVE_CONTAINER,
+	DIRECTIVE_LEAF,
+	type DirectiveContainerMetadata
+} from './kinds';
 
 export function registerDirectiveOpeners(): void {
 	if (isBlockOpenerRegistered(DIRECTIVE_CONTAINER)) return; // idempotent for HMR / re-import
@@ -65,14 +70,10 @@ export function registerDirectiveOpeners(): void {
 			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
 			// One nesting level deeper, so nested directives share the container-depth cap; the
 			// body stays inside this parse entry, so it inherits its scope.
-			const body = parseContainerBody(
-				bodyText,
-				{ afterOpenerLine: true, beforeCloserLine: true },
-				{
-					scope: ctx.isDocumentParse ? 'document' : 'fragment',
-					depth: ctx.depth + 1
-				}
-			);
+			const body = parseContainerBody(bodyText, DIRECTIVE_BODY_WRAP, {
+				scope: ctx.isDocumentParse ? 'document' : 'fragment',
+				depth: ctx.depth + 1
+			});
 			// isDirectiveCloser guarantees an all-colon line, so its length IS the colon count.
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');

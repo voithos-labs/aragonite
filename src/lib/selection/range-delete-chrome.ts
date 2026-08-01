@@ -14,12 +14,12 @@ import { parse } from '../core/parser';
 import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathsEqual } from './path-math';
-import { replaceAtPath } from '../tree-operations/path-mutate';
 import { emptyParagraph, normalizeOwnRaw } from '../tree-operations/node-ops';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
-	applyPlannedDeletion
+	applyPlannedDeletion,
+	installTruncatedEndpoint
 } from './range-delete-ceremony';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
@@ -84,9 +84,7 @@ export function chromeAwareRangeDelete(
 		if (endC && isChromeChild(endC, end.path)) {
 			endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
 		} else {
-			const tailReplacement = reparseTruncatedEndpoint(endBlock, endTail);
-			for (const node of tailReplacement) sharing.stamp(node);
-			replaceAtPath(doc, end.path, tailReplacement);
+			installTruncatedEndpoint(doc, end.path, reparseTruncatedEndpoint(endBlock, endTail), sharing);
 		}
 	}
 
@@ -99,12 +97,12 @@ export function chromeAwareRangeDelete(
 	if (startC && isChromeChild(startC, start.path)) {
 		startBlock.raw = terminateLine(startHead, startBlock.raw);
 	} else {
-		const headReplacement = reparseTruncatedEndpoint(
-			startBlock,
-			terminateLine(startHead, startBlock.raw)
+		installTruncatedEndpoint(
+			doc,
+			start.path,
+			reparseTruncatedEndpoint(startBlock, terminateLine(startHead, startBlock.raw)),
+			sharing
 		);
-		for (const node of headReplacement) sharing.stamp(node);
-		replaceAtPath(doc, start.path, headReplacement);
 	}
 
 	// Chain-based rebuilds: node references survive the splices above where paths may not, and

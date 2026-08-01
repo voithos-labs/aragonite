@@ -9,6 +9,7 @@ import {
 	containerClosure,
 	createDirectiveRebuild,
 	defineBlockComponent,
+	DIRECTIVE_BODY_WRAP,
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockCommand,
@@ -99,6 +100,7 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 			// The title lives in the opener line, so raw is not a strip of the children.
 			contract: 'opaque',
 			rebuildRaw: rebuildAdmonitionRaw,
+			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: title },
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},

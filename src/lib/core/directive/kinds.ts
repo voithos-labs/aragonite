@@ -14,6 +14,7 @@ import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kin
 import { containerClosure } from '../../schema/closure';
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
+import type { ContainerBodyWrap } from '../parser';
 import type { NodeView } from '../node-views';
 import { displayLength, trimTrailingLineEnding, trailingLineEnding } from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
@@ -23,6 +24,12 @@ import { matchDirectiveOpener, serializeDirective } from './grammar';
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
 export const DIRECTIVE_LEAF = 'directiveLeaf';
 export const DIRECTIVE_TEXT = 'directiveText';
+
+/** The `:::` opener and closer bracket every directive body, whatever kind the name mints. */
+export const DIRECTIVE_BODY_WRAP: ContainerBodyWrap = {
+	afterOpenerLine: true,
+	beforeCloserLine: true
+};
 
 /** Fence bytes a container node round-trips through `rebuildDirectiveContainerRaw`. */
 export interface DirectiveContainerMetadata {
@@ -45,6 +52,7 @@ export function registerDirectiveKinds(): void {
 		container: {
 			contract: 'opaque',
 			rebuildRaw: rebuildDirectiveContainerRaw,
+			bodyWrap: DIRECTIVE_BODY_WRAP,
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
 		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',

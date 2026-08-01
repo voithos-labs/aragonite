@@ -937,6 +937,10 @@ Three repairs, by terminator shape. A **fence-shaped** terminator escalates — 
 
 Escaping at the **rebuild** is the one thing that does not work, and it is the tempting one: an opaque container's `raw` is checked against its live children, so rewriting a child on the way out reads as staleness. The write sink is early enough that no such gap exists.
 
+#### Declaring the wrap: `bodyWrap`
+
+A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`. The parse peels the blank line against your opener into `innerPrefix`, so that line is the wrap's rather than an empty first row — and the editor's separator settle has to know it, or a delete that frees a blank line above your body head drops the line the peel eats and the head block disappears on the next load. Declare it and the two agree; the container conformance kit probes the parse and fails a declaration that does not match. A strip container whose body starts at its own first line (a blockquote shape) declares nothing.
+
 #### Making body bytes legal: `bodyWrite`
 
 A container kind declares `bodyWrite` when its body's bytes carry grammatical meaning it owns:
@@ -1069,6 +1073,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `serializeDirective`                                                                               | Serialize a fence back to bytes losslessly from a registered kind                                                      |
 | `escalatedColonCount`                                                                              | The fence length a body needs, for an emitter building `:::name` text by hand rather than through `serializeDirective` |
 | `createDirectiveRebuild`                                                                           | Build the `rebuildRaw` for a title-child-0 directive container — owns the CRLF-safe fence bytes                        |
+| `DIRECTIVE_BODY_WRAP`                                                                              | The wrap every `:::` body parses with; declare it as your container kind's `bodyWrap`                                  |
 | `DirectiveDefinition`, `ParsedDirective`, `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The registration definition, the parsed fence handed to your factory, and the supporting shapes                        |
 
 **Inline authoring** _(pre-freeze / unstable)_ — the two render paths and the tier's limits are in [Inline kinds](#inline-kinds)
@@ -1115,18 +1120,18 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Parse / serialize helpers**
 
-| Export                                    | Role                                                                                                                  |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `parse`                                   | Parse a body of Markdown into a document you can lift children from                                                   |
-| `ParseScope`                              | The scope both parse entries take: whole document, or one block's bytes                                               |
-| `parseContainerBody`, `ContainerBodyWrap` | Parse a container body that sits between chrome lines of your own, keeping their blank separators out of the children |
-| `serialize`                               | Serialize a whole document back to its exact source bytes                                                             |
-| `serializeChildren`                       | Join child nodes back into their exact source bytes                                                                   |
-| `trimTrailingLineEnding`                  | Read a child's display text without dropping a trailing line ending                                                   |
-| `normalizeLineEndings`                    | Normalize external text (a plugin-owned input surface) to LF                                                          |
-| `isBlankLine`                             | GFM §2.1's blank-line test — spaces and tabs only, never `trim()`                                                     |
-| `splitLines`                              | Split source into the parsed lines every line-scoped seam consumes                                                    |
-| `Document`, `ParsedLine`                  | The parsed-document shape, and a single parsed source line                                                            |
+| Export                                    | Role                                                                                                                                                                              |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parse`                                   | Parse a body of Markdown into a document you can lift children from                                                                                                               |
+| `ParseScope`                              | The scope both parse entries take: whole document, or one block's bytes                                                                                                           |
+| `parseContainerBody`, `ContainerBodyWrap` | Parse a container body that sits between chrome lines of your own, keeping their blank separators out of the children — declare the same wrap as your kind's `container.bodyWrap` |
+| `serialize`                               | Serialize a whole document back to its exact source bytes                                                                                                                         |
+| `serializeChildren`                       | Join child nodes back into their exact source bytes                                                                                                                               |
+| `trimTrailingLineEnding`                  | Read a child's display text without dropping a trailing line ending                                                                                                               |
+| `normalizeLineEndings`                    | Normalize external text (a plugin-owned input surface) to LF                                                                                                                      |
+| `isBlankLine`                             | GFM §2.1's blank-line test — spaces and tabs only, never `trim()`                                                                                                                 |
+| `splitLines`                              | Split source into the parsed lines every line-scoped seam consumes                                                                                                                |
+| `Document`, `ParsedLine`                  | The parsed-document shape, and a single parsed source line                                                                                                                        |
 
 **Renderer utilities**
 

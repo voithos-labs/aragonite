@@ -21,6 +21,7 @@ import {
 	serializeChildren,
 	setPluginMetadata,
 	type BlockOpenerResult,
+	type ContainerBodyWrap,
 	type CstNode,
 	type OpenContext,
 	type ParsedLine
@@ -28,6 +29,10 @@ import {
 import { matchAlertMarker, stripQuoteMarker } from './gh-alert';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
+
+/** The `> [!TYPE]` marker line is the alert's own chrome, so a blank against it separates
+ *  rather than materializing; nothing closes the alert below. */
+const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true };
 
 function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const alertType = matchAlertMarker(ctx.line.text);
@@ -40,14 +45,10 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
-	// The `> [!TYPE]` marker line is the alert's own chrome, so the blank against it separates
-	// rather than materializing; nothing closes the alert below. A fresh parse entry, so the
-	// body's own line 0 must not read as the document top.
-	const body = parseContainerBody(
-		stripBody(ctx.lines, ctx.index + 1, nextIndex),
-		{ afterOpenerLine: true },
-		{ scope: 'fragment' }
-	);
+	// A fresh parse entry, so the body's own line 0 must not read as the document top.
+	const body = parseContainerBody(stripBody(ctx.lines, ctx.index + 1, nextIndex), BODY_WRAP, {
+		scope: 'fragment'
+	});
 
 	const node: CstNode = {
 		kind: declaredPluginKind(GITHUB_ALERT),
@@ -120,6 +121,7 @@ export function registerGithubAlert(): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildGithubAlertRaw,
+			bodyWrap: BODY_WRAP,
 			// The alert is a blockquote with a marker, so it unwraps as one: lifting the
 			// first child out drops the marker and reparses plain.
 			unwrapRole: {

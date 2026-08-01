@@ -7,6 +7,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 
 // Two body children so in-place truncation is distinguishable from an upward merge. Paths:
@@ -140,6 +141,10 @@ describe('chrome wall — rangeDelete post-states', () => {
 			'paragraph'
 		]);
 		expect(doc.children[1].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'Body2\n']);
+		// The placeholder survives the reload only because the separator freed above it became
+		// the wrap's own line: `innerPrefix` is what the `:::` peel eats.
+		expect(doc.children[1].innerPrefix).toBe('\n');
+		expectParseConverged(doc);
 	});
 
 	// G1.9 guard for the clear-write unshare: covered chrome must clear through an unshared COPY, or

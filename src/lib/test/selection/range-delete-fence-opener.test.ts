@@ -142,7 +142,6 @@ describe('range delete that consumes a fenced code opener', () => {
 			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
-			expect(parse(serialize(doc)).children.length).toBe(2);
 			expectParseConverged(doc);
 		});
 	});

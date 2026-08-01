@@ -16,6 +16,7 @@ import {
 	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
+	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
 	registerBlockCommand,
 	registerChromeLeaf,
@@ -106,6 +107,7 @@ export function registerCalloutKind(): void {
 			// Child-0 chrome breaks `strip(raw) === serialize(children)` — see the header.
 			contract: 'opaque',
 			rebuildRaw: rebuildCalloutRaw,
+			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: calloutTitle },
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},

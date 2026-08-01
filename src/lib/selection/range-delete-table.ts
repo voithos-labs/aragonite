@@ -15,11 +15,11 @@ import type { SharingState } from '../tree-operations/sharing';
 import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import { charOffsetOf, cellIndexOf } from './primitives';
-import { replaceAtPath } from '../tree-operations/path-mutate';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
+	installTruncatedEndpoint,
 	rebuildSharedAncestries
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
@@ -154,7 +154,6 @@ function deleteFromProseIntoTable(
 			startBlock,
 			terminateLine(startHead, startBlock.raw)
 		);
-		for (const node of truncatedReplacement) sharing.stamp(node);
 	}
 
 	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse takes an
@@ -180,7 +179,7 @@ function deleteFromProseIntoTable(
 		// The wall: a chrome start truncates by raw write — kind and node kept.
 		startBlock.raw = terminateLine(startHead, startBlock.raw);
 	} else {
-		replaceAtPath(doc, start.path, truncatedReplacement!);
+		installTruncatedEndpoint(doc, start.path, truncatedReplacement!, sharing);
 	}
 
 	const tableSurvives = result === 'tableSurvives';
@@ -225,7 +224,6 @@ function deleteFromTableIntoProse(
 		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
 		if (!endIsChrome) {
 			tailReplacement = reparseTruncatedEndpoint(endBlock, endTail);
-			for (const node of tailReplacement) sharing.stamp(node);
 		}
 	}
 
@@ -246,7 +244,7 @@ function deleteFromTableIntoProse(
 		endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
 		tailNode = endBlock;
 	} else if (!consumed) {
-		replaceAtPath(doc, end.path, tailReplacement!);
+		installTruncatedEndpoint(doc, end.path, tailReplacement!, sharing);
 		// Re-read through the tree (design rule 5): the replacement node is proxy-wrapped by
 		// the live $state doc, so the identity search below would miss the raw copy.
 		tailNode = blockNodeAt(doc, end.path);

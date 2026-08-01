@@ -9,6 +9,7 @@
 
 import type { ContainerEditActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import { trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
@@ -24,7 +25,7 @@ import {
 	middleChildUnwrapStrategies
 } from '../editor-actions/unwrap-strategies';
 import type { EditEvent } from '../editor-events';
-import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '../tree-operations/unshare';
@@ -566,4 +567,37 @@ export function checkDeclarationSanity(
 	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
 	assert(node, `deepNesting fixture contains a "${kind}" node`);
 	assertRebuildIsParseCanonical(descriptor, node, kind);
+	assertBodyWrapMatchesParse(kind, descriptor);
+}
+
+/**
+ * `container.bodyWrap` is probed, never trusted: the separator settle reads it to decide whether
+ * a freed blank line belongs to the wrap, and a kind whose parse disagrees loses its body head
+ * on reload (`tree-operations/node-ops.clearRedundantSeparator`).
+ */
+function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
+	const fixture = descriptor.conformanceFixture;
+	if (!fixture || descriptor.containerContract === 'grid') return;
+	// The probe rebuilds and reparses the node's own raw, so it needs the kind at the top level.
+	const node = parse(fixture).children.find((child) => child.kind === kind);
+	if (!node?.children?.length) return;
+
+	const expected = node.children.length;
+	const ending = trailingLineEnding(node.raw) || '\n';
+	node.innerPrefix = '';
+	descriptor.rebuildRaw!(node);
+	const withoutPrefix = node.raw;
+	node.innerPrefix = ending;
+	descriptor.rebuildRaw!(node);
+
+	// A rebuild that ignores innerPrefix leaves the field inert, which is a non-wrapping kind.
+	const peels =
+		node.raw !== withoutPrefix &&
+		findFirstOfKind(parse(node.raw), kind)?.children?.length === expected;
+	assertIs(
+		peels,
+		descriptor.bodyWrap?.afterOpenerLine === true,
+		`${kind} container.bodyWrap.afterOpenerLine agrees with what its parse does with a blank ` +
+			`line against the opener`
+	);
 }
