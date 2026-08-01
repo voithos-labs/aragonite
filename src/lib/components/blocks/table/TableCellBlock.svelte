@@ -889,10 +889,10 @@
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
-		snapCaretToPoint(x, y);
+		widgetInteraction.snapClickToWidgetEdge(x, y);
 	}
 
-	function snapCaretToPoint(clientX: number | null, clientY: number | null): void {
+	function snapCaretToPoint(clientX: number, clientY: number): void {
 		widgetInteraction.snapClickToWidgetEdge(clientX, clientY);
 	}
 

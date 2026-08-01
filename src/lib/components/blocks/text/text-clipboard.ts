@@ -65,7 +65,7 @@ export interface TextClipboard extends ClipboardHandlers {
 	 * The block's own handler for a copy/cut/paste the editor root received. A selected
 	 * widget clears the native selection, so in a block with no text position for a caret to
 	 * survive in the browser dispatches at `<body>` and no surface binding sees it. False
-	 * when no widget of this block is selected — the root seam's cue to keep looking.
+	 * when no widget of this block is selected.
 	 */
 	claimRootClipboard(event: ClipboardEvent): boolean;
 }

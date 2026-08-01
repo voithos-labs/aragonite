@@ -197,8 +197,9 @@ export interface BlockComponent {
 	/**
 	 * Claim a copy/cut/paste the editor root received because a selection state this block
 	 * owns seats no native caret: a selected inline widget in a block with no text position
-	 * leaves the native selection empty, so the browser dispatches at `<body>`. False leaves
-	 * the event to the root seam's other arms.
+	 * leaves the native selection empty, so the browser dispatches at `<body>`. False reports
+	 * a decline and leaves the browser's default; the root seam routes to one arm only, so a
+	 * decline is never re-offered elsewhere.
 	 */
 	claimRootClipboard?(event: ClipboardEvent): boolean;
 	/**

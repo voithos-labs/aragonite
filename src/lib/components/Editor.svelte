@@ -219,7 +219,14 @@
 	const events = createEditorEvents();
 	// getSelection is function-hoisted below — callback reads the fresh snapshot each time.
 	const selectionState = createSelectionState({
-		onChange: () => events.emit('selectionChange', getSelection()),
+		onChange: () => {
+			// The other half of the mutual exclusion `onSelect` carries: a range opened while a
+			// widget is selected (select-all declines to the widget's own keydown) would leave
+			// both live, and every dispatch keyed on "a widget is selected" would answer for
+			// the document-wide selection the user is looking at.
+			if (selectionState.isCrossBlock) widgetSelection.clear();
+			events.emit('selectionChange', getSelection());
+		},
 		getDoc: () => doc
 	});
 	const widgetSelection = createWidgetSelectionState({

@@ -1169,6 +1169,14 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   all three arms are fixed at once rather than copy alone. Both selection routes are affected and
   both are now pinned: clicking the image, and stepping into it from the block above.
 
+- **Selecting an image no longer shrinks the select-all that follows it.** Selecting an inline
+  widget ends the caret and any cross-block range, but the reverse ordering carried no such rule:
+  a widget's own keydown handler declines modifier chords, so Mod+A ran the ordinary select-all
+  and left both selections live at once. With the document-wide range painted, Mod+C copied only
+  the image and Backspace deleted only the image, in each case answering for a selection the user
+  could not see. The two models now clear each other in both directions, at the one place the
+  editor wires them together.
+
 - **A host that pads the block list no longer gets a dead click band.** Clicks in the editor's
   dead space (the padding beside a block, the area below the last one) place a caret, but the
   gesture claimed only clicks whose target was the editor root. A host layout that widens and pads
@@ -1203,7 +1211,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   included, would do the same. The field is inert for anyone installing aragonite (npm reads
   `overrides` only from the top-level project) and ships in the tarball as dead metadata.
 
-Ship gates: unit 5943, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
+Ship gates: unit 5947, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
 container-head rows plus the row-shape verification at the batch base). The e2e figure is the
 last full battery's; the unit figure is current.
