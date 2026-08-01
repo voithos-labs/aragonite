@@ -44,11 +44,28 @@ describe('a pasted blank line follows the parser rule', () => {
 		expect(raws(await pasteAfterX('one\n\n\ntwo\n'))).toEqual(['x\n', 'one\n', '\n', 'two\n']);
 	});
 
-	it.each(['one\n\ntwo\n', 'one\n\n\ntwo\n', 'one\n\n\n\ntwo\n'])(
-		'pasting %j reaches the shape a load of its own bytes reaches',
-		async (clipboard) => {
-			const pasted = await pasteAfterX(clipboard);
-			expect(raws(parse(serialize(pasted)))).toEqual(raws(pasted));
-		}
-	);
+	// Miss-analysis (clipboard-leading blank run): every parity case pasted a clipboard whose
+	// first block was non-blank, so the arm treating a blank block as its own separator was
+	// never driven and the pasted run landed one row short of what its bytes reload as.
+	it('separates a clipboard that opens with a blank run from the block above', async () => {
+		const pasted = await pasteAfterX('\n\ntail\n');
+		expect(pasted.children.map((n) => [n.leadingTrivia, n.raw])).toEqual([
+			['', 'x\n'],
+			['\n', '\n'],
+			['', '\n'],
+			['', 'tail\n']
+		]);
+	});
+
+	it.each([
+		'one\n\ntwo\n',
+		'one\n\n\ntwo\n',
+		'one\n\n\n\ntwo\n',
+		'\n\ntail\n',
+		'\nlead\n',
+		'one\n\n\n'
+	])('pasting %j reaches the shape a load of its own bytes reaches', async (clipboard) => {
+		const pasted = await pasteAfterX(clipboard);
+		expect(raws(parse(serialize(pasted)))).toEqual(raws(pasted));
+	});
 });

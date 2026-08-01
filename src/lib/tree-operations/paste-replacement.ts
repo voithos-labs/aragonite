@@ -38,15 +38,14 @@ export function buildPastedReplacement(
 	}
 
 	// A blank-line separator is forced where source trivia is empty, or the block butts
-	// against its predecessor via a soft break and renders as one merged paragraph. An
-	// empty paragraph IS the separator, so it and its successor skip the override.
+	// against its predecessor via a soft break and renders as one merged paragraph. A blank
+	// predecessor already holds a run open, so its successor takes no separator of its own.
 	for (let i = 0; i < blocks.length; i++) {
 		const node = { ...blocks[i] };
 		const prev = newNodes[newNodes.length - 1];
-		const prevIsEmptyParagraph = prev !== undefined && isBlankParagraph(prev);
 		if (newNodes.length === 0) {
 			node.leadingTrivia = originalTrivia;
-		} else if (isBlankParagraph(blocks[i]) || prevIsEmptyParagraph) {
+		} else if (prev !== undefined && isBlankParagraph(prev)) {
 			node.leadingTrivia = blocks[i].leadingTrivia ?? '';
 		} else {
 			node.leadingTrivia = blocks[i].leadingTrivia ? blocks[i].leadingTrivia : lineEnding;
