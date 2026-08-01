@@ -56,6 +56,13 @@
 		new URLSearchParams(window.location.search).get('header') === 'on';
 	let headerTall = $state(false);
 
+	// `?paddedList=on` reproduces the documented host layout that widens and pads the block
+	// list itself, so the visible side gutter reports the LIST as the click target rather
+	// than the editor root.
+	const paddedListOn =
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('paddedList') === 'on';
+
 	// `?presentationMode=…` starts in that mode; the prop reads live, so the header
 	// toggles need no remount (unlike blockDragHandles).
 	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
@@ -209,7 +216,7 @@
 		{/each}
 	</header>
 	<div class="demo-body">
-		<div class="editor-slot">
+		<div class="editor-slot" class:padded-list={paddedListOn}>
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
@@ -342,5 +349,11 @@
 		flex-direction: column;
 		min-width: 0;
 		min-height: 0;
+	}
+	/* Puts the visible side gutter on the LIST rather than the root — the host layout the
+	   dead-space gesture has to claim through. */
+	.padded-list :global(.editor > .block-list) {
+		width: 100%;
+		padding: 0 24px;
 	}
 </style>

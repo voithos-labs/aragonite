@@ -1,9 +1,13 @@
 # Feature: clicks in the editor's dead space place a caret
 
-The editor root's own padding beside a block, and the empty area below the last
-block, are the editor's surface too. A click there used to move focus to the root
-and place no caret at all — a click that visibly did nothing. Standard editor
+The editor's own padding beside a block, and the empty area below the last block,
+are the editor's surface too. A click there used to move focus to the root and
+place no caret at all — a click that visibly did nothing. Standard editor
 behaviour (CodeMirror, Obsidian) is to land the caret on the nearest text.
+
+Dead space is the root AND the block lists inside it: a host that widens or pads
+the block list moves the whole visible side gutter onto the list, so a gesture
+claiming only root-targeted clicks leaves that band inert.
 
 ## Happy paths
 
@@ -17,6 +21,8 @@ behaviour (CodeMirror, Obsidian) is to land the caret on the nearest text.
   so that is the last row's last cell.
 - Click beside a table: y picks the row and x picks the column, so a click level with a
   middle row lands in that row — not in the table's last cell.
+- Click in the block list's own padding under a host layout that pads it
+  (`?paddedList=on`): the caret lands at the end of that line, same as the root's padding.
 
 ## Edge cases
 
@@ -29,3 +35,14 @@ behaviour (CodeMirror, Obsidian) is to land the caret on the nearest text.
 - A kind that addresses its own internals but declares no caret landing still declines,
   and declines before ending any live range — a rejected click must leave the selection
   exactly as it found it.
+- A drag-select released in a padded list's gutter keeps its selection: the press half
+  of the gesture discriminates, since the release reports the list either way.
+- The band scan is root-wide, so a click in a NESTED list's gutter resolves the nearest
+  line document-wide rather than within that container. Geometrically that is the line
+  the click is level with, so the answer is the same one; no separate rule.
+
+## Miss-analysis
+
+- The host-padded-list band went unclaimed because every fixture used the demo's default
+  layout, where the whole gutter belongs to the root — the suite never exercised a host
+  that restyles `.block-list`, though host layouts are a documented consumer surface.
