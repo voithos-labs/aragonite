@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 
 // Clicks in the root's own padding and below the last block
 // (requirements/selection/dead-space-click.md). Both used to focus the root and
@@ -184,6 +185,8 @@ test.describe('dead-space clicks place a caret', () => {
 	// landing has a visual representation. A click INSIDE the block at the same point paints it.
 	test('a click beside a widget-only line lands the caret on the widget’s edge', async () => {
 		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
+		// The row's y is derived from the widget's box, which moves when the <img> decodes.
+		await waitForFirstImageLoaded(editor.page);
 		const root = await rootBox();
 		const widget = await editor.page.locator('[data-image-widget]').boundingBox();
 		if (!widget) throw new Error('no box for the image widget');

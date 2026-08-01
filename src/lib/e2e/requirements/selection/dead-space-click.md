@@ -48,6 +48,9 @@ claiming only root-targeted clicks leaves that band inert.
 - A landing down the deep door (a table cell) is handed the same point, but the cell
   surface paints no synthetic indicator of its own, so only the caret moves. The routing
   is unit-pinned (`test/selection/dead-space-caret-routing.test.ts`), not asserted here.
+- The point the surface answers is clamped to the block's box edge, so it opens a
+  reveal-capable island's source only when the island itself reaches that edge — the same
+  answer a click on the island gives, since both ask the same point-in-rect question.
 
 ## Miss-analysis
 
