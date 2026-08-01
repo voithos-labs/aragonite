@@ -81,12 +81,16 @@ export function rangeDelete(
 	const endRaw = endBlock.raw;
 	const startOffset = charOffsetOf(start, 'rangeDelete:prose-merge-start');
 	const endOffset = charOffsetOf(end, 'rangeDelete:prose-merge-end');
+	// The end slice answers to the END block's rule before the join: start's rule below speaks
+	// only for start's bytes, so a truncation from the end block's head strands its closer. A
+	// same-block merge is one block's bytes and takes that rule once, whole, on the arm below.
+	const endTail = endRaw.slice(endOffset);
 	// A join can MINT a line neither side held: two lines each carrying a mid-line `</details>`
 	// become one that opens with it. The survivor lands in start's container, so it answers to
 	// that container's body rule, applied here so the kinds derive from the bytes that land.
 	const mergedRaw = normalizeBodyWrite(
 		blockNodeAt(doc, start.path.slice(0, -1))?.kind,
-		startRaw.slice(0, startOffset) + endRaw.slice(endOffset)
+		startRaw.slice(0, startOffset) + (sameBlock ? endTail : normalizeOwnRaw(endBlock, endTail))
 	);
 
 	if (sameBlock) {

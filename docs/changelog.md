@@ -4,6 +4,14 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A range delete running from an earlier block into a code block used to leave the closing
+  fence behind as a stray run**, which reparsed as a new unclosed fence and absorbed every block
+  below it on reload. The fence write rule now answers in both directions: it restores a closer
+  a write dropped, and drops one a write stranded after taking the block's own opener — the body
+  fragment merges as prose, and the drop declines only for a run a same-marker opener above
+  could genuinely close on. Reaches every truncation arm and find/replace, including a stranded
+  run longer than the deleted opener's.
+
 - **A delete or a find/replace that runs past a code block's closing fence no longer swallows
   the document on reload.** A selection running from inside a code body past its closer used to
   leave an unclosed fence over blocks the session still showed as siblings, correct on screen

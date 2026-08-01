@@ -35,7 +35,8 @@ const READER_SITES: Record<string, string> = {
  */
 const PRE_REPARSE_SITES: Record<string, string> = {
 	[SINK]: 'the reader itself',
-	'src/lib/selection/range-delete.ts': 'the cross-block merge reparses the joined raw',
+	'src/lib/selection/range-delete.ts':
+		'the cross-block merge normalizes the end slice, then reparses the joined raw',
 	'src/lib/selection/range-delete-chrome.ts':
 		'the truncated-endpoint reparse, shared with the table branch'
 };

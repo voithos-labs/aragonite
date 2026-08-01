@@ -6,7 +6,9 @@ import { metadataOf, type CstNode } from '$lib/core/nodes';
 // The whole-raw door (`normalizeFencedRaw`), where RESTORE lives: the byte sinks reach a node's
 // raw with the OLD metadata still attached, so a closer a truncation consumed is recoverable
 // there and nowhere downstream. `fenced-code-raw.test.ts` covers the display funnel's door
-// (`reconcileFenceWrite`), which the surface guard keeps a closer away from.
+// (`reconcileFenceWrite`), which the surface guard keeps a closer away from;
+// `fenced-code-stranded-closer.test.ts` covers the door's other arm, for the write that took
+// the OPENER instead.
 
 const codeNode = (source: string): CstNode => parse(source).children[0];
 
@@ -73,23 +75,6 @@ describe('normalizeFencedRaw — the dropped closer', () => {
 	// a body line that reads as this fence's closer, and RESTORE's probe reads it AS the closer.
 	it('treats a body line that reads as the closer as the closer', () => {
 		expect(normalizeFencedRaw('```js\n```\nbo\n', closed)).toBe('```js\n```\nbo\n');
-	});
-
-	// The three shapes of "line 0 is not this block's opener". The rule restores the closer the
-	// metadata still claims, and no metadata claims a block whose opener the write took — sizing
-	// a run to the survivor would invent one the CST never had (issue #58).
-	it('declines a tail cut below the opener', () => {
-		expect(normalizeFencedRaw('dy\nmore\n', closed)).toBe('dy\nmore\n');
-	});
-
-	it('declines a stranded closer longer than the block’s own run', () => {
-		const tilde = codeNode('~~~js\nbody\n~~~~~\n');
-		expect(normalizeFencedRaw('~~~~~\n', tilde)).toBe('~~~~~\n');
-	});
-
-	it('declines a lone closer line, which reads as a closer and not as an opener', () => {
-		const bare = codeNode('```\nbody\n```\n');
-		expect(normalizeFencedRaw('```\n', bare)).toBe('```\n');
 	});
 
 	it('declines for a fence the metadata never closed', () => {

@@ -144,40 +144,5 @@ describe('range delete that consumes a fenced code closer', () => {
 			expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'note', 'paragraph']);
 			expectParseConverged(doc);
 		});
-
-		// The END endpoint truncates from the block's start, so it loses the OPENER: the tail
-		// is claimed by no metadata and the rule declines rather than minting a second run.
-		it('declines on the end truncation, which takes the opener and not the closer', () => {
-			const doc = parse(':::note Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
-
-			rangeDelete(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 }, sharing(), undefined);
-
-			expect(doc.children.map((c) => c.kind)).toEqual([
-				'note',
-				'paragraph',
-				'fencedCode',
-				'paragraph'
-			]);
-			expect(doc.children[2].raw).toBe('```\n');
-		});
-
-		// Pins issue #58's known divergence: the surviving line reads as this fence's closer, so
-		// the rule declines and the stray run reparses as a new fence over the tail. Sizing a
-		// closer to it would invent a block the CST never had. Do not delete this to make it green.
-		it('leaves a tail that is exactly the closer line stranded', () => {
-			const doc = parse(':::note Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
-
-			rangeDelete(
-				doc,
-				{ path: [0, 0], offset: 2 },
-				{ path: [1], offset: 11 },
-				sharing(),
-				undefined
-			);
-
-			expect(doc.children.map((c) => c.kind)).toEqual(['note', 'fencedCode', 'paragraph']);
-			expect(doc.children[1].raw).toBe('```\n');
-			expect(parse(serialize(doc)).children.length).toBe(2);
-		});
 	});
 });
